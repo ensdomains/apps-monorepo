@@ -17,8 +17,9 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
-import { getActiveTransaction } from '../utils/getTransactionById'
-import { getStatus, getTransactionStatus } from '../utils/getTransactionStatus'
+import { getActiveTransaction } from '../utils/getActiveTransaction'
+import { getStatus } from '../utils/getStatus'
+import { getTransactionStatus } from '../utils/getTransactionStatus'
 
 type TransactionsOverviewContentProps = {
   readonly address: Address | undefined

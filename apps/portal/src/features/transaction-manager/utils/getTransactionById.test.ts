@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction } from '../types'
-import { getActiveTransaction, getTransactionById } from './getTransactionById'
+import { getTransactionById } from './getTransactionById'
 
 const createTransaction = (
   overrides: Partial<Transaction> = {},
@@ -13,37 +12,6 @@ const createTransaction = (
   onStart: () => {},
   onDone: () => {},
   ...overrides,
-})
-
-const createTxState = (
-  overrides: Partial<ActiveTransactionState> = {},
-): ActiveTransactionState => ({
-  txId: 'tx-1',
-  machineState: 'submitting',
-  hash: undefined,
-  error: undefined,
-  ...overrides,
-})
-
-describe('getActiveTransaction', () => {
-  it('returns transaction matching txState when txState is present', () => {
-    const deployTx = createTransaction({ id: 'deploy' })
-    const changeTx = createTransaction({ id: 'change' })
-    const transactions = [deployTx, changeTx]
-    const txState = createTxState({ txId: 'change' })
-    expect(getActiveTransaction(transactions, txState)).toBe(changeTx)
-  })
-
-  it('returns first transaction when txState is undefined', () => {
-    const deployTx = createTransaction({ id: 'deploy' })
-    const changeTx = createTransaction({ id: 'change' })
-    const transactions = [deployTx, changeTx]
-    expect(getActiveTransaction(transactions, undefined)).toBe(deployTx)
-  })
-
-  it('returns undefined when txState is undefined and transactions is empty', () => {
-    expect(getActiveTransaction([], undefined)).toBeUndefined()
-  })
 })
 
 describe('getTransactionById', () => {

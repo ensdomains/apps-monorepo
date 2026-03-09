@@ -18,11 +18,9 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
-import {
-  getActiveTransaction,
-  getTransactionById,
-} from '../utils/getTransactionById'
-import { getStatus } from '../utils/getTransactionStatus'
+import { getActiveTransaction } from '../utils/getActiveTransaction'
+import { getStatus } from '../utils/getStatus'
+import { getTransactionById } from '../utils/getTransactionById'
 
 type TransactionStateContentProps = {
   readonly transactions: readonly Transaction[]
@@ -143,7 +141,6 @@ export const TransactionStateContent = ({
               key={transaction.id}
               className={cn(
                 'flex flex-start gap-4 border border-border rounded-lg p-3.5',
-                isActive && 'ring-2 ring-ring/50',
               )}
             >
               <div className="mt-1 shrink-0">
