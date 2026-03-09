@@ -72,7 +72,7 @@ const getResolverOverview = ResultFn(async function* ({
             nodeCount
             aliasCount
             roleHolderCount
-            nodes(first: 50) {
+            nodes {
               id
               name
               owner {
