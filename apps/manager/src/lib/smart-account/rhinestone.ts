@@ -2,16 +2,27 @@
  * Rhinestone Account Initialization
  *
  * Pure async function that creates a RhinestoneAccount using the Rhinestone SDK.
- * Uses Pimlico as the bundler. Supports Para-wrapped accounts.
+ *
+ * Two infrastructure paths:
+ * - Warp (default): No bundler — SDK routes through Orchestrator → Relayer Market (intents)
+ * - Pimlico: ERC-4337 bundler for UserOperations
  */
 
-import type { RhinestoneSigner } from '@ens-apps/transaction-manager'
-import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
+import type {
+  RhinestoneSigner,
+  TransactionInfra,
+} from '@ens-apps/transaction-manager'
+import { createParaAccount } from '@getpara/viem-v2-integration'
+import {
+  type RhinestoneAccount,
+  RhinestoneSDK,
+  walletClientToAccount,
+  wrapParaAccount,
+} from '@rhinestone/sdk'
 import type { Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from './hca-registry'
-import type { SmartAccountType } from './types'
-import { walletClientToAccount, wrapParaAccount } from './utils'
+import type { ParaClient, SmartAccountType } from './types'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
@@ -23,14 +34,17 @@ export interface RhinestoneConfig {
 }
 
 export interface InitializeRhinestoneParams {
-  walletClient: WalletClient
+  walletClient?: WalletClient
+  paraClient?: ParaClient
   accountType?: SmartAccountType
   registerHCA?: boolean // Whether to register HCA ownership after account creation
+  infrastructure?: TransactionInfra
 }
 
 export interface RhinestoneInitResult {
   client: RhinestoneAccount
   address: Address
+  ownerAddress: Address
   config: RhinestoneConfig
 }
 
@@ -46,8 +60,10 @@ export async function initializeRhinestoneAccount(
 ): Promise<RhinestoneInitResult> {
   const {
     walletClient,
+    paraClient,
     accountType = 'simple',
     registerHCA = accountType === 'hca',
+    infrastructure = 'warp',
   } = params
 
   const apiKey = import.meta.env.VITE_RHINESTONE_API_KEY
@@ -57,38 +73,61 @@ export async function initializeRhinestoneAccount(
     )
   }
 
-  const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-  if (!pimlicoApiKey) {
+  let eoaAddress: Address
+  let wrappedAccount: ReturnType<typeof wrapParaAccount>
+
+  if (walletClient?.account?.address) {
+    const account = walletClientToAccount(walletClient)
+    eoaAddress = walletClient.account.address
+    wrappedAccount = wrapParaAccount(account)
+  } else if (paraClient) {
+    const paraAccount = createParaAccount(paraClient)
+    eoaAddress = paraAccount.address as Address
+    wrappedAccount = wrapParaAccount(paraAccount)
+  } else {
     throw new Error(
-      'Pimlico API key not configured (required for Rhinestone bundler)',
+      'Either walletClient or paraClient must be provided for Rhinestone initialization',
     )
   }
 
-  const account = walletClientToAccount(walletClient)
-  const eoaAddress = walletClient.account?.address
+  // Always include Pimlico bundler when available.
+  // Warp (intents) doesn't need it, but session-based transactions require
+  // sendUserOperation (ERC-4337) since SDK v1.2.14 rejects experimental_session
+  // signers in sendTransaction.
+  const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
 
-  if (!eoaAddress) {
-    throw new Error('Wallet client must have an account address')
+  if (infrastructure === 'pimlico' && !pimlicoApiKey) {
+    throw new Error(
+      'Pimlico API key not configured (required for ERC-4337 bundler)',
+    )
   }
 
-  const wrappedAccount = wrapParaAccount(account)
-
-  const sdk = new RhinestoneSDK({
-    apiKey,
-    bundler: {
-      type: 'pimlico',
-      apiKey: pimlicoApiKey,
-    },
-  })
+  const sdk = pimlicoApiKey
+    ? new RhinestoneSDK({
+        apiKey,
+        bundler: { type: 'pimlico', apiKey: pimlicoApiKey },
+      })
+    : new RhinestoneSDK({ apiKey })
 
   const rhinestoneAccount = await sdk.createAccount({
     owners: {
       type: 'ecdsa' as const,
       accounts: [wrappedAccount],
     },
+    experimental_sessions: { enabled: true },
   })
 
   const accountAddress = rhinestoneAccount.getAddress()
+
+  // Deploy the smart account on-chain if not already deployed.
+  // Both Pimlico (ERC-4337) and Warp (intents) require the account to exist on-chain
+  // before sending transactions — the orchestrator simulates bundles against deployed state.
+  const deployed = await rhinestoneAccount.isDeployed(customSepolia)
+  if (!deployed) {
+    console.log('🔧 [RHINESTONE] Deploying smart account on-chain...')
+    await rhinestoneAccount.deploy(customSepolia)
+    console.log('✅ [RHINESTONE] Smart account deployed:', accountAddress)
+  }
 
   // Register HCA ownership via smart account (sponsored) if requested
   if (registerHCA) {
@@ -102,6 +141,7 @@ export async function initializeRhinestoneAccount(
         chain: customSepolia,
         accountAddress,
         rhinestoneApiKey: apiKey,
+        defaultInfra: infrastructure,
       },
     }
 
@@ -133,6 +173,7 @@ export async function initializeRhinestoneAccount(
   return {
     client: rhinestoneAccount,
     address: accountAddress,
+    ownerAddress: eoaAddress,
     config,
   }
 }

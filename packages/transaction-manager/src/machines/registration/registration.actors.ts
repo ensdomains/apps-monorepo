@@ -204,7 +204,10 @@ function getSignerAddress(signer: Signer): Address {
   }
 
   if (signer.type === 'rhinestone') {
-    // Rhinestone SDK account - use getAddress method
+    if (signer.config.accountAddress) {
+      return signer.config.accountAddress
+    }
+    // Fallback to SDK method
     return signer.account.getAddress() as Address
   }
 

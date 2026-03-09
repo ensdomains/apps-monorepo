@@ -39,8 +39,13 @@ function createMockSigner(
     type: 'rhinestone',
     account: {
       sendTransaction: vi.fn().mockResolvedValue('mock-intent-id'),
-      waitForExecution: vi.fn().mockResolvedValue({
-        fill: { hash: MOCK_TX_HASH },
+      sendUserOperation: vi.fn().mockResolvedValue('mock-userop-result'),
+      waitForExecution: vi.fn().mockImplementation((result: unknown) => {
+        // Return different shapes based on which method was called
+        if (result === 'mock-userop-result') {
+          return { receipt: { transactionHash: MOCK_TX_HASH } }
+        }
+        return { fill: { hash: MOCK_TX_HASH } }
       }),
     } as unknown as RhinestoneAccount,
     config: {
@@ -134,35 +139,34 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
   })
 
-  it('spreads signers when isSessionClient and sessionConfig present', async () => {
-    const mockSigners = { mock: 'signer-set' } as unknown as SignerSet
+  it('uses sendTransaction (intents) even when session is active (SDK v1.2.14 limitation)', async () => {
+    const mockSigners = {
+      type: 'experimental_session',
+      session: {},
+      enableData: {
+        userSignature: '0x123',
+        hashesAndChainIds: [],
+        sessionToEnableIndex: 0,
+      },
+    } as unknown as SignerSet
     const signer = createMockSigner({
       isSessionClient: true,
       sessionConfig: { signers: mockSigners },
     })
     const request = createRhinestoneRequest()
 
-    await submitWarpTransaction({ request, signer })
+    const result = await submitWarpTransaction({ request, signer })
 
-    expect(signer.account.sendTransaction).toHaveBeenCalledWith({
-      chain: sepolia,
-      calls: MOCK_CALLS,
-      sponsored: true,
-      signers: mockSigners,
-    })
-  })
-
-  it('does not spread signers when isSessionClient is false', async () => {
-    const signer = createMockSigner({ isSessionClient: false })
-    const request = createRhinestoneRequest()
-
-    await submitWarpTransaction({ request, signer })
-
+    // SDK v1.2.14: session signers not supported in sendUserOperation or sendTransaction.
+    // Falls back to owner-signed intents via sendTransaction.
     expect(signer.account.sendTransaction).toHaveBeenCalledWith({
       chain: sepolia,
       calls: MOCK_CALLS,
       sponsored: true,
     })
+    expect(signer.account.sendUserOperation).not.toHaveBeenCalled()
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
   })
 
   it('defaults sponsored to true when not specified', async () => {

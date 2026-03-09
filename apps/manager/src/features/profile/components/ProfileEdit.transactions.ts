@@ -149,6 +149,9 @@ export interface SaveRecordsResult extends WaitForTransactionResult {
 
 function getSmartAccountAddress(signer: Signer): Address {
   if (signer.type === 'rhinestone') {
+    if (signer.config.accountAddress) {
+      return signer.config.accountAddress
+    }
     return signer.account.getAddress() as Address
   }
 

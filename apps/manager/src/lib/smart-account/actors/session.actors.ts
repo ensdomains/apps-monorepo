@@ -1,6 +1,7 @@
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
-import type { Address, Hex } from 'viem'
+import type { Address, Chain, Hex } from 'viem'
 import type { SessionProvider } from '@/utils/feature-flags'
 import {
   createRhinestoneSession,
@@ -20,14 +21,15 @@ import { SessionError } from '../sessions/zerodev-session'
 /**
  * Session client returned by session actors.
  * - ZeroDev: a KernelAccountClient (session-derived)
- * - Rhinestone: the session private key — the full SDK-compatible SignerSet
- *   is constructed at signer creation time (SmartAccountContext) because
- *   Account/Chain objects are not JSON-serializable.
+ * - Rhinestone: session private key + enablement data — the full SDK-compatible
+ *   SignerSet is constructed at signer creation time (SmartAccountContext).
  */
 export type SessionClient =
   | KernelAccountClient
   | {
       readonly sessionPrivateKey: Hex
+      readonly enableSignature: Hex
+      readonly hashesAndChainIds: string
     }
 
 export interface CheckSessionInput {
@@ -63,6 +65,9 @@ export interface CreateSessionInput {
   readonly chainId: number
   readonly ecdsaValidator?: KernelValidator<'ECDSAValidator'>
   readonly config?: SessionConfig
+  /** Rhinestone-specific: needed for on-chain session enablement */
+  readonly rhinestoneAccount?: RhinestoneAccount
+  readonly chain?: Chain
 }
 
 export interface CreateSessionOutput {
@@ -74,17 +79,32 @@ export function createSessionActor(
   input: CreateSessionInput,
 ): ResultAsync<CreateSessionOutput, SessionError> {
   if (input.provider === 'rhinestone') {
+    if (!input.rhinestoneAccount || !input.chain) {
+      return errAsync(
+        new SessionError(
+          'Failed to create session',
+          'Missing rhinestoneAccount or chain for Rhinestone session enablement',
+        ),
+      )
+    }
+
     return createRhinestoneSession({
       ownerAddress: input.ownerAddress,
       smartAccountAddress: input.accountAddress,
       chainId: input.chainId,
+      rhinestoneAccount: input.rhinestoneAccount,
+      chain: input.chain,
       config: input.config,
     }).andThen(({ session, sessionPrivateKey }) => {
       saveSession(session)
 
       return okAsync({
         session,
-        sessionClient: { sessionPrivateKey },
+        sessionClient: {
+          sessionPrivateKey,
+          enableSignature: session.enableSignature,
+          hashesAndChainIds: session.hashesAndChainIds,
+        },
       })
     })
   }
@@ -143,7 +163,11 @@ export function restoreSessionActor(
 
   if (isRhinestoneSession(session)) {
     return restoreRhinestoneSession({ session }).map(() => ({
-      sessionClient: { sessionPrivateKey: session.sessionPrivateKey },
+      sessionClient: {
+        sessionPrivateKey: session.sessionPrivateKey,
+        enableSignature: session.enableSignature,
+        hashesAndChainIds: session.hashesAndChainIds,
+      },
     }))
   }
 

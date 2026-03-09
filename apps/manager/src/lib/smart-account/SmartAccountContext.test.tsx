@@ -13,13 +13,12 @@ import './SmartAccountContext.mocks'
 
 import { useClient, useWallet } from '@getpara/react-sdk-lite'
 import { useWalletClient } from 'wagmi'
-import { initializePimlicoAccount } from './pimlico'
+import { initializeRhinestoneAccount } from './rhinestone'
 import {
   SmartAccountContextProvider,
   useSmartAccountContext,
   useSmartAccountContextSafe,
 } from './SmartAccountContext'
-import { initializeZeroDevAccount } from './zerodev/kernel'
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -104,7 +103,7 @@ describe('SmartAccountContext', () => {
       expect(result.current.accountAddress).toBeNull()
     })
 
-    it('initializes ZeroDev for external wallet', async () => {
+    it('initializes Rhinestone for external wallet', async () => {
       vi.mocked(useWallet).mockReturnValue({
         data: { isExternal: true },
         isPending: false,
@@ -123,11 +122,11 @@ describe('SmartAccountContext', () => {
         expect(result.current.isAccountReady).toBe(true)
       })
 
-      expect(initializeZeroDevAccount).toHaveBeenCalled()
+      expect(initializeRhinestoneAccount).toHaveBeenCalled()
       expect(result.current.walletSource).toBe('external-wallet')
     })
 
-    it('initializes Pimlico for Para embedded wallet', async () => {
+    it('initializes Rhinestone for Para embedded wallet', async () => {
       vi.mocked(useWallet).mockReturnValue({
         data: { isExternal: false },
         isPending: false,
@@ -142,7 +141,7 @@ describe('SmartAccountContext', () => {
         expect(result.current.isAccountReady).toBe(true)
       })
 
-      expect(initializePimlicoAccount).toHaveBeenCalled()
+      expect(initializeRhinestoneAccount).toHaveBeenCalled()
       expect(result.current.walletSource).toBe('para-embedded')
     })
   })
@@ -168,7 +167,7 @@ describe('SmartAccountContext', () => {
       })
 
       expect(result.current.signer).not.toBeNull()
-      expect(result.current.signer?.type).toBe('zerodev')
+      expect(result.current.signer?.type).toBe('rhinestone')
     })
 
     it('returns null signer when not initialized', () => {

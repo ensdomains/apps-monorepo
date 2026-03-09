@@ -67,44 +67,31 @@ export function submitRhinestoneTransaction(input: {
 
   return fromPromise(
     (async () => {
-      console.log('📤 Calling rhinestoneAccount.sendTransaction()...', {
+      console.log('📤 Calling rhinestoneAccount transaction...', {
         chain: chain.name,
         chainId: chain.id,
         callCount: rhinestoneRequest.rhinestoneParams.calls.length,
-        calls: rhinestoneRequest.rhinestoneParams.calls.map((call) => ({
-          to: call.to,
-          data: call.data,
-          value: call.value.toString(),
-        })),
+        isSessionClient: !!config.isSessionClient,
       })
 
+      // SDK v1.2.14: experimental_session signers are not supported in either
+      // sendUserOperation (getValidatorAccount returns null) or sendTransaction
+      // (throws SignerNotSupportedError). All transactions use owner-signed intents.
+      // TODO: Enable session signing when SDK adds proper session support.
       const transaction = await account.sendTransaction({
-        chain: chain,
+        chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
         sponsored: rhinestoneRequest.rhinestoneParams.sponsored ?? true,
-        ...(config.isSessionClient &&
-          config.sessionConfig && {
-            signers: config.sessionConfig.signers,
-          }),
       })
       const receipt = await account.waitForExecution(transaction, false)
 
-      console.log('✅ Transaction response:', receipt)
-
-      // Rhinestone returns an "intent" object with an 'id' property, not 'hash'
       const txHash = receipt.fill.hash
+      console.log('✅ Intent hash:', txHash)
 
-      console.log('✅ Transaction hash/id:', txHash)
-      console.log('✅ Transaction type:', transaction.type)
-
-      if (!transaction || !txHash) {
-        console.error('❌ No transaction hash or ID returned!', transaction)
-        throw new Error(
-          'No transaction hash or ID returned from Rhinestone SDK',
-        )
+      if (!txHash) {
+        throw new Error('No transaction hash returned from Rhinestone SDK')
       }
 
-      console.log('✅ Final hash:', txHash)
       return txHash
     })(),
     (error) => {

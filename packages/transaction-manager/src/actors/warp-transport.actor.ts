@@ -52,19 +52,45 @@ export function submitWarpTransaction(
     )
   }
 
+  // Runtime guard: ensure we have a RhinestoneAccount, not a permissionless SmartAccountClient.
+  // The waitForExecution method only exists on RhinestoneAccount.
+  if (typeof account.waitForExecution !== 'function') {
+    return errAsync(
+      new TransactionSubmissionError(
+        request,
+        new Error(
+          'Warp transport requires a RhinestoneAccount but received a different client type. ' +
+            'Check that the Rhinestone provider is active (VITE_FF_RHINESTONE_SESSIONS=true)',
+        ),
+      ),
+    )
+  }
+
   return fromPromise(
     (async () => {
       const chain = config.chain || sepolia
 
-      // Submit intent via Warp — relayers sponsor gas automatically
+      // Log raw call data before SDK processes it
+      console.log(
+        '📤 [WARP] Raw calls before SDK:',
+        JSON.stringify(
+          calls,
+          (_, v) => (typeof v === 'bigint' ? v.toString() : v),
+          2,
+        ),
+      )
+      console.log('📤 [WARP] Account address:', account.getAddress?.())
+      console.log('📤 [WARP] Chain:', chain.name, chain.id)
+      console.log('📤 [WARP] Sponsored:', sponsored ?? true)
+
+      // SDK v1.2.14: experimental_session signers are not supported in either
+      // sendUserOperation (getValidatorAccount returns null) or sendTransaction
+      // (throws SignerNotSupportedError). All transactions use owner-signed intents.
+      // TODO: Enable session signing when SDK adds proper session support.
       const transaction = await account.sendTransaction({
         chain,
         calls,
         sponsored: sponsored ?? true,
-        ...(config.isSessionClient &&
-          config.sessionConfig && {
-            signers: config.sessionConfig.signers,
-          }),
       })
 
       // Wait for a relayer to fill the intent
@@ -78,6 +104,6 @@ export function submitWarpTransaction(
 
       return txHash
     })(),
-    (error) => new TransactionSubmissionError(request, error as Error),
+    (error: unknown) => new TransactionSubmissionError(request, error as Error),
   )
 }

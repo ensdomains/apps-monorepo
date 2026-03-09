@@ -5,6 +5,7 @@ export {
 // Context-based smart account (shared state across components)
 export {
   SmartAccountContextProvider,
+  type SmartAccountContextValue,
   useSmartAccountContext,
   useSmartAccountContextSafe,
 } from './SmartAccountContext'

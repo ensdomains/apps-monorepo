@@ -7,6 +7,7 @@ import {
   useClient as useParaClient,
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
 import type { KernelAccountClient } from '@zerodev/sdk'
@@ -25,6 +26,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { useWalletClient } from 'wagmi'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
+import type { RhinestoneConfig } from './rhinestone'
 import {
   selectIsCreatingSession,
   selectIsLoading,
@@ -38,7 +40,11 @@ import type {
 } from './types'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
-interface SmartAccountContextValue extends ZeroDevAccountState {
+export interface SmartAccountContextValue
+  extends Omit<ZeroDevAccountState, 'type' | 'client' | 'config'> {
+  readonly type: 'zerodev' | 'rhinestone'
+  readonly client: ZeroDevAccountState['client'] | RhinestoneAccount | null
+  readonly config: ZeroDevAccountState['config'] | RhinestoneConfig | null
   readonly hasInitialized: boolean
   readonly isReady: boolean
   readonly isCreatingSession: boolean
@@ -260,7 +266,18 @@ export const SmartAccountContextProvider = ({
 
       const rhinestoneSessionClient = sessionClient as {
         sessionPrivateKey: Hex
+        enableSignature: Hex
+        hashesAndChainIds: string
       } | null
+
+      // Deserialize hashesAndChainIds from localStorage format (string chainId → bigint)
+      const deserializeHashes = (json: string) =>
+        (JSON.parse(json) as { chainId: string; sessionDigest: Hex }[]).map(
+          (h) => ({
+            chainId: BigInt(h.chainId),
+            sessionDigest: h.sessionDigest,
+          }),
+        )
 
       return {
         type: 'rhinestone' as const,
@@ -286,9 +303,17 @@ export const SmartAccountContextProvider = ({
                     ],
                   },
                   chain: customSepolia,
+                  actions: [{ policies: [{ type: 'sudo' as const }] }],
+                },
+                enableData: {
+                  userSignature: rhinestoneSessionClient.enableSignature,
+                  hashesAndChainIds: deserializeHashes(
+                    rhinestoneSessionClient.hashesAndChainIds,
+                  ),
+                  sessionToEnableIndex: 0,
                 },
               },
-            } as RhinestoneSigner['config']['sessionConfig'],
+            } as unknown as RhinestoneSigner['config']['sessionConfig'],
           }),
           defaultInfra: infrastructure,
         },
@@ -370,10 +395,10 @@ export const SmartAccountContextProvider = ({
     !!snapshot.context.client && !!snapshot.context.accountAddress
 
   const contextValue: SmartAccountContextValue = {
-    type: 'zerodev',
+    type: provider,
     client: (snapshot.context.sessionClient ??
-      snapshot.context.client) as KernelAccountClient | null,
-    config: snapshot.context.config as ZeroDevAccountState['config'],
+      snapshot.context.client) as SmartAccountContextValue['client'],
+    config: snapshot.context.config as SmartAccountContextValue['config'],
     accountAddress: snapshot.context.accountAddress,
     isLoading,
     error: snapshot.context.error,

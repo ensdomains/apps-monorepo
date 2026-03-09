@@ -80,6 +80,11 @@ const createMockZeroDevSession = (
   ...overrides,
 })
 
+const MOCK_ENABLE_SIGNATURE = '0xenablesig123' as Hex
+const MOCK_HASHES_JSON = JSON.stringify([
+  { chainId: '11155111', sessionDigest: '0xdigest123' },
+])
+
 const createMockRhinestoneSession = (
   overrides: Partial<RhinestoneStoredSession> = {},
 ): RhinestoneStoredSession => ({
@@ -93,6 +98,8 @@ const createMockRhinestoneSession = (
   sessionPrivateKey: SESSION_PRIVATE_KEY,
   sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId: 11155111 }),
   serializedSessionAccount: '',
+  enableSignature: MOCK_ENABLE_SIGNATURE,
+  hashesAndChainIds: MOCK_HASHES_JSON,
   ...overrides,
 })
 
@@ -191,7 +198,13 @@ describe('session.actors', () => {
   // ─── createSessionActor ──────────────────────────────────────────
 
   describe('createSessionActor', () => {
-    it('creates rhinestone session and returns sessionPrivateKey', async () => {
+    const mockRhinestoneAccount = {
+      experimental_getSessionDetails: vi.fn(),
+      experimental_signEnableSession: vi.fn(),
+    } as any
+    const mockChain = { id: 11155111, name: 'Sepolia' } as any
+
+    it('creates rhinestone session and returns sessionPrivateKey with enableData', async () => {
       const session = createMockRhinestoneSession()
       mockedCreateRhinestoneSession.mockReturnValue(
         okAsync({ session, sessionPrivateKey: SESSION_PRIVATE_KEY }),
@@ -202,6 +215,8 @@ describe('session.actors', () => {
         accountAddress: ACCOUNT_ADDRESS,
         provider: 'rhinestone',
         chainId: 11155111,
+        rhinestoneAccount: mockRhinestoneAccount,
+        chain: mockChain,
       })
 
       expect(result.isOk()).toBe(true)
@@ -209,6 +224,8 @@ describe('session.actors', () => {
       expect(output.session).toBe(session)
       expect(output.sessionClient).toEqual({
         sessionPrivateKey: SESSION_PRIVATE_KEY,
+        enableSignature: MOCK_ENABLE_SIGNATURE,
+        hashesAndChainIds: MOCK_HASHES_JSON,
       })
     })
 
@@ -223,9 +240,26 @@ describe('session.actors', () => {
         accountAddress: ACCOUNT_ADDRESS,
         provider: 'rhinestone',
         chainId: 11155111,
+        rhinestoneAccount: mockRhinestoneAccount,
+        chain: mockChain,
       })
 
       expect(mockedSaveSession).toHaveBeenCalledWith(session)
+    })
+
+    it('returns error when rhinestoneAccount is missing for rhinestone provider', async () => {
+      const result = await createSessionActor({
+        ownerAddress: OWNER_ADDRESS,
+        accountAddress: ACCOUNT_ADDRESS,
+        provider: 'rhinestone',
+        chainId: 11155111,
+      })
+
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SessionError)
+      expect(result._unsafeUnwrapErr().message).toContain(
+        'Missing rhinestoneAccount or chain',
+      )
     })
 
     it('creates zerodev session and returns client', async () => {
@@ -291,7 +325,7 @@ describe('session.actors', () => {
   // ─── restoreSessionActor ─────────────────────────────────────────
 
   describe('restoreSessionActor', () => {
-    it('restores rhinestone session and returns sessionPrivateKey', async () => {
+    it('restores rhinestone session and returns sessionPrivateKey with enableData', async () => {
       const session = createMockRhinestoneSession()
       mockedRestoreRhinestoneSession.mockReturnValue(okAsync(undefined))
 
@@ -302,7 +336,11 @@ describe('session.actors', () => {
 
       expect(result.isOk()).toBe(true)
       expect(result._unsafeUnwrap()).toEqual({
-        sessionClient: { sessionPrivateKey: SESSION_PRIVATE_KEY },
+        sessionClient: {
+          sessionPrivateKey: SESSION_PRIVATE_KEY,
+          enableSignature: MOCK_ENABLE_SIGNATURE,
+          hashesAndChainIds: MOCK_HASHES_JSON,
+        },
       })
     })
 

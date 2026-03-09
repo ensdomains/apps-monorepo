@@ -5,7 +5,7 @@ import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { SmartAccountClient as PimlicoAccountClient } from 'permissionless'
 import type { Address, WalletClient } from 'viem'
-import type { SessionProvider } from '@/utils/feature-flags'
+import type { SessionProvider, TransactionInfra } from '@/utils/feature-flags'
 import { initializePimlicoAccount, type PimlicoInitResult } from '../pimlico'
 import {
   initializeRhinestoneAccount,
@@ -41,6 +41,7 @@ export interface InitializeAccountInput {
   readonly paraClient?: ParaClient
   readonly provider: SessionProvider
   readonly accountType?: SmartAccountType
+  readonly infrastructure?: TransactionInfra
 }
 
 export class AccountInitializationError extends TaggedError(
@@ -111,19 +112,54 @@ function mapRhinestoneConfig(
 }
 
 /**
- * Initialize smart account based on wallet source and provider.
+ * Initialize smart account based on provider and wallet source.
  *
  * Routing logic:
- * - Para-embedded wallets → Pimlico (no sessions needed)
- * - External wallets + Rhinestone flag → Rhinestone account
- * - External wallets + ZeroDev flag → ZeroDev Kernel account
+ * - Rhinestone provider → Rhinestone account (supports both Para-embedded and external wallets)
+ * - Para-embedded + ZeroDev → Pimlico smart account
+ * - External wallet + ZeroDev → ZeroDev Kernel account
  */
 export function initializeAccountActor(
   input: InitializeAccountInput,
 ): ResultAsync<AccountInitResult, AccountInitializationError> {
-  const { walletSource, walletClient, paraClient, provider, accountType } =
-    input
+  const {
+    walletSource,
+    walletClient,
+    paraClient,
+    provider,
+    accountType,
+    infrastructure,
+  } = input
 
+  // Rhinestone path: supports both external wallets and Para embedded
+  if (provider === 'rhinestone') {
+    if (!walletClient && !paraClient) {
+      return errAsync(
+        new AccountInitializationError({
+          provider: 'routing',
+          cause: new Error(
+            'Missing wallet client or Para client for Rhinestone initialization',
+          ),
+        }),
+      )
+    }
+
+    return fromPromise(
+      initializeRhinestoneAccount({
+        walletClient,
+        paraClient,
+        accountType,
+        infrastructure,
+      }),
+      (error) =>
+        new AccountInitializationError({
+          provider: 'rhinestone',
+          cause: error,
+        }),
+    ).map((result) => mapRhinestoneConfig(result, result.ownerAddress))
+  }
+
+  // Para-embedded + non-Rhinestone → Pimlico
   if (walletSource === 'para-embedded') {
     if (!paraClient) {
       return errAsync(
@@ -151,6 +187,7 @@ export function initializeAccountActor(
     })
   }
 
+  // External wallet + non-Rhinestone → ZeroDev
   if (!walletClient) {
     return errAsync(
       new AccountInitializationError({
@@ -170,20 +207,6 @@ export function initializeAccountActor(
         cause: new Error('Wallet client must have an account address'),
       }),
     )
-  }
-
-  if (provider === 'rhinestone') {
-    return fromPromise(
-      initializeRhinestoneAccount({
-        walletClient,
-        accountType,
-      }),
-      (error) =>
-        new AccountInitializationError({
-          provider: 'rhinestone',
-          cause: error,
-        }),
-    ).map((result) => mapRhinestoneConfig(result, ownerAddress))
   }
 
   return fromPromise(

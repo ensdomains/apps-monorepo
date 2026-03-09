@@ -1,5 +1,6 @@
 import type { SmartAccountConfig } from '@ens-apps/transaction-manager'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { KernelValidator } from '@zerodev/sdk'
 import type { Address, WalletClient } from 'viem'
 import { assign, type StateFrom, setup } from 'xstate'
@@ -137,6 +138,12 @@ function requireCreateSessionInput(
     provider: context.provider,
     chainId: context.config.chain.id,
     ecdsaValidator: context.ecdsaValidator ?? undefined,
+    // Rhinestone-specific: pass account client and chain for session enablement
+    rhinestoneAccount:
+      context.provider === 'rhinestone'
+        ? (context.client as unknown as RhinestoneAccount)
+        : undefined,
+    chain: context.config.chain,
   }
 }
 
@@ -222,6 +229,7 @@ export const smartAccountMachine = setup({
           paraClient: context.paraClient ?? undefined,
           provider: context.provider,
           accountType: context.accountType,
+          infrastructure: context.infrastructure,
         }),
         onDone: {
           target: 'checkingSession',
@@ -251,7 +259,6 @@ export const smartAccountMachine = setup({
 
     checkingSession: {
       entry: [logState('checkingSession')],
-      always: [{ guard: 'isParaEmbedded', target: 'ready' }],
       invoke: {
         src: 'checkExistingSession',
         input: ({ context }) => ({

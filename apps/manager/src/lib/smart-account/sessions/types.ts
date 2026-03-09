@@ -48,7 +48,7 @@ export interface ZeroDevStoredSession extends BaseStoredSession {
 
 /**
  * Rhinestone session (new format)
- * Uses Rhinestone SDK's session config
+ * Uses Rhinestone SDK's session config with on-chain enablement data
  */
 export interface RhinestoneStoredSession extends BaseStoredSession {
   readonly provider: 'rhinestone'
@@ -59,6 +59,13 @@ export interface RhinestoneStoredSession extends BaseStoredSession {
    * ZeroDev sessions while Rhinestone session handling is being adopted.
    */
   readonly serializedSessionAccount: string
+  /** Owner signature from experimental_signEnableSession (one-time enablement) */
+  readonly enableSignature: Hex
+  /**
+   * JSON-serialized array of { chainId: string; sessionDigest: Hex }.
+   * chainId is stored as string because bigint is not JSON-serializable.
+   */
+  readonly hashesAndChainIds: string
 }
 
 export type StoredSession = ZeroDevStoredSession | RhinestoneStoredSession

@@ -4,7 +4,8 @@
  * Tests for createRhinestoneSession and restoreRhinestoneSession.
  */
 
-import type { Address, Hex } from 'viem'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createRhinestoneSession,
@@ -27,10 +28,30 @@ vi.mock('viem/accounts', () => ({
 
 const MOCK_UUID = '550e8400-e29b-41d4-a716-446655440000'
 
+const MOCK_ENABLE_SIGNATURE = '0xenablesig123' as Hex
+const MOCK_HASHES_AND_CHAIN_IDS = [
+  { chainId: 11155111n, sessionDigest: '0xdigest123' as Hex },
+]
+
 // ── Fixtures ───────────────────────────────────────────────────────────
 
 const OWNER_ADDRESS = '0xOwner12345678901234567890123456789012345678' as Address
 const ACCOUNT_ADDRESS = '0xAccount1234567890123456789012345678901234' as Address
+
+const MOCK_CHAIN = { id: 11155111, name: 'Sepolia' } as Chain
+
+function createMockRhinestoneAccount(): RhinestoneAccount {
+  return {
+    experimental_getSessionDetails: vi.fn().mockResolvedValue({
+      nonces: [0n],
+      hashesAndChainIds: MOCK_HASHES_AND_CHAIN_IDS,
+      data: {},
+    }),
+    experimental_signEnableSession: vi
+      .fn()
+      .mockResolvedValue(MOCK_ENABLE_SIGNATURE),
+  } as unknown as RhinestoneAccount
+}
 
 // ── Tests ──────────────────────────────────────────────────────────────
 
@@ -43,11 +64,15 @@ describe('rhinestone-session', () => {
   // ─── createRhinestoneSession ─────────────────────────────────────
 
   describe('createRhinestoneSession', () => {
-    it('creates a session with correct shape', async () => {
+    it('creates a session with correct shape including enablement data', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
         smartAccountAddress: ACCOUNT_ADDRESS,
         chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
       })
 
       expect(result.isOk()).toBe(true)
@@ -60,13 +85,19 @@ describe('rhinestone-session', () => {
       expect(session.ownerAddress).toBe(OWNER_ADDRESS)
       expect(session.chainId).toBe(11155111)
       expect(session.serializedSessionAccount).toBe('')
+      expect(session.enableSignature).toBe(MOCK_ENABLE_SIGNATURE)
+      expect(session.hashesAndChainIds).toBeDefined()
     })
 
     it('returns sessionPrivateKey matching the generated key', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
         smartAccountAddress: ACCOUNT_ADDRESS,
         chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
       })
 
       expect(result.isOk()).toBe(true)
@@ -76,11 +107,81 @@ describe('rhinestone-session', () => {
       expect(session.sessionPrivateKey).toBe(MOCK_PRIVATE_KEY)
     })
 
-    it('stores serializable metadata in sessionConfig', async () => {
+    it('calls experimental_getSessionDetails with session containing sudo policy', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+
+      await createRhinestoneSession({
+        ownerAddress: OWNER_ADDRESS,
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
+      })
+
+      expect(mockAccount.experimental_getSessionDetails).toHaveBeenCalledWith([
+        expect.objectContaining({
+          owners: {
+            type: 'ecdsa',
+            accounts: [{ address: MOCK_SESSION_ADDRESS }],
+          },
+          chain: MOCK_CHAIN,
+          actions: [{ policies: [{ type: 'sudo' }] }],
+        }),
+      ])
+    })
+
+    it('calls experimental_signEnableSession with session details', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+      const mockDetails = {
+        nonces: [0n],
+        hashesAndChainIds: MOCK_HASHES_AND_CHAIN_IDS,
+        data: {},
+      }
+      ;(
+        mockAccount.experimental_getSessionDetails as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockDetails)
+
+      await createRhinestoneSession({
+        ownerAddress: OWNER_ADDRESS,
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
+      })
+
+      expect(mockAccount.experimental_signEnableSession).toHaveBeenCalledWith(
+        mockDetails,
+      )
+    })
+
+    it('serializes hashesAndChainIds with string chainId for JSON storage', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
         smartAccountAddress: ACCOUNT_ADDRESS,
         chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
+      })
+
+      const { session } = result._unsafeUnwrap()
+      const parsed = JSON.parse(session.hashesAndChainIds)
+
+      expect(parsed).toEqual([
+        { chainId: '11155111', sessionDigest: '0xdigest123' },
+      ])
+    })
+
+    it('stores serializable metadata in sessionConfig', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+
+      const result = await createRhinestoneSession({
+        ownerAddress: OWNER_ADDRESS,
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
       })
 
       const { session } = result._unsafeUnwrap()
@@ -90,12 +191,15 @@ describe('rhinestone-session', () => {
     })
 
     it('respects config.validUntil when provided', async () => {
+      const mockAccount = createMockRhinestoneAccount()
       const validUntil = Date.now() + 3600_000
 
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
         smartAccountAddress: ACCOUNT_ADDRESS,
         chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
         config: { validUntil },
       })
 
@@ -104,16 +208,23 @@ describe('rhinestone-session', () => {
       expect(session.validUntil).toBe(validUntil)
     })
 
-    it('sets validUntil to undefined when config not provided', async () => {
+    it('returns SessionError when SDK call fails', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+      ;(
+        mockAccount.experimental_getSessionDetails as ReturnType<typeof vi.fn>
+      ).mockRejectedValue(new Error('SDK error'))
+
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
         smartAccountAddress: ACCOUNT_ADDRESS,
         chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
       })
 
-      const { session } = result._unsafeUnwrap()
-
-      expect(session.validUntil).toBeUndefined()
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SessionError)
+      expect(result._unsafeUnwrapErr().message).toContain('SDK error')
     })
   })
 
@@ -136,6 +247,10 @@ describe('rhinestone-session', () => {
         chainId: 11155111,
       }),
       serializedSessionAccount: '',
+      enableSignature: MOCK_ENABLE_SIGNATURE,
+      hashesAndChainIds: JSON.stringify([
+        { chainId: '11155111', sessionDigest: '0xdigest123' },
+      ]),
       ...overrides,
     })
 
