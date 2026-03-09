@@ -546,7 +546,7 @@ export default {
       const decodedAddress = decodeURIComponent(address)
       const accept = request.headers.get('Accept') ?? ''
 
-      if (!accept.includes('text/html')) {
+      if (!accept.includes('text/html') && !accept.includes('*/*')) {
         return env.ASSETS.fetch(request)
       }
 
@@ -589,7 +589,7 @@ export default {
       const accept = request.headers.get('Accept') ?? ''
 
       // Only inject for HTML requests (not JS, CSS, etc.)
-      if (!accept.includes('text/html')) {
+      if (!accept.includes('text/html') && !accept.includes('*/*')) {
         return env.ASSETS.fetch(request)
       }
 
@@ -634,7 +634,7 @@ export default {
 
     // All other routes: inject default OG meta tags for HTML requests
     const accept = request.headers.get('Accept') ?? ''
-    if (accept.includes('text/html')) {
+    if (accept.includes('text/html') || accept.includes('*/*')) {
       const response = await env.ASSETS.fetch(request)
       const host = url.host
       const ogImageUrl = `https://${host}/og/default.png`
