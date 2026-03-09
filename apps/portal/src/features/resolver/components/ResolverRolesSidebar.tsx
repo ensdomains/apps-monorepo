@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { permissions } from '@/lib/roles/permissions'
+import { resolverPermissions } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 import type { AccountRoleGroup } from './ResolverRolesTable'
@@ -62,7 +62,7 @@ export const ResolverRolesSidebar = ({
               <div className="flex flex-col gap-4">
                 <h3 className="text-lg font-medium">Roles</h3>
                 <div className="border rounded-lg divide-y">
-                  {permissions.map((permission) => {
+                  {resolverPermissions.map((permission) => {
                     const rolePerms = decodedPermissions.get(
                       permission.key,
                     ) || {

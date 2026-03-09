@@ -32,7 +32,10 @@ import {
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
 import type { ResolverRole } from '@/features/resolver/hooks/useResolverOverview'
-import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
+import {
+  decodeResolverRoleBitmap,
+  resolverPermissions,
+} from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 
@@ -50,8 +53,8 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
   {
     id: 'expander',
     cell: ({ row }) => {
-      const permissions = roleToPermissions(row.original.decodedRoles)
-      const count = permissions.size
+      const decoded = roleToPermissions(row.original.decodedRoles)
+      const count = decoded.size
       return (
         <div className="flex flex-row items-center gap-1">
           {count > 0 && (
@@ -127,7 +130,7 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
     >()
     for (const role of roles) {
       const account = role.account.toLowerCase()
-      const decoded = decodeRoleBitmap(role.roleBitmap)
+      const decoded = decodeResolverRoleBitmap(role.roleBitmap)
       const existing = grouped.get(account)
       if (existing) {
         existing.roles.push(role)
@@ -193,8 +196,8 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
         <TableBody>
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
-              const permissions = roleToPermissions(row.original.decodedRoles)
-              const permissionEntries = Array.from(permissions.entries())
+              const permissionMap = roleToPermissions(row.original.decodedRoles)
+              const permissionEntries = Array.from(permissionMap.entries())
 
               return (
                 <Fragment key={row.id}>
@@ -220,15 +223,16 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
                     ))}
                   </TableRow>
                   {row.getIsExpanded() &&
-                    permissionEntries.map(
-                      ([role, { admin, manager }], index) => {
-                        const roleLabel = role
-                          .replaceAll('_', ' ')
-                          .toLowerCase()
-                        const isLast = index === permissionEntries.length - 1
+                    (() => {
+                      const activePermissions = resolverPermissions.filter(
+                        (p) => permissionEntries.some(([key]) => key === p.key),
+                      )
+                      return activePermissions.map((permission, index) => {
+                        const perms = permissionMap.get(permission.key)
+                        const isLast = index === activePermissions.length - 1
 
                         return (
-                          <TableRow key={role}>
+                          <TableRow key={permission.key}>
                             <TableCell
                               className={cn(
                                 'px-6',
@@ -244,9 +248,8 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
                               )}
                             >
                               <CopyableRecord
-                                className="capitalize"
-                                displayValue={roleLabel}
-                                value={role}
+                                displayValue={permission.title}
+                                value={permission.key}
                               />
                             </TableCell>
                             <TableCell
@@ -257,13 +260,13 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
                               )}
                             >
                               <div className="flex flex-row gap-2">
-                                {admin && (
+                                {perms?.admin && (
                                   <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
                                     <UserLockIcon width={16} height={16} />{' '}
                                     Admin
                                   </div>
                                 )}
-                                {manager && (
+                                {perms?.manager && (
                                   <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
                                     <UserIcon width={16} height={16} /> Manager
                                   </div>
@@ -279,8 +282,8 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
                             />
                           </TableRow>
                         )
-                      },
-                    )}
+                      })
+                    })()}
                 </Fragment>
               )
             })
