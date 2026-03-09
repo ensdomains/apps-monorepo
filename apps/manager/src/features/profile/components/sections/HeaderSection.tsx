@@ -69,13 +69,7 @@ export const HeaderSection = withForm({
       </div>
       <form.Subscribe selector={(state) => state.values.base.theme}>
         {(themeColor) => (
-          <div
-            style={
-              themeColor
-                ? (getThemeVars(themeColor) as React.CSSProperties)
-                : undefined
-            }
-          >
+          <div style={getThemeVars(themeColor) as React.CSSProperties}>
             <ProfileHeaderInfo name={name} owner={owner} />
           </div>
         )}
