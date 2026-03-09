@@ -32,14 +32,14 @@ export const RegistrationV2ReadyState = ({
 
   const pricingText = pricingQuery.isPending
     ? 'Pricing scaffold loading...'
-    : pricingQuery.data?.isOk() && pricingQuery.data.value.usdc
-      ? `Current quote scaffold: ${pricingQuery.data.value.usdc.formatted} USDC for ${durationYears} year${durationYears > 1 ? 's' : ''}.`
+    : pricingQuery.data?.usdc
+      ? `Current quote scaffold: ${pricingQuery.data.usdc.formatted} USDC for ${durationYears} year${durationYears > 1 ? 's' : ''}.`
       : 'Pricing scaffold available but not yet rendered in detail.'
 
-  const tokenQuote = pricingQuery.data?.isOk()
+  const tokenQuote = pricingQuery.data
     ? selectedToken === SUPPORTED_TOKENS.DAI
-      ? pricingQuery.data.value.dai
-      : pricingQuery.data.value.usdc
+      ? pricingQuery.data.dai
+      : pricingQuery.data.usdc
     : undefined
 
   const isAccountReady = Boolean(
