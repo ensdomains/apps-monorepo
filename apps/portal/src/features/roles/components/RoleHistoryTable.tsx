@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
+import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
@@ -52,13 +53,25 @@ const RoleDiff = ({ entry }: { entry: RoleHistoryEntry }) => {
 export const RoleHistoryTable = ({
   name,
   label,
+  account,
 }: {
   name: string
-  label: string
+  label?: string
+  account?: Address
 }) => {
-  const { data, isLoading, error } = useQuery(
-    getRoleHistoryQueryOptions({ name, label }),
-  )
+  const {
+    data: allData,
+    isLoading,
+    error,
+  } = useQuery(getRoleHistoryQueryOptions({ name, label }))
+
+  // Filter by account if provided
+  const data =
+    account && allData
+      ? allData.filter(
+          (entry) => entry.account.toLowerCase() === account.toLowerCase(),
+        )
+      : allData
 
   if (isLoading) return <LoadingSpinner title="Loading role history" />
 

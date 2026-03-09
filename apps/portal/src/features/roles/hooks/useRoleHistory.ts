@@ -16,7 +16,7 @@ class GetRoleHistoryError extends TaggedError('GetRoleHistoryError')<{
 
 type GetRoleHistoryParameters = {
   name: string
-  label: string
+  label?: string
 }
 
 type IndexerEACEvent = {
@@ -46,7 +46,7 @@ export type RoleHistoryEntry = {
 
 export const filterEventsByResource = (
   events: IndexerEACEvent[],
-  resource: string,
+  resource?: string,
 ): RoleHistoryEntry[] => {
   const filtered: RoleHistoryEntry[] = []
 
@@ -56,9 +56,11 @@ export const filterEventsByResource = (
     const data = JSON.parse(event.data) as EACRolesChangedData
     if (!data.resource || !data.account) continue
 
+    // If resource is provided, filter by it
     // The resource in the event data may have different casing/padding,
     // so compare as lowercase
-    if (data.resource.toLowerCase() !== resource.toLowerCase()) continue
+    if (resource && data.resource.toLowerCase() !== resource.toLowerCase())
+      continue
 
     filtered.push({
       account: getAddress(data.account),
@@ -102,7 +104,7 @@ const getRoleHistory = ResultFn(async function* ({
     (e) => new GetRoleHistoryError({ cause: e as ClientError }),
   )
 
-  const resource = toResourceHex(labelToCanonicalId(label))
+  const resource = label ? toResourceHex(labelToCanonicalId(label)) : undefined
 
   return ok(filterEventsByResource(events, resource))
 })
