@@ -69,10 +69,8 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
           ))
           .with({ type: 'state' }, (state) => (
             <TransactionStateContent
-              transaction={getTransactionById(
-                transactions,
-                state.transactionId,
-              )}
+              transactions={transactions}
+              focusedTransactionId={state.transactionId}
               txState={txState}
               setTransactionModalContentState={setTransactionModalContentState}
             />

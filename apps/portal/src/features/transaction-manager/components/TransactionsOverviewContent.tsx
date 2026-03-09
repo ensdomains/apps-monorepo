@@ -18,7 +18,10 @@ import { cn } from '@/lib/utils'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
-import { getTransactionStatus } from '../utils/getTransactionStatus'
+import {
+  getTransactionStatus,
+  getTransactionStatusInFlow,
+} from '../utils/getTransactionStatus'
 
 type TransactionsOverviewContentProps = {
   readonly address: Address | undefined
@@ -100,7 +103,15 @@ export const TransactionsOverviewContent = ({
                       <h4 className="text-base font-medium w-max text-quartz-900">
                         {transaction.title}
                       </h4>
-                      {match(getTransactionStatus(txState, transaction))
+                      {match(
+                        transactions.length > 1
+                          ? getTransactionStatusInFlow(
+                              transactions,
+                              transaction,
+                              txState,
+                            )
+                          : getTransactionStatus(txState, transaction),
+                      )
                         .with(undefined, () => (
                           <Badge variant="ghost" className="font-normal">
                             <PlayCircle className="size-3 mr-0.5" /> Not Started

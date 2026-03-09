@@ -17,99 +17,195 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
-import { getTransactionStatus } from '../utils/getTransactionStatus'
+import { getTransactionById } from '../utils/getTransactionById'
+import {
+  getTransactionStatus,
+  getTransactionStatusInFlow,
+} from '../utils/getTransactionStatus'
 
 type TransactionStateContentProps = {
-  readonly transaction: Transaction
+  readonly transactions: readonly Transaction[]
+  readonly focusedTransactionId: string
   readonly txState: ActiveTransactionState | undefined
   readonly setTransactionModalContentState: (
     state: TransactionModalContentState,
   ) => void
 }
 
+function getStatus(
+  transactions: readonly Transaction[],
+  transaction: Transaction,
+  txState: ActiveTransactionState | undefined,
+) {
+  return transactions.length > 1
+    ? getTransactionStatusInFlow(transactions, transaction, txState)
+    : getTransactionStatus(txState, transaction)
+}
+
 export const TransactionStateContent = ({
-  transaction,
+  transactions,
+  focusedTransactionId,
   txState,
   setTransactionModalContentState,
 }: TransactionStateContentProps) => {
-  const transactionStatus = getTransactionStatus(txState, transaction)
   const chainId = useChainId()
 
-  const blockExplorerTxUrl = txState?.hash
-    ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txState.hash)
-    : undefined
+  const activeTransaction = txState
+    ? getTransactionById(transactions, txState.txId)
+    : transactions[0]
+
+  const blockExplorerTxUrl =
+    txState?.hash && activeTransaction?.id === txState.txId
+      ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txState.hash)
+      : undefined
+
+  const allSuccess =
+    transactions.length > 0 &&
+    transactions.every((t) => getStatus(transactions, t, txState) === 'success')
+
+  const hasError = transactions.some(
+    (t) => getStatus(transactions, t, txState) === 'error',
+  )
+
+  const completedCount = transactions.filter(
+    (t) => getStatus(transactions, t, txState) === 'success',
+  ).length
+
+  const activeIndex =
+    txState !== undefined
+      ? transactions.findIndex((t) => t.id === txState.txId)
+      : -1
+
+  const activeInProgress =
+    activeIndex >= 0 &&
+    completedCount === activeIndex &&
+    getStatus(transactions, transactions[activeIndex], txState) !== 'success' &&
+    getStatus(transactions, transactions[activeIndex], txState) !== 'error'
+
+  const totalSegments = transactions.length + 1
+
+  const filledSegments =
+    completedCount + (activeInProgress ? 0.5 : 0) + (allSuccess ? 1 : 0)
+
+  const progressPercent =
+    totalSegments > 0 ? (filledSegments / totalSegments) * 100 : 0
+
+  const fillColor = hasError
+    ? 'bg-garnet-100'
+    : allSuccess
+      ? 'bg-peridot-100'
+      : 'bg-quartz-100'
+
+  const activeTxStatus = getStatus(transactions, activeTransaction, txState)
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{transaction.title}</DialogTitle>
+        <DialogTitle>
+          {transactions.length === 1
+            ? getTransactionById(transactions, focusedTransactionId)?.title
+            : 'Transaction flow'}
+        </DialogTitle>
       </DialogHeader>
+
       <div
         className={cn(
-          'flex justify-between rounded-full w-full h-8',
-          match(transactionStatus)
-            .with('success', () => 'bg-peridot-100')
-            .otherwise(() => 'bg-accent'),
+          'relative flex justify-between gap-1 rounded-full w-full h-8 p-1 items-center overflow-hidden',
+          'bg-accent',
         )}
       >
-        <button
-          type="button"
+        <div
           className={cn(
-            'p-2 rounded-full flex items-center justify-start',
-            'bg-quartz-100',
-            match(transactionStatus)
-              .with(undefined, () => 'bg-quartz-100')
-              .with('success', () => 'bg-peridot-100 w-full')
-              .with('error', () => 'bg-garnet-100')
-              .otherwise(() => 'bg-quartz-100 w-1/2'),
+            'absolute inset-y-0 left-0 rounded-l-full transition-all duration-300 h-full',
+            fillColor,
           )}
-        >
-          <ArrowRight className="size-4" />
-        </button>
-        <button
-          type="button"
-          className="w-1/2 p-2 rounded-full flex items-center justify-end"
-        >
-          <CheckCircle2 className="size-4" />
-        </button>
-      </div>
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-4 border border-border rounded-lg p-3.5">
-          <div className="mt-1">
-            {match(transactionStatus)
-              .with(undefined, () => <ArrowRight className="size-4" />)
-              .with('success', () => <CheckCircle2 className="size-4" />)
-              .with('error', () => <XCircle className="size-4" />)
-              .otherwise(() => (
-                <Hourglass className="size-4" />
-              ))}
-          </div>
-          <div className="space-y-2 flex-1">
-            <div className="flex items-center gap-2">
-              <h3>{transaction.transactionName}</h3>
-              {blockExplorerTxUrl && (
-                <a
-                  href={blockExplorerTxUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  <SquareArrowOutUpRight className="size-3" />
-                </a>
-              )}
-            </div>
-            {txState?.error && (
-              <TransactionErrorAlert
-                title="Transaction Error"
-                summary={txState.error?.message || 'An unknown error occurred.'}
-                details={txState.error?.stack || 'No stack trace available.'}
-                txHash={txState.hash as Hash | undefined}
-                txHashLabel="Transaction hash:"
-                showIcon={false}
-              />
+          style={{ width: `${progressPercent}%` }}
+        />
+        {transactions.map((transaction, index) => (
+          <div
+            key={transaction.id}
+            className={cn(
+              'relative z-10 flex flex-1 min-w-0 items-center rounded-full p-2',
+              index === 0 ? 'justify-start' : 'justify-center',
             )}
+          >
+            <ArrowRight className="size-4 shrink-0" />
           </div>
+        ))}
+        <div className="relative z-10 flex flex-1 min-w-0 items-center justify-end rounded-full p-2">
+          {hasError ? (
+            <XCircle className="size-4 shrink-0" />
+          ) : (
+            <CheckCircle2 className="size-4 shrink-0" />
+          )}
         </div>
       </div>
+
+      <div className="flex flex-col gap-2">
+        {transactions.map((transaction) => {
+          const status = getStatus(transactions, transaction, txState)
+          const isActive = txState?.txId === transaction.id
+          const showError = isActive && txState?.error
+
+          return (
+            <div
+              key={transaction.id}
+              className={cn(
+                'flex flex-start gap-4 border border-border rounded-lg p-3.5',
+                isActive && 'ring-2 ring-ring/50',
+              )}
+            >
+              <div className="mt-1 shrink-0">
+                {match(status)
+                  .with(undefined, () => (
+                    <ArrowRight className="size-4 text-quartz-500" />
+                  ))
+                  .with('success', () => (
+                    <CheckCircle2 className="size-4 text-peridot-600" />
+                  ))
+                  .with('error', () => (
+                    <XCircle className="size-4 text-garnet-600" />
+                  ))
+                  .otherwise(() => (
+                    <Hourglass className="size-4 text-quartz-600 animate-pulse" />
+                  ))}
+              </div>
+              <div className="space-y-2 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-medium truncate">
+                    {transaction.transactionName}
+                  </h3>
+                  {isActive && blockExplorerTxUrl && (
+                    <a
+                      href={blockExplorerTxUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="shrink-0"
+                    >
+                      <SquareArrowOutUpRight className="size-3" />
+                    </a>
+                  )}
+                </div>
+                {showError && txState?.error && (
+                  <TransactionErrorAlert
+                    title="Transaction Error"
+                    summary={
+                      txState.error?.message || 'An unknown error occurred.'
+                    }
+                    details={
+                      txState.error?.stack || 'No stack trace available.'
+                    }
+                    txHash={txState.hash as Hash | undefined}
+                    txHashLabel="Transaction hash:"
+                    showIcon={false}
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
       <div className="flex gap-2">
         <Button
           variant="outline"
@@ -118,12 +214,12 @@ export const TransactionStateContent = ({
         >
           <ArrowLeft className="size-4" />
         </Button>
-        {match(transactionStatus)
+        {match(activeTxStatus)
           .with(undefined, () => (
             <Button
               variant="secondary"
               className="flex-1"
-              onClick={transaction.onStart}
+              onClick={activeTransaction.onStart}
             >
               Open wallet
             </Button>
@@ -132,7 +228,7 @@ export const TransactionStateContent = ({
             <Button
               variant="secondary"
               className="flex-1"
-              onClick={transaction.onDone}
+              onClick={activeTransaction.onDone}
             >
               Done
             </Button>
@@ -141,7 +237,7 @@ export const TransactionStateContent = ({
             <Button
               variant="secondary"
               className="flex-1"
-              onClick={transaction.onStart}
+              onClick={activeTransaction.onStart}
             >
               Try again
             </Button>
