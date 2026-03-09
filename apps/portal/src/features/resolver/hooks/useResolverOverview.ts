@@ -96,7 +96,7 @@ const getResolverOverview = ResultFn(async function* ({
               timestamp
               name
             }
-            events(first: 50) {
+            events {
               id
               type
               blockNumber

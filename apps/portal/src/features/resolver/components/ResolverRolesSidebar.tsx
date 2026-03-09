@@ -9,10 +9,10 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
+import type { AccountRoleGroup } from '@/lib/roles/resolverRoles'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import type { AccountRoleGroup } from './ResolverRolesTable'
 
 type ResolverRolesSidebarProps = PropsWithChildren<{
   readonly row: Row<AccountRoleGroup> | null

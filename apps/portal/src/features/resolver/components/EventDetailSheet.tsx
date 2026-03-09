@@ -1,3 +1,5 @@
+import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { err, ok, type Result } from 'neverthrow'
 import type { PropsWithChildren } from 'react'
 import type { Address, Hash } from 'viem'
 import { useTransaction } from 'wagmi'
@@ -27,11 +29,18 @@ interface EventDetailSheetProps extends PropsWithChildren {
   readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-const parseEventData = (data: string): Record<string, string> | null => {
+class ParseEventDataError extends TaggedError('ParseEventDataError')<{
+  cause: unknown
+  raw: string
+}> {}
+
+const parseEventData = (
+  data: string,
+): Result<Record<string, string>, ParseEventDataError> => {
   try {
-    return JSON.parse(data) as Record<string, string>
-  } catch {
-    return null
+    return ok(JSON.parse(data) as Record<string, string>)
+  } catch (cause) {
+    return err(new ParseEventDataError({ cause, raw: data }))
   }
 }
 
@@ -51,7 +60,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
     ? formatTimestamp(BigInt(event.timestamp))
     : null
 
-  const parsed = parseEventData(event.data)
+  const parsedResult = parseEventData(event.data)
 
   if (isLoading) {
     return (
@@ -156,47 +165,67 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                 )}
               </div>
 
-              {parsed && (
-                <div>
-                  <h4 className="text-base font-semibold mb-3">Data</h4>
-                  <div className="border rounded-lg overflow-auto">
-                    <table className="w-full">
-                      <thead className="bg-quartz-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700 w-12">
-                            #
-                          </th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
-                            Name
-                          </th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
-                            Type
-                          </th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
-                            Data
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(parsed).map(([key, value], index) => (
-                          <tr key={key} className="border-t">
-                            <td className="px-4 py-3 text-sm">{index}</td>
-                            <td className="px-4 py-3 text-sm">{key}</td>
-                            <td className="px-4 py-3 text-sm">unknown</td>
-                            <td className="px-4 py-3 text-sm">
-                              <CopyableRecord
-                                value={String(value)}
-                                displayValue={
-                                  <span className="break-all">{value}</span>
-                                }
-                              />
-                            </td>
+              {parsedResult.match(
+                (parsed) => (
+                  <div>
+                    <h4 className="text-base font-semibold mb-3">Data</h4>
+                    <div className="border rounded-lg overflow-auto">
+                      <table className="w-full">
+                        <thead className="bg-quartz-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700 w-12">
+                              #
+                            </th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                              Name
+                            </th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                              Type
+                            </th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                              Data
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {Object.entries(parsed).map(([key, value], index) => (
+                            <tr key={key} className="border-t">
+                              <td className="px-4 py-3 text-sm">{index}</td>
+                              <td className="px-4 py-3 text-sm">{key}</td>
+                              <td className="px-4 py-3 text-sm">unknown</td>
+                              <td className="px-4 py-3 text-sm">
+                                <CopyableRecord
+                                  value={String(value)}
+                                  displayValue={
+                                    <span className="break-all">{value}</span>
+                                  }
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
+                ),
+                (parseError) => (
+                  <div>
+                    <h4 className="text-base font-semibold mb-3">Data</h4>
+                    <div className="border rounded-lg p-4 flex flex-col gap-2">
+                      <span className="text-sm text-red-500">
+                        Unable to parse event data
+                      </span>
+                      <CopyableRecord
+                        value={parseError.raw}
+                        displayValue={
+                          <pre className="text-xs font-mono text-quartz-500 whitespace-pre-wrap break-all">
+                            {parseError.raw}
+                          </pre>
+                        }
+                      />
+                    </div>
+                  </div>
+                ),
               )}
             </div>
           </CardContent>

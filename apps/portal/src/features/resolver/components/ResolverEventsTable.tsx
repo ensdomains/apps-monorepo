@@ -40,129 +40,119 @@ interface ResolverEventsTableProps {
   readonly enableSidebar?: boolean
 }
 
-const createColumns = (
-  enableSidebar: boolean,
-): ColumnDef<ResolverEventRow>[] => {
-  const cols: ColumnDef<ResolverEventRow>[] = [
-    {
-      id: 'expander',
-      size: 80,
-      header: () => <div />,
-      cell: ({ row }) => (
-        <div className="flex flex-row items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={
-              row.getIsExpanded() ? 'Collapse events' : 'Expand events'
-            }
-            onClick={(e) => {
-              e.stopPropagation()
-              row.toggleExpanded()
-            }}
-          >
-            {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
-            <span className="text-sm font-medium">1</span>
-          </Button>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'timestamp',
-      size: 160,
-      header: ({ column }) => (
-        <SortButton
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          sortDirection={column.getIsSorted()}
+const baseColumns: ColumnDef<ResolverEventRow>[] = [
+  {
+    id: 'expander',
+    size: 80,
+    header: () => <div />,
+    cell: ({ row }) => (
+      <div className="flex flex-row items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={row.getIsExpanded() ? 'Collapse events' : 'Expand events'}
+          onClick={(e) => {
+            e.stopPropagation()
+            row.toggleExpanded()
+          }}
         >
-          Date
-        </SortButton>
-      ),
-      cell: ({ row }) => {
-        const { timestamp, blockNumber } = row.original
-        if (timestamp) {
-          const date = new Date(timestamp * 1000)
-          return <div>{formatDate(date)}</div>
-        }
-        return (
-          <span className="font-mono text-sm text-muted-foreground">
-            Block {blockNumber.toLocaleString()}
-          </span>
-        )
-      },
+          {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
+          <span className="text-sm font-medium">1</span>
+        </Button>
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'timestamp',
+    size: 160,
+    header: ({ column }) => (
+      <SortButton
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
+      >
+        Date
+      </SortButton>
+    ),
+    cell: ({ row }) => {
+      const { timestamp, blockNumber } = row.original
+      if (timestamp) {
+        const date = new Date(timestamp * 1000)
+        return <div>{formatDate(date)}</div>
+      }
+      return (
+        <span className="font-mono text-sm text-muted-foreground">
+          Block {blockNumber.toLocaleString()}
+        </span>
+      )
     },
-    {
-      accessorKey: 'transactionHash',
-      size: 240,
-      header: ({ column }) => (
-        <SortButton
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          sortDirection={column.getIsSorted()}
-        >
-          Transaction
-        </SortButton>
-      ),
-      cell: ({ row }) => {
-        const txHash = row.original.transactionHash
-        if (!txHash) return <span className="text-quartz-400">-</span>
-        return (
-          <CopyableRecord
-            value={txHash}
-            displayValue={
-              <span className="font-mono">{truncateAddress(txHash)}</span>
-            }
-            className="text-sm underline decoration-dashed underline-offset-4"
-            href={`https://sepolia.etherscan.io/tx/${txHash}`}
-          />
-        )
-      },
+  },
+  {
+    accessorKey: 'transactionHash',
+    size: 240,
+    header: ({ column }) => (
+      <SortButton
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
+      >
+        Transaction
+      </SortButton>
+    ),
+    cell: ({ row }) => {
+      const txHash = row.original.transactionHash
+      if (!txHash) return <span className="text-quartz-400">-</span>
+      return (
+        <CopyableRecord
+          value={txHash}
+          displayValue={
+            <span className="font-mono">{truncateAddress(txHash)}</span>
+          }
+          className="text-sm underline decoration-dashed underline-offset-4"
+          href={`https://sepolia.etherscan.io/tx/${txHash}`}
+        />
+      )
     },
-    {
-      accessorKey: 'from',
-      size: 240,
-      header: ({ column }) => (
-        <SortButton
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          sortDirection={column.getIsSorted()}
-        >
-          From
-        </SortButton>
-      ),
-      cell: ({ row }) => {
-        const from = row.original.from
-        if (!from) return <span className="text-quartz-400">-</span>
-        return <AddressDisplay address={from} />
-      },
+  },
+  {
+    accessorKey: 'from',
+    size: 240,
+    header: ({ column }) => (
+      <SortButton
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        sortDirection={column.getIsSorted()}
+      >
+        From
+      </SortButton>
+    ),
+    cell: ({ row }) => {
+      const from = row.original.from
+      if (!from) return <span className="text-quartz-400">-</span>
+      return <AddressDisplay address={from} />
     },
-  ]
+  },
+]
 
-  if (enableSidebar) {
-    cols.push({
-      id: 'more',
-      size: 120,
-      header: () => null,
-      cell: ({ row, table }) => (
-        <div className="flex justify-end pr-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              const meta = table.options.meta as {
-                onMoreClick?: (event: ResolverEventRow) => void
-              }
-              meta?.onMoreClick?.(row.original)
-            }}
-          >
-            <PanelRightOpen className="h-4 w-4" />
-            <span className="text-sm font-medium">More</span>
-          </Button>
-        </div>
-      ),
-    })
-  }
-
-  return cols
+const moreColumn: ColumnDef<ResolverEventRow> = {
+  id: 'more',
+  size: 120,
+  header: () => null,
+  cell: ({ row, table }) => (
+    <div className="flex justify-end pr-4">
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={(e) => {
+          e.stopPropagation()
+          const meta = table.options.meta as {
+            onMoreClick?: (event: ResolverEventRow) => void
+          }
+          meta?.onMoreClick?.(row.original)
+        }}
+      >
+        <PanelRightOpen className="h-4 w-4" />
+        <span className="text-sm font-medium">More</span>
+      </Button>
+    </div>
+  ),
 }
 
 export const ResolverEventsTable = ({
@@ -200,7 +190,10 @@ export const ResolverEventsTable = ({
     [events, sendersMap],
   )
 
-  const columns = useMemo(() => createColumns(enableSidebar), [enableSidebar])
+  const columns = useMemo(
+    () => (enableSidebar ? [...baseColumns, moreColumn] : baseColumns),
+    [enableSidebar],
+  )
 
   const table = useReactTable({
     data: rows,

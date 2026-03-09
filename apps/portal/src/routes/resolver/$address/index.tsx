@@ -46,12 +46,12 @@ function RouteComponent() {
 
   const recentEvents = useMemo(() => {
     const events = resolver?.events ?? []
-    return [...events]
-      .sort(
+    return events
+      .toSorted(
         (a, b) =>
           (b.timestamp ?? b.blockNumber) - (a.timestamp ?? a.blockNumber),
       )
-      .slice(0, RECENT_EVENT_LIMIT) as ResolverEvent[]
+      .slice(0, RECENT_EVENT_LIMIT)
   }, [resolver?.events])
 
   return (

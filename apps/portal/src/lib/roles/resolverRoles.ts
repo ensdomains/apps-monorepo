@@ -122,3 +122,46 @@ export const decodeResolverRoleBitmap = (
 
   return roles
 }
+
+type RoleInput = {
+  readonly account: string
+  readonly roleBitmap: string
+}
+
+export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
+  readonly account: string
+  readonly roles: readonly T[]
+  readonly decodedRoles: readonly string[]
+}
+
+/**
+ * Groups resolver roles by account and decodes each bitmap into
+ * human-readable role names in a single pass.
+ */
+export const groupRolesByAccount = <T extends RoleInput>(
+  roles: readonly T[],
+): AccountRoleGroup<T>[] => {
+  const grouped = new Map<
+    string,
+    { account: string; roles: T[]; decodedRoles: string[] }
+  >()
+
+  for (const role of roles) {
+    const account = role.account.toLowerCase()
+    const decoded = decodeResolverRoleBitmap(role.roleBitmap)
+    const existing = grouped.get(account)
+
+    if (existing) {
+      existing.roles.push(role)
+      existing.decodedRoles.push(...decoded)
+    } else {
+      grouped.set(account, {
+        account,
+        roles: [role],
+        decodedRoles: [...decoded],
+      })
+    }
+  }
+
+  return Array.from(grouped.values())
+}

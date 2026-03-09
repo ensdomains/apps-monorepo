@@ -35,7 +35,7 @@ import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
-interface NodeDetailSheetProps extends PropsWithChildren {
+type NodeDetailSheetProps = PropsWithChildren & {
   readonly node: ResolverNode | null
   readonly roles: readonly ResolverRole[]
   readonly open: boolean

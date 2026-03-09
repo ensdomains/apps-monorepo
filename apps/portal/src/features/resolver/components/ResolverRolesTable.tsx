@@ -33,17 +33,12 @@ import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSetti
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
 import type { ResolverRole } from '@/features/resolver/hooks/useResolverOverview'
 import {
-  decodeResolverRoleBitmap,
+  type AccountRoleGroup,
+  groupRolesByAccount,
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-
-export type AccountRoleGroup = {
-  readonly account: Address
-  readonly roles: readonly ResolverRole[]
-  readonly decodedRoles: readonly string[]
-}
 
 type ResolverRolesTableProps = {
   readonly roles: readonly ResolverRole[]
@@ -79,7 +74,7 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
     header: 'Role',
     accessorKey: 'account',
     cell: ({ row }) => (
-      <AddressDisplay address={row.original.account} short={false} />
+      <AddressDisplay address={row.original.account as Address} short={false} />
     ),
   },
   {
@@ -123,28 +118,7 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
   )
   const [tableView] = useTableViewSettings()
 
-  const data: AccountRoleGroup[] = useMemo(() => {
-    const grouped = new Map<
-      string,
-      { roles: ResolverRole[]; decodedRoles: string[] }
-    >()
-    for (const role of roles) {
-      const account = role.account.toLowerCase()
-      const decoded = decodeResolverRoleBitmap(role.roleBitmap)
-      const existing = grouped.get(account)
-      if (existing) {
-        existing.roles.push(role)
-        existing.decodedRoles.push(...decoded)
-      } else {
-        grouped.set(account, { roles: [role], decodedRoles: [...decoded] })
-      }
-    }
-    return Array.from(grouped.entries()).map(([account, group]) => ({
-      account: account as Address,
-      roles: group.roles,
-      decodedRoles: group.decodedRoles,
-    }))
-  }, [roles])
+  const data = useMemo(() => groupRolesByAccount(roles), [roles])
 
   const table = useReactTable<AccountRoleGroup>({
     data,
