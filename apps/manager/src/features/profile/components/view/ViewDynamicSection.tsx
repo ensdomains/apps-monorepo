@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,11 +16,7 @@ interface DynamicRecordProps {
   readonly record: TextRecordValue
 }
 
-const themeStyle: React.CSSProperties = {
-  backgroundColor: 'var(--theme-bg)',
-  color: 'var(--theme-color)',
-  borderColor: 'transparent',
-}
+const themeClassName = 'bg-(--theme-bg) text-(--theme-color) border-transparent'
 
 const DynamicRecord = ({ record }: DynamicRecordProps) => {
   const recordDef = getRecordDef(record.key)
@@ -34,9 +31,8 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
     return (
       <Button
         asChild
-        className="justify-start hover:brightness-95"
+        className={clsx('justify-start hover:brightness-95', themeClassName)}
         size="sm"
-        style={themeStyle}
         variant="outline"
       >
         <a href={href} rel="noopener noreferrer" target="_blank">
@@ -53,8 +49,7 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
 
   return (
     <CopyableButton
-      className="justify-start hover:brightness-95"
-      style={themeStyle}
+      className={clsx('justify-start hover:brightness-95', themeClassName)}
       title={record.value}
       value={displayValue}
     >
