@@ -203,7 +203,7 @@ function extractAddrFromPath(pathname: string): string | null {
   return match ? match[1] : null
 }
 
-function isProfileRoute(pathname: string): boolean {
+function _isProfileRoute(pathname: string): boolean {
   if (!pathname.startsWith('/')) return false
   const segments = pathname.slice(1).split('/')
   if (segments.length < 1 || segments[0] === '') return false
@@ -539,7 +539,11 @@ export default {
 
     // Address page: inject meta tags
     if (isAddressRoute(pathname) || isAddrSubpage(pathname)) {
-      const address = decodeURIComponent(extractAddrFromPath(pathname)!)
+      const address = extractAddrFromPath(pathname)
+      if (!address) {
+        return env.ASSETS.fetch(request)
+      }
+      const decodedAddress = decodeURIComponent(address)
       const accept = request.headers.get('Accept') ?? ''
 
       if (!accept.includes('text/html')) {
@@ -548,11 +552,11 @@ export default {
 
       const response = await env.ASSETS.fetch(request)
       const host = url.host
-      const displayAddress = truncateAddress(address, 6, 5)
+      const displayAddress = truncateAddress(decodedAddress, 6, 5)
       const subpage = pathname.split('/').slice(2).join('/')
       const ogImageUrl = subpage
-        ? `https://${host}/og/addr/${encodeURIComponent(address)}/${encodeURIComponent(subpage)}.png`
-        : `https://${host}/og/addr/${encodeURIComponent(address)}.png`
+        ? `https://${host}/og/addr/${encodeURIComponent(decodedAddress)}/${encodeURIComponent(subpage)}.png`
+        : `https://${host}/og/addr/${encodeURIComponent(decodedAddress)}.png`
       const pageTitle = subpage
         ? `${displayAddress} > ${subpage} — ENS Explorer App`
         : `${displayAddress} — ENS Explorer App`
@@ -577,7 +581,11 @@ export default {
 
     // Name page (including subpages like /name/ownership): inject meta tags
     if (isNameSubpage(pathname)) {
-      const name = decodeURIComponent(extractNameFromPath(pathname)!)
+      const name = extractNameFromPath(pathname)
+      if (!name) {
+        return env.ASSETS.fetch(request)
+      }
+      const decodedName = decodeURIComponent(name)
       const accept = request.headers.get('Accept') ?? ''
 
       // Only inject for HTML requests (not JS, CSS, etc.)
@@ -587,20 +595,20 @@ export default {
 
       const [response, ensData] = await Promise.all([
         env.ASSETS.fetch(request),
-        fetchEnsData(env, name),
+        fetchEnsData(env, decodedName),
       ])
 
       const { description, avatar } = ensData
       const host = url.host
       const subpage = pathname.split('/').slice(2).join('/')
       const ogImageUrl = subpage
-        ? `https://${host}/og/${encodeURIComponent(name)}/${encodeURIComponent(subpage)}.png`
-        : `https://${host}/og/${encodeURIComponent(name)}.png`
+        ? `https://${host}/og/${encodeURIComponent(decodedName)}/${encodeURIComponent(subpage)}.png`
+        : `https://${host}/og/${encodeURIComponent(decodedName)}.png`
       const pageTitle = pathname.split('/').slice(2).join(' > ')
       const profileTitle = pageTitle
-        ? `${name} > ${pageTitle} — ENS Explorer App`
-        : `${name} — ENS Explorer App`
-      const desc = description ?? `ENS profile for ${name}`
+        ? `${decodedName} > ${pageTitle} — ENS Explorer App`
+        : `${decodedName} — ENS Explorer App`
+      const desc = description ?? `ENS profile for ${decodedName}`
 
       const metaTags = [
         `<meta property="og:title" content="${escapeHtml(profileTitle)}" />`,
@@ -612,7 +620,7 @@ export default {
         `<meta name="twitter:description" content="${escapeHtml(desc)}" />`,
         `<meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />`,
         avatar
-          ? `<meta property="og:image:alt" content="${escapeHtml(name)} avatar" />`
+          ? `<meta property="og:image:alt" content="${escapeHtml(decodedName)} avatar" />`
           : '',
       ]
         .filter(Boolean)
