@@ -19,7 +19,7 @@ import {
 } from '@/features/roles/hooks/useRoleHistory'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 
-const RoleDiff = ({ entry }: { entry: RoleHistoryEntry }) => {
+const RoleDiff = ({ entry }: { readonly entry: RoleHistoryEntry }) => {
   const added = entry.newRoles.filter((r) => !entry.oldRoles.includes(r))
   const removed = entry.oldRoles.filter((r) => !entry.newRoles.includes(r))
 
@@ -47,9 +47,9 @@ export const RoleHistoryTable = ({
   label,
   account,
 }: {
-  name: string
-  label?: string
-  account?: Address
+  readonly name: string
+  readonly label?: string
+  readonly account?: Address
 }) => {
   const {
     data: allData,

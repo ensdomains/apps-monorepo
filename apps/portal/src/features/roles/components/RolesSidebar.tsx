@@ -1,7 +1,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { CheckCircle, Clock, Copy, Trash2 } from 'lucide-react'
+import { CheckCircle, Clock, Copy, Save, Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -16,9 +16,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
