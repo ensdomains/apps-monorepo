@@ -345,7 +345,7 @@ async function renderOgImage(
     registry: 'Registry',
     resolver: 'Resolver',
     subnames: 'Subnames',
-    permissions: 'Permissions',
+    roles: 'Roles',
   }
   const pageLabel = subpage
     ? (subpageLabels[subpage] ??
