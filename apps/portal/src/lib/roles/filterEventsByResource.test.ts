@@ -1,6 +1,6 @@
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { describe, expect, it } from 'vitest'
-import { filterEventsByResource } from './useRoleHistory'
+import { filterEventsByResource } from './filterEventsByResource'
 
 const RESOURCE_A =
   '0x00000000000000000000000000000000000000000000000000000000000000aa'
@@ -52,6 +52,16 @@ describe('filterEventsByResource', () => {
     const result = filterEventsByResource(events, RESOURCE_A)
 
     expect(result).toHaveLength(1)
+  })
+
+  it('should return all events when resource is not provided', () => {
+    const events = [
+      makeEvent({ resource: RESOURCE_A }),
+      makeEvent({ resource: RESOURCE_B }),
+    ]
+    const result = filterEventsByResource(events)
+
+    expect(result).toHaveLength(2)
   })
 
   it('should compare resources case-insensitively', () => {

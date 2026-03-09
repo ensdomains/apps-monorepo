@@ -26,20 +26,12 @@ const RoleDiff = ({ entry }: { entry: RoleHistoryEntry }) => {
   return (
     <div className="flex flex-wrap gap-1">
       {added.map((role) => (
-        <Badge
-          key={role}
-          variant="secondary"
-          className="bg-green-100 text-green-800 text-xs"
-        >
+        <Badge key={role} variant="success">
           + {role}
         </Badge>
       ))}
       {removed.map((role) => (
-        <Badge
-          key={role}
-          variant="secondary"
-          className="bg-red-100 text-red-800 text-xs"
-        >
+        <Badge key={role} variant="danger">
           - {role}
         </Badge>
       ))}
@@ -91,37 +83,39 @@ export const RoleHistoryTable = ({
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date</TableHead>
-          <TableHead>Account</TableHead>
-          <TableHead>Changes</TableHead>
-          <TableHead>Roles</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {data.map((entry) => (
-          <TableRow key={`${entry.transactionHash}-${entry.account}`}>
-            <TableCell className="px-4 sm:px-6 py-3 text-sm text-quartz-600">
-              {formatTimestamp(BigInt(entry.timestamp))}
-            </TableCell>
-            <TableCell className="px-4 sm:px-6 py-3">
-              <AddressDisplay address={entry.account} />
-            </TableCell>
-            <TableCell className="px-4 sm:px-6 py-3">
-              <RoleDiff entry={entry} />
-            </TableCell>
-            <TableCell className="px-4 sm:px-6 py-3">
-              <div className="flex items-center gap-2 text-xs text-quartz-500">
-                <span>{entry.oldRoles.length} roles</span>
-                <ArrowRight className="size-3" />
-                <span>{entry.newRoles.length} roles</span>
-              </div>
-            </TableCell>
+    <div className="border rounded-lg overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Date</TableHead>
+            <TableHead>Account</TableHead>
+            <TableHead>Changes</TableHead>
+            <TableHead>Roles</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {data.map((entry) => (
+            <TableRow key={`${entry.transactionHash}-${entry.account}`}>
+              <TableCell className="px-4 sm:px-6 py-3 text-sm text-quartz-600">
+                {formatTimestamp(BigInt(entry.timestamp))}
+              </TableCell>
+              <TableCell className="px-4 sm:px-6 py-3">
+                <AddressDisplay address={entry.account} />
+              </TableCell>
+              <TableCell className="px-4 sm:px-6 py-3">
+                <RoleDiff entry={entry} />
+              </TableCell>
+              <TableCell className="px-4 sm:px-6 py-3">
+                <div className="flex items-center gap-2 text-xs text-quartz-500">
+                  <span>{entry.oldRoles.length} roles</span>
+                  <ArrowRight className="size-3" />
+                  <span>{entry.newRoles.length} roles</span>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
