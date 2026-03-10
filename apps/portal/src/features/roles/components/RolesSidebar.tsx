@@ -301,7 +301,7 @@ export const RolesSidebar = <
               {/* Header */}
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="flex items-center gap-1">
-                  <h2 className="text-[34px] font-medium leading-[1.35]">
+                  <h2 className="text-4xl font-medium leading-[1.35]">
                     {name}
                   </h2>
                   <CopyButton value={name} />
@@ -429,7 +429,7 @@ export const RolesSidebar = <
               {/* History Section */}
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap justify-between items-center gap-4">
-                  <h3 className="text-[26px] font-medium leading-[1.35]">
+                  <h3 className="text-2xl font-medium leading-[1.35]">
                     History
                   </h3>
                   <Button
