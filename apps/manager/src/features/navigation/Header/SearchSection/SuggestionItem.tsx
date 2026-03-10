@@ -4,7 +4,7 @@ import { match } from 'ts-pattern'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
-import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
+import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
 
@@ -44,7 +44,7 @@ export const NameSuggestionItem = ({
   isLoading,
   isError,
 }: NameSuggestionItemProps) => {
-  const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}/sepolia/${name}`
+  const avatarUrl = getAvatarUrl(name)
 
   const isAvailable = isRegistered === false
 
@@ -76,7 +76,7 @@ export const NameSuggestionItem = ({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className={'truncate font-medium text-[#1D1B20] text-sm'}>
+            <span className={'truncate font-medium text-foreground text-sm'}>
               {name}
             </span>
           </div>

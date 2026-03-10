@@ -13,7 +13,7 @@ import {
   formatDashboardDate,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
+import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
 import { useDebounce } from '@/hooks/useDebounce'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 
@@ -204,7 +204,7 @@ export const DashboardSidebarSearch = ({
         <div className="absolute z-10 mt-2 w-full rounded-md border border-slate-200 bg-white shadow-md">
           <ul className="divide-y divide-slate-100">
             {suggestions.map((suggestion) => {
-              const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}/sepolia/${suggestion.label}`
+              const avatarUrl = getAvatarUrl(suggestion.label)
 
               return (
                 <li key={suggestion.id}>
