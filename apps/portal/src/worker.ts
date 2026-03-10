@@ -13,9 +13,9 @@ import { ImageResponse } from 'workers-og'
 import ogSansFontUrl from './assets/fonts/og/abc-monument-grotesk-medium.ttf?url'
 import ogMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-mono-medium.ttf?url'
 import ogSemiMonoFontUrl from './assets/fonts/og/abc-monument-grotesk-semi-mono-medium.ttf?url'
-import ensLogoSvg from './assets/fonts/og/ens-logo.svg?raw'
 import ensMarkSvg from './assets/fonts/og/ens-mark.svg?raw'
 import explorerTextSvg from './assets/fonts/og/explorer-text.svg?raw'
+import ensLogoSvg from './assets/fonts/og/Logo.svg?raw'
 import walletIconSvg from './assets/fonts/og/wallet-icon.svg?raw'
 import { truncateAddress } from './utils/formatting/truncateAddress'
 
@@ -300,7 +300,7 @@ async function renderOgResponse(
 function renderOgHeader(): string {
   return `
     <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: flex-start; gap: 24px;">
-      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
+      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="200" height="24" style="width: 200px; height: 24px;" />
       <div style="display: flex; align-items: center; gap: 8px;">
         <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px; display: block;" />
         <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
