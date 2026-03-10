@@ -299,10 +299,10 @@ async function renderOgResponse(
 
 function renderOgHeader(): string {
   return `
-    <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: center; gap: 24px;">
+    <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: flex-start; gap: 24px;">
       <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="164" height="51" style="width: 164px; height: 51px;" />
-      <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
-        <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px;" />
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="data:image/svg+xml;base64,${btoa(explorerTextSvg)}" width="174" height="42" style="width: 174px; height: 42px; display: block;" />
         <div style="background: #DBF0F8; border-radius: 999px; padding: 2px 6px; display: flex; align-items: center; justify-content: center;">
           <span style="font-size: 17px; font-weight: 500; color: #0082BB; font-family: 'OgSans', system-ui, sans-serif;">Alpha</span>
         </div>
