@@ -54,8 +54,8 @@ export const RegistrationV2TransactionState = ({
         <code className="block text-sm">{actorState}</code>
       </div>
       <p className="text-muted-foreground text-sm">
-        This placeholder is where v2 will expose exact registration workflow
-        stages instead of a generic waiting screen.
+        This view exposes the shared registration actor state directly so the
+        flow is inspectable while the UI is still minimal.
       </p>
       <div className="flex flex-wrap gap-2">
         <button

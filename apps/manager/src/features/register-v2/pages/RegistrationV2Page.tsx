@@ -37,10 +37,6 @@ function RegistrationV2PageContent({
 }: RegistrationV2PageContentProps) {
   const uiActor = RegistrationV2UiContext.useActorRef()
 
-  useEffect(() => {
-    uiActor.send({ type: 'TARGET_CHANGED', targetName })
-  }, [targetName, uiActor])
-
   const uiState = RegistrationV2UiContext.useSelector((state) => state.value)
   const isRegistering = uiState === 'registering'
 
@@ -113,12 +109,11 @@ function RegistrationV2PageContent({
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-8">
       <div className="space-y-1">
         <p className="font-mono text-muted-foreground text-xs uppercase tracking-wide">
-          registration-v2 route scaffold
+          registration v2
         </p>
         <p className="text-muted-foreground text-sm">
-          Target name comes from the route. Query state stays in React Query.
-          Transaction execution is scaffolded through a child registration
-          actor.
+          The route owns the target name. Query data stays in React Query.
+          Transaction execution runs in the shared registration actor.
         </p>
       </div>
 

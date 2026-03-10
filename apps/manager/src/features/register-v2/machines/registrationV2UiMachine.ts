@@ -1,9 +1,15 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
-import { assign, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate'
-import type { SmartAccountState } from '@/lib/smart-account'
+import {
+  type ActorRefFrom,
+  assign,
+  type SnapshotFrom,
+  sendTo,
+  setup,
+} from 'xstate'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
+import type { SmartAccountState } from '@/lib/smart-account'
 
 type RegistrationSigner = NonNullable<SmartAccountState['signer']>
 
@@ -32,7 +38,6 @@ export const registrationV2UiMachine = setup({
       lastErrorMessage?: string
     },
     events: {} as
-      | { type: 'TARGET_CHANGED'; targetName: string }
       | { type: 'DURATION_SET'; durationYears: number }
       | { type: 'TOKEN_SET'; token: Address }
       | { type: 'SUBMIT_REGISTRATION'; startEvent: StartRegistrationEvent }
@@ -60,16 +65,13 @@ export const registrationV2UiMachine = setup({
       lastErrorMessage: ({ event }) =>
         event.type === 'TX_FAILED' ? event.message : undefined,
     }),
-    forwardStartRegistration: sendTo(
-      REGISTRATION_V2_ACTOR_ID,
-      ({ event }) => {
-        if (event.type !== 'SUBMIT_REGISTRATION') {
-          throw new Error('SUBMIT_REGISTRATION event required')
-        }
+    forwardStartRegistration: sendTo(REGISTRATION_V2_ACTOR_ID, ({ event }) => {
+      if (event.type !== 'SUBMIT_REGISTRATION') {
+        throw new Error('SUBMIT_REGISTRATION event required')
+      }
 
-        return event.startEvent
-      },
-    ),
+      return event.startEvent
+    }),
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
   },
@@ -92,9 +94,6 @@ export const registrationV2UiMachine = setup({
   states: {
     editing: {
       on: {
-        TARGET_CHANGED: {
-          actions: 'clearError',
-        },
         DURATION_SET: {
           actions: 'setDuration',
         },
@@ -109,9 +108,6 @@ export const registrationV2UiMachine = setup({
     },
     registering: {
       on: {
-        TARGET_CHANGED: {
-          actions: 'clearError',
-        },
         TX_SUCCEEDED: {
           target: 'success',
         },
@@ -125,20 +121,9 @@ export const registrationV2UiMachine = setup({
         },
       },
     },
-    success: {
-      on: {
-        TARGET_CHANGED: {
-          target: 'editing',
-          actions: 'clearError',
-        },
-      },
-    },
+    success: {},
     failure: {
       on: {
-        TARGET_CHANGED: {
-          target: 'editing',
-          actions: 'clearError',
-        },
         RETRY: {
           target: 'registering',
           actions: ['clearError', 'forwardRetry'],

@@ -31,10 +31,10 @@ export const RegistrationV2ReadyState = ({
   )
 
   const pricingText = pricingQuery.isPending
-    ? 'Pricing scaffold loading...'
+    ? 'Loading current quote...'
     : pricingQuery.data?.usdc
-      ? `Current quote scaffold: ${pricingQuery.data.usdc.formatted} USDC for ${durationYears} year${durationYears > 1 ? 's' : ''}.`
-      : 'Pricing scaffold available but not yet rendered in detail.'
+      ? `Current quote: ${pricingQuery.data.usdc.formatted} USDC for ${durationYears} year${durationYears > 1 ? 's' : ''}.`
+      : 'Pricing is available but not rendered in full detail yet.'
 
   const tokenQuote = pricingQuery.data
     ? selectedToken === SUPPORTED_TOKENS.DAI
@@ -111,11 +111,6 @@ export const RegistrationV2ReadyState = ({
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="rounded border border-dashed p-3 text-muted-foreground text-sm">
-        The route target and quote are live now. Submission uses the shared
-        registration transaction machine.
       </div>
 
       <div className="flex flex-wrap gap-2">
