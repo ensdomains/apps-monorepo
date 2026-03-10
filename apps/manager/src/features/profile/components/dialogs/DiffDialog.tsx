@@ -1,5 +1,6 @@
 import { useBlocker } from '@tanstack/react-router'
 import { ArrowRight, Check, Loader2, Plus, Save, X } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button, LinkButton } from '@/components/ui/button'
@@ -23,6 +24,24 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { createDiff } from '@/features/profile/utils/createDiff'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
+
+const HEX_COLOR_REGEX = /^#[\da-f]{6}$/i
+
+const DiffValue = ({ value }: { value: string | undefined }): ReactNode => {
+  const display = value || '(empty)'
+  if (value && HEX_COLOR_REGEX.test(value)) {
+    return (
+      <span className="inline-flex items-center gap-1.5 align-middle">
+        <span
+          className="size-3.5 shrink-0 rounded-sm border border-current/20"
+          style={{ backgroundColor: value }}
+        />
+        {display}
+      </span>
+    )
+  }
+  return display
+}
 
 interface DiffDialogProps {
   name: string
@@ -150,21 +169,25 @@ export const DiffDialog = ({
                   </div>
                   {change.type === 'added' && (
                     <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
-                      <strong>New value:</strong> {change.current || '(empty)'}
+                      <strong>New value:</strong>{' '}
+                      <DiffValue value={change.current} />
                     </div>
                   )}
                   {change.type === 'removed' && (
                     <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
-                      <strong>Removed:</strong> {change.original || '(empty)'}
+                      <strong>Removed:</strong>{' '}
+                      <DiffValue value={change.original} />
                     </div>
                   )}
                   {change.type === 'modified' && (
                     <div className="space-y-2">
                       <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
-                        <strong>From:</strong> {change.original || '(empty)'}
+                        <strong>From:</strong>{' '}
+                        <DiffValue value={change.original} />
                       </div>
                       <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
-                        <strong>To:</strong> {change.current || '(empty)'}
+                        <strong>To:</strong>{' '}
+                        <DiffValue value={change.current} />
                       </div>
                     </div>
                   )}

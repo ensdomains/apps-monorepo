@@ -193,6 +193,7 @@ export const MyNamesList = ({
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
+          aria-label={`Sort by name, currently ${sortField === 'name' ? sortDir : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('name')}
           type="button"
@@ -205,6 +206,7 @@ export const MyNamesList = ({
           <SortIndicator direction={sortDir} isActive={sortField === 'name'} />
         </button>
         <button
+          aria-label={`Sort by expiry, currently ${sortField === 'expiry' ? sortDir : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('expiry')}
           type="button"
@@ -319,6 +321,7 @@ export const MyNamesList = ({
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
         <div className="flex items-center justify-center gap-[12px]">
           <button
+            aria-label="Previous page"
             className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
             disabled={isPending || page === 1}
             onClick={() => setPage((p) => p - 1)}
@@ -327,6 +330,7 @@ export const MyNamesList = ({
             <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
           </button>
           <button
+            aria-label="Next page"
             className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
             disabled={isPending || !hasNextPage}
             onClick={() => setPage((p) => p + 1)}
