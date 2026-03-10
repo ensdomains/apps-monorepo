@@ -3,7 +3,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type Address, encodeFunctionData, type Hash, parseAbi } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -14,6 +14,8 @@ import {
 } from '@/features/resolver/utils/dedicatedResolver'
 import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
 import { namechainSepolia } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
 const verifiableFactoryAbi = parseAbi([
   'function deployProxy(address implementation, uint256 salt, bytes data)',
@@ -96,6 +98,7 @@ export const useDeployDedicatedResolver = ({
   name,
 }: UseDeployDedicatedResolverParams) => {
   const chainId = namechainSepolia.id
+  const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
 
@@ -123,6 +126,11 @@ export const useDeployDedicatedResolver = ({
         chainId,
         id,
       })
+    },
+    onSuccess: () => {
+      const invalidate = () => invalidateResolverQueries(queryClient)
+      invalidate()
+      pollForIndexerSync({ invalidateQueries: invalidate })
     },
   })
 

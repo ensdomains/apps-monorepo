@@ -4,7 +4,6 @@ import { getIsSubmitDisabled } from './getIsSubmitDisabled'
 const validAddress = '0x1234567890123456789012345678901234567890'
 
 const baseParams = {
-  isBusy: false,
   walletOk: true,
   useCustomResolver: false,
   resolverAddress: '',
@@ -13,10 +12,6 @@ const baseParams = {
 }
 
 describe('getIsSubmitDisabled', () => {
-  it('returns true when isBusy', () => {
-    expect(getIsSubmitDisabled({ ...baseParams, isBusy: true })).toBe(true)
-  })
-
   it('returns true when !walletOk', () => {
     expect(getIsSubmitDisabled({ ...baseParams, walletOk: false })).toBe(true)
   })

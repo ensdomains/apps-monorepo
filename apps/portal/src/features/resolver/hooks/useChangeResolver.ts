@@ -12,6 +12,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { changeResolver } from '../helpers/changeResolver'
+import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
 
@@ -60,20 +61,9 @@ export const useChangeResolver = ({
       })
     },
     onSuccess: () => {
-      const invalidate = () =>
-        queryClient.invalidateQueries({
-          predicate: (query) => {
-            const key = query.queryKey[0]
-            return (
-              key === 'get-resolver-name' ||
-              key === 'get-resolver' ||
-              key === 'user-dedicated-resolvers'
-            )
-          },
-          refetchType: 'all',
-        })
+      const invalidate = () => invalidateResolverQueries(queryClient)
       invalidate()
-      pollForIndexerSync({ invalidateQueries: () => invalidate() })
+      pollForIndexerSync({ invalidateQueries: invalidate })
     },
   })
 

@@ -1,7 +1,6 @@
 import { isAddress } from 'viem'
 
 export type GetIsSubmitDisabledParams = {
-  isBusy: boolean
   walletOk: boolean
   useCustomResolver: boolean
   resolverAddress: string
@@ -9,19 +8,14 @@ export type GetIsSubmitDisabledParams = {
   selectedExistingResolver: string
 }
 
-export function getIsSubmitDisabled(
-  params: GetIsSubmitDisabledParams,
-): boolean {
-  const {
-    isBusy,
-    walletOk,
-    useCustomResolver,
-    resolverAddress,
-    deployNewResolver,
-    selectedExistingResolver,
-  } = params
-
-  if (isBusy || !walletOk) return true
+export function getIsSubmitDisabled({
+  walletOk,
+  useCustomResolver,
+  resolverAddress,
+  deployNewResolver,
+  selectedExistingResolver,
+}: GetIsSubmitDisabledParams): boolean {
+  if (!walletOk) return true
 
   if (useCustomResolver) {
     return resolverAddress.trim() === '' || !isAddress(resolverAddress)

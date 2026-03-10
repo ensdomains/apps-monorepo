@@ -101,9 +101,6 @@ export const ChangeResolverForm = ({
     setSelectedExistingResolver,
   )
 
-  const isBusy =
-    (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
-
   const walletOk = match({ useCustomResolver, deployNewResolver })
     .with({ useCustomResolver: true }, () => hasChangeWallet)
     .with({ deployNewResolver: true }, () => hasDeployWallet)
@@ -149,8 +146,6 @@ export const ChangeResolverForm = ({
   }
 
   const handleSubmit = async () => {
-    if (isBusy) return
-
     try {
       if (useCustomResolver) {
         if (!isAddress(resolverAddress)) return
@@ -171,7 +166,6 @@ export const ChangeResolverForm = ({
   }
 
   const isSubmitDisabled = getIsSubmitDisabled({
-    isBusy,
     walletOk,
     useCustomResolver,
     resolverAddress,
