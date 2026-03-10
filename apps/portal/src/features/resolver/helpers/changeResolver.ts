@@ -1,7 +1,7 @@
 /**
  * Pure async function to change the resolver for an ENS V2 name.
  *
- * Follows the same pattern as saveRecords and useSubregistryDeployment:
+ * Follows the same pattern as saveRecords and deploySubregistry/setSubregistry:
  * 1. Get tokenId from registry (getRegistryNameData)
  * 2. Encode setResolver call with ensjs ABI snippet
  * 3. Submit via transaction manager

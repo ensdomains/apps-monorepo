@@ -15,25 +15,21 @@ export async function resolveAddressOrName({
     return nameOrAddress as Address
   }
 
-  try {
-    const resolved = await getEnsAddress(client, {
-      name: nameOrAddress,
-      universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
-    })
+  const resolved = await getEnsAddress(client, {
+    name: nameOrAddress,
+    universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+  })
 
-    let resolvedAddress = resolved
+  let resolvedAddress = resolved
 
-    // Fallback for names that do not set an address record:
-    // use current ENS owner address so the role can still be granted.
-    if (!resolvedAddress) {
-      const ownerResult = await getEnsOwner({ name: nameOrAddress })
-      if (ownerResult.isOk()) {
-        resolvedAddress = ownerResult.value?.owner ?? null
-      }
+  // Fallback for names that do not set an address record:
+  // use current ENS owner address so the role can still be granted.
+  if (!resolvedAddress) {
+    const ownerResult = await getEnsOwner({ name: nameOrAddress })
+    if (ownerResult.isOk()) {
+      resolvedAddress = ownerResult.value?.owner ?? null
     }
-
-    return resolvedAddress
-  } catch {
-    return null
   }
+
+  return resolvedAddress
 }

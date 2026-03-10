@@ -6,12 +6,13 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Address, Hex } from 'viem'
+import type { Address, Hash } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { changeResolver } from '../helpers/changeResolver'
+import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
 
@@ -41,7 +42,7 @@ export const useChangeResolver = ({
   const mutation = useMutation({
     mutationFn: async (
       resolverAddress: Address,
-    ): Promise<{ txId: string; hash: Hex }> => {
+    ): Promise<{ txId: string; hash: Hash }> => {
       if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -60,20 +61,10 @@ export const useChangeResolver = ({
       })
     },
     onSuccess: () => {
-      const invalidate = () =>
-        queryClient.invalidateQueries({
-          predicate: (query) => {
-            const key = query.queryKey[0]
-            return (
-              key === 'get-resolver-name' ||
-              key === 'get-resolver' ||
-              key === 'user-dedicated-resolvers'
-            )
-          },
-          refetchType: 'all',
-        })
-      invalidate()
-      pollForIndexerSync({ invalidateQueries: () => invalidate() })
+      invalidateResolverQueries(queryClient)
+      pollForIndexerSync({
+        invalidateQueries: () => invalidateResolverQueries(queryClient),
+      })
     },
   })
 
@@ -86,6 +77,6 @@ export const useChangeResolver = ({
     error: mutation.error,
     data: mutation.data,
     reset: mutation.reset,
-    hasWallet: !!walletClient?.account,
+    hasWallet: Boolean(walletClient?.account),
   }
 }
