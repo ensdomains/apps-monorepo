@@ -7,6 +7,7 @@ import { TransactionErrorAlert } from '@/features/registry/components/Transactio
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import type { TransactionStatusProps } from '@/lib/types/transaction'
 import { cn } from '@/lib/utils'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 
 interface SetSubregistryTransactionStatusProps extends TransactionStatusProps {
   readonly isSettingSubregistry: boolean
@@ -21,6 +22,7 @@ export const SetSubregistryTransactionStatus = ({
   txError,
   receiptError,
 }: SetSubregistryTransactionStatusProps): ReactElement | null => {
+  const txUrl = useBlockExplorerTxUrl(txHash ?? '')
   const hasError = txError || receiptError || isReverted
 
   if (hasError) {
@@ -89,7 +91,7 @@ export const SetSubregistryTransactionStatus = ({
               </span>
               <CopyableRecord
                 value={txHash}
-                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                href={txUrl}
                 className="text-xs"
                 truncate={false}
               />

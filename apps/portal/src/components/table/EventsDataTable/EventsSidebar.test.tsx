@@ -12,10 +12,22 @@ vi.mock('wagmi', () => ({
       from: '0x123' as `0x${string}`,
       to: '0x456' as `0x${string}`,
       blockNumber: BigInt(12345),
+      chainId: 11155111,
     },
     isLoading: false,
     error: null,
   })),
+  useChainId: () => 11155111,
+  useConfig: () => ({
+    chains: [
+      {
+        id: 11155111,
+        blockExplorers: {
+          default: { url: 'https://sepolia.etherscan.io' },
+        },
+      },
+    ],
+  }),
 }))
 
 // Mock other dependencies

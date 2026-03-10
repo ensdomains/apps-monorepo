@@ -18,11 +18,15 @@ import {
   sepolia,
 } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import type { EnsNetworkName } from '@/utils/types'
 
 export const sepoliaWithEns = extendChainWithL1Ens(sepolia)
 
 // later to be replaced with actual namechain sepolia
 export const namechainSepolia = extendChainWithL2Ens(sepolia)
+
+export const getChainIdForNetwork = (network: EnsNetworkName): number =>
+  network === 'sepolia' ? sepoliaWithEns.id : namechainSepolia.id
 
 const drpc = (chain: Chain) =>
   `https://lb.drpc.live/${chain.name.toLowerCase()}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`

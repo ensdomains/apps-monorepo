@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import type { TransactionStatusProps } from '@/lib/types/transaction'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 
 export const ChangeResolverTransactionStatus = ({
   txHash,
@@ -15,6 +16,7 @@ export const ChangeResolverTransactionStatus = ({
   txError,
   receiptError,
 }: TransactionStatusProps): ReactElement | null => {
+  const txUrl = useBlockExplorerTxUrl(txHash ?? '')
   if (txError) {
     const { summary, details } = getTransactionErrorInfo(txError)
     return (
@@ -80,7 +82,7 @@ export const ChangeResolverTransactionStatus = ({
               </span>
               <CopyableRecord
                 value={txHash}
-                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                href={txUrl}
                 className="text-xs"
                 truncate={false}
               />
