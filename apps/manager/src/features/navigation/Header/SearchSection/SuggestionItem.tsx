@@ -102,7 +102,7 @@ export const NameSuggestionItem = ({
             <div
               className={tw(
                 'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                'bg-[#DEF3E4] text-ens-peridot-core',
+                'bg-ens-peridot-bg text-ens-peridot-core',
               )}
             >
               Available
