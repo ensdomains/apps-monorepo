@@ -535,7 +535,9 @@ export default {
       const response = await env.ASSETS.fetch(request)
       const host = url.host
       const displayAddress = truncateAddress(decodedAddress, 6, 5)
-      const subpage = pathname.split('/').slice(2).join('/')
+      const pathSegments = pathname.split('/')
+      const subpage =
+        pathSegments.length > 3 ? pathSegments.slice(2).join('/') : ''
       const ogImageUrl = subpage
         ? `https://${host}/og/addr/${encodeURIComponent(decodedAddress)}/${encodeURIComponent(subpage)}.png`
         : `https://${host}/og/addr/${encodeURIComponent(decodedAddress)}.png`
@@ -582,11 +584,14 @@ export default {
 
       const { description, avatar } = ensData
       const host = url.host
-      const subpage = pathname.split('/').slice(2).join('/')
+      const namePathSegments = pathname.split('/')
+      const subpage =
+        namePathSegments.length > 3 ? namePathSegments.slice(2).join('/') : ''
       const ogImageUrl = subpage
         ? `https://${host}/og/${encodeURIComponent(decodedName)}/${encodeURIComponent(subpage)}.png`
         : `https://${host}/og/${encodeURIComponent(decodedName)}.png`
-      const pageTitle = pathname.split('/').slice(2).join(' > ')
+      const pageTitle =
+        namePathSegments.length > 3 ? namePathSegments.slice(2).join(' > ') : ''
       const profileTitle = pageTitle
         ? `${decodedName} > ${pageTitle} — ENS Explorer App`
         : `${decodedName} — ENS Explorer App`
