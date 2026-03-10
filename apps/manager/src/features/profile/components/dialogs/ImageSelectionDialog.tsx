@@ -327,6 +327,7 @@ export const ImageSelectionDialog = ({
         <div className="relative">
           <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
           <Input
+            aria-label="Search your NFTs"
             className="pl-10"
             onChange={(e) =>
               send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })
