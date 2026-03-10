@@ -65,12 +65,17 @@ export const TransactionStateContent = ({
         {transactions.map((transaction) => {
           const status = getStatus(transaction.id, activeTransactionsMap)
 
-          const hash = activeTransactionsMap.get(transaction.id)?.getSnapshot()
-            ?.context?.hash
+          const activeTxSnapshot = activeTransactionsMap
+            .get(transaction.id)
+            ?.getSnapshot()
 
-          const blockExplorerTxUrl = hash
-            ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, hash)
+          const txHash = activeTxSnapshot?.context?.hash
+
+          const blockExplorerTxUrl = txHash
+            ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txHash)
             : undefined
+
+          const txError = activeTxSnapshot?.context?.error
 
           return (
             <div
@@ -110,16 +115,12 @@ export const TransactionStateContent = ({
                     </a>
                   )}
                 </div>
-                {txState?.error && (
+                {txError && (
                   <TransactionErrorAlert
                     title="Transaction Error"
-                    summary={
-                      txState.error?.message || 'An unknown error occurred.'
-                    }
-                    details={
-                      txState.error?.stack || 'No stack trace available.'
-                    }
-                    txHash={txState.hash as Hash | undefined}
+                    summary={txError?.message || 'An unknown error occurred.'}
+                    details={txError?.stack || 'No stack trace available.'}
+                    txHash={txHash}
                     txHashLabel="Transaction hash:"
                     showIcon={false}
                   />
