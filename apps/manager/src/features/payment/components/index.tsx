@@ -48,7 +48,11 @@ const PaymentMethodItem = ({
       <div className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="secondary">
+            <Button
+              aria-label="Payment method options"
+              size="icon"
+              variant="secondary"
+            >
               <EllipsisIcon />
             </Button>
           </DropdownMenuTrigger>

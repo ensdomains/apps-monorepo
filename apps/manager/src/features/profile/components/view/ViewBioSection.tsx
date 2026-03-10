@@ -9,7 +9,7 @@ import type { ProfileRecords, TextRecordValue } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
 interface ContactItemProps {
-  record: TextRecordValue
+  readonly record: TextRecordValue
 }
 
 const ContactItem = ({ record }: ContactItemProps) => {
@@ -19,14 +19,14 @@ const ContactItem = ({ record }: ContactItemProps) => {
 
   const inner = (
     <>
-      <span className="text-gray-900 text-sm">
+      <span className="text-(--theme-color) text-sm">
         {recordDef?.icon ? (
           <IconRenderer className="size-4" icon={recordDef.icon} />
         ) : (
           recordDef?.name || record.key
         )}
       </span>
-      <span className="text-gray-600 text-sm">
+      <span className="text-(--theme-color) text-sm">
         {recordDef?.displayPrefix}
         {displayValue || 'Not set'}
       </span>
@@ -59,7 +59,7 @@ const ContactItem = ({ record }: ContactItemProps) => {
 }
 
 interface ViewBioSectionProps {
-  records: ProfileRecords
+  readonly records: ProfileRecords
 }
 
 export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
