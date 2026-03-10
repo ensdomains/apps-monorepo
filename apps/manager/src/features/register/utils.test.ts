@@ -83,6 +83,12 @@ describe('register utils', () => {
       expect(determinePremium('')).toBe(false)
       expect(determinePremium('.eth')).toBe(false)
     })
+
+    it('should count emojis as single characters', () => {
+      expect(determinePremium('🎲🎲🎲🎲')).toBe(true)
+      expect(determinePremium('🎲🎲🎲🎲.eth')).toBe(true)
+      expect(determinePremium('🎲🎲🎲🎲🎲')).toBe(false)
+    })
   })
 
   describe('getPremiumLabel', () => {
@@ -132,6 +138,18 @@ describe('register utils', () => {
       // Names with multiple dots like 'abc.sub.eth' have a label of 'abc.sub'
       // which is longer than 4 characters, so they are not premium
       expect(getPremiumLabel('abc.sub.eth')).toBeUndefined()
+    })
+
+    it('should count emojis as single characters for premium categorization', () => {
+      expect(getPremiumLabel('🎲🎲🎲')).toEqual({
+        label: '3 character premium name',
+        variant: 'premium-3',
+      })
+      expect(getPremiumLabel('🎲🎲🎲🎲')).toEqual({
+        label: '4 character premium name',
+        variant: 'premium-4',
+      })
+      expect(getPremiumLabel('🎲🎲🎲🎲🎲')).toBeUndefined()
     })
   })
 
@@ -256,6 +274,14 @@ describe('register utils', () => {
       expect(validateENSName('test🔥')).toBeNull()
       expect(validateENSName('🚀rocket')).toBeNull()
       expect(validateENSName('🎉🎊🎁')).toBeNull()
+    })
+
+    it('should count emojis as single characters for length validation', () => {
+      expect(validateENSName('🎲🎲')).toEqual({
+        type: 'TOO_SHORT',
+        message: 'Names must be 3 characters or more to register.',
+      })
+      expect(validateENSName('🎲🎲🎲')).toBeNull()
     })
 
     it('should trim whitespace before validation', () => {

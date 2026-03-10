@@ -94,8 +94,8 @@ const getNameLength = (name: string | null): string => {
   if (!name) return '5+'
   // Remove the TLD (e.g., .eth)
   const label = name.split('.')[0]
-  if (label.length === 3) return '3'
-  if (label.length === 4) return '4'
+  if ([...label].length === 3) return '3'
+  if ([...label].length === 4) return '4'
   return '5+'
 }
 

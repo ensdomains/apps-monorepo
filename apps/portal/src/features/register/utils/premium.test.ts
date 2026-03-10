@@ -34,4 +34,17 @@ describe('getPremiumLabel', () => {
   it('uses first label only - ab.c.eth has first label "ab" (2 chars)', () => {
     expect(getPremiumLabel('ab.c.eth')).toBeUndefined()
   })
+
+  it('counts emojis as single characters', () => {
+    expect(getPremiumLabel('🎲🎲🎲')).toEqual({
+      label: '3 character premium name',
+      variant: 'premium-3',
+    })
+    expect(getPremiumLabel('🎲🎲🎲🎲')).toEqual({
+      label: '4 character premium name',
+      variant: 'premium-4',
+    })
+    expect(getPremiumLabel('🎲🎲')).toBeUndefined()
+    expect(getPremiumLabel('🎲🎲🎲🎲🎲')).toBeUndefined()
+  })
 })
