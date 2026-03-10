@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
-import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import {
@@ -45,15 +44,11 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
-  const recentEvents = useMemo(() => {
-    const events = resolver?.events ?? []
-    return events
-      .toSorted(
-        (a, b) =>
-          (b.timestamp ?? b.blockNumber) - (a.timestamp ?? a.blockNumber),
-      )
-      .slice(0, RECENT_EVENT_LIMIT)
-  }, [resolver?.events])
+  const recentEvents = (resolver?.events ?? [])
+    .toSorted(
+      (a, b) => (b.timestamp ?? b.blockNumber) - (a.timestamp ?? a.blockNumber),
+    )
+    .slice(0, RECENT_EVENT_LIMIT)
 
   if (isLoading) return <LoadingMessage title="Loading resolver" />
 
