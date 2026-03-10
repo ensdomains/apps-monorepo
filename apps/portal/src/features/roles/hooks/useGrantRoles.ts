@@ -13,6 +13,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { grantRoles } from '../helpers/grantRoles'
+import { invalidateRolesQueries } from '../utils/invalidateRolesQueries'
 
 type UseGrantRolesParameters = {
   readonly name: string
@@ -42,12 +43,10 @@ export function useGrantRoles() {
       })
     },
     onSuccess: () => {
-      const invalidate = () =>
-        queryClient.invalidateQueries({
-          predicate: (query) => query.queryKey[0] === 'get-name-roles-accounts',
-          refetchType: 'all',
-        })
-      pollForIndexerSync({ invalidateQueries: () => invalidate() })
+      invalidateRolesQueries(queryClient)
+      pollForIndexerSync({
+        invalidateQueries: () => invalidateRolesQueries(queryClient),
+      })
     },
   })
 

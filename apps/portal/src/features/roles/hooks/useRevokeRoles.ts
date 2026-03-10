@@ -13,6 +13,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { revokeRoles } from '../helpers/revokeRoles'
+import { invalidateRolesQueries } from '../utils/invalidateRolesQueries'
 
 type UseRevokeRolesParameters = {
   readonly name: string
@@ -42,15 +43,10 @@ export function useRevokeRoles() {
       })
     },
     onSuccess: () => {
-      const invalidate = () =>
-        queryClient.invalidateQueries({
-          predicate: (query) =>
-            query.queryKey[0] === 'get-name-roles-accounts' ||
-            query.queryKey[0] === 'getNameRolesForAccount',
-          refetchType: 'all',
-        })
-      invalidate()
-      pollForIndexerSync({ invalidateQueries: () => invalidate() })
+      invalidateRolesQueries(queryClient)
+      pollForIndexerSync({
+        invalidateQueries: () => invalidateRolesQueries(queryClient),
+      })
     },
   })
 
