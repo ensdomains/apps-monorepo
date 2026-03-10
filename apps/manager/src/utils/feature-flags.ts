@@ -26,7 +26,7 @@ type FeatureFlagConfig = {
   deniedUsers?: readonly string[]
 }
 
-export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
+const FEATURE_FLAGS_INTERNAL = {
   DISCOUNTS_APPLIED: {
     enabled: import.meta.env.VITE_FF_DISCOUNTS_APPLIED === 'true',
   },
@@ -36,9 +36,15 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
   SEARCH_RESULTS_BLUR_BACKDROP: {
     enabled: import.meta.env.VITE_FF_SEARCH_RESULTS_BLUR_BACKDROP === 'true',
   },
-} as const
+} as const satisfies Record<string, FeatureFlagConfig | boolean>
 
-export type FeatureFlag = keyof typeof FEATURE_FLAGS
+export type FeatureFlag = keyof typeof FEATURE_FLAGS_INTERNAL
+
+// Typescript hack to correctly infer the flag names but keep the config type as generic
+export const FEATURE_FLAGS = FEATURE_FLAGS_INTERNAL as Record<
+  FeatureFlag,
+  FeatureFlagConfig | boolean
+>
 
 function normalizeIdentifier(id: string): string {
   return id.trim().toLowerCase()
