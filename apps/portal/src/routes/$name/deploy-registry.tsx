@@ -71,11 +71,7 @@ function RouteComponent() {
         account: connectedAddress ?? zeroAddress,
         network,
       }),
-      enabled:
-        !!connectedAddress &&
-        !!parentRegistry &&
-        parentRegistry !== zeroAddress &&
-        !isLoading,
+      enabled: !!connectedAddress && !!parentRegistry && !isLoading,
     })
 
   const factoryAddress = isNamechain
@@ -196,6 +192,22 @@ function RouteComponent() {
           <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
             V1 names (like {name}) don't support custom subregistries. Only V2
             names can deploy and manage their own subregistries.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  if (!parentRegistry || parentRegistry === zeroAddress) {
+    return (
+      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
+        <DeployRegistryHeader name={name} />
+        <Alert variant="destructive" className="max-w-full">
+          <AlertCircle />
+          <AlertTitle>Registry Not Found</AlertTitle>
+          <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
+            Could not load registry information for {name}. Please try again
+            later.
           </AlertDescription>
         </Alert>
       </div>
