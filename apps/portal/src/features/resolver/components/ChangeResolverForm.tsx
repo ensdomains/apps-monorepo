@@ -13,7 +13,11 @@ import { DeployTransactionStatus } from '@/features/registry/components/DeployTr
 import { useChangeResolver } from '@/features/resolver/hooks/useChangeResolver'
 import { useDeployDedicatedResolver } from '@/features/resolver/hooks/useDeployDedicatedResolver'
 import { useUserDedicatedResolvers } from '@/features/resolver/hooks/useUserDedicatedResolvers'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ChangeResolverTransactionStatus } from './ChangeResolverTransactionStatus'
+
+const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
 
 function useAutoSelectFirstResolver(
   deployNewResolver: boolean,
@@ -34,27 +38,7 @@ function useAutoSelectFirstResolver(
   ])
 }
 
-function useResetSuccessLabelAfterDelay(
-  isConfirmed: boolean,
-  setShowSuccessButtonLabel: (value: boolean) => void,
-  delayMs = 5000,
-) {
-  useEffect(() => {
-    if (!isConfirmed) {
-      setShowSuccessButtonLabel(false)
-      return
-    }
-
-    setShowSuccessButtonLabel(true)
-    const timeoutId = window.setTimeout(() => {
-      setShowSuccessButtonLabel(false)
-    }, delayMs)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [isConfirmed, setShowSuccessButtonLabel, delayMs])
-}
+const SUCCESS_LABEL_DURATION_MS = 5000
 
 interface ChangeResolverFormProps {
   readonly name: string
@@ -73,6 +57,12 @@ export const ChangeResolverForm = ({
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
 
   const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
+  const {
     data: existingResolvers = [],
     isLoading: isLoadingExistingResolvers,
     error: existingResolversError,
@@ -81,16 +71,17 @@ export const ChangeResolverForm = ({
   })
 
   const {
+    changeResolver,
     changeResolverAsync,
-    txHash,
-    isWriting,
-    isConfirming,
-    isConfirmed,
-    isReverted,
-    error,
+    isPending: isChangeResolverPending,
+    isSuccess: isChangeResolverSuccess,
+    error: changeResolverError,
+    data: changeResolverData,
+    hasWallet,
   } = useChangeResolver({
     name,
     registryAddress,
+    id: CHANGE_RESOLVER_TX_ID,
   })
 
   const {
@@ -108,9 +99,37 @@ export const ChangeResolverForm = ({
     existingResolvers,
     setSelectedExistingResolver,
   )
-  useResetSuccessLabelAfterDelay(isConfirmed, setShowSuccessButtonLabel)
 
-  const isBusy = isWriting || isConfirming || isDeployConfirming
+  const isBusy =
+    (isChangeResolverPending && !useCustomResolver) || isDeployConfirming
+
+  const handleStartTransaction = () => {
+    const resolverToUse = match({ useCustomResolver })
+      .with({ useCustomResolver: true }, () =>
+        isAddress(resolverAddress) ? (resolverAddress as Address) : null,
+      )
+      .with({ useCustomResolver: false }, () =>
+        isAddress(selectedExistingResolver)
+          ? (selectedExistingResolver as Address)
+          : null,
+      )
+      .exhaustive()
+
+    if (!resolverToUse) {
+      return
+    }
+
+    changeResolver(resolverToUse, {
+      onSuccess: () => setShowSuccessButtonLabel(true),
+    })
+  }
+
+  const handleTransactionDone = () => {
+    closeTransactionModal()
+    clearTransaction()
+    setResolverAddress('')
+    setShowSuccessButtonLabel(false)
+  }
 
   const handleSubmit = async () => {
     if (isBusy) return
@@ -118,25 +137,34 @@ export const ChangeResolverForm = ({
     try {
       if (useCustomResolver) {
         if (!isAddress(resolverAddress)) return
-        await changeResolverAsync(resolverAddress as Address)
+        openTransactionModal()
         return
       }
 
+      // TODO: use multi step tx modal once the pattern is implemented
       if (deployNewResolver) {
         const deployment = await deployDedicatedResolverAsync()
-        await changeResolverAsync(deployment.resolverAddress)
+
+        await changeResolverAsync(deployment.resolverAddress, {
+          onSuccess: () => setShowSuccessButtonLabel(true),
+        })
+
+        setTimeout(() => {
+          setShowSuccessButtonLabel(false)
+        }, SUCCESS_LABEL_DURATION_MS)
         return
       }
 
       if (!isAddress(selectedExistingResolver)) return
-      await changeResolverAsync(selectedExistingResolver as Address)
+      openTransactionModal()
     } catch (err) {
       console.error('Failed to update resolver:', err)
     }
   }
 
   const isSubmitDisabled = (() => {
-    if (isBusy || !hasDeployWallet) return true
+    const walletOk = useCustomResolver ? hasWallet : hasDeployWallet
+    if (isBusy || !walletOk) return true
 
     if (useCustomResolver) {
       return resolverAddress.trim() === '' || !isAddress(resolverAddress)
@@ -152,13 +180,11 @@ export const ChangeResolverForm = ({
 
   const buttonText = match({
     isDeployConfirming,
-    isWriting,
-    isConfirming,
+    isChangeResolverPending,
     showSuccessButtonLabel,
   })
     .with({ isDeployConfirming: true }, () => 'Deploying resolver...')
-    .with({ isWriting: true }, () => 'Submitting transaction...')
-    .with({ isConfirming: true }, () => 'Confirming...')
+    .with({ isChangeResolverPending: true }, () => 'Changing resolver...')
     .with({ showSuccessButtonLabel: true }, () => 'Resolver changed!')
     .otherwise(() => 'Save changes')
 
@@ -287,14 +313,31 @@ export const ChangeResolverForm = ({
         txHashLabel="Deploy tx hash:"
       />
 
-      <ChangeResolverTransactionStatus
-        txHash={txHash}
-        isConfirming={isConfirming}
-        isConfirmed={isConfirmed}
-        isReverted={isReverted}
-        txError={error}
-        receiptError={null}
-      />
+      {deployNewResolver && !useCustomResolver && (
+        <ChangeResolverTransactionStatus
+          txHash={changeResolverData?.hash}
+          isConfirming={isChangeResolverPending}
+          isConfirmed={isChangeResolverSuccess}
+          isReverted={false}
+          txError={changeResolverError}
+          receiptError={null}
+        />
+      )}
+
+      {(useCustomResolver || !deployNewResolver) && (
+        <TransactionModal
+          transactions={[
+            {
+              id: CHANGE_RESOLVER_TX_ID,
+              title: 'Change resolver',
+              transactionName: `Set resolver for ${name}`,
+              estimatedGasCost: 0.0001,
+              onStart: handleStartTransaction,
+              onDone: handleTransactionDone,
+            },
+          ]}
+        />
+      )}
     </div>
   )
 }
