@@ -215,7 +215,7 @@ export const TransactionsOverviewContent = ({
               })
             }}
           >
-            {match(getStatus(activeTransaction.id, activeTransactionsMap))
+            {match(transactionStatus)
               .with(undefined, () => 'Start')
               .with('success', () => (hasNextTransaction ? 'Next' : 'Done'))
               .with('error', () => 'Retry')

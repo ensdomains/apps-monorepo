@@ -61,9 +61,10 @@ export const useChangeResolver = ({
       })
     },
     onSuccess: () => {
-      const invalidate = () => invalidateResolverQueries(queryClient)
-      invalidate()
-      pollForIndexerSync({ invalidateQueries: invalidate })
+      invalidateResolverQueries(queryClient)
+      pollForIndexerSync({
+        invalidateQueries: () => invalidateResolverQueries(queryClient),
+      })
     },
   })
 

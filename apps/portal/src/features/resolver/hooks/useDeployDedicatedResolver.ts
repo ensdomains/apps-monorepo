@@ -128,9 +128,10 @@ export const useDeployDedicatedResolver = ({
       })
     },
     onSuccess: () => {
-      const invalidate = () => invalidateResolverQueries(queryClient)
-      invalidate()
-      pollForIndexerSync({ invalidateQueries: invalidate })
+      invalidateResolverQueries(queryClient)
+      pollForIndexerSync({
+        invalidateQueries: () => invalidateResolverQueries(queryClient),
+      })
     },
   })
 

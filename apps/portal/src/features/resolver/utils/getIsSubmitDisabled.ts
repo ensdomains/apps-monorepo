@@ -23,8 +23,5 @@ export function getIsSubmitDisabled({
 
   if (deployNewResolver) return false
 
-  return (
-    selectedExistingResolver.trim() === '' ||
-    !isAddress(selectedExistingResolver)
-  )
+  return !isAddress(selectedExistingResolver)
 }
