@@ -1,9 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
+import { Loader2Icon, XIcon } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
 
@@ -28,23 +28,22 @@ const LINK_OPTIONS = {
 type NameSuggestionItemProps = {
   name: string
   onNavigate?: () => void
-  /** Whether the name is registered (from indexer). undefined = still loading or unknown */
+  /** Whether the name is registered (from indexer). undefined = still loading */
   isRegistered?: boolean
-  /** Avatar record from indexer resolver data */
-  avatarRecord?: string | null
+  /** Whether the indexer query is loading */
+  isLoading?: boolean
+  /** Whether the indexer query errored */
+  isError?: boolean
 }
 
 export const NameSuggestionItem = ({
   name,
   onNavigate,
   isRegistered,
-  avatarRecord,
+  isLoading,
+  isError,
 }: NameSuggestionItemProps) => {
-  // Parse avatar from the indexer resolver record (no RPC needed)
-  const { data: avatarUrl } = useQuery({
-    ...parseAvatarQuery(avatarRecord ?? undefined),
-    enabled: !!avatarRecord,
-  })
+  const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}/sepolia/${name}`
 
   const isAvailable = isRegistered === false
 
@@ -81,7 +80,11 @@ export const NameSuggestionItem = ({
             </span>
           </div>
         </div>
-        {isRegistered !== undefined && (
+        {isLoading ? (
+          <Loader2Icon className="size-4 animate-spin text-slate-500" />
+        ) : isError ? (
+          <XIcon className="size-4 text-slate-500" />
+        ) : isRegistered !== undefined ? (
           <div
             className={tw(
               'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
@@ -92,7 +95,7 @@ export const NameSuggestionItem = ({
           >
             {isRegistered ? 'Registered' : 'Available'}
           </div>
-        )}
+        ) : null}
       </div>
     </Link>
   )

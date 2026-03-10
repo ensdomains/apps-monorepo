@@ -1,5 +1,5 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import type { RefObject } from 'react'
@@ -13,7 +13,7 @@ import {
   formatDashboardDate,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import { useDebounce } from '@/hooks/useDebounce'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 
@@ -22,7 +22,6 @@ type Suggestion = {
   label: string
   description: string
   value: string
-  avatarRecord?: string | null
 }
 
 const useCloseOnOutsideClick = ({
@@ -127,7 +126,6 @@ export const DashboardSidebarSearch = ({
           toDateFromSeconds(domain.createdAt),
         )}`,
         value: label.toLowerCase(),
-        avatarRecord: domain.resolver?.avatar ?? null,
       })
     }
 
@@ -178,12 +176,6 @@ export const DashboardSidebarSearch = ({
 
   const shouldShowSuggestions = isDropdownOpen && suggestions.length > 0
 
-  const avatarQueries = useQueries({
-    queries: suggestions.map((suggestion) =>
-      parseAvatarQuery(suggestion.avatarRecord ?? undefined),
-    ),
-  })
-
   useCloseOnOutsideClick({
     containerRef,
     enabled: shouldShowSuggestions,
@@ -210,11 +202,8 @@ export const DashboardSidebarSearch = ({
       {shouldShowSuggestions && (
         <div className="absolute z-10 mt-2 w-full rounded-md border border-slate-200 bg-white shadow-md">
           <ul className="divide-y divide-slate-100">
-            {suggestions.map((suggestion, index) => {
-              const avatarUrl =
-                avatarQueries[index]?.data ??
-                suggestion.avatarRecord ??
-                undefined
+            {suggestions.map((suggestion) => {
+              const avatarUrl = `${AVATAR_UPLOAD_BASE_URL}/sepolia/${suggestion.label}`
 
               return (
                 <li key={suggestion.id}>

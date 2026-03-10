@@ -14,8 +14,10 @@ export type NameSuggestion = {
   isSubname?: boolean
   /** Whether the name is registered (from the indexer). undefined = still loading */
   isRegistered?: boolean
-  /** Avatar record from the indexer resolver */
-  avatarRecord?: string | null
+  /** Whether the indexer query is currently loading */
+  isLoading?: boolean
+  /** Whether the indexer query errored */
+  isError?: boolean
 }
 
 type AddressSuggestion = {
@@ -76,16 +78,15 @@ export const useSearchSuggestions = (searchValue: string) => {
     enabled: parsedInput.type === 'address',
   })
 
-  // Use the GraphQL indexer to check if the searched name is registered.
-  // This replaces per-item RPC calls with a single lightweight indexer query.
-  const searchedName =
-    parsedInput.type === 'name' ? parsedInput.value : undefined
+  // Use name_contains_nocase to find matching registered names from the indexer.
+  // Use the raw trimmed input (without .eth suffix) so typing "big" finds "bigint.eth", etc.
+  const rawInput = searchValue.trim().toLowerCase()
   const indexerQuery = useQuery(
     getDomainsQuery(
-      searchedName
+      rawInput && parsedInput.type === 'name'
         ? {
-            where: { name: searchedName },
-            first: 1,
+            where: { name_contains_nocase: rawInput },
+            first: 5,
             orderBy: Domain_OrderBy.Name,
             orderDirection: OrderDirection.Asc,
           }
@@ -100,6 +101,7 @@ export const useSearchSuggestions = (searchValue: string) => {
 
   const suggestions = useMemo(() => {
     const newSuggestions: SuggestionItem[] = []
+    const addedNames = new Set<string>()
 
     if (parsedInput.type === 'address') {
       newSuggestions.push({
@@ -107,6 +109,7 @@ export const useSearchSuggestions = (searchValue: string) => {
         value: parsedInput.value,
       })
       if (primaryNameQuery.data) {
+        addedNames.add(primaryNameQuery.data.toLowerCase())
         newSuggestions.push(
           {
             type: 'name',
@@ -120,44 +123,58 @@ export const useSearchSuggestions = (searchValue: string) => {
     }
 
     if (parsedInput.type === 'name') {
-      const domain = indexerQuery.data?.domains.find(
+      const indexerDomains = indexerQuery.data?.domains ?? []
+
+      // Check if the typed name exactly matches an indexer result
+      const exactMatch = indexerDomains.find(
         (d) =>
           d.name?.toLowerCase() === parsedInput.value.toLowerCase() ||
           d.normalizedName?.toLowerCase() === parsedInput.value.toLowerCase(),
       )
 
-      newSuggestions.push(
-        {
-          type: 'name',
-          value: parsedInput.value,
-          isRegistered: indexerQuery.isFetched ? !!domain : undefined,
-          avatarRecord: domain?.resolver?.avatar ?? null,
-        },
-        {
-          type: 'separator',
-        },
-      )
-    }
+      // Primary suggestion: the typed name (with .eth appended)
+      addedNames.add(parsedInput.value.toLowerCase())
+      newSuggestions.push({
+        type: 'name',
+        value: parsedInput.value,
+        isRegistered: indexerQuery.isFetched ? !!exactMatch : undefined,
+        isLoading: indexerQuery.isLoading,
+        isError: indexerQuery.isError,
+      })
 
-    for (const item of history) {
-      if (
-        parsedInput.type !== 'error' &&
-        (item.value.toLowerCase() === parsedInput.value.toLowerCase() ||
-          item.value.toLowerCase() === primaryNameQuery.data?.toLowerCase())
-      ) {
-        continue
+      // Add matching names from the indexer (all registered)
+      for (const domain of indexerDomains) {
+        const name = domain.normalizedName ?? domain.name
+        if (!name) continue
+        const lowered = name.toLowerCase()
+        if (addedNames.has(lowered)) continue
+        addedNames.add(lowered)
+        newSuggestions.push({
+          type: 'name',
+          value: name,
+          isRegistered: true,
+        })
       }
 
-      if (item.kind === 'name') {
-        newSuggestions.push({
-          type: 'name',
-          value: item.value,
-        })
-      } else if (item.kind === 'address') {
-        newSuggestions.push({
-          type: 'address',
-          value: item.value,
-        })
+      newSuggestions.push({
+        type: 'separator',
+      })
+    }
+
+    // Only show history when there's no active search input
+    if (parsedInput.type === 'error') {
+      for (const item of history) {
+        if (item.kind === 'name') {
+          newSuggestions.push({
+            type: 'name',
+            value: item.value,
+          })
+        } else if (item.kind === 'address') {
+          newSuggestions.push({
+            type: 'address',
+            value: item.value,
+          })
+        }
       }
     }
 
@@ -167,6 +184,8 @@ export const useSearchSuggestions = (searchValue: string) => {
     primaryNameQuery.data,
     indexerQuery.data,
     indexerQuery.isFetched,
+    indexerQuery.isLoading,
+    indexerQuery.isError,
     history,
   ])
 
