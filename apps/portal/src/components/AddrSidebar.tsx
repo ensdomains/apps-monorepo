@@ -50,6 +50,7 @@ const getItemGroups = (addr: string) => [
       link: {
         to: '/addr/$addr/names',
         params: { addr },
+        activeOptions: { exact: true },
       },
     }),
   ],
@@ -59,8 +60,9 @@ const getItemGroups = (addr: string) => [
       icon: CopyIcon,
       upcoming: true,
       link: {
-        to: '/addr/$addr',
+        to: '/addr/$addr/resolution',
         params: { addr },
+        activeOptions: { exact: true },
       },
     }),
     defineAddrSidebarItem({
@@ -68,8 +70,9 @@ const getItemGroups = (addr: string) => [
       icon: CopySlashIcon,
       upcoming: true,
       link: {
-        to: '/addr/$addr',
+        to: '/addr/$addr/reverse-resolution',
         params: { addr },
+        activeOptions: { exact: true },
       },
     }),
   ],
