@@ -586,12 +586,12 @@ export default {
       const host = url.host
       const namePathSegments = pathname.split('/')
       const subpage =
-        namePathSegments.length > 3 ? namePathSegments.slice(2).join('/') : ''
+        namePathSegments.length > 2 ? namePathSegments.slice(2).join('/') : ''
       const ogImageUrl = subpage
         ? `https://${host}/og/${encodeURIComponent(decodedName)}/${encodeURIComponent(subpage)}.png`
         : `https://${host}/og/${encodeURIComponent(decodedName)}.png`
       const pageTitle =
-        namePathSegments.length > 3 ? namePathSegments.slice(2).join(' > ') : ''
+        namePathSegments.length > 2 ? namePathSegments.slice(2).join(' > ') : ''
       const profileTitle = pageTitle
         ? `${decodedName} > ${pageTitle} — ENS Explorer App`
         : `${decodedName} — ENS Explorer App`
