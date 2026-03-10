@@ -530,7 +530,7 @@ export default {
       const displayAddress = truncateAddress(decodedAddress, 6, 5)
       const pathSegments = pathname.split('/')
       const subpage =
-        pathSegments.length > 3 ? pathSegments.slice(2).join('/') : ''
+        pathSegments.length > 3 ? pathSegments.slice(3).join('/') : ''
       const ogImageUrl = subpage
         ? `https://${host}/og/addr/${encodeURIComponent(decodedAddress)}/${encodeURIComponent(subpage)}.png`
         : `https://${host}/og/addr/${encodeURIComponent(decodedAddress)}.png`
