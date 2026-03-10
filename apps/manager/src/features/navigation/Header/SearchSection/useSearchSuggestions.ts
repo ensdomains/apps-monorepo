@@ -7,16 +7,11 @@ import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboa
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { searchHistoryStore } from './useSearchHistory'
 
-export type NameSuggestion = {
+type NameSuggestion = {
   type: 'name'
   value: string
-  isEth?: boolean
-  isSubname?: boolean
-  /** Whether the name is registered (from the indexer). undefined = still loading */
   isRegistered?: boolean
-  /** Whether the indexer query is currently loading */
   isLoading?: boolean
-  /** Whether the indexer query errored */
   isError?: boolean
 }
 
@@ -31,41 +26,25 @@ type Separator = {
   type: 'separator'
 }
 
-export type SuggestionItem = Suggestion | Separator
+type SuggestionItem = Suggestion | Separator
 
 const parseInput = (
   input: string,
-): Suggestion | { type: 'error'; error: string } => {
+):
+  | { type: 'name'; value: string }
+  | { type: 'address'; value: Address }
+  | { type: 'error' } => {
   const trimmed = input.trim().toLowerCase()
-  if (!trimmed)
-    return {
-      type: 'error',
-      error: 'EMPTY_INPUT',
-    }
+  if (!trimmed) return { type: 'error' }
 
   if (isAddress(trimmed, { strict: false })) {
-    return {
-      type: 'address',
-      value: trimmed,
-    }
+    return { type: 'address', value: trimmed }
   }
 
   const parts = trimmed.split('.').filter(Boolean)
+  const value = parts.length === 1 ? `${trimmed}.eth` : trimmed
 
-  // If name doesn't have a tld, add .eth
-  return parts.length === 1
-    ? {
-        type: 'name',
-        value: `${trimmed}.eth`,
-        isEth: true,
-        isSubname: false,
-      }
-    : {
-        type: 'name',
-        value: trimmed,
-        isEth: parts.at(-1) === 'eth',
-        isSubname: parts.length > 2,
-      }
+  return { type: 'name', value }
 }
 
 export const useSearchSuggestions = (searchValue: string) => {
@@ -78,8 +57,6 @@ export const useSearchSuggestions = (searchValue: string) => {
     enabled: parsedInput.type === 'address',
   })
 
-  // Use name_contains_nocase to find matching registered names from the indexer.
-  // Use the raw trimmed input (without .eth suffix) so typing "big" finds "bigint.eth", etc.
   const rawInput = searchValue.trim().toLowerCase()
   const indexerQuery = useQuery(
     getDomainsQuery(
@@ -125,14 +102,12 @@ export const useSearchSuggestions = (searchValue: string) => {
     if (parsedInput.type === 'name') {
       const indexerDomains = indexerQuery.data?.domains ?? []
 
-      // Check if the typed name exactly matches an indexer result
       const exactMatch = indexerDomains.find(
         (d) =>
           d.name?.toLowerCase() === parsedInput.value.toLowerCase() ||
           d.normalizedName?.toLowerCase() === parsedInput.value.toLowerCase(),
       )
 
-      // Primary suggestion: the typed name (with .eth appended)
       addedNames.add(parsedInput.value.toLowerCase())
       newSuggestions.push({
         type: 'name',
@@ -142,7 +117,6 @@ export const useSearchSuggestions = (searchValue: string) => {
         isError: indexerQuery.isError,
       })
 
-      // Add matching names from the indexer (all registered)
       for (const domain of indexerDomains) {
         const name = domain.normalizedName ?? domain.name
         if (!name) continue
@@ -155,13 +129,8 @@ export const useSearchSuggestions = (searchValue: string) => {
           isRegistered: true,
         })
       }
-
-      newSuggestions.push({
-        type: 'separator',
-      })
     }
 
-    // Only show history when there's no active search input
     if (parsedInput.type === 'error') {
       for (const item of history) {
         if (item.kind === 'name') {
