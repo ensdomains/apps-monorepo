@@ -1,5 +1,6 @@
 import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
 import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '../types'
 import { getStatus } from '../utils/getStatus'
@@ -9,6 +10,8 @@ type TransactionFlowProgressBarProps = {
   readonly activeTransaction: Transaction
   readonly activeTransactionsMap: Map<string, TransactionMachineActor>
 }
+
+const DEFAULT_PROGRESS_PERCENT = 9
 
 export const TransactionFlowProgressBar = ({
   transactions,
@@ -39,17 +42,17 @@ export const TransactionFlowProgressBar = ({
     activeTxStatus !== 'error'
 
   const totalSegments = transactions.length + 1
+
   const filledSegments =
-    completedCount + (activeInProgress ? 0.5 : 0) + (allSuccess ? 1 : 0)
+    completedCount + (activeInProgress ? 1 : 0) + (allSuccess ? 1 : 0)
 
   const progressPercent =
-    totalSegments > 0 ? (filledSegments / totalSegments) * 100 : 0
+    (filledSegments / totalSegments) * 100 || DEFAULT_PROGRESS_PERCENT
 
-  const fillColor = hasError
-    ? 'bg-garnet-100'
-    : allSuccess
-      ? 'bg-peridot-100'
-      : 'bg-quartz-100'
+  const fillColor = match({ hasError, allSuccess })
+    .with({ hasError: true }, () => 'bg-garnet-100')
+    .with({ allSuccess: true }, () => 'bg-peridot-100')
+    .otherwise(() => 'bg-quartz-100')
 
   return (
     <div
@@ -60,7 +63,7 @@ export const TransactionFlowProgressBar = ({
     >
       <div
         className={cn(
-          'absolute inset-y-0 left-0 rounded-l-full transition-all duration-300 h-full',
+          'absolute inset-y-0 left-0 rounded-full transition-all duration-300 h-full',
           fillColor,
         )}
         style={{ width: `${progressPercent}%` }}
@@ -69,18 +72,18 @@ export const TransactionFlowProgressBar = ({
         <div
           key={transaction.id}
           className={cn(
-            'relative z-10 flex flex-1 min-w-0 items-center rounded-full p-2',
+            'relative z-10 flex flex-1 min-w-0 items-center rounded-full p-1',
             index === 0 ? 'justify-start' : 'justify-center',
           )}
         >
-          <ArrowRight className="size-4 shrink-0" />
+          <ArrowRight className="size-3.5 shrink-0" />
         </div>
       ))}
-      <div className="relative z-10 flex flex-1 min-w-0 items-center justify-end rounded-full p-2">
+      <div className="relative z-10 flex flex-1 min-w-0 items-center justify-end rounded-full p-1">
         {hasError ? (
-          <XCircle className="size-4 shrink-0" />
+          <XCircle className="size-3.5 shrink-0" />
         ) : (
-          <CheckCircle2 className="size-4 shrink-0" />
+          <CheckCircle2 className="size-3.5 shrink-0" />
         )}
       </div>
     </div>
