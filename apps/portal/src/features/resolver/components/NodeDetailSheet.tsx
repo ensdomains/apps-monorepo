@@ -131,12 +131,7 @@ export const NodeDetailSheet = ({
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">Roles</h3>
                   <Button variant="secondary" size="sm" asChild>
-                    <Link
-                      to="/resolver/$address/roles"
-                      params={{
-                        address: node.resolver?.address ?? '',
-                      }}
-                    >
+                    <Link to="/$name/roles" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
                       Go to roles
                     </Link>
