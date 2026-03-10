@@ -42,6 +42,9 @@ describe('isValidEnsName', () => {
   it('should return false for invalid characters', () => {
     expect(isValidEnsName('test!@#.eth')).toBe(false)
     expect(isValidEnsName('invalid name.eth')).toBe(false) // space
+    expect(isValidEnsName('para+1.eth')).toBe(false) // plus sign
+    expect(isValidEnsName('test=value.eth')).toBe(false) // equals
+    expect(isValidEnsName('name&more.eth')).toBe(false) // ampersand
   })
 
   it('should return false for non-normalized names', () => {

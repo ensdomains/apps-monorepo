@@ -17,6 +17,7 @@ import {
   getDurationInSecondsFromYears,
 } from '@/features/register/utils/registrationDuration'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { isValidEnsName } from '@/utils/token/isNormalized'
 import { validateNameLength } from '@/utils/token/nameValidation'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
@@ -51,7 +52,9 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const isSuccess = machineState === 'success'
 
   const nameLengthError = validateNameLength(name)
-  const isNameValid = !nameLengthError
+  const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
+  const isFormatValid = isValidEnsName(nameWithEth.toLowerCase())
+  const isNameValid = !nameLengthError && isFormatValid
 
   const {
     data: availability,
@@ -100,10 +103,28 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     return (
       <MessageCard
         icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
-        title="Name too short"
+        title="Invalid name"
         description={
           <div className="text-base">
             <p>{nameLengthError}</p>
+          </div>
+        }
+        badge="Alpha"
+      />
+    )
+  }
+
+  if (!isFormatValid) {
+    return (
+      <MessageCard
+        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+        title="Invalid name"
+        description={
+          <div className="text-base">
+            <p>
+              This name contains unsupported characters. Try letters, numbers,
+              hyphens, or emojis.
+            </p>
           </div>
         }
         badge="Alpha"

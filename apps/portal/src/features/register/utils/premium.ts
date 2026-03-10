@@ -22,7 +22,7 @@ export const getPremiumLabel = (
     return undefined
   }
 
-  const length = label.length
+  const length = [...label].length
 
   if (length < 3 || length > 4) {
     return undefined

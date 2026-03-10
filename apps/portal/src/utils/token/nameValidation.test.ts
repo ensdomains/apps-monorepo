@@ -27,4 +27,18 @@ describe('validateNameLength', () => {
   it('returns error for invalid names (empty, unparseable)', () => {
     expect(validateNameLength('')).toBe('Invalid name')
   })
+
+  it('returns error for names with invalid characters', () => {
+    expect(validateNameLength('para+1')).toBe('Invalid name')
+    expect(validateNameLength('test!name')).toBe('Invalid name')
+    expect(validateNameLength('a&b.eth')).toBe('Invalid name')
+  })
+
+  it('counts emojis as single characters', () => {
+    expect(validateNameLength('🎲🎲')).toBe(
+      'Names must be 3 characters or more to register.',
+    )
+    expect(validateNameLength('🎲🎲🎲')).toBeNull()
+    expect(validateNameLength('🎲🎲🎲🎲🎲')).toBeNull()
+  })
 })

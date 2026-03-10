@@ -5,6 +5,7 @@ import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { isValidEnsName } from '@/utils/token/isNormalized'
 import { fastTestETHRegistrar } from '../../../lib/constants/registry'
 
 export class CheckNameAvailabilityError extends TaggedError(
@@ -33,6 +34,17 @@ export const checkNameAvailability = ResultFn(async function* ({
 
   // Remove .eth suffix if present
   const cleanName = name.replace(/\.eth$/i, '')
+
+  // Reject invalid ENS names before calling the contract
+  const nameToValidate = cleanName.includes('.')
+    ? cleanName
+    : `${cleanName}.eth`
+  if (!isValidEnsName(nameToValidate.toLowerCase())) {
+    return ok<CheckNameAvailabilityReturnType>({
+      isAvailable: false,
+      name: `${cleanName}.eth`,
+    })
+  }
 
   const isAvailable = yield* fromPromise(
     readContract(client, {

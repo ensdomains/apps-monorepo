@@ -12,7 +12,7 @@ export const validateNameLength = (name: string): string | null => {
   } catch {
     return 'Invalid name'
   }
-  if (label.length > 0 && label.length < 3) {
+  if ([...label].length > 0 && [...label].length < 3) {
     return 'Names must be 3 characters or more to register.'
   }
   return null
