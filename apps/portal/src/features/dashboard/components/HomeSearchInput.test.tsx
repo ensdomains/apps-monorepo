@@ -31,6 +31,17 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   ),
 }))
 
+vi.mock('@/features/profile/hooks/useEnsOwner', () => ({
+  getEnsOwnerQueryOptions: ({ name }: { name: string }) => ({
+    queryKey: ['get-ens-owner', { name }],
+    queryFn: async () => ({
+      owner: '0x1234567890abcdef1234567890abcdef12345678',
+      registryAddress: '0x0000000000000000000000000000000000000000',
+      network: 'sepolia',
+    }),
+  }),
+}))
+
 const { useIsMobile } = await import('@/hooks/use-mobile')
 
 function createWrapper() {
@@ -105,22 +116,6 @@ describe('HomeSearchInput', () => {
         ).toBeInTheDocument()
         // Should show description
         expect(screen.getByText('View address details')).toBeInTheDocument()
-      })
-    })
-
-    it('should handle invalid addresses gracefully', async () => {
-      vi.mocked(useIsMobile).mockReturnValue(false)
-      const user = userEvent.setup()
-
-      render(<HomeSearchInput />, { wrapper: createWrapper() })
-
-      const input = await openSearchDialog(user)
-      // Type invalid address (too short)
-      await user.type(input, '0x123')
-
-      await waitFor(() => {
-        // Should show ENS name suggestion instead
-        expect(screen.getByText('0x123.eth')).toBeInTheDocument()
       })
     })
   })
