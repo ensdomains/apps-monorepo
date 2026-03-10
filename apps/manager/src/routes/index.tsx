@@ -9,6 +9,7 @@ import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
 import { CheckAvailability } from '@/features/register/components/CheckAvailability/CheckAvailability'
 import { getParaConnectionCookie } from '@/lib/para'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const LandingPage = () => {
   const navigate = useNavigate()
@@ -35,7 +36,9 @@ const LandingPage = () => {
         <div className="mt-11 w-full max-w-3xl">
           <CheckAvailability
             onRegistrationComplete={(name) => {
-              navigate({ to: '/register', search: { name } })
+              isFeatureEnabled('REGISTRATION_V2')
+                ? navigate({ to: '/register-v2/$name', params: { name } })
+                : navigate({ to: '/register', search: { name } })
             }}
           />
         </div>

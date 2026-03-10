@@ -7,6 +7,7 @@ import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
 import { useAvatarFromName } from '@/features/profile/service/profileAvatar'
 import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
 
@@ -17,15 +18,20 @@ const LINK_OPTIONS = {
       params: { name },
     }),
   register: (name: string) =>
-    linkOptions({
-      to: '/register',
-      search: {
-        name,
-      },
-      // Hacky solution to force reset state on register page
-      // TODO: Update register state logic to properly handle name input changes
-      reloadDocument: location.pathname === '/register',
-    }),
+    isFeatureEnabled('REGISTRATION_V2')
+      ? linkOptions({
+          to: '/register-v2/$name',
+          params: { name },
+        })
+      : linkOptions({
+          to: '/register',
+          search: {
+            name,
+          },
+          // Hacky solution to force reset state on register page
+          // TODO: Update register state logic to properly handle name input changes
+          reloadDocument: location.pathname === '/register',
+        }),
 } as const
 
 type NameSuggestionItemProps = {

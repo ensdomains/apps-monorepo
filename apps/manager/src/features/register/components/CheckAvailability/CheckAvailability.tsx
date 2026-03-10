@@ -18,6 +18,7 @@ import { ValidationError } from '@/features/register/components/CheckAvailabilit
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
@@ -181,8 +182,18 @@ export const CheckAvailability = ({
 
                 {displayState.type === 'available' && (
                   <Link
-                    search={{ name: displayState.domainName, duration: 1 }}
-                    to="/register"
+                    {...(isFeatureEnabled('REGISTRATION_V2')
+                      ? {
+                          params: { name: displayState.domainName },
+                          to: '/register-v2/$name',
+                        }
+                      : {
+                          search: {
+                            name: displayState.domainName,
+                            duration: 1,
+                          },
+                          to: '/register',
+                        })}
                   >
                     <DomainResultCard
                       clickable
