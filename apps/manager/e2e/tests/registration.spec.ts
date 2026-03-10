@@ -15,7 +15,7 @@ const DOMAIN_TO_REGISTER =
  * Para modal Shadow DOM steps use evaluate helpers (email fill, arrow button).
  */
 test.describe('ENS name registration', () => {
-  test.only('registers a name via Para wallet and stablecoin payment', async ({
+  test('registers a name via Para wallet and stablecoin payment', async ({
     stagehand,
   }) => {
     const page = stagehand.context.pages()[0]
@@ -97,5 +97,14 @@ test.describe('ENS name registration', () => {
 
     await monitor.waitForRegistrationComplete(120_000)
     expect(monitor.getLastState()).toBe('success')
+
+    const successBanner = () =>
+      page.evaluate(
+        () =>
+          document
+            .querySelector('p.text-ens-peridot-text-dark')
+            ?.textContent?.includes('Registration Complete') ?? false,
+      )
+    await expect.poll(successBanner, { timeout: 30_000 }).toBe(true)
   })
 })
