@@ -18,10 +18,10 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 
 type Suggestion = {
-  id: string
-  label: string
-  description: string
-  value: string
+  readonly id: string
+  readonly label: string
+  readonly description: string
+  readonly value: string
 }
 
 const useCloseOnOutsideClick = ({

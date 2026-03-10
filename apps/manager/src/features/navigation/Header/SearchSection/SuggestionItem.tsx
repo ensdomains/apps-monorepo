@@ -115,8 +115,8 @@ export const NameSuggestionItem = ({
 }
 
 type AddressSuggestionItemProps = {
-  address: string
-  onNavigate?: () => void
+  readonly address: string
+  readonly onNavigate?: () => void
 }
 
 export const AddressSuggestionItem = ({
