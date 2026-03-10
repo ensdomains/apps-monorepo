@@ -1,6 +1,7 @@
-import { useSelector } from '@xstate/react'
-import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
-import { getRegistrationV2ChildActor } from '@/features/register-v2/machines/registrationV2UiMachine'
+import {
+  useRegistrationV2Context,
+  useRegistrationV2TransactionSelector,
+} from '@/features/register-v2/machines/RegistrationV2UiContext'
 
 interface RegistrationV2TransactionStateProps {
   targetName: string
@@ -27,17 +28,10 @@ const TRANSACTION_STAGE_LABELS: Record<string, string> = {
 export const RegistrationV2TransactionState = ({
   targetName,
 }: RegistrationV2TransactionStateProps) => {
-  const uiActorRef = RegistrationV2UiContext.useActorRef()
-  const registrationActor = getRegistrationV2ChildActor(
-    uiActorRef.getSnapshot(),
-  )
+  const { uiActor } = useRegistrationV2Context()
 
-  if (!registrationActor) {
-    throw new Error('Registration v2 child actor is not available')
-  }
-
-  const actorState = useSelector(registrationActor, (state) =>
-    String(state.value),
+  const actorState = useRegistrationV2TransactionSelector(
+    (state) => state?.value ?? 'idle',
   )
   const stageLabel =
     TRANSACTION_STAGE_LABELS[actorState] ?? 'Registration in progress'
@@ -60,7 +54,7 @@ export const RegistrationV2TransactionState = ({
       <div className="flex flex-wrap gap-2">
         <button
           className="rounded border px-3 py-2 text-sm"
-          onClick={() => uiActorRef.send({ type: 'CANCEL' })}
+          onClick={() => uiActor.send({ type: 'CANCEL' })}
           type="button"
         >
           Cancel flow

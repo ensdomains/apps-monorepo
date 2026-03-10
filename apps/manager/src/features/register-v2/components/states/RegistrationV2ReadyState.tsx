@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
-import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
+import {
+  useRegistrationV2Context,
+  useRegistrationV2Selector,
+} from '@/features/register-v2/machines/RegistrationV2UiContext'
 import { getRegistrationV2PricingQuoteQueryOptions } from '@/features/register-v2/queries/registrationV2PricingQuoteQueryOptions'
 import { startRegistrationV2 } from '@/features/register-v2/transactions/startRegistrationV2'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -14,13 +17,11 @@ interface RegistrationV2ReadyStateProps {
 export const RegistrationV2ReadyState = ({
   targetName,
 }: RegistrationV2ReadyStateProps) => {
-  const actorRef = RegistrationV2UiContext.useActorRef()
+  const { uiActor } = useRegistrationV2Context()
   const account = useSmartAccountContext()
-  const durationYears = RegistrationV2UiContext.useSelector(
-    (state) => state.context.durationYears,
-  )
-  const selectedToken = RegistrationV2UiContext.useSelector(
-    (state) => state.context.selectedToken,
+  const [durationYears, selectedToken] = useRegistrationV2Selector(
+    (state) => [state.context.durationYears, state.context.selectedToken],
+    (a, b) => a[0] === b[0] && a[1] === b[1],
   )
 
   const pricingQuery = useQuery(
@@ -77,7 +78,7 @@ export const RegistrationV2ReadyState = ({
               className="rounded border px-3 py-2 text-sm"
               key={durationOption}
               onClick={() =>
-                actorRef.send({
+                uiActor.send({
                   type: 'DURATION_SET',
                   durationYears: durationOption,
                 })
@@ -99,7 +100,7 @@ export const RegistrationV2ReadyState = ({
               className="rounded border px-3 py-2 text-sm"
               key={symbol}
               onClick={() =>
-                actorRef.send({
+                uiActor.send({
                   type: 'TOKEN_SET',
                   token: tokenAddress as Address,
                 })
@@ -128,7 +129,7 @@ export const RegistrationV2ReadyState = ({
                 tokenPrice: tokenQuote.raw,
               },
               account,
-              actorRef,
+              uiActor,
               {
                 publicClient,
                 fast: true,

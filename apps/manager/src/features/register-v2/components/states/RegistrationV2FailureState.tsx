@@ -1,5 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { RegistrationV2UiContext } from '@/features/register-v2/machines/RegistrationV2UiContext'
+import {
+  useRegistrationV2Context,
+  useRegistrationV2Selector,
+} from '@/features/register-v2/machines/RegistrationV2UiContext'
 
 interface RegistrationV2FailureStateProps {
   targetName: string
@@ -8,8 +11,8 @@ interface RegistrationV2FailureStateProps {
 export const RegistrationV2FailureState = ({
   targetName,
 }: RegistrationV2FailureStateProps) => {
-  const actorRef = RegistrationV2UiContext.useActorRef()
-  const message = RegistrationV2UiContext.useSelector(
+  const { uiActor } = useRegistrationV2Context()
+  const message = useRegistrationV2Selector(
     (state) => state.context.lastErrorMessage,
   )
 
@@ -25,14 +28,14 @@ export const RegistrationV2FailureState = ({
       <div className="flex flex-wrap gap-2">
         <button
           className="rounded border px-3 py-2 text-sm"
-          onClick={() => actorRef.send({ type: 'RETRY' })}
+          onClick={() => uiActor.send({ type: 'RETRY' })}
           type="button"
         >
           Retry
         </button>
         <button
           className="rounded border px-3 py-2 text-sm"
-          onClick={() => actorRef.send({ type: 'CANCEL' })}
+          onClick={() => uiActor.send({ type: 'CANCEL' })}
           type="button"
         >
           Back to quote
