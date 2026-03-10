@@ -6,7 +6,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Address, Hex } from 'viem'
+import type { Address, Hash } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { namechainSepolia } from '@/lib/wagmi'
@@ -42,7 +42,7 @@ export const useChangeResolver = ({
   const mutation = useMutation({
     mutationFn: async (
       resolverAddress: Address,
-    ): Promise<{ txId: string; hash: Hex }> => {
+    ): Promise<{ txId: string; hash: Hash }> => {
       if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
       }

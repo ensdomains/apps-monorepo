@@ -18,7 +18,7 @@ export function getIsSubmitDisabled({
   if (!walletOk) return true
 
   if (useCustomResolver) {
-    return resolverAddress.trim() === '' || !isAddress(resolverAddress)
+    return !isAddress(resolverAddress)
   }
 
   if (deployNewResolver) return false
