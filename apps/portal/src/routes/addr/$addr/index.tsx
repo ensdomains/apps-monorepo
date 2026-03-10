@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
-import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -66,14 +65,13 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
     getV2HistoryForAddressQueryOptions({ address }),
   )
 
-  const recentEvents = useMemo(() => {
-    if (!v2Events) return undefined
-    return transformV2EventsToSubgraphFormat(
-      v2Events
-        .toSorted((a, b) => b.timestamp - a.timestamp)
-        .slice(0, RECENT_EVENT_LIMIT),
-    )
-  }, [v2Events])
+  const recentEvents = v2Events
+    ? transformV2EventsToSubgraphFormat(
+        v2Events
+          .toSorted((a, b) => b.timestamp - a.timestamp)
+          .slice(0, RECENT_EVENT_LIMIT),
+      )
+    : undefined
 
   return (
     <div className="flex flex-col gap-4 w-full">
