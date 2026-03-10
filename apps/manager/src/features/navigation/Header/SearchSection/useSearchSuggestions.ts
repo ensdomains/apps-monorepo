@@ -1,63 +1,14 @@
+import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import { useMemo } from 'react'
-import { type Address, isAddress } from 'viem'
+import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { buildSuggestions, parseSearchInput } from './searchSuggestions.utils'
 import { searchHistoryStore } from './useSearchHistory'
 
-type Suggestion =
-  | {
-      type: 'name'
-      value: string
-      isEth?: boolean
-      isSubname?: boolean
-    }
-  | {
-      type: 'address'
-      value: Address
-    }
-
-type Separator = {
-  type: 'separator'
-}
-
-const parseInput = (
-  input: string,
-): Suggestion | { type: 'error'; error: string } => {
-  const trimmed = input.trim().toLowerCase()
-  if (!trimmed)
-    return {
-      type: 'error',
-      error: 'EMPTY_INPUT',
-    }
-
-  if (isAddress(trimmed, { strict: false })) {
-    return {
-      type: 'address',
-      value: trimmed,
-    }
-  }
-
-  const parts = trimmed.split('.').filter(Boolean)
-
-  // If name doesn't have a tld, add .eth
-  return parts.length === 1
-    ? {
-        type: 'name',
-        value: `${trimmed}.eth`,
-        isEth: true,
-        isSubname: false,
-      }
-    : {
-        type: 'name',
-        value: trimmed,
-        isEth: parts.at(-1) === 'eth',
-        isSubname: parts.length > 2,
-      }
-}
-
 export const useSearchSuggestions = (searchValue: string) => {
-  const parsedInput = parseInput(searchValue)
+  const parsedInput = parseSearchInput(searchValue)
 
   const primaryNameQuery = useQuery({
     ...profileReverseNameQuery(
@@ -66,68 +17,46 @@ export const useSearchSuggestions = (searchValue: string) => {
     enabled: parsedInput.type === 'address',
   })
 
+  const rawInput = searchValue.trim().toLowerCase()
+  const indexerQuery = useQuery(
+    getDomainsQuery(
+      rawInput && parsedInput.type === 'name'
+        ? {
+            where: { name_contains_nocase: rawInput },
+            first: 5,
+            orderBy: Domain_OrderBy.Name,
+            orderDirection: OrderDirection.Asc,
+          }
+        : undefined,
+    ),
+  )
+
   const history = useSelector(
     searchHistoryStore,
     (state) => state.context.history,
   )
 
-  const suggestions = useMemo(() => {
-    const newSuggestions: (Suggestion | Separator)[] = []
-
-    if (parsedInput.type === 'address') {
-      newSuggestions.push({
-        type: 'address',
-        value: parsedInput.value,
-      })
-      if (primaryNameQuery.data) {
-        newSuggestions.push(
-          {
-            type: 'name',
-            value: primaryNameQuery.data,
-          },
-          {
-            type: 'separator',
-          },
-        )
-      }
-    }
-
-    if (parsedInput.type === 'name') {
-      newSuggestions.push(
-        {
-          type: 'name',
-          value: parsedInput.value,
-        },
-        {
-          type: 'separator',
-        },
-      )
-    }
-
-    for (const item of history) {
-      if (
-        parsedInput.type !== 'error' &&
-        (item.value.toLowerCase() === parsedInput.value.toLowerCase() ||
-          item.value.toLowerCase() === primaryNameQuery.data?.toLowerCase())
-      ) {
-        continue
-      }
-
-      if (item.kind === 'name') {
-        newSuggestions.push({
-          type: 'name',
-          value: item.value,
-        })
-      } else if (item.kind === 'address') {
-        newSuggestions.push({
-          type: 'address',
-          value: item.value,
-        })
-      }
-    }
-
-    return newSuggestions.slice(0, 6)
-  }, [parsedInput, primaryNameQuery.data, history])
+  const suggestions = useMemo(
+    () =>
+      buildSuggestions({
+        parsedInput,
+        primaryName: primaryNameQuery.data,
+        indexerDomains: indexerQuery.data?.domains ?? [],
+        indexerFetched: indexerQuery.isFetched,
+        indexerLoading: indexerQuery.isLoading,
+        indexerError: indexerQuery.isError,
+        history,
+      }),
+    [
+      parsedInput,
+      primaryNameQuery.data,
+      indexerQuery.data,
+      indexerQuery.isFetched,
+      indexerQuery.isLoading,
+      indexerQuery.isError,
+      history,
+    ],
+  )
 
   return suggestions
 }
