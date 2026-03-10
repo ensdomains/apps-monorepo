@@ -8,7 +8,6 @@ import {
   XCircle,
 } from 'lucide-react'
 import { match } from 'ts-pattern'
-import type { Hash } from 'viem'
 import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
