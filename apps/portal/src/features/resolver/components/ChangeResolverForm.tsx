@@ -106,7 +106,7 @@ export const ChangeResolverForm = ({
     .with({ deployNewResolver: true }, () => hasDeployWallet)
     .otherwise(() => hasChangeWallet)
 
-  const handleStartTransaction = () => {
+  const handleChangeResolverTransactionStart = () => {
     const resolverToUse = match({ useCustomResolver })
       .with({ useCustomResolver: true }, () =>
         isAddress(resolverAddress) ? (resolverAddress as Address) : null,
@@ -131,10 +131,11 @@ export const ChangeResolverForm = ({
 
   const handleDeployResolverDone = () => {
     if (!deployedResolverAddress) return
+    // gets deployed resolver address from query client
     changeResolver(deployedResolverAddress)
   }
 
-  const handleTransactionDone = () => {
+  const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
     setResolverAddress('')
@@ -327,8 +328,8 @@ export const ChangeResolverForm = ({
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   estimatedGasCost: 0.0001,
-                  // Started by handleDeployResolverDone when user clicks Done on deploy step
-                  onDone: handleTransactionDone,
+                  onStart: handleDeployResolverDone,
+                  onDone: handleChangeResolverTransactionDone,
                 },
               ]
             : [
@@ -337,8 +338,8 @@ export const ChangeResolverForm = ({
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   estimatedGasCost: 0.0001,
-                  onStart: handleStartTransaction,
-                  onDone: handleTransactionDone,
+                  onStart: handleChangeResolverTransactionStart,
+                  onDone: handleChangeResolverTransactionDone,
                 },
               ]
         }

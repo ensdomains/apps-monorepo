@@ -17,5 +17,5 @@ export type Transaction = {
   readonly transactionName: string
   readonly estimatedGasCost: number
   readonly onDone: () => void
-  readonly onStart?: () => void
+  readonly onStart: () => void
 }
