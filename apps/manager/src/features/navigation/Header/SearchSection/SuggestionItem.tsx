@@ -27,14 +27,14 @@ const LINK_OPTIONS = {
 } as const
 
 type NameSuggestionItemProps = {
-  name: string
-  onNavigate?: () => void
+  readonly name: string
+  readonly onNavigate?: () => void
   /** Whether the name is registered (from indexer). undefined = still loading */
-  isRegistered?: boolean
+  readonly isRegistered?: boolean
   /** Whether the indexer query is loading */
-  isLoading?: boolean
+  readonly isLoading?: boolean
   /** Whether the indexer query errored */
-  isError?: boolean
+  readonly isError?: boolean
 }
 
 export const NameSuggestionItem = ({

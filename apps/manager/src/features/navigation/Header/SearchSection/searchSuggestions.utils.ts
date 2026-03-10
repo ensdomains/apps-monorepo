@@ -3,30 +3,30 @@ import { isAddress } from 'viem'
 import type { SearchHistoryItem } from './useSearchHistory'
 
 type NameSuggestion = {
-  type: 'name'
-  value: string
-  isRegistered?: boolean
-  isLoading?: boolean
-  isError?: boolean
+  readonly type: 'name'
+  readonly value: string
+  readonly isRegistered?: boolean
+  readonly isLoading?: boolean
+  readonly isError?: boolean
 }
 
 type AddressSuggestion = {
-  type: 'address'
-  value: Address
+  readonly type: 'address'
+  readonly value: Address
 }
 
 type Suggestion = NameSuggestion | AddressSuggestion
 
 type Separator = {
-  type: 'separator'
+  readonly type: 'separator'
 }
 
 export type SuggestionItem = Suggestion | Separator
 
 export type ParsedInput =
-  | { type: 'name'; value: string }
-  | { type: 'address'; value: Address }
-  | { type: 'error' }
+  | { readonly type: 'name'; readonly value: string }
+  | { readonly type: 'address'; readonly value: Address }
+  | { readonly type: 'error' }
 
 export const parseSearchInput = (input: string): ParsedInput => {
   const trimmed = input.trim().toLowerCase()
@@ -43,18 +43,18 @@ export const parseSearchInput = (input: string): ParsedInput => {
 }
 
 type IndexerDomain = {
-  name?: string | null
-  normalizedName?: string | null
+  readonly name?: string | null
+  readonly normalizedName?: string | null
 }
 
 type BuildSuggestionsParams = {
-  parsedInput: ParsedInput
-  primaryName?: string | null
-  indexerDomains: IndexerDomain[]
-  indexerFetched: boolean
-  indexerLoading: boolean
-  indexerError: boolean
-  history: SearchHistoryItem[]
+  readonly parsedInput: ParsedInput
+  readonly primaryName?: string | null
+  readonly indexerDomains: readonly IndexerDomain[]
+  readonly indexerFetched: boolean
+  readonly indexerLoading: boolean
+  readonly indexerError: boolean
+  readonly history: readonly SearchHistoryItem[]
 }
 
 const MAX_SUGGESTIONS = 6
