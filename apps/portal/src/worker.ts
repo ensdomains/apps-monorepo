@@ -544,7 +544,7 @@ export default {
       const pageTitle = subpage
         ? `${displayAddress} > ${subpage} — ENS Explorer App`
         : `${displayAddress} — ENS Explorer App`
-      const desc = `Ethereum address ${displayAddress}`
+      const desc = `Ethereum address ${decodedAddress}`
 
       const metaTags = [
         `<meta property="og:title" content="${escapeHtml(pageTitle)}" />`,
