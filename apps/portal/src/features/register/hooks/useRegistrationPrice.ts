@@ -6,7 +6,7 @@ import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public'
 import { err, fromPromise, ok } from 'neverthrow'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
@@ -35,7 +35,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   duration,
   token,
 }: RegistrationPriceParameters) {
-  const client = yield* safeGetClient()
+  const client = yield* safeGetNamechainSepoliaClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
   let label: string
@@ -48,16 +48,8 @@ export const getRegistrationPrice = ResultFn(async function* ({
     )
   }
 
-  // NOTE: `safeGetClient` returns a Wagmi `Client` that is structurally equivalent
-  // to the public-client argument expected by `getPrice`, but ENSJS and this app
-  // have not yet fully aligned their public client types. This cast keeps pricing
-  // operational today at the cost of skipping strict compile-time validation for this
-  // specific interoperability boundary. Remove this when type definitions are
-  // standardized across both sides.
-  const priceClient = client as unknown as Parameters<typeof getPrice>[0]
-
   const { base, premium } = yield* fromPromise(
-    getPrice(priceClient, {
+    getPrice(client, {
       nameOrNames: label,
       duration: BigInt(duration),
       paymentToken: resolvedToken,
