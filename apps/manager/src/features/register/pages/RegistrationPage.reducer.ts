@@ -21,10 +21,11 @@ export type RegistrationUIAction =
 
 export function createInitialUIState(
   initialName?: string,
+  initialDuration?: number,
 ): RegistrationUIState {
   return {
     name: initialName || '',
-    duration: 1,
+    duration: initialDuration && initialDuration >= 1 ? initialDuration : 1,
     selectedToken: SUPPORTED_TOKENS.USDC,
   }
 }
