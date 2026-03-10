@@ -184,3 +184,22 @@ export function deserializeResult<TData, TError>(
 ) {
   return serialized.ok ? ok(serialized.data) : err(serialized.error)
 }
+
+/**
+ * Improved version of fromThrowable that handles functions with generics better
+ * @param fn - Function to wrap
+ * @param errorFn - Function to convert errors to your error type
+ * @returns Function that wraps the function and converts errors to your error type
+ */
+export function fromThrowableV2<A extends readonly any[], R, E>(
+  fn: (...args: A) => R,
+  errorFn?: (err: unknown) => E,
+): (...args: A) => Result<R, E> {
+  return (...args) => {
+    try {
+      return ok(fn(...args))
+    } catch (error) {
+      return err(errorFn ? errorFn(error) : (error as E))
+    }
+  }
+}
