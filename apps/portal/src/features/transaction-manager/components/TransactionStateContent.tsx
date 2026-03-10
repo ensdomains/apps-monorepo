@@ -43,6 +43,11 @@ export const TransactionStateContent = ({
 
   const activeTransaction = getActiveTransaction(transactions, txState)
   const activeTxStatus = getStatus(activeTransaction.id, activeTransactionsMap)
+  const activeIndex = transactions.findIndex(
+    (t) => t.id === activeTransaction.id,
+  )
+  const hasNextTransaction =
+    activeIndex >= 0 && activeIndex < transactions.length - 1
 
   return (
     <>
@@ -154,7 +159,7 @@ export const TransactionStateContent = ({
               className="flex-1"
               onClick={activeTransaction.onDone}
             >
-              Done
+              {hasNextTransaction ? 'Next' : 'Done'}
             </Button>
           ))
           .with('error', () => (

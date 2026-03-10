@@ -46,6 +46,11 @@ export const TransactionsOverviewContent = ({
   })
 
   const activeTransaction = getActiveTransaction(transactions, txState)
+  const activeIndex = transactions.findIndex(
+    (t) => t.id === activeTransaction.id,
+  )
+  const hasNextTransaction =
+    activeIndex >= 0 && activeIndex < transactions.length - 1
 
   const transactionStatus = getStatus(
     activeTransaction.id,
@@ -157,7 +162,7 @@ export const TransactionsOverviewContent = ({
             className="w-full mb-0"
             variant="secondary"
             onClick={() => {
-              if (transactionStatus === 'success') {
+              if (transactionStatus === 'success' && !hasNextTransaction) {
                 activeTransaction.onDone()
                 return
               }
@@ -170,7 +175,7 @@ export const TransactionsOverviewContent = ({
           >
             {match(getStatus(activeTransaction.id, activeTransactionsMap))
               .with(undefined, () => 'Start')
-              .with('success', () => 'Done')
+              .with('success', () => (hasNextTransaction ? 'Start' : 'Done'))
               .with('error', () => 'Retry')
               .otherwise(() => 'Next')}
           </Button>

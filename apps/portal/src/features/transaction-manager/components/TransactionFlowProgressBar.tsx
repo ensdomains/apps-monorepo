@@ -11,7 +11,7 @@ type TransactionFlowProgressBarProps = {
   readonly activeTransactionsMap: Map<string, TransactionMachineActor>
 }
 
-const DEFAULT_PROGRESS_PERCENT = 9
+const ARROW_OFFSET_PERCENT = 9
 
 export const TransactionFlowProgressBar = ({
   transactions,
@@ -41,13 +41,17 @@ export const TransactionFlowProgressBar = ({
     activeTxStatus !== 'success' &&
     activeTxStatus !== 'error'
 
-  const totalSegments = transactions.length + 1
+  const totalSegments = transactions.length * 2
+  const filledSegments = hasError
+    ? completedCount * 2
+    : completedCount * 2 + (activeInProgress ? 1 : 0)
 
-  const filledSegments =
-    completedCount + (activeInProgress ? 1 : 0) + (allSuccess ? 1 : 0)
+  const baseProgressPercent =
+    totalSegments > 0 ? (filledSegments / totalSegments) * 100 : 0
 
-  const progressPercent =
-    (filledSegments / totalSegments) * 100 || DEFAULT_PROGRESS_PERCENT
+  const progressPercent = allSuccess
+    ? baseProgressPercent
+    : Math.min(baseProgressPercent + ARROW_OFFSET_PERCENT, 100)
 
   const fillColor = match({ hasError, allSuccess })
     .with({ hasError: true }, () => 'bg-garnet-100')
