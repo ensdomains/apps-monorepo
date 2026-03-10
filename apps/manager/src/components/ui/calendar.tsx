@@ -94,7 +94,7 @@ function Calendar({
     : internalSelected
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="p-6">
       <DayPicker
         captionLayout={captionLayout}
         className={cn(

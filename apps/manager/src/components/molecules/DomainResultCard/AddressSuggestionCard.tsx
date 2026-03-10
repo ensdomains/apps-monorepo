@@ -50,7 +50,7 @@ export const AddressSuggestionCard = ({
             className={cn(
               'min-w-0 font-medium text-foreground',
               isCompact
-                ? 'truncate text-[#1D1B20] text-sm'
+                ? 'truncate text-foreground text-sm'
                 : 'break-words text-base',
             )}
           >

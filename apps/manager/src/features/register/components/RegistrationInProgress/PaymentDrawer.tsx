@@ -249,6 +249,7 @@ export const CryptoPaymentDrawer = ({
           {/* Search Input */}
           <div className="w-2/3">
             <Input
+              aria-label="Search coins"
               className="h-9 rounded border-ens-gray-two"
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search coins"
