@@ -159,7 +159,7 @@ function RouteComponent() {
     },
   })
 
-  if (isLoading) return <LoadingMessage />
+  if (isLoading) return <LoadingMessage title="Loading nodes" />
   if (error)
     return (
       <ErrorMessage

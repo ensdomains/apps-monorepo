@@ -68,9 +68,10 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
 
   const recentEvents = useMemo(() => {
     if (!v2Events) return undefined
-    const sorted = [...v2Events].sort((a, b) => b.timestamp - a.timestamp)
     return transformV2EventsToSubgraphFormat(
-      sorted.slice(0, RECENT_EVENT_LIMIT),
+      v2Events
+        .toSorted((a, b) => b.timestamp - a.timestamp)
+        .slice(0, RECENT_EVENT_LIMIT),
     )
   }, [v2Events])
 

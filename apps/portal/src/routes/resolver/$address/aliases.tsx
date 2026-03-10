@@ -28,7 +28,7 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
-  if (isLoading) return <LoadingMessage />
+  if (isLoading) return <LoadingMessage title="Loading aliases" />
   if (error)
     return (
       <ErrorMessage
