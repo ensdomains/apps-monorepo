@@ -134,7 +134,10 @@ export const PricingRegistrationSummaryCard = ({
                   <Pencil className="size-4 text-ens-blue" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="center" className="w-auto p-0">
+              <PopoverContent
+                align="center"
+                className="w-auto rounded-2xl bg-white p-0"
+              >
                 <Calendar
                   captionLayout="dropdown"
                   defaultMonth={expirationDate}
