@@ -1,10 +1,11 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { CheckCircle, Clock, Copy, Save, Trash2 } from 'lucide-react'
+import { CheckCircle, Clock, Save, Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
+import { CopyButton } from '@/components/CopyButton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -303,13 +304,7 @@ export const RolesSidebar = <
                   <h2 className="text-[34px] font-medium leading-[1.35]">
                     {name}
                   </h2>
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(name)}
-                    className="p-1 cursor-pointer"
-                  >
-                    <Copy className="size-6" />
-                  </button>
+                  <CopyButton value={name} />
                 </div>
                 {canManageRoles && selectedAccount && (
                   <Button
