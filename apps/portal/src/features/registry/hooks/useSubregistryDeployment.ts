@@ -7,7 +7,6 @@ import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
 import { encodeFunctionData } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import type { ActorRefFrom, SnapshotFrom } from 'xstate'
@@ -292,7 +291,7 @@ export function useSubregistryDeployment({
           request: {
             type: 'eoa',
             from: walletClient.account.address,
-            to: writeParams.address as Address,
+            to: writeParams.address,
             data,
             chainId,
             gas: 500000n,

@@ -82,7 +82,7 @@ export const deploySubregistry = async ({
       request: {
         type: 'eoa',
         from: walletClient.account.address,
-        to: writeParams.address as Address,
+        to: writeParams.address,
         data,
         chainId,
       },

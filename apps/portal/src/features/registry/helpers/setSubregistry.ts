@@ -76,7 +76,7 @@ export const setSubregistry = async ({
       request: {
         type: 'eoa',
         from: walletWithAccount.account.address,
-        to: writeParams.address as Address,
+        to: writeParams.address,
         data,
         chainId,
         gas: 500000n,
