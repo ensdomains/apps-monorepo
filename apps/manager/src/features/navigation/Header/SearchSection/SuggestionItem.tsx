@@ -1,5 +1,6 @@
 import { Link, linkOptions } from '@tanstack/react-router'
 import { Loader2Icon, XIcon } from 'lucide-react'
+import { match } from 'ts-pattern'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
@@ -80,22 +81,34 @@ export const NameSuggestionItem = ({
             </span>
           </div>
         </div>
-        {isLoading ? (
-          <Loader2Icon className="size-4 animate-spin text-slate-500" />
-        ) : isError ? (
-          <XIcon className="size-4 text-slate-500" />
-        ) : isRegistered !== undefined ? (
-          <div
-            className={tw(
-              'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-              isRegistered
-                ? 'bg-ens-white text-ens-lapis-core'
-                : 'bg-[#DEF3E4] text-ens-peridot-core',
-            )}
-          >
-            {isRegistered ? 'Registered' : 'Available'}
-          </div>
-        ) : null}
+        {match({ isLoading, isError, isRegistered })
+          .with({ isLoading: true }, () => (
+            <Loader2Icon className="size-4 animate-spin text-slate-500" />
+          ))
+          .with({ isError: true }, () => (
+            <XIcon className="size-4 text-slate-500" />
+          ))
+          .with({ isRegistered: true }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-ens-white text-ens-lapis-core',
+              )}
+            >
+              Registered
+            </div>
+          ))
+          .with({ isRegistered: false }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-[#DEF3E4] text-ens-peridot-core',
+              )}
+            >
+              Available
+            </div>
+          ))
+          .otherwise(() => null)}
       </div>
     </Link>
   )
