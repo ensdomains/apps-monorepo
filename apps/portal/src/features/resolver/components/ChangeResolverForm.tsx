@@ -5,18 +5,18 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { DeployTransactionStatus } from '@/features/registry/components/DeployTransactionStatus'
 import { useChangeResolver } from '@/features/resolver/hooks/useChangeResolver'
 import { useDeployDedicatedResolver } from '@/features/resolver/hooks/useDeployDedicatedResolver'
 import { useUserDedicatedResolvers } from '@/features/resolver/hooks/useUserDedicatedResolvers'
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { ChangeResolverTransactionStatus } from './ChangeResolverTransactionStatus'
+import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-dedicated-resolver'
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
@@ -85,10 +85,7 @@ export const ChangeResolverForm = ({
   const {
     deployDedicatedResolverAsync,
     deployedResolverAddress,
-    txHash: deployTxHash,
     isConfirming: isDeployConfirming,
-    isConfirmed: isDeployConfirmed,
-    error: deployError,
     hasWallet: hasDeployWallet,
   } = useDeployDedicatedResolver({ name })
 
@@ -287,27 +284,9 @@ export const ChangeResolverForm = ({
       </Button>
 
       {existingResolversError && !deployNewResolver && !useCustomResolver && (
-        <ChangeResolverTransactionStatus
-          txHash={undefined}
-          isConfirming={false}
-          isConfirmed={false}
-          isReverted={false}
-          txError={existingResolversError}
-          receiptError={null}
-        />
-      )}
-
-      {!isDeployPath && (
-        <DeployTransactionStatus
-          txHash={deployTxHash}
-          isConfirming={isDeployConfirming}
-          isConfirmed={isDeployConfirmed}
-          txError={deployError}
-          pendingTitle="Deploying Dedicated Resolver"
-          successTitle="Dedicated Resolver Deployed"
-          pendingDescription="Waiting for deployment confirmation..."
-          successDescription="Dedicated resolver deployed successfully."
-          txHashLabel="Deploy tx hash:"
+        <ErrorMessage
+          title="Failed to load resolvers"
+          description={extractErrorMessage(existingResolversError, '')}
         />
       )}
 
