@@ -13,6 +13,7 @@ import {
   getEventSignature,
 } from '@/utils/ens/eventSignatures'
 import { formatEventValue } from '@/utils/ens/formatEventValue'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { filterEventDetailsMetadata } from '@/utils/history/filterEventDetailsMetadata'
 import { parseEventLogIndex } from '@/utils/history/parseEventLogIndex'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
@@ -223,7 +224,7 @@ export const TransactionEvents = ({
                         value={txHash}
                         displayValue={
                           <span className="flex items-center gap-1">
-                            {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                            {truncateAddress(txHash, 10, 8, '...')}
                           </span>
                         }
                         className="text-sm flex-1 min-w-0"

@@ -24,11 +24,11 @@ import { PendingChangesBar } from '@/features/records/components/PendingChangesB
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { useIsDedicatedResolver } from '@/features/resolver/hooks/useIsDedicatedResolver'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { validateRecords } from '@/utils/records/validateRecord'
-import type { EnsNetworkName } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -155,7 +155,6 @@ function EditRecordsPage() {
       name={name}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
-      network={ownerQuery.data.network}
     />
   )
 }
@@ -164,14 +163,16 @@ const EditRecordsContent = ({
   name,
   records: rawRecords,
   resolverAddress,
-  network,
 }: {
   name: string
   records: GetRecordsReturnType
   resolverAddress: Address
-  network: EnsNetworkName
 }) => {
   const navigate = useNavigate()
+
+  const { data: isDedicatedResolver } = useIsDedicatedResolver({
+    resolverAddress,
+  })
 
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
@@ -235,7 +236,7 @@ const EditRecordsContent = ({
       resolverAddress,
       originalRecords,
       pendingChanges,
-      resolverType: network === 'sepolia' ? 'public' : 'dedicated',
+      resolverType: isDedicatedResolver ? 'dedicated' : 'public',
     })
   }
 
