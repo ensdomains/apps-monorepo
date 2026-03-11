@@ -4,12 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { type FormEvent, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
-import { getEnsAddress } from 'viem/actions'
 import { sepolia } from 'viem/chains'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -23,8 +22,10 @@ import {
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
@@ -62,15 +63,27 @@ interface CreateSubnameFormProps {
 
 const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   const navigate = useNavigate()
-  const { isConnected } = useAccount()
+  const { address: connectedAddress, isConnected } = useConnection()
   const { data: walletClient } = useWalletClient()
 
   const [label, setLabel] = useState('')
-  const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
+  const [ownerInput, setOwnerInput] = useState(connectedAddress ?? '')
+  const [ownerAddress, setOwnerAddress] = useState<Address | null>(
+    connectedAddress ?? null,
+  )
   const [resolveError, setResolveError] = useState<string | null>(null)
+  const [isResolving, setIsResolving] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasUserEditedOwner = useRef(false)
+
+  useEffect(() => {
+    if (connectedAddress && !hasUserEditedOwner.current) {
+      setOwnerInput(connectedAddress)
+      setOwnerAddress(connectedAddress)
+    }
+  }, [connectedAddress])
 
   // Fetch registries (we know it's v2 at this point)
   const {
@@ -224,16 +237,20 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
           </div>
         </Field>
 
-        <Field data-invalid={!ownerAddress}>
+        <Field data-invalid={!ownerAddress && !isResolving}>
           <FieldLabel htmlFor="owner">Owner</FieldLabel>
           <Input
             id="owner"
             name="owner"
             placeholder="ENS name or HEX address"
+            value={ownerInput}
             disabled={isSubmitting}
             required
             pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
             onChange={(e) => {
+              hasUserEditedOwner.current = true
+              const value = e.target.value
+              setOwnerInput(value)
               setResolveError(null)
 
               if (resolveTimeoutRef.current) {
@@ -241,44 +258,51 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
               }
 
               if (e.currentTarget.checkValidity()) {
-                const nameOrAddress = e.currentTarget.value as Address
+                const nameOrAddress = value as Address
 
                 if (isAddress(nameOrAddress)) {
                   setOwnerAddress(nameOrAddress)
+                  setIsResolving(false)
                 } else {
                   setOwnerAddress(null)
-                  resolveTimeoutRef.current = setTimeout(() => {
-                    ResultAsync.fromPromise(
-                      getEnsAddress(getClient(), {
-                        name: nameOrAddress,
-                        universalResolverAddress:
-                          '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
-                      }),
-                      (error) =>
-                        error instanceof Error
-                          ? error
-                          : new Error('Failed to resolve ENS name'),
-                    ).match(
-                      (address) => {
-                        setOwnerAddress(address)
-                        if (!address) {
-                          setResolveError(
-                            `Could not resolve address for ${nameOrAddress}`,
-                          )
-                        }
-                      },
-                      (error) => {
-                        setOwnerAddress(null)
-                        setResolveError(error.message)
-                      },
-                    )
+                  setIsResolving(true)
+                  resolveTimeoutRef.current = setTimeout(async () => {
+                    try {
+                      const resolved = await resolveAddressOrName({
+                        client: getClient(),
+                        nameOrAddress,
+                      })
+                      setOwnerAddress(resolved)
+                      setIsResolving(false)
+                      if (!resolved) {
+                        setResolveError(
+                          `Could not resolve address for ${nameOrAddress}`,
+                        )
+                      }
+                    } catch {
+                      setOwnerAddress(null)
+                      setIsResolving(false)
+                      setResolveError('Failed to resolve ENS name')
+                    }
                   }, 500)
                 }
               } else {
                 setOwnerAddress(null)
+                setIsResolving(false)
               }
             }}
           />
+          {isResolving && (
+            <p className="text-sm text-quartz-500 flex items-center gap-1">
+              <Loader2 className="size-3 animate-spin" />
+              Resolving...
+            </p>
+          )}
+          {ownerAddress && !isAddress(ownerInput) && !isResolving && (
+            <p className="text-sm text-quartz-500">
+              Resolved: {truncateAddress(ownerAddress)}
+            </p>
+          )}
         </Field>
 
         {match({ isConnected, submitError, resolveError })
