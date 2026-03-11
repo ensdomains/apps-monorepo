@@ -40,11 +40,6 @@ export function extractNameFromPath(pathname: string): string | null {
   return name
 }
 
-export function isNameSubpage(pathname: string): boolean {
-  const name = extractNameFromPath(pathname)
-  return name !== null
-}
-
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text
   return `${text.slice(0, maxLength - 1)}…`
