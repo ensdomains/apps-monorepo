@@ -15,6 +15,33 @@ export function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
+const NAME_SUBPAGE_LABELS: Record<string, string> = {
+  ownership: 'Ownership',
+  records: 'Records',
+  registry: 'Registry',
+  resolver: 'Resolver',
+  subnames: 'Subnames',
+  roles: 'Roles',
+}
+
+const ADDR_SUBPAGE_LABELS: Record<string, string> = {
+  names: 'Names',
+  history: 'History',
+  resolution: 'Address Resolution',
+  'reverse-resolution': 'Reverse Resolution',
+}
+
+function getPageLabel(
+  subpage: string | null,
+  labels: Record<string, string>,
+  defaultLabel: string,
+): string {
+  return subpage
+    ? (labels[subpage] ??
+        `${subpage.charAt(0).toUpperCase()}${subpage.slice(1)}`)
+    : defaultLabel
+}
+
 async function renderOgResponse(
   html: string,
   fonts: OgFonts,
@@ -59,19 +86,7 @@ export async function renderOgImage(
   const available = !owner
   const displayName = truncate(name, 28)
   const headerHtml = renderOgHeader()
-
-  const subpageLabels: Record<string, string> = {
-    ownership: 'Ownership',
-    records: 'Records',
-    registry: 'Registry',
-    resolver: 'Resolver',
-    subnames: 'Subnames',
-    roles: 'Roles',
-  }
-  const pageLabel = subpage
-    ? (subpageLabels[subpage] ??
-      `${subpage.charAt(0).toUpperCase()}${subpage.slice(1)}`)
-    : 'Name Overview'
+  const pageLabel = getPageLabel(subpage, NAME_SUBPAGE_LABELS, 'Name Overview')
 
   let html: string
   if (available) {
@@ -130,17 +145,11 @@ export async function renderAddressOgImage(
   const fonts = await loadOgFonts(env, requestUrl)
   const displayAddress = truncateAddress(address, 6, 5)
   const headerHtml = renderOgHeader()
-
-  const addrSubpageLabels: Record<string, string> = {
-    names: 'Names',
-    history: 'History',
-    resolution: 'Address Resolution',
-    'reverse-resolution': 'Reverse Resolution',
-  }
-  const pageLabel = subpage
-    ? (addrSubpageLabels[subpage] ??
-      `${subpage.charAt(0).toUpperCase()}${subpage.slice(1)}`)
-    : 'Address Overview'
+  const pageLabel = getPageLabel(
+    subpage,
+    ADDR_SUBPAGE_LABELS,
+    'Address Overview',
+  )
 
   const html = `
     <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
