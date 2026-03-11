@@ -12,18 +12,14 @@ import {
 } from '@ens-apps/transaction-manager'
 import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
 import type {
-  Account,
   Address,
-  Chain,
   Hex,
   PublicClient,
   TransactionReceipt,
-  Transport,
   WalletClient,
 } from 'viem'
 import { encodeFunctionData } from 'viem'
-
-type WalletClientWithAccount = WalletClient<Transport, Chain, Account>
+import type { WalletClientWithAccount } from '@/utils/types'
 
 function extractDeployedAddress(
   receipt: TransactionReceipt | undefined,

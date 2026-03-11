@@ -11,16 +11,9 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
-import type {
-  Account,
-  Address,
-  Chain,
-  Hex,
-  PublicClient,
-  Transport,
-  WalletClient,
-} from 'viem'
+import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
+import type { WalletClientWithAccount } from '@/utils/types'
 
 export interface SetSubregistryParameters {
   readonly name: string
@@ -38,8 +31,6 @@ export interface SetSubregistryResult {
   readonly txId: string
   readonly hash: Hex
 }
-
-type WalletClientWithAccount = WalletClient<Transport, Chain, Account>
 
 export const setSubregistry = async ({
   name,
