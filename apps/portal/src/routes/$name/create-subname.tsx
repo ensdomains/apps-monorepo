@@ -23,6 +23,7 @@ import {
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 
@@ -251,8 +252,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
                     ResultAsync.fromPromise(
                       getEnsAddress(getClient(), {
                         name: nameOrAddress,
-                        universalResolverAddress:
-                          '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+                        universalResolverAddress,
                       }),
                       (error) =>
                         error instanceof Error
