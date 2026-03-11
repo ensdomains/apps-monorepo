@@ -258,7 +258,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
               }
 
               if (e.currentTarget.checkValidity()) {
-                const nameOrAddress = value as Address
+                const nameOrAddress = value
 
                 if (isAddress(nameOrAddress)) {
                   setOwnerAddress(nameOrAddress)
