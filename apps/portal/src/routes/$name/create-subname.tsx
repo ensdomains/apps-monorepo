@@ -55,7 +55,19 @@ const PageHeader = ({ name }: PageHeaderProps) => (
   </div>
 )
 
-// --- Form Component (fetches registriesData, handles form) ---
+function useSyncOwnerWithConnectedAddress(
+  connectedAddress: Address | undefined,
+  hasUserEdited: React.RefObject<boolean>,
+  setOwnerInput: (value: string) => void,
+  setOwnerAddress: (value: Address | null) => void,
+) {
+  useEffect(() => {
+    if (connectedAddress && !hasUserEdited.current) {
+      setOwnerInput(connectedAddress)
+      setOwnerAddress(connectedAddress)
+    }
+  }, [connectedAddress, hasUserEdited, setOwnerInput, setOwnerAddress])
+}
 
 interface CreateSubnameFormProps {
   readonly name: string
@@ -78,12 +90,12 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasUserEditedOwner = useRef(false)
 
-  useEffect(() => {
-    if (connectedAddress && !hasUserEditedOwner.current) {
-      setOwnerInput(connectedAddress)
-      setOwnerAddress(connectedAddress)
-    }
-  }, [connectedAddress])
+  useSyncOwnerWithConnectedAddress(
+    connectedAddress,
+    hasUserEditedOwner,
+    setOwnerInput,
+    setOwnerAddress,
+  )
 
   // Fetch registries (we know it's v2 at this point)
   const {
@@ -279,10 +291,14 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
                           `Could not resolve address for ${nameOrAddress}`,
                         )
                       }
-                    } catch {
+                    } catch (error) {
                       setOwnerAddress(null)
                       setIsResolving(false)
-                      setResolveError('Failed to resolve ENS name')
+                      setResolveError(
+                        error instanceof Error
+                          ? error.message
+                          : 'Failed to resolve ENS name',
+                      )
                     }
                   }, 500)
                 }
