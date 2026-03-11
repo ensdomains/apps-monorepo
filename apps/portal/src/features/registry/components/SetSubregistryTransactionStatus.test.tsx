@@ -2,6 +2,10 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SetSubregistryTransactionStatus } from './SetSubregistryTransactionStatus'
 
+vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
+  useBlockExplorerTxUrl: () => undefined,
+}))
+
 vi.mock('@/features/registry/utils/transactionErrorMessage', () => ({
   getTransactionErrorInfo: (error: { message?: string }) => ({
     summary: error?.message ?? 'Transaction failed',
