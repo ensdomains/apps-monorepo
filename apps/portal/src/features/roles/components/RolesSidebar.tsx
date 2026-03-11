@@ -49,6 +49,7 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
     name: string
     canManageRoles: boolean
+    owner?: Address
   }>
 
 export const RolesSidebar = <
@@ -60,6 +61,7 @@ export const RolesSidebar = <
   setOpen,
   name,
   canManageRoles,
+  owner,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
   const queryClient = useQueryClient()
@@ -221,6 +223,15 @@ export const RolesSidebar = <
 
   const isWalletConnected = walletClient?.account && publicClient
 
+  const isRemovingOwner =
+    selectedAccount &&
+    owner &&
+    selectedAccount.toLowerCase() === owner.toLowerCase()
+  const isRemovingSelf =
+    selectedAccount &&
+    walletClient?.account?.address &&
+    selectedAccount.toLowerCase() === walletClient.account.address.toLowerCase()
+
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
       {children}
@@ -265,9 +276,24 @@ export const RolesSidebar = <
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Remove user</DialogTitle>
-                        <DialogDescription>
-                          Are you sure you want to remove this user from all
-                          roles? This action cannot be undone.
+                        <DialogDescription className="flex flex-col gap-2">
+                          <span>
+                            Are you sure you want to remove this user from all
+                            roles? This action cannot be undone.
+                          </span>
+                          {isRemovingOwner && (
+                            <span className="text-amber-600 font-medium">
+                              Warning: You are about to remove the owner of this
+                              name. The owner will lose all administrative
+                              privileges.
+                            </span>
+                          )}
+                          {isRemovingSelf && (
+                            <span className="text-amber-600 font-medium">
+                              Warning: You are about to remove yourself. You
+                              will lose all roles for this name.
+                            </span>
+                          )}
                         </DialogDescription>
                       </DialogHeader>
                       <DialogFooter>

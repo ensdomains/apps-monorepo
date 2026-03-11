@@ -41,6 +41,7 @@ type GroupedDataTableProps<
   itemsWrapper?: (rowData: TData) => ReactNode
   name: string
   canManageRoles: boolean
+  owner?: Address
 }
 
 export const GroupedDataTable = <
@@ -51,6 +52,7 @@ export const GroupedDataTable = <
   columns,
   name,
   canManageRoles,
+  owner,
 }: GroupedDataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
@@ -137,6 +139,7 @@ export const GroupedDataTable = <
       setOpen={setSidebarOpen}
       name={name}
       canManageRoles={canManageRoles}
+      owner={owner}
     >
       <Table className="relative border border-border rounded-2xl border-separate border-spacing-0">
         <TableHeader>

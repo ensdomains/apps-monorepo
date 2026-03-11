@@ -23,10 +23,12 @@ const V2NameRoles = ({
   name,
   registryAddress,
   canManageRoles,
+  owner,
 }: {
   name: string
   registryAddress: Address
   canManageRoles: boolean
+  owner?: Address
 }) => {
   const { currentLabel, labels } = getNameLabels(name)
 
@@ -60,6 +62,7 @@ const V2NameRoles = ({
       roles={nameRolesQuery.data}
       name={name}
       canManageRoles={canManageRoles}
+      owner={owner}
     />
   )
 }
@@ -134,6 +137,7 @@ function RouteComponent() {
           name={name}
           registryAddress={data.registryAddress}
           canManageRoles={canManageRoles}
+          owner={data.owner}
         />
       </div>
     )

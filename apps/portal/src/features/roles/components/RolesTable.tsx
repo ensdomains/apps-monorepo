@@ -8,6 +8,7 @@ type RolesTableProps = {
   title?: string
   name: string
   canManageRoles: boolean
+  owner?: Address
   roles: GetNameRolesAccountsReturnType
 }
 
@@ -39,6 +40,7 @@ export const RolesTable = ({
   roles,
   name,
   canManageRoles,
+  owner,
 }: RolesTableProps) => {
   const data: AccountGroup[] = Array.from(roles.entries())
     .filter(([, roleNames]) => roleNames.length > 0)
@@ -55,6 +57,7 @@ export const RolesTable = ({
         columns={columns}
         name={name}
         canManageRoles={canManageRoles}
+        owner={owner}
       />
     </div>
   )
