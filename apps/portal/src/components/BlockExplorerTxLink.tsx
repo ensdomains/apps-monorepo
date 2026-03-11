@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
+import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { cn } from '@/lib/utils'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 interface BlockExplorerTxLinkProps {
-  readonly txHash: string
+  readonly txHash: Hash
   readonly chainId?: number
   readonly className?: string
   readonly displayValue?: ReactNode

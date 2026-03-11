@@ -99,7 +99,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
     cell: ({ row }) => {
       const txHash = row.original.transactionHash
       if (!txHash) return <span className="text-quartz-400">-</span>
-      return <BlockExplorerTxLink txHash={txHash} />
+      return <BlockExplorerTxLink txHash={txHash as Hash} />
     },
   },
   {

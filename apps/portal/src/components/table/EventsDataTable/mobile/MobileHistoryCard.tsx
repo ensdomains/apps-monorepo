@@ -1,5 +1,5 @@
 import type { Row, Table as TableData } from '@tanstack/react-table'
-import type { Address } from 'viem'
+import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import type { BaseEvent, EventsTableData } from '../types'
@@ -44,7 +44,7 @@ export const MobileHistoryCard = <TEvent extends BaseEvent = BaseEvent>({
       {/* Transaction */}
       <MobileCardField label="Transaction">
         <BlockExplorerTxLink
-          txHash={txId}
+          txHash={txId as Hash}
           chainId={row.original.network?.chainId}
         />
       </MobileCardField>

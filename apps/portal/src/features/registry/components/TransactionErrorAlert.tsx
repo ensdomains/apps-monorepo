@@ -22,7 +22,7 @@ export const TransactionErrorAlert = ({
   txHashLabel = 'Tx hash:',
   chainId,
 }: TransactionErrorAlertProps): ReactElement => {
-  const txUrl = useBlockExplorerTxUrl(txHash ?? '', chainId)
+  const txUrl = useBlockExplorerTxUrl(txHash, chainId)
   return (
     <Alert variant="destructive" className="max-w-full">
       <AlertCircle />

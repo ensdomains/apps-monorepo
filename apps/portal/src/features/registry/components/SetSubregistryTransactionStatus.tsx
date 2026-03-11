@@ -22,7 +22,7 @@ export const SetSubregistryTransactionStatus = ({
   txError,
   receiptError,
 }: SetSubregistryTransactionStatusProps): ReactElement | null => {
-  const txUrl = useBlockExplorerTxUrl(txHash ?? '')
+  const txUrl = useBlockExplorerTxUrl(txHash)
   const hasError = txError || receiptError || isReverted
 
   if (hasError) {

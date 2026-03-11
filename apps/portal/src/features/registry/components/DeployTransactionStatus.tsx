@@ -31,7 +31,7 @@ export const DeployTransactionStatus = ({
   successDescription = 'Deploy transaction confirmed!',
   txHashLabel = 'Deploy tx hash:',
 }: DeployTransactionStatusProps): ReactElement | null => {
-  const txUrl = useBlockExplorerTxUrl(txHash ?? '')
+  const txUrl = useBlockExplorerTxUrl(txHash)
   if (txError) {
     const { summary, details } = getTransactionErrorInfo(txError)
     return (

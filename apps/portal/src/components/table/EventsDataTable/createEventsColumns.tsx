@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
+import type { Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
@@ -81,7 +82,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       ),
       cell: ({ row }) => (
         <BlockExplorerTxLink
-          txHash={row.original.transactionID}
+          txHash={row.original.transactionID as Hash}
           chainId={row.original.network?.chainId}
         />
       ),

@@ -1,6 +1,7 @@
 import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import type { Hash } from 'viem'
 import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
@@ -180,7 +181,7 @@ const columns: ColumnDef<HistoryEvent>[] = [
     accessorKey: 'transactionHash',
     cell({ row }) {
       const txHash = row.original.transactionHash
-      return <BlockExplorerTxLink txHash={txHash} />
+      return <BlockExplorerTxLink txHash={txHash as Hash} />
     },
   },
   {

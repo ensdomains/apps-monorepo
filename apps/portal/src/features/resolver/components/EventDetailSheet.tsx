@@ -50,15 +50,15 @@ const parseEventData = (
 }
 
 const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
-  const txHash = event.transactionHash as Hash | null
-  const txUrl = useBlockExplorerTxUrl(txHash ?? '')
+  const txHash = event.transactionHash as Hash | undefined
+  const txUrl = useBlockExplorerTxUrl(txHash)
 
   const {
     data: txData,
     isLoading,
     error,
   } = useTransaction({
-    hash: txHash ?? undefined,
+    hash: txHash,
     query: { enabled: !!txHash },
   })
 

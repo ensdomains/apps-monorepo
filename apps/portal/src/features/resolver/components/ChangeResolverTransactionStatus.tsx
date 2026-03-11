@@ -16,7 +16,7 @@ export const ChangeResolverTransactionStatus = ({
   txError,
   receiptError,
 }: TransactionStatusProps): ReactElement | null => {
-  const txUrl = useBlockExplorerTxUrl(txHash ?? '')
+  const txUrl = useBlockExplorerTxUrl(txHash)
   if (txError) {
     const { summary, details } = getTransactionErrorInfo(txError)
     return (

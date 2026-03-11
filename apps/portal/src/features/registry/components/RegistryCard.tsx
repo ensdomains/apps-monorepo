@@ -6,7 +6,7 @@ import type { ProtocolVersion } from '@/utils/types'
 type RegistryInfo = {
   address?: Address
   protocol: ProtocolVersion
-  factory?: Address | null
+  factory?: Address
 }
 
 type RegistryCardProps = {
@@ -15,8 +15,8 @@ type RegistryCardProps = {
 }
 
 export function RegistryCard({ registry, chainId }: RegistryCardProps) {
-  const addressUrl = useBlockExplorerAddressUrl(registry.address ?? '', chainId)
-  const factoryUrl = useBlockExplorerAddressUrl(registry.factory ?? '', chainId)
+  const addressUrl = useBlockExplorerAddressUrl(registry.address, chainId)
+  const factoryUrl = useBlockExplorerAddressUrl(registry.factory, chainId)
   return (
     <div className="border border-border rounded-lg p-4 sm:p-6 flex flex-col items-center gap-4 relative w-full">
       <div className="flex flex-col gap-3 w-full">
