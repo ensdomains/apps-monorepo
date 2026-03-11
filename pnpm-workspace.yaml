@@ -8,6 +8,8 @@ catalog:
   "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@df387c3
 
 minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@rhinestone/sdk"
 
 trustPolicy: no-downgrade
 

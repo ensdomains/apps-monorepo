@@ -257,3 +257,25 @@ VITE_FF_USE_WARP_INFRA=true
 
 The reference path `docs/RHINESTONE_SESSIONS_PLAN.md` was not found in this branch.
 Closest related doc found: `apps/manager/RHINESTONE_TEAM_SUMMARY.md`.
+
+## Config 1: ZeroDev + Pimlico (default, both flags off)
+
+- Provider: `zerodev` -> Init: `initializeZeroDevAccount()` -> Signer: `type: 'zerodev'`
+- Transport: `submitZeroDevTransaction()` -> always `sendUserOperation()` (ERC-4337)
+- Status: Unchanged, works as on main
+
+## Config 2: Rhinestone + Pimlico (`RHINESTONE_SESSIONS=true`, `WARP=false`)
+
+- Provider: `rhinestone` -> Init: `initializeRhinestoneAccount({ infrastructure: 'pimlico' })`
+- SDK: initialized with Pimlico bundler, account deployed on-chain
+- Signer: `type: 'rhinestone'`, `defaultInfra: 'pimlico'`
+- Transport: `submitRhinestoneTransaction()` -> session txs use `sendUserOperation()`, non-session use `sendTransaction()`
+- Status: Works
+
+## Config 3: Rhinestone + Warp (`RHINESTONE_SESSIONS=true`, `WARP=true`)
+
+- Provider: `rhinestone` -> Init: `initializeRhinestoneAccount({ infrastructure: 'warp' })`
+- SDK: initialized with Pimlico bundler (when `VITE_PIMLICO_API_KEY` is available), no explicit deploy
+- Signer: `type: 'rhinestone'`, `defaultInfra: 'warp'`
+- Transport: `submitWarpTransaction()` -> session txs use `sendUserOperation()` (ERC-4337 via bundler), non-session use `sendTransaction()` (Warp intents)
+- Status: Works (requires `VITE_PIMLICO_API_KEY` for session transactions)
