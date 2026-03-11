@@ -105,6 +105,10 @@ function RouteComponent() {
     .filter((n) => n.name !== fromName)
     .map((n) => n.name)
 
+  const selectedFromNode = fromName
+    ? (nodes.find((n) => n.name === fromName) ?? null)
+    : null
+
   const isAlreadyAliased = fromName
     ? existingAliases.some((a) => a.fromName === fromName)
     : false
@@ -190,34 +194,32 @@ function RouteComponent() {
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {fromName &&
-            (() => {
-              const selectedNode = nodes.find((n) => n.name === fromName)
-              return (
-                <div className="flex items-center gap-3 p-3 bg-quartz-50 rounded-lg">
-                  <NameAvatar
-                    name={fromName}
-                    width="40px"
-                    height="40px"
-                    rounded="rounded-full"
-                  />
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">{fromName}</span>
-                      <CopyButton value={fromName} />
-                    </div>
-                    {selectedNode?.owner?.id && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-muted-foreground truncate">
-                          {selectedNode.owner.id}
-                        </span>
-                        <CopyButton value={selectedNode.owner.id} />
-                      </div>
-                    )}
-                  </div>
+          {selectedFromNode && (
+            <div className="flex items-center gap-3 p-3 bg-quartz-50 rounded-lg">
+              <NameAvatar
+                name={selectedFromNode.name}
+                width="40px"
+                height="40px"
+                rounded="rounded-full"
+              />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm">
+                    {selectedFromNode.name}
+                  </span>
+                  <CopyButton value={selectedFromNode.name} />
                 </div>
-              )
-            })()}
+                {selectedFromNode.owner?.id && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-muted-foreground truncate">
+                      {selectedFromNode.owner.id}
+                    </span>
+                    <CopyButton value={selectedFromNode.owner.id} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {isAlreadyAliased && (
             <p className="text-sm text-danger">
               {fromName} already has an alias. Creating a new one will overwrite

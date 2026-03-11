@@ -10,6 +10,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { ArrowRightIcon, PlusIcon, Search, Trash2Icon } from 'lucide-react'
+import { ResultAsync } from 'neverthrow'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -18,6 +19,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -136,6 +138,7 @@ function RouteComponent() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [deletingAlias, setDeletingAlias] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [tableView] = useTableViewSettings()
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
@@ -152,28 +155,36 @@ function RouteComponent() {
   const handleDelete = async (alias: ResolverAlias) => {
     if (!walletClient || !publicClient) return
     setDeletingAlias(alias.fromName)
-    try {
-      const signer = createEOASigner(walletClient)
-      await deleteAlias({
-        fromName: alias.fromName,
-        resolverAddress: address as Address,
-        walletClient,
-        publicClient,
-        signer,
-        chainId,
-      })
-      await pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            queryKey: ['resolver-overview'],
-            refetchType: 'all',
-          }),
-      })
-    } catch {
-      // Transaction failed or was rejected
-    } finally {
-      setDeletingAlias(null)
+    setDeleteError(null)
+
+    const result = await ResultAsync.fromPromise(
+      (async () => {
+        const signer = createEOASigner(walletClient)
+        await deleteAlias({
+          fromName: alias.fromName,
+          resolverAddress: address as Address,
+          walletClient,
+          publicClient,
+          signer,
+          chainId,
+        })
+        await pollForIndexerSync({
+          invalidateQueries: () =>
+            queryClient.invalidateQueries({
+              queryKey: ['resolver-overview'],
+              refetchType: 'all',
+            }),
+        })
+      })(),
+      (error) =>
+        error instanceof Error ? error : new Error('Failed to delete alias'),
+    )
+
+    if (result.isErr()) {
+      setDeleteError(result.error.message)
     }
+
+    setDeletingAlias(null)
   }
 
   const table = useReactTable({
@@ -225,6 +236,12 @@ function RouteComponent() {
           onChange={(e) => setGlobalFilter(e.target.value)}
         />
       </InputGroup>
+
+      {deleteError && (
+        <Alert variant="destructive">
+          <AlertDescription>{deleteError}</AlertDescription>
+        </Alert>
+      )}
 
       {aliases.length === 0 ? (
         <NoResultsMessage
