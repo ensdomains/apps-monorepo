@@ -1,20 +1,15 @@
 import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { SearchIcon, TrashIcon } from 'lucide-react'
 import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { DataRow } from '@/components/DataRow'
 import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
-import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { ResolverField } from '@/features/resolver/components/ResolverField'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
@@ -31,101 +26,59 @@ import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKe
 import type { EnsNetworkName } from '@/utils/types'
 import type { NameRecord } from './RecordsTable/columns'
 
-interface AddressRecordValueProps {
-  record: Extract<NameRecord, { type: 'address' }>
-  canEditRecords?: boolean
-}
-
-const AddressRecordValue = ({
-  record,
-  canEditRecords,
-}: AddressRecordValueProps) => {
-  return (
-    <div className="flex flex-row gap-4 p-6 border border-border rounded-lg w-full items-end">
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="coin_type">Coin Type</Label>
-        <div className="flex flex-row gap-2">
-          <div className="border rounded-sm border-border min-w-44 flex flex-row items-center gap-2 px-3 text-center">
-            <span className="font-mono">{record.id}</span>{' '}
-            <span className="font-sans text-quartz-500 uppercase">
-              {record.key}
+const RecordDetailsView = ({ record }: { record: NameRecord }) => {
+  switch (record.type) {
+    case 'address':
+      return (
+        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+          <DataRow label="Coin Type">
+            <span className="font-mono">
+              {record.id}{' '}
+              <span className="font-sans text-quartz-500 uppercase">
+                {record.key}
+              </span>
             </span>
-          </div>
-          <Button variant="input" className="p-3 w-max">
-            <SearchIcon className="size-6" />
-          </Button>
+          </DataRow>
+          <DataRow label="Value">
+            <CopyableRecord
+              value={record.value}
+              truncate={false}
+              textClassName="break-all"
+            />
+          </DataRow>
         </div>
-      </div>
-      <div className="flex flex-col gap-1 w-full">
-        <Label>Value</Label>
-        <Input
-          className="border-border w-full font-mono disabled:opacity-100"
-          disabled={!canEditRecords}
-          value={record.value}
-        />
-      </div>
-      {canEditRecords && (
-        <Button variant="secondary" className="bg-quartz-100">
-          Update
-        </Button>
-      )}
-    </div>
-  )
-}
-
-interface TextRecordValueProps {
-  record: Extract<NameRecord, { type: 'text' }>
-  canEditRecords?: boolean
-}
-
-const TextRecordValue = ({ record, canEditRecords }: TextRecordValueProps) => {
-  return (
-    <div className="flex flex-row gap-4 p-6 border border-border rounded-lg w-full items-end">
-      <div className="flex flex-col gap-1 w-full">
-        <Label htmlFor={record.key}>Text</Label>
-        <Input
-          id={record.key}
-          className="border-border w-full font-mono disabled:opacity-100"
-          disabled={!canEditRecords}
-          value={record.value}
-        />
-      </div>{' '}
-      {canEditRecords && (
-        <Button variant="secondary" className="bg-quartz-100">
-          Update
-        </Button>
-      )}
-    </div>
-  )
-}
-
-interface ContentHashValueProps {
-  record: Extract<NameRecord, { type: 'contentHash' }>
-  canEditRecords?: boolean
-}
-
-const ContentHashValue = ({
-  record,
-  canEditRecords,
-}: ContentHashValueProps) => {
-  return (
-    <div className="flex flex-row gap-4 p-6 border border-border rounded-lg w-full items-end">
-      <div className="flex flex-col gap-1 w-full">
-        <Label htmlFor={record.type}>Content Hash</Label>
-        <Input
-          id={record.type}
-          className="border-border w-full font-mono disabled:opacity-100"
-          disabled={!canEditRecords}
-          value={record.value}
-        />
-      </div>{' '}
-      {canEditRecords && (
-        <Button variant="secondary" className="bg-quartz-100">
-          Update
-        </Button>
-      )}
-    </div>
-  )
+      )
+    case 'text':
+      return (
+        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+          <DataRow label="Key">
+            <span className="font-mono">{record.key}</span>
+          </DataRow>
+          <DataRow label="Value">
+            <CopyableRecord
+              value={record.value}
+              truncate={false}
+              textClassName="break-all"
+            />
+          </DataRow>
+        </div>
+      )
+    case 'contentHash':
+    case 'abi':
+      return (
+        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+          <DataRow label="Value">
+            <CopyableRecord
+              value={record.value}
+              truncate={false}
+              textClassName="break-all"
+            />
+          </DataRow>
+        </div>
+      )
+    default:
+      return <div>Unknown record type</div>
+  }
 }
 
 interface UnderlyingResolverProps {
@@ -361,27 +314,6 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
   )
 }
 
-interface RecordDetailsViewProps {
-  record: NameRecord
-  canEditRecords?: boolean
-}
-
-const RecordDetailsView = ({
-  record,
-  canEditRecords,
-}: RecordDetailsViewProps) => {
-  switch (record.type) {
-    case 'address':
-      return <AddressRecordValue {...{ record, canEditRecords }} />
-    case 'text':
-      return <TextRecordValue {...{ record, canEditRecords }} />
-    case 'contentHash':
-      return <ContentHashValue {...{ record, canEditRecords }} />
-    default:
-      return <div>Unknown record type</div>
-  }
-}
-
 interface RecordDetailsProps {
   record: NameRecord
   name: string
@@ -393,21 +325,9 @@ export const RecordDetails = ({
   name,
   network,
 }: RecordDetailsProps) => {
-  const { data: canEditRecords } = useCanEditRecords({ name })
-
   return (
-    <div className="p-6 flex flex-col gap-6 min-h-0">
-      <SheetHeader className="flex flex-row justify-between">
-        <SheetTitle className="font-sans text-[28px] font-medium capitalize">
-          {record.type} record
-        </SheetTitle>
-        {canEditRecords && (
-          <Button variant="secondary" type="button" className="bg-quartz-100">
-            <TrashIcon /> Delete record
-          </Button>
-        )}
-      </SheetHeader>
-      <RecordDetailsView {...{ record, canEditRecords }} />
+    <div className="p-6 flex flex-col gap-6">
+      <RecordDetailsView record={record} />
       <ResolverView name={name} />
       <HistoryView {...{ name, record, network }} />
     </div>

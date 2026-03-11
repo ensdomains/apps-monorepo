@@ -107,7 +107,7 @@ describe('computeRoleChanges', () => {
 
     const result = computeRoleChanges(originalRoles, editedPermissions)
 
-    expect(result.rolesToGrant).toContain('owner_MANAGER')
+    expect(result.rolesToGrant).toContain('owner')
     expect(result.rolesToRevoke).toEqual([])
   })
 
@@ -127,10 +127,10 @@ describe('computeRoleChanges', () => {
 
     const result = computeRoleChanges(originalRoles, editedPermissions)
 
-    expect(result.rolesToGrant).toContain('owner_MANAGER')
+    expect(result.rolesToGrant).toContain('owner')
     expect(result.rolesToRevoke).toContain('owner_ADMIN')
     expect(result.rolesToGrant).toContain('manager_ADMIN')
-    expect(result.rolesToRevoke).toContain('manager_MANAGER')
+    expect(result.rolesToRevoke).toContain('manager')
   })
 
   it('should handle multiple roles at once', () => {
@@ -139,7 +139,7 @@ describe('computeRoleChanges', () => {
 
     const result = computeRoleChanges(originalRoles, editedPermissions)
 
-    expect(result.rolesToGrant).toEqual(['owner_MANAGER', 'manager_MANAGER'])
+    expect(result.rolesToGrant).toEqual(['owner', 'manager'])
     expect(result.rolesToRevoke).toEqual(['owner_ADMIN', 'manager_ADMIN'])
   })
 

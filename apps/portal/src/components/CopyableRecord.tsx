@@ -14,12 +14,14 @@ export const CopyableRecord = ({
   href,
   displayValue,
   truncate = true,
+  textClassName,
 }: {
   value: string | number
   className?: string
   href?: string
   displayValue?: ReactNode
   truncate?: boolean
+  textClassName?: string
 }) => {
   const [copy, setCopy] = useState(false)
 
@@ -61,6 +63,7 @@ export const CopyableRecord = ({
           className={cn(
             'text-sm sm:text-base font-mono min-w-0',
             truncate && 'truncate',
+            textClassName,
           )}
         >
           {content}

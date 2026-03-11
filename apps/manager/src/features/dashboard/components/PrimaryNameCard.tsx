@@ -7,17 +7,20 @@ import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
 type PrimaryNameCardProps = {
-  primaryName?: string | null
-  avatarUrl?: string | null
+  readonly primaryName?: string | null
+  readonly avatarUrl?: string | null
+  readonly themeColor?: string | null
 }
 
 export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
+  themeColor,
 }: PrimaryNameCardProps) => {
   const shouldReduceMotion = useReducedMotion()
 
@@ -51,8 +54,13 @@ export const PrimaryNameCard = ({
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
+  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+
   return (
-    <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
+    <Card
+      className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
+      style={themeVars}
+    >
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
           <motion.div
@@ -86,7 +94,7 @@ export const PrimaryNameCard = ({
                 className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
                 type="button"
               >
-                <div className="inline-flex items-center rounded-sm bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                <div className="inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
                   <span
                     className={
                       displayName.length > 10

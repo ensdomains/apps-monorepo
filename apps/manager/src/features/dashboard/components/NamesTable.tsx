@@ -45,7 +45,7 @@ const DashboardTabButton = ({
       type="button"
     >
       <span
-        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-foreground' : 'text-ens-gray-three'}`}
+        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}
       >
         {label}
       </span>

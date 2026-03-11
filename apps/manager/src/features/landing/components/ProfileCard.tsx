@@ -42,8 +42,8 @@ const COLOR_VARIANTS = {
     },
   },
   peridot: {
-    bg: 'bg-[#DEF3E4]',
-    border: 'border-[#DEF3E4]',
+    bg: 'bg-ens-peridot-bg',
+    border: 'border-ens-peridot-bg',
     bg2: 'bg-[#CAE6D3]',
     surface: {
       bg: 'bg-ens-peridot-surface',

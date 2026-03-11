@@ -1,12 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
 import { Loader2Icon, XIcon } from 'lucide-react'
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
-import { useAvatarFromName } from '@/features/profile/service/profileAvatar'
-import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
+import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
 
@@ -29,25 +27,26 @@ const LINK_OPTIONS = {
 } as const
 
 type NameSuggestionItemProps = {
-  name: string
-  onNavigate?: () => void
+  readonly name: string
+  readonly onNavigate?: () => void
+  /** Whether the name is registered (from indexer). undefined = still loading */
+  readonly isRegistered?: boolean
+  /** Whether the indexer query is loading */
+  readonly isLoading?: boolean
+  /** Whether the indexer query errored */
+  readonly isError?: boolean
 }
 
 export const NameSuggestionItem = ({
   name,
   onNavigate,
+  isRegistered,
+  isLoading,
+  isError,
 }: NameSuggestionItemProps) => {
-  const { data: avatarUrl } = useAvatarFromName({
-    name,
-  })
+  const avatarUrl = getAvatarUrl(name)
 
-  // Query for name availability (only for name inputs, not addresses)
-  const nameAvailabilityQuery = useQuery({
-    ...getSearchNameQueryOptions(name),
-    enabled: name.length >= 3,
-  })
-
-  const isAvailable = nameAvailabilityQuery.data?.isAvailable ?? false
+  const isAvailable = isRegistered === false
 
   return (
     <Link
@@ -77,50 +76,38 @@ export const NameSuggestionItem = ({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className={'truncate font-medium text-[#1D1B20] text-sm'}>
+            <span className={'truncate font-medium text-foreground text-sm'}>
               {name}
             </span>
           </div>
         </div>
-        {match({
-          isLoading: nameAvailabilityQuery.isLoading,
-          isError: nameAvailabilityQuery.isError,
-          data: nameAvailabilityQuery.data,
-        })
-          .with(
-            {
-              isLoading: true,
-            },
-            () => (
-              <Loader2Icon className="size-4 animate-spin text-slate-500" />
-            ),
-          )
-          .with(
-            {
-              isLoading: false,
-              isError: true,
-            },
-            () => <XIcon className="size-4 text-slate-500" />,
-          )
-          .with(
-            {
-              data: {
-                isAvailable: P.boolean,
-              },
-            },
-            ({ data }) => (
-              <div
-                className={tw(
-                  'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                  data.isAvailable
-                    ? 'bg-[#DEF3E4] text-ens-peridot-core'
-                    : 'bg-ens-white text-ens-lapis-core',
-                )}
-              >
-                {data.isAvailable ? 'Available' : 'Registered'}
-              </div>
-            ),
-          )
+        {match({ isLoading, isError, isRegistered })
+          .with({ isLoading: true }, () => (
+            <Loader2Icon className="size-4 animate-spin text-slate-500" />
+          ))
+          .with({ isError: true }, () => (
+            <XIcon className="size-4 text-slate-500" />
+          ))
+          .with({ isRegistered: true }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-ens-white text-ens-lapis-core',
+              )}
+            >
+              Registered
+            </div>
+          ))
+          .with({ isRegistered: false }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-ens-peridot-bg text-ens-peridot-core',
+              )}
+            >
+              Available
+            </div>
+          ))
           .otherwise(() => null)}
       </div>
     </Link>
@@ -128,8 +115,8 @@ export const NameSuggestionItem = ({
 }
 
 type AddressSuggestionItemProps = {
-  address: string
-  onNavigate?: () => void
+  readonly address: string
+  readonly onNavigate?: () => void
 }
 
 export const AddressSuggestionItem = ({

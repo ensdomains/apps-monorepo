@@ -28,6 +28,7 @@ import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { validateRecords } from '@/utils/records/validateRecord'
+import type { EnsNetworkName } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -154,6 +155,7 @@ function EditRecordsPage() {
       name={name}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
+      network={ownerQuery.data.network}
     />
   )
 }
@@ -162,10 +164,12 @@ const EditRecordsContent = ({
   name,
   records: rawRecords,
   resolverAddress,
+  network,
 }: {
   name: string
   records: GetRecordsReturnType
   resolverAddress: Address
+  network: EnsNetworkName
 }) => {
   const navigate = useNavigate()
 
@@ -231,6 +235,7 @@ const EditRecordsContent = ({
       resolverAddress,
       originalRecords,
       pendingChanges,
+      resolverType: network === 'sepolia' ? 'public' : 'dedicated',
     })
   }
 
@@ -291,7 +296,7 @@ const EditRecordsContent = ({
             Back to View
           </Button>
         </Link>
-        <h1 className="text-[28px] font-medium mb-6">Edit records</h1>
+        <h1 className="text-heading font-medium mb-6">Edit records</h1>
 
         {/* Add Record Form */}
         <div className="flex flex-col sm:flex-row gap-3">

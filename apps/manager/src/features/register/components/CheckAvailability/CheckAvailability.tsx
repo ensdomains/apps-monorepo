@@ -69,6 +69,10 @@ export const CheckAvailability = ({
     (text) => text.key === 'avatar',
   )?.value
 
+  const themeColor = profileRecords?.texts.find(
+    (text) => text.key === 'theme',
+  )?.value
+
   const { data: profileAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
     enabled: !!profileName && !!avatarRecord,
@@ -158,6 +162,7 @@ export const CheckAvailability = ({
                                 )
                               : null
                           }
+                          themeColor={themeColor}
                         />
                       </Link>
                     )}
@@ -211,6 +216,7 @@ export const CheckAvailability = ({
                             )
                           : null
                       }
+                      themeColor={themeColor}
                     />
                   </Link>
                 )}
