@@ -67,7 +67,7 @@ export const NavBar = () => {
               Alpha
             </Badge>
           </div>
-          <span className="font-bold text-2xl hidden md:inline text-lapis-500">
+          <span className="font-bold text-2xl hidden md:inline text-primary">
             Explorer
           </span>
         </Link>

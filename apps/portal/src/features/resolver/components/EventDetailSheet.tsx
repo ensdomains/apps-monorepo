@@ -79,7 +79,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
   if (error) {
     return (
       <div className="p-6 flex flex-col gap-4">
-        <div className="text-red-500">
+        <div className="text-danger">
           Error loading transaction: {error.message}
         </div>
       </div>
@@ -233,7 +233,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                   <div>
                     <h4 className="text-base font-semibold mb-3">Data</h4>
                     <div className="border rounded-lg p-4 flex flex-col gap-2">
-                      <span className="text-sm text-red-500">
+                      <span className="text-sm text-danger">
                         Unable to parse event data
                       </span>
                       <CopyableRecord

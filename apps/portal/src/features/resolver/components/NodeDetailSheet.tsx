@@ -112,7 +112,7 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : recordsError ? (
-                  <p className="text-sm text-red-500">
+                  <p className="text-sm text-danger">
                     Failed to load records:{' '}
                     {recordsError.cause?.message ?? 'Unknown error'}
                   </p>
