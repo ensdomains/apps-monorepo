@@ -16,6 +16,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import {
   getEventFieldType,
   getEventSignature,
@@ -49,14 +50,15 @@ const parseEventData = (
 }
 
 const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
-  const txHash = event.transactionHash as Hash | null
+  const txHash = event.transactionHash as Hash | undefined
+  const txUrl = useBlockExplorerTxUrl(txHash)
 
   const {
     data: txData,
     isLoading,
     error,
   } = useTransaction({
-    hash: txHash ?? undefined,
+    hash: txHash,
     query: { enabled: !!txHash },
   })
 
@@ -98,7 +100,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                   {truncateAddress(txHash, 10, 8, '...')}
                 </span>
               }
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
+              href={txUrl}
             />
           </DataRow>
         )}

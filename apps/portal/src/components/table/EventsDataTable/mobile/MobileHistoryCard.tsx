@@ -1,8 +1,7 @@
 import type { Row, Table as TableData } from '@tanstack/react-table'
-import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import type { Address, Hash } from 'viem'
+import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { BaseEvent, EventsTableData } from '../types'
 import { MobileCardField } from './MobileCardField'
 import { MobileCardHeader } from './MobileCardHeader'
@@ -44,13 +43,9 @@ export const MobileHistoryCard = <TEvent extends BaseEvent = BaseEvent>({
 
       {/* Transaction */}
       <MobileCardField label="Transaction">
-        <CopyableRecord
-          value={txId}
-          displayValue={
-            <span className="font-mono">{truncateAddress(txId)}</span>
-          }
-          className="text-sm underline decoration-dashed underline-offset-4"
-          href={`https://sepolia.etherscan.io/tx/${txId}`}
+        <BlockExplorerTxLink
+          txHash={txId as Hash}
+          chainId={row.original.network?.chainId}
         />
       </MobileCardField>
 
