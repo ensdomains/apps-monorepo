@@ -270,10 +270,8 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
               }
 
               if (e.currentTarget.checkValidity()) {
-                const nameOrAddress = value
-
-                if (isAddress(nameOrAddress)) {
-                  setOwnerAddress(nameOrAddress)
+                if (isAddress(value)) {
+                  setOwnerAddress(value)
                   setIsResolving(false)
                 } else {
                   setOwnerAddress(null)
@@ -282,13 +280,13 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
                     try {
                       const resolved = await resolveAddressOrName({
                         client: getClient(),
-                        nameOrAddress,
+                        nameOrAddress: value,
                       })
                       setOwnerAddress(resolved)
                       setIsResolving(false)
                       if (!resolved) {
                         setResolveError(
-                          `Could not resolve address for ${nameOrAddress}`,
+                          `Could not resolve address for ${value}`,
                         )
                       }
                     } catch (error) {
