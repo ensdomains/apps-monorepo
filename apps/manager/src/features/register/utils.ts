@@ -35,7 +35,8 @@ export const determinePremium = (name: string): boolean => {
   const label = normalized.endsWith('.eth')
     ? normalized.replace('.eth', '')
     : normalized
-  return [...label].length > 0 && [...label].length <= 4
+  const labelLength = [...label].length
+  return labelLength > 0 && labelLength <= 4
 }
 
 export type PremiumLabel = {
