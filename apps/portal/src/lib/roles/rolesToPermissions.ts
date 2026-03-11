@@ -6,7 +6,7 @@ export type RoleChanges = {
 }
 
 export const roleToPermissions = (
-  items: (string | `${string}_ADMIN`)[],
+  items: readonly string[],
 ): Map<string, Permission> => {
   const roles = new Map<string, Permission>()
 
