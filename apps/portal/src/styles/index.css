@@ -20,7 +20,7 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: var(--lapis-500);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: var(--garnet-500);
   --success: var(--peridot-400);
   --warning: oklch(0.75 0.15 75);
   --border: var(--quartz-100);

@@ -19,6 +19,7 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
+import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -109,6 +110,16 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   const subregistryAddress = registriesData?.registries[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
+
+  const { data: existingSubnames } = useQuery({
+    ...getSubnamesQueryOptions({ name, network: 'namechainSepolia' }),
+    enabled: Boolean(hasSubregistry),
+  })
+
+  const trimmedLabel = label.trim()
+  const isLabelTaken = Boolean(
+    trimmedLabel && existingSubnames?.some((s) => s.labelName === trimmedLabel),
+  )
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -232,7 +243,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <Field>
+        <Field data-invalid={isLabelTaken}>
           <FieldLabel htmlFor="label">Subname</FieldLabel>
           <div className="flex items-center gap-2">
             <Input
@@ -247,6 +258,11 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             />
             <span className="text-base">.{name}</span>
           </div>
+          {isLabelTaken && (
+            <p className="text-sm text-garnet-500">
+              {trimmedLabel}.{name} is already registered.
+            </p>
+          )}
         </Field>
 
         <Field data-invalid={!ownerAddress && !isResolving}>
@@ -273,6 +289,10 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
                 if (isAddress(value)) {
                   setOwnerAddress(value)
                   setIsResolving(false)
+                } else if (!value.endsWith('.eth')) {
+                  setOwnerAddress(null)
+                  setIsResolving(false)
+                  setResolveError('Only .eth names can be resolved')
                 } else {
                   setOwnerAddress(null)
                   setIsResolving(true)
@@ -317,6 +337,16 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
               Resolved: {truncateAddress(ownerAddress)}
             </p>
           )}
+          {ownerInput &&
+            !ownerAddress &&
+            !isResolving &&
+            !resolveError &&
+            !ownerInput.includes('.') &&
+            !isAddress(ownerInput) && (
+              <p className="text-sm text-quartz-500">
+                Enter a full ENS name (e.g. name.eth) or a HEX address
+              </p>
+            )}
         </Field>
 
         {match({ isConnected, submitError, resolveError })
@@ -326,17 +356,21 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             </p>
           ))
           .with({ resolveError: P.string.minLength(1) }, ({ resolveError }) => (
-            <p className="text-sm text-red-500">Error: {resolveError}</p>
+            <p className="text-sm text-garnet-500">{resolveError}</p>
           ))
           .with({ submitError: P.string.minLength(1) }, ({ submitError }) => (
-            <p className="text-sm text-red-500">Error: {submitError}</p>
+            <p className="text-sm text-garnet-500">{submitError}</p>
           ))
           .otherwise(() => null)}
 
         <Button
           type="submit"
           disabled={
-            !ownerAddress || isSubmitting || !walletClient || !isConnected
+            !ownerAddress ||
+            isSubmitting ||
+            !walletClient ||
+            !isConnected ||
+            isLabelTaken
           }
           className="w-full sm:w-fit"
         >
