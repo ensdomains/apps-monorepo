@@ -1,3 +1,4 @@
+import type { Address, Hash } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
 import { getBlockExplorerAddressUrl } from './getBlockExplorerAddressUrl'
 import { getBlockExplorerTxUrl } from './getBlockExplorerTxUrl'
@@ -11,7 +12,7 @@ import { getBlockExplorerTxUrl } from './getBlockExplorerTxUrl'
  * @returns The full URL, or undefined if the chain has no block explorer
  */
 export function useBlockExplorerTxUrl(
-  txHash: string,
+  txHash: Hash | undefined,
   chainId?: number,
 ): string | undefined {
   const connectedChainId = useChainId()
@@ -19,11 +20,9 @@ export function useBlockExplorerTxUrl(
   const chains = config.chains
   const effectiveChainId = chainId ?? connectedChainId
 
-  try {
-    return getBlockExplorerTxUrl(chains, effectiveChainId, txHash)
-  } catch {
-    return undefined
-  }
+  if (!txHash) return undefined
+
+  return getBlockExplorerTxUrl(chains, effectiveChainId, txHash)
 }
 
 /**
@@ -35,7 +34,7 @@ export function useBlockExplorerTxUrl(
  * @returns The full URL, or undefined if the chain has no block explorer
  */
 export function useBlockExplorerAddressUrl(
-  address: string,
+  address: Address | undefined,
   chainId?: number,
 ): string | undefined {
   const connectedChainId = useChainId()
@@ -43,9 +42,7 @@ export function useBlockExplorerAddressUrl(
   const chains = config.chains
   const effectiveChainId = chainId ?? connectedChainId
 
-  try {
-    return getBlockExplorerAddressUrl(chains, effectiveChainId, address)
-  } catch {
-    return undefined
-  }
+  if (!address) return undefined
+
+  return getBlockExplorerAddressUrl(chains, effectiveChainId, address)
 }

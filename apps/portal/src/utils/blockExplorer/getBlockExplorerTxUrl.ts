@@ -1,4 +1,4 @@
-import type { Chain } from 'viem'
+import type { Chain, Hash } from 'viem'
 import { getBlockExplorerBaseUrl } from './getBlockExplorerBaseUrl'
 
 /**
@@ -14,7 +14,7 @@ import { getBlockExplorerBaseUrl } from './getBlockExplorerBaseUrl'
 export function getBlockExplorerTxUrl(
   chains: readonly Chain[],
   chainId: number,
-  txHash: string,
+  txHash: Hash,
 ): string {
   const baseUrl = getBlockExplorerBaseUrl(chains, chainId)
   return `${baseUrl}/tx/${txHash}`
