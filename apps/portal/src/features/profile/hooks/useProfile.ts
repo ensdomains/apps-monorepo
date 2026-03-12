@@ -28,10 +28,10 @@ const getProfile = ResultFn(async function* ({
   const isV2 = network === 'namechainSepolia'
   const isV1 = network === 'sepolia'
 
-  const subgraphV1Records = !isV2 ? yield* await getSubgraphRecords(name) : null
+  const subgraphV1Records = !isV2 ? yield* getSubgraphRecords(name) : null
 
   const subgraphV2Result = !isV1
-    ? yield* await fromPromise(
+    ? yield* fromPromise(
         graphqlIndexerClient.request<
           {
             domains: [
