@@ -8,6 +8,8 @@ catalog:
   "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@3b2347a
 
 minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@lingui/*"
 
 trustPolicy: no-downgrade
 

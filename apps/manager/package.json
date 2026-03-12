@@ -20,6 +20,7 @@
   "dependencies": {
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
+    "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",
@@ -30,6 +31,8 @@
     "@getpara/web-sdk": "2.12.0",
     "@icons-pack/react-simple-icons": "^13.11.2",
     "@intercom/messenger-js-sdk": "^0.0.18",
+    "@lingui/core": "6.0.0-next.1",
+    "@lingui/react": "6.0.0-next.1",
     "@posthog/react": "^1.7.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -81,11 +84,13 @@
     "vaul": "^1.1.2",
     "viem": "^2.40.3",
     "wagmi": "^3.0.2",
-    "xstate": "catalog:",
-    "@ens-apps/shared-schema": "workspace:*"
+    "xstate": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.23.1",
+    "@lingui/babel-plugin-lingui-macro": "6.0.0-next.1",
+    "@lingui/cli": "^5.9.2",
+    "@lingui/vite-plugin": "6.0.0-next.1",
     "@statelyai/inspect": "^0.4.0",
     "@storybook/react-vite": "^10.0.6",
     "@tanstack/react-router-ssr-query": "^1.159.5",
