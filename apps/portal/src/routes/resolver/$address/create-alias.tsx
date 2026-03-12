@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon, Loader2 } from 'lucide-react'
+import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -294,7 +294,12 @@ function RouteComponent() {
                 Creating...
               </>
             ))
-            .otherwise(() => 'Create alias')}
+            .otherwise(() => (
+              <>
+                <CircleCheck className="size-4" />
+                Create alias
+              </>
+            ))}
         </Button>
       </form>
     </div>
