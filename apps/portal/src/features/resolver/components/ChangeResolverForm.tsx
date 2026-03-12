@@ -151,7 +151,6 @@ export const ChangeResolverForm = ({
         return
       }
 
-      // TODO: use multi step tx modal once the pattern is implemented
       if (deployNewResolver) {
         openTransactionModal()
         return
