@@ -10,12 +10,18 @@ import {
 const RegistrationV2UiContext2 = createContext<{
   uiActor: Actor<typeof registrationV2UiMachine>
   registrationActor: ActorRefFrom<typeof registrationMachine> | undefined
+  /**
+   * Label is an ENS name without the .eth suffix and not a subname
+   */
+  label: string
 } | null>(null)
 
 export const RegistrationV2UiProvider = ({
   children,
+  label,
 }: {
   children: React.ReactNode
+  label: string
 }) => {
   const registrationV2UiActor = useActorRef(registrationV2UiMachine)
   const registrationActor = useSelector(
@@ -28,6 +34,7 @@ export const RegistrationV2UiProvider = ({
       value={{
         uiActor: registrationV2UiActor,
         registrationActor: registrationActor,
+        label,
       }}
     >
       {children}

@@ -1,0 +1,58 @@
+import {
+  ENS_SEPOLIA_CONTRACTS,
+  type SUPPORTED_TOKEN,
+  TOKENS,
+} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { fromPromise, ok } from 'neverthrow'
+import { type ReadContractErrorType, zeroAddress } from 'viem'
+import { readContract } from 'viem/actions'
+import { FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
+import { publicClient } from '@/lib/wagmi'
+
+export class GetPricingError extends TaggedError('GetPricingError')<{
+  readonly cause: ReadContractErrorType
+}> {}
+
+export const getPricing = ResultFn(async function* (
+  name: string,
+  durationInSeconds: number,
+  token: SUPPORTED_TOKEN,
+) {
+  const tokenInfo = TOKENS[token]
+  const [basePrice, premium] = yield* fromPromise(
+    readContract(publicClient, {
+      address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+      abi: FASTTESTETHREGISTRAR_ABI,
+      functionName: 'rentPrice',
+      args: [name, zeroAddress, BigInt(durationInSeconds), tokenInfo.address],
+    }),
+    (e) => new GetPricingError({ cause: e as ReadContractErrorType }),
+  )
+
+  return ok({
+    basePrice,
+    premium,
+    totalPrice: basePrice + premium,
+    token,
+    durationInSeconds,
+  })
+})
+
+export const getPricingQueryOptions = (
+  name: string,
+  durationInSeconds: number,
+  token: SUPPORTED_TOKEN,
+) => {
+  return resultQueryOptions({
+    queryKey: $qk({
+      $action: 'get-pricing',
+      name,
+      durationInSeconds,
+      token,
+    }),
+    queryFn: () => getPricing(name, durationInSeconds, token),
+  })
+}

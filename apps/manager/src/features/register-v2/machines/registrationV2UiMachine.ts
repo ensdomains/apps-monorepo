@@ -1,5 +1,9 @@
-import { registrationMachine } from '@ens-apps/transaction-manager'
-import type { Address, PublicClient } from 'viem'
+import {
+  type RegistrationEvent,
+  registrationMachine,
+} from '@ens-apps/transaction-manager'
+import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { secondsInYear } from 'date-fns/constants'
 import { sepolia } from 'viem/chains'
 import {
   type ActorRefFrom,
@@ -8,24 +12,6 @@ import {
   sendTo,
   setup,
 } from 'xstate'
-import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
-import type { SmartAccountState } from '@/lib/smart-account'
-
-type RegistrationSigner = NonNullable<SmartAccountState['signer']>
-
-type StartRegistrationEvent = {
-  type: 'START_REGISTRATION'
-  name: string
-  duration: bigint
-  token: 'USDC' | 'DAI'
-  price: bigint
-  signer: RegistrationSigner
-  accountAddress: Address
-  ownerAddress?: Address
-  publicClient: PublicClient
-  useFastRegistrar?: boolean
-  sponsored?: boolean
-}
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
@@ -33,14 +19,20 @@ export const registrationV2UiMachine = setup({
   types: {
     context: {} as {
       chainId: number
-      durationYears: number
-      selectedToken: Address
+      /**
+       * Duration in seconds
+       */
+      duration: number
+      selectedToken: SUPPORTED_TOKEN
       lastErrorMessage?: string
     },
     events: {} as
-      | { type: 'DURATION_SET'; durationYears: number }
-      | { type: 'TOKEN_SET'; token: Address }
-      | { type: 'SUBMIT_REGISTRATION'; startEvent: StartRegistrationEvent }
+      | { type: 'DURATION_SET'; duration: number }
+      | { type: 'TOKEN_SET'; token: SUPPORTED_TOKEN }
+      | {
+          type: 'SUBMIT_REGISTRATION'
+          startEvent: Extract<RegistrationEvent, { type: 'START_REGISTRATION' }>
+        }
       | { type: 'TX_SUCCEEDED' }
       | { type: 'TX_FAILED'; message?: string }
       | { type: 'RETRY' }
@@ -51,8 +43,8 @@ export const registrationV2UiMachine = setup({
   },
   actions: {
     setDuration: assign({
-      durationYears: ({ event }) =>
-        event.type === 'DURATION_SET' ? event.durationYears : 1,
+      duration: ({ event }) =>
+        event.type === 'DURATION_SET' ? event.duration : secondsInYear,
     }),
     setToken: assign({
       selectedToken: ({ event, context }) =>
@@ -87,8 +79,8 @@ export const registrationV2UiMachine = setup({
   initial: 'editing',
   context: () => ({
     chainId: sepolia.id,
-    durationYears: 1,
-    selectedToken: SUPPORTED_TOKENS.USDC,
+    duration: secondsInYear,
+    selectedToken: 'USDC',
     lastErrorMessage: undefined,
   }),
   states: {
