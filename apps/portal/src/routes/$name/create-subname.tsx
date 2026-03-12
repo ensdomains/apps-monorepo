@@ -19,12 +19,15 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
+import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { EnsNetworkName } from '@/utils/types'
 
 const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
@@ -86,6 +89,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
     connectedAddress ?? null,
   )
   const [resolveError, setResolveError] = useState<string | null>(null)
+  const [isResolving, setIsResolving] = useState(false)
   const [prepareError, setPrepareError] = useState<string | null>(null)
   const [resolverAddress, setResolverAddress] = useState<Address | null>(null)
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -120,6 +124,16 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
   const subregistryAddress = registriesData?.registries[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
+
+  const { data: existingSubnames } = useQuery({
+    ...getSubnamesQueryOptions({ name, network: 'namechainSepolia' }),
+    enabled: Boolean(hasSubregistry),
+  })
+
+  const trimmedLabel = label.trim()
+  const isLabelTaken = Boolean(
+    trimmedLabel && existingSubnames?.some((s) => s.labelName === trimmedLabel),
+  )
 
   const handleStartTransaction = () => {
     if (!hasSubregistry || !ownerAddress || !resolverAddress) return
@@ -236,6 +250,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
             id="owner"
             name="owner"
             placeholder="ENS name or HEX address"
+            value={ownerInput}
             required
             disabled={isSubmitting || isSuccess}
             pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
@@ -329,7 +344,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
 
         <Button
           type="submit"
-          disabled={!ownerAddress || !isConnected}
+          disabled={!ownerAddress || !isConnected || isLabelTaken}
           className="w-full sm:w-fit"
         >
           {match({ isSubmitting, isSuccess })
