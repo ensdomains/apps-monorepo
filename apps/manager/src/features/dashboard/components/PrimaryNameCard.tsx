@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
@@ -22,6 +23,7 @@ export const PrimaryNameCard = ({
   avatarUrl,
   themeColor,
 }: PrimaryNameCardProps) => {
+  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
 
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
@@ -45,12 +47,12 @@ export const PrimaryNameCard = ({
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
-  const displayName = primaryName ?? 'Your ENS name'
+  const displayName = primaryName ?? t`Your ENS name`
   const registeredLabel = isRegistrationLoading
-    ? 'Loading...'
+    ? t`Loading...`
     : formattedRegisteredDate
   const expiryLabel = isReverseExpiryLoading
-    ? 'Loading...'
+    ? t`Loading...`
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
@@ -115,7 +117,9 @@ export const PrimaryNameCard = ({
                   strokeWidth={1.5}
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">Registered</span>
+                  <span className="text-muted-foreground">
+                    <Trans>Registered</Trans>
+                  </span>
                   <span className="font-semibold text-muted-foreground">
                     {registeredLabel}
                   </span>
@@ -127,7 +131,9 @@ export const PrimaryNameCard = ({
                   strokeWidth={1.5}
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">Expires</span>
+                  <span className="text-muted-foreground">
+                    <Trans>Expires</Trans>
+                  </span>
                   <span className="font-semibold text-muted-foreground">
                     {expiryLabel}
                   </span>
@@ -143,7 +149,9 @@ export const PrimaryNameCard = ({
           to="/p/$name"
           variant="outline"
         >
-          <span className="font-sans text-sm leading-normal">View profile</span>
+          <span className="font-sans text-sm leading-normal">
+            <Trans>View profile</Trans>
+          </span>
         </LinkButton>
       </div>
     </Card>
