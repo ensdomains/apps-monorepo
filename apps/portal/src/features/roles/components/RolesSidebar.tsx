@@ -349,14 +349,14 @@ export const RolesSidebar = <
                         isManagerRoleDisabled && 'text-quartz-500',
                       )}
                     >
-                      <div className="flex flex-col gap-1 flex-1 min-w-[260px]">
+                      <div className="flex flex-col gap-1 flex-1 min-w-64">
                         <div className="font-medium">{permission.title}</div>
                         <div className="text-sm text-quartz-500">
                           {permission.description}
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 flex-1 min-w-[260px] justify-end">
-                        <div className="flex items-center gap-2 min-w-[100px]">
+                      <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+                        <div className="flex items-center gap-2 min-w-24">
                           <Checkbox
                             id={`${permission.key}-manager`}
                             checked={rolePerms.manager}
@@ -384,7 +384,7 @@ export const RolesSidebar = <
                             Manager
                           </Label>
                         </div>
-                        <div className="flex items-center gap-2 min-w-[100px]">
+                        <div className="flex items-center gap-2 min-w-24">
                           <Checkbox
                             id={`${permission.key}-admin`}
                             checked={rolePerms.admin}
