@@ -64,14 +64,14 @@ export const RolesSidebar = <
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const [pendingSave, setPendingSave] = useState<{
-    account: Address
-    rolesToGrant: Role[]
-    rolesToRevoke: Role[]
+    readonly account: Address
+    readonly rolesToGrant: Role[]
+    readonly rolesToRevoke: Role[]
   } | null>(null)
 
   const [pendingRemove, setPendingRemove] = useState<{
-    account: Address
-    roles: Role[]
+    readonly account: Address
+    readonly roles: Role[]
   } | null>(null)
 
   const { data: walletClient } = useWalletClient({ chainId })
