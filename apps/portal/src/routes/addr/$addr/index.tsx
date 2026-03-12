@@ -10,7 +10,6 @@ import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/Name
 import { Button } from '@/components/ui/button'
 import { getV2HistoryForAddressQueryOptions } from '@/features/address/components/hooks/useV2HistoryForAddress'
 import { NameList } from '@/features/dashboard/components/NameList'
-import { L1PrimaryNameSection } from '@/features/primary-name/components/L1PrimaryNameSection'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
@@ -97,13 +96,8 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
 
 function RouteComponent() {
   const { disconnect } = useDisconnect()
-  const { isConnected, address: accountAddress } = useAccount()
-
+  const { isConnected } = useAccount()
   const { addr } = Route.useParams() as { addr: Address }
-  const canManagePrimaryName =
-    isConnected &&
-    accountAddress &&
-    addr.toLowerCase() === accountAddress.toLowerCase()
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
@@ -118,9 +112,6 @@ function RouteComponent() {
         )}
       </div>
       <PrimaryName address={addr} />
-      {canManagePrimaryName && (
-        <L1PrimaryNameSection address={addr} canManage={true} />
-      )}
       <h2 className="font-medium text-2xl">Names</h2>
       <NameList address={addr} limit={3} />
       <AddressRecentHistory address={addr} />
