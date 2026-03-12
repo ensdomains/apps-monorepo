@@ -1,4 +1,5 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { Trans } from '@lingui/react/macro'
 import {
   useMutation,
   useQuery,
@@ -169,7 +170,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
                     type="button"
                     variant="outline"
                   >
-                    Reset Changes
+                    <Trans>Reset Changes</Trans>
                   </Button>
                 )
               }
