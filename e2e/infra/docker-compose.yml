@@ -1,17 +1,17 @@
 # Local E2E stack: Anvil (Sepolia fork) + Alto (ERC-4337 bundler) + optional mock paymaster.
-# Use when running registration E2E on the fork so the bundler uses the same chain.
+# Use when running E2E tests on the fork so the bundler uses the same chain.
 #
-# Start:   docker compose -f apps/manager/e2e/docker-compose.yml up -d
-# Stop:    docker compose -f apps/manager/e2e/docker-compose.yml down
+# Start:   docker compose -f e2e/infra/docker-compose.yml up -d
+# Stop:    docker compose -f e2e/infra/docker-compose.yml down
 #
-# Then set in the manager app (or .env):
+# Then set in the app (or .env):
 #   VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545
 #   VITE_PIMLICO_BUNDLER_URL=http://localhost:3000/alto  (proxy avoids CORS; see vite.config.ts)
 #
 # Optional: override fork URL (e.g. for CI)
 #   SEPOLIA_FORK_URL=https://ethereum-sepolia-rpc.publicnode.com
 #
-# Paymaster is optional; host port 3002 to avoid clashing with manager app. VITE_PAYMASTER_URL=http://127.0.0.1:3002
+# Paymaster is optional; host port 3002 to avoid clashing with app. VITE_PAYMASTER_URL=http://127.0.0.1:3002
 
 services:
   anvil:
@@ -92,4 +92,4 @@ services:
 
 networks:
   e2e:
-    name: manager-e2e
+    name: ens-e2e

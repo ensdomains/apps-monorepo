@@ -7,13 +7,12 @@
 #   ./start-local-env.sh --down       # tear down the stack
 #
 # After the stack is healthy the script prints the env vars you need.
-# You can copy them into apps/manager/.env or source .env.e2e.
+# You can copy them into your app's .env or source e2e/.env.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"
-E2E_DIR="$SCRIPT_DIR/.."
 
 # ---------- tear-down shortcut ----------
 if [[ "${1:-}" == "--down" ]]; then
@@ -67,17 +66,13 @@ fi
 
 # ---------- print env ----------
 echo ""
-echo "=== Environment variables for the manager app ==="
+echo "=== Environment variables for the app ==="
 echo ""
 echo "  VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545"
 echo "  VITE_PIMLICO_BUNDLER_URL=/bundler   (Vite proxy → 127.0.0.1:4337)"
 echo "  VITE_PAYMASTER_URL=/paymaster       (Vite proxy → 127.0.0.1:3002)"
 echo ""
-echo "Copy these into apps/manager/.env (or use apps/manager/.env.e2e) and"
-echo "(re)start the dev server so Vite picks them up:"
-echo ""
-echo "  cp apps/manager/.env.e2e apps/manager/.env"
-echo "  pnpm --filter manager dev"
+echo "Copy these into your app's .env and (re)start the dev server so Vite picks them up."
 echo ""
 echo "To stop the stack later:"
 echo "  $0 --down"
