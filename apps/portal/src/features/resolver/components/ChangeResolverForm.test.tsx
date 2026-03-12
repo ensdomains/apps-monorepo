@@ -24,6 +24,17 @@ vi.mock('wagmi', () => ({
   useConnection: () => ({
     address: '0x1234567890123456789012345678901234567890',
   }),
+  useChainId: () => 11155111,
+  useConfig: () => ({
+    chains: [
+      {
+        id: 11155111,
+        blockExplorers: {
+          default: { url: 'https://sepolia.etherscan.io' },
+        },
+      },
+    ],
+  }),
 }))
 
 const mockChangeResolverAsync = vi.fn()

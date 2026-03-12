@@ -63,6 +63,24 @@ describe('getEventSignature', () => {
     expect(getEventSignature('UnknownEvent')).toBe('UnknownEvent')
     expect(getEventSignature('')).toBe('')
   })
+
+  it('should return signatures for resolver indexer event types', () => {
+    expect(getEventSignature('EACRolesChanged')).toBe(
+      'EACRolesChanged (uint256 resource, address account, uint256 oldRoleBitmap, uint256 newRoleBitmap)',
+    )
+    expect(getEventSignature('AddressChanged')).toBe(
+      'AddressChanged (bytes32 indexed node, uint256 coinType, bytes newAddress)',
+    )
+    expect(getEventSignature('AliasChanged')).toBe(
+      'AliasChanged (bytes32 indexed node, bytes alias)',
+    )
+    expect(getEventSignature('ABIChanged')).toBe(
+      'ABIChanged (bytes32 indexed node, uint256 indexed contentType)',
+    )
+    expect(getEventSignature('ResolverUpdated')).toBe(
+      'ResolverUpdated (uint256 tokenId, address resolver)',
+    )
+  })
 })
 
 describe('getEventFieldType', () => {
@@ -75,5 +93,25 @@ describe('getEventFieldType', () => {
   it('should return unknown for non-existent fields or events', () => {
     expect(getEventFieldType('Transfer', 'nonexistent')).toBe('unknown')
     expect(getEventFieldType('UnknownEvent', 'anyField')).toBe('unknown')
+  })
+
+  it('should return correct field types for resolver indexer events', () => {
+    expect(getEventFieldType('EACRolesChanged', 'account')).toBe('address')
+    expect(getEventFieldType('EACRolesChanged', 'resource')).toBe('uint256')
+    expect(getEventFieldType('EACRolesChanged', 'oldRoleBitmap')).toBe(
+      'uint256',
+    )
+    expect(getEventFieldType('EACRolesChanged', 'newRoleBitmap')).toBe(
+      'uint256',
+    )
+    expect(getEventFieldType('AddressChanged', 'coinType')).toBe('uint256')
+    expect(getEventFieldType('AddressChanged', 'address')).toBe('bytes')
+    expect(getEventFieldType('AliasChanged', 'alias')).toBe('bytes')
+    expect(getEventFieldType('ResolverUpdated', 'resolver')).toBe('address')
+  })
+
+  it('should return unknown for non-existent fields on resolver indexer events', () => {
+    expect(getEventFieldType('EACRolesChanged', 'nonexistent')).toBe('unknown')
+    expect(getEventFieldType('AddressChanged', 'nonexistent')).toBe('unknown')
   })
 })

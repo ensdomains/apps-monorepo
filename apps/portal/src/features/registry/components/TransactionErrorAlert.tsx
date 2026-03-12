@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 
 interface TransactionErrorAlertProps {
   readonly title: string
@@ -11,6 +12,7 @@ interface TransactionErrorAlertProps {
   readonly txHash?: Hash
   readonly txHashLabel?: string
   readonly showIcon?: boolean
+  readonly chainId?: number
 }
 
 export const TransactionErrorAlert = ({
@@ -20,7 +22,9 @@ export const TransactionErrorAlert = ({
   txHash,
   txHashLabel = 'Tx hash:',
   showIcon = true,
+  chainId,
 }: TransactionErrorAlertProps): ReactElement => {
+  const txUrl = useBlockExplorerTxUrl(txHash, chainId)
   return (
     <Alert variant="destructive" className="max-w-full">
       {showIcon && <AlertCircle />}
@@ -43,7 +47,7 @@ export const TransactionErrorAlert = ({
               </span>
               <CopyableRecord
                 value={txHash}
-                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                href={txUrl}
                 className="text-xs"
                 truncate={false}
               />

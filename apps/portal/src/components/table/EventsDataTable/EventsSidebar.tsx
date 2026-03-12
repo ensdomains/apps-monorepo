@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
@@ -56,6 +57,7 @@ const TransactionDetails = ({
   const { data, isLoading, error } = useTransaction({
     hash: txHash,
   })
+  const txUrl = useBlockExplorerTxUrl(txHash, data?.chainId)
 
   const formattedTimestamp = formatTimestamp(timestamp)
 
@@ -100,7 +102,7 @@ const TransactionDetails = ({
                 {truncateAddress(txHash, 10, 8, '...')}
               </span>
             }
-            href={`https://sepolia.etherscan.io/tx/${txHash}`}
+            href={txUrl}
           />
         </DataRow>
 
