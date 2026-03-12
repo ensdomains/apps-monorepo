@@ -1,11 +1,11 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { Save, Trash2 } from 'lucide-react'
+import { CheckCircle, Clock, Save, Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -26,7 +26,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { revokeRoles } from '@/features/roles/helpers/revokeRoles'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
@@ -226,7 +228,7 @@ export const RolesSidebar = <
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white overflow-y-auto"
+        className="sm:max-w-[880px] bg-white overflow-y-auto p-8"
       >
         <div className="p-6 flex flex-col gap-6 h-screen">
           <SheetHeader className="p-0">
@@ -296,17 +298,27 @@ export const RolesSidebar = <
 
           {row ? (
             <div className="flex flex-col gap-6">
-              {/* Account Address Section */}
-              <div className="flex flex-col gap-2">
-                {selectedAccount && (
-                  <CopyableRecord
-                    value={selectedAccount}
-                    displayValue={
-                      <span className="text-xl">{selectedAccount}</span>
+              {/* Header */}
+              <div className="flex flex-wrap justify-between items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <h2 className="text-4xl font-medium leading-snug">{name}</h2>
+                  <CopyButton value={name} />
+                </div>
+                {canManageRoles && selectedAccount && (
+                  <Button
+                    variant="secondary"
+                    className="bg-lapis-100 text-lapis-500 hover:bg-lapis-100/80 gap-2"
+                    disabled={
+                      removeUserMutation.isPending || !isWalletConnected
                     }
-                  />
+                    onClick={() => setConfirmOpen(true)}
+                  >
+                    <Trash2 className="size-5" />
+                    Remove user
+                  </Button>
                 )}
               </div>
+
               {(saveMutation.error || removeUserMutation.error) && (
                 <Alert variant="destructive">
                   <AlertDescription>
@@ -316,84 +328,117 @@ export const RolesSidebar = <
                 </Alert>
               )}
 
-              {/* Roles Section */}
-              <div className="flex flex-col gap-4">
-                <h3 className="text-lg font-medium">Roles</h3>
-                <div className="border rounded-lg divide-y">
-                  {permissions.map((permission) => {
-                    const roleKey = permission.key
-                    const isManagerRoleDisabled = !isManagerRoleSettable(
-                      permission.key,
-                    )
-                    const rolePerms = editedPermissions.get(roleKey) || {
-                      admin: false,
-                      manager: false,
-                    }
+              {/* Permissions Section */}
+              <div className="border border-border rounded-2xl overflow-hidden">
+                {permissions.map((permission, index) => {
+                  const roleKey = permission.key
+                  const isManagerRoleDisabled = !isManagerRoleSettable(
+                    permission.key,
+                  )
+                  const rolePerms = editedPermissions.get(roleKey) || {
+                    admin: false,
+                    manager: false,
+                  }
 
-                    return (
-                      <div
-                        key={permission.key}
-                        className={cn(
-                          'flex items-center justify-between p-4 gap-4',
-                          isManagerRoleDisabled && 'text-quartz-500',
-                        )}
-                      >
-                        <div className="flex flex-col gap-1 flex-1">
-                          <div className="font-medium">{permission.title}</div>
-                          <div className="text-sm text-quartz-500">
-                            {permission.description}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-8">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`${permission.key}-manager`}
-                              checked={rolePerms.manager}
-                              disabled={
-                                !canManageRoles ||
-                                saveMutation.isPending ||
-                                isManagerRoleDisabled
-                              }
-                              onCheckedChange={(checked) =>
-                                handlePermissionChange(
-                                  roleKey,
-                                  'manager',
-                                  checked as boolean,
-                                )
-                              }
-                            />
-                            <Label
-                              htmlFor={`${permission.key}-manager`}
-                              className={`font-normal cursor-pointer ${
-                                canManageRoles
-                                  ? 'text-quartz-500'
-                                  : 'text-quartz-400'
-                              }`}
-                            >
-                              Manager
-                            </Label>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`${permission.key}-admin`}
-                              checked={rolePerms.admin}
-                              disabled
-                            />
-                            <Label
-                              htmlFor={`${permission.key}-admin`}
-                              className={`font-normal cursor-pointer ${
-                                canManageRoles
-                                  ? 'text-quartz-500'
-                                  : 'text-quartz-400'
-                              }`}
-                            >
-                              Admin
-                            </Label>
-                          </div>
+                  return (
+                    <div
+                      key={permission.key}
+                      className={cn(
+                        'flex items-center justify-between px-6 py-4 gap-4',
+                        index !== 0 && 'border-t border-border',
+                        isManagerRoleDisabled && 'text-quartz-500',
+                      )}
+                    >
+                      <div className="flex flex-col gap-1 flex-1 min-w-64">
+                        <div className="font-medium">{permission.title}</div>
+                        <div className="text-sm text-quartz-500">
+                          {permission.description}
                         </div>
                       </div>
-                    )
-                  })}
+                      <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+                        <div className="flex items-center gap-2 min-w-24">
+                          <Checkbox
+                            id={`${permission.key}-manager`}
+                            checked={rolePerms.manager}
+                            disabled={
+                              !canManageRoles ||
+                              saveMutation.isPending ||
+                              isManagerRoleDisabled
+                            }
+                            onCheckedChange={(checked) =>
+                              handlePermissionChange(
+                                roleKey,
+                                'manager',
+                                checked as boolean,
+                              )
+                            }
+                            className="data-[state=checked]:bg-citrine-500 data-[state=checked]:border-citrine-500"
+                          />
+                          <Label
+                            htmlFor={`${permission.key}-manager`}
+                            className={cn(
+                              'font-medium cursor-pointer',
+                              canManageRoles ? 'text-black' : 'text-quartz-400',
+                            )}
+                          >
+                            Manager
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2 min-w-24">
+                          <Checkbox
+                            id={`${permission.key}-admin`}
+                            checked={rolePerms.admin}
+                            disabled
+                            className="data-[state=checked]:bg-citrine-500 data-[state=checked]:border-citrine-500"
+                          />
+                          <Label
+                            htmlFor={`${permission.key}-admin`}
+                            className={cn(
+                              'font-medium cursor-pointer',
+                              canManageRoles ? 'text-black' : 'text-quartz-400',
+                            )}
+                          >
+                            Admin
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Save Changes Button */}
+                <div className="flex justify-end px-6 py-4 border-t border-border bg-quartz-0">
+                  <Button
+                    variant="secondary"
+                    className="gap-2 text-quartz-400 bg-quartz-50 hover:bg-quartz-50/80"
+                    disabled={
+                      !hasChanges ||
+                      saveMutation.isPending ||
+                      !isWalletConnected
+                    }
+                    onClick={handleSaveChanges}
+                  >
+                    <CheckCircle className="size-5" />
+                    {saveMutation.isPending ? 'Saving...' : 'Save changes'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* History Section */}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap justify-between items-center gap-4">
+                  <h3 className="text-2xl font-medium leading-snug">History</h3>
+                  <Button
+                    variant="secondary"
+                    className="bg-lapis-100 text-lapis-500 hover:bg-lapis-100/80 gap-1 h-8 px-2 py-1 text-sm"
+                  >
+                    <Clock className="size-4" />
+                    Full history
+                  </Button>
+                </div>
+
+                <div className="border border-border rounded-2xl overflow-hidden p-0">
+                  <RoleHistoryTable name={name} account={selectedAccount} />
                 </div>
               </div>
             </div>
@@ -403,6 +448,34 @@ export const RolesSidebar = <
             </div>
           )}
         </div>
+
+        {/* Remove User Confirmation Dialog */}
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Remove user</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to remove this user from all roles? This
+                action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setConfirmOpen(false)
+                  handleRemoveUser()
+                }}
+                disabled={removeUserMutation.isPending}
+              >
+                {removeUserMutation.isPending ? 'Removing...' : 'Remove'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   )
