@@ -16,30 +16,30 @@ import { prepareCreateSubnameTransaction } from '../utils/create-subname.helpers
 
 export type CreateSubnameParameters = {
   /** The subregistry address (parent registry for the subname) */
-  registryAddress: Address
+  readonly registryAddress: Address
   /** The label of the subname to create */
-  label: string
+  readonly label: string
   /** The owner address of the new subname */
-  owner: Address
+  readonly owner: Address
   /** The resolver address for the new subname */
-  resolverAddress: Address
+  readonly resolverAddress: Address
   /** The wallet client with account */
-  walletClient: WalletClient
+  readonly walletClient: WalletClient
   /** Signer for the transaction */
-  signer: Signer
+  readonly signer: Signer
   /** Chain ID */
-  chainId: number
+  readonly chainId: number
   /** ENS network (for query invalidation) */
-  network: EnsNetworkName
+  readonly network: EnsNetworkName
   /** Parent name (for description) */
-  parentName: string
+  readonly parentName: string
   /** Transaction ID for tracking */
-  id: string
+  readonly id: string
 }
 
 export interface CreateSubnameResult {
-  txId: string
-  hash: Hex
+  readonly txId: string
+  readonly hash: Hex
 }
 
 export async function createSubname(
