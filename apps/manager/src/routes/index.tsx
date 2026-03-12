@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
@@ -31,7 +32,7 @@ const LandingPage = () => {
           </span>
         </h1>
         <p className="mt-6 text-center font-normal text-ens-lapis-core text-temp-32px">
-          A simple, portable identity that you control
+          <Trans>A simple, portable identity that you control</Trans>
         </p>
         <div className="mt-11 w-full max-w-3xl">
           <CheckAvailability

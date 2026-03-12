@@ -36,6 +36,9 @@ const FEATURE_FLAGS_INTERNAL = {
   SEARCH_RESULTS_BLUR_BACKDROP: {
     enabled: import.meta.env.VITE_FF_SEARCH_RESULTS_BLUR_BACKDROP === 'true',
   },
+  LANGUAGE_SELECTOR: {
+    enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
+  },
   REGISTRATION_V2: {
     enabled: true,
   },
