@@ -11,6 +11,10 @@ pre-commit:
       glob: "*.{js,ts,jsx,tsx,json,jsonc}"
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
       stage_fixed: true
+    lingui-extract:
+      glob: "apps/manager/src/**/*.{ts,tsx}"
+      run: pnpm --filter manager i18n:extract --clean
+      stage_fixed: true
 
 # Pre-push hook: Ensure all files pass Biome checks before pushing (warnings only)
 pre-push:
