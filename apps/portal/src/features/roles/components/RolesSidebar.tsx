@@ -27,6 +27,10 @@ import {
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { useRevokeRoles } from '@/features/roles/hooks/useRevokeRoles'
+import type {
+  PendingRemove,
+  PendingSave,
+} from '@/features/roles/utils/buildRoleTransactionDescriptors'
 import { buildRoleTransactions } from '@/features/roles/utils/buildRoleTransactions'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -63,16 +67,8 @@ export const RolesSidebar = <
   const chainId = namechainSepolia.id
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const [pendingSave, setPendingSave] = useState<{
-    readonly account: Address
-    readonly rolesToGrant: Role[]
-    readonly rolesToRevoke: Role[]
-  } | null>(null)
-
-  const [pendingRemove, setPendingRemove] = useState<{
-    readonly account: Address
-    readonly roles: Role[]
-  } | null>(null)
+  const [pendingSave, setPendingSave] = useState<PendingSave | null>(null)
+  const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
 
   const { data: walletClient } = useWalletClient({ chainId })
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
