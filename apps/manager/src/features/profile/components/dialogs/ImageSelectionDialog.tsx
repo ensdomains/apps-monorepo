@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import clsx from 'clsx'
@@ -292,7 +293,9 @@ export const ImageSelectionDialog = ({
             </ImageFallback.Root>
           </div>
           <div className="text-center">
-            <p className="mb-2 font-medium text-sm">Default</p>
+            <p className="mb-2 font-medium text-sm">
+              <Trans>Default</Trans>
+            </p>
             <img
               alt={`Default ${type}`}
               className={getImageStyles('small')}

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useBlocker } from '@tanstack/react-router'
 import { ArrowRight, Check, Loader2, Plus, Save, X } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -182,11 +183,15 @@ export const DiffDialog = ({
                   {change.type === 'modified' && (
                     <div className="space-y-2">
                       <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
-                        <strong>From:</strong>{' '}
+                        <strong>
+                          <Trans>From:</Trans>
+                        </strong>{' '}
                         <DiffValue value={change.original} />
                       </div>
                       <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
-                        <strong>To:</strong>{' '}
+                        <strong>
+                          <Trans>To:</Trans>
+                        </strong>{' '}
                         <DiffValue value={change.current} />
                       </div>
                     </div>
