@@ -434,7 +434,7 @@ export const RolesSidebar = <
                   </h3>
                   <Button
                     variant="secondary"
-                    className="bg-lapis-100 text-lapis-500 hover:bg-lapis-100/80 gap-1 h-[30px] px-2 py-1 text-sm"
+                    className="bg-lapis-100 text-lapis-500 hover:bg-lapis-100/80 gap-1 h-8 px-2 py-1 text-sm"
                   >
                     <Clock className="size-4" />
                     Full history
