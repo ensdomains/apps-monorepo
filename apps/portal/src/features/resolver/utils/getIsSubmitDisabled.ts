@@ -1,11 +1,11 @@
 import { isAddress } from 'viem'
 
 export type GetIsSubmitDisabledParams = {
-  walletOk: boolean
-  useCustomResolver: boolean
-  resolverAddress: string
-  deployNewResolver: boolean
-  selectedExistingResolver: string
+  readonly walletOk: boolean
+  readonly useCustomResolver: boolean
+  readonly resolverAddress: string
+  readonly deployNewResolver: boolean
+  readonly selectedExistingResolver: string
 }
 
 export function getIsSubmitDisabled({
