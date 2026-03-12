@@ -202,6 +202,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const {
     isWrongChain,
     isSwitchingChain,
+    requiredChainId,
     switchChain,
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
@@ -217,7 +218,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     displayName,
   })
 
-  const { writeContractAsync } = useWriteContract()
+  const writeContract = useWriteContract()
 
   const [reverseHash, setReverseHash] = useState<Hash | undefined>(undefined)
   const [forwardHash, setForwardHash] = useState<Hash | undefined>(undefined)
@@ -225,9 +226,15 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const [isWritingForward, setIsWritingForward] = useState(false)
 
   const { isLoading: isConfirmingReverse, isSuccess: isReverseSuccess } =
-    useWaitForTransactionReceipt({ hash: reverseHash })
+    useWaitForTransactionReceipt({
+      hash: reverseHash,
+      chainId: requiredChainId,
+    })
   const { isLoading: isConfirmingForward, isSuccess: isForwardSuccess } =
-    useWaitForTransactionReceipt({ hash: forwardHash })
+    useWaitForTransactionReceipt({
+      hash: forwardHash,
+      chainId: requiredChainId,
+    })
 
   useEffect(() => {
     if (isReverseSuccess || isForwardSuccess) {
@@ -276,8 +283,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       try {
         const reverseRequest = getReverseResolutionRequest(nameInput)
         setIsWritingReverse(true)
-        const hash = await writeContractAsync(
-          reverseRequest.request as Parameters<typeof writeContractAsync>[0],
+        const hash = await writeContract.mutateAsync(
+          reverseRequest.request as Parameters<
+            typeof writeContract.mutateAsync
+          >[0],
         )
         setReverseHash(hash)
       } catch (error) {
@@ -301,8 +310,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       try {
         const request = getForwardResolutionRequest(address)
         setIsWritingForward(true)
-        const hash = await writeContractAsync(
-          request as Parameters<typeof writeContractAsync>[0],
+        const hash = await writeContract.mutateAsync(
+          request as Parameters<typeof writeContract.mutateAsync>[0],
         )
         setForwardHash(hash)
       } catch (error) {
