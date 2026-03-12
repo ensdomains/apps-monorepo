@@ -1,10 +1,11 @@
+import { env } from 'cloudflare:workers'
 import type {
-  NotificationPayloads,
+  PersonalNotificationPayloads,
   SupportedNotifications,
-} from '#config/notifications.js'
+} from '@ens-apps/shared-schema/notifications'
 
 export type EmailTemplate<K extends SupportedNotifications<'email'>> = (
-  payload: NotificationPayloads[K],
+  payload: PersonalNotificationPayloads[K],
 ) => {
   templateId: string
   dynamicData: Record<string, any>
@@ -15,17 +16,20 @@ export const emailTemplates: {
   [K in SupportedNotifications<'email'>]: EmailTemplate<K>
 } = {
   'name-expiry': (payload) => ({
-    templateId: 'd-54bbff22769e41c6b219adf894bbe100',
+    templateId: env.SENDGRID_TEMPLATE_IDS['name-expiry'],
     dynamicData: {
       name: payload.name,
       expiryDate: new Date(payload.expiryDate).toLocaleDateString(),
+      expiryDays: Math.ceil(
+        (payload.expiryDate - Date.now()) / (1000 * 60 * 60 * 24),
+      ),
       isOwner: payload.isOwner,
     },
     subject: 'Domain Expiration Alert',
   }),
 
   'name-transferred': (payload) => ({
-    templateId: 'd-yyyyy',
+    templateId: env.SENDGRID_TEMPLATE_IDS['name-transferred'],
     dynamicData: {
       name: payload.name,
       to: payload.to,

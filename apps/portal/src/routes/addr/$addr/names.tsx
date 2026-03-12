@@ -1,4 +1,3 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -30,10 +29,10 @@ import {
   type NameRow,
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
-import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
+import { queryClient } from '@/utils/queryClient'
 
 const MS_PER_SECOND = 1000
 const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
@@ -103,6 +102,19 @@ const getNameLength = (name: string | null): string => {
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    Promise.all([
+      queryClient.prefetchQuery(
+        getV1NamesForAddressQueryOptions({
+          address: params.addr as Address,
+        }),
+      ),
+      queryClient.prefetchQuery(
+        getV2NamesWithRolesForAddressQueryOptions({
+          address: params.addr as Address,
+        }),
+      ),
+    ]),
 })
 
 function RouteComponent() {
@@ -116,8 +128,6 @@ function RouteComponent() {
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedLengths, setSelectedLengths] = useState<string[]>([])
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
-
   const [v1NamesQuery, v2NamesQuery] = useQueries({
     queries: [
       getV1NamesForAddressQueryOptions({ address }),
@@ -152,47 +162,6 @@ function RouteComponent() {
     return [...v1Names, ...v2Names]
   }, [v1NamesQuery.data, v2NamesQuery.data])
 
-  // Build role filter groups from actual data
-  const roleFilterGroups = useMemo((): FilterGroup[] => {
-    const v2RoleSet = new Set<string>()
-    let hasV1Owner = false
-    let hasV1Manager = false
-
-    for (const row of data) {
-      if (row.roleBitmap) {
-        const roles = decodeRoleBitmap(row.roleBitmap)
-        for (const role of roles) {
-          v2RoleSet.add(role)
-        }
-      }
-      if (row.v1Roles?.owner) hasV1Owner = true
-      if (row.v1Roles?.manager) hasV1Manager = true
-    }
-
-    const groups: FilterGroup[] = []
-
-    // V1 roles (Owner/Manager)
-    const v1Options = []
-    if (hasV1Owner) v1Options.push({ label: 'Owner', value: 'v1:owner' })
-    if (hasV1Manager) v1Options.push({ label: 'Manager', value: 'v1:manager' })
-    if (v1Options.length > 0) {
-      groups.push({ title: 'V1 Roles', options: v1Options })
-    }
-
-    // V2 roles (from roleBitmap)
-    const v2RoleOptions = Array.from(v2RoleSet)
-      .sort()
-      .map((role) => ({
-        label: role.replace('ROLE_', '').replace(/_/g, ' ').toLowerCase(),
-        value: role,
-      }))
-    if (v2RoleOptions.length > 0) {
-      groups.push({ title: 'V2 Roles', options: v2RoleOptions })
-    }
-
-    return groups
-  }, [data])
-
   // Apply filters to data
   const filteredData = useMemo(() => {
     let filtered = data
@@ -225,34 +194,8 @@ function RouteComponent() {
       })
     }
 
-    // Filter by roles
-    if (selectedRoles.length > 0) {
-      filtered = filtered.filter((row) => {
-        // Check V1 roles
-        const v1RoleMatches = selectedRoles.some((selectedRole) => {
-          if (selectedRole === 'v1:owner') return row.v1Roles?.owner
-          if (selectedRole === 'v1:manager') return row.v1Roles?.manager
-          return false
-        })
-        if (v1RoleMatches) return true
-
-        // Check V2 roles (from roleBitmap)
-        if (row.roleBitmap) {
-          const roles = decodeRoleBitmap(row.roleBitmap)
-          const v2RoleMatches = selectedRoles.some(
-            (selectedRole) =>
-              !selectedRole.startsWith('v1:') &&
-              roles.includes(selectedRole as Role),
-          )
-          if (v2RoleMatches) return true
-        }
-
-        return false
-      })
-    }
-
     return filtered
-  }, [data, expiryDateRange, selectedStatuses, selectedLengths, selectedRoles])
+  }, [data, expiryDateRange, selectedStatuses, selectedLengths])
 
   const table = useReactTable({
     data: filteredData,
@@ -310,14 +253,13 @@ function RouteComponent() {
     expiryDateRange.from ||
     expiryDateRange.to ||
     selectedStatuses.length > 0 ||
-    selectedLengths.length > 0 ||
-    selectedRoles.length > 0
+    selectedLengths.length > 0
 
   return (
     <>
-      <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">
+          <h1 className="text-heading font-medium">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
             names
           </h1>
@@ -366,14 +308,6 @@ function RouteComponent() {
                 selectedValues={selectedLengths}
                 onChange={setSelectedLengths}
               />
-              {roleFilterGroups.length > 0 && (
-                <TableMultiSelectFilter
-                  label="Role"
-                  groups={roleFilterGroups}
-                  selectedValues={selectedRoles}
-                  onChange={setSelectedRoles}
-                />
-              )}
             </div>
           </>
         )}

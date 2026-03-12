@@ -123,7 +123,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
   const data = limit ? allData.slice(0, limit) : allData
 
   return (
-    <div className="border rounded-2xl border-gray-300 overflow-hidden">
+    <div className="border rounded-2xl border-border overflow-hidden">
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
         {data.map((name, index) => (
@@ -148,9 +148,9 @@ export const NameList = ({ address, limit }: NameListProps) => {
       <Link
         to="/addr/$addr/names"
         params={{ addr: address }}
-        className="flex items-center justify-center gap-1 bg-secondary p-4 text-sm font-medium hover:bg-secondary/80 transition-colors"
+        className="flex items-center justify-center gap-1 bg-quartz-50 p-4 text-sm font-medium hover:bg-quartz-100 transition-colors"
       >
-        <GripHorizontal size={16} />
+        <GripHorizontal className="size-4" />
         Go to full list ({allData.length})
       </Link>
     </div>

@@ -4,6 +4,7 @@ import {
   OrderDirection,
 } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
@@ -31,16 +32,11 @@ import { PrimaryBadge } from './PrimaryBadge'
 
 const PAGE_SIZE = 5
 
-type SortField = 'name' | 'expiry' | 'registration'
+type Sort = 'name-asc' | 'name-desc' | 'expiry-asc' | 'expiry-desc'
 
 interface MyNamesListProps {
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
-}
-
-type SortIndicatorProps = {
-  readonly direction?: OrderDirection
-  readonly isActive: boolean
 }
 
 const NameRowSkeleton = () => (
@@ -61,7 +57,13 @@ const NameRowSkeleton = () => (
   </div>
 )
 
-const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
+const SortIndicator = ({
+  direction,
+  isActive,
+}: {
+  readonly direction: 'asc' | 'desc'
+  readonly isActive: boolean
+}) => {
   if (!isActive) {
     return (
       <div className="flex flex-col">
@@ -74,26 +76,41 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
   return (
     <div className="flex flex-col">
       <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
+        className={`size-[8.2px] rotate-180 ${direction === 'asc' ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
       <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
+        className={`size-[8.2px] ${direction === 'desc' ? 'text-ens-blue' : 'text-ens-gray-three'}`}
       />
     </div>
   )
+}
+
+const parseSort = (sort: Sort) => {
+  const [field, dir] = sort.split('-') as ['name' | 'expiry', 'asc' | 'desc']
+  return {
+    field,
+    dir,
+    orderBy: field === 'name' ? Domain_OrderBy.Name : Domain_OrderBy.ExpiryDate,
+    orderDirection: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+  }
 }
 
 export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
+  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
-  const [sortField, setSortField] = useState<SortField>('registration')
-  const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
-    null,
-  )
+  const [sort, setSort] = useState<Sort>('name-desc')
+
+  const {
+    field: sortField,
+    dir: sortDir,
+    orderBy,
+    orderDirection,
+  } = parseSort(sort)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
@@ -101,12 +118,6 @@ export const MyNamesList = ({
   }, [searchQuery, wallet?.address])
 
   const normalizedAddress = wallet?.address?.toLowerCase()
-
-  const orderBy = match(sortField)
-    .with('name', () => Domain_OrderBy.Name)
-    .with('expiry', () => Domain_OrderBy.ExpiryDate)
-    .with('registration', () => Domain_OrderBy.RegistrationDate)
-    .exhaustive()
 
   const queryVariables = normalizedAddress
     ? {
@@ -119,7 +130,7 @@ export const MyNamesList = ({
         first: PAGE_SIZE,
         skip: (page - 1) * PAGE_SIZE,
         orderBy,
-        orderDirection: sortDirection ?? OrderDirection.Desc,
+        orderDirection,
       }
     : undefined
 
@@ -131,34 +142,13 @@ export const MyNamesList = ({
   const names: DomainFragment[] =
     normalizedAddress && data?.domains ? data.domains : []
 
-  const handlePrev = () => {
-    if (!isPending && page > 1) {
-      setPage((p) => p - 1)
-    }
-  }
-
-  const handleNext = () => {
-    if (!isPending && names.length === PAGE_SIZE) {
-      setPage((p) => p + 1)
-    }
-  }
-
-  const setSort = (field: SortField, direction: OrderDirection) => {
-    setSortField(field)
-    setSortDirection(direction)
-  }
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field && sortDirection !== null) {
-      setSortDirection((prev) =>
-        prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
-      )
+  const toggleSort = (field: 'name' | 'expiry') => {
+    if (sortField === field) {
+      setSort(`${field}-${sortDir === 'desc' ? 'asc' : 'desc'}`)
     } else {
-      setSortField(field)
-      setSortDirection(
-        field === 'expiry' ? OrderDirection.Asc : OrderDirection.Desc,
-      )
+      setSort(`${field}-${field === 'expiry' ? 'asc' : 'desc'}`)
     }
+    setPage(1)
   }
 
   const avatarQueries = useQueries({
@@ -172,7 +162,7 @@ export const MyNamesList = ({
   if (isError) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
-        Error loading names
+        <Trans>Error loading names</Trans>
       </div>
     )
   }
@@ -183,31 +173,29 @@ export const MyNamesList = ({
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            Sort by
+            <Trans>Sort by</Trans>
           </span>
           <select
-            aria-label="Sort names by"
+            aria-label={t`Sort names by`}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
-              const [field, direction] = e.target.value.split('-') as [
-                'name' | 'expiry',
-                'asc' | 'desc',
-              ]
-              setSort(
-                field,
-                direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
-              )
+              setSort(e.target.value as Sort)
+              setPage(1)
             }}
-            value={
-              sortDirection
-                ? `${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`
-                : 'name-asc'
-            }
+            value={sort}
           >
-            <option value="name-asc">Name (A-Z)</option>
-            <option value="name-desc">Name (Z-A)</option>
-            <option value="expiry-asc">Expiry date (Earliest)</option>
-            <option value="expiry-desc">Expiry date (Latest)</option>
+            <option value="name-asc">
+              <Trans>Name (A-Z)</Trans>
+            </option>
+            <option value="name-desc">
+              <Trans>Name (Z-A)</Trans>
+            </option>
+            <option value="expiry-asc">
+              <Trans>Expiry date (Earliest)</Trans>
+            </option>
+            <option value="expiry-desc">
+              <Trans>Expiry date (Latest)</Trans>
+            </option>
           </select>
         </div>
       </div>
@@ -215,33 +203,32 @@ export const MyNamesList = ({
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
+          aria-label={`Sort by name, currently ${sortField === 'name' ? sortDir : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('name')}
           type="button"
         >
           <span
-            className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Name
+            <Trans>Name</Trans>
           </span>
-          <SortIndicator
-            direction={sortDirection ?? undefined}
-            isActive={sortDirection !== null && sortField === 'name'}
-          />
+          <SortIndicator direction={sortDir} isActive={sortField === 'name'} />
         </button>
         <button
+          aria-label={`Sort by expiry, currently ${sortField === 'expiry' ? sortDir : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('expiry')}
           type="button"
         >
           <span
-            className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Expiry
+            <Trans>Expiry</Trans>
           </span>
           <SortIndicator
-            direction={sortDirection ?? undefined}
-            isActive={sortDirection !== null && sortField === 'expiry'}
+            direction={sortDir}
+            isActive={sortField === 'expiry'}
           />
         </button>
       </div>
@@ -270,7 +257,7 @@ export const MyNamesList = ({
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                No names to display
+                <Trans>No names to display</Trans>
               </span>
             </div>
           ))
@@ -328,7 +315,7 @@ export const MyNamesList = ({
                               strokeWidth={2}
                             />
                             <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
-                              Expires in {daysUntilExpiry} days
+                              <Trans>Expires in {daysUntilExpiry} days</Trans>
                             </span>
                           </div>
                         )}
@@ -344,17 +331,19 @@ export const MyNamesList = ({
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
         <div className="flex items-center justify-center gap-[12px]">
           <button
+            aria-label="Previous page"
             className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
             disabled={isPending || page === 1}
-            onClick={handlePrev}
+            onClick={() => setPage((p) => p - 1)}
             type="button"
           >
             <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
           </button>
           <button
+            aria-label="Next page"
             className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
             disabled={isPending || !hasNextPage}
-            onClick={handleNext}
+            onClick={() => setPage((p) => p + 1)}
             type="button"
           >
             <CircleArrowRight className="size-[32px]" strokeWidth={1} />
@@ -364,7 +353,7 @@ export const MyNamesList = ({
           {isPlaceholderData && (
             <Loader2 className="size-[12px] animate-spin" />
           )}
-          Showing your names
+          <Trans>Showing your names</Trans>
         </span>
       </div>
     </div>

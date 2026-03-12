@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import clsx from 'clsx'
@@ -292,7 +293,9 @@ export const ImageSelectionDialog = ({
             </ImageFallback.Root>
           </div>
           <div className="text-center">
-            <p className="mb-2 font-medium text-sm">Default</p>
+            <p className="mb-2 font-medium text-sm">
+              <Trans>Default</Trans>
+            </p>
             <img
               alt={`Default ${type}`}
               className={getImageStyles('small')}
@@ -327,6 +330,7 @@ export const ImageSelectionDialog = ({
         <div className="relative">
           <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
           <Input
+            aria-label="Search your NFTs"
             className="pl-10"
             onChange={(e) =>
               send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })

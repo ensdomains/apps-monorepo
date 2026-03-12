@@ -127,10 +127,10 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
   return (
     <>
       {enableTransactionCount || enableSearch || enableFilters ? (
-        <header className="bg-gray-100 px-8 pb-4 pt-12 flex flex-col gap-4">
+        <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4">
           {enableTransactionCount && (
             <div className="flex flex-row justify-between">
-              <h1 className="text-[28px] font-medium">
+              <h1 className="text-heading font-medium">
                 {eventCount} Transaction{eventCount !== 1 ? 's' : ''}
               </h1>
             </div>

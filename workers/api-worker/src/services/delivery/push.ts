@@ -1,11 +1,11 @@
 import { buildPushPayload } from '@block65/webcrypto-web-push'
+import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
 import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import type { PushDeliveryJob } from '#types/delivery.js'
-import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 import {
   NotificationDeliveryNotFoundError,
@@ -76,7 +76,7 @@ export const deliverPushNotification = ResultFn(async function* (
 
   // 4. generate notification content
   const notificationData = template(
-    deliveryJob.notification.payload as AnyUserNotificationPayload,
+    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
 
   // 5. build the Web Push subscription object
@@ -155,7 +155,7 @@ export const deliverPushNotification = ResultFn(async function* (
 
 export const handlePushDeliveryFailure = async (
   db: Database,
-  job: Message<PushDeliveryJob>,
+  message: Message<PushDeliveryJob>,
   errorMessage: string,
 ): Promise<void> => {
   await db
@@ -163,15 +163,15 @@ export const handlePushDeliveryFailure = async (
     .set({
       status: 'failed',
       error: errorMessage,
-      attempts: job.attempts + 1,
+      attempts: message.attempts + 1,
       updated_at: new Date(),
     })
-    .where(eq(TABLE.notificationDeliveries.id, job.body.id))
+    .where(eq(TABLE.notificationDeliveries.id, message.body.id))
 
   logger.error('Push notification failed', {
-    jobId: job.body.id,
-    kind: job.body.kind,
-    attempts: job.attempts + 1,
+    jobId: message.body.id,
+    kind: message.body.kind,
+    attempts: message.attempts + 1,
     error: errorMessage,
   })
 }

@@ -4,12 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { type FormEvent, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
-import { getEnsAddress } from 'viem/actions'
 import { sepolia } from 'viem/chains'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -20,11 +19,14 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
+import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
@@ -44,7 +46,7 @@ const PageHeader = ({ name }: PageHeaderProps) => (
     <Link to="/$name/subnames" params={{ name }}>
       <Button
         variant="ghost"
-        className="flex items-center gap-1 -ml-2 text-gray-500"
+        className="flex items-center gap-1 -ml-2 text-quartz-500"
       >
         <ArrowLeftIcon className="size-6" />
         Back
@@ -54,7 +56,19 @@ const PageHeader = ({ name }: PageHeaderProps) => (
   </div>
 )
 
-// --- Form Component (fetches registriesData, handles form) ---
+function useSyncOwnerWithConnectedAddress(
+  connectedAddress: Address | undefined,
+  hasUserEdited: React.RefObject<boolean>,
+  setOwnerInput: (value: string) => void,
+  setOwnerAddress: (value: Address | null) => void,
+) {
+  useEffect(() => {
+    if (connectedAddress && !hasUserEdited.current) {
+      setOwnerInput(connectedAddress)
+      setOwnerAddress(connectedAddress)
+    }
+  }, [connectedAddress, hasUserEdited, setOwnerInput, setOwnerAddress])
+}
 
 interface CreateSubnameFormProps {
   readonly name: string
@@ -62,15 +76,27 @@ interface CreateSubnameFormProps {
 
 const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   const navigate = useNavigate()
-  const { isConnected } = useAccount()
+  const { address: connectedAddress, isConnected } = useConnection()
   const { data: walletClient } = useWalletClient()
 
   const [label, setLabel] = useState('')
-  const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
+  const [ownerInput, setOwnerInput] = useState(connectedAddress ?? '')
+  const [ownerAddress, setOwnerAddress] = useState<Address | null>(
+    connectedAddress ?? null,
+  )
   const [resolveError, setResolveError] = useState<string | null>(null)
+  const [isResolving, setIsResolving] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasUserEditedOwner = useRef(false)
+
+  useSyncOwnerWithConnectedAddress(
+    connectedAddress,
+    hasUserEditedOwner,
+    setOwnerInput,
+    setOwnerAddress,
+  )
 
   // Fetch registries (we know it's v2 at this point)
   const {
@@ -84,6 +110,16 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
   const subregistryAddress = registriesData?.registries[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
+
+  const { data: existingSubnames } = useQuery({
+    ...getSubnamesQueryOptions({ name, network: 'namechainSepolia' }),
+    enabled: Boolean(hasSubregistry),
+  })
+
+  const trimmedLabel = label.trim()
+  const isLabelTaken = Boolean(
+    trimmedLabel && existingSubnames?.some((s) => s.labelName === trimmedLabel),
+  )
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -189,7 +225,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-gray-600">
+        <p className="text-quartz-500">
           This name does not have a subregistry. You must deploy one first to
           create subnames.
         </p>
@@ -207,7 +243,7 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <Field>
+        <Field data-invalid={isLabelTaken}>
           <FieldLabel htmlFor="label">Subname</FieldLabel>
           <div className="flex items-center gap-2">
             <Input
@@ -222,18 +258,27 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             />
             <span className="text-base">.{name}</span>
           </div>
+          {isLabelTaken && (
+            <p className="text-sm text-garnet-500">
+              {trimmedLabel}.{name} is already registered.
+            </p>
+          )}
         </Field>
 
-        <Field data-invalid={!ownerAddress}>
+        <Field data-invalid={!ownerAddress && !isResolving}>
           <FieldLabel htmlFor="owner">Owner</FieldLabel>
           <Input
             id="owner"
             name="owner"
             placeholder="ENS name or HEX address"
+            value={ownerInput}
             disabled={isSubmitting}
             required
             pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
             onChange={(e) => {
+              hasUserEditedOwner.current = true
+              const value = e.target.value
+              setOwnerInput(value)
               setResolveError(null)
 
               if (resolveTimeoutRef.current) {
@@ -241,44 +286,67 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
               }
 
               if (e.currentTarget.checkValidity()) {
-                const nameOrAddress = e.currentTarget.value as Address
-
-                if (isAddress(nameOrAddress)) {
-                  setOwnerAddress(nameOrAddress)
+                if (isAddress(value)) {
+                  setOwnerAddress(value)
+                  setIsResolving(false)
+                } else if (!value.endsWith('.eth')) {
+                  setOwnerAddress(null)
+                  setIsResolving(false)
+                  setResolveError('Only .eth names can be resolved')
                 } else {
                   setOwnerAddress(null)
-                  resolveTimeoutRef.current = setTimeout(() => {
-                    ResultAsync.fromPromise(
-                      getEnsAddress(getClient(), {
-                        name: nameOrAddress,
-                        universalResolverAddress:
-                          '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
-                      }),
-                      (error) =>
+                  setIsResolving(true)
+                  resolveTimeoutRef.current = setTimeout(async () => {
+                    try {
+                      const resolved = await resolveAddressOrName({
+                        client: getClient(),
+                        nameOrAddress: value,
+                      })
+                      setOwnerAddress(resolved)
+                      setIsResolving(false)
+                      if (!resolved) {
+                        setResolveError(
+                          `Could not resolve address for ${value}`,
+                        )
+                      }
+                    } catch (error) {
+                      setOwnerAddress(null)
+                      setIsResolving(false)
+                      setResolveError(
                         error instanceof Error
-                          ? error
-                          : new Error('Failed to resolve ENS name'),
-                    ).match(
-                      (address) => {
-                        setOwnerAddress(address)
-                        if (!address) {
-                          setResolveError(
-                            `Could not resolve address for ${nameOrAddress}`,
-                          )
-                        }
-                      },
-                      (error) => {
-                        setOwnerAddress(null)
-                        setResolveError(error.message)
-                      },
-                    )
+                          ? error.message
+                          : 'Failed to resolve ENS name',
+                      )
+                    }
                   }, 500)
                 }
               } else {
                 setOwnerAddress(null)
+                setIsResolving(false)
               }
             }}
           />
+          {isResolving && (
+            <p className="text-sm text-quartz-500 flex items-center gap-1">
+              <Loader2 className="size-3 animate-spin" />
+              Resolving...
+            </p>
+          )}
+          {ownerAddress && !isAddress(ownerInput) && !isResolving && (
+            <p className="text-sm text-quartz-500">
+              Resolved: {truncateAddress(ownerAddress)}
+            </p>
+          )}
+          {ownerInput &&
+            !ownerAddress &&
+            !isResolving &&
+            !resolveError &&
+            !ownerInput.includes('.') &&
+            !isAddress(ownerInput) && (
+              <p className="text-sm text-quartz-500">
+                Enter a full ENS name (e.g. name.eth) or a HEX address
+              </p>
+            )}
         </Field>
 
         {match({ isConnected, submitError, resolveError })
@@ -288,17 +356,21 @@ const CreateSubnameForm = ({ name }: CreateSubnameFormProps) => {
             </p>
           ))
           .with({ resolveError: P.string.minLength(1) }, ({ resolveError }) => (
-            <p className="text-sm text-red-500">Error: {resolveError}</p>
+            <p className="text-sm text-garnet-500">{resolveError}</p>
           ))
           .with({ submitError: P.string.minLength(1) }, ({ submitError }) => (
-            <p className="text-sm text-red-500">Error: {submitError}</p>
+            <p className="text-sm text-garnet-500">{submitError}</p>
           ))
           .otherwise(() => null)}
 
         <Button
           type="submit"
           disabled={
-            !ownerAddress || isSubmitting || !walletClient || !isConnected
+            !ownerAddress ||
+            isSubmitting ||
+            !walletClient ||
+            !isConnected ||
+            isLabelTaken
           }
           className="w-full sm:w-fit"
         >
@@ -331,7 +403,7 @@ const CreateSubnameContent = ({
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-gray-600">
+        <p className="text-quartz-500">
           This feature is only available for ENSv2 names.
         </p>
       </div>

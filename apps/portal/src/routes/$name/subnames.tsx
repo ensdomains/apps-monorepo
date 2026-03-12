@@ -31,7 +31,9 @@ const NoSubregistryMessage = ({
   canDeploy,
 }: NoSubregistryMessageProps) => (
   <MessageCard
-    icon={<AlertCircle size={30} strokeWidth={1.5} className="text-gray-500" />}
+    icon={
+      <AlertCircle size={30} strokeWidth={1.5} className="text-quartz-500" />
+    }
     title="No subregistry"
     description={
       <p>
@@ -46,7 +48,7 @@ const NoSubregistryMessage = ({
       canDeploy
         ? {
             label: 'Deploy subregistry',
-            variant: 'default',
+            variant: 'secondary',
             href: `/${name}/registry`,
           }
         : undefined
@@ -82,6 +84,7 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: '',
       roles: ['ROLE_REGISTRAR'],
       account: connectedAccount as Address,
+      network,
     }),
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
@@ -95,6 +98,7 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: firstLabel,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account: connectedAccount as Address,
+      network,
     }),
     enabled:
       Boolean(parentRegistryAddress) &&
@@ -169,7 +173,7 @@ const V1SubnamesMessage = () => (
     description={
       <>
         <p>This page is only for ENSv2 names.</p>
-        <p className="text-gray-500 text-sm mt-2">
+        <p className="text-quartz-500 text-sm mt-2">
           ENSv1 subnames are managed differently.
         </p>
       </>

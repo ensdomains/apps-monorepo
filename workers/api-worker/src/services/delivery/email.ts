@@ -1,3 +1,4 @@
+import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -5,7 +6,6 @@ import type { Database } from '#core/database/index.js'
 import { TABLE } from '#core/database/index.js'
 import { sendMailV3 } from '#services/email/utils.js'
 import type { EmailDeliveryJob } from '#types/delivery.js'
-import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 import {
   NotificationDeliveryNotFoundError,
@@ -48,8 +48,14 @@ export const deliverEmailNotification = ResultFn(async function* (
 
   // Generate the template data
   const templateData = template(
-    deliveryJob.notification.payload as AnyUserNotificationPayload,
+    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
+
+  if (!templateData.templateId) {
+    return yield* new UnsupportedNotificationTypeError({
+      message: `Missing template ID for: ${job.kind}`,
+    })
+  }
 
   // Send via SendGrid API
   const result = yield* sendMailV3(apiKey, {
@@ -94,7 +100,7 @@ export const deliverEmailNotification = ResultFn(async function* (
 
 export const handleEmailDeliveryFailure = async (
   db: Database,
-  job: Message<EmailDeliveryJob>,
+  message: Message<EmailDeliveryJob>,
   errorMessage: string,
 ): Promise<void> => {
   await db
@@ -102,15 +108,15 @@ export const handleEmailDeliveryFailure = async (
     .set({
       status: 'failed',
       error: errorMessage,
-      attempts: job.attempts + 1,
+      attempts: message.attempts + 1,
       updated_at: new Date(),
     })
-    .where(eq(TABLE.notificationDeliveries.id, job.id))
+    .where(eq(TABLE.notificationDeliveries.id, message.body.id))
 
   logger.error('Email notification failed', {
-    jobId: job.body.id,
-    kind: job.body.kind,
-    attempts: job.attempts + 1,
+    jobId: message.body.id,
+    kind: message.body.kind,
+    attempts: message.attempts + 1,
     error: errorMessage,
   })
 }

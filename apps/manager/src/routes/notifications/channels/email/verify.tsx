@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useAtom } from '@xstate/store-react'
 import { CheckCircle, Mail, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import * as v from 'valibot'
@@ -12,8 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { EmailVerifyStep } from '@/features/notifications/components/email-verify-step'
-import { verifyEmailMutationOptions } from '@/features/notifications/queries/channels'
+import { verifyEmailMutationOptions } from '@/features/notifications/data/queries/channels'
+import { isBackendAuthed } from '@/utils/backend-client'
 
 // Shared card wrapper component
 function VerificationCard({ children }: { children: React.ReactNode }) {
@@ -60,11 +61,15 @@ export const Route = createFileRoute('/notifications/channels/email/verify')({
 function EmailVerificationPage() {
   const { token } = Route.useLoaderDeps()
   const navigate = useNavigate()
+  const isAuthed = useAtom(isBackendAuthed)
 
   const verifyEmailMutation = useMutation(verifyEmailMutationOptions)
 
+  const continueTo = isAuthed ? '/notifications/settings' : '/'
+  const continueLabel = isAuthed ? 'Continue to Settings' : 'Continue to Home'
+
   const handleContinue = () => {
-    navigate({ to: '/notifications/settings' })
+    navigate({ to: continueTo })
   }
 
   const handleVerify = (verificationToken?: string) => {
@@ -75,7 +80,7 @@ function EmailVerificationPage() {
       onSuccess: () => {
         toast.success('Email verified successfully')
         setTimeout(() => {
-          navigate({ to: '/notifications/settings' })
+          navigate({ to: continueTo })
         }, 1200)
       },
       onError: () => {
@@ -89,21 +94,23 @@ function EmailVerificationPage() {
     return (
       <VerificationCard>
         <VerificationHeader
-          description="Enter the verification code from your email to verify your address."
+          description="Open the verification link from your email to finish setup."
           icon={<Mail className="h-6 w-6 text-gray-400" />}
-          title="Enter Verification Code"
+          title="Check Your Email"
         />
-        <CardContent>
-          <EmailVerifyStep
-            channelId=""
-            isVerified={verifyEmailMutation.isSuccess}
-            isVerifying={verifyEmailMutation.isPending}
-            onBackToSend={() => {}}
-            onCancel={handleContinue}
-            onSuccess={handleContinue} // Not applicable for this route
-            onVerifyCode={(code) => handleVerify(code)}
-            verificationError={verifyEmailMutation.error?.message || null}
-          />
+        <CardContent className="space-y-4">
+          <p className="text-center text-muted-foreground text-sm">
+            This page can only verify your email when opened from the link in
+            the verification email.
+          </p>
+          <Button
+            className="w-full text-sm leading-ens-none"
+            onClick={handleContinue}
+            size="lg"
+            variant="outline"
+          >
+            {continueLabel}
+          </Button>
         </CardContent>
       </VerificationCard>
     )
@@ -190,7 +197,7 @@ function EmailVerificationPage() {
               size="lg"
               variant="outline"
             >
-              Continue to Settings
+              {continueLabel}
             </Button>
           </div>
         ) : isSuccess ? (
@@ -200,7 +207,7 @@ function EmailVerificationPage() {
             size="lg"
             variant="lightBlue"
           >
-            Continue to Settings
+            {continueLabel}
           </Button>
         ) : (
           <div className="space-y-2">
@@ -218,7 +225,11 @@ function EmailVerificationPage() {
               size="lg"
               variant="outline"
             >
-              <Link to="/notifications/settings">Back to Settings</Link>
+              {isAuthed ? (
+                <Link to="/notifications/settings">Back to Settings</Link>
+              ) : (
+                <Link to="/">Back to Home</Link>
+              )}
             </Button>
           </div>
         )}

@@ -16,6 +16,10 @@ const badgeVariants = cva(
           'border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
         destructive:
           'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
+        success:
+          'border-transparent bg-peridot-100 text-peridot-500 [a&]:hover:bg-peridot-100/90',
+        danger:
+          'border-transparent bg-garnet-100 text-garnet-500 [a&]:hover:bg-garnet-100/90',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
       },
@@ -44,4 +48,10 @@ function Badge({
   )
 }
 
-export { Badge, badgeVariants }
+const SoonBadge = () => (
+  <Badge variant="success" className="ml-auto text-[10px] px-1.5 py-0">
+    Soon
+  </Badge>
+)
+
+export { Badge, badgeVariants, SoonBadge }

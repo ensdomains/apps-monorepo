@@ -96,6 +96,7 @@ const NameSubgraphHistoryTable = ({
   // For V2, create a timestamp map from the events themselves
   const finalTimestampsData = hasTimestamps
     ? new Map(
+        // biome-ignore lint/style/noNonNullAssertion: <need to check this>
         history.map((event) => [BigInt(event.blockNumber), event.timestamp!]),
       )
     : timestampsData
@@ -155,10 +156,10 @@ export const NameSubgraphHistory = ({
 
   if (!data || data.length === 0)
     return (
-      <div className="flex flex-col gap-1 p-4 sm:p-6 border border-gray-300 rounded-lg w-full">
+      <div className="flex flex-col gap-1 p-4 sm:p-6 border border-border rounded-lg w-full">
         {enableHeader && (
           <div>
-            <h2 className="text-[26px] font-medium">History</h2>
+            <h2 className="text-2xl font-medium">History</h2>
           </div>
         )}
         <div>No recent activity.</div>
@@ -166,10 +167,10 @@ export const NameSubgraphHistory = ({
     )
 
   return (
-    <div className="flex flex-col gap-1 p-4 sm:p-6 border border-gray-300 rounded-lg w-full">
+    <div className="flex flex-col gap-1 p-4 sm:p-6 border border-border rounded-lg w-full">
       {enableHeader && (
         <div>
-          <h2 className="text-[26px] font-medium">History</h2>
+          <h2 className="text-2xl font-medium">History</h2>
         </div>
       )}
       <NameSubgraphHistoryTable {...{ name, data, category, isV2 }} />

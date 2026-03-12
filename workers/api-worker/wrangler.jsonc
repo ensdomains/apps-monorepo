@@ -99,7 +99,11 @@
     "ENS_INDEXER_GRAPHQL_URL": "https://graphql.ens.dev/",
     "MANAGER_APP_URL": "https://app.ens.dev",
     "VAPID_SUBJECT": "mailto:notifications@ens.domains",
-    "VAPID_PUBLIC_KEY": "REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY",
-    "SENDGRID_BROADCAST_LIST_ID": ""
+    "VAPID_PUBLIC_KEY": "BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs",
+    "SENDGRID_BROADCAST_LIST_ID": "",
+    "SENDGRID_TEMPLATE_IDS": {
+      "name-expiry": "d-fb5409b2dc1e44f6919cd648eb983adf",
+      "name-transferred": "d-f1db08f6dcc54d92a055e8637327ac2a"
+    }
   }
 }

@@ -16,9 +16,8 @@ import { profileRegistrationQuery } from '@/features/profile/service/profileRegi
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
-
-import { truncateToMaxBytes } from '@/utils/domain'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { truncateToMaxBytes } from '@/utils/domain'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
@@ -68,6 +67,10 @@ export const CheckAvailability = ({
 
   const avatarRecord = profileRecords?.texts.find(
     (text) => text.key === 'avatar',
+  )?.value
+
+  const themeColor = profileRecords?.texts.find(
+    (text) => text.key === 'theme',
   )?.value
 
   const { data: profileAvatar } = useQuery({
@@ -159,6 +162,7 @@ export const CheckAvailability = ({
                                 )
                               : null
                           }
+                          themeColor={themeColor}
                         />
                       </Link>
                     )}
@@ -212,6 +216,7 @@ export const CheckAvailability = ({
                             )
                           : null
                       }
+                      themeColor={themeColor}
                     />
                   </Link>
                 )}

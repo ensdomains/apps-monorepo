@@ -5,9 +5,11 @@ packages:
 
 catalog:
   xstate: ^5.24.0
-  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e51507c
+  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@0ebee66
 
 minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@lingui/*"
 
 trustPolicy: no-downgrade
 

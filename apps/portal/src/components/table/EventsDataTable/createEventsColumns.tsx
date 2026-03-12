@@ -1,11 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import type { Hash } from 'viem'
+import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/utils/formatting/formatDateRange'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { BaseEvent, EventsTableData } from './types'
 
 type ColumnConfig = {
@@ -80,18 +80,12 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
           Transaction
         </SortButton>
       ),
-      cell: ({ row }) => {
-        const txId = row.original.transactionID
-        const shortTxId = truncateAddress(txId)
-        return (
-          <CopyableRecord
-            value={txId}
-            displayValue={<span className="font-mono">{shortTxId}</span>}
-            className="text-sm underline decoration-dashed underline-offset-4"
-            href={`https://sepolia.etherscan.io/tx/${txId}`}
-          />
-        )
-      },
+      cell: ({ row }) => (
+        <BlockExplorerTxLink
+          txHash={row.original.transactionID as Hash}
+          chainId={row.original.network?.chainId}
+        />
+      ),
     },
     {
       accessorKey: 'from',
@@ -106,7 +100,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
       ),
       cell: ({ row }) => {
         const from = row.original.from
-        if (!from) return <span className="text-gray-400">-</span>
+        if (!from) return <span className="text-quartz-400">-</span>
 
         return <AddressDisplay address={from} />
       },

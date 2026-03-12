@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import type { TransactionStatusProps } from '@/lib/types/transaction'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 
 export const ChangeResolverTransactionStatus = ({
   txHash,
@@ -15,6 +16,7 @@ export const ChangeResolverTransactionStatus = ({
   txError,
   receiptError,
 }: TransactionStatusProps): ReactElement | null => {
+  const txUrl = useBlockExplorerTxUrl(txHash)
   if (txError) {
     const { summary, details } = getTransactionErrorInfo(txError)
     return (
@@ -53,7 +55,7 @@ export const ChangeResolverTransactionStatus = ({
     )
   }
 
-  if (!txHash) {
+  if (!txHash && !isConfirming && !isConfirmed) {
     return null
   }
 
@@ -73,17 +75,19 @@ export const ChangeResolverTransactionStatus = ({
               .with({ isConfirmed: true }, () => 'Transaction confirmed!')
               .otherwise(() => 'Transaction submitted')}
           </span>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">
-              Transaction hash:
-            </span>
-            <CopyableRecord
-              value={txHash}
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
-              className="text-xs"
-              truncate={false}
-            />
-          </div>
+          {txHash && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">
+                Transaction hash:
+              </span>
+              <CopyableRecord
+                value={txHash}
+                href={txUrl}
+                className="text-xs"
+                truncate={false}
+              />
+            </div>
+          )}
         </div>
       </AlertDescription>
     </Alert>

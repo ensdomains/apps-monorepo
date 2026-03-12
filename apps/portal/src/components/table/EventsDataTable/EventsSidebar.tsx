@@ -1,8 +1,9 @@
 import type { Row } from '@tanstack/react-table'
-import type { FC, PropsWithChildren, ReactNode } from 'react'
+import type { FC, PropsWithChildren } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { DataRow } from '@/components/DataRow'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import {
@@ -14,28 +15,13 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
 import { TransactionEvents } from './TransactionEvents'
 
 type ENSTransaction = EventsTableData<ENSEvent>
-
-interface DetailRowProps {
-  label: string
-  value: ReactNode
-}
-
-const DetailRow = ({ label, value }: DetailRowProps) => {
-  return (
-    <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
-      <span className="text-black font-medium shrink-0 xs:min-w-[160px]">
-        {label}
-      </span>
-      <div className="flex-1 min-w-0">{value}</div>
-    </div>
-  )
-}
 
 interface NameDisplayProps {
   name: string
@@ -71,6 +57,7 @@ const TransactionDetails = ({
   const { data, isLoading, error } = useTransaction({
     hash: txHash,
   })
+  const txUrl = useBlockExplorerTxUrl(txHash, data?.chainId)
 
   const formattedTimestamp = formatTimestamp(timestamp)
 
@@ -100,64 +87,56 @@ const TransactionDetails = ({
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
         {displayName && (
-          <DetailRow label="Name" value={<NameDisplay name={displayName} />} />
+          <DataRow label="Name">
+            <NameDisplay name={displayName} />
+          </DataRow>
         )}
 
-        <DetailRow
-          label="Tx Hash"
-          value={
-            <CopyableRecord
-              value={txHash}
-              displayValue={
-                <span className="flex items-center gap-1">
-                  {truncateAddress(txHash, 10, 8, '...')}
-                </span>
-              }
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
-            />
-          }
-        />
+        <DataRow label="Tx Hash">
+          <CopyableRecord
+            value={txHash}
+            displayValue={
+              <span className="flex items-center gap-1">
+                {truncateAddress(txHash, 10, 8, '...')}
+              </span>
+            }
+            href={txUrl}
+          />
+        </DataRow>
 
         {formattedTimestamp && (
-          <DetailRow
-            label="Timestamp"
-            value={
-              <CopyableRecord
-                value={txHash}
-                displayValue={<span>{formattedTimestamp} UTC</span>}
-              />
-            }
-          />
+          <DataRow label="Timestamp">
+            <CopyableRecord
+              value={txHash}
+              displayValue={<span>{formattedTimestamp} UTC</span>}
+            />
+          </DataRow>
         )}
 
         {data && (
           <>
-            <DetailRow label="Network" value={<span>Sepolia</span>} />
+            <DataRow label="Network">
+              <span>Sepolia</span>
+            </DataRow>
 
-            <DetailRow
-              label="From"
-              value={<AddressDisplay address={data.from} />}
-            />
+            <DataRow label="From">
+              <AddressDisplay address={data.from} />
+            </DataRow>
 
-            <DetailRow
-              label="To"
-              value={
-                data.to ? (
-                  <AddressDisplay address={data.to} />
-                ) : (
-                  <span className="text-gray-500">Contract Creation</span>
-                )
-              }
-            />
+            <DataRow label="To">
+              {data.to ? (
+                <AddressDisplay address={data.to} />
+              ) : (
+                <span className="text-quartz-500">Contract Creation</span>
+              )}
+            </DataRow>
           </>
         )}
       </div>
 
-      <div className="pt-6">
-        <TransactionEvents events={events} txHash={txHash} />
-      </div>
+      <TransactionEvents events={events} txHash={txHash} />
     </div>
   )
 }
@@ -188,7 +167,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
         {/* Fixed header at the top */}
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
-            <SheetTitle className="font-sans text-[28px] font-medium">
+            <SheetTitle className="font-sans text-heading font-medium">
               Transaction
             </SheetTitle>
           </SheetHeader>
@@ -204,7 +183,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
               events={row.original.events}
             />
           ) : (
-            <div className="text-gray-400 text-center py-12">
+            <div className="text-quartz-400 text-center py-12">
               No transaction selected
             </div>
           )}

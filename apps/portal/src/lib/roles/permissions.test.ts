@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { permissions } from './permissions'
+import { isManagerRoleSettable, permissions } from './permissions'
 
 describe('permissions', () => {
   it('should match snapshot with all permissions, titles, and descriptions', () => {
@@ -32,5 +32,13 @@ describe('permissions', () => {
         },
       ]
     `)
+  })
+
+  it('should only allow manager assignment for settable roles', () => {
+    expect(isManagerRoleSettable('ROLE_SET_RESOLVER')).toBe(true)
+    expect(isManagerRoleSettable('ROLE_SET_SUBREGISTRY')).toBe(true)
+    expect(isManagerRoleSettable('ROLE_RENEW')).toBe(false)
+    expect(isManagerRoleSettable('ROLE_SET_TOKEN_OBSERVER')).toBe(false)
+    expect(isManagerRoleSettable('ROLE_BURN')).toBe(false)
   })
 })

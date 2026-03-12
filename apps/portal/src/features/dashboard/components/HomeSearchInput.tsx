@@ -62,11 +62,26 @@ export const HomeSearchInput = () => {
     },
     [navigate],
   )
+  const navigateToResolver = useCallback(
+    (address: string) => {
+      navigate({ to: '/resolver/$address', params: { address } })
+    },
+    [navigate],
+  )
+
+  const navigateToRegister = useCallback(
+    (name: string) => {
+      const nameWithEth = name.includes('.') ? name : `${name}.eth`
+      navigate({ to: '/register', search: { name: nameWithEth } })
+    },
+    [navigate],
+  )
 
   const searchResults = useSearchResults({
     searchValue: trimmedSearch,
     navigateToName,
     navigateToAddress,
+    navigateToResolver,
   })
   const {
     allItems,
@@ -117,16 +132,35 @@ export const HomeSearchInput = () => {
       const suggestion = suggestions.find((s) => s.id === value)
       if (suggestion) {
         setSearchValue('')
-        suggestion.action()
+        const isAvailable = availableNames.some((a) => a.id === suggestion.id)
+        if (isAvailable) {
+          navigateToRegister(suggestion.inputValue)
+        } else {
+          suggestion.action()
+        }
       }
     },
-    [closePopover, suggestions, navigateToName],
+    [
+      closePopover,
+      suggestions,
+      availableNames,
+      navigateToName,
+      navigateToRegister,
+    ],
   )
 
   const handleModalSelectSuggestion = useCallback((suggestion: Suggestion) => {
     setModalOpen(false)
     suggestion.action()
   }, [])
+
+  const handleModalSelectAvailableName = useCallback(
+    (name: string) => {
+      setModalOpen(false)
+      navigateToRegister(name)
+    },
+    [navigateToRegister],
+  )
 
   const handleSelectOwnedName = useCallback(
     (name: string) => {
@@ -189,7 +223,7 @@ export const HomeSearchInput = () => {
               onKeyDown={onSearchKeyDown}
             />
             <InputGroupAddon align="inline-end" className="gap-2">
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
                 {isMac ? (
                   <>
                     <CommandIcon className="size-3" />K
@@ -248,8 +282,10 @@ export const HomeSearchInput = () => {
           searchValue={trimmedModalSearch}
           onSelectSuggestion={handleModalSelectSuggestion}
           onSelectOwnedName={handleSelectOwnedName}
+          onSelectAvailableName={handleModalSelectAvailableName}
           navigateToName={navigateToName}
           navigateToAddress={navigateToAddress}
+          navigateToResolver={navigateToResolver}
         />
       </CommandDialog>
     </>

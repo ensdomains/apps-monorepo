@@ -1,4 +1,5 @@
 import { OrderDirection } from '@ens-apps/indexer'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
@@ -67,6 +68,7 @@ const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
 }
 
 export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
+  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('name')
@@ -134,6 +136,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       setSortField(field)
       setSortDirection(OrderDirection.Asc)
     }
+    setPage(1)
   }
 
   return (
@@ -142,10 +145,10 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            Sort by
+            <Trans>Sort by</Trans>
           </span>
           <select
-            aria-label="Sort favorites by"
+            aria-label={t`Sort favorites by`}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [
@@ -156,6 +159,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               setSortDirection(
                 direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
               )
+              setPage(1)
             }}
             value={
               sortDirection
@@ -163,10 +167,18 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 : 'name-asc'
             }
           >
-            <option value="name-asc">Name (A-Z)</option>
-            <option value="name-desc">Name (Z-A)</option>
-            <option value="addedAt-asc">Date added (Oldest)</option>
-            <option value="addedAt-desc">Date added (Newest)</option>
+            <option value="name-asc">
+              <Trans>Name (A-Z)</Trans>
+            </option>
+            <option value="name-desc">
+              <Trans>Name (Z-A)</Trans>
+            </option>
+            <option value="addedAt-asc">
+              <Trans>Date added (Oldest)</Trans>
+            </option>
+            <option value="addedAt-desc">
+              <Trans>Date added (Newest)</Trans>
+            </option>
           </select>
         </div>
       </div>
@@ -174,6 +186,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
+          aria-label={`Sort by name, currently ${sortDirection !== null && sortField === 'name' ? sortDirection : 'unsorted'}`}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => handleSort('name')}
           type="button"
@@ -181,7 +194,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Name
+            <Trans>Name</Trans>
           </span>
           <SortIndicator
             direction={sortDirection ?? undefined}
@@ -212,7 +225,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                No names to display
+                <Trans>No names to display</Trans>
               </span>
             </div>
           ))
@@ -223,7 +236,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                No names to display
+                <Trans>No names to display</Trans>
               </span>
             </div>
           ))
@@ -266,6 +279,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
         <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
           <div className="flex items-center justify-center gap-[12px]">
             <button
+              aria-label="Previous page"
               className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
               disabled={isLoading || !hasPrevPage}
               onClick={handlePrev}
@@ -274,6 +288,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
               <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
             </button>
             <button
+              aria-label="Next page"
               className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
               disabled={isLoading || !hasNextPage}
               onClick={handleNext}
@@ -283,7 +298,9 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
             </button>
           </div>
           <span className="font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-            Showing {startIndex}-{endIndex} of {totalCount}
+            <Trans>
+              Showing {startIndex}-{endIndex} of {totalCount}
+            </Trans>
           </span>
         </div>
       )}

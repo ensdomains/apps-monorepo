@@ -7,6 +7,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { cn } from '@/lib/utils'
 import { NameMobileCard } from '../NameMobileCard'
 import { columns, type NameRow } from './columns'
 
@@ -15,6 +17,7 @@ interface NamesTableProps {
 }
 
 export const NamesTable = ({ table }: NamesTableProps) => {
+  const [tableView] = useTableViewSettings()
   const rows = table.getRowModel().rows
 
   return (
@@ -33,7 +36,9 @@ export const NamesTable = ({ table }: NamesTableProps) => {
             />
           ))
         ) : (
-          <div className="px-6 py-8 text-center text-gray-500">No results.</div>
+          <div className="px-6 py-8 text-center text-quartz-500">
+            No results.
+          </div>
         )}
       </div>
 
@@ -63,9 +68,16 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
+                className={cn(
+                  'hover:bg-quartz-50',
+                  tableView.strippedRows && 'odd:bg-quartz-50',
+                )}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell className="px-6 py-4" key={cell.id}>
+                  <TableCell
+                    className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
+                    key={cell.id}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

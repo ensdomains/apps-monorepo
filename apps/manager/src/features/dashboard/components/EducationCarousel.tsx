@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { CircleArrowLeft, CircleArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { FEATURE_CARDS } from '@/features/landing/FeaturesCarousel'
@@ -19,10 +20,11 @@ export const EducationCarousel = () => {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <h2 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
-          Did You Know?
+          <Trans>Did You Know?</Trans>
         </h2>
         <div className="flex items-center gap-2">
           <button
+            aria-label="Previous card"
             className={cn(
               'transition-colors',
               currentPage === 0 ? 'text-border' : 'text-ens-blue',
@@ -34,9 +36,12 @@ export const EducationCarousel = () => {
             <CircleArrowLeft className="size-8" strokeWidth={1} />
           </button>
           <span className="text-muted-foreground text-xs leading-[1.2] tracking-[0.12px]">
-            {currentPage + 1} of {totalPages}
+            <Trans>
+              {currentPage + 1} of {totalPages}
+            </Trans>
           </span>
           <button
+            aria-label="Next card"
             className={cn(
               'transition-colors',
               currentPage === totalPages - 1 ? 'text-border' : 'text-ens-blue',

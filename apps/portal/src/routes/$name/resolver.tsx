@@ -41,12 +41,15 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
   )
   const currentNameRegistry = registryQuery.data?.registries?.[1]
   const label = name.split('.')[0]
+  const network = registryQuery.data?.network ?? 'sepolia'
+
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: currentNameRegistry ?? zeroAddress,
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: address,
+      network,
     }),
     enabled: !!address && !!currentNameRegistry,
   })
@@ -59,14 +62,7 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
 
   return (
     <div className="flex flex-row gap-2">
-      {/* <button
-        type="button"
-        className="text-base font-medium flex flex-row gap-1 items-center px-4 py-2 bg-secondary hover:bg-gray-400 cursor-pointer h-[38px] rounded-sm"
-      >
-        <XIcon className="w-4 h-4" />
-        <span>Clear records</span>
-      </button> */}
-      <Button variant="outline" className="flex items-center gap-2" asChild>
+      <Button variant="secondary" className="flex items-center gap-2" asChild>
         <Link to="/$name/change-resolver" params={{ name }}>
           <EditIcon className="size-4" />
           Change resolver
@@ -185,9 +181,9 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <div className="max-w-360 mx-auto w-full flex flex-col p-6 gap-6">
+    <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
       <div className="flex flex-row gap-4 justify-between items-center">
-        <h1 className="text-[28px] font-medium">Resolver</h1>
+        <h1 className="text-heading font-medium">Resolver</h1>
         {address && <EditButtons address={address} name={name} />}
       </div>
       {underlyingResolverData && (

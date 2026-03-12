@@ -28,6 +28,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export interface SubnameRow {
@@ -53,8 +55,8 @@ const columns: ColumnDef<SubnameRow>[] = [
         <div className="flex flex-row gap-2 items-center">
           <NameAvatar
             name={name}
-            height="40px"
-            width="40px"
+            height="20px"
+            width="20px"
             rounded="rounded-sm"
           />
           <CopyableRecord href={`/${name}`} value={name} />
@@ -79,8 +81,8 @@ const columns: ColumnDef<SubnameRow>[] = [
         <div className="flex flex-row gap-2 items-center">
           <NameAvatar
             name={owner}
-            height="40px"
-            width="40px"
+            height="20px"
+            width="20px"
             rounded="rounded-sm"
           />
           <CopyableRecord href={`/addr/${owner}`} value={owner} />
@@ -103,6 +105,7 @@ export const SubnamesTable = ({
 }: SubnamesTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [tableView] = useTableViewSettings()
 
   const table = useReactTable({
     data: subnames as SubnameRow[],
@@ -123,7 +126,7 @@ export const SubnamesTable = ({
 
   return (
     <>
-      <header className="bg-gray-100 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-quartz-50 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row items-center gap-2">
           <h1 className="text-[30px] font-medium leading-tight flex-1">
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
@@ -156,13 +159,13 @@ export const SubnamesTable = ({
           rows.map((row) => (
             <div
               key={row.id}
-              className="border-b border-gray-200 px-6 py-4 flex flex-col gap-3"
+              className="border-b border-border px-6 py-4 flex flex-col gap-3"
             >
               <div className="flex flex-row gap-2 items-center">
                 <NameAvatar
                   name={row.original.name}
-                  height="40px"
-                  width="40px"
+                  height="20px"
+                  width="20px"
                   rounded="rounded-sm"
                 />
                 <div className="flex flex-col">
@@ -175,7 +178,7 @@ export const SubnamesTable = ({
                   </Link>
                 </div>
               </div>
-              <div className="flex flex-row gap-2 items-center text-sm text-gray-500">
+              <div className="flex flex-row gap-2 items-center text-sm text-quartz-500">
                 <span>Owner:</span>
                 <Link
                   to="/addr/$addr"
@@ -188,7 +191,7 @@ export const SubnamesTable = ({
             </div>
           ))
         ) : (
-          <div className="px-6 py-8 text-center text-gray-500">
+          <div className="px-6 py-8 text-center text-quartz-500">
             No subnames found.
           </div>
         )}
@@ -215,9 +218,18 @@ export const SubnamesTable = ({
         <TableBody>
           {rows.length > 0 ? (
             rows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow
+                key={row.id}
+                className={cn(
+                  'hover:bg-quartz-50',
+                  tableView.strippedRows && 'odd:bg-quartz-50',
+                )}
+              >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell className="px-6 py-4" key={cell.id}>
+                  <TableCell
+                    className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
+                    key={cell.id}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

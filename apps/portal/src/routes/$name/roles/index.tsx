@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -9,6 +9,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
+import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -22,9 +23,11 @@ export const Route = createFileRoute('/$name/roles/')({
 const V2NameRoles = ({
   name,
   registryAddress,
+  canManageRoles,
 }: {
   name: string
   registryAddress: Address
+  canManageRoles: boolean
 }) => {
   const { currentLabel, labels } = getNameLabels(name)
 
@@ -53,35 +56,32 @@ const V2NameRoles = ({
 
   if (!nameRolesQuery.data) return 'No data'
 
-  return <RolesTable roles={nameRolesQuery.data} />
+  return (
+    <div className="flex flex-col gap-8">
+      <RolesTable
+        roles={nameRolesQuery.data}
+        name={name}
+        canManageRoles={canManageRoles}
+      />
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-medium">Role History</h2>
+        <RoleHistoryTable name={name} label={currentLabel} />
+      </div>
+    </div>
+  )
 }
 
 const AddUserButton = ({
   name,
-  address,
+  canManageRoles,
 }: {
   name: string
-  address: Address
+  canManageRoles: boolean
 }) => {
-  const label = name.split('.')[0]
-
-  const { data: roles, isLoading } = useQuery(
-    getNameRolesForAccountQueryOptions({
-      registryAddress: namechainEthRegistryAddress,
-      label,
-      account: address,
-    }),
-  )
-
-  const hasAdmin = Boolean(
-    roles?.decoded.find((role) => role.endsWith('_ADMIN')),
-  )
-
-  if (isLoading) return <div>Loading</div>
-  if (!hasAdmin) return null
+  if (!canManageRoles) return null
 
   return (
-    <Button variant="outline" className="flex items-center gap-2" asChild>
+    <Button variant="secondary" className="flex items-center gap-2" asChild>
       <Link to="/$name/roles/add-user" params={{ name }}>
         <Plus className="size-4" />
         Add user
@@ -94,11 +94,28 @@ function RouteComponent() {
   const { name } = Route.useParams()
 
   const { address } = useConnection()
+  const label = name.split('.')[0]
 
   const { data, isLoading, error } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
   })
+
+  const { data: currentAccountRoles } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress: data?.registryAddress ?? namechainEthRegistryAddress,
+      label,
+      account: address ?? zeroAddress,
+    }),
+    enabled:
+      Boolean(address) &&
+      Boolean(data?.registryAddress) &&
+      data?.network === 'namechainSepolia',
+  })
+
+  const canManageRoles = Boolean(
+    currentAccountRoles?.decoded.find((role) => role.endsWith('_ADMIN')),
+  )
 
   if (!name.endsWith('.eth') || name.split('.').length !== 2)
     return <ErrorMessage title="Only 2LD .eth is supported" />
@@ -115,10 +132,16 @@ function RouteComponent() {
     return (
       <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-[28px] font-medium leading-none">Roles</h1>
-          {address && <AddUserButton name={name} address={address} />}
+          <h1 className="text-heading font-medium leading-none">Roles</h1>
+          {address && (
+            <AddUserButton name={name} canManageRoles={canManageRoles} />
+          )}
         </div>
-        <V2NameRoles name={name} registryAddress={data.registryAddress} />
+        <V2NameRoles
+          name={name}
+          registryAddress={data.registryAddress}
+          canManageRoles={canManageRoles}
+        />
       </div>
     )
   } else

@@ -1,6 +1,11 @@
 import { render, screen } from '@testing-library/react'
+import type { Hash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { ChangeResolverTransactionStatus } from './ChangeResolverTransactionStatus'
+
+vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
+  useBlockExplorerTxUrl: () => undefined,
+}))
 
 vi.mock('@/features/registry/utils/transactionErrorMessage', () => ({
   getTransactionErrorInfo: (error: { message?: string }) => ({
@@ -11,7 +16,7 @@ vi.mock('@/features/registry/utils/transactionErrorMessage', () => ({
 
 describe('ChangeResolverTransactionStatus', () => {
   const defaultProps = {
-    txHash: undefined as `0x${string}` | undefined,
+    txHash: undefined as Hash | undefined,
     isConfirming: false,
     isConfirmed: false,
     isReverted: false,

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
@@ -7,18 +8,22 @@ import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
 type PrimaryNameCardProps = {
-  primaryName?: string | null
-  avatarUrl?: string | null
+  readonly primaryName?: string | null
+  readonly avatarUrl?: string | null
+  readonly themeColor?: string | null
 }
 
 export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
+  themeColor,
 }: PrimaryNameCardProps) => {
+  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
 
   const { data: registration, isLoading: isRegistrationLoading } = useQuery({
@@ -42,17 +47,22 @@ export const PrimaryNameCard = ({
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
   const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
-  const displayName = primaryName ?? 'Your ENS name'
+  const displayName = primaryName ?? t`Your ENS name`
   const registeredLabel = isRegistrationLoading
-    ? 'Loading...'
+    ? t`Loading...`
     : formattedRegisteredDate
   const expiryLabel = isReverseExpiryLoading
-    ? 'Loading...'
+    ? t`Loading...`
     : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
+  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+
   return (
-    <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
+    <Card
+      className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
+      style={themeVars}
+    >
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
           <motion.div
@@ -86,7 +96,7 @@ export const PrimaryNameCard = ({
                 className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
                 type="button"
               >
-                <div className="inline-flex items-center rounded-sm bg-ens-blue px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                <div className="inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
                   <span
                     className={
                       displayName.length > 10
@@ -107,7 +117,9 @@ export const PrimaryNameCard = ({
                   strokeWidth={1.5}
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">Registered</span>
+                  <span className="text-muted-foreground">
+                    <Trans>Registered</Trans>
+                  </span>
                   <span className="font-semibold text-muted-foreground">
                     {registeredLabel}
                   </span>
@@ -119,7 +131,9 @@ export const PrimaryNameCard = ({
                   strokeWidth={1.5}
                 />
                 <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">Expires</span>
+                  <span className="text-muted-foreground">
+                    <Trans>Expires</Trans>
+                  </span>
                   <span className="font-semibold text-muted-foreground">
                     {expiryLabel}
                   </span>
@@ -135,7 +149,9 @@ export const PrimaryNameCard = ({
           to="/p/$name"
           variant="outline"
         >
-          <span className="font-sans text-sm leading-normal">View profile</span>
+          <span className="font-sans text-sm leading-normal">
+            <Trans>View profile</Trans>
+          </span>
         </LinkButton>
       </div>
     </Card>

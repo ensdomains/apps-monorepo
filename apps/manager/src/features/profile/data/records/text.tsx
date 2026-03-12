@@ -1,10 +1,24 @@
 import {
+  SiDiscord,
+  SiFarcaster,
+  SiGithub,
+  SiInstagram,
+  SiMastodon,
+  SiReddit,
+  SiTelegram,
+  SiTiktok,
+  SiTwitch,
+  SiX,
+  SiYoutube,
+} from '@icons-pack/react-simple-icons'
+import {
   ClockIcon,
   HouseIcon,
   MailIcon,
   MapPinIcon,
   PhoneIcon,
 } from 'lucide-react'
+import { LinkedInIcon } from '../../components/icons/LinkedInIcon'
 import type { SectionData, TextRecordDef } from './types'
 
 export const specialSections = ['contact'] as const
@@ -18,6 +32,7 @@ export const staticTextRecords = [
   'header',
   'description',
   'url',
+  'theme',
 ] as const
 
 export const textRecords: TextRecordDef[] = [
@@ -30,6 +45,7 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://x.com/',
     kind: 'link',
     forceFetch: 'always',
+    icon: SiX,
   },
   {
     key: 'org.telegram',
@@ -39,6 +55,7 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://t.me/',
     kind: 'link',
     forceFetch: 'always',
+    icon: SiTelegram,
   },
   {
     key: 'xyz.farcaster',
@@ -48,6 +65,7 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://farcaster.xyz/',
     kind: 'link',
     forceFetch: 'always',
+    icon: SiFarcaster,
   },
   {
     key: 'com.instagram',
@@ -56,6 +74,7 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     kind: 'link',
     href: 'https://instagram.com/',
+    icon: SiInstagram,
   },
   {
     key: 'com.discord',
@@ -63,6 +82,7 @@ export const textRecords: TextRecordDef[] = [
     name: 'Discord',
     kind: 'copy',
     forceFetch: 'always',
+    icon: SiDiscord,
   },
   {
     key: 'com.github',
@@ -71,6 +91,7 @@ export const textRecords: TextRecordDef[] = [
     kind: 'link',
     href: 'https://github.com/',
     forceFetch: 'always',
+    icon: SiGithub,
   },
   {
     key: 'com.linkedin',
@@ -78,6 +99,7 @@ export const textRecords: TextRecordDef[] = [
     name: 'LinkedIn',
     href: 'https://www.linkedin.com/in/',
     kind: 'link',
+    icon: LinkedInIcon,
   },
   {
     key: 'com.youtube',
@@ -85,6 +107,7 @@ export const textRecords: TextRecordDef[] = [
     name: 'YouTube',
     kind: 'link',
     href: 'https://youtube.com/',
+    icon: SiYoutube,
   },
   {
     key: 'com.reddit',
@@ -93,6 +116,7 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: 'u/',
     kind: 'link',
     href: 'https://reddit.com/user/',
+    icon: SiReddit,
   },
   {
     key: 'com.tiktok',
@@ -101,6 +125,7 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     kind: 'link',
     href: 'https://www.tiktok.com/@',
+    icon: SiTiktok,
   },
   {
     key: 'com.twitch',
@@ -108,8 +133,15 @@ export const textRecords: TextRecordDef[] = [
     name: 'Twitch',
     kind: 'link',
     href: 'https://twitch.tv/',
+    icon: SiTwitch,
   },
-  { key: 'com.mastodon', section: 'social', name: 'Mastodon', kind: 'copy' },
+  {
+    key: 'com.mastodon',
+    section: 'social',
+    name: 'Mastodon',
+    kind: 'copy',
+    icon: SiMastodon,
+  },
 
   // Contact
   {

@@ -13,14 +13,15 @@ export const ResolverPrimaryName = ({
     getResolverNameQueryOptions({ resolverAddress }),
   )
 
-  if (isLoading) <LoadingSpinner title="Loading..." />
+  if (isLoading) return <LoadingSpinner title="Loading..." />
 
-  if (error) return <>{error.cause?.message}</>
+  if (error)
+    return <>{error instanceof Error ? error.message : 'Failed to load data'}</>
 
   if (!data) return null
 
   return (
-    <div className="flex flex-row p-4 sm:p-6 gap-4 sm:gap-6 rounded-2xl border border-gray-300 w-full flex-1">
+    <div className="flex flex-row p-4 sm:p-6 gap-4 sm:gap-6 rounded-2xl border border-border w-full flex-1">
       <NameAvatar name={data} height="40px" width="40px" />
       <div className="flex flex-col">
         <span className="font-medium">Primary Name</span>

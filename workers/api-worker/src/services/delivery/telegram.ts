@@ -1,3 +1,4 @@
+import type { AnyPersonalNotificationPayload } from '@ens-apps/shared-schema/notifications'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { ok } from 'neverthrow'
@@ -8,7 +9,6 @@ import {
   makeTelegramRequest,
 } from '#services/telegram/utils.js'
 import type { TelegramDeliveryJob } from '#types/delivery.js'
-import type { AnyUserNotificationPayload } from '#types/notifications.js'
 import { logger } from '#utils/logger.js'
 import { NotificationDeliveryNotFoundError } from './errors.js'
 import {
@@ -56,7 +56,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
 
   // Generate the message
   const message = template(
-    deliveryJob.notification.payload as AnyUserNotificationPayload,
+    deliveryJob.notification.payload as AnyPersonalNotificationPayload,
   )
 
   // Create keyboard if buttons exist
@@ -93,7 +93,7 @@ export const deliverTelegramNotification = ResultFn(async function* (
 
 export const handleTelegramDeliveryFailure = async (
   db: Database,
-  job: Message<TelegramDeliveryJob>,
+  message: Message<TelegramDeliveryJob>,
   errorMessage: string,
 ): Promise<void> => {
   await db
@@ -101,15 +101,15 @@ export const handleTelegramDeliveryFailure = async (
     .set({
       status: 'failed',
       error: errorMessage,
-      attempts: job.attempts + 1,
+      attempts: message.attempts + 1,
       updated_at: new Date(),
     })
-    .where(eq(TABLE.notificationDeliveries.id, job.id))
+    .where(eq(TABLE.notificationDeliveries.id, message.body.id))
 
   logger.error('Telegram notification failed', {
-    jobId: job.id,
-    kind: job.body.kind,
-    attempts: job.attempts + 1,
+    jobId: message.body.id,
+    kind: message.body.kind,
+    attempts: message.attempts + 1,
     error: errorMessage,
   })
 }

@@ -1,5 +1,5 @@
+import type { ChannelType } from '@ens-apps/shared-schema/notifications'
 import { eq } from 'drizzle-orm'
-import type { ChannelType } from '#config/notifications.js'
 import { getQueueForChannel } from '#config/queues.js'
 import type { Database } from '#core/database/index.js'
 import { getDatabase, TABLE } from '#core/database/index.js'
@@ -24,7 +24,7 @@ export const handleDlqQueue = async (
     } catch (err) {
       logger.error('DLQ processing error', {
         deliveryId: job.id,
-        error: err instanceof Error ? err.message : String(err),
+        error: err,
       })
     }
 

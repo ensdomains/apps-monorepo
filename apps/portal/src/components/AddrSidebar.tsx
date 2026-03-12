@@ -1,12 +1,17 @@
 import { Link } from '@tanstack/react-router'
+import type { LucideIcon } from 'lucide-react'
 import {
   ClockIcon,
+  CopyIcon,
+  CopySlashIcon,
   GripHorizontal,
   IdCardLanyard,
   WalletIcon,
 } from 'lucide-react'
 import type { Address } from 'viem'
 import { LogoWithTextSVG } from '@/assets/logo'
+import { SoonBadge } from '@/components/ui/badge'
+import { createDefineLinkItem } from '@/utils/tsr'
 import {
   Sidebar,
   SidebarContent,
@@ -19,45 +24,77 @@ import {
   SidebarSeparator,
 } from './ui/sidebar'
 
-const itemGroups = [
+type SidebarItemData = {
+  title: string
+  icon: LucideIcon
+  disabled?: boolean
+  upcoming?: boolean
+}
+
+const defineAddrSidebarItem = createDefineLinkItem<SidebarItemData>()
+
+const getItemGroups = (addr: string) => [
   [
-    {
+    defineAddrSidebarItem({
       title: 'Overview',
-      url: '/addr/$addr',
       icon: IdCardLanyard,
-    },
-    {
+      link: {
+        to: '/addr/$addr',
+        params: { addr },
+        activeOptions: { exact: true },
+      },
+    }),
+    defineAddrSidebarItem({
       title: 'Names',
-      url: '/addr/$addr/names',
       icon: GripHorizontal,
-    },
+      link: {
+        to: '/addr/$addr/names',
+        params: { addr },
+        activeOptions: { exact: true },
+      },
+    }),
   ],
-  // [
-  //   {
-  //     title: 'Address Resolution',
-  //     url: '/addr/$addr/resolution',
-  //     icon: CopyIcon,
-  //   },
-  //   {
-  //     title: 'Reverse Resolution',
-  //     url: '/addr/$addr/reverse-resolution',
-  //     icon: CopySlashIcon,
-  //   },
-  // ],
   [
-    {
-      title: 'History',
-      url: '/addr/$addr/history',
-      icon: ClockIcon,
-    },
+    defineAddrSidebarItem({
+      title: 'Address Resolution',
+      icon: CopyIcon,
+      upcoming: true,
+      link: {
+        to: '/addr/$addr/resolution',
+        params: { addr },
+        activeOptions: { exact: true },
+      },
+    }),
+    defineAddrSidebarItem({
+      title: 'Reverse Resolution',
+      icon: CopySlashIcon,
+      upcoming: true,
+      link: {
+        to: '/addr/$addr/reverse-resolution',
+        params: { addr },
+        activeOptions: { exact: true },
+      },
+    }),
   ],
-] as const
+  [
+    defineAddrSidebarItem({
+      title: 'History',
+      icon: ClockIcon,
+      link: {
+        to: '/addr/$addr/history',
+        params: { addr },
+      },
+    }),
+  ],
+]
 
 interface AddrSidebarProps {
   addr: Address
 }
 
 export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
+  const itemGroups = getItemGroups(addr)
+
   return (
     <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
       <SidebarHeader className="p-6">
@@ -78,30 +115,38 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
       <SidebarSeparator />
       <SidebarContent>
         {itemGroups.map((items, i) => (
-          <div key={items[0].url}>
+          <div key={items[0].title}>
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <Link
-                          params={{ addr }}
-                          to={item.url}
-                          activeProps={{
-                            'data-active': 'true',
-                            className: '!bg-black/10 dark:!bg-white/15',
-                          }}
-                          activeOptions={{
-                            exact: item.url === '/addr/$addr',
-                          }}
+                      {item.disabled || item.upcoming ? (
+                        <SidebarMenuButton
+                          disabled
+                          className="opacity-50 cursor-not-allowed"
                         >
                           <item.icon className="size-6" />
                           <span className="text-sm font-medium">
                             {item.title}
                           </span>
-                        </Link>
-                      </SidebarMenuButton>
+                          {item.upcoming && <SoonBadge />}
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton asChild>
+                          <Link
+                            {...item.link}
+                            activeProps={{
+                              'data-active': 'true',
+                            }}
+                          >
+                            <item.icon className="size-6" />
+                            <span className="text-sm font-medium">
+                              {item.title}
+                            </span>
+                          </Link>
+                        </SidebarMenuButton>
+                      )}
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>

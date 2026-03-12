@@ -22,10 +22,18 @@ import { columns } from '@/features/reverse-resolution/components/ReverseResolut
 import { ReverseResolutionTable } from '@/features/reverse-resolution/components/ReverseResolutionTable/ReverseResolutionTable'
 import { REVERSE_RESOLUTION_NETWORKS } from '@/features/reverse-resolution/config'
 import { getReverseResolutionQueryOptions } from '@/features/reverse-resolution/hooks/useReverseResolution'
+import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/reverse-resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(
+      getReverseResolutionQueryOptions({
+        address: params.addr as Address,
+        networks: REVERSE_RESOLUTION_NETWORKS,
+      }),
+    ),
 })
 
 function RouteComponent() {
@@ -82,9 +90,9 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="bg-gray-100 p-6 pb-4 pt-12 flex flex-col gap-4">
+      <header className="bg-quartz-50 p-6 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">Reverse resolution</h1>
+          <h1 className="text-heading font-medium">Reverse resolution</h1>
         </div>
         <InputGroup className="bg-white rounded-sm">
           <InputGroupInput
