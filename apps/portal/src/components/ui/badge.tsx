@@ -23,6 +23,7 @@ const badgeVariants = cva(
           'border-transparent bg-garnet-100 text-garnet-500 [a&]:hover:bg-garnet-100/90',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground border border-border',
+        warning: 'bg-citrine-100 text-citrine-900 [a&]:hover:bg-citrine-100/90',
       },
     },
     defaultVariants: {
