@@ -14,7 +14,7 @@ const locales = dirname(
 )
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     tanstackRouter({
       autoCodeSplitting: true,
@@ -23,7 +23,7 @@ export default defineConfig({
     viteReact(),
     i18nextLoader({ paths: [locales] }),
     tailwindcss(),
-    cloudflare(),
+    mode !== 'development' && cloudflare(),
   ],
   resolve: {
     alias: {
@@ -48,4 +48,4 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@ens-apps/l2-primary', '@ens-apps/transaction-manager'],
   },
-})
+}))
