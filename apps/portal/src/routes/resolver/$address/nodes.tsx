@@ -191,64 +191,118 @@ function RouteComponent() {
         open={sheetOpen}
         setOpen={setSheetOpen}
       >
-        <Table className="relative">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    style={{ width: header.getSize() }}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
+        {/* Mobile view */}
+        <div className="md:hidden">
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => {
+              const node = row.original
+              const active =
+                node.resolver?.address.toLowerCase() === address.toLowerCase()
+              return (
+                <div
                   key={row.id}
-                  className={cn(
-                    'hover:bg-quartz-50',
-                    tableView.strippedRows && 'odd:bg-quartz-50',
-                  )}
+                  className="flex flex-col gap-3 px-4 py-4 border-b border-border last:border-b-0"
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        'px-6',
-                        tableView.compact ? 'py-2' : 'py-4',
-                      )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <NameAvatar
+                        name={node.name}
+                        width="28px"
+                        height="28px"
+                        rounded="rounded-full"
+                      />
+                      <span className="font-mono text-sm truncate">
+                        {node.name}
+                      </span>
+                      <CopyButton value={node.name} />
+                    </div>
+                    <Badge variant={active ? 'success' : 'destructive'}>
+                      {active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => {
+                      setSelectedNode(node)
+                      setSheetOpen(true)
+                    }}
+                  >
+                    <PanelRightOpen className="h-4 w-4" />
+                    <span className="text-sm font-medium">More</span>
+                  </Button>
+                </div>
+              )
+            })
+          ) : (
+            <div className="px-6 py-24 text-center border border-border rounded-lg">
+              This resolver has no nodes.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop view */}
+        <div className="hidden md:block">
+          <Table className="relative">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      style={{ width: header.getSize() }}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={table.getAllColumns().length}
-                  className="h-24 text-center"
-                >
-                  This resolver has no nodes.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    className={cn(
+                      'hover:bg-quartz-50',
+                      tableView.strippedRows && 'odd:bg-quartz-50',
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          'px-6',
+                          tableView.compact ? 'py-2' : 'py-4',
+                        )}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={table.getAllColumns().length}
+                    className="h-24 text-center"
+                  >
+                    This resolver has no nodes.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </NodeDetailSheet>
     </div>
   )

@@ -143,136 +143,213 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
       open={sidebarOpen}
       setOpen={setSidebarOpen}
     >
-      <Table className="relative border border-border rounded-2xl border-separate border-spacing-0">
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className={cn(
-                    'border-b border-b-border',
-                    header.column.id === 'expander' && 'w-[100px]',
-                    header.column.id === 'permissions' && 'min-w-[200px]',
-                  )}
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => {
-              const permissionMap = roleToPermissions(row.original.decodedRoles)
-              const permissionEntries = Array.from(permissionMap.entries())
+      {/* Mobile view */}
+      <div className="md:hidden">
+        {table.getRowModel().rows?.length ? (
+          table.getRowModel().rows.map((row) => {
+            const permissionMap = roleToPermissions(row.original.decodedRoles)
+            const activePermissions = resolverPermissions.filter((p) =>
+              permissionMap.has(p.key),
+            )
 
-              return (
-                <Fragment key={row.id}>
-                  <TableRow
+            return (
+              <div
+                key={row.id}
+                className="flex flex-col gap-3 px-4 py-4 border-b border-border last:border-b-0"
+              >
+                <div className="flex items-center justify-between">
+                  <AddressDisplay
+                    address={row.original.account as Address}
+                    short={false}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setClickedRow(row)
+                      setSidebarOpen(true)
+                    }}
+                  >
+                    <PanelRightOpen className="h-4 w-4" />
+                    <span className="text-sm font-medium">More</span>
+                  </Button>
+                </div>
+                {activePermissions.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {activePermissions.map((permission) => {
+                      const perms = permissionMap.get(permission.key)
+                      return (
+                        <div
+                          key={permission.key}
+                          className="flex flex-col gap-1"
+                        >
+                          <span className="text-xs text-muted-foreground">
+                            {permission.title}
+                          </span>
+                          <div className="flex gap-1">
+                            {perms?.admin && (
+                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[22px] text-xs">
+                                <UserLockIcon width={12} height={12} /> Admin
+                              </div>
+                            )}
+                            {perms?.manager && (
+                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[22px] text-xs">
+                                <UserIcon width={12} height={12} /> Manager
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        ) : (
+          <div className="px-6 py-24 text-center border border-border rounded-lg">
+            No role holders found.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop view */}
+      <div className="hidden md:block">
+        <Table className="relative border border-border rounded-2xl border-separate border-spacing-0">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
                     className={cn(
-                      'hover:bg-quartz-50',
-                      tableView.strippedRows && 'odd:bg-quartz-50',
+                      'border-b border-b-border',
+                      header.column.id === 'expander' && 'w-[100px]',
+                      header.column.id === 'permissions' && 'min-w-[200px]',
                     )}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(
-                          'px-6',
-                          tableView.compact ? 'py-2' : 'py-4',
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
                         )}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {row.getIsExpanded() &&
-                    (() => {
-                      const activePermissions = resolverPermissions.filter(
-                        (p) => permissionEntries.some(([key]) => key === p.key),
-                      )
-                      return activePermissions.map((permission, index) => {
-                        const perms = permissionMap.get(permission.key)
-                        const isLast = index === activePermissions.length - 1
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => {
+                const permissionMap = roleToPermissions(
+                  row.original.decodedRoles,
+                )
+                const permissionEntries = Array.from(permissionMap.entries())
 
-                        return (
-                          <TableRow key={permission.key}>
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            />
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            >
-                              <CopyableRecord
-                                displayValue={permission.title}
-                                value={permission.key}
-                              />
-                            </TableCell>
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            >
-                              <div className="flex flex-row gap-2">
-                                {perms?.admin && (
-                                  <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
-                                    <UserLockIcon width={16} height={16} />{' '}
-                                    Admin
-                                  </div>
-                                )}
-                                {perms?.manager && (
-                                  <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
-                                    <UserIcon width={16} height={16} /> Manager
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            />
-                          </TableRow>
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow
+                      className={cn(
+                        'hover:bg-quartz-50',
+                        tableView.strippedRows && 'odd:bg-quartz-50',
+                      )}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            'px-6',
+                            tableView.compact ? 'py-2' : 'py-4',
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {row.getIsExpanded() &&
+                      (() => {
+                        const activePermissions = resolverPermissions.filter(
+                          (p) =>
+                            permissionEntries.some(([key]) => key === p.key),
                         )
-                      })
-                    })()}
-                </Fragment>
-              )
-            })
-          ) : (
-            <TableRow>
-              <TableCell
-                colSpan={table.getVisibleLeafColumns().length}
-                className="h-24 text-center"
-              >
-                No role holders found.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+                        return activePermissions.map((permission, index) => {
+                          const perms = permissionMap.get(permission.key)
+                          const isLast = index === activePermissions.length - 1
+
+                          return (
+                            <TableRow key={permission.key}>
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
+                                )}
+                              />
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
+                                )}
+                              >
+                                <CopyableRecord
+                                  displayValue={permission.title}
+                                  value={permission.key}
+                                />
+                              </TableCell>
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
+                                )}
+                              >
+                                <div className="flex flex-row gap-2">
+                                  {perms?.admin && (
+                                    <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+                                      <UserLockIcon width={16} height={16} />{' '}
+                                      Admin
+                                    </div>
+                                  )}
+                                  {perms?.manager && (
+                                    <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+                                      <UserIcon width={16} height={16} />{' '}
+                                      Manager
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
+                                )}
+                              />
+                            </TableRow>
+                          )
+                        })
+                      })()}
+                  </Fragment>
+                )
+              })
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={table.getVisibleLeafColumns().length}
+                  className="h-24 text-center"
+                >
+                  No role holders found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </ResolverRolesSidebar>
   )
 }

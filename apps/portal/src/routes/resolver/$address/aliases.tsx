@@ -249,65 +249,132 @@ function RouteComponent() {
           description="Create an alias to redirect resolution from one name to another."
         />
       ) : (
-        <Table className="relative">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    style={{ width: header.getSize() }}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
+        <>
+          {/* Mobile view */}
+          <div className="md:hidden">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
+                <div
                   key={row.id}
                   className={cn(
-                    'hover:bg-quartz-50',
-                    tableView.strippedRows && 'odd:bg-quartz-50',
+                    'flex flex-col gap-3 px-4 py-4 border-b border-border last:border-b-0',
                     deletingAlias === row.original.fromName && 'opacity-50',
                   )}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        'px-4 sm:px-6',
-                        tableView.compact ? 'py-2' : 'py-4',
-                      )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <NameAvatar
+                        name={row.original.fromName}
+                        width="28px"
+                        height="28px"
+                        rounded="rounded-full"
+                      />
+                      <span className="font-mono text-sm truncate">
+                        {row.original.fromName}
+                      </span>
+                      <CopyButton value={row.original.fromName} />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      onClick={() => {
+                        const meta = table.options.meta as {
+                          onDelete?: (alias: ResolverAlias) => void
+                        }
+                        meta?.onDelete?.(row.original)
+                      }}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                      <Trash2Icon className="size-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 pl-2">
+                    <ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <NameAvatar
+                        name={row.original.toName}
+                        width="24px"
+                        height="24px"
+                        rounded="rounded-full"
+                      />
+                      <span className="font-mono text-sm truncate">
+                        {row.original.toName}
+                      </span>
+                      <CopyButton value={row.original.toName} />
+                    </div>
+                  </div>
+                </div>
               ))
             ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={table.getAllColumns().length}
-                  className="h-24 text-center"
-                >
-                  No aliases match your search.
-                </TableCell>
-              </TableRow>
+              <div className="px-6 py-24 text-center border border-border rounded-lg">
+                No aliases match your search.
+              </div>
             )}
-          </TableBody>
-        </Table>
+          </div>
+
+          {/* Desktop view */}
+          <div className="hidden md:block">
+            <Table className="relative">
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead
+                        key={header.id}
+                        style={{ width: header.getSize() }}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className={cn(
+                        'hover:bg-quartz-50',
+                        tableView.strippedRows && 'odd:bg-quartz-50',
+                        deletingAlias === row.original.fromName && 'opacity-50',
+                      )}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            'px-4 sm:px-6',
+                            tableView.compact ? 'py-2' : 'py-4',
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={table.getAllColumns().length}
+                      className="h-24 text-center"
+                    >
+                      No aliases match your search.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   )
