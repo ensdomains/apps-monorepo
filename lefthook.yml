@@ -5,16 +5,16 @@
 # Note: Uses fail_text instead of failing to allow commits even with linting errors
 # Formatting errors will still be fixed, but linting errors won't block commits
 pre-commit:
-  parallel: true
   commands:
+    lingui-extract:
+      glob: "apps/manager/src/**/*.{ts,tsx}"
+      run: pnpm --filter manager i18n:extract --clean && git add apps/manager/src/locales/
+      priority: 1
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json,jsonc}"
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
       stage_fixed: true
-    lingui-extract:
-      glob: "apps/manager/src/**/*.{ts,tsx}"
-      run: pnpm --filter manager i18n:extract --clean
-      stage_fixed: true
+      priority: 2
 
 # Pre-push hook: Ensure all files pass Biome checks before pushing (warnings only)
 pre-push:

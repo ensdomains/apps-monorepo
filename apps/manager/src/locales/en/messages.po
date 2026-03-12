@@ -118,6 +118,10 @@ msgstr "Favorites"
 msgid "Frequently Asked Questions"
 msgstr "Frequently Asked Questions"
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:187
+msgid "From:"
+msgstr "From:"
+
 #: src/features/dashboard/components/FaqSection.tsx:69
 msgid "Get support"
 msgstr "Get support"
@@ -219,6 +223,10 @@ msgstr "Registered"
 msgid "Registered {0}"
 msgstr "Registered {0}"
 
+#: src/features/profile/components/ProfileEdit.tsx:173
+msgid "Reset Changes"
+msgstr "Reset Changes"
+
 #: src/features/dashboard/components/NamesTable.tsx:145
 msgid "Search my name..."
 msgstr "Search my name..."
@@ -283,6 +291,10 @@ msgstr "Sort names by"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:344
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:193
+msgid "To:"
+msgstr "To:"
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:153
 msgid "View profile"
