@@ -74,6 +74,10 @@ msgstr "Date added (Newest)"
 msgid "Date added (Oldest)"
 msgstr "Date added (Oldest)"
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
+msgid "Default"
+msgstr "Default"
+
 #: src/features/dashboard/components/EducationCarousel.tsx:23
 msgid "Did You Know?"
 msgstr "Did You Know?"
