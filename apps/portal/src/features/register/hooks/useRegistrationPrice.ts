@@ -7,7 +7,7 @@ import { err, fromPromise, ok } from 'neverthrow'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
@@ -36,7 +36,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   duration,
   token,
 }: RegistrationPriceParameters) {
-  const client = yield* safeGetClient()
+  const client = yield* safeGetNamechainSepoliaClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
   let label: string
@@ -51,10 +51,10 @@ export const getRegistrationPrice = ResultFn(async function* ({
 
   const { base, premium } = yield* fromPromise(
     getPrice(client, {
-      registrarAddress: fastTestETHRegistrar,
       nameOrNames: label,
       duration: BigInt(duration),
       paymentToken: resolvedToken,
+      registrarAddress: fastTestETHRegistrar,
     }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
   )

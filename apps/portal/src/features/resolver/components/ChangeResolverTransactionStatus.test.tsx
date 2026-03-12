@@ -3,6 +3,10 @@ import type { Hash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { ChangeResolverTransactionStatus } from './ChangeResolverTransactionStatus'
 
+vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
+  useBlockExplorerTxUrl: () => undefined,
+}))
+
 vi.mock('@/features/registry/utils/transactionErrorMessage', () => ({
   getTransactionErrorInfo: (error: { message?: string }) => ({
     summary: error?.message ?? 'Transaction failed',

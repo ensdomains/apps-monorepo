@@ -45,6 +45,17 @@ const EVENT_SIGNATURES = {
   VersionChanged: 'VersionChanged (bytes32 indexed node, uint64 newVersion)',
 } as const satisfies Record<EventKey, string>
 
+// Resolver indexer event types (not part of the ensjs subgraph types)
+const RESOLVER_INDEXER_EVENT_SIGNATURES: Record<string, string> = {
+  AddressChanged:
+    'AddressChanged (bytes32 indexed node, uint256 coinType, bytes newAddress)',
+  ABIChanged: 'ABIChanged (bytes32 indexed node, uint256 indexed contentType)',
+  AliasChanged: 'AliasChanged (bytes32 indexed node, bytes alias)',
+  EACRolesChanged:
+    'EACRolesChanged (uint256 resource, address account, uint256 oldRoleBitmap, uint256 newRoleBitmap)',
+  ResolverUpdated: 'ResolverUpdated (uint256 tokenId, address resolver)',
+}
+
 // Type mapping for decoded data based on ENS subgraph types
 const TYPE_MAPPING = {
   Transfer: { owner: 'address' },
@@ -80,6 +91,23 @@ const TYPE_MAPPING = {
   VersionChanged: { version: 'uint64' },
 } as const satisfies Record<EventKey, Record<string, string>>
 
+const RESOLVER_INDEXER_TYPE_MAPPING: Record<string, Record<string, string>> = {
+  AddressChanged: {
+    namehash: 'bytes32',
+    coinType: 'uint256',
+    address: 'bytes',
+  },
+  ABIChanged: { namehash: 'bytes32', contentType: 'uint256' },
+  AliasChanged: { namehash: 'bytes32', alias: 'bytes' },
+  EACRolesChanged: {
+    resource: 'uint256',
+    account: 'address',
+    oldRoleBitmap: 'uint256',
+    newRoleBitmap: 'uint256',
+  },
+  ResolverUpdated: { tokenId: 'uint256', resolver: 'address' },
+}
+
 type EventFieldTypes<T extends EventKey> = (typeof TYPE_MAPPING)[T]
 
 function isEventKey(k: string): k is EventKey {
@@ -96,7 +124,8 @@ export function getEventSignature<T extends EventKey>(
 ): (typeof EVENT_SIGNATURES)[T]
 export function getEventSignature(eventType: string): string
 export function getEventSignature(eventType: EventKey | string): string {
-  return isEventKey(eventType) ? EVENT_SIGNATURES[eventType] : eventType
+  if (isEventKey(eventType)) return EVENT_SIGNATURES[eventType]
+  return RESOLVER_INDEXER_EVENT_SIGNATURES[eventType] ?? eventType
 }
 
 /**
@@ -114,8 +143,10 @@ export function getEventFieldType(
   eventType: EventKey | string,
   fieldKey: string,
 ): string {
-  if (!isEventKey(eventType)) return 'unknown'
-  // fieldKey is a generic in the typed overload, but a string here at runtime
-  const mapping = TYPE_MAPPING[eventType] as Record<string, string>
-  return mapping[fieldKey] ?? 'unknown'
+  if (isEventKey(eventType)) {
+    const mapping = TYPE_MAPPING[eventType] as Record<string, string>
+    return mapping[fieldKey] ?? 'unknown'
+  }
+  const resolverMapping = RESOLVER_INDEXER_TYPE_MAPPING[eventType]
+  return resolverMapping?.[fieldKey] ?? 'unknown'
 }

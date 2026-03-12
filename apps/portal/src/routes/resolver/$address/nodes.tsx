@@ -1,0 +1,255 @@
+import { useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  type Row,
+  type SortingState,
+  useReactTable,
+} from '@tanstack/react-table'
+import { PanelRightOpen, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { Address } from 'viem'
+import { CopyButton } from '@/components/CopyButton'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
+import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
+import {
+  getResolverOverviewQueryOptions,
+  type ResolverNode,
+} from '@/features/resolver/hooks/useResolverOverview'
+import { cn } from '@/lib/utils'
+import { queryClient } from '@/utils/queryClient'
+
+export const Route = createFileRoute('/resolver/$address/nodes')({
+  component: RouteComponent,
+  notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) => {
+    return queryClient.prefetchQuery(
+      getResolverOverviewQueryOptions({
+        address: params.address as Address,
+      }),
+    )
+  },
+})
+
+const createNodesColumns = (
+  resolverAddress: string,
+): ColumnDef<ResolverNode>[] => [
+  {
+    accessorKey: 'name',
+    header: 'Node',
+    cell: ({ row }) => {
+      const node = row.original
+      return (
+        <div className="flex items-center gap-3">
+          <NameAvatar
+            name={node.name}
+            width="28px"
+            height="28px"
+            rounded="rounded-full"
+          />
+          <span className="font-mono text-sm">{node.name}</span>
+          <CopyButton value={node.name} />
+        </div>
+      )
+    },
+  },
+  {
+    id: 'active',
+    header: 'Active',
+    cell: ({ row }) => {
+      const active =
+        row.original.resolver?.address.toLowerCase() ===
+        resolverAddress.toLowerCase()
+      return (
+        <Badge variant={active ? 'success' : 'destructive'}>
+          {active ? 'Active' : 'Inactive'}
+        </Badge>
+      )
+    },
+  },
+  {
+    id: 'more',
+    size: 120,
+    header: () => null,
+    cell: ({ row, table }) => {
+      return (
+        <div className="flex justify-end pr-4">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              const meta = table.options.meta as {
+                onMoreClick?: (r: typeof row) => void
+              }
+              meta?.onMoreClick?.(row)
+            }}
+          >
+            <PanelRightOpen className="h-4 w-4" />
+            <span className="text-sm font-medium">More</span>
+          </Button>
+        </div>
+      )
+    },
+  },
+]
+
+function RouteComponent() {
+  const { address } = Route.useParams()
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [globalFilter, setGlobalFilter] = useState('')
+  const [selectedNode, setSelectedNode] = useState<ResolverNode | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [tableView] = useTableViewSettings()
+
+  const {
+    data: resolver,
+    isLoading,
+    error,
+  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+
+  const nodes = resolver?.nodes ?? []
+  const roles = resolver?.roles ?? []
+
+  const rolesForNode = useMemo(() => {
+    if (!selectedNode) return []
+    return roles.filter((r) => r.resource === selectedNode.id)
+  }, [roles, selectedNode])
+
+  const columns = useMemo(() => createNodesColumns(address), [address])
+
+  const table = useReactTable({
+    data: nodes as ResolverNode[],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onSortingChange: setSorting,
+    state: { sorting, globalFilter },
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: 'includesString',
+    meta: {
+      onMoreClick: (row: Row<ResolverNode>) => {
+        setSelectedNode(row.original)
+        setSheetOpen(true)
+      },
+    },
+  })
+
+  if (isLoading) return <LoadingMessage title="Loading nodes" />
+  if (error)
+    return (
+      <ErrorMessage
+        title="Nodes unavailable"
+        description={error.cause?.message}
+      />
+    )
+
+  return (
+    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
+      <h1 className="text-2xl md:text-heading font-medium leading-none">
+        Nodes
+      </h1>
+
+      <InputGroup className="bg-white rounded-sm">
+        <InputGroupAddon>
+          <Search />
+        </InputGroupAddon>
+        <InputGroupInput
+          placeholder="Search..."
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+        />
+      </InputGroup>
+
+      <NodeDetailSheet
+        node={selectedNode}
+        roles={rolesForNode}
+        open={sheetOpen}
+        setOpen={setSheetOpen}
+      >
+        <Table className="relative">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    style={{ width: header.getSize() }}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className={cn(
+                    'hover:bg-quartz-50',
+                    tableView.strippedRows && 'odd:bg-quartz-50',
+                  )}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        'px-6',
+                        tableView.compact ? 'py-2' : 'py-4',
+                      )}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={table.getAllColumns().length}
+                  className="h-24 text-center"
+                >
+                  This resolver has no nodes.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </NodeDetailSheet>
+    </div>
+  )
+}
