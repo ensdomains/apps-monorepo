@@ -36,6 +36,9 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
   SEARCH_RESULTS_BLUR_BACKDROP: {
     enabled: import.meta.env.VITE_FF_SEARCH_RESULTS_BLUR_BACKDROP === 'true',
   },
+  LANGUAGE_SELECTOR: {
+    enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
+  },
 } as const
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS
