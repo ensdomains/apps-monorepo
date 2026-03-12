@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
@@ -19,14 +19,12 @@ import {
 } from '@/components/ui/combobox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { setAlias } from '@/features/resolver/helpers/setAlias'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
+import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
 import { namechainSepolia } from '@/lib/wagmi'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-alias')({
@@ -87,7 +85,6 @@ function RouteComponent() {
 
   const [fromName, setFromName] = useState<string | null>(null)
   const [toName, setToName] = useState<string | null>(null)
-  const resolverQueryClient = useQueryClient()
 
   const {
     data: resolver,
@@ -111,34 +108,13 @@ function RouteComponent() {
     ? existingAliases.some((a) => a.fromName === fromName)
     : false
 
-  const mutation = useMutation({
-    mutationFn: (params: {
-      readonly fromName: string
-      readonly toName: string
-    }) => {
-      if (!walletClient || !publicClient) {
-        throw new Error('Wallet not connected')
-      }
-      return setAlias({
-        fromName: params.fromName,
-        toName: params.toName,
-        resolverAddress: address as Address,
-        walletClient,
-        publicClient,
-        signer: createEOASigner(walletClient),
-        chainId,
-      })
-    },
-    onSuccess: async () => {
-      await pollForIndexerSync({
-        invalidateQueries: () =>
-          resolverQueryClient.invalidateQueries({
-            queryKey: ['resolver-overview'],
-            refetchType: 'all',
-          }),
-      })
-      navigate({ to: '/resolver/$address/aliases', params: { address } })
-    },
+  const mutation = useSetAlias({
+    resolverAddress: address as Address,
+    walletClient,
+    publicClient,
+    chainId,
+    onSuccess: () =>
+      navigate({ to: '/resolver/$address/aliases', params: { address } }),
   })
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {

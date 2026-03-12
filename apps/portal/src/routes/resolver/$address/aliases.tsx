@@ -10,7 +10,6 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { ArrowRightIcon, PlusIcon, Search, Trash2Icon } from 'lucide-react'
-import { ResultAsync } from 'neverthrow'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -36,15 +35,13 @@ import {
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
-import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { deleteAlias } from '@/features/resolver/helpers/setAlias'
+import { useDeleteAlias } from '@/features/resolver/hooks/useDeleteAlias'
 import {
   getResolverOverviewQueryOptions,
   type ResolverAlias,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
 import { namechainSepolia } from '@/lib/wagmi'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/aliases')({
@@ -137,8 +134,6 @@ function RouteComponent() {
   const { address } = Route.useParams()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [deletingAlias, setDeletingAlias] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [tableView] = useTableViewSettings()
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
@@ -152,39 +147,16 @@ function RouteComponent() {
 
   const aliases = (resolver?.aliases ?? []) as ResolverAlias[]
 
-  const handleDelete = async (alias: ResolverAlias) => {
-    if (!walletClient || !publicClient) return
-    setDeletingAlias(alias.fromName)
-    setDeleteError(null)
+  const deleteMutation = useDeleteAlias({
+    resolverAddress: address as Address,
+    walletClient,
+    publicClient,
+    chainId,
+  })
 
-    const result = await ResultAsync.fromPromise(
-      (async () => {
-        const signer = createEOASigner(walletClient)
-        await deleteAlias({
-          fromName: alias.fromName,
-          resolverAddress: address as Address,
-          walletClient,
-          publicClient,
-          signer,
-          chainId,
-        })
-        await pollForIndexerSync({
-          invalidateQueries: () =>
-            queryClient.invalidateQueries({
-              queryKey: ['resolver-overview'],
-              refetchType: 'all',
-            }),
-        })
-      })(),
-      (error) =>
-        error instanceof Error ? error : new Error('Failed to delete alias'),
-    )
-
-    if (result.isErr()) {
-      setDeleteError(result.error.message)
-    }
-
-    setDeletingAlias(null)
+  const handleDelete = (alias: ResolverAlias) => {
+    deleteMutation.reset()
+    deleteMutation.mutate(alias.fromName)
   }
 
   const table = useReactTable({
@@ -237,9 +209,9 @@ function RouteComponent() {
         />
       </InputGroup>
 
-      {deleteError && (
+      {deleteMutation.error && (
         <Alert variant="destructive">
-          <AlertDescription>{deleteError}</AlertDescription>
+          <AlertDescription>{deleteMutation.error.message}</AlertDescription>
         </Alert>
       )}
 
@@ -258,7 +230,9 @@ function RouteComponent() {
                   key={row.id}
                   className={cn(
                     'flex flex-col gap-3 px-4 py-4 border-b border-border last:border-b-0',
-                    deletingAlias === row.original.fromName && 'opacity-50',
+                    deleteMutation.isPending &&
+                      deleteMutation.variables === row.original.fromName &&
+                      'opacity-50',
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -342,7 +316,9 @@ function RouteComponent() {
                       className={cn(
                         'hover:bg-quartz-50',
                         tableView.strippedRows && 'odd:bg-quartz-50',
-                        deletingAlias === row.original.fromName && 'opacity-50',
+                        deleteMutation.isPending &&
+                          deleteMutation.variables === row.original.fromName &&
+                          'opacity-50',
                       )}
                     >
                       {row.getVisibleCells().map((cell) => (
