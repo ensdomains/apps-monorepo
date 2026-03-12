@@ -271,14 +271,13 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
                       ))}
                     </TableRow>
                     {row.getIsExpanded() &&
-                      (() => {
-                        const activePermissions = resolverPermissions.filter(
-                          (p) =>
-                            permissionEntries.some(([key]) => key === p.key),
+                      resolverPermissions
+                        .filter((p) =>
+                          permissionEntries.some(([key]) => key === p.key),
                         )
-                        return activePermissions.map((permission, index) => {
+                        .map((permission, index, filtered) => {
                           const perms = permissionMap.get(permission.key)
-                          const isLast = index === activePermissions.length - 1
+                          const isLast = index === filtered.length - 1
 
                           return (
                             <TableRow key={permission.key}>
@@ -332,8 +331,7 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
                               />
                             </TableRow>
                           )
-                        })
-                      })()}
+                        })}
                   </Fragment>
                 )
               })

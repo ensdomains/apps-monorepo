@@ -134,10 +134,9 @@ function RouteComponent() {
   const nodes = resolver?.nodes ?? []
   const roles = resolver?.roles ?? []
 
-  const rolesForNode = useMemo(() => {
-    if (!selectedNode) return []
-    return roles.filter((r) => r.resource === selectedNode.id)
-  }, [roles, selectedNode])
+  const rolesForNode = selectedNode
+    ? roles.filter((r) => r.resource === selectedNode.id)
+    : []
 
   const columns = useMemo(() => createNodesColumns(address), [address])
 
