@@ -58,6 +58,9 @@ export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
   transport: http(SEPOLIA_RPC_URL),
   ccipRead: ccipReadConfig,
+  batch: {
+    multicall: true,
+  },
 })
 
 export const wagmiConfig = createConfig({
