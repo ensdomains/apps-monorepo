@@ -8,7 +8,7 @@ msgstr ""
 "Language: sv\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-03-12 11:53\n"
+"PO-Revision-Date: 2026-03-12 12:36\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -19,17 +19,17 @@ msgstr ""
 "X-Crowdin-File-ID: 18\n"
 
 #. placeholder {0}: suggestion.label
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:231
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:225
 msgid "{0} avatar"
 msgstr ""
 
 #. placeholder {0}: suggestion.label
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:237
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:231
 msgid "{0} avatar placeholder"
 msgstr "{0} avatar-placeholder"
 
 #. placeholder {0}: currentPage + 1
-#: src/features/dashboard/components/EducationCarousel.tsx:38
+#: src/features/dashboard/components/EducationCarousel.tsx:39
 msgid "{0} of {totalPages}"
 msgstr "{0} av {totalPages}"
 
@@ -47,7 +47,7 @@ msgstr "{label} avatar-placeholder"
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
 
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:104
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
 msgid "Address profile"
 msgstr "Adressprofil"
 
@@ -79,6 +79,10 @@ msgstr "Datum tillagt (nyast)"
 msgid "Date added (Oldest)"
 msgstr "Datum tillagt (äldst)"
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
+msgid "Default"
+msgstr ""
+
 #: src/features/dashboard/components/EducationCarousel.tsx:23
 msgid "Did You Know?"
 msgstr "Visste du att?"
@@ -87,15 +91,15 @@ msgstr "Visste du att?"
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:127
+#: src/features/dashboard/components/PrimaryNameCard.tsx:135
 msgid "Expires"
 msgstr "Går ut"
 
-#: src/features/dashboard/components/MyNamesList.tsx:316
+#: src/features/dashboard/components/MyNamesList.tsx:318
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
-#: src/features/dashboard/components/MyNamesList.tsx:225
+#: src/features/dashboard/components/MyNamesList.tsx:227
 msgid "Expiry"
 msgstr "Utgång"
 
@@ -123,15 +127,19 @@ msgstr "Favoriter"
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:187
+msgid "From:"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx:69
 msgid "Get support"
 msgstr "Få support"
 
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:136
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:138
 msgid "Go to ENS name profile"
 msgstr "Gå till ENS-namnprofil"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:81
+#: src/features/dashboard/pages/DashboardPage.tsx:85
 msgid "Hello"
 msgstr "Hej"
 
@@ -147,8 +155,8 @@ msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
 
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:56
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:61
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:77
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
 msgid "Language"
 msgstr "Språk"
 
@@ -156,8 +164,8 @@ msgstr "Språk"
 msgid "Loading dashboard..."
 msgstr "Laddar översikten..."
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:49
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
+#: src/features/dashboard/components/PrimaryNameCard.tsx:55
 msgid "Loading..."
 msgstr "Laddar..."
 
@@ -173,8 +181,8 @@ msgstr "HUVUDMENY"
 msgid "My Names"
 msgstr "Mina namn"
 
-#: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:213
+#: src/features/dashboard/components/FavoritesList.tsx:197
+#: src/features/dashboard/components/MyNamesList.tsx:214
 msgid "Name"
 msgstr "Namn"
 
@@ -196,9 +204,9 @@ msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/dashboard/components/FavoritesList.tsx:227
-#: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:258
+#: src/features/dashboard/components/FavoritesList.tsx:228
+#: src/features/dashboard/components/FavoritesList.tsx:239
+#: src/features/dashboard/components/MyNamesList.tsx:260
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -215,20 +223,24 @@ msgstr "Primärt namn angivet"
 msgid "Profile"
 msgstr "Profil"
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:113
+#: src/features/dashboard/components/PrimaryNameCard.tsx:121
 msgid "Registered"
 msgstr "Registrerad"
 
 #. placeholder {0}: formatDashboardDate( toDateFromSeconds(domain.createdAt), )
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:124
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:127
 msgid "Registered {0}"
 msgstr "Registrerad {0}"
+
+#: src/features/profile/components/ProfileEdit.tsx:173
+msgid "Reset Changes"
+msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx:145
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:202
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
@@ -260,11 +272,11 @@ msgstr "Anger ETH-adress..."
 msgid "Setting..."
 msgstr "Anger..."
 
-#: src/features/dashboard/components/FavoritesList.tsx:298
+#: src/features/dashboard/components/FavoritesList.tsx:301
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:352
+#: src/features/dashboard/components/MyNamesList.tsx:356
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -289,7 +301,11 @@ msgstr "Sortera namn efter"
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:145
+#: src/features/profile/components/dialogs/DiffDialog.tsx:193
+msgid "To:"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:153
 msgid "View profile"
 msgstr "Visa profil"
 
@@ -297,11 +313,11 @@ msgstr "Visa profil"
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:65
+#: src/features/dashboard/pages/DashboardPage.tsx:69
 msgid "Welcome to the public alpha of the ENS app"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:68
+#: src/features/dashboard/pages/DashboardPage.tsx:72
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
 
@@ -313,7 +329,7 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:47
+#: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Ditt ENS-namn"
 

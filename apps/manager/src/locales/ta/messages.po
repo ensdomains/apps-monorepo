@@ -8,7 +8,7 @@ msgstr ""
 "Language: ta\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-03-12 11:52\n"
+"PO-Revision-Date: 2026-03-12 12:36\n"
 "Last-Translator: \n"
 "Language-Team: Tamil\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -19,17 +19,17 @@ msgstr ""
 "X-Crowdin-File-ID: 18\n"
 
 #. placeholder {0}: suggestion.label
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:231
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:225
 msgid "{0} avatar"
 msgstr ""
 
 #. placeholder {0}: suggestion.label
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:237
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:231
 msgid "{0} avatar placeholder"
 msgstr ""
 
 #. placeholder {0}: currentPage + 1
-#: src/features/dashboard/components/EducationCarousel.tsx:38
+#: src/features/dashboard/components/EducationCarousel.tsx:39
 msgid "{0} of {totalPages}"
 msgstr ""
 
@@ -47,7 +47,7 @@ msgstr ""
 msgid "A simple, portable identity that you control"
 msgstr ""
 
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:104
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
 msgid "Address profile"
 msgstr ""
 
@@ -79,6 +79,10 @@ msgstr ""
 msgid "Date added (Oldest)"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
+msgid "Default"
+msgstr ""
+
 #: src/features/dashboard/components/EducationCarousel.tsx:23
 msgid "Did You Know?"
 msgstr ""
@@ -87,15 +91,15 @@ msgstr ""
 msgid "Error loading names"
 msgstr ""
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:127
+#: src/features/dashboard/components/PrimaryNameCard.tsx:135
 msgid "Expires"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:316
+#: src/features/dashboard/components/MyNamesList.tsx:318
 msgid "Expires in {daysUntilExpiry} days"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:225
+#: src/features/dashboard/components/MyNamesList.tsx:227
 msgid "Expiry"
 msgstr ""
 
@@ -123,17 +127,21 @@ msgstr "பிடித்தவை"
 msgid "Frequently Asked Questions"
 msgstr ""
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:187
+msgid "From:"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx:69
 msgid "Get support"
 msgstr ""
 
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:136
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:138
 msgid "Go to ENS name profile"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:81
+#: src/features/dashboard/pages/DashboardPage.tsx:85
 msgid "Hello"
-msgstr ""
+msgstr "வணக்கம்"
 
 #: src/features/dashboard/components/FaqSection.tsx:45
 msgid "How can I secure my ENS name?"
@@ -147,8 +155,8 @@ msgstr ""
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:56
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:61
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:77
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
 msgid "Language"
 msgstr ""
 
@@ -156,8 +164,8 @@ msgstr ""
 msgid "Loading dashboard..."
 msgstr ""
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:49
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
+#: src/features/dashboard/components/PrimaryNameCard.tsx:55
 msgid "Loading..."
 msgstr ""
 
@@ -173,8 +181,8 @@ msgstr ""
 msgid "My Names"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:213
+#: src/features/dashboard/components/FavoritesList.tsx:197
+#: src/features/dashboard/components/MyNamesList.tsx:214
 msgid "Name"
 msgstr ""
 
@@ -196,9 +204,9 @@ msgstr ""
 msgid "No names found"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:227
-#: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:258
+#: src/features/dashboard/components/FavoritesList.tsx:228
+#: src/features/dashboard/components/FavoritesList.tsx:239
+#: src/features/dashboard/components/MyNamesList.tsx:260
 msgid "No names to display"
 msgstr ""
 
@@ -215,20 +223,24 @@ msgstr ""
 msgid "Profile"
 msgstr ""
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:113
+#: src/features/dashboard/components/PrimaryNameCard.tsx:121
 msgid "Registered"
 msgstr ""
 
 #. placeholder {0}: formatDashboardDate( toDateFromSeconds(domain.createdAt), )
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:124
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:127
 msgid "Registered {0}"
+msgstr ""
+
+#: src/features/profile/components/ProfileEdit.tsx:173
+msgid "Reset Changes"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx:145
 msgid "Search my name..."
 msgstr ""
 
-#: src/features/dashboard/components/DashboardSidebarSearch.tsx:202
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
 msgid "Search name, address..."
 msgstr ""
 
@@ -260,11 +272,11 @@ msgstr ""
 msgid "Setting..."
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:298
+#: src/features/dashboard/components/FavoritesList.tsx:301
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:352
+#: src/features/dashboard/components/MyNamesList.tsx:356
 msgid "Showing your names"
 msgstr ""
 
@@ -289,7 +301,11 @@ msgstr ""
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr ""
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:145
+#: src/features/profile/components/dialogs/DiffDialog.tsx:193
+msgid "To:"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:153
 msgid "View profile"
 msgstr ""
 
@@ -297,11 +313,11 @@ msgstr ""
 msgid "Wallet signer not available"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:65
+#: src/features/dashboard/pages/DashboardPage.tsx:69
 msgid "Welcome to the public alpha of the ENS app"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:68
+#: src/features/dashboard/pages/DashboardPage.tsx:72
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr ""
 
@@ -313,7 +329,7 @@ msgstr ""
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr ""
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:47
+#: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr ""
 
