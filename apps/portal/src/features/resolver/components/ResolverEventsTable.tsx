@@ -12,6 +12,7 @@ import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ import { EventDetailSheet } from '@/features/resolver/components/EventDetailShee
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatting/formatDateRange'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverEventRow = ResolverEvent & {
   readonly from: Address | null
