@@ -301,9 +301,7 @@ export const RolesSidebar = <
               {/* Header */}
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="flex items-center gap-1">
-                  <h2 className="text-4xl font-medium leading-[1.35]">
-                    {name}
-                  </h2>
+                  <h2 className="text-4xl font-medium leading-snug">{name}</h2>
                   <CopyButton value={name} />
                 </div>
                 {canManageRoles && selectedAccount && (
@@ -429,9 +427,7 @@ export const RolesSidebar = <
               {/* History Section */}
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap justify-between items-center gap-4">
-                  <h3 className="text-2xl font-medium leading-[1.35]">
-                    History
-                  </h3>
+                  <h3 className="text-2xl font-medium leading-snug">History</h3>
                   <Button
                     variant="secondary"
                     className="bg-lapis-100 text-lapis-500 hover:bg-lapis-100/80 gap-1 h-8 px-2 py-1 text-sm"
