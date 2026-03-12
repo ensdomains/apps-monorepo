@@ -14,6 +14,7 @@ import type { Address } from 'viem'
 import { getAddress, zeroAddress } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
+import { toResourceHex } from '@/lib/roles/toResourceHex'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetNameRolesAccountsIndexerError extends TaggedError(
@@ -32,9 +33,6 @@ type IndexerRoleAssignment = {
   account: string
   roleBitmap: string
 }
-
-const toResourceHex = (value: bigint) =>
-  `0x${value.toString(16).padStart(64, '0')}`
 
 const getNameRolesAccountsFromIndexer = async ({
   label,

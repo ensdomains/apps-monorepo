@@ -8,3 +8,4 @@ package-lock.json
 *.workspace
 .mcp.json
 .dev.vars
+opencode.json
