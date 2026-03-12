@@ -12,7 +12,6 @@ import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
@@ -30,7 +29,6 @@ import { EventDetailSheet } from '@/features/resolver/components/EventDetailShee
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatting/formatDateRange'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverEventRow = ResolverEvent & {
   readonly from: Address | null
@@ -242,15 +240,8 @@ export const ResolverEventsTable = ({
             <div className="text-sm font-medium">Transaction</div>
             <div className="text-base">
               {row.original.transactionHash ? (
-                <CopyableRecord
-                  value={row.original.transactionHash}
-                  displayValue={
-                    <span className="font-mono">
-                      {truncateAddress(row.original.transactionHash)}
-                    </span>
-                  }
-                  className="text-sm underline decoration-dashed underline-offset-4"
-                  href={`https://sepolia.etherscan.io/tx/${row.original.transactionHash}`}
+                <BlockExplorerTxLink
+                  txHash={row.original.transactionHash as Hash}
                 />
               ) : (
                 <span className="text-muted-foreground">-</span>
