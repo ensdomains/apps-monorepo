@@ -1,8 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleCheck, Loader2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
-import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
@@ -88,8 +87,7 @@ function RouteComponent() {
 
   const [fromName, setFromName] = useState<string | null>(null)
   const [toName, setToName] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const resolverQueryClient = useQueryClient()
 
   const {
     data: resolver,
@@ -113,36 +111,41 @@ function RouteComponent() {
     ? existingAliases.some((a) => a.fromName === fromName)
     : false
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!fromName || !toName || !walletClient || !publicClient) return
-
-    setIsSubmitting(true)
-    setSubmitError(null)
-
-    try {
-      const signer = createEOASigner(walletClient)
-      await setAlias({
-        fromName,
-        toName,
+  const mutation = useMutation({
+    mutationFn: (params: {
+      readonly fromName: string
+      readonly toName: string
+    }) => {
+      if (!walletClient || !publicClient) {
+        throw new Error('Wallet not connected')
+      }
+      return setAlias({
+        fromName: params.fromName,
+        toName: params.toName,
         resolverAddress: address as Address,
         walletClient,
         publicClient,
-        signer,
+        signer: createEOASigner(walletClient),
         chainId,
       })
+    },
+    onSuccess: async () => {
       await pollForIndexerSync({
         invalidateQueries: () =>
-          queryClient.invalidateQueries({
+          resolverQueryClient.invalidateQueries({
             queryKey: ['resolver-overview'],
             refetchType: 'all',
           }),
       })
       navigate({ to: '/resolver/$address/aliases', params: { address } })
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Transaction failed')
-      setIsSubmitting(false)
-    }
+    },
+  })
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!fromName || !toName) return
+    mutation.reset()
+    mutation.mutate({ fromName, toName })
   }
 
   if (isLoading) return <LoadingMessage title="Loading resolver data" />
@@ -262,44 +265,37 @@ function RouteComponent() {
           )}
         </Field>
 
-        {match({ isConnected, submitError })
-          .with({ isConnected: false }, () => (
-            <p className="text-sm text-warning">
-              Please connect your wallet to create an alias.
-            </p>
-          ))
-          .with(
-            { submitError: P.string.minLength(1) },
-            ({ submitError: err }) => (
-              <p className="text-sm text-danger">{err}</p>
-            ),
-          )
-          .otherwise(() => null)}
+        {!isConnected && (
+          <p className="text-sm text-warning">
+            Please connect your wallet to create an alias.
+          </p>
+        )}
+        {mutation.error && (
+          <p className="text-sm text-danger">{mutation.error.message}</p>
+        )}
 
         <Button
           type="submit"
           disabled={
             !fromName ||
             !toName ||
-            isSubmitting ||
+            mutation.isPending ||
             !walletClient ||
             !isConnected
           }
           className="w-full sm:w-fit"
         >
-          {match(isSubmitting)
-            .with(true, () => (
-              <>
-                <Loader2 className="size-4 animate-spin mr-2" />
-                Creating...
-              </>
-            ))
-            .otherwise(() => (
-              <>
-                <CircleCheck className="size-4" />
-                Create alias
-              </>
-            ))}
+          {mutation.isPending ? (
+            <>
+              <Loader2 className="size-4 animate-spin mr-2" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <CircleCheck className="size-4" />
+              Create alias
+            </>
+          )}
         </Button>
       </form>
     </div>
