@@ -125,7 +125,7 @@ export async function initializeRhinestoneAccount(
   const deployed = await rhinestoneAccount.isDeployed(customSepolia)
   if (!deployed) {
     console.log('🔧 [RHINESTONE] Deploying smart account on-chain...')
-    await rhinestoneAccount.deploy(customSepolia)
+    await rhinestoneAccount.deploy(customSepolia, { sponsored: true })
     console.log('✅ [RHINESTONE] Smart account deployed:', accountAddress)
   }
 

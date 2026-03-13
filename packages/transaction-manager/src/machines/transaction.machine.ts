@@ -158,47 +158,105 @@ export const transactionMachine = setup({
           )
         }
 
-        console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
-          requestType: request.type,
-          signerType: signer.type,
-        })
+        const nowMs = (): number =>
+          typeof performance !== 'undefined' &&
+          typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
 
-        // Route to transport actor based on signer type + infrastructure
-        switch (signer.type) {
-          case 'eoa':
-            return submitEOATransaction({ request, signer })
+        const resolvedInfrastructure =
+          signer.type === 'rhinestone'
+            ? (options?.infrastructure ??
+              signer.config.defaultInfra ??
+              'pimlico')
+            : undefined
 
-          case 'rhinestone': {
-            const infra =
-              options?.infrastructure ?? signer.config.defaultInfra ?? 'pimlico'
+        const submitStart = nowMs()
 
-            if (infra === 'warp') {
-              return submitWarpTransaction({ request, signer })
-            }
-            return submitRhinestoneTransaction({
-              request,
-              signer,
-              publicClient,
-            })
-          }
+        const getSubmitResult = (): ResultAsync<
+          Hash,
+          TransactionSubmissionError | TransactionUserRejectedError
+        > => {
+          console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
+            requestType: request.type,
+            signerType: signer.type,
+            infrastructure: resolvedInfrastructure ?? options?.infrastructure,
+          })
 
-          case 'zerodev':
-            return submitZeroDevTransaction({
-              request,
-              signer,
-              publicClient,
-            })
+          // Route to transport actor based on signer type + infrastructure
+          switch (signer.type) {
+            case 'eoa':
+              return submitEOATransaction({ request, signer })
 
-          default:
-            return errAsync(
-              new TransactionSubmissionError(
+            case 'rhinestone': {
+              const infra =
+                resolvedInfrastructure ??
+                signer.config.defaultInfra ??
+                'pimlico'
+
+              if (infra === 'warp') {
+                return submitWarpTransaction({ request, signer })
+              }
+              return submitRhinestoneTransaction({
                 request,
-                new Error(
-                  `Unknown signer type: ${(signer as { type?: string }).type || 'unknown'}`,
+                signer,
+                publicClient,
+              })
+            }
+
+            case 'zerodev':
+              return submitZeroDevTransaction({
+                request,
+                signer,
+                publicClient,
+              })
+
+            default:
+              return errAsync(
+                new TransactionSubmissionError(
+                  request,
+                  new Error(
+                    `Unknown signer type: ${(signer as { type?: string }).type || 'unknown'}`,
+                  ),
                 ),
-              ),
-            )
+              )
+          }
         }
+
+        const result = getSubmitResult()
+
+        return result
+          .map((hash) => {
+            const elapsedMs = nowMs() - submitStart
+            console.log(
+              '⏱️ [TRANSACTION] submitTransaction latency (ms):',
+              elapsedMs.toFixed(1),
+              {
+                requestType: request.type,
+                signerType: signer.type,
+                infrastructure:
+                  resolvedInfrastructure ?? options?.infrastructure,
+                hash,
+              },
+            )
+            return hash
+          })
+          .mapErr((error) => {
+            const elapsedMs = nowMs() - submitStart
+            console.error(
+              '⏱️ [TRANSACTION] submitTransaction failed after (ms):',
+              elapsedMs.toFixed(1),
+              {
+                requestType: request.type,
+                signerType: signer.type,
+                infrastructure:
+                  resolvedInfrastructure ?? options?.infrastructure,
+                errorName: (error as Error).name,
+                errorMessage: (error as Error).message,
+              },
+            )
+            return error
+          })
       },
     ),
 

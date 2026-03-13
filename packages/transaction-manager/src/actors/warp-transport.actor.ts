@@ -66,9 +66,18 @@ export function submitWarpTransaction(
     )
   }
 
+  const nowMs = (): number =>
+    typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now()
+
+  const overallStart = nowMs()
+
   return fromPromise(
     (async () => {
       const chain = config.chain || sepolia
+
+      const sendStart = nowMs()
 
       // Log raw call data before SDK processes it
       console.log(
@@ -92,9 +101,27 @@ export function submitWarpTransaction(
         calls,
         sponsored: sponsored ?? true,
       })
+      const sendLatencyMs = nowMs() - sendStart
+
+      console.log(
+        '📤 [WARP] sendTransaction latency (ms):',
+        sendLatencyMs.toFixed(1),
+      )
 
       // Wait for a relayer to fill the intent
-      const receipt = await account.waitForExecution(transaction)
+      const waitStart = nowMs()
+      const receipt = await account.waitForExecution(transaction, false)
+      const waitLatencyMs = nowMs() - waitStart
+      const totalLatencyMs = nowMs() - overallStart
+
+      console.log(
+        '📥 [WARP] waitForExecution latency (ms):',
+        waitLatencyMs.toFixed(1),
+      )
+      console.log(
+        '✅ [WARP] Total submission latency (ms):',
+        totalLatencyMs.toFixed(1),
+      )
 
       const txHash = receipt.fill.hash
 

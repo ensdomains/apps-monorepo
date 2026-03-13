@@ -64,6 +64,7 @@ export type RegistrationContext = {
   approvalTxId?: string
   registrationTxId?: string
   registerReadyTimestamp?: number
+  registrationStartedAt?: number
 
   // Error state
   error?: Error
@@ -250,6 +251,46 @@ export const registrationMachine = setup({
     clearRegisterReadyTimestamp: assign({
       registerReadyTimestamp: () => undefined,
     }),
+
+    logRegistrationDuration: ({ context }) => {
+      if (
+        !context.registrationStartedAt ||
+        context.signer?.type !== 'rhinestone'
+      ) {
+        return
+      }
+
+      const totalMs = Date.now() - context.registrationStartedAt
+      const totalSeconds = totalMs / 1000
+
+      console.log('✅ [REGISTRATION] START_REGISTRATION elapsed:', {
+        name: context.name,
+        signerType: context.signer?.type,
+        elapsedMs: totalMs,
+        elapsedSeconds: Number(totalSeconds.toFixed(2)),
+      })
+    },
+
+    logRegistrationFailureDuration: ({ context }) => {
+      if (
+        !context.registrationStartedAt ||
+        context.signer?.type !== 'rhinestone'
+      ) {
+        return
+      }
+
+      const totalMs = Date.now() - context.registrationStartedAt
+      const totalSeconds = totalMs / 1000
+
+      console.error('❌ [REGISTRATION] START_REGISTRATION elapsed:', {
+        name: context.name,
+        signerType: context.signer?.type,
+        elapsedMs: totalMs,
+        elapsedSeconds: Number(totalSeconds.toFixed(2)),
+        error: context.error?.message,
+        errorName: context.error?.name,
+      })
+    },
   },
 
   // Note: Persistence will be handled via inspect option (see export at bottom)
@@ -267,6 +308,7 @@ export const registrationMachine = setup({
     duration: 0n,
     selectedToken: 'USDC',
     tokenPrice: 0n,
+    registrationStartedAt: undefined,
     registerReadyTimestamp: undefined,
     useFastRegistrar: false,
     resolverAddress: undefined,
@@ -286,6 +328,8 @@ export const registrationMachine = setup({
             tokenPrice: ({ event }) => event.price,
             signer: ({ event }) => event.signer,
             accountAddress: ({ event }) => event.accountAddress,
+            registrationStartedAt: ({ event }) =>
+              event.signer.type === 'rhinestone' ? Date.now() : undefined,
             ownerAddress: ({ event }) =>
               event.ownerAddress ?? event.accountAddress, // Default to accountAddress if not provided
             publicClient: ({ event }) => event.publicClient,
@@ -703,13 +747,19 @@ export const registrationMachine = setup({
 
     success: {
       type: 'final',
-      entry: ['logTransition', 'recordTransition', 'clearSnapshot'],
+      entry: [
+        'logTransition',
+        'recordTransition',
+        'logRegistrationDuration',
+        'clearSnapshot',
+      ],
     },
 
     error: {
       entry: [
         'logTransition',
         'recordTransition',
+        'logRegistrationFailureDuration',
         ({ context }) => {
           console.error('❌ [REGISTRATION MACHINE] Entered error state:', {
             error: context.error?.message,
@@ -734,6 +784,7 @@ export const registrationMachine = setup({
             approvalTxId: undefined,
             registrationTxId: undefined,
             registerReadyTimestamp: undefined,
+            registrationStartedAt: undefined,
           }),
         },
         CANCEL: 'idle',
