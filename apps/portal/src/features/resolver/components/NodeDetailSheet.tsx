@@ -59,7 +59,7 @@ export const NodeDetailSheet = ({
     isLoading: isLoadingRecords,
     error: recordsError,
   } = useQuery({
-    ...getProfileQueryOptions(node?.name ?? ''),
+    ...getProfileQueryOptions({ name: node?.name ?? '' }),
     enabled: !!node,
   })
 
