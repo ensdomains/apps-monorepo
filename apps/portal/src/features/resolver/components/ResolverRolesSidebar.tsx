@@ -69,6 +69,8 @@ export const ResolverRolesSidebar = ({
 
   const selectedAccount = row?.original.account
   const decodedRoles = useMemo(() => row?.original.decodedRoles ?? [], [row])
+  const resolvedNames = row?.original.resolvedNames ?? []
+  const roleName = resolvedNames.find((n) => n !== '(root)') ?? ''
   const originalPermissions = useMemo(
     () => roleToPermissions(decodedRoles),
     [decodedRoles],
@@ -106,6 +108,7 @@ export const ResolverRolesSidebar = ({
       if (rolesToGrant.length > 0) {
         await grantResolverRoles({
           resolverAddress,
+          name: roleName,
           account: selectedAccount as Address,
           roles: rolesToGrant as ResolverRole[],
           walletClient,
@@ -115,6 +118,7 @@ export const ResolverRolesSidebar = ({
       if (rolesToRevoke.length > 0) {
         await revokeResolverRoles({
           resolverAddress,
+          name: roleName,
           account: selectedAccount as Address,
           roles: rolesToRevoke as ResolverRoleKey[],
           walletClient,
@@ -135,9 +139,11 @@ export const ResolverRolesSidebar = ({
 
   const removeUserMutation = useMutation({
     mutationFn: async ({
+      name,
       account,
       roles,
     }: {
+      name: string
       account: Address
       roles: ResolverRoleKey[]
     }) => {
@@ -147,6 +153,7 @@ export const ResolverRolesSidebar = ({
 
       return revokeResolverRoles({
         resolverAddress,
+        name,
         account,
         roles,
         walletClient,
@@ -185,6 +192,7 @@ export const ResolverRolesSidebar = ({
 
     removeUserMutation.reset()
     removeUserMutation.mutate({
+      name: roleName,
       account: selectedAccount as Address,
       roles: decodedRoles as ResolverRoleKey[],
     })
@@ -252,11 +260,20 @@ export const ResolverRolesSidebar = ({
           {row ? (
             <div className="flex flex-col gap-6">
               {selectedAccount && (
-                <div className="flex items-center gap-1">
-                  <h2 className="text-xl font-medium leading-snug break-all">
-                    {selectedAccount}
-                  </h2>
-                  <CopyButton value={selectedAccount} />
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-1">
+                    <h2 className="text-xl font-medium leading-snug break-all">
+                      {selectedAccount}
+                    </h2>
+                    <CopyButton value={selectedAccount} />
+                  </div>
+                  {resolvedNames.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {resolvedNames.includes('(root)')
+                        ? 'Global roles (all names)'
+                        : `Roles scoped to ${resolvedNames.filter((n) => n !== '(root)').join(', ')}`}
+                    </p>
+                  )}
                 </div>
               )}
 

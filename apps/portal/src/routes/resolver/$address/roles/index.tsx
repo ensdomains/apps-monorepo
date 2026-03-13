@@ -56,6 +56,7 @@ function RouteComponent() {
     )
 
   const roles = resolver?.roles ?? []
+  const nodes = resolver?.nodes ?? []
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
@@ -78,6 +79,7 @@ function RouteComponent() {
       </div>
       <ResolverRolesTable
         roles={roles}
+        nodes={nodes}
         resolverAddress={address as Address}
         canManageRoles={canManageRoles}
       />

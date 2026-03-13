@@ -1,5 +1,7 @@
 import type { Address, Hash, WalletClient } from 'viem'
 import { writeContract } from 'viem/actions'
+import { packetToBytes } from 'viem/ens'
+import { toHex } from 'viem/utils'
 import { type ResolverRoleKey, resolverRoles } from '@/lib/roles/resolverRoles'
 
 const revokeNameRolesSnippet = [
@@ -26,6 +28,7 @@ function encodeRoleBitmapFromKeys(roles: ResolverRoleKey[]): bigint {
 
 export interface RevokeResolverRolesParameters {
   readonly resolverAddress: Address
+  readonly name: string
   readonly account: Address
   readonly roles: ResolverRoleKey[]
   readonly walletClient: WalletClient
@@ -34,7 +37,7 @@ export interface RevokeResolverRolesParameters {
 export const revokeResolverRoles = async (
   params: RevokeResolverRolesParameters,
 ): Promise<Hash> => {
-  const { resolverAddress, account, roles, walletClient } = params
+  const { resolverAddress, name, account, roles, walletClient } = params
 
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
@@ -45,12 +48,13 @@ export const revokeResolverRoles = async (
   }
 
   const roleBitmap = encodeRoleBitmapFromKeys(roles)
+  const dnsName = name === '' ? '0x00' : toHex(packetToBytes(name))
 
   return writeContract(walletClient, {
     address: resolverAddress,
     abi: revokeNameRolesSnippet,
     functionName: 'revokeNameRoles',
-    args: ['0x00', roleBitmap, account],
+    args: [dnsName, roleBitmap, account],
     chain: walletClient.chain,
     account: walletClient.account,
   })

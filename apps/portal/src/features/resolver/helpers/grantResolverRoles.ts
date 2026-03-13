@@ -4,6 +4,7 @@ import type { Address, Hash, WalletClient } from 'viem'
 
 export interface GrantResolverRolesParameters {
   readonly resolverAddress: Address
+  readonly name: string
   readonly account: Address
   readonly roles: ResolverRole[]
   readonly walletClient: WalletClient
@@ -12,7 +13,7 @@ export interface GrantResolverRolesParameters {
 export const grantResolverRoles = async (
   params: GrantResolverRolesParameters,
 ): Promise<Hash> => {
-  const { resolverAddress, account, roles, walletClient } = params
+  const { resolverAddress, name, account, roles, walletClient } = params
 
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
@@ -26,7 +27,7 @@ export const grantResolverRoles = async (
 
   return grantResolverNameRoles(client, {
     resolverAddress,
-    name: '',
+    name,
     roles,
     account,
   })

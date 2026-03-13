@@ -1,27 +1,35 @@
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
-import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
+import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
-import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { namechainSepolia } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/resolver/$address/roles/add-user')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
-
-const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 function RouteComponent() {
   const { address } = Route.useParams()
@@ -29,12 +37,13 @@ function RouteComponent() {
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
 
-  const [nameOrAddressInput, setNameOrAddressInput] = useState('')
+  const [selectedName, setSelectedName] = useState<string | null>(null)
 
-  const { data: resolvedAddress } = useResolvedRoleAccountAddress({
-    client,
-    nameOrAddress: nameOrAddressInput,
-  })
+  const {
+    data: resolver,
+    isLoading,
+    error,
+  } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
   const mutation = useGrantResolverRoles({
     resolverAddress: address as Address,
@@ -43,7 +52,20 @@ function RouteComponent() {
       navigate({ to: '/resolver/$address/roles', params: { address } }),
   })
 
+  if (isLoading) return <LoadingMessage title="Loading resolver data" />
+  if (error)
+    return (
+      <ErrorMessage
+        title="Failed to load resolver"
+        description={error.cause?.message}
+      />
+    )
   if (!walletClient?.account) return <div>Not connected.</div>
+
+  const nodes = resolver?.nodes ?? []
+  const nameOptions = nodes.map((n) => n.name).filter(Boolean)
+  const selectedNode = nodes.find((n) => n.name === selectedName)
+  const ownerAddress = selectedNode?.owner?.id as Address | undefined
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -58,9 +80,9 @@ function RouteComponent() {
       }
     }
 
-    if (resolvedAddress && roles.length > 0) {
+    if (ownerAddress && selectedName && roles.length > 0) {
       mutation.reset()
-      mutation.mutate({ account: resolvedAddress, roles })
+      mutation.mutate({ name: selectedName, account: ownerAddress, roles })
     }
   }
 
@@ -75,26 +97,44 @@ function RouteComponent() {
 
       <h1 className="text-heading font-medium leading-none">Add user</h1>
 
-      <h2 className="text-lg font-medium">User</h2>
       <div className="flex flex-col gap-6">
-        <Field data-invalid={!resolvedAddress}>
-          <Input
-            id="user"
-            name="user"
-            placeholder="ens.eth or 0x..."
-            required
-            onChange={(e) => {
-              const nameOrAddress = e.currentTarget.value.trim()
-
-              if (!e.currentTarget.checkValidity()) {
-                setNameOrAddressInput('')
-                return
-              }
-
-              setNameOrAddressInput(nameOrAddress)
-            }}
-            pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
-          />
+        <Field>
+          <FieldLabel>Name</FieldLabel>
+          <Combobox value={selectedName} onValueChange={setSelectedName}>
+            <ComboboxInput placeholder="Select a name..." />
+            <ComboboxContent>
+              <ComboboxList>
+                {nameOptions.map((name) => {
+                  const node = nodes.find((n) => n.name === name)
+                  return (
+                    <ComboboxItem key={name} value={name}>
+                      <div className="flex items-center gap-2">
+                        <NameAvatar
+                          name={name}
+                          width="24px"
+                          height="24px"
+                          rounded="rounded-full"
+                        />
+                        <span className="font-mono text-sm">{name}</span>
+                        {node?.owner?.id && (
+                          <span className="text-xs text-muted-foreground truncate ml-auto">
+                            {node.owner.id.slice(0, 6)}...
+                            {node.owner.id.slice(-4)}
+                          </span>
+                        )}
+                      </div>
+                    </ComboboxItem>
+                  )
+                })}
+                <ComboboxEmpty>No names found</ComboboxEmpty>
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+          {ownerAddress && (
+            <p className="text-sm text-muted-foreground">
+              Owner: {ownerAddress.slice(0, 6)}...{ownerAddress.slice(-4)}
+            </p>
+          )}
         </Field>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -140,9 +180,9 @@ function RouteComponent() {
           </div>
           <Button
             type="submit"
-            variant="primary"
+            variant="secondary"
             className="w-fit"
-            disabled={!resolvedAddress || mutation.isPending}
+            disabled={!ownerAddress || !selectedName || mutation.isPending}
           >
             {mutation.isPending ? 'Saving...' : 'Save roles'}
           </Button>

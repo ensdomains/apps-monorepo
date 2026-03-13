@@ -11,6 +11,7 @@ interface UseGrantResolverRolesOptions {
 }
 
 interface GrantResolverRolesMutationParams {
+  readonly name: string
   readonly account: Address
   readonly roles: ResolverRole[]
 }
@@ -23,12 +24,17 @@ export const useGrantResolverRoles = ({
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ account, roles }: GrantResolverRolesMutationParams) => {
+    mutationFn: ({
+      name,
+      account,
+      roles,
+    }: GrantResolverRolesMutationParams) => {
       if (!walletClient) {
         throw new Error('Wallet not connected')
       }
       return grantResolverRoles({
         resolverAddress,
+        name,
         account,
         roles,
         walletClient,

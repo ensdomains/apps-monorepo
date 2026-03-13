@@ -31,9 +31,13 @@ import {
 } from '@/components/ui/table'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
-import type { ResolverRole } from '@/features/resolver/hooks/useResolverOverview'
+import type {
+  ResolverNode,
+  ResolverRole,
+} from '@/features/resolver/hooks/useResolverOverview'
 import {
   type AccountRoleGroup,
+  buildResourceToNameMap,
   groupRolesByAccount,
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
@@ -42,6 +46,7 @@ import { cn } from '@/lib/utils'
 
 type ResolverRolesTableProps = {
   readonly roles: readonly ResolverRole[]
+  readonly nodes: readonly ResolverNode[]
   readonly resolverAddress: Address
   readonly canManageRoles: boolean
 }
@@ -73,7 +78,7 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
     },
   },
   {
-    header: 'Role',
+    header: 'Account',
     accessorKey: 'account',
     cell: ({ row }) => (
       <AddressDisplay address={row.original.account as Address} short={false} />
@@ -84,6 +89,26 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
     accessorKey: 'permissions',
     id: 'permissions',
     cell: () => <div className="min-w-[200px]">&nbsp;</div>,
+  },
+  {
+    header: 'Name',
+    id: 'names',
+    cell: ({ row }) => {
+      const names = row.original.resolvedNames
+      if (names.length === 0) return null
+      return (
+        <div className="flex flex-wrap gap-1">
+          {names.map((name) => (
+            <span
+              key={name}
+              className="font-mono text-sm text-muted-foreground"
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+      )
+    },
   },
   {
     id: 'more',
@@ -113,6 +138,7 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
 
 export const ResolverRolesTable = ({
   roles,
+  nodes,
   resolverAddress,
   canManageRoles,
 }: ResolverRolesTableProps) => {
@@ -124,7 +150,11 @@ export const ResolverRolesTable = ({
   )
   const [tableView] = useTableViewSettings()
 
-  const data = useMemo(() => groupRolesByAccount(roles), [roles])
+  const resourceToName = useMemo(() => buildResourceToNameMap(nodes), [nodes])
+  const data = useMemo(
+    () => groupRolesByAccount(roles, resourceToName),
+    [roles, resourceToName],
+  )
 
   const table = useReactTable<AccountRoleGroup>({
     data,
@@ -166,10 +196,17 @@ export const ResolverRolesTable = ({
                 className="flex flex-col gap-3 px-4 py-4 border-b border-border last:border-b-0"
               >
                 <div className="flex items-center justify-between">
-                  <AddressDisplay
-                    address={row.original.account as Address}
-                    short={false}
-                  />
+                  <div className="flex flex-col gap-1">
+                    <AddressDisplay
+                      address={row.original.account as Address}
+                      short={false}
+                    />
+                    {row.original.resolvedNames.length > 0 && (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {row.original.resolvedNames.join(', ')}
+                      </span>
+                    )}
+                  </div>
                   <Button
                     variant="secondary"
                     size="sm"
