@@ -60,6 +60,6 @@ export function useAutoFundOnLowBalance() {
 
     if (totalBalance >= LOW_BALANCE_THRESHOLD) return
 
-    fundWalletMutation.mutate(address as Address)
+    fundWalletMutation.mutate(address)
   }, [address, isLoadingBalances, balances])
 }
