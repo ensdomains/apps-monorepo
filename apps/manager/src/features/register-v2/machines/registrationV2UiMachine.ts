@@ -23,12 +23,14 @@ export const registrationV2UiMachine = setup({
        * Duration in seconds
        */
       duration: number
-      selectedToken: SUPPORTED_TOKEN
+      selectedToken: SUPPORTED_TOKEN | undefined
       lastErrorMessage?: string
     },
     events: {} as
+      | { type: 'NEXT' }
+      | { type: 'PREVIOUS' }
       | { type: 'DURATION_SET'; duration: number }
-      | { type: 'TOKEN_SET'; token: SUPPORTED_TOKEN }
+      | { type: 'TOKEN_SET'; token: SUPPORTED_TOKEN | undefined }
       | {
           type: 'SUBMIT_REGISTRATION'
           startEvent: Extract<RegistrationEvent, { type: 'START_REGISTRATION' }>
@@ -76,25 +78,50 @@ export const registrationV2UiMachine = setup({
       chainId: context.chainId,
     }),
   },
-  initial: 'editing',
+  initial: 'pricing',
   context: () => ({
     chainId: sepolia.id,
     duration: secondsInYear,
-    selectedToken: 'USDC',
+    selectedToken: undefined,
     lastErrorMessage: undefined,
   }),
   states: {
-    editing: {
-      on: {
-        DURATION_SET: {
-          actions: 'setDuration',
+    pricing: {
+      initial: 'duration',
+      states: {
+        duration: {
+          on: {
+            DURATION_SET: {
+              actions: 'setDuration',
+            },
+            NEXT: {
+              target: 'tokens',
+            },
+          },
         },
-        TOKEN_SET: {
-          actions: 'setToken',
+        tokens: {
+          on: {
+            PREVIOUS: {
+              target: 'duration',
+            },
+            TOKEN_SET: {
+              actions: 'setToken',
+            },
+            NEXT: {
+              target: 'confirm',
+            },
+          },
         },
-        SUBMIT_REGISTRATION: {
-          target: 'registering',
-          actions: ['clearError', 'forwardStartRegistration'],
+        confirm: {
+          on: {
+            PREVIOUS: {
+              target: 'tokens',
+            },
+            SUBMIT_REGISTRATION: {
+              target: '#registrationV2Ui.registering',
+              actions: ['clearError', 'forwardStartRegistration'],
+            },
+          },
         },
       },
     },
@@ -108,7 +135,7 @@ export const registrationV2UiMachine = setup({
           actions: 'setError',
         },
         CANCEL: {
-          target: 'editing',
+          target: 'pricing',
           actions: 'forwardCancel',
         },
       },
@@ -121,7 +148,7 @@ export const registrationV2UiMachine = setup({
           actions: ['clearError', 'forwardRetry'],
         },
         CANCEL: {
-          target: 'editing',
+          target: 'pricing',
           actions: ['clearError', 'forwardCancel'],
         },
       },

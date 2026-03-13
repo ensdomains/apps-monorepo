@@ -1,18 +1,18 @@
-import type { Address, PublicClient } from 'viem'
+import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { PublicClient } from 'viem'
 import type { RegistrationV2UiActor } from '@/features/register-v2/machines/registrationV2UiMachine'
 import type { SmartAccountState } from '@/lib/smart-account'
-import { durationYearsToSeconds } from '@/features/register/components/Pricing/utils'
-import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
+import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
 export interface StartRegistrationV2Params {
   name: string
-  durationYears: number
-  selectedToken: Address
+  duration: number
+  selectedToken: SUPPORTED_TOKEN
   tokenPrice: bigint
 }
 
 export interface StartRegistrationV2Options {
-  publicClient: PublicClient
+  publicClient?: PublicClient
   fast?: boolean
 }
 
@@ -22,23 +22,22 @@ export function startRegistrationV2(
   actor: RegistrationV2UiActor,
   options: StartRegistrationV2Options,
 ): void {
-  const { name, durationYears, selectedToken, tokenPrice } = params
-  const { publicClient, fast = true } = options
+  const { name, duration, selectedToken, tokenPrice } = params
+  const { publicClient = defaultPublicClient, fast = true } = options
 
   if (!account.signer || !account.accountAddress) {
     throw new Error('Account not ready')
   }
 
   const ownerAddress = account.ownerAddress ?? account.accountAddress
-  const token = selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
 
   actor.send({
     type: 'SUBMIT_REGISTRATION',
     startEvent: {
       type: 'START_REGISTRATION',
       name,
-      duration: durationYearsToSeconds(durationYears),
-      token,
+      duration: BigInt(duration),
+      token: selectedToken,
       price: tokenPrice,
       signer: account.signer,
       accountAddress: account.accountAddress,

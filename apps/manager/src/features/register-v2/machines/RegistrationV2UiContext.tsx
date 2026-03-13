@@ -1,6 +1,6 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
-import { createContext, useContext } from 'react'
+import { createContext, use } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import {
   getRegistrationV2ChildActor,
@@ -43,12 +43,20 @@ export const RegistrationV2UiProvider = ({
 }
 
 export const useRegistrationV2Context = () => {
-  const context = useContext(RegistrationV2UiContext2)
+  const context = use(RegistrationV2UiContext2)
   if (!context) {
     throw new Error('You used a hook outside of the RegistrationV2Context')
   }
   return context
 }
+
+export const createRegistrationV2UiSelector =
+  <T,>(
+    selector: (snapshot: SnapshotFrom<typeof registrationV2UiMachine>) => T,
+    compare?: (a: T, b: T) => boolean,
+  ) =>
+  (uiActor: Actor<typeof registrationV2UiMachine>) =>
+    useSelector(uiActor, selector, compare)
 
 export const useRegistrationV2Selector = <T,>(
   selector: (snapshot: SnapshotFrom<typeof registrationV2UiMachine>) => T,

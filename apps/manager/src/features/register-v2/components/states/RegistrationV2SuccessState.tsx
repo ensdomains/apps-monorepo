@@ -1,12 +1,10 @@
 import { Link } from '@tanstack/react-router'
+import { useRegistrationV2Context } from '../../machines/RegistrationV2UiContext'
 
-interface RegistrationV2SuccessStateProps {
-  targetName: string
-}
+export const RegistrationV2SuccessState = () => {
+  const { label } = useRegistrationV2Context()
+  const targetName = `${label}.eth`
 
-export const RegistrationV2SuccessState = ({
-  targetName,
-}: RegistrationV2SuccessStateProps) => {
   return (
     <section className="space-y-3 rounded border p-4">
       <p className="font-mono text-muted-foreground text-xs uppercase tracking-wide">

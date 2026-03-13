@@ -127,7 +127,7 @@ function RegistrationV2PageContent({
             targetName={targetName}
           />
         ))
-        .with({ availabilityState: 'available', uiState: 'editing' }, () => (
+        .with({ availabilityState: 'available', uiState: 'pricing' }, () => (
           <RegistrationV2ReadyState targetName={targetName} />
         ))
         .with(

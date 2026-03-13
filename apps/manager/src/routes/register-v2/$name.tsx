@@ -1,10 +1,17 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
 import {
   createFileRoute,
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
-import { RegistrationV2UiProvider } from '@/features/register-v2/machines/RegistrationV2UiContext'
+import { match, P } from 'ts-pattern'
+import { RegistrationV2FailureState } from '@/features/register-v2/components/states/RegistrationV2FailureState'
+import { RegistrationV2SuccessState } from '@/features/register-v2/components/states/RegistrationV2SuccessState'
+import { RegistrationV2TransactionState } from '@/features/register-v2/components/states/RegistrationV2TransactionState'
+import {
+  createRegistrationV2UiSelector,
+  RegistrationV2UiProvider,
+  useRegistrationV2Context,
+} from '@/features/register-v2/machines/RegistrationV2UiContext'
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/queries/registrationV2AvailabilityQueryOptions'
 import { PricingStep } from '@/features/register-v2/steps/pricing'
 import { parseName } from '@/features/register-v2/utils/name-parser'
@@ -64,27 +71,39 @@ function RouteComponent() {
   )
 }
 
-function ErrorComponent({ error }: ErrorComponentProps) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="mx-auto max-w-md space-y-4">
       <div className="flex items-center justify-center py-8">
         <div className="text-red-600">Error loading name: {error.message}</div>
       </div>
+      <button onClick={reset}>Try again</button>
     </div>
   )
 }
 
+const useRegistrationStep = createRegistrationV2UiSelector((state) =>
+  match(state.value)
+    .with({ pricing: P.string }, () => 'pricing' as const)
+    .with(P.string, (step) => step)
+    .exhaustive(),
+)
+
 function PageContent() {
-  const { name } = Route.useParams()
-  const { label } = Route.useLoaderData()
+  const { uiActor } = useRegistrationV2Context()
 
-  const availabilityQuery = useSuspenseQuery(
-    getRegistrationV2AvailabilityQueryOptions(name),
-  )
-
+  const step = useRegistrationStep(uiActor)
   return (
     <div>
-      <PricingStep label={label} />
+      {match(step)
+        .with('pricing', () => <PricingStep />)
+        .with('registering', () => <RegistrationV2TransactionState />)
+        .with('success', () => <RegistrationV2SuccessState />)
+        .with('failure', () => <RegistrationV2FailureState />)
+        // .exhaustive()
+        .otherwise(() => (
+          <div>Unknown step</div>
+        ))}
     </div>
   )
 }

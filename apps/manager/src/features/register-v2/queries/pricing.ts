@@ -6,7 +6,7 @@ import {
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { type ReadContractErrorType, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
@@ -16,11 +16,16 @@ export class GetPricingError extends TaggedError('GetPricingError')<{
   readonly cause: ReadContractErrorType
 }> {}
 
+export class MissingTokenError extends TaggedError('MissingTokenError')<{}> {}
+
 export const getPricing = ResultFn(async function* (
   name: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN,
+  token: SUPPORTED_TOKEN | undefined,
 ) {
+  if (!token) {
+    return err(new MissingTokenError({}))
+  }
   const tokenInfo = TOKENS[token]
   const [basePrice, premium] = yield* fromPromise(
     readContract(publicClient, {
@@ -44,7 +49,7 @@ export const getPricing = ResultFn(async function* (
 export const getPricingQueryOptions = (
   name: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN,
+  token: SUPPORTED_TOKEN | undefined,
 ) => {
   return resultQueryOptions({
     queryKey: $qk({
