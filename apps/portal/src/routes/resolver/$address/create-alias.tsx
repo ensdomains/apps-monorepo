@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/combobox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { getHasResolverRootRolesQueryOptions } from '@/features/resolver/hooks/useHasResolverRootRoles'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
@@ -94,10 +94,11 @@ function RouteComponent() {
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
   const { data: hasSetAliasRole } = useQuery({
-    ...getHasResolverRootRolesQueryOptions({
+    ...getHasRolesQueryOptions({
       resolverAddress: address as Address,
       roles: ['ROLE_SET_ALIAS'],
       account: accountAddress as Address,
+      network: 'namechainSepolia',
     }),
     enabled: !!accountAddress,
   })

@@ -35,8 +35,8 @@ import {
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { useDeleteAlias } from '@/features/resolver/hooks/useDeleteAlias'
-import { getHasResolverRootRolesQueryOptions } from '@/features/resolver/hooks/useHasResolverRootRoles'
 import {
   getResolverOverviewQueryOptions,
   type ResolverAlias,
@@ -149,10 +149,11 @@ function RouteComponent() {
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
   const { data: hasSetAliasRole } = useQuery({
-    ...getHasResolverRootRolesQueryOptions({
+    ...getHasRolesQueryOptions({
       resolverAddress: address as Address,
       roles: ['ROLE_SET_ALIAS'],
       account: accountAddress as Address,
+      network: 'namechainSepolia',
     }),
     enabled: !!accountAddress,
   })
