@@ -8,12 +8,13 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
+  dedicatedResolverNameSnippet,
   getChainContractAddress,
   registryResolverSnippet,
 } from '@ensdomains/ensjs/contracts'
 import { getAddressRecord, getName } from '@ensdomains/ensjs/public'
 import { ok } from 'neverthrow'
-import type { Address, Client, Transport } from 'viem'
+import { type Address, type Client, type Transport, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
 import { getAction } from 'viem/utils'
@@ -42,19 +43,6 @@ type Network = {
 }
 
 const REVERSE_RESOLUTION_NETWORK = 'sepolia' as const
-
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
-
-/** NameResolver.name(bytes32) - returns name for reverse node */
-const nameResolverNameSnippet = [
-  {
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    name: 'name',
-    outputs: [{ name: '', type: 'string' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
 
 function createEmptyResult(network: Network): ReverseResolutionResult {
   return {
@@ -91,13 +79,13 @@ async function getL1ReverseRecordDirect(
     args: [nodeHash],
   })
 
-  if (!resolverAddress || resolverAddress === ZERO_ADDRESS) {
+  if (!resolverAddress || resolverAddress === zeroAddress) {
     return null
   }
 
   const name = await readContractAction({
     address: resolverAddress,
-    abi: nameResolverNameSnippet,
+    abi: dedicatedResolverNameSnippet,
     functionName: 'name',
     args: [nodeHash],
   })
