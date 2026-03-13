@@ -1,6 +1,5 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useEffect } from 'react'
-import type { Address } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
 import {
   DAI_DECIMALS,
