@@ -24,7 +24,6 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
-import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
