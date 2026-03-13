@@ -10,9 +10,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { ArrowRightIcon, PlusIcon, Search, Trash2Icon } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -36,6 +36,7 @@ import {
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { useDeleteAlias } from '@/features/resolver/hooks/useDeleteAlias'
+import { getHasResolverRootRolesQueryOptions } from '@/features/resolver/hooks/useHasResolverRootRoles'
 import {
   getResolverOverviewQueryOptions,
   type ResolverAlias,
@@ -56,7 +57,7 @@ export const Route = createFileRoute('/resolver/$address/aliases')({
   },
 })
 
-const columns: ColumnDef<ResolverAlias>[] = [
+const baseColumns: ColumnDef<ResolverAlias>[] = [
   {
     id: 'name',
     accessorKey: 'fromName',
@@ -104,31 +105,32 @@ const columns: ColumnDef<ResolverAlias>[] = [
       </div>
     ),
   },
-  {
-    id: 'delete',
-    size: 50,
-    header: () => null,
-    cell: ({ row, table }) => (
-      <div className="flex justify-end">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          onClick={(e) => {
-            e.stopPropagation()
-            const meta = table.options.meta as {
-              onDelete?: (alias: ResolverAlias) => void
-            }
-            meta?.onDelete?.(row.original)
-          }}
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
-      </div>
-    ),
-    enableSorting: false,
-  },
 ]
+
+const deleteColumn: ColumnDef<ResolverAlias> = {
+  id: 'delete',
+  size: 50,
+  header: () => null,
+  cell: ({ row, table }) => (
+    <div className="flex justify-end">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8"
+        onClick={(e) => {
+          e.stopPropagation()
+          const meta = table.options.meta as {
+            onDelete?: (alias: ResolverAlias) => void
+          }
+          meta?.onDelete?.(row.original)
+        }}
+      >
+        <Trash2Icon className="size-4" />
+      </Button>
+    </div>
+  ),
+  enableSorting: false,
+}
 
 function RouteComponent() {
   const { address } = Route.useParams()
@@ -138,6 +140,7 @@ function RouteComponent() {
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
+  const { address: accountAddress } = useConnection()
 
   const {
     data: resolver,
@@ -145,7 +148,23 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
+  const { data: hasSetAliasRole } = useQuery({
+    ...getHasResolverRootRolesQueryOptions({
+      resolverAddress: address as Address,
+      roles: ['ROLE_SET_ALIAS'],
+      account: accountAddress as Address,
+    }),
+    enabled: !!accountAddress,
+  })
+
+  const canSetAlias = Boolean(hasSetAliasRole)
+
   const aliases = (resolver?.aliases ?? []) as ResolverAlias[]
+
+  const columns = useMemo(
+    () => (canSetAlias ? [...baseColumns, deleteColumn] : baseColumns),
+    [canSetAlias],
+  )
 
   const deleteMutation = useDeleteAlias({
     resolverAddress: address as Address,
@@ -190,12 +209,14 @@ function RouteComponent() {
         <h1 className="text-2xl md:text-heading font-medium leading-none">
           {aliases.length} alias{aliases.length !== 1 ? 'es' : ''}
         </h1>
-        <Button asChild>
-          <Link to="/resolver/$address/create-alias" params={{ address }}>
-            <PlusIcon className="size-4" />
-            Create alias
-          </Link>
-        </Button>
+        {canSetAlias && (
+          <Button asChild>
+            <Link to="/resolver/$address/create-alias" params={{ address }}>
+              <PlusIcon className="size-4" />
+              Create alias
+            </Link>
+          </Button>
+        )}
       </div>
 
       <InputGroup className="bg-white rounded-sm">
@@ -248,19 +269,21 @@ function RouteComponent() {
                       </span>
                       <CopyButton value={row.original.fromName} />
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 shrink-0"
-                      onClick={() => {
-                        const meta = table.options.meta as {
-                          onDelete?: (alias: ResolverAlias) => void
-                        }
-                        meta?.onDelete?.(row.original)
-                      }}
-                    >
-                      <Trash2Icon className="size-4" />
-                    </Button>
+                    {canSetAlias && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0"
+                        onClick={() => {
+                          const meta = table.options.meta as {
+                            onDelete?: (alias: ResolverAlias) => void
+                          }
+                          meta?.onDelete?.(row.original)
+                        }}
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 pl-2">
                     <ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />

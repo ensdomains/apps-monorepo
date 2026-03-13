@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/combobox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getHasResolverRootRolesQueryOptions } from '@/features/resolver/hooks/useHasResolverRootRoles'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
@@ -78,7 +79,7 @@ const NodeOption = ({ node }: NodeOptionProps) => (
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
-  const { isConnected } = useConnection()
+  const { address: accountAddress, isConnected } = useConnection()
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
@@ -91,6 +92,17 @@ function RouteComponent() {
     isLoading,
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
+
+  const { data: hasSetAliasRole } = useQuery({
+    ...getHasResolverRootRolesQueryOptions({
+      resolverAddress: address as Address,
+      roles: ['ROLE_SET_ALIAS'],
+      account: accountAddress as Address,
+    }),
+    enabled: !!accountAddress,
+  })
+
+  const canSetAlias = Boolean(hasSetAliasRole)
 
   const nodes = resolver?.nodes ?? []
   const existingAliases = resolver?.aliases ?? []
@@ -246,6 +258,12 @@ function RouteComponent() {
             Please connect your wallet to create an alias.
           </p>
         )}
+        {isConnected && canSetAlias === false && (
+          <p className="text-sm text-danger">
+            Your account does not have the ROLE_SET_ALIAS permission on this
+            resolver.
+          </p>
+        )}
         {mutation.error && (
           <p className="text-sm text-danger">{mutation.error.message}</p>
         )}
@@ -257,7 +275,8 @@ function RouteComponent() {
             !toName ||
             mutation.isPending ||
             !walletClient ||
-            !isConnected
+            !isConnected ||
+            !canSetAlias
           }
           className="w-full sm:w-fit"
         >
