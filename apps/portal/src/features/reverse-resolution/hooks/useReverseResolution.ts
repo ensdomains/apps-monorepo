@@ -101,6 +101,7 @@ const getReverseResolution = ResultFn(async function* ({
         network.reverseRegistrarChainId as ReverseRegistrarChainId,
         REVERSE_RESOLUTION_NETWORK,
       ) as 11155420 | 421614 | 84532 | 59141 | 534351
+
       const l2Client = wagmiConfig.getClient({ chainId })
       if (!l2Client) {
         return {

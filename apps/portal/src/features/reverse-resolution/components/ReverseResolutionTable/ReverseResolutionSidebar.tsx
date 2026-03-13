@@ -471,14 +471,14 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   />
                   <ArrowLeftRight className="w-5 h-5" />
                   {displayName && (
-                    <>
+                    <div className="flex items-center gap-2 flex-1">
                       <NameAvatar
                         name={displayName}
                         width="20px"
                         height="20px"
                       />
                       <span>{displayName}</span>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
