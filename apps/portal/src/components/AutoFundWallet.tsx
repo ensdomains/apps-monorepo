@@ -46,7 +46,6 @@ export function AutoFundWallet() {
   })
 
   // Auto-fund if balance is low (matches manager: totalBalance < 500 whole units)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
     if (!address || isLoadingBalances || !fundWalletMutation.isIdle) return
 
@@ -60,7 +59,13 @@ export function AutoFundWallet() {
     if (totalBalance >= 500n) return
 
     fundWalletMutation.mutate(address as Address)
-  }, [address, isLoadingBalances, balances])
+  }, [
+    address,
+    isLoadingBalances,
+    balances,
+    fundWalletMutation.isIdle,
+    fundWalletMutation.mutate,
+  ])
 
   return null
 }
