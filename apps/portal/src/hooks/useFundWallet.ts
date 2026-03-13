@@ -1,8 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import type { Address } from 'viem'
 
-const WALLET_FUND_API_URL =
-  import.meta.env.VITE_WALLET_FUND_API_URL ?? 'https://app-api.ens.dev'
+const WALLET_FUND_API_URL = 'https://app-api.ens.dev'
 
 export function useFundWallet(options?: {
   onSuccess?: (data: { txHash: string | null }) => void
@@ -15,11 +14,13 @@ export function useFundWallet(options?: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       })
+
       if (!response.ok) {
         throw new Error(
           `Failed to fund wallet: ${response.statusText} ${await response.text()}`,
         )
       }
+
       return response.json() as Promise<{ txHash: string | null }>
     },
     onSuccess: options?.onSuccess,

@@ -1,14 +1,13 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useEffect } from 'react'
-import type { Address } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
+import { useFundWallet } from '@/hooks/useFundWallet'
 import {
   DAI_DECIMALS,
   SUPPORTED_TOKENS,
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { useFundWallet } from '@/lib/wallet/useFundWallet'
 
 const PAYMENT_TOKENS = [
   { address: SUPPORTED_TOKENS.USDC, decimals: USDC_DECIMALS },
@@ -58,7 +57,7 @@ export function AutoFundWallet() {
 
     if (totalBalance >= 500n) return
 
-    fundWalletMutation.mutate(address as Address)
+    fundWalletMutation.mutate(address)
   }, [
     address,
     isLoadingBalances,
