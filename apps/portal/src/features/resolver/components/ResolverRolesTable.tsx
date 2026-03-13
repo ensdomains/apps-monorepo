@@ -42,6 +42,8 @@ import { cn } from '@/lib/utils'
 
 type ResolverRolesTableProps = {
   readonly roles: readonly ResolverRole[]
+  readonly resolverAddress: Address
+  readonly canManageRoles: boolean
 }
 
 const columns: ColumnDef<AccountRoleGroup>[] = [
@@ -109,7 +111,11 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
   },
 ]
 
-export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
+export const ResolverRolesTable = ({
+  roles,
+  resolverAddress,
+  canManageRoles,
+}: ResolverRolesTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [expanded, setExpanded] = useState<ExpandedState>({})
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -142,6 +148,8 @@ export const ResolverRolesTable = ({ roles }: ResolverRolesTableProps) => {
       row={clickedRow}
       open={sidebarOpen}
       setOpen={setSidebarOpen}
+      resolverAddress={resolverAddress}
+      canManageRoles={canManageRoles}
     >
       {/* Mobile view */}
       <div className="md:hidden">
