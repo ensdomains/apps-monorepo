@@ -7,13 +7,21 @@ import {
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  getChainContractAddress,
+  registryResolverSnippet,
+} from '@ensdomains/ensjs/contracts'
 import { getAddressRecord, getName } from '@ensdomains/ensjs/public'
 import { ok } from 'neverthrow'
-import type { Address } from 'viem'
+import type { Address, Client, Transport } from 'viem'
 import { readContract } from 'viem/actions'
+import { namehash } from 'viem/ens'
 import { getAction } from 'viem/utils'
+import type { sepoliaWithEns } from '@/lib/wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+
+type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
 
 export type ReverseResolutionResult = {
   reverseRegistrarChainId: number
@@ -27,183 +35,216 @@ export type ReverseResolutionResult = {
   defaultName: string | null
 }
 
-/** Network for reverse resolution lookups. Must match the client chain (safeGetClient uses Sepolia). */
+type Network = {
+  reverseRegistrarChainId: number
+  label: string
+  icon: string
+}
+
 const REVERSE_RESOLUTION_NETWORK = 'sepolia' as const
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
+
+/** NameResolver.name(bytes32) - returns name for reverse node */
+const nameResolverNameSnippet = [
+  {
+    inputs: [{ name: 'node', type: 'bytes32' }],
+    name: 'name',
+    outputs: [{ name: '', type: 'string' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
+
+function createEmptyResult(network: Network): ReverseResolutionResult {
+  return {
+    ...network,
+    name: null,
+    reverseResolverAddress: null,
+    resolverAddress: null,
+    normalized: true,
+    forwardMatch: false,
+    defaultName: null,
+  }
+}
+
+/**
+ * Direct on-chain read of L1 reverse record (bypasses Universal Resolver/CCIP).
+ * Returns the name from the resolver for the reverse node, or null.
+ */
+async function getL1ReverseRecordDirect(
+  client: EnsV1Client,
+  address: Address,
+): Promise<{ name: string; reverseResolverAddress: Address } | null> {
+  const reverseNode = `${address.toLowerCase().slice(2)}.addr.reverse`
+  const nodeHash = namehash(reverseNode)
+  const registryAddress = getChainContractAddress({
+    client,
+    contract: 'ensRegistry',
+  })
+  const readContractAction = getAction(client, readContract, 'readContract')
+
+  const resolverAddress = await readContractAction({
+    address: registryAddress,
+    abi: registryResolverSnippet,
+    functionName: 'resolver',
+    args: [nodeHash],
+  })
+
+  if (!resolverAddress || resolverAddress === ZERO_ADDRESS) {
+    return null
+  }
+
+  const name = await readContractAction({
+    address: resolverAddress,
+    abi: nameResolverNameSnippet,
+    functionName: 'name',
+    args: [nodeHash],
+  })
+
+  if (!name || name === '') return null
+
+  return { name, reverseResolverAddress: resolverAddress }
+}
+
+async function getL1ReverseRecord(
+  client: EnsV1Client,
+  address: Address,
+  network: Network,
+): Promise<ReverseResolutionResult> {
+  let nameResult = await getName(client, {
+    address,
+    coinType: 60,
+    allowMismatch: true,
+  })
+
+  if (!nameResult) {
+    const direct = await getL1ReverseRecordDirect(client, address)
+    if (direct) {
+      nameResult = {
+        name: direct.name,
+        match: false,
+        normalized: true,
+        reverseResolverAddress: direct.reverseResolverAddress,
+        resolverAddress: null,
+      }
+    }
+  }
+
+  return {
+    ...network,
+    name: nameResult?.name ?? null,
+    reverseResolverAddress: nameResult?.reverseResolverAddress ?? null,
+    resolverAddress: nameResult?.resolverAddress ?? null,
+    normalized: nameResult?.normalized ?? true,
+    forwardMatch: nameResult?.match ?? false,
+    defaultName: null,
+  }
+}
+
+async function getL2ReverseRecord(
+  l1Client: EnsV1Client,
+  address: Address,
+  network: Network,
+): Promise<ReverseResolutionResult> {
+  const registrarAddress = getRegistrarAddress(
+    network.reverseRegistrarChainId as ReverseRegistrarChainId,
+    REVERSE_RESOLUTION_NETWORK,
+  )
+
+  if (!registrarAddress) {
+    return createEmptyResult(network)
+  }
+
+  const chainId = getChainIdForReverseRegistrarChainId(
+    network.reverseRegistrarChainId as ReverseRegistrarChainId,
+    REVERSE_RESOLUTION_NETWORK,
+  ) as 11155420 | 421614 | 84532 | 59141 | 534351
+
+  const l2Client = wagmiConfig.getClient({ chainId })
+  if (!l2Client) {
+    return createEmptyResult(network)
+  }
+
+  const readContractAction = getAction(l2Client, readContract, 'readContract')
+  const name = await readContractAction({
+    address: registrarAddress,
+    abi: l2ReverseRegistrarNameForAddrSnippet,
+    functionName: 'nameForAddr',
+    args: [address],
+  })
+
+  if (!name || name === '') {
+    return createEmptyResult(network)
+  }
+
+  let forwardMatch = true
+  try {
+    const addrRecord = await getAddressRecord(l1Client, { name })
+    forwardMatch =
+      !!addrRecord?.value &&
+      addrRecord.value.toLowerCase() === address.toLowerCase()
+  } catch {
+    forwardMatch = false
+  }
+
+  return {
+    ...network,
+    name,
+    reverseResolverAddress: null,
+    resolverAddress: null,
+    normalized: true,
+    forwardMatch,
+    defaultName: null,
+  }
+}
+
+async function getReverseRecordForNetwork(
+  l1Client: EnsV1Client,
+  address: Address,
+  network: Network,
+): Promise<ReverseResolutionResult> {
+  const isL1 =
+    network.reverseRegistrarChainId === 60 ||
+    network.reverseRegistrarChainId === 1
+
+  if (isL1) {
+    return getL1ReverseRecord(l1Client, address, network)
+  }
+
+  return getL2ReverseRecord(l1Client, address, network)
+}
 
 const getReverseResolution = ResultFn(async function* ({
   address,
   networks,
 }: {
   address: Address
-  networks: Array<{
-    reverseRegistrarChainId: number
-    label: string
-    icon: string
-  }>
+  networks: Network[]
 }) {
   const l1Client = yield* safeGetClient()
 
-  const reversePromises = networks.map(async (network) => {
-    try {
-      const isDefault = network.reverseRegistrarChainId === 60
-      const isL1 = isDefault || network.reverseRegistrarChainId === 1
-
-      if (isL1) {
-        // L1: use Universal Resolver via getName (addr.reverse)
-        const nameResult = await getName(l1Client, {
-          address,
-          coinType: 60,
-        })
-
-        if (!nameResult) {
-          return {
-            ...network,
-            name: null,
-            reverseResolverAddress: null,
-            resolverAddress: null,
-            normalized: true,
-            forwardMatch: false,
-            defaultName: null,
-          }
-        }
-
-        return {
-          ...network,
-          name: nameResult.name,
-          reverseResolverAddress: nameResult.reverseResolverAddress,
-          resolverAddress: nameResult.resolverAddress,
-          normalized: nameResult.normalized,
-          forwardMatch: nameResult.match,
-          defaultName: null,
-        }
-      }
-
-      // L2: read directly from L2 Reverse Registrar (Universal Resolver may not
-      // have L2 reverse namespaces configured on Sepolia)
-      const registrarAddress = getRegistrarAddress(
-        network.reverseRegistrarChainId as ReverseRegistrarChainId,
-        REVERSE_RESOLUTION_NETWORK,
-      )
-
-      if (!registrarAddress) {
-        return {
-          ...network,
-          name: null,
-          reverseResolverAddress: null,
-          resolverAddress: null,
-          normalized: true,
-          forwardMatch: false,
-          defaultName: null,
-        }
-      }
-
-      const chainId = getChainIdForReverseRegistrarChainId(
-        network.reverseRegistrarChainId as ReverseRegistrarChainId,
-        REVERSE_RESOLUTION_NETWORK,
-      ) as 11155420 | 421614 | 84532 | 59141 | 534351
-
-      const l2Client = wagmiConfig.getClient({ chainId })
-      if (!l2Client) {
-        return {
-          ...network,
-          name: null,
-          reverseResolverAddress: null,
-          resolverAddress: null,
-          normalized: true,
-          forwardMatch: false,
-          defaultName: null,
-        }
-      }
-
-      const readContractAction = getAction(
-        l2Client,
-        readContract,
-        'readContract',
-      )
-      const name = await readContractAction({
-        address: registrarAddress,
-        abi: l2ReverseRegistrarNameForAddrSnippet,
-        functionName: 'nameForAddr',
-        args: [address],
-      })
-
-      if (!name || name === '') {
-        return {
-          ...network,
-          name: null,
-          reverseResolverAddress: null,
-          resolverAddress: null,
-          normalized: true,
-          forwardMatch: false,
-          defaultName: null,
-        }
-      }
-
-      // Verify forward resolution (name → address) via L1 ENS
-      let forwardMatch = true
-      try {
-        const addrRecord = await getAddressRecord(l1Client, { name })
-        forwardMatch =
-          !!addrRecord?.value &&
-          addrRecord.value.toLowerCase() === address.toLowerCase()
-      } catch {
-        forwardMatch = false
-      }
-
-      return {
-        ...network,
-        name,
-        reverseResolverAddress: null,
-        resolverAddress: null,
-        normalized: true,
-        forwardMatch,
-        defaultName: null,
-      }
-    } catch (error) {
-      console.error(`[getReverseResolution] Error for ${network.label}:`, error)
-      return {
-        ...network,
-        name: null,
-        reverseResolverAddress: null,
-        resolverAddress: null,
-        normalized: true,
-        forwardMatch: false,
-        defaultName: null,
-      }
-    }
-  })
-
-  const results = await Promise.allSettled(reversePromises)
+  const results = await Promise.allSettled(
+    networks.map((network) =>
+      getReverseRecordForNetwork(l1Client, address, network),
+    ),
+  )
 
   const resolvedResults: ReverseResolutionResult[] = results.map(
     (result, index) => {
-      if (result.status === 'fulfilled') {
-        return result.value
-      }
-      const network = networks[index]
-      return {
-        ...network,
-        name: null,
-        reverseResolverAddress: null,
-        resolverAddress: null,
-        normalized: true,
-        forwardMatch: false,
-        defaultName: null,
-      }
+      if (result.status === 'fulfilled') return result.value
+      console.error(
+        `[getReverseResolution] Error for ${networks[index].label}:`,
+        result.reason,
+      )
+      return createEmptyResult(networks[index])
     },
   )
 
-  const defaultResult = resolvedResults.find(
-    (r) => r.reverseRegistrarChainId === 60,
-  )
-  const defaultName = defaultResult?.name ?? null
+  const defaultName =
+    resolvedResults.find((r) => r.reverseRegistrarChainId === 60)?.name ?? null
 
-  const resultsWithDefault = resolvedResults.map((result) => ({
-    ...result,
-    defaultName,
-  }))
-
-  return ok(resultsWithDefault)
+  return ok(resolvedResults.map((r) => ({ ...r, defaultName })))
 })
 
 const getReverseResolutionQueryKey = createQueryKey<
@@ -213,11 +254,7 @@ const getReverseResolutionQueryKey = createQueryKey<
 
 export const getReverseResolutionQueryOptions = (params: {
   address: Address
-  networks: Array<{
-    reverseRegistrarChainId: number
-    label: string
-    icon: string
-  }>
+  networks: Network[]
 }) =>
   resultQueryOptions({
     queryKey: getReverseResolutionQueryKey({
