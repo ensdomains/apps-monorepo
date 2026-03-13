@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
     viteReact(),
     i18nextLoader({ paths: [locales] }),
     tailwindcss(),
-    mode !== 'development' && cloudflare(),
+    ...(mode !== 'development' ? [cloudflare()] : []),
   ],
   resolve: {
     alias: {
