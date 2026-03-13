@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { cn } from '@/lib/utils'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 
 interface DeployTransactionStatusProps {
   readonly txHash: Hash | undefined
@@ -30,6 +31,7 @@ export const DeployTransactionStatus = ({
   successDescription = 'Deploy transaction confirmed!',
   txHashLabel = 'Deploy tx hash:',
 }: DeployTransactionStatusProps): ReactElement | null => {
+  const txUrl = useBlockExplorerTxUrl(txHash)
   if (txError) {
     const { summary, details } = getTransactionErrorInfo(txError)
     return (
@@ -71,7 +73,7 @@ export const DeployTransactionStatus = ({
               </span>
               <CopyableRecord
                 value={txHash}
-                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                href={txUrl}
                 className="text-xs"
                 truncate={false}
               />

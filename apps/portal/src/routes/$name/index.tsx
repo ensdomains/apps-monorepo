@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
@@ -34,11 +34,12 @@ import { isValidEnsName } from '@/utils/token/isNormalized'
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
+  loader: ({ params, context: { network } }) => {
     const tld = getTLD(params.name)
     return Promise.all([
-      queryClient.prefetchQuery(getProfileQueryOptions(params.name)),
-      queryClient.prefetchQuery(getEnsOwnerQueryOptions({ name: params.name })),
+      queryClient.prefetchQuery(
+        getProfileQueryOptions({ name: params.name, network }),
+      ),
       ...(tld !== 'eth'
         ? [queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld }))]
         : []),
@@ -56,9 +57,9 @@ const Profile = ({
   const tld = getTLD(name)
   const isEthTld = tld === 'eth'
 
-  const [profileQuery, ownerQuery] = useQueries({
-    queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
-  })
+  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { network } = Route.useRouteContext()
+  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
@@ -209,7 +210,7 @@ const Profile = ({
     console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
   }
 
-  const network = ownerQuery.data.network || 'sepolia'
+  const resolvedNetwork = ownerQuery.data.network || 'sepolia'
 
   return (
     <>
@@ -217,10 +218,10 @@ const Profile = ({
         <div className="lg:col-span-2 xl:col-span-2">
           <NameProfileCard name={name} />
         </div>
-        <ExpiryWithRegistrationData name={name} network={network} />
+        <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
         <Owner owner={ownerQuery.data.owner} />
         <ParentName name={name} />
-        <TokenLocation name={name} network={network} />
+        <TokenLocation name={name} network={resolvedNetwork} />
         {resolverAddress && (
           <RecordCount
             name={name}
@@ -231,11 +232,11 @@ const Profile = ({
         <SubnameCount
           name={name}
           registryAddress={ownerQuery.data.registryAddress}
-          network={network}
+          network={resolvedNetwork}
         />
-        <ProtocolVersionWithCounter name={name} network={network} />
+        <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
       </div>
-      {network === 'sepolia' && <RecentActivity name={name} />}
+      {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
     </>
   )
 }

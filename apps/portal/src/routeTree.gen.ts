@@ -32,6 +32,7 @@ import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
 import { Route as ResolverAddressRolesRouteImport } from './routes/resolver/$address/roles'
 import { Route as ResolverAddressNodesRouteImport } from './routes/resolver/$address/nodes'
 import { Route as ResolverAddressHistoryRouteImport } from './routes/resolver/$address/history'
+import { Route as ResolverAddressCreateAliasRouteImport } from './routes/resolver/$address/create-alias'
 import { Route as ResolverAddressAliasesRouteImport } from './routes/resolver/$address/aliases'
 import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
 import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
@@ -154,6 +155,12 @@ const ResolverAddressHistoryRoute = ResolverAddressHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => ResolverAddressRoute,
 } as any)
+const ResolverAddressCreateAliasRoute =
+  ResolverAddressCreateAliasRouteImport.update({
+    id: '/create-alias',
+    path: '/create-alias',
+    getParentRoute: () => ResolverAddressRoute,
+  } as any)
 const ResolverAddressAliasesRoute = ResolverAddressAliasesRouteImport.update({
   id: '/aliases',
   path: '/aliases',
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
   '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
+  '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/resolver/$address/roles': typeof ResolverAddressRolesRoute
@@ -238,6 +246,7 @@ export interface FileRoutesByTo {
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
   '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
+  '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/resolver/$address/roles': typeof ResolverAddressRolesRoute
@@ -270,6 +279,7 @@ export interface FileRoutesById {
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
   '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
+  '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
   '/resolver/$address/history': typeof ResolverAddressHistoryRoute
   '/resolver/$address/nodes': typeof ResolverAddressNodesRoute
   '/resolver/$address/roles': typeof ResolverAddressRolesRoute
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
     | '/resolver/$address/aliases'
+    | '/resolver/$address/create-alias'
     | '/resolver/$address/history'
     | '/resolver/$address/nodes'
     | '/resolver/$address/roles'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
     | '/resolver/$address/aliases'
+    | '/resolver/$address/create-alias'
     | '/resolver/$address/history'
     | '/resolver/$address/nodes'
     | '/resolver/$address/roles'
@@ -362,6 +374,7 @@ export interface FileRouteTypes {
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
     | '/resolver/$address/aliases'
+    | '/resolver/$address/create-alias'
     | '/resolver/$address/history'
     | '/resolver/$address/nodes'
     | '/resolver/$address/roles'
@@ -541,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResolverAddressHistoryRouteImport
       parentRoute: typeof ResolverAddressRoute
     }
+    '/resolver/$address/create-alias': {
+      id: '/resolver/$address/create-alias'
+      path: '/create-alias'
+      fullPath: '/resolver/$address/create-alias'
+      preLoaderRoute: typeof ResolverAddressCreateAliasRouteImport
+      parentRoute: typeof ResolverAddressRoute
+    }
     '/resolver/$address/aliases': {
       id: '/resolver/$address/aliases'
       path: '/aliases'
@@ -644,6 +664,7 @@ const AddrAddrRouteWithChildren = AddrAddrRoute._addFileChildren(
 
 interface ResolverAddressRouteChildren {
   ResolverAddressAliasesRoute: typeof ResolverAddressAliasesRoute
+  ResolverAddressCreateAliasRoute: typeof ResolverAddressCreateAliasRoute
   ResolverAddressHistoryRoute: typeof ResolverAddressHistoryRoute
   ResolverAddressNodesRoute: typeof ResolverAddressNodesRoute
   ResolverAddressRolesRoute: typeof ResolverAddressRolesRoute
@@ -652,6 +673,7 @@ interface ResolverAddressRouteChildren {
 
 const ResolverAddressRouteChildren: ResolverAddressRouteChildren = {
   ResolverAddressAliasesRoute: ResolverAddressAliasesRoute,
+  ResolverAddressCreateAliasRoute: ResolverAddressCreateAliasRoute,
   ResolverAddressHistoryRoute: ResolverAddressHistoryRoute,
   ResolverAddressNodesRoute: ResolverAddressNodesRoute,
   ResolverAddressRolesRoute: ResolverAddressRolesRoute,

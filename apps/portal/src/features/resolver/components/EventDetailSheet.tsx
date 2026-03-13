@@ -16,6 +16,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import {
   getEventFieldType,
   getEventSignature,
@@ -49,14 +50,15 @@ const parseEventData = (
 }
 
 const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
-  const txHash = event.transactionHash as Hash | null
+  const txHash = event.transactionHash as Hash | undefined
+  const txUrl = useBlockExplorerTxUrl(txHash)
 
   const {
     data: txData,
     isLoading,
     error,
   } = useTransaction({
-    hash: txHash ?? undefined,
+    hash: txHash,
     query: { enabled: !!txHash },
   })
 
@@ -79,7 +81,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
   if (error) {
     return (
       <div className="p-6 flex flex-col gap-4">
-        <div className="text-red-500">
+        <div className="text-danger">
           Error loading transaction: {error.message}
         </div>
       </div>
@@ -98,7 +100,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                   {truncateAddress(txHash, 10, 8, '...')}
                 </span>
               }
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
+              href={txUrl}
             />
           </DataRow>
         )}
@@ -233,7 +235,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                   <div>
                     <h4 className="text-base font-semibold mb-3">Data</h4>
                     <div className="border rounded-lg p-4 flex flex-col gap-2">
-                      <span className="text-sm text-red-500">
+                      <span className="text-sm text-danger">
                         Unable to parse event data
                       </span>
                       <CopyableRecord

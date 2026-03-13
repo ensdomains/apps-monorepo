@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { FeatureEnabled } from '@/components/FeatureEnabled'
 import * as Drawer from '@/components/ui/drawer'
 import * as Popover from '@/components/ui/popover'
+import { LanguageSection } from './LanguageSection'
 import { NavSection } from './NavSection'
 import { ProfileTriggerButton } from './ProfileTriggerButton'
 import { TokenSection } from './TokenSection'
@@ -30,6 +32,9 @@ export const HeaderProfileSection = ({
           collisionPadding={32}
         >
           <NavSection onAction={handleClose} />
+          <FeatureEnabled flag="LANGUAGE_SELECTOR">
+            <LanguageSection onAction={handleClose} />
+          </FeatureEnabled>
           <TokenSection />
           <WalletSection onAction={handleClose} />
         </Popover.PopoverContent>
@@ -44,6 +49,9 @@ export const HeaderProfileSection = ({
       </Drawer.DrawerTrigger>
       <Drawer.DrawerContent className="space-y-8 px-4.5 pb-14">
         <NavSection onAction={handleClose} />
+        <FeatureEnabled flag="LANGUAGE_SELECTOR">
+          <LanguageSection onAction={handleClose} />
+        </FeatureEnabled>
         <TokenSection />
         <WalletSection onAction={handleClose} />
       </Drawer.DrawerContent>

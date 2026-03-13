@@ -1,6 +1,6 @@
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Monitor, Power, Wallet } from 'lucide-react'
+import { ChevronRight, Power, Wallet } from 'lucide-react'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -58,7 +58,7 @@ export const WalletMenu = () => {
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuItem asChild>
           <Link to="/addr/$addr" params={{ addr: address }}>
-            <Monitor className="size-4 text-foreground" />
+            <Wallet className="size-4 text-foreground" />
             <span className="font-mono text-sm">
               {truncateAddress(address)}
             </span>

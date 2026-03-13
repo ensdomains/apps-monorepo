@@ -11,7 +11,7 @@ import {
 import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import type { Address, Hash } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,6 @@ import { EventDetailSheet } from '@/features/resolver/components/EventDetailShee
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/utils/formatting/formatDateRange'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverEventRow = ResolverEvent & {
   readonly from: Address | null
@@ -100,16 +99,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
     cell: ({ row }) => {
       const txHash = row.original.transactionHash
       if (!txHash) return <span className="text-quartz-400">-</span>
-      return (
-        <CopyableRecord
-          value={txHash}
-          displayValue={
-            <span className="font-mono">{truncateAddress(txHash)}</span>
-          }
-          className="text-sm underline decoration-dashed underline-offset-4"
-          href={`https://sepolia.etherscan.io/tx/${txHash}`}
-        />
-      )
+      return <BlockExplorerTxLink txHash={txHash as Hash} />
     },
   },
   {
@@ -207,88 +197,171 @@ export const ResolverEventsTable = ({
       : undefined,
   })
 
-  const tableContent = (
-    <Table className="relative">
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} style={{ width: header.getSize() }}>
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-              </TableHead>
-            ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows?.length ? (
-          table.getRowModel().rows.map((row) => {
-            const cellClassName = cn(
-              'px-6',
-              tableView.compact ? 'py-2' : 'py-4',
-            )
-            const totalColumns = row.getVisibleCells().length
-            const trailingColSpan = totalColumns - 4
-
-            return (
-              <Fragment key={row.id}>
-                <TableRow
-                  key={row.id}
-                  className={cn(
-                    'hover:bg-quartz-50',
-                    tableView.strippedRows && 'odd:bg-quartz-50',
-                  )}
+  const mobileContent = (
+    <div className="md:hidden">
+      {table.getRowModel().rows?.length ? (
+        table.getRowModel().rows.map((row) => (
+          <div
+            key={row.id}
+            className="flex flex-col gap-2 px-4 py-4 border-b border-border last:border-b-0"
+          >
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={
+                  row.getIsExpanded() ? 'Collapse events' : 'Expand events'
+                }
+                onClick={() => row.toggleExpanded()}
+              >
+                {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
+                <span className="text-sm font-medium">1</span>
+              </Button>
+              {enableSidebar && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedEvent(row.original)
+                    setSidebarOpen(true)
+                  }}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className={cellClassName}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
+                  <PanelRightOpen className="h-4 w-4" />
+                  <span className="text-sm font-medium">More</span>
+                </Button>
+              )}
+            </div>
+            <div className="text-sm font-medium">Date</div>
+            <div className="text-base">
+              {row.original.timestamp
+                ? formatDate(new Date(row.original.timestamp * 1000))
+                : `Block ${row.original.blockNumber.toLocaleString()}`}
+            </div>
+            <div className="text-sm font-medium">Transaction</div>
+            <div className="text-base">
+              {row.original.transactionHash ? (
+                <BlockExplorerTxLink
+                  txHash={row.original.transactionHash as Hash}
+                />
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </div>
+            {row.original.from && (
+              <>
+                <div className="text-sm font-medium">From</div>
+                <div className="text-base">
+                  <AddressDisplay address={row.original.from} />
+                </div>
+              </>
+            )}
+            {row.getIsExpanded() && (
+              <div className="pl-4 border-l-2 border-border flex flex-col gap-2">
+                <div className="text-sm font-medium">Event</div>
+                <div className="text-base">{row.original.type}</div>
+              </div>
+            )}
+          </div>
+        ))
+      ) : (
+        <div className="px-6 py-24 text-center border border-border rounded-lg">
+          No events found.
+        </div>
+      )}
+    </div>
+  )
+
+  const tableContent = (
+    <div className="hidden md:block">
+      <Table className="relative">
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id} style={{ width: header.getSize() }}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
                       )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                {row.getIsExpanded() && (
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => {
+              const cellClassName = cn(
+                'px-6',
+                tableView.compact ? 'py-2' : 'py-4',
+              )
+              const totalColumns = row.getVisibleCells().length
+              const trailingColSpan = totalColumns - 4
+
+              return (
+                <Fragment key={row.id}>
                   <TableRow
-                    key={`${row.id}-expanded`}
-                    className="hover:bg-quartz-50"
-                  >
-                    <TableCell colSpan={2} className={cellClassName} />
-                    <TableCell className={cellClassName}>
-                      <span>{row.original.type}</span>
-                    </TableCell>
-                    <TableCell className={cellClassName}>
-                      {row.original.from ? (
-                        <AddressDisplay address={row.original.from} />
-                      ) : (
-                        <span className="text-quartz-400">-</span>
-                      )}
-                    </TableCell>
-                    {trailingColSpan > 0 && (
-                      <TableCell
-                        colSpan={trailingColSpan}
-                        className={cellClassName}
-                      />
+                    key={row.id}
+                    className={cn(
+                      'hover:bg-quartz-50',
+                      tableView.strippedRows && 'odd:bg-quartz-50',
                     )}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className={cellClassName}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
                   </TableRow>
-                )}
-              </Fragment>
-            )
-          })
-        ) : (
-          <TableRow>
-            <TableCell colSpan={columns.length} className="h-24 text-center">
-              No events found.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+                  {row.getIsExpanded() && (
+                    <TableRow
+                      key={`${row.id}-expanded`}
+                      className="hover:bg-quartz-50"
+                    >
+                      <TableCell colSpan={2} className={cellClassName} />
+                      <TableCell className={cellClassName}>
+                        <span>{row.original.type}</span>
+                      </TableCell>
+                      <TableCell className={cellClassName}>
+                        {row.original.from ? (
+                          <AddressDisplay address={row.original.from} />
+                        ) : (
+                          <span className="text-quartz-400">-</span>
+                        )}
+                      </TableCell>
+                      {trailingColSpan > 0 && (
+                        <TableCell
+                          colSpan={trailingColSpan}
+                          className={cellClassName}
+                        />
+                      )}
+                    </TableRow>
+                  )}
+                </Fragment>
+              )
+            })
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No events found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+
+  const content = (
+    <>
+      {mobileContent}
+      {tableContent}
+    </>
   )
 
   if (enableSidebar) {
@@ -298,10 +371,10 @@ export const ResolverEventsTable = ({
         open={sidebarOpen}
         setOpen={setSidebarOpen}
       >
-        {tableContent}
+        {content}
       </EventDetailSheet>
     )
   }
 
-  return tableContent
+  return content
 }

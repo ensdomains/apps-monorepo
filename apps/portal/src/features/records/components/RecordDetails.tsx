@@ -1,9 +1,11 @@
 import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import type { Hash } from 'viem'
 import { zeroAddress } from 'viem'
 import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
+import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataRow } from '@/components/DataRow'
 import { DataTable } from '@/components/DataTable'
@@ -13,7 +15,6 @@ import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2Name
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { ResolverField } from '@/features/resolver/components/ResolverField'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   filterV2EventsByRecord,
   type HistoryEvent,
@@ -180,16 +181,7 @@ const columns: ColumnDef<HistoryEvent>[] = [
     accessorKey: 'transactionHash',
     cell({ row }) {
       const txHash = row.original.transactionHash
-      return (
-        <CopyableRecord
-          value={txHash}
-          displayValue={
-            <span className="font-mono">{truncateAddress(txHash)}</span>
-          }
-          className="text-sm underline decoration-dashed underline-offset-4"
-          href={`https://sepolia.etherscan.io/tx/${txHash}`}
-        />
-      )
+      return <BlockExplorerTxLink txHash={txHash as Hash} />
     },
   },
   {
