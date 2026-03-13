@@ -143,9 +143,9 @@ export const ResolverRolesSidebar = ({
       account,
       roles,
     }: {
-      name: string
-      account: Address
-      roles: ResolverRoleKey[]
+      readonly name: string
+      readonly account: Address
+      readonly roles: readonly ResolverRoleKey[]
     }) => {
       if (!walletClient?.account) {
         throw new Error('Wallet not connected')

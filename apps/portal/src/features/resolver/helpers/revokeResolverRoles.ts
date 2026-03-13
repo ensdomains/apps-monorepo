@@ -18,7 +18,7 @@ const revokeNameRolesSnippet = [
   },
 ] as const
 
-function encodeRoleBitmapFromKeys(roles: ResolverRoleKey[]): bigint {
+function encodeRoleBitmapFromKeys(roles: readonly ResolverRoleKey[]): bigint {
   let bitmap = 0n
   for (const role of roles) {
     bitmap |= resolverRoles[role]
@@ -30,7 +30,7 @@ export interface RevokeResolverRolesParameters {
   readonly resolverAddress: Address
   readonly name: string
   readonly account: Address
-  readonly roles: ResolverRoleKey[]
+  readonly roles: readonly ResolverRoleKey[]
   readonly walletClient: WalletClient
 }
 
