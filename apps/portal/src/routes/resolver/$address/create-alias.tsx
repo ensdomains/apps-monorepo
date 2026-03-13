@@ -116,6 +116,10 @@ function RouteComponent() {
     ? (nodes.find((n) => n.name === fromName) ?? null)
     : null
 
+  const selectedToNode = toName
+    ? (nodes.find((n) => n.name === toName) ?? null)
+    : null
+
   const isAlreadyAliased = fromName
     ? existingAliases.some((a) => a.fromName === fromName)
     : false
@@ -239,16 +243,30 @@ function RouteComponent() {
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {toName && (
+          {selectedToNode && (
             <div className="flex items-center gap-3 p-3 bg-quartz-50 rounded-lg">
               <NameAvatar
-                name={toName}
+                name={selectedToNode.name}
                 width="40px"
                 height="40px"
                 rounded="rounded-full"
               />
-              <span className="font-mono text-sm">{toName}</span>
-              <CopyButton value={toName} />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm">
+                    {selectedToNode.name}
+                  </span>
+                  <CopyButton value={selectedToNode.name} />
+                </div>
+                {selectedToNode.owner?.id && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-muted-foreground truncate">
+                      {selectedToNode.owner.id}
+                    </span>
+                    <CopyButton value={selectedToNode.owner.id} />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </Field>
