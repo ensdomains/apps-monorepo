@@ -1,24 +1,27 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useEffect } from 'react'
+import type { Address } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
-import { useFundWallet } from '@/hooks/useFundWallet'
 import {
   DAI_DECIMALS,
   SUPPORTED_TOKENS,
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { useFundWallet } from './useFundWallet'
 
 const PAYMENT_TOKENS = [
   { address: SUPPORTED_TOKENS.USDC, decimals: USDC_DECIMALS },
   { address: SUPPORTED_TOKENS.DAI, decimals: DAI_DECIMALS },
 ] as const
 
+const LOW_BALANCE_THRESHOLD = 500n
+
 /**
- * Auto-funds the connected wallet with USDC and DAI on Sepolia when balance is low.
- * Matches the manager app pattern: runs globally when wallet is connected.
+ * Auto-funds the connected wallet when USDC+DAI balance is below threshold.
+ * Matches the manager app pattern: runs when wallet is connected.
  */
-export function AutoFundWallet() {
+export function useAutoFundOnLowBalance() {
   const { address } = useConnection()
 
   const {
@@ -44,7 +47,7 @@ export function AutoFundWallet() {
     },
   })
 
-  // Auto-fund if balance is low (matches manager: totalBalance < 500 whole units)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
     if (!address || isLoadingBalances || !fundWalletMutation.isIdle) return
 
@@ -55,16 +58,8 @@ export function AutoFundWallet() {
       return acc + BigInt(balance.result) / BigInt(10 ** decimals)
     }, 0n)
 
-    if (totalBalance >= 500n) return
+    if (totalBalance >= LOW_BALANCE_THRESHOLD) return
 
-    fundWalletMutation.mutate(address)
-  }, [
-    address,
-    isLoadingBalances,
-    balances,
-    fundWalletMutation.isIdle,
-    fundWalletMutation.mutate,
-  ])
-
-  return null
+    fundWalletMutation.mutate(address as Address)
+  }, [address, isLoadingBalances, balances])
 }

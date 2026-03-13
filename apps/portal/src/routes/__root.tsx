@@ -9,14 +9,16 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { type ReactNode, useEffect } from 'react'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, WagmiProvider } from 'wagmi'
-import { AutoFundWallet } from '@/components/AutoFundWallet'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { PHProvider } from '@/lib/posthog/provider'
 import { wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
 function TransactionManagerSetup({ children }: { children: ReactNode }) {
   const publicClient = usePublicClient({ chainId: sepolia.id })
+
+  useAutoFundOnLowBalance()
 
   useEffect(() => {
     if (publicClient) {
@@ -43,7 +45,6 @@ export const Route = createRootRoute({
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider>
-              <AutoFundWallet />
               <TransactionManagerSetup>
                 <PHProvider>
                   <Outlet />
