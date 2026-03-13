@@ -20,6 +20,7 @@ import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSec
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
   is2LD,
@@ -252,7 +253,7 @@ function App() {
     error,
   } = useEnsResolver({
     name,
-    universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+    universalResolverAddress,
     query: {
       // Don't fetch resolver for invalid names
       enabled: isValidName,
