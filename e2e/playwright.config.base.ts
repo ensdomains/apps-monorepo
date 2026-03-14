@@ -15,8 +15,21 @@ export const baseConfig: PlaywrightTestConfig = {
     timeout: 15_000,
   },
   use: {
+    actionTimeout: 60_000,
+    navigationTimeout: 60_000,
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    ...(process.env.CI
+      ? {
+          launchOptions: {
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+            ],
+          },
+        }
+      : {}),
   },
 }

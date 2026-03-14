@@ -20,7 +20,11 @@ export const test = base.extend<{ authenticatedPage: Page }>({
   authenticatedPage: async ({ page }, use) => {
     const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
     await page.goto(baseURL)
-    await page.waitForLoadState('networkidle').catch(() => { })
+    // Brief wait for app initialisation; cap at 5 s so HMR websocket doesn't block
+    await Promise.race([
+      page.waitForLoadState('networkidle'),
+      page.waitForTimeout(5_000),
+    ]).catch(() => {})
 
     await authenticateWithPara(page, {
       email: PARA_EMAIL,

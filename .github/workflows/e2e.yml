@@ -1,0 +1,142 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "apps/manager/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "e2e/**"
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - manager
+          # - portal       # Enable when portal tests are added
+          # - cross-app    # Enable when cross-app tests are added
+
+    steps:
+      # ── checkout & toolchain ──────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @ens-apps/e2e exec playwright install --with-deps chromium
+
+      # ── local blockchain stack ────────────────────────────────────
+      - name: Start E2E stack (Anvil + Alto + Paymaster)
+        run: |
+          docker compose -f e2e/infra/docker-compose.yml up -d
+          echo "Waiting for Anvil..."
+          timeout 60 bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Anvil ready"
+
+          echo "Waiting for Alto..."
+          timeout 90 bash -c 'until curl -sf -X POST http://127.0.0.1:4337 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Alto ready"
+
+          echo "Waiting for Paymaster..."
+          timeout 90 bash -c 'until curl -sf -X POST http://127.0.0.1:3002 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Paymaster ready"
+
+      # ── write .env from checked-in CI templates ─────────────────
+      - name: Copy CI env files
+        run: |
+          cp apps/manager/.env.ci apps/manager/.env
+          cp e2e/.env.ci e2e/.env
+
+      # ── run e2e tests ─────────────────────────────────────────────
+      - name: Run E2E tests (${{ matrix.project }})
+        run: |
+          pnpm --filter manager dev > /tmp/dev-server.log 2>&1 &
+          DEV_PID=$!
+          timeout 60 bash -c 'until curl -sf http://localhost:3000 > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Manager dev server on :3000 (PID $DEV_PID)"
+          pnpm e2e:${{ matrix.project }}
+          TEST_EXIT=$?
+          kill $DEV_PID 2>/dev/null || true
+          exit $TEST_EXIT
+        env:
+          CI: "true"
+
+      # ── debug failed tests ─────────────────────────────────────────
+      - name: Show failure context
+        if: failure()
+        run: |
+          echo "=== Dev server log (last 50 lines) ==="
+          tail -50 /tmp/dev-server.log 2>/dev/null || echo "(no dev server log)"
+          echo ""
+          echo "=== Error context files ==="
+          find e2e/test-results -name 'error-context.md' -exec echo "--- {} ---" \; -exec cat {} \; 2>/dev/null || echo "(none)"
+          echo ""
+          echo "=== e2e/.env ==="
+          cat e2e/.env 2>/dev/null || echo "(missing)"
+          echo ""
+          echo "=== apps/manager/.env ==="
+          cat apps/manager/.env 2>/dev/null || echo "(missing)"
+
+      # ── artifacts & cleanup ───────────────────────────────────────
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-${{ matrix.project }}
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          retention-days: 14
+
+      - name: Upload Docker logs on failure
+        if: failure()
+        run: |
+          mkdir -p /tmp/e2e-docker-logs
+          docker compose -f e2e/infra/docker-compose.yml logs --no-color > /tmp/e2e-docker-logs/docker-compose.log 2>&1
+
+      - name: Upload Docker logs artifact
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-docker-logs-${{ matrix.project }}
+          path: /tmp/e2e-docker-logs/
+          retention-days: 7
+
+      - name: Stop E2E stack
+        if: always()
+        run: docker compose -f e2e/infra/docker-compose.yml down
