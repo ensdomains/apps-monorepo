@@ -8,6 +8,7 @@ import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { mergeCoinTypes, mergeTextKeys } from '@/utils/records/mergeRecordKeys'
+import type { EnsNetworkName } from '@/utils/types'
 import { getRecords } from './useRecords'
 import { getSubgraphRecords } from './useSubgraphRecords'
 
@@ -15,35 +16,48 @@ class GetProfileError extends TaggedError('RecordsError')<{
   cause: GetRecordsErrorType | GetSubgraphRecordsErrorType | ClientError
 }> {}
 
-const getProfile = ResultFn(async function* (name: string) {
-  const subgraphV1Records = yield* getSubgraphRecords(name)
+type GetProfileParameters = {
+  name: string
+  network?: EnsNetworkName
+}
 
-  const result = yield* fromPromise(
-    graphqlIndexerClient.request<
-      {
-        domains: [
+const getProfile = ResultFn(async function* ({
+  name,
+  network,
+}: GetProfileParameters) {
+  const isV2 = network === 'namechainSepolia'
+  const isV1 = network === 'sepolia'
+
+  const subgraphV1Records = !isV2 ? yield* getSubgraphRecords(name) : null
+
+  const subgraphV2Result = !isV1
+    ? yield* fromPromise(
+        graphqlIndexerClient.request<
           {
-            resolver: {
-              texts: string[]
-            } | null
+            domains: [
+              {
+                resolver: {
+                  texts: string[]
+                } | null
+              },
+            ]
           },
-        ]
-      },
-      { name: string }
-    >(
-      gql`query getRecords($name: String!) {
-    domains(where: {name: $name}) {
-      resolver {
-        texts
-      }
-    }
-  }`,
-      { name },
-    ),
-    (e) => new GetProfileError({ cause: e as ClientError }),
-  )
+          { name: string }
+        >(
+          gql`query getRecords($name: String!) {
+          domains(where: {name: $name}) {
+            resolver {
+              texts
+            }
+          }
+        }`,
+          { name },
+        ),
+        (e) => new GetProfileError({ cause: e as ClientError }),
+      )
+    : null
 
-  const subgraphV2Records = result.domains[0]?.resolver
+  const subgraphV2Records = subgraphV2Result?.domains[0]?.resolver ?? null
 
   const coins = mergeCoinTypes(subgraphV1Records?.coins, [
     // default requested coins
@@ -76,7 +90,7 @@ const getProfile = ResultFn(async function* (name: string) {
 
   const records = yield* getRecords({
     name,
-    ...subgraphV1Records,
+    ...(subgraphV1Records ?? {}),
     coins,
     texts,
     contentHash: true,
@@ -86,7 +100,7 @@ const getProfile = ResultFn(async function* (name: string) {
 
   return ok({
     records,
-    subgraphRecords: { ...subgraphV1Records },
+    subgraphRecords: { ...(subgraphV1Records ?? {}) },
   })
 })
 
@@ -94,11 +108,16 @@ const profileQueryKey = createQueryKey<
   'profile',
   {
     name: string
+    network?: EnsNetworkName
   }
 >('profile')
 
-export const getProfileQueryOptions = (name: string) =>
+export const getProfileQueryOptions = ({
+  name,
+  network,
+}: GetProfileParameters) =>
   resultQueryOptions({
-    queryKey: profileQueryKey({ name }),
-    queryFn: ({ queryKey: [, { name }] }) => getProfile(name),
+    queryKey: profileQueryKey({ name, network }),
+    queryFn: ({ queryKey: [, { name, network }] }) =>
+      getProfile({ name, network }),
   })

@@ -85,7 +85,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             refetchType: 'all',
           })
           await queryClient.invalidateQueries({
-            queryKey: getProfileQueryOptions(name).queryKey,
+            queryKey: getProfileQueryOptions({ name }).queryKey,
             refetchType: 'all',
           })
           navigate({ to: '/$name', params: { name }, replace: true })

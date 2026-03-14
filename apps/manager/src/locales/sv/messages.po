@@ -332,4 +332,3 @@ msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda ol
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Ditt ENS-namn"
-
