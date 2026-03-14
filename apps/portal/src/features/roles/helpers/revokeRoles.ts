@@ -35,6 +35,7 @@ export type RevokeRolesParameters = {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly chainId: number
+  readonly registryAddress?: Address
 }
 
 export interface RevokeRolesResult {
@@ -49,8 +50,16 @@ export interface RevokeRolesResult {
 export async function revokeRoles(
   params: RevokeRolesParameters,
 ): Promise<RevokeRolesResult> {
-  const { name, account, roles, walletClient, publicClient, signer, chainId } =
-    params
+  const {
+    name,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    registryAddress = namechainEthRegistryAddress,
+  } = params
 
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
@@ -64,7 +73,7 @@ export async function revokeRoles(
 
   const [, entry] = await getRegistryNameData(publicClient, {
     label,
-    registryAddress: namechainEthRegistryAddress,
+    registryAddress,
   })
 
   const resource = labelToCanonicalId(label) | BigInt(entry.eacVersionId)
@@ -72,7 +81,7 @@ export async function revokeRoles(
   const writeParams = revokeRolesWriteParameters(
     walletClient as Parameters<typeof revokeRolesWriteParameters>[0],
     {
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress,
       account,
       resource,
       roles,
@@ -91,7 +100,7 @@ export async function revokeRoles(
       request: {
         type: 'eoa',
         from: walletClient.account.address,
-        to: namechainEthRegistryAddress,
+        to: registryAddress,
         data,
         value: 0n,
         chainId,

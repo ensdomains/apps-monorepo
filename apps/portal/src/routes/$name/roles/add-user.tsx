@@ -1,9 +1,9 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
@@ -30,6 +31,9 @@ function RouteComponent() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
+  const labels = name.split('.')
+  const is3LD = labels.length === 3
+
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
 
   const chainId = namechainSepolia.id
@@ -39,6 +43,17 @@ function RouteComponent() {
     client,
     nameOrAddress: nameOrAddressInput,
   })
+
+  const { data: registriesData } = useQuery({
+    ...getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
+    enabled: is3LD,
+  })
+
+  const registryAddress = is3LD
+    ? (((registriesData?.registries[0] as Address) !== zeroAddress
+        ? registriesData?.registries[0]
+        : registriesData?.registries[1]) as Address | undefined)
+    : undefined
 
   const mutation = useMutation({
     mutationFn: (params: { account: Address; roles: Role[] }) => {
@@ -54,6 +69,7 @@ function RouteComponent() {
         publicClient,
         signer: createEOASigner(walletClient),
         chainId,
+        registryAddress,
       })
     },
     onSuccess: async () => {

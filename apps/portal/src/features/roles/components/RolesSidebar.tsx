@@ -51,6 +51,7 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
     name: string
     canManageRoles: boolean
+    registryAddress?: Address
   }>
 
 export const RolesSidebar = <
@@ -62,6 +63,7 @@ export const RolesSidebar = <
   setOpen,
   name,
   canManageRoles,
+  registryAddress,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
   const queryClient = useQueryClient()
@@ -111,6 +113,7 @@ export const RolesSidebar = <
           publicClient,
           signer,
           chainId,
+          registryAddress,
         })
       }
 
@@ -124,6 +127,7 @@ export const RolesSidebar = <
           publicClient,
           signer,
           chainId,
+          registryAddress,
         })
       }
     },
@@ -161,6 +165,7 @@ export const RolesSidebar = <
         publicClient,
         signer: createEOASigner(walletClient),
         chainId,
+        registryAddress,
       })
     },
     onSuccess: async () => {
