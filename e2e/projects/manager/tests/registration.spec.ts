@@ -1,6 +1,6 @@
 // e2e/projects/manager/tests/registration.spec.ts
 // import { test, expect } from '@playwright/test'
-import { test, expect } from '../../../fixtures/playwright.fixture.js'
+import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'

@@ -54,7 +54,8 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
+      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch",
+      "@ensdomains/headless-web3-provider": "patches/@ensdomains__headless-web3-provider.patch"
     },
     "overrides": {
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",

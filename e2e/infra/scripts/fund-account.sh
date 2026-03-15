@@ -28,6 +28,14 @@ MOCK_DAI="0xd030a2465ee661338de1f02d05042bbf20d5d127"
 
 echo "=== Funding $ADDRESS on fork at $RPC_URL ==="
 
+# 0. Clear any contract code at the address.
+#    The well-known Anvil account 0xf39F…2266 has an EOF contract deployed
+#    on Sepolia, which breaks ERC1155 _safeMint (ERC1155InvalidReceiver).
+#    Setting the code to 0x makes it an EOA again on the fork.
+echo "→ Clearing contract code at $ADDRESS (make it an EOA)..."
+cast rpc anvil_setCode "$ADDRESS" "0x" --rpc-url "$RPC_URL" > /dev/null
+echo "  ✅ Code cleared"
+
 # 1. Send ETH
 echo "→ Sending 1 ETH..."
 cast send "$ADDRESS" --value 1ether \

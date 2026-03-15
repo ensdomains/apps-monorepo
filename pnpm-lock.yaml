@@ -42,6 +42,9 @@ overrides:
   es-set-tostringtag: npm:@socketregistry/es-set-tostringtag@^1
 
 patchedDependencies:
+  '@ensdomains/headless-web3-provider':
+    hash: 268a81c51507b7edc74492049c6d93fb8ca68f0149fbc8dd1c8543d8f018bc27
+    path: patches/@ensdomains__headless-web3-provider.patch
   '@getpara/react-sdk-lite':
     hash: 8006b39ed3a1be3b65ef9e0ca8a2de12a11f4c303d4ddfc2aec2c05b3c79c047
     path: patches/@getpara__react-sdk-lite.patch
@@ -608,9 +611,15 @@ importers:
 
   e2e:
     dependencies:
+      '@ensdomains/headless-web3-provider':
+        specifier: ^1.0.8
+        version: 1.0.8(patch_hash=268a81c51507b7edc74492049c6d93fb8ca68f0149fbc8dd1c8543d8f018bc27)(viem@2.47.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
+      viem:
+        specifier: ^2.47.2
+        version: 2.47.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)
     devDependencies:
       '@browserbasehq/stagehand':
         specifier: ^3.0.8
@@ -1444,6 +1453,12 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       viem: ^2.9.2
+
+  '@ensdomains/headless-web3-provider@1.0.8':
+    resolution: {integrity: sha512-whBFtO8i7N2cPW19yJNXjwZpuaGgjdePjAWJThsTpWK5JEc6EGj7Ox3Jcxi8+NtNAt9I5KV5aj94Cn3+cJsplg==}
+    engines: {node: 18.x || >=20}
+    peerDependencies:
+      viem: ^2.17.1
 
   '@ensdomains/vite-plugin-i18next-loader@4.0.3':
     resolution: {integrity: sha512-5GLYnA5krGIE770DjLBR87hfLpmTJQJea/pIXLufit/mC+dsyicNbOKMOwR796s+8vKvE8AtARtGtBa4n9JBEQ==}
@@ -3144,6 +3159,10 @@ packages:
   '@metamask/json-rpc-engine@8.0.2':
     resolution: {integrity: sha512-IoQPmql8q7ABLruW7i4EYVHWUbF74yrp63bRuXV5Zf9BQwcn5H9Ww1eLtROYvI1bUXwOiHZ6qT5CWTrDc/t/AA==}
     engines: {node: '>=16.0.0'}
+
+  '@metamask/json-rpc-engine@9.0.3':
+    resolution: {integrity: sha512-efeRXW7KaL0BJcAeudSGhzu6sD3hMpxx9nl3V+Yemm1bsyc66yVUhYPR+XH+Y6ZvB2p05ywgvd1Ev5PBwFzr/g==}
+    engines: {node: ^18.18 || >=20}
 
   '@metamask/json-rpc-middleware-stream@7.0.2':
     resolution: {integrity: sha512-yUdzsJK04Ev98Ck4D7lmRNQ8FPioXYhEUZOMS01LXW8qTvPGiRVXmVltj2p4wrLkh0vW7u6nv0mNl5xzC5Qmfg==}
@@ -5699,6 +5718,17 @@ packages:
 
   abitype@1.2.1:
     resolution: {integrity: sha512-AhkAWBE5QqzSuaPi6B9w5scl5739iBknQdFFAbY/CybASOBVWtVmPavUYW1OrDRX/iZWB/Je80xhJMZz2G4G1Q==}
+    peerDependencies:
+      typescript: '>=5.0.4'
+      zod: ^3.22.0 || ^4.0.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+      zod:
+        optional: true
+
+  abitype@1.2.3:
+    resolution: {integrity: sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==}
     peerDependencies:
       typescript: '>=5.0.4'
       zod: ^3.22.0 || ^4.0.0
@@ -8268,6 +8298,14 @@ packages:
     resolution: {integrity: sha512-lBX72MWFduWEf7v7uWf5DHp9Jn5BI8bNPGuFgtXMmr2uDz2Gz2749y3am3agSDdkhHPHYmmxEGSKH85ZLGzgXw==}
     engines: {node: '>=20'}
 
+  ox@0.14.0:
+    resolution: {integrity: sha512-WLOB7IKnmI3Ol6RAqY7CJdZKl8QaI44LN91OGF1061YIeN6bL5IsFcdp7+oQShRyamE/8fW/CBRWhJAOzI35Dw==}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   ox@0.9.17:
     resolution: {integrity: sha512-rKAnhzhRU3Xh3hiko+i1ZxywZ55eWQzeS/Q4HRKLx2PqfHOolisZHErSsJVipGlmQKHW5qwOED/GighEw9dbLg==}
     peerDependencies:
@@ -9744,6 +9782,14 @@ packages:
       typescript:
         optional: true
 
+  viem@2.47.2:
+    resolution: {integrity: sha512-etDIwDgmDiGaPg8rUbJtUFuC3/nAJCbhMYyfh5dOcqNNkzBWTNcS2VluPSM5JVo+9U3b2hle2RkBEq3+xyvlvg==}
+    peerDependencies:
+      typescript: '>=5.0.4'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   vite-node@3.2.4:
     resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
@@ -10825,6 +10871,14 @@ snapshots:
       graphql-request: 7.2.0(graphql@16.12.0)
       ts-pattern: 5.9.0
       viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+
+  '@ensdomains/headless-web3-provider@1.0.8(patch_hash=268a81c51507b7edc74492049c6d93fb8ca68f0149fbc8dd1c8543d8f018bc27)(viem@2.47.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+    dependencies:
+      '@metamask/json-rpc-engine': 9.0.3
+      '@metamask/utils': 9.3.0
+      viem: 2.47.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+    transitivePeerDependencies:
+      - supports-color
 
   '@ensdomains/vite-plugin-i18next-loader@4.0.3(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
@@ -12623,6 +12677,14 @@ snapshots:
       '@metamask/rpc-errors': 6.4.0
       '@metamask/safe-event-emitter': 3.1.2
       '@metamask/utils': 8.5.0
+    transitivePeerDependencies:
+      - supports-color
+
+  '@metamask/json-rpc-engine@9.0.3':
+    dependencies:
+      '@metamask/rpc-errors': 6.4.0
+      '@metamask/safe-event-emitter': 3.1.2
+      '@metamask/utils': 9.3.0
     transitivePeerDependencies:
       - supports-color
 
@@ -15985,6 +16047,11 @@ snapshots:
       typescript: 5.9.3
       zod: 4.1.13
 
+  abitype@1.2.3(typescript@5.9.3)(zod@4.1.13):
+    optionalDependencies:
+      typescript: 5.9.3
+      zod: 4.1.13
+
   abort-controller@3.0.0:
     dependencies:
       event-target-shim: 5.0.1
@@ -18584,6 +18651,21 @@ snapshots:
       stdin-discarder: 0.3.1
       string-width: 8.1.0
 
+  ox@0.14.0(typescript@5.9.3)(zod@4.1.13):
+    dependencies:
+      '@adraffy/ens-normalize': 1.11.1
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)(zod@4.1.13)
+      eventemitter3: 5.0.1
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - zod
+
   ox@0.9.17(typescript@5.9.3)(zod@4.1.13):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
@@ -20308,6 +20390,23 @@ snapshots:
       abitype: 1.1.0(typescript@5.9.3)(zod@4.1.13)
       isows: 1.0.7(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       ox: 0.9.6(typescript@5.9.3)(zod@4.1.13)
+      ws: 8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - zod
+
+  viem@2.47.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13):
+    dependencies:
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)(zod@4.1.13)
+      isows: 1.0.7(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+      ox: 0.14.0(typescript@5.9.3)(zod@4.1.13)
       ws: 8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     optionalDependencies:
       typescript: 5.9.3

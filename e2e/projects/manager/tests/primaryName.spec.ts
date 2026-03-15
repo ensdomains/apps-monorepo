@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { test, expect } from '../../../fixtures/playwright.fixture.js'
+import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 
 async function viewProfile(page: Page) {
   const searchInput = page.getByPlaceholder('Search name, address...').first()

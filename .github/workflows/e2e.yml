@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - "apps/manager/**"
+      - "apps/portal/**"
       - "packages/**"
       - "pnpm-lock.yaml"
       - "e2e/**"
@@ -28,7 +29,7 @@ jobs:
       matrix:
         project:
           - manager
-          # - portal       # Enable when portal tests are added
+          - portal
           # - cross-app    # Enable when cross-app tests are added
 
     steps:
@@ -50,6 +51,9 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm --filter @ens-apps/e2e exec playwright install --with-deps chromium
+
+      - name: Install Foundry (cast CLI)
+        uses: foundry-rs/foundry-toolchain@v1
 
       # ── local blockchain stack ────────────────────────────────────
       - name: Start E2E stack (Anvil + Alto + Paymaster)
@@ -80,18 +84,37 @@ jobs:
       - name: Copy CI env files
         run: |
           cp apps/manager/.env.ci apps/manager/.env
+          cp apps/portal/.env.ci apps/portal/.env
           cp e2e/.env.ci e2e/.env
+
+      # ── fund test accounts (mint USDC/DAI for portal headless wallet) ──
+      - name: Fund test accounts
+        if: matrix.project == 'portal'
+        run: |
+          bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       # ── run e2e tests ─────────────────────────────────────────────
       - name: Run E2E tests (${{ matrix.project }})
         run: |
-          pnpm --filter manager dev > /tmp/dev-server.log 2>&1 &
-          DEV_PID=$!
+          # Start manager dev server (needed by both manager and portal tests)
+          pnpm --filter manager dev > /tmp/manager-dev.log 2>&1 &
+          MANAGER_PID=$!
           timeout 60 bash -c 'until curl -sf http://localhost:3000 > /dev/null 2>&1; do sleep 2; done'
-          echo "✅ Manager dev server on :3000 (PID $DEV_PID)"
+          echo "✅ Manager dev server on :3000 (PID $MANAGER_PID)"
+
+          # Start portal dev server when needed
+          PORTAL_PID=""
+          if [[ "${{ matrix.project }}" == "portal" || "${{ matrix.project }}" == "cross-app" ]]; then
+            pnpm --filter portal dev > /tmp/portal-dev.log 2>&1 &
+            PORTAL_PID=$!
+            timeout 60 bash -c 'until curl -sf http://localhost:3001 > /dev/null 2>&1; do sleep 2; done'
+            echo "✅ Portal dev server on :3001 (PID $PORTAL_PID)"
+          fi
+
           pnpm e2e:${{ matrix.project }}
           TEST_EXIT=$?
-          kill $DEV_PID 2>/dev/null || true
+          kill $MANAGER_PID 2>/dev/null || true
+          [[ -n "$PORTAL_PID" ]] && kill $PORTAL_PID 2>/dev/null || true
           exit $TEST_EXIT
         env:
           CI: "true"
@@ -100,8 +123,11 @@ jobs:
       - name: Show failure context
         if: failure()
         run: |
-          echo "=== Dev server log (last 50 lines) ==="
-          tail -50 /tmp/dev-server.log 2>/dev/null || echo "(no dev server log)"
+          echo "=== Manager dev server log (last 50 lines) ==="
+          tail -50 /tmp/manager-dev.log 2>/dev/null || echo "(no manager dev log)"
+          echo ""
+          echo "=== Portal dev server log (last 50 lines) ==="
+          tail -50 /tmp/portal-dev.log 2>/dev/null || echo "(no portal dev log)"
           echo ""
           echo "=== Error context files ==="
           find e2e/test-results -name 'error-context.md' -exec echo "--- {} ---" \; -exec cat {} \; 2>/dev/null || echo "(none)"
@@ -111,6 +137,9 @@ jobs:
           echo ""
           echo "=== apps/manager/.env ==="
           cat apps/manager/.env 2>/dev/null || echo "(missing)"
+          echo ""
+          echo "=== apps/portal/.env ==="
+          cat apps/portal/.env 2>/dev/null || echo "(missing)"
 
       # ── artifacts & cleanup ───────────────────────────────────────
       - name: Upload test results

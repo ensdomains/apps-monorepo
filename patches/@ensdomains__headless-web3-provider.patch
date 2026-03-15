@@ -1,0 +1,57 @@
+diff --git a/dist/index.js b/dist/index.js
+index f7e35ae24710830d39ad0445b5b55f6a778e40a2..f4879d4ae03a795783b2efdf253eeb193ddc4f67 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -225,6 +225,11 @@ function createPassThroughMiddleware({
+       const transport = getChainTransport();
+       res.result = await transport.request(req).catch((e) => {
+         console.error("Error!!!", e);
++        res.error = {
++          code: -32603,
++          message: e?.message || "Internal JSON-RPC error",
++          data: { originalError: String(e) }
++        };
+       });
+     } else {
+       next();
+@@ -294,8 +299,7 @@ import {
+   createAsyncMiddleware as createAsyncMiddleware7
+ } from "@metamask/json-rpc-engine";
+ import {
+-  createWalletClient,
+-  formatTransaction
++  createWalletClient
+ } from "viem";
+ function createTransactionMiddleware({
+   getChain,
+@@ -311,13 +315,29 @@ function createTransactionMiddleware({
+     switch (req.method) {
+       case "eth_sendTransaction": {
+         const jsonRpcTx = req.params[0];
+-        const viemTx = formatTransaction(jsonRpcTx);
++        // Map JSON-RPC eth_sendTransaction params directly to viem format
++        // (formatTransaction is for RPC *response* txs, not request params)
++        const viemTx = {
++          to: jsonRpcTx.to,
++          data: jsonRpcTx.data || jsonRpcTx.input,
++          value: jsonRpcTx.value ? BigInt(jsonRpcTx.value) : undefined,
++          gas: jsonRpcTx.gas ? BigInt(jsonRpcTx.gas) : undefined,
++          gasPrice: jsonRpcTx.gasPrice ? BigInt(jsonRpcTx.gasPrice) : undefined,
++          maxFeePerGas: jsonRpcTx.maxFeePerGas ? BigInt(jsonRpcTx.maxFeePerGas) : undefined,
++          maxPriorityFeePerGas: jsonRpcTx.maxPriorityFeePerGas ? BigInt(jsonRpcTx.maxPriorityFeePerGas) : undefined,
++          nonce: jsonRpcTx.nonce != null ? Number(jsonRpcTx.nonce) : undefined,
++        };
+         try {
+           res.result = await walletClient.sendTransaction(
+             viemTx
+           );
+         } catch (e) {
+           console.error("Error submitting transaction", e, viemTx);
++          res.error = {
++            code: -32603,
++            message: e?.message || "Transaction failed",
++            data: { originalError: String(e) }
++          };
+         }
+         break;
+       }
