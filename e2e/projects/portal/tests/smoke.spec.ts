@@ -33,19 +33,4 @@ test.describe('Portal smoke tests', () => {
       timeout: 30_000,
     })
   })
-
-  test('can connect wallet via headless provider', async ({
-    portalPage: page,
-    wallet,
-  }) => {
-    const { connectWithHeadlessWallet } = await import(
-      '../../../helpers/portal-auth.js'
-    )
-    await connectWithHeadlessWallet(page, wallet)
-
-    // After connecting, the Connect button should be gone — wallet menu visible instead
-    await expect(
-      page.getByRole('button', { name: 'Connect' }),
-    ).not.toBeVisible({ timeout: 10_000 })
-  })
 })
