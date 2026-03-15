@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
-import { type Address, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantRoles } from '@/features/roles/helpers/grantRoles'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
@@ -50,9 +51,7 @@ function RouteComponent() {
   })
 
   const registryAddress = is3LD
-    ? (((registriesData?.registries[0] as Address) !== zeroAddress
-        ? registriesData?.registries[0]
-        : registriesData?.registries[1]) as Address | undefined)
+    ? getSubnameRegistryAddress(registriesData ?? null)
     : undefined
 
   const mutation = useMutation({

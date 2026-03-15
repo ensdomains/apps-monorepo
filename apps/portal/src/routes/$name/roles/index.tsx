@@ -9,6 +9,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { RolesTable } from '@/features/roles/components/RolesTable'
@@ -111,9 +112,7 @@ function RouteComponent() {
   })
 
   const registryAddress = is3LD
-    ? (((registriesData?.registries[0] as Address) !== zeroAddress
-        ? registriesData?.registries[0]
-        : registriesData?.registries[1]) as Address | undefined)
+    ? getSubnameRegistryAddress(registriesData ?? null)
     : data?.registryAddress
 
   const { data: currentAccountRoles } = useQuery({
