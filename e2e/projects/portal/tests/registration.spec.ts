@@ -12,7 +12,7 @@ const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const DOMAIN_TO_REGISTER =
   process.env.E2E_DOMAIN ?? `e2e-portal-${Date.now().toString(36)}.eth`
 
-test.describe.only('Portal ENS name registration', () => {
+test.describe('Portal ENS name registration', () => {
   test('registers a name via headless wallet and stablecoin payment', async ({
     portalPage: page,
     wallet,
