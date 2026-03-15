@@ -8,11 +8,11 @@ import {
 } from '../../../helpers/portal-auth.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 
-const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3000'
+const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const DOMAIN_TO_REGISTER =
   process.env.E2E_DOMAIN ?? `e2e-portal-${Date.now().toString(36)}.eth`
 
-test.describe('Portal ENS name registration', () => {
+test.describe.only('Portal ENS name registration', () => {
   test('registers a name via headless wallet and stablecoin payment', async ({
     portalPage: page,
     wallet,
@@ -110,7 +110,7 @@ test.describe('Portal ENS name registration', () => {
     }
 
     // Drain the auth loop
-    await authLoop.catch(() => {})
+    await authLoop.catch(() => { })
 
     // ── 7. Assert success ──────────────────────────────────────────
     expect(monitor.getLastState()).toBe('success')

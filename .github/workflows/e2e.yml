@@ -96,25 +96,20 @@ jobs:
       # ── run e2e tests ─────────────────────────────────────────────
       - name: Run E2E tests (${{ matrix.project }})
         run: |
-          # Start manager dev server (needed by both manager and portal tests)
-          pnpm --filter manager dev > /tmp/manager-dev.log 2>&1 &
-          MANAGER_PID=$!
-          timeout 60 bash -c 'until curl -sf http://localhost:3000 > /dev/null 2>&1; do sleep 2; done'
-          echo "✅ Manager dev server on :3000 (PID $MANAGER_PID)"
-
-          # Start portal dev server when needed
-          PORTAL_PID=""
-          if [[ "${{ matrix.project }}" == "portal" || "${{ matrix.project }}" == "cross-app" ]]; then
-            pnpm --filter portal dev > /tmp/portal-dev.log 2>&1 &
-            PORTAL_PID=$!
-            timeout 60 bash -c 'until curl -sf http://localhost:3001 > /dev/null 2>&1; do sleep 2; done'
-            echo "✅ Portal dev server on :3001 (PID $PORTAL_PID)"
+          # Start the app under test (manager on :3000, portal on :3001)
+          pnpm --filter ${{ matrix.project }} dev > /tmp/app-dev.log 2>&1 &
+          APP_PID=$!
+          if [[ "${{ matrix.project }}" == "portal" ]]; then
+            APP_PORT=3001
+          else
+            APP_PORT=3000
           fi
+          timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
+          echo "✅ ${{ matrix.project }} dev server on :${APP_PORT} (PID $APP_PID)"
 
           pnpm e2e:${{ matrix.project }}
           TEST_EXIT=$?
-          kill $MANAGER_PID 2>/dev/null || true
-          [[ -n "$PORTAL_PID" ]] && kill $PORTAL_PID 2>/dev/null || true
+          kill $APP_PID 2>/dev/null || true
           exit $TEST_EXIT
         env:
           CI: "true"
@@ -123,11 +118,8 @@ jobs:
       - name: Show failure context
         if: failure()
         run: |
-          echo "=== Manager dev server log (last 50 lines) ==="
-          tail -50 /tmp/manager-dev.log 2>/dev/null || echo "(no manager dev log)"
-          echo ""
-          echo "=== Portal dev server log (last 50 lines) ==="
-          tail -50 /tmp/portal-dev.log 2>/dev/null || echo "(no portal dev log)"
+          echo "=== App dev server log (last 50 lines) ==="
+          tail -50 /tmp/app-dev.log 2>/dev/null || echo "(no app dev log)"
           echo ""
           echo "=== Error context files ==="
           find e2e/test-results -name 'error-context.md' -exec echo "--- {} ---" \; -exec cat {} \; 2>/dev/null || echo "(none)"
