@@ -1,5 +1,6 @@
 'use client'
 
+import { Trans, useLingui } from '@lingui/react/macro'
 import { ArrowLeft, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAccount, useSignMessage } from 'wagmi'
@@ -27,6 +28,7 @@ export const VerifyWalletModal = ({
   onOpenChange,
   onVerified,
 }: VerifyWalletModalProps) => {
+  const { t } = useLingui()
   const { address } = useAccount()
   const [isSigning, setIsSigning] = useState(false)
   const [hasVerified, setHasVerified] = useState(false)
@@ -103,16 +105,18 @@ export const VerifyWalletModal = ({
         <DialogHeader className="relative">
           <DialogTitle asChild>
             <h2 className="font-medium text-ens-blue-midnight text-xl tracking-tight">
-              Verify Wallet
+              <Trans>Verify Wallet</Trans>
             </h2>
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Please sign a message to verify your wallet ownership. This will not
-            incur any cost.
+            <Trans>
+              Please sign a message to verify your wallet ownership. This will
+              not incur any cost.
+            </Trans>
           </DialogDescription>
           <div className="flex items-center justify-between">
             <Button
-              aria-label="Go back"
+              aria-label={t`Go back`}
               className="h-6 w-6 p-0"
               disabled={isLoading}
               onClick={handleClose}
@@ -123,7 +127,7 @@ export const VerifyWalletModal = ({
             </Button>
             <div />
             <Button
-              aria-label="Close dialog"
+              aria-label={t`Close dialog`}
               className="h-6 w-6 p-0"
               disabled={isLoading}
               onClick={handleClose}
@@ -139,7 +143,7 @@ export const VerifyWalletModal = ({
           {/* Connected Wallet Info */}
           <div className="relative h-14 w-full">
             <p className="absolute top-0 left-[68px] font-medium text-ens-gray text-xs tracking-tight">
-              Connected wallet
+              <Trans>Connected wallet</Trans>
             </p>
             <div className="absolute top-0.5 left-0 flex items-center gap-3 rounded px-2.5 py-1">
               {/* Avatar placeholder */}
@@ -156,14 +160,18 @@ export const VerifyWalletModal = ({
           <div className="flex w-full flex-col gap-1">
             <div className="relative min-h-11 w-full">
               <p className="-translate-y-1/2 absolute top-1/2 left-0 font-normal text-base text-ens-blue-midnight leading-none tracking-tight">
-                Please sign a message to verify your ownership of the wallet.
-                This will not incur any cost.
+                <Trans>
+                  Please sign a message to verify your ownership of the wallet.
+                  This will not cost any gas.
+                </Trans>
               </p>
             </div>
             <div className="relative min-h-12 w-full">
               <p className="absolute top-2.5 left-0 font-normal text-base text-ens-gray leading-[0.96] tracking-tight">
-                Make sure the message starts with &quot;ENS would like you to
-                ...&quot;
+                <Trans>
+                  Make sure the message starts with &quot;ENS would like you to
+                  ...&quot;
+                </Trans>
               </p>
             </div>
           </div>
@@ -179,11 +187,13 @@ export const VerifyWalletModal = ({
           disabled={isLoading || hasVerified}
           onClick={handleSign}
         >
-          {hasVerified
-            ? 'Verified!'
-            : isLoading
-              ? 'Waiting for signature...'
-              : 'Sign Message'}
+          {hasVerified ? (
+            <Trans>Verified!</Trans>
+          ) : isLoading ? (
+            <Trans>Waiting for signature...</Trans>
+          ) : (
+            <Trans>Sign Message</Trans>
+          )}
         </Button>
       </DialogContent>
     </Dialog>

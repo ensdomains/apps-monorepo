@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useRef, useState } from 'react'
 import type {
   PricingDuration,
@@ -28,6 +29,7 @@ export const DurationSelector = ({
   durationInputValue,
   onInputChange,
 }: DurationSelectorProps) => {
+  const { t } = useLingui()
   const [isCustomFocused, setIsCustomFocused] = useState(false)
   const [customDisplayValue, setCustomDisplayValue] = useState('')
   const customInputRef = useRef<HTMLInputElement>(null)
@@ -153,7 +155,9 @@ export const DurationSelector = ({
             {/* Left: Year label */}
             <div className="flex w-[50%] items-center gap-3 md:w-[60%] md:gap-5 lg:w-[40%] xl:w-[60%]">
               <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
-                {duration} year{duration > 1 ? 's' : ''}
+                <Trans>
+                  {duration} {duration > 1 ? 'years' : 'year'}
+                </Trans>
               </span>
             </div>
 
@@ -167,7 +171,7 @@ export const DurationSelector = ({
                   )}
                 >
                   <span className="font-medium text-white text-xs leading-none tracking-tight md:text-base">
-                    {option.discount}% off
+                    <Trans>{option.discount}% off</Trans>
                   </span>
                 </div>
               ) : (
@@ -179,7 +183,7 @@ export const DurationSelector = ({
                   ${formattedTotalPrice}
                 </span>
                 <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
-                  total
+                  <Trans>total</Trans>
                 </span>
               </div>
             </div>
@@ -207,7 +211,7 @@ export const DurationSelector = ({
         {/* Left: Label */}
         <div className="flex items-center gap-3 md:gap-5">
           <span className="whitespace-nowrap font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
-            Enter custom duration
+            <Trans>Enter custom duration</Trans>
           </span>
         </div>
 
@@ -222,7 +226,7 @@ export const DurationSelector = ({
           )}
         >
           <input
-            aria-label="Custom duration in years"
+            aria-label={t`Custom duration in years`}
             className={cn(
               'w-10 md:w-12',
               'border-none bg-transparent outline-none',
@@ -249,7 +253,7 @@ export const DurationSelector = ({
             }
           />
           <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
-            years
+            <Trans>years</Trans>
           </span>
         </div>
       </div>

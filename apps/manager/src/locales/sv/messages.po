@@ -57,12 +57,12 @@ msgstr "{label} avatar-placeholder"
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
 
-#: src/features/payment/components/add.tsx:169
+#: src/features/payment/components/add.tsx:154
 msgid "Add a Backup Payment Method"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:34
-#: src/features/payment/components/add.tsx:164
+#: src/features/payment/components/add.tsx:149
 msgid "Add a credit card"
 msgstr ""
 
@@ -82,16 +82,24 @@ msgstr "Adressprofil"
 msgid "An error occurred"
 msgstr ""
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:377
+msgid "available"
+msgstr ""
+
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:57
+#: src/features/payment/components/add.tsx:44
 msgid "Billing country"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:53
+#: src/features/payment/components/add.tsx:43
 msgid "Billing zip code"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
+msgid "Buy Name"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:35
@@ -106,20 +114,20 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: src/features/payment/components/add.tsx:42
+#: src/features/payment/components/add.tsx:38
 msgid "Card expiry date"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:37
-#: src/features/payment/components/add.tsx:38
+#: src/features/payment/components/add.tsx:36
+#: src/features/payment/components/add.tsx:36
 msgid "Card number"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:46
+#: src/features/payment/components/add.tsx:39
 msgid "Card security code"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:75
+#: src/features/payment/components/add.tsx:60
 msgid "Choose how you'd like to pay for your subscription."
 msgstr ""
 
@@ -135,23 +143,46 @@ msgstr ""
 msgid "Close dialog"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:202
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:102
+msgid "Coming Soon"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:187
 msgid "Confirm"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:405
+msgid "Confirm Payment"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+msgid "Confirm purchase"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:146
 msgid "Connected wallet"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:58
+#: src/features/payment/components/add.tsx:44
 msgid "Country"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:99
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:122
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:138
+msgid "Credit Card Payment"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:105
+msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
 msgid "Custom duration in years"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:47
+#: src/features/payment/components/add.tsx:39
 msgid "CVV"
 msgstr ""
 
@@ -229,6 +260,10 @@ msgstr ""
 msgid "Favorites"
 msgstr "Favoriter"
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:451
+msgid "for"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
@@ -278,6 +313,10 @@ msgstr "Språk"
 msgid "Loading dashboard..."
 msgstr "Laddar översikten..."
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:278
+msgid "Loading your stablecoin balances..."
+msgstr ""
+
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 msgid "Loading..."
@@ -295,7 +334,7 @@ msgstr "HUVUDMENY"
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr ""
 
-#: src/features/payment/components/add.tsx:43
+#: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
 msgstr ""
 
@@ -318,13 +357,22 @@ msgstr "Namn (A-Ö)"
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
-#: src/features/payment/components/add.tsx:50
-#: src/features/payment/components/add.tsx:50
+#: src/features/payment/components/add.tsx:41
+#: src/features/payment/components/add.tsx:41
 msgid "Name on card"
+msgstr ""
+
+#. placeholder {0}: formatAmount(priceUSD)
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:382
+msgid "Need ${0}"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:291
 msgid "Next page"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:305
+msgid "No coins found"
 msgstr ""
 
 #: src/features/payment/components/index.tsx:103
@@ -349,20 +397,28 @@ msgstr "Inga namn att visa"
 msgid "Notifications"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:153
+#: src/features/payment/components/add.tsx:138
 msgid "or"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:122
+#: src/features/payment/components/add.tsx:107
 msgid "Pay with Apple"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:99
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:74
+msgid "Pay with credit card"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:84
 msgid "Pay with Google"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:145
+#: src/features/payment/components/add.tsx:130
 msgid "Pay with PayPal"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:233
+msgid "Pay with stablecoins"
 msgstr ""
 
 #: src/features/payment/components/index.tsx:89
@@ -374,8 +430,12 @@ msgid "Payment method options"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:15
-#: src/features/payment/components/add.tsx:72
+#: src/features/payment/components/add.tsx:57
 msgid "Payment Methods"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:286
+msgid "Please connect your wallet first"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:163
@@ -412,12 +472,21 @@ msgstr "Registrerad"
 msgid "Registered {0}"
 msgstr "Registrerad {0}"
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
+msgid "Registering"
+msgstr ""
+
 #: src/features/profile/components/ProfileEdit.tsx:173
 msgid "Reset Changes"
 msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
 msgid "Search"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:262
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:265
+msgid "Search coins"
 msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
@@ -440,6 +509,16 @@ msgstr "Sök namn..."
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:244
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+msgid "Select coin"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:522
+msgid "Select payment method"
+msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:379
 msgid "Set as Primary"
@@ -495,11 +574,15 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:248
+msgid "Stables accepted"
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:230
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
-#: src/features/payment/components/add.tsx:172
+#: src/features/payment/components/add.tsx:157
 msgid "The backup payment method will be charged if the default payment method fails."
 msgstr ""
 
@@ -518,6 +601,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
+msgid "Try searching for a different coin or chain"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:191
@@ -560,10 +647,14 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:289
+msgid "You need to connect a wallet to see your stablecoin balances"
+msgstr ""
+
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Ditt ENS-namn"
 
-#: src/features/payment/components/add.tsx:54
+#: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr ""

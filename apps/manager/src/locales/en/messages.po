@@ -52,12 +52,12 @@ msgstr "{label} avatar placeholder"
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
-#: src/features/payment/components/add.tsx:169
+#: src/features/payment/components/add.tsx:154
 msgid "Add a Backup Payment Method"
 msgstr "Add a Backup Payment Method"
 
 #: src/features/payment/components/add.tsx:34
-#: src/features/payment/components/add.tsx:164
+#: src/features/payment/components/add.tsx:149
 msgid "Add a credit card"
 msgstr "Add a credit card"
 
@@ -77,17 +77,25 @@ msgstr "Address profile"
 msgid "An error occurred"
 msgstr "An error occurred"
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:377
+msgid "available"
+msgstr "available"
+
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
 msgstr "Backup Card"
 
-#: src/features/payment/components/add.tsx:57
+#: src/features/payment/components/add.tsx:44
 msgid "Billing country"
 msgstr "Billing country"
 
-#: src/features/payment/components/add.tsx:53
+#: src/features/payment/components/add.tsx:43
 msgid "Billing zip code"
 msgstr "Billing zip code"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
+msgid "Buy Name"
+msgstr "Buy Name"
 
 #: src/features/dashboard/components/FaqSection.tsx:35
 msgid "Can I change my primary name later?"
@@ -101,20 +109,20 @@ msgstr "Can I send crypto to a .eth name (instead of an address)?"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/features/payment/components/add.tsx:42
+#: src/features/payment/components/add.tsx:38
 msgid "Card expiry date"
 msgstr "Card expiry date"
 
-#: src/features/payment/components/add.tsx:37
-#: src/features/payment/components/add.tsx:38
+#: src/features/payment/components/add.tsx:36
+#: src/features/payment/components/add.tsx:36
 msgid "Card number"
 msgstr "Card number"
 
-#: src/features/payment/components/add.tsx:46
+#: src/features/payment/components/add.tsx:39
 msgid "Card security code"
 msgstr "Card security code"
 
-#: src/features/payment/components/add.tsx:75
+#: src/features/payment/components/add.tsx:60
 msgid "Choose how you'd like to pay for your subscription."
 msgstr "Choose how you'd like to pay for your subscription."
 
@@ -130,23 +138,46 @@ msgstr "Clear search"
 msgid "Close dialog"
 msgstr "Close dialog"
 
-#: src/features/payment/components/add.tsx:202
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:102
+msgid "Coming Soon"
+msgstr "Coming Soon"
+
+#: src/features/payment/components/add.tsx:187
 msgid "Confirm"
 msgstr "Confirm"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:405
+msgid "Confirm Payment"
+msgstr "Confirm Payment"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+msgid "Confirm purchase"
+msgstr "Confirm purchase"
 
 #: src/features/register/components/VerifyWalletModal.tsx:146
 msgid "Connected wallet"
 msgstr "Connected wallet"
 
-#: src/features/payment/components/add.tsx:58
+#: src/features/payment/components/add.tsx:44
 msgid "Country"
 msgstr "Country"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:99
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:122
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:138
+msgid "Credit Card Payment"
+msgstr "Credit Card Payment"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:105
+msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
+msgstr "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
-#: src/features/payment/components/add.tsx:47
+#: src/features/payment/components/add.tsx:39
 msgid "CVV"
 msgstr "CVV"
 
@@ -224,6 +255,10 @@ msgstr "Failed to switch language"
 msgid "Favorites"
 msgstr "Favorites"
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:451
+msgid "for"
+msgstr "for"
+
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Frequently Asked Questions"
 msgstr "Frequently Asked Questions"
@@ -273,6 +308,10 @@ msgstr "Language"
 msgid "Loading dashboard..."
 msgstr "Loading dashboard..."
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:278
+msgid "Loading your stablecoin balances..."
+msgstr "Loading your stablecoin balances..."
+
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 msgid "Loading..."
@@ -290,7 +329,7 @@ msgstr "MAIN MENU"
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr "Make sure the message starts with \"ENS would like you to ...\""
 
-#: src/features/payment/components/add.tsx:43
+#: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
 msgstr "MM/YY"
 
@@ -313,14 +352,23 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/payment/components/add.tsx:50
-#: src/features/payment/components/add.tsx:50
+#: src/features/payment/components/add.tsx:41
+#: src/features/payment/components/add.tsx:41
 msgid "Name on card"
 msgstr "Name on card"
+
+#. placeholder {0}: formatAmount(priceUSD)
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:382
+msgid "Need ${0}"
+msgstr "Need ${0}"
 
 #: src/features/dashboard/components/FavoritesList.tsx:291
 msgid "Next page"
 msgstr "Next page"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:305
+msgid "No coins found"
+msgstr "No coins found"
 
 #: src/features/payment/components/index.tsx:103
 msgid "No default payment method set."
@@ -344,21 +392,29 @@ msgstr "No names to display"
 msgid "Notifications"
 msgstr "Notifications"
 
-#: src/features/payment/components/add.tsx:153
+#: src/features/payment/components/add.tsx:138
 msgid "or"
 msgstr "or"
 
-#: src/features/payment/components/add.tsx:122
+#: src/features/payment/components/add.tsx:107
 msgid "Pay with Apple"
 msgstr "Pay with Apple"
 
-#: src/features/payment/components/add.tsx:99
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:74
+msgid "Pay with credit card"
+msgstr "Pay with credit card"
+
+#: src/features/payment/components/add.tsx:84
 msgid "Pay with Google"
 msgstr "Pay with Google"
 
-#: src/features/payment/components/add.tsx:145
+#: src/features/payment/components/add.tsx:130
 msgid "Pay with PayPal"
 msgstr "Pay with PayPal"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:233
+msgid "Pay with stablecoins"
+msgstr "Pay with stablecoins"
 
 #: src/features/payment/components/index.tsx:89
 msgid "Payment Method"
@@ -369,9 +425,13 @@ msgid "Payment method options"
 msgstr "Payment method options"
 
 #: src/features/payment/components/add.tsx:15
-#: src/features/payment/components/add.tsx:72
+#: src/features/payment/components/add.tsx:57
 msgid "Payment Methods"
 msgstr "Payment Methods"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:286
+msgid "Please connect your wallet first"
+msgstr "Please connect your wallet first"
 
 #: src/features/register/components/VerifyWalletModal.tsx:163
 msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
@@ -407,6 +467,10 @@ msgstr "Registered"
 msgid "Registered {0}"
 msgstr "Registered {0}"
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
+msgid "Registering"
+msgstr "Registering"
+
 #: src/features/profile/components/ProfileEdit.tsx:173
 msgid "Reset Changes"
 msgstr "Reset Changes"
@@ -414,6 +478,11 @@ msgstr "Reset Changes"
 #: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
 msgid "Search"
 msgstr "Search"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:262
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:265
+msgid "Search coins"
+msgstr "Search coins"
 
 #: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
 msgid "Search for a name or address"
@@ -435,6 +504,16 @@ msgstr "Search name..."
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:244
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+msgid "Select coin"
+msgstr "Select coin"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:522
+msgid "Select payment method"
+msgstr "Select payment method"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:379
 msgid "Set as Primary"
@@ -490,11 +569,15 @@ msgstr "Sort favorites by"
 msgid "Sort names by"
 msgstr "Sort names by"
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:248
+msgid "Stables accepted"
+msgstr "Stables accepted"
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:230
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
-#: src/features/payment/components/add.tsx:172
+#: src/features/payment/components/add.tsx:157
 msgid "The backup payment method will be charged if the default payment method fails."
 msgstr "The backup payment method will be charged if the default payment method fails."
 
@@ -514,6 +597,10 @@ msgstr "To:"
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"
 msgstr "total"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
+msgid "Try searching for a different coin or chain"
+msgstr "Try searching for a different coin or chain"
 
 #: src/features/register/components/VerifyWalletModal.tsx:191
 msgid "Verified!"
@@ -555,10 +642,14 @@ msgstr "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:289
+msgid "You need to connect a wallet to see your stablecoin balances"
+msgstr "You need to connect a wallet to see your stablecoin balances"
+
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Your ENS name"
 
-#: src/features/payment/components/add.tsx:54
+#: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr "Zip code"
