@@ -200,7 +200,6 @@ export const ImageSelectionDialog = ({
       onImageChange,
       setOpen,
       setUploadFile,
-      setUploadPreviewUrl,
       send,
     }),
   )
