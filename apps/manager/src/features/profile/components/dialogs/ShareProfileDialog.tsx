@@ -78,7 +78,7 @@ export const ShareProfileDialog = ({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(safeUrl)
-      toast.success('Link copied to clipboard')
+      toast.success(t`Link copied to clipboard`)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {

@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { keepPreviousData, useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -73,6 +74,7 @@ export const AddressProfileView = ({
   address: Address
   primaryName?: string
 }) => {
+  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
 
@@ -256,7 +258,7 @@ export const AddressProfileView = ({
           <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
             <div className="flex items-center justify-center gap-[12px]">
               <button
-                aria-label="Previous page"
+                aria-label={t`Previous page`}
                 className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
                 disabled={isPending || page === 1}
                 onClick={handlePrev}
@@ -265,7 +267,7 @@ export const AddressProfileView = ({
                 <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
               </button>
               <button
-                aria-label="Next page"
+                aria-label={t`Next page`}
                 className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
                 disabled={isPending || !hasNextPage}
                 onClick={handleNext}

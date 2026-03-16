@@ -325,6 +325,7 @@ msgstr "Choose Primary Name"
 msgid "Claim your"
 msgstr "Claim your"
 
+#: src/components/molecules/SearchField/SearchField.tsx:93
 #: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
 msgid "Clear search"
 msgstr "Clear search"
@@ -426,6 +427,11 @@ msgstr "Copied"
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
 msgid "Copy Link"
 msgstr "Copy Link"
+
+#: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx:16
+#: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx:19
+msgid "Copy to clipboard"
+msgstr "Copy to clipboard"
 
 #: src/features/payment/components/add.tsx:44
 msgid "Country"
@@ -832,6 +838,7 @@ msgid "Link"
 msgstr "Link"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:71
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:81
 msgid "Link copied to clipboard"
 msgstr "Link copied to clipboard"
 
@@ -935,6 +942,7 @@ msgstr "Next card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:298
 #: src/features/dashboard/components/MyNamesList.tsx:343
+#: src/features/profile/components/view/AddressProfileView.tsx:270
 msgid "Next page"
 msgstr "Next page"
 
@@ -1102,6 +1110,7 @@ msgstr "Previous card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:289
 #: src/features/dashboard/components/MyNamesList.tsx:334
+#: src/features/profile/components/view/AddressProfileView.tsx:261
 msgid "Previous page"
 msgstr "Previous page"
 
