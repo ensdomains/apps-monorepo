@@ -207,6 +207,10 @@ msgstr "Authorizing payment"
 msgid "available"
 msgstr "available"
 
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:109
+msgid "Available"
+msgstr "Available"
+
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:407
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:448
@@ -846,6 +850,10 @@ msgstr "Link"
 msgid "Link copied to clipboard"
 msgstr "Link copied to clipboard"
 
+#: src/features/landing/components/ProfileCard.tsx:141
+msgid "links"
+msgstr "links"
+
 #: src/features/profile/components/sections/LinksSection.tsx:21
 msgid "Links"
 msgstr "Links"
@@ -1162,6 +1170,8 @@ msgid "Reconnect Wallet"
 msgstr "Reconnect Wallet"
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
+#: src/features/landing/components/ProfileCard.tsx:122
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:99
 msgid "Registered"
 msgstr "Registered"
 
