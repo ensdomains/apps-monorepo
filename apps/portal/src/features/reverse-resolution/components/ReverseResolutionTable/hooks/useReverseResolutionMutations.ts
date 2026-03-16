@@ -9,17 +9,19 @@ import {
   type SetPrimaryNameWriteParametersReturnType,
   setPrimaryNameWriteParameters,
 } from '@ensdomains/ensjs/wallet'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection, useEnsResolver, useWalletClient } from 'wagmi'
+import { getIsDedicatedResolverQueryOptions } from '@/features/resolver/hooks/useIsDedicatedResolver'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
-  displayName: string | null
+  displayName: string | undefined
 }
 
 type ReverseResolutionWriteRequest =
@@ -49,8 +51,16 @@ export function useReverseResolutionMutations({
 
   // Get resolver address for forward resolution (L1 only)
   const { data: resolverAddress } = useEnsResolver({
-    name: displayName || '',
-    query: { enabled: isL1 && !!displayName },
+    name: displayName,
+    chainId: sepolia.id,
+    query: { enabled: isL1 && Boolean(displayName) },
+  })
+
+  const { data: isDedicatedResolver } = useQuery({
+    ...getIsDedicatedResolverQueryOptions({
+      resolverAddress: resolverAddress ?? zeroAddress,
+    }),
+    enabled: Boolean(resolverAddress),
   })
 
   const invalidateReverseResolutionQuery = useCallback(() => {
@@ -96,13 +106,20 @@ export function useReverseResolutionMutations({
         )
 
       return createSetForwardResolutionRequest({
-        name: displayName || '',
+        name: displayName,
         reverseRegistrarChainId,
         resolverAddress,
         targetAddress: address,
+        isDedicatedResolver,
       })
     },
-    [displayName, isL1, resolverAddress, reverseRegistrarChainId],
+    [
+      displayName,
+      isDedicatedResolver,
+      isL1,
+      resolverAddress,
+      reverseRegistrarChainId,
+    ],
   )
 
   return {
