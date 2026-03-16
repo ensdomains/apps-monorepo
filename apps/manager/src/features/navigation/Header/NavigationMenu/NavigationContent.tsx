@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -35,74 +36,77 @@ interface SocialIcon {
 
 const LogoIconBlack = () => <img alt="Logo" src={ensMobile} />
 
-const navigationSections: NavigationSection[] = [
-  {
-    title: '',
-    links: [
-      {
-        label: 'ENS App Homepage',
-        href: '/',
-        icon: <LogoIconBlack />,
-      },
-    ],
-  },
-  {
-    title: 'Need help?',
-    links: [
-      {
-        label: 'Support',
-        href: 'https://support.ens.domains',
-        target: '_blank',
-        rel: 'noreferrer',
-      },
-      {
-        label: 'Contact',
-        href: 'mailto:support@ens.domains',
-      },
-    ],
-  },
-  {
-    title: 'ENS',
-    links: [
-      {
-        label: 'Privacy Policy',
-        to: '/legal/privacy-policy',
-      },
-      {
-        label: 'Terms of Use',
-        to: '/legal/terms-of-use',
-      },
-      {
-        label: 'Trademark Guidelines',
-        to: '/legal/trademark-guidelines',
-      },
-      {
-        label: 'Bug bounty',
-        href: 'https://immunefi.com/bug-bounty/ens/information',
-        target: '_blank',
-        rel: 'noreferrer',
-      },
-    ],
-  },
+const useNavigationSections = (): NavigationSection[] => {
+  const { t } = useLingui()
+  return [
+    {
+      title: '',
+      links: [
+        {
+          label: t`ENS App Homepage`,
+          href: '/',
+          icon: <LogoIconBlack />,
+        },
+      ],
+    },
+    {
+      title: t`Need help?`,
+      links: [
+        {
+          label: t`Support`,
+          href: 'https://support.ens.domains',
+          target: '_blank',
+          rel: 'noreferrer',
+        },
+        {
+          label: t`Contact`,
+          href: 'mailto:support@ens.domains',
+        },
+      ],
+    },
+    {
+      title: t`ENS`,
+      links: [
+        {
+          label: t`Privacy Policy`,
+          to: '/legal/privacy-policy',
+        },
+        {
+          label: t`Terms of Use`,
+          to: '/legal/terms-of-use',
+        },
+        {
+          label: t`Trademark Guidelines`,
+          to: '/legal/trademark-guidelines',
+        },
+        {
+          label: t`Bug bounty`,
+          href: 'https://immunefi.com/bug-bounty/ens/information',
+          target: '_blank',
+          rel: 'noreferrer',
+        },
+      ],
+    },
 
-  {
-    title: 'Join the community',
-    links: [
-      {
-        label: 'Blog',
-        href: 'https://ens.domains/blog',
-        target: '_blank',
-        rel: 'noreferrer',
-      },
-      {
-        label: 'DAO Forum',
-        href: 'https://discuss.ens.domains/',
-        target: '_blank',
-        rel: 'noreferrer',
-      },
-    ],
-  },
-]
+    {
+      title: t`Join the community`,
+      links: [
+        {
+          label: t`Blog`,
+          href: 'https://ens.domains/blog',
+          target: '_blank',
+          rel: 'noreferrer',
+        },
+        {
+          label: t`DAO Forum`,
+          href: 'https://discuss.ens.domains/',
+          target: '_blank',
+          rel: 'noreferrer',
+        },
+      ],
+    },
+  ]
+}
 
 const socialIcons: SocialIcon[] = [
   { href: 'https://x.com/ensdomains', icon: TwitterIcon },
@@ -113,6 +117,7 @@ const socialIcons: SocialIcon[] = [
 ]
 
 export const NavigationContent = ({ onAction }: NavigationContentProps) => {
+  const navigationSections = useNavigationSections()
   const handleLinkClick = () => {
     onAction()
   }

@@ -242,6 +242,10 @@ msgstr "Billing zip code"
 msgid "Bio"
 msgstr "Bio"
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:95
+msgid "Blog"
+msgstr "Blog"
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:239
 msgid "Browse Files"
 msgstr "Browse Files"
@@ -257,6 +261,10 @@ msgstr "Browser notifications disabled"
 #: src/features/notifications/settings/contact-methods/push.tsx:39
 msgid "Browser notifications enabled"
 msgstr "Browser notifications enabled"
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:83
+msgid "Bug bounty"
+msgstr "Bug bounty"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
 msgid "Buy Name"
@@ -332,6 +340,10 @@ msgstr "Choose Primary Name"
 #: src/features/register/pages/CheckDomainPage.tsx:18
 msgid "Claim your"
 msgstr "Claim your"
+
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:40
+msgid "Clear"
+msgstr "Clear"
 
 #: src/components/molecules/SearchField/SearchField.tsx:93
 #: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
@@ -416,6 +428,10 @@ msgstr "Connect your wallet"
 msgid "Connected wallet"
 msgstr "Connected wallet"
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:62
+msgid "Contact"
+msgstr "Contact"
+
 #: src/features/profile/components/sections/OtherSection.tsx:92
 msgid "Content Hash"
 msgstr "Content Hash"
@@ -490,6 +506,10 @@ msgstr "Custom duration in years"
 #: src/features/payment/components/add.tsx:39
 msgid "CVV"
 msgstr "CVV"
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:101
+msgid "DAO Forum"
+msgstr "DAO Forum"
 
 #: src/features/dashboard/components/DashboardSidebar.tsx:47
 msgid "Dashboard"
@@ -568,6 +588,14 @@ msgstr "Enable Sessions"
 #: src/features/wallet/components/EnableSessionModal.tsx:91
 msgid "Enable Smart Sessions"
 msgstr "Enable Smart Sessions"
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
+msgid "ENS"
+msgstr "ENS"
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:46
+msgid "ENS App Homepage"
+msgstr "ENS App Homepage"
 
 #: src/features/notifications/settings/preferences.tsx:131
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:115
@@ -828,6 +856,10 @@ msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your w
 msgid "Invalid character"
 msgstr "Invalid character"
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:92
+msgid "Join the community"
+msgstr "Join the community"
+
 #: src/features/dashboard/components/FaqSection.tsx:47
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
@@ -850,7 +882,7 @@ msgstr "Link"
 msgid "Link copied to clipboard"
 msgstr "Link copied to clipboard"
 
-#: src/features/landing/components/ProfileCard.tsx:141
+#: src/features/landing/components/ProfileCard.tsx:142
 msgid "links"
 msgstr "links"
 
@@ -956,6 +988,10 @@ msgstr "Names are permanent, only expire if not renewed"
 msgid "Need ${0}"
 msgstr "Need ${0}"
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:53
+msgid "Need help?"
+msgstr "Need help?"
+
 #: src/features/dashboard/components/EducationCarousel.tsx:45
 msgid "Next card"
 msgstr "Next card"
@@ -996,6 +1032,10 @@ msgstr "No names to display"
 #: src/features/landing/FeaturesCarousel.tsx:105
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
+
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
+msgid "No recent searches"
+msgstr "No recent searches"
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:13
 msgid "Not a valid name format"
@@ -1148,6 +1188,10 @@ msgstr "Primary Name"
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:71
+msgid "Privacy Policy"
+msgstr "Privacy Policy"
+
 #: src/features/dashboard/components/DashboardSidebar.tsx:62
 #: src/features/dashboard/components/DashboardSidebar.tsx:74
 msgid "Profile"
@@ -1161,6 +1205,10 @@ msgstr "Receive crypto from any chain"
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
 
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:34
+msgid "Recent"
+msgstr "Recent"
+
 #: src/features/notifications/RequireBackendAuth.tsx:54
 msgid "Reconnect the wallet used for notifications, then sign in again."
 msgstr "Reconnect the wallet used for notifications, then sign in again."
@@ -1170,7 +1218,7 @@ msgid "Reconnect Wallet"
 msgstr "Reconnect Wallet"
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
-#: src/features/landing/components/ProfileCard.tsx:122
+#: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:99
 msgid "Registered"
 msgstr "Registered"
@@ -1209,6 +1257,10 @@ msgstr "Registration Fee"
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
 msgid "Registration Period"
 msgstr "Registration Period"
+
+#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:60
+msgid "Registration successful! You'll receive a confirmation shortly."
+msgstr "Registration successful! You'll receive a confirmation shortly."
 
 #: src/features/notifications/settings/contact-methods/email.tsx:214
 #: src/features/notifications/settings/contact-methods/email.tsx:250
@@ -1549,6 +1601,10 @@ msgstr "Stables accepted"
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:56
+msgid "Support"
+msgstr "Support"
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Supports USDC and DAI payments"
 msgstr "Supports USDC and DAI payments"
@@ -1568,6 +1624,10 @@ msgstr "Telegram channel removed"
 #: src/features/notifications/settings/contact-methods/telegram.tsx:90
 msgid "Telegram Notifications"
 msgstr "Telegram Notifications"
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:75
+msgid "Terms of Use"
+msgstr "Terms of Use"
 
 #: src/features/payment/components/add.tsx:157
 msgid "The backup payment method will be charged if the default payment method fails."
@@ -1594,6 +1654,10 @@ msgstr "There was a problem verifying your email address."
 #: src/features/payment/components/index.tsx:92
 msgid "This card will be charged for your subscription."
 msgstr "This card will be charged for your subscription."
+
+#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:77
+msgid "This name is already registered or not available for registration."
+msgstr "This name is already registered or not available for registration."
 
 #: src/routes/notifications/channels/email/verify.tsx:105
 msgid "This page can only verify your email when opened from the link in the verification email."
@@ -1634,6 +1698,10 @@ msgstr "TOTAL"
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:111
 msgid "Total Paid"
 msgstr "Total Paid"
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:79
+msgid "Trademark Guidelines"
+msgstr "Trademark Guidelines"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:87
 msgid "Transfer your name to any wallet"

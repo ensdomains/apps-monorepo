@@ -247,6 +247,10 @@ msgstr ""
 msgid "Bio"
 msgstr ""
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:95
+msgid "Blog"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:239
 msgid "Browse Files"
 msgstr ""
@@ -261,6 +265,10 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx:39
 msgid "Browser notifications enabled"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:83
+msgid "Bug bounty"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
@@ -336,6 +344,10 @@ msgstr "Välj primärt namn"
 
 #: src/features/register/pages/CheckDomainPage.tsx:18
 msgid "Claim your"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:40
+msgid "Clear"
 msgstr ""
 
 #: src/components/molecules/SearchField/SearchField.tsx:93
@@ -421,6 +433,10 @@ msgstr ""
 msgid "Connected wallet"
 msgstr ""
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:62
+msgid "Contact"
+msgstr ""
+
 #: src/features/profile/components/sections/OtherSection.tsx:92
 msgid "Content Hash"
 msgstr ""
@@ -494,6 +510,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx:39
 msgid "CVV"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:101
+msgid "DAO Forum"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardSidebar.tsx:47
@@ -572,6 +592,14 @@ msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx:91
 msgid "Enable Smart Sessions"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
+msgid "ENS"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:46
+msgid "ENS App Homepage"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:131
@@ -833,6 +861,10 @@ msgstr ""
 msgid "Invalid character"
 msgstr ""
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:92
+msgid "Join the community"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx:47
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
@@ -855,7 +887,7 @@ msgstr ""
 msgid "Link copied to clipboard"
 msgstr ""
 
-#: src/features/landing/components/ProfileCard.tsx:141
+#: src/features/landing/components/ProfileCard.tsx:142
 msgid "links"
 msgstr ""
 
@@ -961,6 +993,10 @@ msgstr ""
 msgid "Need ${0}"
 msgstr ""
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:53
+msgid "Need help?"
+msgstr ""
+
 #: src/features/dashboard/components/EducationCarousel.tsx:45
 msgid "Next card"
 msgstr ""
@@ -1000,6 +1036,10 @@ msgstr "Inga namn att visa"
 
 #: src/features/landing/FeaturesCarousel.tsx:105
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
+msgid "No recent searches"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:13
@@ -1153,6 +1193,10 @@ msgstr "Primärt namn"
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:71
+msgid "Privacy Policy"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardSidebar.tsx:62
 #: src/features/dashboard/components/DashboardSidebar.tsx:74
 msgid "Profile"
@@ -1166,6 +1210,10 @@ msgstr ""
 msgid "Receive notifications via email for important domain events"
 msgstr ""
 
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:34
+msgid "Recent"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx:54
 msgid "Reconnect the wallet used for notifications, then sign in again."
 msgstr ""
@@ -1175,7 +1223,7 @@ msgid "Reconnect Wallet"
 msgstr ""
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
-#: src/features/landing/components/ProfileCard.tsx:122
+#: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:99
 msgid "Registered"
 msgstr "Registrerad"
@@ -1213,6 +1261,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
 msgid "Registration Period"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:60
+msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:214
@@ -1554,6 +1606,10 @@ msgstr ""
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:56
+msgid "Support"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Supports USDC and DAI payments"
 msgstr ""
@@ -1572,6 +1628,10 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx:90
 msgid "Telegram Notifications"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:75
+msgid "Terms of Use"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:157
@@ -1598,6 +1658,10 @@ msgstr ""
 #: src/features/payment/components/add.tsx:18
 #: src/features/payment/components/index.tsx:92
 msgid "This card will be charged for your subscription."
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:77
+msgid "This name is already registered or not available for registration."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx:105
@@ -1638,6 +1702,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:111
 msgid "Total Paid"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:79
+msgid "Trademark Guidelines"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:87
