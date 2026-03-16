@@ -184,7 +184,11 @@ export const ImageSelectionDialog = ({
     }
   }
 
-  const { mutate: uploadImage, isPending: isUploading } = useMutation(
+  const {
+    mutate: uploadImage,
+    isPending: isUploading,
+    error: uploadError,
+  } = useMutation(
     uploadImageMutationOptions({
       type,
       name,
@@ -413,6 +417,8 @@ export const ImageSelectionDialog = ({
   }
 
   // Upload preview step
+  const uploadErrorMessage =
+    uploadError instanceof Error ? uploadError.message : null
   const renderUploadPreviewStep = () => (
     <>
       <StepHeader
@@ -421,7 +427,7 @@ export const ImageSelectionDialog = ({
         title="Crop Image"
       />
 
-      <ErrorDisplay error={state.context.error} />
+      <ErrorDisplay error={uploadErrorMessage} />
 
       <div className="space-y-4">
         <div className="text-center">
