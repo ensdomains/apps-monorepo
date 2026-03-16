@@ -106,6 +106,10 @@ msgstr "Add a short bio to your profile"
 msgid "Add Backup Card"
 msgstr "Add Backup Card"
 
+#: src/features/register/components/Autorenewal.tsx:103
+msgid "Add credit card"
+msgstr "Add credit card"
+
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:78
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
@@ -217,6 +221,10 @@ msgstr "Available"
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:542
 msgid "Back"
 msgstr "Back"
+
+#: src/features/register/components/Autorenewal.tsx:81
+msgid "Back to dashboard"
+msgstr "Back to dashboard"
 
 #: src/routes/notifications/channels/email/verify.tsx:238
 msgid "Back to Home"
@@ -341,7 +349,7 @@ msgstr "Choose Primary Name"
 msgid "Claim your"
 msgstr "Claim your"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:40
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:42
 msgid "Clear"
 msgstr "Clear"
 
@@ -460,6 +468,10 @@ msgstr "Copy to clipboard"
 #: src/features/payment/components/add.tsx:44
 msgid "Country"
 msgstr "Country"
+
+#: src/features/register/components/Autorenewal.tsx:74
+msgid "Create profile"
+msgstr "Create profile"
 
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:134
 msgid "Create Profile"
@@ -652,6 +664,10 @@ msgstr "Expires"
 msgid "Expires {0}"
 msgstr "Expires {0}"
 
+#: src/features/register/components/Autorenewal.tsx:64
+msgid "expires {expiryDateString}"
+msgstr "expires {expiryDateString}"
+
 #: src/features/dashboard/components/MyNamesList.tsx:332
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Expires in {daysUntilExpiry} days"
@@ -702,6 +718,7 @@ msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:58
+#: src/features/notifications/inbox/list.tsx:97
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
 
@@ -890,6 +907,10 @@ msgstr "links"
 msgid "Links"
 msgstr "Links"
 
+#: src/features/notifications/inbox/list.tsx:48
+msgid "Load more"
+msgstr "Load more"
+
 #: src/features/dashboard/components/DashboardLoading.tsx:8
 msgid "Loading dashboard..."
 msgstr "Loading dashboard..."
@@ -905,6 +926,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+#: src/features/notifications/inbox/list.tsx:46
 msgid "Loading..."
 msgstr "Loading..."
 
@@ -1197,6 +1219,10 @@ msgstr "Privacy Policy"
 msgid "Profile"
 msgstr "Profile"
 
+#: src/features/register/components/Autorenewal.tsx:88
+msgid "Protect your name with autorenewal"
+msgstr "Protect your name with autorenewal"
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
 msgid "Receive crypto from any chain"
 msgstr "Receive crypto from any chain"
@@ -1205,7 +1231,7 @@ msgstr "Receive crypto from any chain"
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:34
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
 msgid "Recent"
 msgstr "Recent"
 
@@ -1257,6 +1283,10 @@ msgstr "Registration Fee"
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
 msgid "Registration Period"
 msgstr "Registration Period"
+
+#: src/features/register/components/Autorenewal.tsx:120
+msgid "Registration successful"
+msgstr "Registration successful"
 
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:60
 msgid "Registration successful! You'll receive a confirmation shortly."
@@ -1528,6 +1558,7 @@ msgstr "Sign once to enable seamless transactions."
 msgid "Signing in..."
 msgstr "Signing in..."
 
+#: src/features/register/components/Autorenewal.tsx:110
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:147
 msgid "Skip"
 msgstr "Skip"
@@ -1923,6 +1954,14 @@ msgstr "You'll be notified 30, 7, and 1 day before expiry"
 #: src/features/wallet/components/BackendAuthModal.tsx:138
 msgid "You'll miss:"
 msgstr "You'll miss:"
+
+#: src/features/notifications/inbox/list.tsx:108
+msgid "You're all caught up!"
+msgstr "You're all caught up!"
+
+#: src/features/register/components/Autorenewal.tsx:91
+msgid "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
+msgstr "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
 
 #: src/routes/notifications/channels/email/verify.tsx:175
 msgid "Your email has been verified successfully!"
