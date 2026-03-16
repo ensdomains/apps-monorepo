@@ -29,7 +29,7 @@ msgid "{0} avatar placeholder"
 msgstr "{0} avatar-placeholder"
 
 #. placeholder {0}: currentPage + 1
-#: src/features/dashboard/components/EducationCarousel.tsx:39
+#: src/features/dashboard/components/EducationCarousel.tsx:40
 msgid "{0} of {totalPages}"
 msgstr "{0} av {totalPages}"
 
@@ -382,7 +382,7 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: src/features/dashboard/components/EducationCarousel.tsx:23
+#: src/features/dashboard/components/EducationCarousel.tsx:24
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
@@ -597,6 +597,10 @@ msgstr ""
 msgid "Link"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:71
+msgid "Link copied to clipboard"
+msgstr ""
+
 #: src/features/profile/components/sections/LinksSection.tsx:21
 msgid "Links"
 msgstr ""
@@ -664,7 +668,12 @@ msgstr ""
 msgid "Need ${0}"
 msgstr ""
 
+#: src/features/dashboard/components/EducationCarousel.tsx:45
+msgid "Next card"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:298
+#: src/features/dashboard/components/MyNamesList.tsx:343
 msgid "Next page"
 msgstr ""
 
@@ -774,7 +783,12 @@ msgstr ""
 msgid "Preview of your image"
 msgstr ""
 
+#: src/features/dashboard/components/EducationCarousel.tsx:28
+msgid "Previous card"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:289
+#: src/features/dashboard/components/MyNamesList.tsx:334
 msgid "Previous page"
 msgstr ""
 
@@ -912,6 +926,10 @@ msgstr ""
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:191
+msgid "Search name or address"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
 #: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
 msgid "Search name, address..."
@@ -994,6 +1012,10 @@ msgstr "Anger..."
 msgid "Setting…"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:92
+msgid "Share"
+msgstr ""
+
 #: src/features/profile/components/sections/BioSection.tsx:81
 msgid "Short Description"
 msgstr ""
@@ -1065,6 +1087,16 @@ msgstr ""
 #: src/features/dashboard/components/MyNamesList.tsx:176
 msgid "Sort by"
 msgstr "Sortera efter"
+
+#. placeholder {0}: sortField === 'expiry' ? sortDir : 'unsorted'
+#: src/features/dashboard/components/MyNamesList.tsx:219
+msgid "Sort by expiry, currently {0}"
+msgstr ""
+
+#. placeholder {0}: sortField === 'name' ? sortDir : 'unsorted'
+#: src/features/dashboard/components/MyNamesList.tsx:206
+msgid "Sort by name, currently {0}"
+msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:192
 msgid "Sort by name, currently ascending"

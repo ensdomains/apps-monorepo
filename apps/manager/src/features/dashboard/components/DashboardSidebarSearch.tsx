@@ -188,7 +188,7 @@ export const DashboardSidebarSearch = ({
     <div className="relative" ref={containerRef}>
       <form onSubmit={handleSearchSubmit}>
         <Input
-          aria-label="Search name or address"
+          aria-label={t`Search name or address`}
           autoComplete="off"
           className="h-[44px] rounded-[4px] border-[0.4px] border-ens-gray-two bg-white text-muted-foreground placeholder:text-muted-foreground"
           onChange={(event) => {
