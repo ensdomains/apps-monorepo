@@ -150,10 +150,9 @@ export const ResolverRolesTable = ({
   )
   const [tableView] = useTableViewSettings()
 
-  const resourceToName = useMemo(() => buildResourceToNameMap(nodes), [nodes])
   const data = useMemo(
-    () => groupRolesByAccount(roles, resourceToName),
-    [roles, resourceToName],
+    () => groupRolesByAccount(roles, buildResourceToNameMap(nodes)),
+    [roles, nodes],
   )
 
   const table = useReactTable<AccountRoleGroup>({

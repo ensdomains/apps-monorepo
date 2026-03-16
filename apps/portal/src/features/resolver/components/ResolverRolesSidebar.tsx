@@ -68,7 +68,7 @@ export const ResolverRolesSidebar = ({
   const { data: walletClient } = useWalletClient({ chainId })
 
   const selectedAccount = row?.original.account
-  const decodedRoles = useMemo(() => row?.original.decodedRoles ?? [], [row])
+  const decodedRoles = row?.original.decodedRoles ?? []
   const resolvedNames = row?.original.resolvedNames ?? []
   const roleName = resolvedNames.find((n) => n !== '(root)') ?? ''
   const originalPermissions = useMemo(
