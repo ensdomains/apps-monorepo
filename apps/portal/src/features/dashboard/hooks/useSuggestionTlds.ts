@@ -19,10 +19,10 @@ const ALWAYS_VALID_TLDS = ['eth']
  * "eth" is always included; other TLDs from SUGGESTION_TLDs are included
  * only when DNSSEC is enabled for that TLD.
  *
- * @param shouldEnable - Whether to enable DNSSEC checks for non-ETH TLDs.
- *                       Set to false to avoid unnecessary DNS queries on mount.
+ * @param enabled - Whether to enable DNSSEC checks for non-ETH TLDs.
+ *                  Set to false to avoid unnecessary DNS queries on mount.
  */
-export const useSuggestionTlds = (shouldEnable: boolean = true) => {
+export const useSuggestionTlds = (enabled: boolean = true) => {
   const nonEthTlds = useMemo(
     () => SUGGESTION_TLDs.filter((t) => t !== 'eth'),
     [],
@@ -30,7 +30,7 @@ export const useSuggestionTlds = (shouldEnable: boolean = true) => {
 
   const queries = useQueries({
     queries: nonEthTlds.map((tld) =>
-      getDnsSecEnabledQueryOptions({ tld, enabled: shouldEnable }),
+      getDnsSecEnabledQueryOptions({ tld, enabled }),
     ),
   })
 
