@@ -274,6 +274,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     if (!input?.reportValidity()) {
       return
     }
+
     if (isWrongChain) {
       try {
         switchChain(getSwitchToRequiredNetworkRequest())
@@ -282,6 +283,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       }
       return
     }
+
     if (nameInput) {
       try {
         const reverseRequest = getReverseResolutionRequest(nameInput)
