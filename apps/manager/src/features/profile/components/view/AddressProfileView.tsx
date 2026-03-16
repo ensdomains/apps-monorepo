@@ -1,4 +1,4 @@
-import { useLingui } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { keepPreviousData, useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -34,11 +34,14 @@ import {
 const shortenAddress = (value: string) =>
   `${value.slice(0, 6)}...${value.slice(-4)}`
 
-const formatExpiry = (expiry?: number | null) => {
+const formatExpiry = (
+  expiry: number | null | undefined,
+  t: (strings: TemplateStringsArray, ...values: unknown[]) => string,
+) => {
   const asDate = toDateFromSeconds(expiry)
   const formatted = formatDashboardDate(asDate)
 
-  return formatted === '—' ? 'No expiry set' : `Expires ${formatted}`
+  return formatted === '—' ? t`No expiry set` : t`Expires ${formatted}`
 }
 
 const NameAvatar = ({ name }: { name: string }) => {
@@ -179,7 +182,7 @@ export const AddressProfileView = ({
                   </div>
                 </div>
                 <span className="shrink-0 text-muted-foreground text-sm tracking-[-0.24px]">
-                  {formatExpiry(domain.expiryDate)}
+                  {formatExpiry(domain.expiryDate, t)}
                 </span>
               </div>
             </motion.div>
@@ -226,7 +229,9 @@ export const AddressProfileView = ({
             ) : (
               <div className="flex items-start gap-2 rounded-lg bg-ens-white p-3 text-muted-foreground text-sm">
                 <Info className="mt-[2px] size-4 shrink-0" />
-                <p>This address does not have a primary ENS name.</p>
+                <p>
+                  <Trans>This address does not have a primary ENS name.</Trans>
+                </p>
               </div>
             )}
           </div>
@@ -237,7 +242,7 @@ export const AddressProfileView = ({
         <div className="mb-[20px] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="font-serif text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
-              Registered ENS names
+              <Trans>Registered ENS names</Trans>
             </span>
             {namesCount !== undefined && namesCount > 0 && (
               <CountBadge value={namesCount} />

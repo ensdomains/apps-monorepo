@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { copyToClipboard } from '@/lib/clipboard'
 import {
@@ -13,6 +14,7 @@ interface ContactItemProps {
 }
 
 const ContactItem = ({ record }: ContactItemProps) => {
+  const { t } = useLingui()
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value || '')
   const href = getRecordHref(recordDef, displayValue)
@@ -50,7 +52,7 @@ const ContactItem = ({ record }: ContactItemProps) => {
     <button
       className="flex cursor-pointer items-center gap-1.5 transition-opacity hover:opacity-80"
       onClick={() => copyToClipboard(displayValue || record.value || '')}
-      title="Click to copy"
+      title={t`Click to copy`}
       type="button"
     >
       {inner}

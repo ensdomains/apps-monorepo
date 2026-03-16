@@ -93,7 +93,7 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #. placeholder {0}: getErrorMessage(error)
-#: src/routes/wallet.tsx:188
+#: src/routes/wallet.tsx:192
 msgid "<0>Connection failed:</0> {0}"
 msgstr ""
 
@@ -102,7 +102,7 @@ msgid "60-second wait prevents attacks"
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:26
-#: src/routes/index.tsx:34
+#: src/routes/index.tsx:36
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
 
@@ -165,7 +165,7 @@ msgid "Add more"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:23
-#: src/routes/payment/list.tsx:27
+#: src/routes/payment/list.tsx:29
 msgid "Add Payment Method"
 msgstr ""
 
@@ -257,7 +257,7 @@ msgstr ""
 msgid "Available"
 msgstr ""
 
-#: src/routes/wallet.tsx:198
+#: src/routes/wallet.tsx:204
 msgid "Available Wallets"
 msgstr ""
 
@@ -379,7 +379,7 @@ msgstr ""
 msgid "Choose a color for your profile"
 msgstr ""
 
-#: src/routes/wallet.tsx:201
+#: src/routes/wallet.tsx:207
 msgid "Choose a wallet to connect to the application"
 msgstr ""
 
@@ -396,7 +396,7 @@ msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
 #: src/features/register/pages/CheckDomainPage.tsx:18
-#: src/routes/index.tsx:27
+#: src/routes/index.tsx:28
 msgid "Claim your"
 msgstr ""
 
@@ -491,7 +491,7 @@ msgstr ""
 msgid "Connect your wallet"
 msgstr ""
 
-#: src/routes/wallet.tsx:291
+#: src/routes/wallet.tsx:301
 msgid "Connected via:"
 msgstr ""
 
@@ -503,7 +503,7 @@ msgstr ""
 msgid "Connecting to {connectingConnector}... Please approve the connection in your wallet."
 msgstr ""
 
-#: src/routes/wallet.tsx:273
+#: src/routes/wallet.tsx:281
 msgid "Connection Details"
 msgstr ""
 
@@ -627,7 +627,7 @@ msgstr "Visste du att?"
 msgid "Disconnect"
 msgstr ""
 
-#: src/routes/wallet.tsx:303
+#: src/routes/wallet.tsx:313
 msgid "Disconnect Wallet"
 msgstr ""
 
@@ -1044,7 +1044,7 @@ msgstr "HUVUDMENY"
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr ""
 
-#: src/routes/wallet.tsx:245
+#: src/routes/wallet.tsx:253
 msgid "Make sure you have a wallet extension installed"
 msgstr ""
 
@@ -1173,7 +1173,7 @@ msgstr "Inga namn hittades"
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
-#: src/routes/payment/list.tsx:25
+#: src/routes/payment/list.tsx:26
 msgid "No payment methods found."
 msgstr ""
 
@@ -1185,7 +1185,7 @@ msgstr ""
 msgid "No recent searches"
 msgstr ""
 
-#: src/routes/wallet.tsx:243
+#: src/routes/wallet.tsx:250
 msgid "No wallet connectors available"
 msgstr ""
 
@@ -1791,7 +1791,7 @@ msgstr ""
 msgid "Submitting your ENS profile update. This may take a few moments."
 msgstr ""
 
-#: src/routes/wallet.tsx:169
+#: src/routes/wallet.tsx:171
 msgid "Successfully connected! You can now use the application."
 msgstr ""
 
@@ -2060,7 +2060,7 @@ msgstr ""
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
-#: src/routes/wallet.tsx:282
+#: src/routes/wallet.tsx:292
 msgid "Wallet Address:"
 msgstr ""
 
@@ -2068,7 +2068,7 @@ msgstr ""
 msgid "Wallet client missing, please reconnect your wallet and try again."
 msgstr ""
 
-#: src/routes/wallet.tsx:266
+#: src/routes/wallet.tsx:274
 msgid "Wallet Connected"
 msgstr ""
 
@@ -2086,7 +2086,7 @@ msgid "We sent a verification code to your email address."
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:22
-#: src/routes/index.tsx:30
+#: src/routes/index.tsx:32
 msgid "web3 username"
 msgstr ""
 
@@ -2188,7 +2188,7 @@ msgstr ""
 msgid "Your profile changes have been confirmed on-chain."
 msgstr ""
 
-#: src/routes/wallet.tsx:276
+#: src/routes/wallet.tsx:284
 msgid "Your wallet is successfully connected to the application"
 msgstr ""
 

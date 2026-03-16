@@ -170,13 +170,17 @@ export const DiffDialog = ({
                   </div>
                   {change.type === 'added' && (
                     <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
-                      <strong>New value:</strong>{' '}
+                      <strong>
+                        <Trans>New value:</Trans>
+                      </strong>{' '}
                       <DiffValue value={change.current} />
                     </div>
                   )}
                   {change.type === 'removed' && (
                     <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
-                      <strong>Removed:</strong>{' '}
+                      <strong>
+                        <Trans>Removed:</Trans>
+                      </strong>{' '}
                       <DiffValue value={change.original} />
                     </div>
                   )}
@@ -220,7 +224,9 @@ export const DiffDialog = ({
               ))}
             </div>
           ) : (
-            <p className="text-center text-gray-500">No changes to save</p>
+            <p className="text-center text-gray-500">
+              <Trans>No changes to save</Trans>
+            </p>
           )}
         </div>
       )}
