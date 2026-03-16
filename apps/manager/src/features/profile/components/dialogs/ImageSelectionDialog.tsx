@@ -426,9 +426,7 @@ export const ImageSelectionDialog = ({
         onBack={() => send({ type: 'BACK' })}
         title="Crop Image"
       />
-
       <ErrorDisplay error={uploadErrorMessage} />
-
       <div className="space-y-4">
         <div className="text-center">
           <img
