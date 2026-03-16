@@ -625,7 +625,7 @@ msgstr "Går ut"
 msgid "Expires {0}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:318
+#: src/features/dashboard/components/MyNamesList.tsx:332
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -633,7 +633,7 @@ msgstr "Går ut om {daysUntilExpiry} dagar"
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:227
+#: src/features/dashboard/components/MyNamesList.tsx:241
 msgid "Expiry"
 msgstr "Utgång"
 
@@ -893,11 +893,11 @@ msgstr ""
 msgid "Manage your notification preferences for your name(s) and ENS-related updates."
 msgstr ""
 
-#: src/routes/notifications/_authenticated/index.tsx:111
+#: src/routes/notifications/_authenticated/index.tsx:114
 msgid "Mark all as read"
 msgstr ""
 
-#: src/routes/notifications/_authenticated/index.tsx:111
+#: src/routes/notifications/_authenticated/index.tsx:112
 msgid "Marking..."
 msgstr ""
 
@@ -914,7 +914,7 @@ msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:204
-#: src/features/dashboard/components/MyNamesList.tsx:214
+#: src/features/dashboard/components/MyNamesList.tsx:221
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
@@ -958,7 +958,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:298
-#: src/features/dashboard/components/MyNamesList.tsx:343
+#: src/features/dashboard/components/MyNamesList.tsx:357
 #: src/features/profile/components/view/AddressProfileView.tsx:270
 msgid "Next page"
 msgstr ""
@@ -986,7 +986,7 @@ msgstr "Inga namn hittades"
 
 #: src/features/dashboard/components/FavoritesList.tsx:235
 #: src/features/dashboard/components/FavoritesList.tsx:246
-#: src/features/dashboard/components/MyNamesList.tsx:260
+#: src/features/dashboard/components/MyNamesList.tsx:274
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1127,7 +1127,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:289
-#: src/features/dashboard/components/MyNamesList.tsx:334
+#: src/features/dashboard/components/MyNamesList.tsx:348
 #: src/features/profile/components/view/AddressProfileView.tsx:261
 msgid "Previous page"
 msgstr ""
@@ -1330,8 +1330,8 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/routes/notifications/_authenticated/index.tsx:116
-#: src/routes/notifications/_authenticated/index.tsx:117
+#: src/routes/notifications/_authenticated/index.tsx:120
+#: src/routes/notifications/_authenticated/index.tsx:121
 msgid "Search notifications"
 msgstr ""
 
@@ -1433,7 +1433,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:356
+#: src/features/dashboard/components/MyNamesList.tsx:370
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -1501,25 +1501,30 @@ msgstr ""
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#. placeholder {0}: sortField === 'expiry' ? sortDir : 'unsorted'
-#: src/features/dashboard/components/MyNamesList.tsx:219
-msgid "Sort by expiry, currently {0}"
+#: src/features/dashboard/components/MyNamesList.tsx:229
+msgid "Sort by expiry, currently ascending"
 msgstr ""
 
-#. placeholder {0}: sortField === 'name' ? sortDir : 'unsorted'
-#: src/features/dashboard/components/MyNamesList.tsx:206
-msgid "Sort by name, currently {0}"
+#: src/features/dashboard/components/MyNamesList.tsx:230
+msgid "Sort by expiry, currently descending"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:232
+msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:192
+#: src/features/dashboard/components/MyNamesList.tsx:209
 msgid "Sort by name, currently ascending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:193
+#: src/features/dashboard/components/MyNamesList.tsx:210
 msgid "Sort by name, currently descending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:195
+#: src/features/dashboard/components/MyNamesList.tsx:212
 msgid "Sort by name, currently unsorted"
 msgstr ""
 

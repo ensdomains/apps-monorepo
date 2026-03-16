@@ -203,7 +203,14 @@ export const MyNamesList = ({
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
-          aria-label={t`Sort by name, currently ${sortField === 'name' ? sortDir : 'unsorted'}`}
+          aria-label={(() => {
+            if (sortField === 'name') {
+              return sortDir === 'asc'
+                ? t`Sort by name, currently ascending`
+                : t`Sort by name, currently descending`
+            }
+            return t`Sort by name, currently unsorted`
+          })()}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('name')}
           type="button"
@@ -216,7 +223,14 @@ export const MyNamesList = ({
           <SortIndicator direction={sortDir} isActive={sortField === 'name'} />
         </button>
         <button
-          aria-label={t`Sort by expiry, currently ${sortField === 'expiry' ? sortDir : 'unsorted'}`}
+          aria-label={(() => {
+            if (sortField === 'expiry') {
+              return sortDir === 'asc'
+                ? t`Sort by expiry, currently ascending`
+                : t`Sort by expiry, currently descending`
+            }
+            return t`Sort by expiry, currently unsorted`
+          })()}
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('expiry')}
           type="button"
