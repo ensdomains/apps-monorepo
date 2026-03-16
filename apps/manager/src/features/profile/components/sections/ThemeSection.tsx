@@ -33,7 +33,11 @@ export const ThemeSection = withForm({
                   const isSelected = field.state.value === value
                   return (
                     <button
-                      aria-label={t`${label} theme${isSelected ? ' (selected)' : ''}`}
+                      aria-label={
+                        isSelected
+                          ? t`${label} theme (selected)`
+                          : t`${label} theme`
+                      }
                       className={clsx(
                         'flex h-10 w-10 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
                         isSelected && 'ring-2 ring-offset-2',

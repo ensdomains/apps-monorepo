@@ -52,10 +52,13 @@ msgstr "{label} avatar"
 msgid "{label} avatar placeholder"
 msgstr "{label} avatar placeholder"
 
-#. placeholder {0}: isSelected ? ' (selected)' : ''
 #: src/features/profile/components/sections/ThemeSection.tsx:36
-msgid "{label} theme{0}"
-msgstr "{label} theme{0}"
+msgid "{label} theme"
+msgstr "{label} theme"
+
+#: src/features/profile/components/sections/ThemeSection.tsx:36
+msgid "{label} theme (selected)"
+msgstr "{label} theme (selected)"
 
 #: src/features/register/pages/CheckDomainPage.tsx:26
 #: src/routes/index.tsx:34
