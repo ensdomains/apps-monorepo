@@ -34,7 +34,7 @@ msgid "{0} of {totalPages}"
 msgstr "{0} av {totalPages}"
 
 #. placeholder {0}: option.discount
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:172
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:174
 msgid "{0}% off"
 msgstr ""
 
@@ -61,24 +61,48 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 msgid "Add a Backup Payment Method"
 msgstr ""
 
+#: src/features/profile/components/sections/BioSection.tsx:39
+msgid "Add a bio to your profile"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:34
 #: src/features/payment/components/add.tsx:149
 msgid "Add a credit card"
+msgstr ""
+
+#: src/features/profile/components/sections/BioSection.tsx:83
+msgid "Add a short bio to your profile"
 msgstr ""
 
 #: src/features/payment/components/index.tsx:126
 msgid "Add Backup Card"
 msgstr ""
 
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:74
+msgid "Add Crypto Address"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:63
+msgid "Add more"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:23
 msgid "Add Payment Method"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:28
+msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:26
+msgid "Address"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
 msgid "Address profile"
 msgstr "Adressprofil"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:127
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:128
 msgid "An error occurred"
 msgstr ""
 
@@ -96,6 +120,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx:43
 msgid "Billing zip code"
+msgstr ""
+
+#: src/features/profile/components/sections/BioSection.tsx:37
+msgid "Bio"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
@@ -178,7 +206,7 @@ msgstr ""
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
 msgid "Custom duration in years"
 msgstr ""
 
@@ -211,8 +239,12 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 msgid "Enter custom duration"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:53
+msgid "Enter wallet address"
 msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx:165
@@ -540,6 +572,10 @@ msgstr "Anger ETH-adress..."
 msgid "Setting..."
 msgstr "Anger..."
 
+#: src/features/profile/components/sections/BioSection.tsx:79
+msgid "Short Description"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:301
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
@@ -578,7 +614,7 @@ msgstr "Sortera namn efter"
 msgid "Stables accepted"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:230
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:232
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
@@ -599,7 +635,7 @@ msgstr ""
 msgid "To:"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:186
 msgid "total"
 msgstr ""
 
@@ -627,6 +663,10 @@ msgstr ""
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
 
+#: src/features/profile/components/sections/BioSection.tsx:111
+msgid "Website"
+msgstr ""
+
 #: src/features/dashboard/pages/DashboardPage.tsx:69
 msgid "Welcome to the public alpha of the ENS app"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
@@ -635,7 +675,7 @@ msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
 msgid "years"
 msgstr ""
 
