@@ -33,6 +33,16 @@ msgstr "{0} avatar-placeholder"
 msgid "{0} of {totalPages}"
 msgstr "{0} av {totalPages}"
 
+#. placeholder {0}: option.discount
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:172
+msgid "{0}% off"
+msgstr ""
+
+#. placeholder {0}: duration > 1 ? 'years' : 'year'
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
+msgid "{duration} {0}"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:302
 #: src/features/dashboard/components/NameRow.tsx:65
 msgid "{label} avatar"
@@ -67,6 +77,10 @@ msgstr ""
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
 msgid "Address profile"
 msgstr "Adressprofil"
+
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:127
+msgid "An error occurred"
+msgstr ""
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
@@ -117,12 +131,24 @@ msgstr "Välj primärt namn"
 msgid "Clear search"
 msgstr ""
 
+#: src/features/register/components/VerifyWalletModal.tsx:130
+msgid "Close dialog"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:202
 msgid "Confirm"
 msgstr ""
 
+#: src/features/register/components/VerifyWalletModal.tsx:146
+msgid "Connected wallet"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:58
 msgid "Country"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
+msgid "Custom duration in years"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:47
@@ -153,6 +179,10 @@ msgstr ""
 #: src/features/dashboard/components/EducationCarousel.tsx:23
 msgid "Did You Know?"
 msgstr "Visste du att?"
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
+msgid "Enter custom duration"
+msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx:165
 msgid "Error loading names"
@@ -211,6 +241,10 @@ msgstr ""
 msgid "Get support"
 msgstr "Få support"
 
+#: src/features/register/components/VerifyWalletModal.tsx:119
+msgid "Go back"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:138
 msgid "Go to ENS name profile"
 msgstr "Gå till ENS-namnprofil"
@@ -256,6 +290,10 @@ msgstr "Logga in för att favorisera"
 #: src/features/dashboard/components/DashboardSidebar.tsx:36
 msgid "MAIN MENU"
 msgstr "HUVUDMENY"
+
+#: src/features/register/components/VerifyWalletModal.tsx:171
+msgid "Make sure the message starts with \"ENS would like you to ...\""
+msgstr ""
 
 #: src/features/payment/components/add.tsx:43
 msgid "MM/YY"
@@ -338,6 +376,14 @@ msgstr ""
 #: src/features/payment/components/add.tsx:15
 #: src/features/payment/components/add.tsx:72
 msgid "Payment Methods"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:163
+msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:112
+msgid "Please sign a message to verify your wallet ownership. This will not incur any cost."
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:282
@@ -427,6 +473,10 @@ msgstr "Visar dina namn"
 msgid "Sign in to view favorites"
 msgstr "Logga in för att se favoriter"
 
+#: src/features/register/components/VerifyWalletModal.tsx:195
+msgid "Sign Message"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:148
 #: src/features/dashboard/components/MyNamesList.tsx:176
 msgid "Sort by"
@@ -445,6 +495,10 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:230
+msgid "Start typing to check if your perfect name is available"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:172
 msgid "The backup payment method will be charged if the default payment method fails."
 msgstr ""
@@ -462,9 +516,25 @@ msgstr ""
 msgid "To:"
 msgstr ""
 
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
+msgid "total"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:191
+msgid "Verified!"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:108
+msgid "Verify Wallet"
+msgstr ""
+
 #: src/features/dashboard/components/PrimaryNameCard.tsx:153
 msgid "View profile"
 msgstr "Visa profil"
+
+#: src/features/register/components/VerifyWalletModal.tsx:193
+msgid "Waiting for signature..."
+msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:198
 msgid "Wallet signer not available"
@@ -477,6 +547,10 @@ msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
 #: src/features/dashboard/pages/DashboardPage.tsx:72
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+msgid "years"
+msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:17
 msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
