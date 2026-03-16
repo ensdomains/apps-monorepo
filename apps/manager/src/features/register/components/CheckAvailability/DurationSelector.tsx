@@ -1,4 +1,4 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { useRef, useState } from 'react'
 import type {
   PricingDuration,
@@ -155,9 +155,7 @@ export const DurationSelector = ({
             {/* Left: Year label */}
             <div className="flex w-[50%] items-center gap-3 md:w-[60%] md:gap-5 lg:w-[40%] xl:w-[60%]">
               <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
-                <Trans>
-                  {duration} {duration > 1 ? 'years' : 'year'}
-                </Trans>
+                <Plural one="# year" other="# years" value={duration} />
               </span>
             </div>
 

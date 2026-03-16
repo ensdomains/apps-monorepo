@@ -29,14 +29,13 @@ msgid "{0} of {totalPages}"
 msgstr "{0} of {totalPages}"
 
 #. placeholder {0}: option.discount
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:174
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:172
 msgid "{0}% off"
 msgstr "{0}% off"
 
-#. placeholder {0}: duration > 1 ? 'years' : 'year'
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
-msgid "{duration} {0}"
-msgstr "{duration} {0}"
+msgid "{duration, plural, one {# year} other {# years}}"
+msgstr "{duration, plural, one {# year} other {# years}}"
 
 #. placeholder {0}: Number(formattedDurationYears) === 1 ? 'Year' : 'Years'
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:82
@@ -346,7 +345,7 @@ msgstr "Cropping functionality coming soon"
 msgid "Current"
 msgstr "Current"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
@@ -424,7 +423,7 @@ msgstr "Enable Smart Sessions"
 msgid "Enter 6-digit code"
 msgstr "Enter 6-digit code"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
@@ -1113,7 +1112,7 @@ msgstr "This will set <0>{name}</0> as your primary ENS name for this account, s
 msgid "To:"
 msgstr "To:"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:186
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"
 msgstr "total"
 
@@ -1238,7 +1237,7 @@ msgstr "Welcome to the public alpha of the ENS App. You're seeing the earliest v
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
 msgid "years"
 msgstr "years"
 
