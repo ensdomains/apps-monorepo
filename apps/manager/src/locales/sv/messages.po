@@ -82,6 +82,10 @@ msgstr ""
 msgid "Account address:"
 msgstr ""
 
+#: src/features/profile/components/ProfileEdit.tsx:93
+msgid "Account not ready. Please wait for wallet to connect."
+msgstr ""
+
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:174
 msgid "Add"
 msgstr ""
@@ -132,7 +136,7 @@ msgstr ""
 msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:105
+#: src/features/notifications/settings/contact-methods/telegram.tsx:107
 msgid "Adding telegram..."
 msgstr ""
 
@@ -164,7 +168,7 @@ msgstr ""
 msgid "An error occurred during registration. Please try again."
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:162
+#: src/routes/notifications/channels/email/verify.tsx:165
 msgid "An error occurred during verification"
 msgstr ""
 
@@ -211,11 +215,11 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:232
+#: src/routes/notifications/channels/email/verify.tsx:238
 msgid "Back to Home"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:230
+#: src/routes/notifications/channels/email/verify.tsx:234
 msgid "Back to Settings"
 msgstr ""
 
@@ -269,13 +273,17 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
 #: src/features/notifications/settings/contact-methods/email.tsx:239
-#: src/features/notifications/settings/contact-methods/telegram.tsx:164
+#: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:323
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:231
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
 msgid "Cancel"
 msgstr "Avbryt"
+
+#: src/features/profile/components/ProfileEdit.tsx:86
+msgid "Cannot save profile - ENS owner is not available."
+msgstr ""
 
 #: src/features/payment/components/add.tsx:38
 msgid "Card expiry date"
@@ -326,7 +334,7 @@ msgstr ""
 msgid "Clear search"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:150
+#: src/routes/notifications/channels/email/verify.tsx:153
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr ""
 
@@ -536,7 +544,7 @@ msgstr ""
 msgid "Email verified successfully! You can now receive notifications."
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:139
+#: src/routes/notifications/channels/email/verify.tsx:142
 msgid "Email Verified!"
 msgstr ""
 
@@ -611,6 +619,10 @@ msgstr ""
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
+msgid "expiring on"
+msgstr ""
+
 #: src/features/dashboard/components/MyNamesList.tsx:227
 msgid "Expiry"
 msgstr "Utgång"
@@ -631,7 +643,7 @@ msgstr ""
 msgid "Failed to add Telegram channel"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:108
+#: src/features/notifications/settings/contact-methods/telegram.tsx:113
 msgid "Failed to add telegram: "
 msgstr ""
 
@@ -641,6 +653,15 @@ msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx:61
 msgid "Failed to enable session"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:232
+msgid "Failed to fund wallet"
+msgstr ""
+
+#. placeholder {0}: error.message
+#: src/lib/smart-account/SmartAccountContext.tsx:233
+msgid "Failed to fund wallet: {0}"
 msgstr ""
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:58
@@ -719,11 +740,19 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
+#: src/lib/smart-account/SmartAccountContext.tsx:201
+msgid "Funding wallet"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:202
+msgid "Funding wallet {address} with mock USDC & DAI tokens"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/push.tsx:97
 msgid "Get instant push notifications in your browser"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:114
+#: src/features/notifications/settings/contact-methods/telegram.tsx:120
 msgid "Get instant updates through Telegram for your domains."
 msgstr ""
 
@@ -849,7 +878,7 @@ msgstr ""
 msgid "Makes crypto addresses human-readable"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:199
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
 msgid "Manage your notification preferences for your name(s) and ENS-related updates."
 msgstr ""
 
@@ -958,7 +987,7 @@ msgstr ""
 msgid "Notification Preferences"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:195
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
 msgid "Notification Settings"
 msgstr ""
 
@@ -967,7 +996,7 @@ msgstr ""
 msgid "Notifications"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push.tsx:130
+#: src/features/notifications/settings/contact-methods/push.tsx:131
 msgid "Notifications blocked"
 msgstr ""
 
@@ -1029,7 +1058,7 @@ msgid "Payment Methods"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:267
-#: src/features/notifications/settings/contact-methods/telegram.tsx:132
+#: src/features/notifications/settings/contact-methods/telegram.tsx:141
 msgid "Pending"
 msgstr ""
 
@@ -1050,7 +1079,7 @@ msgstr ""
 msgid "Please sign in to telegram in the popup window."
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:145
+#: src/routes/notifications/channels/email/verify.tsx:148
 msgid "Please wait while we verify your email address."
 msgstr ""
 
@@ -1129,6 +1158,10 @@ msgstr "Registrerad {0}"
 msgid "Registering"
 msgstr ""
 
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
+msgid "Registering for"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:191
 msgid "Registration Complete!"
@@ -1152,7 +1185,7 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:214
 #: src/features/notifications/settings/contact-methods/email.tsx:250
-#: src/features/notifications/settings/contact-methods/telegram.tsx:176
+#: src/features/notifications/settings/contact-methods/telegram.tsx:190
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:329
 msgid "Remove"
 msgstr ""
@@ -1171,7 +1204,11 @@ msgstr ""
 msgid "Remove Header"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:151
+#: src/features/notifications/shared/primitives.tsx:70
+msgid "Remove notification"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:162
 msgid "Remove Telegram Contact Method?"
 msgstr ""
 
@@ -1206,7 +1243,7 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:173
+#: src/features/profile/components/ProfileEdit.tsx:174
 msgid "Reset Changes"
 msgstr ""
 
@@ -1218,8 +1255,13 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
+#. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
+#: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:55
+msgid "Save ${0}"
+msgstr ""
+
 #: src/features/notifications/settings/preferences.tsx:178
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:170
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:173
 msgid "Save Preferences"
 msgstr ""
 
@@ -1228,7 +1270,7 @@ msgid "Saved favorites & searches"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:176
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:170
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:171
 msgid "Saving..."
 msgstr ""
 
@@ -1474,7 +1516,7 @@ msgstr ""
 msgid "Supports USDC and DAI payments"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:127
+#: src/features/notifications/settings/contact-methods/telegram.tsx:135
 msgid "Telegram"
 msgstr ""
 
@@ -1507,7 +1549,7 @@ msgstr ""
 msgid "Theme"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:149
+#: src/routes/notifications/channels/email/verify.tsx:152
 msgid "There was a problem verifying your email address."
 msgstr ""
 
@@ -1528,8 +1570,12 @@ msgstr ""
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/push.tsx:132
+#: src/features/notifications/settings/contact-methods/push.tsx:134
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:199
+msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 msgstr ""
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:193
@@ -1544,6 +1590,10 @@ msgstr ""
 msgid "total"
 msgstr ""
 
+#: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:22
+msgid "TOTAL"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:111
 msgid "Total Paid"
 msgstr ""
@@ -1554,7 +1604,7 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/wallet/components/EnableSessionModal.tsx:183
-#: src/routes/notifications/channels/email/verify.tsx:193
+#: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
 msgstr ""
 
@@ -1596,7 +1646,7 @@ msgstr ""
 msgid "Verification Code"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:141
+#: src/routes/notifications/channels/email/verify.tsx:144
 msgid "Verification Failed"
 msgstr ""
 
@@ -1609,7 +1659,7 @@ msgid "Verified!"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:185
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:176
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:180
 msgid "Verify at least one contact method to save preferences"
 msgstr ""
 
@@ -1621,7 +1671,7 @@ msgstr ""
 msgid "Verify Code"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:221
+#: src/routes/notifications/channels/email/verify.tsx:224
 msgid "Verify Email Address"
 msgstr ""
 
@@ -1633,7 +1683,7 @@ msgstr ""
 msgid "Verify wallet ownership"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:142
+#: src/routes/notifications/channels/email/verify.tsx:145
 msgid "Verify Your Email"
 msgstr ""
 
@@ -1641,7 +1691,7 @@ msgstr ""
 msgid "Verify your wallet"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:137
+#: src/routes/notifications/channels/email/verify.tsx:140
 msgid "Verifying Email..."
 msgstr ""
 
@@ -1678,8 +1728,16 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
+#: src/lib/smart-account/SmartAccountContext.tsx:221
+msgid "Wallet {address} funded successfully"
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx:106
 msgid "Wallet client missing, please reconnect your wallet and try again."
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:220
+msgid "Wallet funded successfully"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:198
@@ -1716,6 +1774,7 @@ msgid "Wrong wallet connected"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
 msgstr ""
 
@@ -1727,7 +1786,7 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
-#: src/routes/notifications/channels/email/verify.tsx:147
+#: src/routes/notifications/channels/email/verify.tsx:150
 msgid "You can now receive notifications at this email address."
 msgstr ""
 
@@ -1739,7 +1798,7 @@ msgstr ""
 msgid "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:153
+#: src/features/notifications/settings/contact-methods/telegram.tsx:165
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
 
@@ -1756,7 +1815,7 @@ msgstr ""
 msgid "You'll miss:"
 msgstr ""
 
-#: src/routes/notifications/channels/email/verify.tsx:172
+#: src/routes/notifications/channels/email/verify.tsx:175
 msgid "Your email has been verified successfully!"
 msgstr ""
 

@@ -196,16 +196,18 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       {telegram.status === 'pending' && (
         <p className="text-[#45556C] text-sm leading-ens-normal">
           <span>
-            To finish connecting Telegram, you need to&nbsp;
-            <a
-              className="text-[#54A9EC] underline hover:text-[#357bb8]"
-              href={`https://t.me/${TELEGRAM_BOT_USERNAME.replace(/^@/, '')}?start`}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              start the ENS Notifications Bot
-            </a>
-            &nbsp;in Telegram.
+            <Trans>
+              To finish connecting Telegram, you need to{' '}
+              <a
+                className="text-[#54A9EC] underline hover:text-[#357bb8]"
+                href={`https://t.me/${TELEGRAM_BOT_USERNAME.replace(/^@/, '')}?start`}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                start the ENS Notifications Bot
+              </a>{' '}
+              in Telegram.
+            </Trans>
           </span>
         </p>
       )}
