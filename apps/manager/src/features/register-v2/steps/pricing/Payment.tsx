@@ -54,7 +54,7 @@ export const Payment = () => {
         <Button
           className="w-full uppercase"
           disabled={!isPricing}
-          onClick={() => uiActor.send({ type: 'NEXT' })}
+          onClick={() => uiActor.send({ type: 'pricing.step.next' })}
           size="xl"
           variant="blue"
         >

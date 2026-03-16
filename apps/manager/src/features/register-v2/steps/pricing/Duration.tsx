@@ -226,7 +226,9 @@ export const DurationSelector = () => {
             isLoading={query.isPending}
             isSelected={idx === selectedPresetIdx}
             key={duration}
-            onSelect={() => uiActor.send({ type: 'DURATION_SET', duration })}
+            onSelect={() =>
+              uiActor.send({ type: 'pricing.duration.set', duration })
+            }
             price={query.data}
           />
         )
@@ -236,7 +238,7 @@ export const DurationSelector = () => {
       <CustomDurationRow
         isSelected={selectedPresetIdx === -1}
         onDurationSet={(duration) =>
-          uiActor.send({ type: 'DURATION_SET', duration })
+          uiActor.send({ type: 'pricing.duration.set', duration })
         }
         selectedDuration={selectedDuration}
       />

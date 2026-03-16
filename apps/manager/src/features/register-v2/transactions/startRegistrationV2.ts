@@ -32,7 +32,7 @@ export function startRegistrationV2(
   const ownerAddress = account.ownerAddress ?? account.accountAddress
 
   actor.send({
-    type: 'SUBMIT_REGISTRATION',
+    type: 'registration.submit',
     startEvent: {
       type: 'START_REGISTRATION',
       name,

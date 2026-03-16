@@ -8,6 +8,7 @@ import { sepolia } from 'viem/chains'
 import {
   type ActorRefFrom,
   assign,
+  raise,
   type SnapshotFrom,
   sendTo,
   setup,
@@ -15,30 +16,35 @@ import {
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
-export const registrationV2UiMachine = setup({
+type Context = {
+  chainId: number
+  /**
+   * Duration in seconds
+   */
+  duration: number
+  selectedToken: SUPPORTED_TOKEN | undefined
+  lastErrorMessage?: string
+}
+
+type Events =
+  | { type: 'pricing.step.next' }
+  | { type: 'pricing.step.previous' }
+  | { type: 'pricing.dialog.dismiss' }
+  | { type: 'pricing.duration.set'; duration: number }
+  | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | {
+      type: 'registration.submit'
+      startEvent: Extract<RegistrationEvent, { type: 'START_REGISTRATION' }>
+    }
+  | { type: 'TX_SUCCEEDED' }
+  | { type: 'TX_FAILED'; message?: string }
+  | { type: 'RETRY' }
+  | { type: 'CANCEL' }
+
+const machineSetup = setup({
   types: {
-    context: {} as {
-      chainId: number
-      /**
-       * Duration in seconds
-       */
-      duration: number
-      selectedToken: SUPPORTED_TOKEN | undefined
-      lastErrorMessage?: string
-    },
-    events: {} as
-      | { type: 'NEXT' }
-      | { type: 'PREVIOUS' }
-      | { type: 'DURATION_SET'; duration: number }
-      | { type: 'TOKEN_SET'; token: SUPPORTED_TOKEN | undefined }
-      | {
-          type: 'SUBMIT_REGISTRATION'
-          startEvent: Extract<RegistrationEvent, { type: 'START_REGISTRATION' }>
-        }
-      | { type: 'TX_SUCCEEDED' }
-      | { type: 'TX_FAILED'; message?: string }
-      | { type: 'RETRY' }
-      | { type: 'CANCEL' },
+    context: {} as Context,
+    events: {} as Events,
   },
   actors: {
     registrationFlow: registrationMachine,
@@ -46,11 +52,13 @@ export const registrationV2UiMachine = setup({
   actions: {
     setDuration: assign({
       duration: ({ event }) =>
-        event.type === 'DURATION_SET' ? event.duration : secondsInYear,
+        event.type === 'pricing.duration.set' ? event.duration : secondsInYear,
     }),
     setToken: assign({
       selectedToken: ({ event, context }) =>
-        event.type === 'TOKEN_SET' ? event.token : context.selectedToken,
+        event.type === 'pricing.token.select'
+          ? event.token
+          : context.selectedToken,
     }),
     clearError: assign({
       lastErrorMessage: () => undefined,
@@ -60,8 +68,8 @@ export const registrationV2UiMachine = setup({
         event.type === 'TX_FAILED' ? event.message : undefined,
     }),
     forwardStartRegistration: sendTo(REGISTRATION_V2_ACTOR_ID, ({ event }) => {
-      if (event.type !== 'SUBMIT_REGISTRATION') {
-        throw new Error('SUBMIT_REGISTRATION event required')
+      if (event.type !== 'registration.submit') {
+        throw new Error('registration.submit event required')
       }
 
       return event.startEvent
@@ -69,7 +77,9 @@ export const registrationV2UiMachine = setup({
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
   },
-}).createMachine({
+})
+
+export const registrationV2UiMachine = machineSetup.createMachine({
   id: 'registrationV2Ui',
   invoke: {
     id: REGISTRATION_V2_ACTOR_ID,
@@ -77,6 +87,22 @@ export const registrationV2UiMachine = setup({
     input: ({ context }) => ({
       chainId: context.chainId,
     }),
+    onDone: {
+      actions: [
+        raise({
+          type: 'TX_SUCCEEDED',
+        }),
+      ],
+    },
+    onSnapshot: {
+      guard: ({ event: { snapshot } }) => snapshot.matches('error'),
+      actions: [
+        raise(({ event: { snapshot } }) => ({
+          type: 'TX_FAILED',
+          message: snapshot.context.error?.message,
+        })),
+      ],
+    },
   },
   initial: 'pricing',
   context: () => ({
@@ -91,33 +117,39 @@ export const registrationV2UiMachine = setup({
       states: {
         duration: {
           on: {
-            DURATION_SET: {
+            'pricing.duration.set': {
               actions: 'setDuration',
             },
-            NEXT: {
+            'pricing.step.next': {
               target: 'tokens',
             },
           },
         },
         tokens: {
           on: {
-            PREVIOUS: {
+            'pricing.step.previous': {
               target: 'duration',
             },
-            TOKEN_SET: {
+            'pricing.token.select': {
               actions: 'setToken',
             },
-            NEXT: {
+            'pricing.step.next': {
               target: 'confirm',
+            },
+            'pricing.dialog.dismiss': {
+              target: 'duration',
             },
           },
         },
         confirm: {
           on: {
-            PREVIOUS: {
+            'pricing.step.previous': {
               target: 'tokens',
             },
-            SUBMIT_REGISTRATION: {
+            'pricing.dialog.dismiss': {
+              target: 'duration',
+            },
+            'registration.submit': {
               target: '#registrationV2Ui.registering',
               actions: ['clearError', 'forwardStartRegistration'],
             },

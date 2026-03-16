@@ -65,7 +65,7 @@ export const PricingSummary = () => {
                   (date.getTime() - now.getTime()) / 1000,
                 )
                 uiActor.send({
-                  type: 'DURATION_SET',
+                  type: 'pricing.duration.set',
                   duration,
                 })
               }

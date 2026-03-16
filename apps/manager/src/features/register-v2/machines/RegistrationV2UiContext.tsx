@@ -76,3 +76,10 @@ export const useRegistrationV2TransactionSelector = <T,>(
 
   return useSelector(registrationActor, selector, compare)
 }
+
+export const RegisterV2Context = {
+  use: useRegistrationV2Context,
+  createSelector: createRegistrationV2UiSelector,
+  useSelector: useRegistrationV2Selector,
+  useTxSelector: useRegistrationV2TransactionSelector,
+}

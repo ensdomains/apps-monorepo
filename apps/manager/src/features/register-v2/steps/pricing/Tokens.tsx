@@ -53,7 +53,7 @@ export const TokensContent = () => {
   }, [stablecoinBalances, searchQuery])
 
   const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
-    uiActor.send({ type: 'TOKEN_SET', token: coin })
+    uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
   const selectedCoinBalance = stablecoinBalances?.find(
@@ -183,7 +183,7 @@ export const TokensContent = () => {
           !actionDisabled && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
         )}
         disabled={actionDisabled}
-        onClick={() => uiActor.send({ type: 'NEXT' })}
+        onClick={() => uiActor.send({ type: 'pricing.step.next' })}
       >
         Confirm Payment
       </Button>

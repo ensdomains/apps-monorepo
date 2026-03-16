@@ -102,12 +102,12 @@ const PopUp = () => {
   const isOpen = pricingStep === 'tokens' || pricingStep === 'confirm'
 
   const handleOpenChange = (open: boolean) => {
-    if (open) {
-      if (pricingStep === 'tokens' || pricingStep === 'confirm') {
-        uiActor.send({ type: 'NEXT' })
+    if (!open) {
+      if (pricingStep === 'confirm') {
+        uiActor.send({ type: 'pricing.dialog.dismiss' })
+      } else if (pricingStep === 'tokens') {
+        uiActor.send({ type: 'pricing.step.previous' })
       }
-    } else {
-      uiActor.send({ type: 'PREVIOUS' })
     }
   }
 

@@ -79,7 +79,7 @@ export const RegistrationV2ReadyState = ({
               key={durationOption}
               onClick={() =>
                 uiActor.send({
-                  type: 'DURATION_SET',
+                  type: 'pricing.duration.set',
                   durationYears: durationOption,
                 })
               }
@@ -101,7 +101,7 @@ export const RegistrationV2ReadyState = ({
               key={symbol}
               onClick={() =>
                 uiActor.send({
-                  type: 'TOKEN_SET',
+                  type: 'pricing.token.select',
                   token: tokenAddress as Address,
                 })
               }
