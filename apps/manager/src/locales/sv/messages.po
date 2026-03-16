@@ -53,6 +53,11 @@ msgstr ""
 msgid "{label} avatar placeholder"
 msgstr "{label} avatar-placeholder"
 
+#. placeholder {0}: isSelected ? ' (selected)' : ''
+#: src/features/profile/components/sections/ThemeSection.tsx:34
+msgid "{label} theme{0}"
+msgstr ""
+
 #: src/routes/index.tsx:34
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
@@ -61,7 +66,7 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 msgid "Add a Backup Payment Method"
 msgstr ""
 
-#: src/features/profile/components/sections/BioSection.tsx:39
+#: src/features/profile/components/sections/BioSection.tsx:41
 msgid "Add a bio to your profile"
 msgstr ""
 
@@ -70,7 +75,7 @@ msgstr ""
 msgid "Add a credit card"
 msgstr ""
 
-#: src/features/profile/components/sections/BioSection.tsx:83
+#: src/features/profile/components/sections/BioSection.tsx:85
 msgid "Add a short bio to your profile"
 msgstr ""
 
@@ -78,11 +83,15 @@ msgstr ""
 msgid "Add Backup Card"
 msgstr ""
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:74
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:78
 msgid "Add Crypto Address"
 msgstr ""
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:63
+#: src/features/profile/components/sections/LinksSection.tsx:24
+msgid "Add links to your profile"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:67
 msgid "Add more"
 msgstr ""
 
@@ -90,11 +99,11 @@ msgstr ""
 msgid "Add Payment Method"
 msgstr ""
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:28
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:30
 msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
 msgstr ""
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:26
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr ""
 
@@ -122,7 +131,7 @@ msgstr ""
 msgid "Billing zip code"
 msgstr ""
 
-#: src/features/profile/components/sections/BioSection.tsx:37
+#: src/features/profile/components/sections/BioSection.tsx:38
 msgid "Bio"
 msgstr ""
 
@@ -153,6 +162,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx:39
 msgid "Card security code"
+msgstr ""
+
+#: src/features/profile/components/sections/ThemeSection.tsx:23
+msgid "Choose a color for your profile"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:60
@@ -190,6 +203,10 @@ msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:146
 msgid "Connected wallet"
+msgstr ""
+
+#: src/features/profile/components/sections/OtherSection.tsx:92
+msgid "Content Hash"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:44
@@ -243,7 +260,7 @@ msgstr "Visste du att?"
 msgid "Enter custom duration"
 msgstr ""
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:53
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:57
 msgid "Enter wallet address"
 msgstr ""
 
@@ -286,6 +303,10 @@ msgstr "Kunde inte ange primärt namn. Försök igen."
 
 #: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:39
 msgid "Failed to switch language"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:67
+msgid "Failed to update resolver"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx:107
@@ -340,6 +361,10 @@ msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje
 #: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
 msgid "Language"
 msgstr "Språk"
+
+#: src/features/profile/components/sections/LinksSection.tsx:21
+msgid "Links"
+msgstr ""
 
 #: src/features/dashboard/components/DashboardLoading.tsx:8
 msgid "Loading dashboard..."
@@ -431,6 +456,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx:138
 msgid "or"
+msgstr ""
+
+#: src/features/profile/components/sections/OtherSection.tsx:35
+msgid "Other"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:107
@@ -560,6 +589,10 @@ msgstr "Ange som primärt"
 msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
 msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida i ENS-appen."
 
+#: src/features/profile/components/sections/OtherSection.tsx:38
+msgid "Set the content hash and ABI for your name"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:244
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
@@ -572,7 +605,7 @@ msgstr "Anger ETH-adress..."
 msgid "Setting..."
 msgstr "Anger..."
 
-#: src/features/profile/components/sections/BioSection.tsx:79
+#: src/features/profile/components/sections/BioSection.tsx:81
 msgid "Short Description"
 msgstr ""
 
@@ -626,6 +659,10 @@ msgstr ""
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
 
+#: src/features/profile/components/sections/ThemeSection.tsx:21
+msgid "Theme"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:18
 #: src/features/payment/components/index.tsx:92
 msgid "This card will be charged for your subscription."
@@ -641,6 +678,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
 msgid "Try searching for a different coin or chain"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
+msgid "Update Resolver"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:191
@@ -663,7 +704,7 @@ msgstr ""
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
 
-#: src/features/profile/components/sections/BioSection.tsx:111
+#: src/features/profile/components/sections/BioSection.tsx:113
 msgid "Website"
 msgstr ""
 

@@ -48,6 +48,11 @@ msgstr "{label} avatar"
 msgid "{label} avatar placeholder"
 msgstr "{label} avatar placeholder"
 
+#. placeholder {0}: isSelected ? ' (selected)' : ''
+#: src/features/profile/components/sections/ThemeSection.tsx:34
+msgid "{label} theme{0}"
+msgstr "{label} theme{0}"
+
 #: src/routes/index.tsx:34
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
@@ -56,7 +61,7 @@ msgstr "A simple, portable identity that you control"
 msgid "Add a Backup Payment Method"
 msgstr "Add a Backup Payment Method"
 
-#: src/features/profile/components/sections/BioSection.tsx:39
+#: src/features/profile/components/sections/BioSection.tsx:41
 msgid "Add a bio to your profile"
 msgstr "Add a bio to your profile"
 
@@ -65,7 +70,7 @@ msgstr "Add a bio to your profile"
 msgid "Add a credit card"
 msgstr "Add a credit card"
 
-#: src/features/profile/components/sections/BioSection.tsx:83
+#: src/features/profile/components/sections/BioSection.tsx:85
 msgid "Add a short bio to your profile"
 msgstr "Add a short bio to your profile"
 
@@ -73,11 +78,15 @@ msgstr "Add a short bio to your profile"
 msgid "Add Backup Card"
 msgstr "Add Backup Card"
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:74
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:78
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:63
+#: src/features/profile/components/sections/LinksSection.tsx:24
+msgid "Add links to your profile"
+msgstr "Add links to your profile"
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:67
 msgid "Add more"
 msgstr "Add more"
 
@@ -85,11 +94,11 @@ msgstr "Add more"
 msgid "Add Payment Method"
 msgstr "Add Payment Method"
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:28
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:30
 msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
 msgstr "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:26
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr "Address"
 
@@ -117,7 +126,7 @@ msgstr "Billing country"
 msgid "Billing zip code"
 msgstr "Billing zip code"
 
-#: src/features/profile/components/sections/BioSection.tsx:37
+#: src/features/profile/components/sections/BioSection.tsx:38
 msgid "Bio"
 msgstr "Bio"
 
@@ -149,6 +158,10 @@ msgstr "Card number"
 #: src/features/payment/components/add.tsx:39
 msgid "Card security code"
 msgstr "Card security code"
+
+#: src/features/profile/components/sections/ThemeSection.tsx:23
+msgid "Choose a color for your profile"
+msgstr "Choose a color for your profile"
 
 #: src/features/payment/components/add.tsx:60
 msgid "Choose how you'd like to pay for your subscription."
@@ -186,6 +199,10 @@ msgstr "Confirm purchase"
 #: src/features/register/components/VerifyWalletModal.tsx:146
 msgid "Connected wallet"
 msgstr "Connected wallet"
+
+#: src/features/profile/components/sections/OtherSection.tsx:92
+msgid "Content Hash"
+msgstr "Content Hash"
 
 #: src/features/payment/components/add.tsx:44
 msgid "Country"
@@ -238,7 +255,7 @@ msgstr "Did You Know?"
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx:53
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:57
 msgid "Enter wallet address"
 msgstr "Enter wallet address"
 
@@ -282,6 +299,10 @@ msgstr "Failed to set primary name. Please try again."
 #: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:39
 msgid "Failed to switch language"
 msgstr "Failed to switch language"
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:67
+msgid "Failed to update resolver"
+msgstr "Failed to update resolver"
 
 #: src/features/dashboard/components/NamesTable.tsx:107
 msgid "Favorites"
@@ -335,6 +356,10 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 #: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
 msgid "Language"
 msgstr "Language"
+
+#: src/features/profile/components/sections/LinksSection.tsx:21
+msgid "Links"
+msgstr "Links"
 
 #: src/features/dashboard/components/DashboardLoading.tsx:8
 msgid "Loading dashboard..."
@@ -427,6 +452,10 @@ msgstr "Notifications"
 #: src/features/payment/components/add.tsx:138
 msgid "or"
 msgstr "or"
+
+#: src/features/profile/components/sections/OtherSection.tsx:35
+msgid "Other"
+msgstr "Other"
 
 #: src/features/payment/components/add.tsx:107
 msgid "Pay with Apple"
@@ -555,6 +584,10 @@ msgstr "Set as Primary"
 msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
 msgstr "Set it as your primary name. You can do this from your profile page in the ENS App."
 
+#: src/features/profile/components/sections/OtherSection.tsx:38
+msgid "Set the content hash and ABI for your name"
+msgstr "Set the content hash and ABI for your name"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:244
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Set which ENS name displays as your identity across apps and wallets."
@@ -567,7 +600,7 @@ msgstr "Setting ETH address..."
 msgid "Setting..."
 msgstr "Setting..."
 
-#: src/features/profile/components/sections/BioSection.tsx:79
+#: src/features/profile/components/sections/BioSection.tsx:81
 msgid "Short Description"
 msgstr "Short Description"
 
@@ -621,6 +654,10 @@ msgstr "The backup payment method will be charged if the default payment method 
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 
+#: src/features/profile/components/sections/ThemeSection.tsx:21
+msgid "Theme"
+msgstr "Theme"
+
 #: src/features/payment/components/add.tsx:18
 #: src/features/payment/components/index.tsx:92
 msgid "This card will be charged for your subscription."
@@ -637,6 +674,10 @@ msgstr "total"
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
 msgid "Try searching for a different coin or chain"
 msgstr "Try searching for a different coin or chain"
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
+msgid "Update Resolver"
+msgstr "Update Resolver"
 
 #: src/features/register/components/VerifyWalletModal.tsx:191
 msgid "Verified!"
@@ -658,7 +699,7 @@ msgstr "Waiting for signature..."
 msgid "Wallet signer not available"
 msgstr "Wallet signer not available"
 
-#: src/features/profile/components/sections/BioSection.tsx:111
+#: src/features/profile/components/sections/BioSection.tsx:113
 msgid "Website"
 msgstr "Website"
 
