@@ -245,8 +245,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const isPendingReverse = isWritingReverse || isConfirmingReverse
   const isPendingForward = isWritingForward || isConfirmingForward
 
-  const isPendingUpdate = isPendingReverse || isPendingForward
-
   if (!row) {
     return (
       <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
@@ -411,7 +409,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     value={nameInput}
                     onChange={handleNameChange}
                     disabled={
-                      !isConnected || isPendingUpdate || isSwitchingChain
+                      !isConnected || isPendingReverse || isSwitchingChain
                     }
                     placeholder={match(isConnected)
                       .with(false, () => 'Connect wallet to update')
@@ -426,7 +424,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       !nameInput ||
-                      isPendingUpdate ||
+                      isPendingReverse ||
                       isSwitchingChain
                     }
                     className="h-9"
@@ -434,12 +432,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     {match({
                       isConnected,
                       isSwitchingChain,
-                      isPendingUpdate,
+                      isPendingReverse,
                       isWrongChain,
                     })
                       .with({ isConnected: false }, () => 'Connect Wallet')
                       .with({ isSwitchingChain: true }, () => 'Switching...')
-                      .with({ isPendingUpdate: true }, () => 'Setting...')
+                      .with({ isPendingReverse: true }, () => 'Setting...')
                       .with({ isWrongChain: true }, () => 'Switch Network')
                       .otherwise(() => 'Update')}
                   </Button>
