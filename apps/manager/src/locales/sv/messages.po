@@ -757,12 +757,9 @@ msgstr ""
 msgid "Please connect your wallet first"
 msgstr ""
 
+#: src/features/register/components/VerifyWalletModal.tsx:112
 #: src/features/register/components/VerifyWalletModal.tsx:163
 msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
-msgstr ""
-
-#: src/features/register/components/VerifyWalletModal.tsx:112
-msgid "Please sign a message to verify your wallet ownership. This will not incur any cost."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:504

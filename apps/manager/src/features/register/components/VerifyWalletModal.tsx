@@ -110,8 +110,8 @@ export const VerifyWalletModal = ({
           </DialogTitle>
           <DialogDescription className="sr-only">
             <Trans>
-              Please sign a message to verify your wallet ownership. This will
-              not incur any cost.
+              Please sign a message to verify your ownership of the wallet. This
+              will not cost any gas.
             </Trans>
           </DialogDescription>
           <div className="flex items-center justify-between">
