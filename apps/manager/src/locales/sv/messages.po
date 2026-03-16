@@ -43,6 +43,11 @@ msgstr ""
 msgid "{duration} {0}"
 msgstr ""
 
+#. placeholder {0}: Number(formattedDurationYears) === 1 ? 'Year' : 'Years'
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:82
+msgid "{formattedDurationYears} {0}"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:302
 #: src/features/dashboard/components/NameRow.tsx:65
 msgid "{label} avatar"
@@ -58,9 +63,14 @@ msgstr "{label} avatar-placeholder"
 msgid "{label} theme{0}"
 msgstr ""
 
+#: src/features/register/pages/CheckDomainPage.tsx:24
 #: src/routes/index.tsx:34
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
+
+#: src/features/landing/FeaturesCarousel.tsx:118
+msgid "A simpler way to<0/><1>get paid.</1>"
+msgstr ""
 
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:174
 msgid "Add"
@@ -143,7 +153,7 @@ msgstr ""
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:407
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:448
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:533
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:542
 msgid "Back"
 msgstr ""
 
@@ -224,6 +234,10 @@ msgstr ""
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
+#: src/features/register/pages/CheckDomainPage.tsx:17
+msgid "Claim your"
+msgstr ""
+
 #: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
 msgid "Clear search"
 msgstr ""
@@ -268,6 +282,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx:44
 msgid "Country"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:134
+msgid "Create Profile"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:99
@@ -378,11 +396,11 @@ msgstr ""
 msgid "Enter custom duration"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:475
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:481
 msgid "Enter Image URL"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:463
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:467
 msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 msgstr ""
 
@@ -403,6 +421,7 @@ msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:120
 msgid "Expires"
 msgstr "Går ut"
 
@@ -487,6 +506,11 @@ msgstr ""
 msgid "Go to ENS name profile"
 msgstr "Gå till ENS-namnprofil"
 
+#. placeholder {0}: index + 1
+#: src/features/landing/FeaturesCarousel.tsx:299
+msgid "Go to slide {0}"
+msgstr ""
+
 #: src/features/dashboard/pages/DashboardPage.tsx:85
 msgid "Hello"
 msgstr "Hej"
@@ -512,7 +536,7 @@ msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje
 msgid "Language"
 msgstr "Språk"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:470
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:476
 msgid "Learn more"
 msgstr ""
 
@@ -553,6 +577,10 @@ msgstr ""
 msgid "MM/YY"
 msgstr ""
 
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:101
+msgid "Multi-year Discount ({discountPercentage}%)"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx:102
 msgid "My Names"
 msgstr "Mina namn"
@@ -585,6 +613,10 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:291
 msgid "Next page"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:314
+msgid "Next slide"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:305
@@ -682,17 +714,21 @@ msgstr ""
 msgid "Please sign a message to verify your wallet ownership. This will not incur any cost."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:498
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:507
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:504
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:515
 msgid "Preview Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:526
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:535
 msgid "Preview of your image"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:282
 msgid "Previous page"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:289
+msgid "Previous slide"
 msgstr ""
 
 #: src/features/dashboard/components/PrimaryBadge.tsx:20
@@ -723,6 +759,18 @@ msgstr "Registrerad {0}"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
 msgid "Registering"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:73
+msgid "Registration Details"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:91
+msgid "Registration Fee"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
+msgid "Registration Period"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:214
@@ -962,6 +1010,10 @@ msgstr ""
 msgid "total"
 msgstr ""
 
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:111
+msgid "Total Paid"
+msgstr ""
+
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/wallet/components/EnableSessionModal.tsx:183
 msgid "Try Again"
@@ -977,7 +1029,7 @@ msgstr ""
 msgid "Update Resolver"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:451
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
 msgid "Upload & Use Image"
 msgstr ""
 
@@ -985,7 +1037,7 @@ msgstr ""
 msgid "Upload or drag & drop"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:451
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:452
 msgid "Uploading…"
 msgstr ""
 
@@ -993,7 +1045,7 @@ msgstr ""
 msgid "Use Different Email"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:536
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:545
 msgid "Use This Image"
 msgstr ""
 
@@ -1046,6 +1098,10 @@ msgstr "Plånbokssignering inte tillgänglig"
 msgid "We sent a verification code to your email address."
 msgstr ""
 
+#: src/features/register/pages/CheckDomainPage.tsx:20
+msgid "web3 username"
+msgstr ""
+
 #: src/features/profile/components/sections/BioSection.tsx:113
 msgid "Website"
 msgstr ""
@@ -1081,6 +1137,10 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Ditt ENS-namn"
+
+#: src/features/landing/FeaturesCarousel.tsx:125
+msgid "Your ENS name replaces your wallet addresses so friends and clients can send money to <0>friend.eth</0> instead of a confusing jumble of letters and numbers."
+msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:33
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."

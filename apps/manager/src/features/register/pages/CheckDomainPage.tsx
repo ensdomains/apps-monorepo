@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { CheckAvailability } from '../components/CheckAvailability/CheckAvailability'
 
@@ -13,14 +14,16 @@ export const CheckDomainPage = () => {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
       <h1 className="mb-4 text-center text-5xl leading-tight">
-        <span className="font-normal text-ens-blue">Claim your</span>
+        <span className="font-normal text-ens-blue">
+          <Trans>Claim your</Trans>
+        </span>
         <br />
         <span className="font-serif text-ens-blue-midnight italic">
-          web3 username
+          <Trans>web3 username</Trans>
         </span>
       </h1>
       <p className="mb-10 max-w-[500px] text-center text-ens-blue text-xl">
-        A simple, portable identity that you control
+        <Trans>A simple, portable identity that you control</Trans>
       </p>
 
       <div className="w-full max-w-4xl">
