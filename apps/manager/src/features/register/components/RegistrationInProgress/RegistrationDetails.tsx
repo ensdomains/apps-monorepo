@@ -1,6 +1,6 @@
 'use client'
 
-import { Trans } from '@lingui/react/macro'
+import { Plural, Trans } from '@lingui/react/macro'
 import { DomainCard } from '@/components/atoms/DomainCard'
 import { Button } from '@/components/ui/button'
 import { formatYears } from '@/features/register/components/Pricing/utils'
@@ -79,10 +79,11 @@ export const RegistrationDetails = ({
                   <Trans>Registration Period</Trans>
                 </p>
                 <p className="text-base text-ens-blue-dark">
-                  <Trans>
-                    {formattedDurationYears}{' '}
-                    {Number(formattedDurationYears) === 1 ? 'Year' : 'Years'}
-                  </Trans>
+                  <Plural
+                    one="# Year"
+                    other="# Years"
+                    value={Number(formattedDurationYears)}
+                  />
                 </p>
               </div>
 

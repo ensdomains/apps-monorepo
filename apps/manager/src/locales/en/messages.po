@@ -13,9 +13,19 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. placeholder {0}: Math.floor( (autoRenewal.expires - Date.now()) / TIME_UNITS.DAY, )
+#: src/features/auto-renewal/components/index.tsx:65
+msgid "{0, plural, one {# day remaining} other {# days remaining}}"
+msgstr "{0, plural, one {# day remaining} other {# days remaining}}"
+
+#. placeholder {0}: Number(formattedDurationYears)
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:82
+msgid "{0, plural, one {# Year} other {# Years}}"
+msgstr "{0, plural, one {# Year} other {# Years}}"
+
 #. placeholder {0}: nonAutoRenewals.join(', ')
 #. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
-#: src/features/auto-renewal/components/index.tsx:107
+#: src/features/auto-renewal/components/index.tsx:118
 msgid "{0} are expiring without auto-renewal with the earliest expiring on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 msgstr "{0} are expiring without auto-renewal with the earliest expiring on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
@@ -29,19 +39,14 @@ msgstr "{0} avatar"
 msgid "{0} avatar placeholder"
 msgstr "{0} avatar placeholder"
 
-#. placeholder {0}: Math.floor((autoRenewal.expires - Date.now()) / TIME_UNITS.DAY)
-#: src/features/auto-renewal/components/index.tsx:63
-msgid "{0} days remaining"
-msgstr "{0} days remaining"
-
 #. placeholder {0}: nonAutoRenewals.length
-#: src/features/auto-renewal/components/index.tsx:94
+#: src/features/auto-renewal/components/index.tsx:103
 msgid "{0} ENS names are expiring without auto-renewal"
 msgstr "{0} ENS names are expiring without auto-renewal"
 
 #. placeholder {0}: nonAutoRenewals[0].name
 #. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
-#: src/features/auto-renewal/components/index.tsx:99
+#: src/features/auto-renewal/components/index.tsx:110
 msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
@@ -51,7 +56,7 @@ msgid "{0} of {totalPages}"
 msgstr "{0} of {totalPages}"
 
 #. placeholder {0}: autoRenewal.price
-#: src/features/auto-renewal/components/index.tsx:69
+#: src/features/auto-renewal/components/index.tsx:76
 msgid "{0} USD/year"
 msgstr "{0} USD/year"
 
@@ -63,11 +68,6 @@ msgstr "{0}% off"
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr "{duration, plural, one {# year} other {# years}}"
-
-#. placeholder {0}: Number(formattedDurationYears) === 1 ? 'Year' : 'Years'
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:82
-msgid "{formattedDurationYears} {0}"
-msgstr "{formattedDurationYears} {0}"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:302
 #: src/features/dashboard/components/NameRow.tsx:65
@@ -240,7 +240,7 @@ msgstr "Auth address:"
 msgid "Authorizing payment"
 msgstr "Authorizing payment"
 
-#: src/features/auto-renewal/components/index.tsx:73
+#: src/features/auto-renewal/components/index.tsx:81
 msgid "Autorenews on"
 msgstr "Autorenews on"
 
@@ -543,7 +543,7 @@ msgstr "Country"
 msgid "Create profile"
 msgstr "Create profile"
 
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:134
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:135
 msgid "Create Profile"
 msgstr "Create Profile"
 
@@ -734,7 +734,7 @@ msgstr "Error loading names"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:120
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
 msgid "Expires"
 msgstr "Expires"
 
@@ -751,7 +751,7 @@ msgstr "expires {expiryDateString}"
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Expires in {daysUntilExpiry} days"
 
-#: src/features/auto-renewal/components/index.tsx:56
+#: src/features/auto-renewal/components/index.tsx:57
 msgid "Expires:"
 msgstr "Expires:"
 
@@ -813,7 +813,7 @@ msgstr "Failed to remove email channel"
 msgid "Failed to remove Telegram channel"
 msgstr "Failed to remove Telegram channel"
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:47
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:49
 msgid "Failed to request test tokens"
 msgstr "Failed to request test tokens"
 
@@ -881,7 +881,7 @@ msgstr "For this alpha release, accounts are automatically funded with test toke
 msgid "Frequently Asked Questions"
 msgstr "Frequently Asked Questions"
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:187
+#: src/features/profile/components/dialogs/DiffDialog.tsx:191
 msgid "From:"
 msgstr "From:"
 
@@ -956,7 +956,7 @@ msgstr "Human-readable addresses for wallets"
 msgid "If your primary card is declined, we will use this card to charge you."
 msgstr "If your primary card is declined, we will use this card to charge you."
 
-#: src/components/atoms/ImageFallback/ImageFallback.tsx:188
+#: src/components/atoms/ImageFallback/ImageFallback.tsx:190
 msgid "Image not available"
 msgstr "Image not available"
 
@@ -1018,7 +1018,7 @@ msgstr "Loading prices..."
 msgid "Loading your stablecoin balances..."
 msgstr "Loading your stablecoin balances..."
 
-#: src/components/atoms/ImageFallback/ImageFallback.tsx:209
+#: src/components/atoms/ImageFallback/ImageFallback.tsx:215
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
@@ -1027,7 +1027,7 @@ msgid "Loading..."
 msgstr "Loading..."
 
 #: src/features/dashboard/components/NameRow.tsx:57
-#: src/features/profile/components/view/FavoriteButton.tsx:71
+#: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Login to favorite"
 
@@ -1067,7 +1067,7 @@ msgstr "Marking..."
 msgid "MM/YY"
 msgstr "MM/YY"
 
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:101
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:102
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr "Multi-year Discount ({discountPercentage}%)"
 
@@ -1119,7 +1119,7 @@ msgstr "Need ${0}"
 msgid "Need help?"
 msgstr "Need help?"
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:173
+#: src/features/profile/components/dialogs/DiffDialog.tsx:174
 msgid "New value:"
 msgstr "New value:"
 
@@ -1129,7 +1129,7 @@ msgstr "Next card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:298
 #: src/features/dashboard/components/MyNamesList.tsx:357
-#: src/features/profile/components/view/AddressProfileView.tsx:273
+#: src/features/profile/components/view/AddressProfileView.tsx:275
 msgid "Next page"
 msgstr "Next page"
 
@@ -1137,7 +1137,7 @@ msgstr "Next page"
 msgid "Next slide"
 msgstr "Next slide"
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:223
+#: src/features/profile/components/dialogs/DiffDialog.tsx:228
 msgid "No changes to save"
 msgstr "No changes to save"
 
@@ -1154,7 +1154,7 @@ msgstr "No default payment method set."
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 
-#: src/features/profile/components/dialogs/AddAddressRecordsDialog.tsx:105
+#: src/features/profile/components/dialogs/AddAddressRecordsDialog.tsx:106
 msgid "No more records to add"
 msgstr "No more records to add"
 
@@ -1318,7 +1318,7 @@ msgstr "Previous card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:289
 #: src/features/dashboard/components/MyNamesList.tsx:348
-#: src/features/profile/components/view/AddressProfileView.tsx:264
+#: src/features/profile/components/view/AddressProfileView.tsx:266
 msgid "Previous page"
 msgstr "Previous page"
 
@@ -1344,7 +1344,7 @@ msgstr "Privacy Policy"
 msgid "Profile"
 msgstr "Profile"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:80
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
 msgid "Profile updated"
 msgstr "Profile updated"
 
@@ -1384,7 +1384,7 @@ msgstr "Registered"
 msgid "Registered {0}"
 msgstr "Registered {0}"
 
-#: src/features/profile/components/view/AddressProfileView.tsx:243
+#: src/features/profile/components/view/AddressProfileView.tsx:245
 msgid "Registered ENS names"
 msgstr "Registered ENS names"
 
@@ -1410,7 +1410,7 @@ msgstr "Registration Details"
 msgid "Registration Failed"
 msgstr "Registration Failed"
 
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:91
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:92
 msgid "Registration Fee"
 msgstr "Registration Fee"
 
@@ -1455,7 +1455,7 @@ msgstr "Remove notification"
 msgid "Remove Telegram Contact Method?"
 msgstr "Remove Telegram Contact Method?"
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:179
+#: src/features/profile/components/dialogs/DiffDialog.tsx:182
 msgid "Removed:"
 msgstr "Removed:"
 
@@ -1477,7 +1477,7 @@ msgstr "Removing telegram channel"
 msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:40
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:42
 msgid "Requesting test tokens..."
 msgstr "Requesting test tokens..."
 
@@ -1782,7 +1782,7 @@ msgstr "Stables accepted"
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:47
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
 msgid "Submitting your ENS profile update. This may take a few moments."
 msgstr "Submitting your ENS profile update. This may take a few moments."
 
@@ -1839,7 +1839,7 @@ msgstr "Theme"
 msgid "There was a problem verifying your email address."
 msgstr "There was a problem verifying your email address."
 
-#: src/features/profile/components/view/AddressProfileView.tsx:232
+#: src/features/profile/components/view/AddressProfileView.tsx:233
 msgid "This address does not have a primary ENS name."
 msgstr "This address does not have a primary ENS name."
 
@@ -1872,7 +1872,7 @@ msgstr "To enable, go to your browser's site settings for this page and allow no
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 msgstr "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:193
+#: src/features/profile/components/dialogs/DiffDialog.tsx:197
 msgid "To:"
 msgstr "To:"
 
@@ -1892,7 +1892,7 @@ msgstr "total"
 msgid "TOTAL"
 msgstr "TOTAL"
 
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:111
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:112
 msgid "Total Paid"
 msgstr "Total Paid"
 
@@ -1900,7 +1900,7 @@ msgstr "Total Paid"
 msgid "Trademark Guidelines"
 msgstr "Trademark Guidelines"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:30
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
 msgid "Transaction:"
 msgstr "Transaction:"
 
@@ -1922,7 +1922,7 @@ msgstr "Try searching for a different coin or chain"
 msgid "Unread only"
 msgstr "Unread only"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:66
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
 msgid "Update failed"
 msgstr "Update failed"
 
@@ -1932,7 +1932,7 @@ msgstr "Update failed"
 msgid "Update Resolver"
 msgstr "Update Resolver"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:48
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
 msgid "Updating profile"
 msgstr "Updating profile"
 
@@ -2039,7 +2039,7 @@ msgstr "Waiting for signature"
 msgid "Waiting for signature..."
 msgstr "Waiting for signature..."
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:53
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
 msgid "Waiting for the transaction to be confirmed…"
 msgstr "Waiting for the transaction to be confirmed…"
 
@@ -2179,7 +2179,7 @@ msgstr "Your ENS name replaces your wallet addresses so friends and clients can 
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:79
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."
 msgstr "Your profile changes have been confirmed on-chain."
 

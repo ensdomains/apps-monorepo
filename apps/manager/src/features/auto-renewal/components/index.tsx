@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Plural, Trans } from '@lingui/react/macro'
 import { Calendar, CircleAlert } from 'lucide-react'
 import { Highlight } from '@/components/atoms/Highlight'
 import { Badge } from '@/components/ui/badge'
@@ -62,10 +62,13 @@ export const AutoRenewalItem = ({
       </div>
       {autoRenewal.expires - Date.now() < TIME_UNITS.DAY * 16 && (
         <div className="text-red-600 text-sm">
-          <Trans>
-            {Math.floor((autoRenewal.expires - Date.now()) / TIME_UNITS.DAY)}{' '}
-            days remaining
-          </Trans>
+          <Plural
+            one="# day remaining"
+            other="# days remaining"
+            value={Math.floor(
+              (autoRenewal.expires - Date.now()) / TIME_UNITS.DAY,
+            )}
+          />
         </div>
       )}
       <div className="flex justify-end">
