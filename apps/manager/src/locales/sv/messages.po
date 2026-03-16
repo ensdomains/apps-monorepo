@@ -18,6 +18,12 @@ msgstr ""
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
+#. placeholder {0}: nonAutoRenewals.join(', ')
+#. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
+#: src/features/auto-renewal/components/index.tsx:107
+msgid "{0} are expiring without auto-renewal with the earliest expiring on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
+msgstr ""
+
 #. placeholder {0}: suggestion.label
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:225
 msgid "{0} avatar"
@@ -28,10 +34,31 @@ msgstr ""
 msgid "{0} avatar placeholder"
 msgstr "{0} avatar-placeholder"
 
+#. placeholder {0}: Math.floor((autoRenewal.expires - Date.now()) / TIME_UNITS.DAY)
+#: src/features/auto-renewal/components/index.tsx:63
+msgid "{0} days remaining"
+msgstr ""
+
+#. placeholder {0}: nonAutoRenewals.length
+#: src/features/auto-renewal/components/index.tsx:94
+msgid "{0} ENS names are expiring without auto-renewal"
+msgstr ""
+
+#. placeholder {0}: nonAutoRenewals[0].name
+#. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
+#: src/features/auto-renewal/components/index.tsx:99
+msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
+msgstr ""
+
 #. placeholder {0}: currentPage + 1
 #: src/features/dashboard/components/EducationCarousel.tsx:40
 msgid "{0} of {totalPages}"
 msgstr "{0} av {totalPages}"
+
+#. placeholder {0}: autoRenewal.price
+#: src/features/auto-renewal/components/index.tsx:69
+msgid "{0} USD/year"
+msgstr ""
 
 #. placeholder {0}: option.discount
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:172
@@ -63,6 +90,11 @@ msgstr ""
 
 #: src/features/profile/components/sections/ThemeSection.tsx:38
 msgid "{label} theme (selected)"
+msgstr ""
+
+#. placeholder {0}: getErrorMessage(error)
+#: src/routes/wallet.tsx:188
+msgid "<0>Connection failed:</0> {0}"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:67
@@ -133,6 +165,7 @@ msgid "Add more"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:23
+#: src/routes/payment/list.tsx:27
 msgid "Add Payment Method"
 msgstr ""
 
@@ -212,12 +245,20 @@ msgstr ""
 msgid "Authorizing payment"
 msgstr ""
 
+#: src/features/auto-renewal/components/index.tsx:73
+msgid "Autorenews on"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:377
 msgid "available"
 msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:109
 msgid "Available"
+msgstr ""
+
+#: src/routes/wallet.tsx:198
+msgid "Available Wallets"
 msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:125
@@ -338,6 +379,10 @@ msgstr ""
 msgid "Choose a color for your profile"
 msgstr ""
 
+#: src/routes/wallet.tsx:201
+msgid "Choose a wallet to connect to the application"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:340
 msgid "Choose an NFT"
 msgstr ""
@@ -351,6 +396,7 @@ msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
 #: src/features/register/pages/CheckDomainPage.tsx:18
+#: src/routes/index.tsx:27
 msgid "Claim your"
 msgstr ""
 
@@ -365,6 +411,10 @@ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx:153
 msgid "Click the button below to verify your email address and start receiving notifications."
+msgstr ""
+
+#: src/features/profile/components/view/ViewBioSection.tsx:55
+msgid "Click to copy"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:130
@@ -421,6 +471,10 @@ msgstr ""
 msgid "Connect"
 msgstr ""
 
+#: src/routes/wallet.tsx:151
+msgid "Connect a Wallet"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx:87
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr ""
@@ -437,8 +491,20 @@ msgstr ""
 msgid "Connect your wallet"
 msgstr ""
 
+#: src/routes/wallet.tsx:291
+msgid "Connected via:"
+msgstr ""
+
 #: src/features/register/components/VerifyWalletModal.tsx:146
 msgid "Connected wallet"
+msgstr ""
+
+#: src/routes/wallet.tsx:159
+msgid "Connecting to {connectingConnector}... Please approve the connection in your wallet."
+msgstr ""
+
+#: src/routes/wallet.tsx:273
+msgid "Connection Details"
 msgstr ""
 
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:62
@@ -459,6 +525,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
 msgid "Copied"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:54
+msgid "Copied!"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
@@ -552,6 +622,14 @@ msgstr ""
 #: src/features/dashboard/components/EducationCarousel.tsx:24
 msgid "Did You Know?"
 msgstr "Visste du att?"
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:153
+msgid "Disconnect"
+msgstr ""
+
+#: src/routes/wallet.tsx:303
+msgid "Disconnect Wallet"
+msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx:142
 msgid "Domain transfer & expiry notifications"
@@ -659,6 +737,7 @@ msgstr ""
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
+#: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:120
 msgid "Expires"
@@ -676,6 +755,10 @@ msgstr ""
 #: src/features/dashboard/components/MyNamesList.tsx:332
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
+
+#: src/features/auto-renewal/components/index.tsx:56
+msgid "Expires:"
+msgstr ""
 
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
 msgid "expiring on"
@@ -735,6 +818,10 @@ msgstr ""
 msgid "Failed to remove Telegram channel"
 msgstr ""
 
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:47
+msgid "Failed to request test tokens"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx:149
 msgid "Failed to resend email verification"
 msgstr ""
@@ -789,6 +876,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:451
 msgid "for"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:15
+msgid "For this alpha release, accounts are automatically funded with test tokens."
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:60
@@ -870,6 +961,10 @@ msgstr ""
 msgid "If your primary card is declined, we will use this card to charge you."
 msgstr ""
 
+#: src/components/atoms/ImageFallback/ImageFallback.tsx:188
+msgid "Image not available"
+msgstr ""
+
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx:72
 msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
 msgstr ""
@@ -928,6 +1023,7 @@ msgstr ""
 msgid "Loading your stablecoin balances..."
 msgstr ""
 
+#: src/components/atoms/ImageFallback/ImageFallback.tsx:209
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
@@ -936,6 +1032,7 @@ msgid "Loading..."
 msgstr "Laddar..."
 
 #: src/features/dashboard/components/NameRow.tsx:57
+#: src/features/profile/components/view/FavoriteButton.tsx:71
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
 
@@ -947,8 +1044,16 @@ msgstr "HUVUDMENY"
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr ""
 
+#: src/routes/wallet.tsx:245
+msgid "Make sure you have a wallet extension installed"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:125
 msgid "Makes crypto addresses human-readable"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:73
+msgid "Manage Para Wallet"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
@@ -1019,18 +1124,26 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:173
+msgid "New value:"
+msgstr ""
+
 #: src/features/dashboard/components/EducationCarousel.tsx:45
 msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:298
 #: src/features/dashboard/components/MyNamesList.tsx:357
-#: src/features/profile/components/view/AddressProfileView.tsx:270
+#: src/features/profile/components/view/AddressProfileView.tsx:273
 msgid "Next page"
 msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:316
 msgid "Next slide"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:223
+msgid "No changes to save"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:305
@@ -1046,6 +1159,10 @@ msgstr ""
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
 
+#: src/features/profile/components/dialogs/AddAddressRecordsDialog.tsx:105
+msgid "No more records to add"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:272
 msgid "No names found"
 msgstr "Inga namn hittades"
@@ -1056,12 +1173,20 @@ msgstr "Inga namn hittades"
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
+#: src/routes/payment/list.tsx:25
+msgid "No payment methods found."
+msgstr ""
+
 #: src/features/landing/FeaturesCarousel.tsx:105
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
 msgid "No recent searches"
+msgstr ""
+
+#: src/routes/wallet.tsx:243
+msgid "No wallet connectors available"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:13
@@ -1198,7 +1323,7 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:289
 #: src/features/dashboard/components/MyNamesList.tsx:348
-#: src/features/profile/components/view/AddressProfileView.tsx:261
+#: src/features/profile/components/view/AddressProfileView.tsx:264
 msgid "Previous page"
 msgstr ""
 
@@ -1224,6 +1349,10 @@ msgstr ""
 msgid "Profile"
 msgstr "Profil"
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:80
+msgid "Profile updated"
+msgstr ""
+
 #: src/features/register/components/Autorenewal.tsx:88
 msgid "Protect your name with autorenewal"
 msgstr ""
@@ -1248,6 +1377,7 @@ msgstr ""
 msgid "Reconnect Wallet"
 msgstr ""
 
+#: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:99
@@ -1258,6 +1388,10 @@ msgstr "Registrerad"
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:127
 msgid "Registered {0}"
 msgstr "Registrerad {0}"
+
+#: src/features/profile/components/view/AddressProfileView.tsx:243
+msgid "Registered ENS names"
+msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:96
@@ -1326,6 +1460,10 @@ msgstr ""
 msgid "Remove Telegram Contact Method?"
 msgstr ""
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:179
+msgid "Removed:"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx:158
 msgid "Removing email channel"
 msgstr ""
@@ -1342,6 +1480,10 @@ msgstr ""
 #. placeholder {0}: telegram?.label
 #: src/features/notifications/settings/contact-methods/telegram.tsx:58
 msgid "Removing telegram for {0}"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:40
+msgid "Requesting test tokens..."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:203
@@ -1585,6 +1727,14 @@ msgstr ""
 msgid "Smart Account"
 msgstr ""
 
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:100
+msgid "Smart Session Active"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:102
+msgid "Smart Session Disabled"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx:148
 msgid "Something went wrong. Please try again."
 msgstr ""
@@ -1637,6 +1787,14 @@ msgstr ""
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:47
+msgid "Submitting your ENS profile update. This may take a few moments."
+msgstr ""
+
+#: src/routes/wallet.tsx:169
+msgid "Successfully connected! You can now use the application."
+msgstr ""
+
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:56
 msgid "Support"
 msgstr ""
@@ -1686,6 +1844,10 @@ msgstr ""
 msgid "There was a problem verifying your email address."
 msgstr ""
 
+#: src/features/profile/components/view/AddressProfileView.tsx:232
+msgid "This address does not have a primary ENS name."
+msgstr ""
+
 #: src/features/payment/components/add.tsx:18
 #: src/features/payment/components/index.tsx:92
 msgid "This card will be charged for your subscription."
@@ -1719,6 +1881,10 @@ msgstr ""
 msgid "To:"
 msgstr ""
 
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:12
+msgid "TOKEN BALANCES"
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:11
 msgid "Too short"
 msgstr ""
@@ -1739,6 +1905,10 @@ msgstr ""
 msgid "Trademark Guidelines"
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:30
+msgid "Transaction:"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:87
 msgid "Transfer your name to any wallet"
 msgstr ""
@@ -1757,10 +1927,18 @@ msgstr ""
 msgid "Unread only"
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:66
+msgid "Update failed"
+msgstr ""
+
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:147
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:163
 msgid "Update Resolver"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:48
+msgid "Updating profile"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1824,6 +2002,7 @@ msgstr ""
 msgid "Verify Wallet"
 msgstr ""
 
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:134
 #: src/features/notifications/RequireBackendAuth.tsx:117
 msgid "Verify wallet ownership"
 msgstr ""
@@ -1865,6 +2044,10 @@ msgstr ""
 msgid "Waiting for signature..."
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:53
+msgid "Waiting for the transaction to be confirmed…"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:56
 msgid "Waiting for transaction"
 msgstr ""
@@ -1877,8 +2060,16 @@ msgstr ""
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
+#: src/routes/wallet.tsx:282
+msgid "Wallet Address:"
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx:106
 msgid "Wallet client missing, please reconnect your wallet and try again."
+msgstr ""
+
+#: src/routes/wallet.tsx:266
+msgid "Wallet Connected"
 msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:220
@@ -1895,6 +2086,7 @@ msgid "We sent a verification code to your email address."
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:22
+#: src/routes/index.tsx:30
 msgid "web3 username"
 msgstr ""
 
@@ -1990,6 +2182,14 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:33
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:79
+msgid "Your profile changes have been confirmed on-chain."
+msgstr ""
+
+#: src/routes/wallet.tsx:276
+msgid "Your wallet is successfully connected to the application"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:43

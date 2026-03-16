@@ -24,10 +24,12 @@ const LandingPage = () => {
       {/* Hero Section */}
       <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-11">
         <h1 className="text-center text-temp-64px">
-          <span className="font-normal text-ens-lapis-core">Claim your</span>
+          <span className="font-normal text-ens-lapis-core">
+            <Trans>Claim your</Trans>
+          </span>
           <br />
           <span className="font-serif text-ens-lapis-dense italic">
-            web3 username
+            <Trans>web3 username</Trans>
           </span>
         </h1>
         <p className="mt-6 text-center font-normal text-ens-lapis-core text-temp-32px">
