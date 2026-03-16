@@ -296,6 +296,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         console.error('Failed to set reverse resolution', error)
       } finally {
         setIsWritingReverse(false)
+        setNameInput('')
       }
     }
   }
@@ -434,7 +435,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                       isPendingUpdate ||
                       isSwitchingChain
                     }
-                    size="sm"
+                    className="h-9"
                   >
                     {match({
                       isConnected,
