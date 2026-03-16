@@ -47,9 +47,38 @@ msgstr "{label} avatar-placeholder"
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
 
+#: src/features/payment/components/add.tsx:169
+msgid "Add a Backup Payment Method"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:34
+#: src/features/payment/components/add.tsx:164
+msgid "Add a credit card"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:126
+msgid "Add Backup Card"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:23
+msgid "Add Payment Method"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
 msgid "Address profile"
 msgstr "Adressprofil"
+
+#: src/features/payment/components/index.tsx:111
+msgid "Backup Card"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:57
+msgid "Billing country"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:53
+msgid "Billing zip code"
+msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:35
 msgid "Can I change my primary name later?"
@@ -63,9 +92,42 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Cancel"
 msgstr "Avbryt"
 
+#: src/features/payment/components/add.tsx:42
+msgid "Card expiry date"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:37
+#: src/features/payment/components/add.tsx:38
+msgid "Card number"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:46
+msgid "Card security code"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:75
+msgid "Choose how you'd like to pay for your subscription."
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:241
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
+
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
+msgid "Clear search"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:202
+msgid "Confirm"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:58
+msgid "Country"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:47
+msgid "CVV"
+msgstr ""
 
 #: src/features/dashboard/components/DashboardSidebar.tsx:47
 msgid "Dashboard"
@@ -79,8 +141,13 @@ msgstr "Datum tillagt (nyast)"
 msgid "Date added (Oldest)"
 msgstr "Datum tillagt (äldst)"
 
+#: src/features/payment/components/index.tsx:42
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
 msgid "Default"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:67
+msgid "Delete"
 msgstr ""
 
 #: src/features/dashboard/components/EducationCarousel.tsx:23
@@ -94,6 +161,11 @@ msgstr "Fel vid laddning av namn"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
 msgid "Expires"
 msgstr "Går ut"
+
+#. placeholder {0}: paymentMethod.expires
+#: src/features/payment/components/index.tsx:47
+msgid "Expires {0}"
+msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx:318
 msgid "Expires in {daysUntilExpiry} days"
@@ -118,6 +190,10 @@ msgstr "Kunde inte ange ETH-adresspost"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:334
 msgid "Failed to set primary name. Please try again."
 msgstr "Kunde inte ange primärt namn. Försök igen."
+
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:39
+msgid "Failed to switch language"
+msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx:107
 msgid "Favorites"
@@ -151,6 +227,10 @@ msgstr "Hur kan jag säkra mitt ENS-namn?"
 msgid "How do I show my .eth name instead of my address?"
 msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
 
+#: src/features/payment/components/index.tsx:114
+msgid "If your primary card is declined, we will use this card to charge you."
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx:47
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
@@ -177,6 +257,10 @@ msgstr "Logga in för att favorisera"
 msgid "MAIN MENU"
 msgstr "HUVUDMENY"
 
+#: src/features/payment/components/add.tsx:43
+msgid "MM/YY"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx:102
 msgid "My Names"
 msgstr "Mina namn"
@@ -196,6 +280,19 @@ msgstr "Namn (A-Ö)"
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
+#: src/features/payment/components/add.tsx:50
+#: src/features/payment/components/add.tsx:50
+msgid "Name on card"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:291
+msgid "Next page"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:103
+msgid "No default payment method set."
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:345
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
@@ -209,6 +306,43 @@ msgstr "Inga namn hittades"
 #: src/features/dashboard/components/MyNamesList.tsx:260
 msgid "No names to display"
 msgstr "Inga namn att visa"
+
+#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
+msgid "Notifications"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:153
+msgid "or"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:122
+msgid "Pay with Apple"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:99
+msgid "Pay with Google"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:145
+msgid "Pay with PayPal"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:89
+msgid "Payment Method"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:54
+msgid "Payment method options"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:15
+#: src/features/payment/components/add.tsx:72
+msgid "Payment Methods"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:282
+msgid "Previous page"
+msgstr ""
 
 #: src/features/dashboard/components/PrimaryBadge.tsx:20
 msgid "Primary Name"
@@ -236,11 +370,20 @@ msgstr "Registrerad {0}"
 msgid "Reset Changes"
 msgstr ""
 
+#: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
+msgid "Search"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
+msgid "Search for a name or address"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx:145
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
@@ -289,6 +432,11 @@ msgstr "Logga in för att se favoriter"
 msgid "Sort by"
 msgstr "Sortera efter"
 
+#. placeholder {0}: sortDirection !== null && sortField === 'name' ? sortDirection : 'unsorted'
+#: src/features/dashboard/components/FavoritesList.tsx:189
+msgid "Sort by name, currently {0}"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:151
 msgid "Sort favorites by"
 msgstr "Sortera favoriter efter"
@@ -297,9 +445,18 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
+#: src/features/payment/components/add.tsx:172
+msgid "The backup payment method will be charged if the default payment method fails."
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:344
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
+
+#: src/features/payment/components/add.tsx:18
+#: src/features/payment/components/index.tsx:92
+msgid "This card will be charged for your subscription."
+msgstr ""
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:193
 msgid "To:"
@@ -332,3 +489,7 @@ msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda ol
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Ditt ENS-namn"
+
+#: src/features/payment/components/add.tsx:54
+msgid "Zip code"
+msgstr ""

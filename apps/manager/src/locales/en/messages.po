@@ -42,9 +42,38 @@ msgstr "{label} avatar placeholder"
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
+#: src/features/payment/components/add.tsx:169
+msgid "Add a Backup Payment Method"
+msgstr "Add a Backup Payment Method"
+
+#: src/features/payment/components/add.tsx:34
+#: src/features/payment/components/add.tsx:164
+msgid "Add a credit card"
+msgstr "Add a credit card"
+
+#: src/features/payment/components/index.tsx:126
+msgid "Add Backup Card"
+msgstr "Add Backup Card"
+
+#: src/features/payment/components/add.tsx:23
+msgid "Add Payment Method"
+msgstr "Add Payment Method"
+
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
 msgid "Address profile"
 msgstr "Address profile"
+
+#: src/features/payment/components/index.tsx:111
+msgid "Backup Card"
+msgstr "Backup Card"
+
+#: src/features/payment/components/add.tsx:57
+msgid "Billing country"
+msgstr "Billing country"
+
+#: src/features/payment/components/add.tsx:53
+msgid "Billing zip code"
+msgstr "Billing zip code"
 
 #: src/features/dashboard/components/FaqSection.tsx:35
 msgid "Can I change my primary name later?"
@@ -58,9 +87,42 @@ msgstr "Can I send crypto to a .eth name (instead of an address)?"
 msgid "Cancel"
 msgstr "Cancel"
 
+#: src/features/payment/components/add.tsx:42
+msgid "Card expiry date"
+msgstr "Card expiry date"
+
+#: src/features/payment/components/add.tsx:37
+#: src/features/payment/components/add.tsx:38
+msgid "Card number"
+msgstr "Card number"
+
+#: src/features/payment/components/add.tsx:46
+msgid "Card security code"
+msgstr "Card security code"
+
+#: src/features/payment/components/add.tsx:75
+msgid "Choose how you'd like to pay for your subscription."
+msgstr "Choose how you'd like to pay for your subscription."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:241
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
+
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
+msgid "Clear search"
+msgstr "Clear search"
+
+#: src/features/payment/components/add.tsx:202
+msgid "Confirm"
+msgstr "Confirm"
+
+#: src/features/payment/components/add.tsx:58
+msgid "Country"
+msgstr "Country"
+
+#: src/features/payment/components/add.tsx:47
+msgid "CVV"
+msgstr "CVV"
 
 #: src/features/dashboard/components/DashboardSidebar.tsx:47
 msgid "Dashboard"
@@ -74,9 +136,14 @@ msgstr "Date added (Newest)"
 msgid "Date added (Oldest)"
 msgstr "Date added (Oldest)"
 
+#: src/features/payment/components/index.tsx:42
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
 msgid "Default"
 msgstr "Default"
+
+#: src/features/payment/components/index.tsx:67
+msgid "Delete"
+msgstr "Delete"
 
 #: src/features/dashboard/components/EducationCarousel.tsx:23
 msgid "Did You Know?"
@@ -89,6 +156,11 @@ msgstr "Error loading names"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
 msgid "Expires"
 msgstr "Expires"
+
+#. placeholder {0}: paymentMethod.expires
+#: src/features/payment/components/index.tsx:47
+msgid "Expires {0}"
+msgstr "Expires {0}"
 
 #: src/features/dashboard/components/MyNamesList.tsx:318
 msgid "Expires in {daysUntilExpiry} days"
@@ -113,6 +185,10 @@ msgstr "Failed to set ETH address record"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:334
 msgid "Failed to set primary name. Please try again."
 msgstr "Failed to set primary name. Please try again."
+
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:39
+msgid "Failed to switch language"
+msgstr "Failed to switch language"
 
 #: src/features/dashboard/components/NamesTable.tsx:107
 msgid "Favorites"
@@ -146,6 +222,10 @@ msgstr "How can I secure my ENS name?"
 msgid "How do I show my .eth name instead of my address?"
 msgstr "How do I show my .eth name instead of my address?"
 
+#: src/features/payment/components/index.tsx:114
+msgid "If your primary card is declined, we will use this card to charge you."
+msgstr "If your primary card is declined, we will use this card to charge you."
+
 #: src/features/dashboard/components/FaqSection.tsx:47
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
@@ -172,6 +252,10 @@ msgstr "Login to favorite"
 msgid "MAIN MENU"
 msgstr "MAIN MENU"
 
+#: src/features/payment/components/add.tsx:43
+msgid "MM/YY"
+msgstr "MM/YY"
+
 #: src/features/dashboard/components/NamesTable.tsx:102
 msgid "My Names"
 msgstr "My Names"
@@ -191,6 +275,19 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
+#: src/features/payment/components/add.tsx:50
+#: src/features/payment/components/add.tsx:50
+msgid "Name on card"
+msgstr "Name on card"
+
+#: src/features/dashboard/components/FavoritesList.tsx:291
+msgid "Next page"
+msgstr "Next page"
+
+#: src/features/payment/components/index.tsx:103
+msgid "No default payment method set."
+msgstr "No default payment method set."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:345
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
@@ -204,6 +301,43 @@ msgstr "No names found"
 #: src/features/dashboard/components/MyNamesList.tsx:260
 msgid "No names to display"
 msgstr "No names to display"
+
+#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
+msgid "Notifications"
+msgstr "Notifications"
+
+#: src/features/payment/components/add.tsx:153
+msgid "or"
+msgstr "or"
+
+#: src/features/payment/components/add.tsx:122
+msgid "Pay with Apple"
+msgstr "Pay with Apple"
+
+#: src/features/payment/components/add.tsx:99
+msgid "Pay with Google"
+msgstr "Pay with Google"
+
+#: src/features/payment/components/add.tsx:145
+msgid "Pay with PayPal"
+msgstr "Pay with PayPal"
+
+#: src/features/payment/components/index.tsx:89
+msgid "Payment Method"
+msgstr "Payment Method"
+
+#: src/features/payment/components/index.tsx:54
+msgid "Payment method options"
+msgstr "Payment method options"
+
+#: src/features/payment/components/add.tsx:15
+#: src/features/payment/components/add.tsx:72
+msgid "Payment Methods"
+msgstr "Payment Methods"
+
+#: src/features/dashboard/components/FavoritesList.tsx:282
+msgid "Previous page"
+msgstr "Previous page"
 
 #: src/features/dashboard/components/PrimaryBadge.tsx:20
 msgid "Primary Name"
@@ -231,11 +365,20 @@ msgstr "Registered {0}"
 msgid "Reset Changes"
 msgstr "Reset Changes"
 
+#: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
+msgid "Search"
+msgstr "Search"
+
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
+msgid "Search for a name or address"
+msgstr "Search for a name or address"
+
 #: src/features/dashboard/components/NamesTable.tsx:145
 msgid "Search my name..."
 msgstr "Search my name..."
 
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
@@ -284,6 +427,11 @@ msgstr "Sign in to view favorites"
 msgid "Sort by"
 msgstr "Sort by"
 
+#. placeholder {0}: sortDirection !== null && sortField === 'name' ? sortDirection : 'unsorted'
+#: src/features/dashboard/components/FavoritesList.tsx:189
+msgid "Sort by name, currently {0}"
+msgstr "Sort by name, currently {0}"
+
 #: src/features/dashboard/components/FavoritesList.tsx:151
 msgid "Sort favorites by"
 msgstr "Sort favorites by"
@@ -292,9 +440,18 @@ msgstr "Sort favorites by"
 msgid "Sort names by"
 msgstr "Sort names by"
 
+#: src/features/payment/components/add.tsx:172
+msgid "The backup payment method will be charged if the default payment method fails."
+msgstr "The backup payment method will be charged if the default payment method fails."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:344
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
+
+#: src/features/payment/components/add.tsx:18
+#: src/features/payment/components/index.tsx:92
+msgid "This card will be charged for your subscription."
+msgstr "This card will be charged for your subscription."
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:193
 msgid "To:"
@@ -327,3 +484,7 @@ msgstr "Yes. You can update it anytime. You can even use different primary names
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Your ENS name"
+
+#: src/features/payment/components/add.tsx:54
+msgid "Zip code"
+msgstr "Zip code"
