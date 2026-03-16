@@ -18,6 +18,10 @@ msgstr ""
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:41
+msgid "(empty)"
+msgstr ""
+
 #. placeholder {0}: Math.floor( (autoRenewal.expires - Date.now()) / TIME_UNITS.DAY, )
 #: src/features/auto-renewal/components/index.tsx:65
 msgid "{0, plural, one {# day remaining} other {# days remaining}}"
@@ -169,8 +173,16 @@ msgstr ""
 msgid "Add Payment Method"
 msgstr ""
 
+#: src/features/profile/components/sections/SocialLinksSection.tsx:22
+msgid "Add your social media profiles to your profile"
+msgstr ""
+
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:30
 msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:34
+msgid "Added"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx:107
@@ -272,6 +284,7 @@ msgstr ""
 msgid "Back to dashboard"
 msgstr ""
 
+#: src/features/legal/pages/PrivacyPolicyPage.tsx:13
 #: src/routes/notifications/channels/email/verify.tsx:238
 msgid "Back to Home"
 msgstr ""
@@ -293,6 +306,7 @@ msgid "Billing zip code"
 msgstr ""
 
 #: src/features/profile/components/sections/BioSection.tsx:38
+#: src/features/profile/components/view/ViewBioSection.tsx:81
 msgid "Bio"
 msgstr ""
 
@@ -340,6 +354,7 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
+#: src/features/profile/components/dialogs/DiffDialog.tsx:253
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:323
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:231
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
@@ -417,6 +432,10 @@ msgstr ""
 msgid "Click to copy"
 msgstr ""
 
+#: src/components/ui/dialog.tsx:94
+msgid "Close"
+msgstr ""
+
 #: src/features/register/components/VerifyWalletModal.tsx:130
 #: src/features/wallet/components/EnableSessionModal.tsx:95
 msgid "Close dialog"
@@ -443,6 +462,7 @@ msgid "Companies and projects use ENS because it's secured by ethereum, so you c
 msgstr ""
 
 #: src/features/payment/components/add.tsx:187
+#: src/routes/auto-renewal/index.tsx:31
 msgid "Confirm"
 msgstr ""
 
@@ -588,6 +608,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
 msgid "Custom duration in years"
+msgstr ""
+
+#: src/features/landing/ProfilesShowcase.tsx:13
+msgid "Customize your profile to share what matters"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:39
@@ -886,7 +910,7 @@ msgstr ""
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:191
+#: src/features/profile/components/dialogs/DiffDialog.tsx:196
 msgid "From:"
 msgstr ""
 
@@ -935,6 +959,10 @@ msgstr ""
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:138
 msgid "Go to ENS name profile"
 msgstr "Gå till ENS-namnprofil"
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:248
+msgid "Go to Profile"
+msgstr ""
 
 #. placeholder {0}: index + 1
 #: src/features/landing/FeaturesCarousel.tsx:301
@@ -1004,6 +1032,7 @@ msgid "links"
 msgstr ""
 
 #: src/features/profile/components/sections/LinksSection.tsx:21
+#: src/features/profile/components/view/ViewLinksSection.tsx:19
 msgid "Links"
 msgstr ""
 
@@ -1056,6 +1085,10 @@ msgstr ""
 msgid "Manage Para Wallet"
 msgstr ""
 
+#: src/routes/auto-renewal/index.tsx:20
+msgid "Manage Renewals"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
 msgid "Manage your notification preferences for your name(s) and ENS-related updates."
 msgstr ""
@@ -1070,6 +1103,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:36
+msgid "Modified"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:102
@@ -1124,7 +1161,7 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:174
+#: src/features/profile/components/dialogs/DiffDialog.tsx:179
 msgid "New value:"
 msgstr ""
 
@@ -1142,7 +1179,7 @@ msgstr ""
 msgid "Next slide"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:228
+#: src/features/profile/components/dialogs/DiffDialog.tsx:233
 msgid "No changes to save"
 msgstr ""
 
@@ -1191,6 +1228,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:13
 msgid "Not a valid name format"
+msgstr ""
+
+#: src/features/profile/components/view/ViewBioSection.tsx:33
+msgid "Not set"
 msgstr ""
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:83
@@ -1460,7 +1501,11 @@ msgstr ""
 msgid "Remove Telegram Contact Method?"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:182
+#: src/features/profile/components/dialogs/DiffDialog.tsx:35
+msgid "Removed"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:187
 msgid "Removed:"
 msgstr ""
 
@@ -1507,6 +1552,11 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:280
+#: src/features/profile/components/dialogs/DiffDialog.tsx:294
+msgid "Review Changes"
+msgstr ""
+
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
 msgid "Save"
 msgstr ""
@@ -1514,6 +1564,11 @@ msgstr ""
 #. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
 #: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:55
 msgid "Save ${0}"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:142
+#: src/features/profile/components/dialogs/DiffDialog.tsx:267
+msgid "Save Changes"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:178
@@ -1526,6 +1581,7 @@ msgid "Saved favorites & searches"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:176
+#: src/features/profile/components/dialogs/DiffDialog.tsx:262
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:171
 msgid "Saving..."
 msgstr ""
@@ -1735,6 +1791,10 @@ msgstr ""
 msgid "Smart Session Disabled"
 msgstr ""
 
+#: src/features/profile/components/sections/SocialLinksSection.tsx:20
+msgid "Social Links"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx:148
 msgid "Something went wrong. Please try again."
 msgstr ""
@@ -1877,7 +1937,7 @@ msgstr ""
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:197
+#: src/features/profile/components/dialogs/DiffDialog.tsx:202
 msgid "To:"
 msgstr ""
 
@@ -1963,6 +2023,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:410
 msgid "Use This NFT"
+msgstr ""
+
+#: src/features/landing/IntegrationsSection.tsx:92
+msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
 msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:93
@@ -2131,6 +2195,10 @@ msgstr ""
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
+#: src/features/profile/components/dialogs/DiffDialog.tsx:109
+msgid "You have unsaved changes. Are you sure you want to leave?"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx:226
 msgid "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
@@ -2176,8 +2244,16 @@ msgstr ""
 msgid "Your ENS name"
 msgstr "Ditt ENS-namn"
 
+#: src/features/landing/ProfilesShowcase.tsx:16
+msgid "Your ENS name is your onchain identity. Personalize it with an avatar, a banner, and the links that matter most. Showcase your work, connect your socials, and make it easy for anyone to verify and follow you across the web."
+msgstr ""
+
 #: src/features/landing/FeaturesCarousel.tsx:127
 msgid "Your ENS name replaces your wallet addresses so friends and clients can send money to <0>friend.eth</0> instead of a confusing jumble of letters and numbers."
+msgstr ""
+
+#: src/features/landing/IntegrationsSection.tsx:89
+msgid "Your ENS name works across web3"
 msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:33

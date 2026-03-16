@@ -1,4 +1,4 @@
-import { useLingui } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { copyToClipboard } from '@/lib/clipboard'
 import {
@@ -30,7 +30,7 @@ const ContactItem = ({ record }: ContactItemProps) => {
       </span>
       <span className="text-(--theme-color) text-sm">
         {recordDef?.displayPrefix}
-        {displayValue || 'Not set'}
+        {displayValue || <Trans>Not set</Trans>}
       </span>
     </>
   )
@@ -78,7 +78,9 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
   return (
     <Card className="border-[0.25px] border-border bg-white shadow-none">
       <CardHeader>
-        <CardTitle className="text-base tracking-tight">Bio</CardTitle>
+        <CardTitle className="text-base tracking-tight">
+          <Trans>Bio</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {records.base.description && (

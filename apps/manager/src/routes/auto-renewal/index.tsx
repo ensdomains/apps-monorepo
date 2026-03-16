@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +17,9 @@ function RouteComponent() {
   return (
     <div className="mx-auto my-5 max-w-sm space-y-4">
       <NonAutoRenewalWarning nonAutoRenewals={NON_AUTO_RENEWALS} />
-      <h1 className="font-bold text-2xl">Manage Renewals</h1>
+      <h1 className="font-bold text-2xl">
+        <Trans>Manage Renewals</Trans>
+      </h1>
       <div className="space-y-4">
         {RENEWALS.map((renewal) => (
           <AutoRenewalItem autoRenewal={renewal} key={renewal.name} />
@@ -27,7 +30,7 @@ function RouteComponent() {
         <PaymentMethodList />
       </ClientOnly>
       <Button className="w-full" size="lg" variant="default">
-        Confirm
+        <Trans>Confirm</Trans>
       </Button>
     </div>
   )
