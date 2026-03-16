@@ -137,20 +137,8 @@ export const ImageSelectionDialog = ({
   })
 
   // File handling functions
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const files = e.dataTransfer.files
-    if (files.length === 0) return
-
-    const file = files[0]
-    if (!file?.type.startsWith('image/')) {
+  const processSelectedFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
       setValidationError('Please select a valid image file')
       return
     }
@@ -165,23 +153,22 @@ export const ImageSelectionDialog = ({
     send({ type: 'OPEN_UPLOAD', imageUrl })
   }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const file = e.dataTransfer.files[0]
+    if (file) processSelectedFile(file)
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setValidationError('Please select a valid image file')
-        return
-      }
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        setValidationError(`Image must be under ${MAX_FILE_SIZE_MB}MB`)
-        return
-      }
-      setValidationError(null)
-      const imageUrl = URL.createObjectURL(file)
-      setUploadFile(file)
-      setUploadPreviewUrl(imageUrl)
-      send({ type: 'OPEN_UPLOAD', imageUrl })
-    }
+    if (file) processSelectedFile(file)
   }
 
   const {
