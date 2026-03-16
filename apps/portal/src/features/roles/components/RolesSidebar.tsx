@@ -240,7 +240,7 @@ export const RolesSidebar = <
                 <div className="flex gap-2">
                   <Button
                     variant="secondary"
-                    className="text-lapis-500"
+                    className="text-primary"
                     disabled={
                       !hasChanges ||
                       saveMutation.isPending ||
@@ -255,7 +255,7 @@ export const RolesSidebar = <
                     <DialogTrigger asChild>
                       <Button
                         variant="secondary"
-                        className="text-lapis-500"
+                        className="text-primary"
                         disabled={
                           removeUserMutation.isPending || !isWalletConnected
                         }
@@ -410,7 +410,6 @@ export const RolesSidebar = <
                 <div className="flex justify-end px-6 py-4 border-t border-border bg-quartz-0">
                   <Button
                     variant="secondary"
-                    className="gap-2 text-quartz-400 bg-quartz-50 hover:bg-quartz-50/80"
                     disabled={
                       !hasChanges ||
                       saveMutation.isPending ||
