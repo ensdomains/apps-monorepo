@@ -79,7 +79,7 @@ msgstr "Datum tillagt (nyast)"
 msgid "Date added (Oldest)"
 msgstr "Datum tillagt (äldst)"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:311
 msgid "Default"
 msgstr ""
 

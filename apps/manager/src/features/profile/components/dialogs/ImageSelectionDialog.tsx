@@ -32,6 +32,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
+const MAX_FILE_SIZE_MB = 3
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
 interface ErrorDisplayProps {
   error: string | null
 }
@@ -99,6 +102,7 @@ export const ImageSelectionDialog = ({
   const [open, setOpen] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
+  const [validationError, setValidationError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLButtonElement>(null)
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -146,27 +150,37 @@ export const ImageSelectionDialog = ({
     if (files.length === 0) return
 
     const file = files[0]
-    if (file?.type.startsWith('image/')) {
-      const imageUrl = URL.createObjectURL(file)
-      setUploadFile(file)
-      setUploadPreviewUrl(imageUrl)
-      send({ type: 'OPEN_UPLOAD', imageUrl })
-    } else {
-      send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
+    if (!file?.type.startsWith('image/')) {
+      setValidationError('Please select a valid image file')
+      return
     }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setValidationError(`Image must be under ${MAX_FILE_SIZE_MB}MB`)
+      return
+    }
+    setValidationError(null)
+    const imageUrl = URL.createObjectURL(file)
+    setUploadFile(file)
+    setUploadPreviewUrl(imageUrl)
+    send({ type: 'OPEN_UPLOAD', imageUrl })
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      if (file.type.startsWith('image/')) {
-        const imageUrl = URL.createObjectURL(file)
-        setUploadFile(file)
-        setUploadPreviewUrl(imageUrl)
-        send({ type: 'OPEN_UPLOAD', imageUrl })
-      } else {
-        send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
+      if (!file.type.startsWith('image/')) {
+        setValidationError('Please select a valid image file')
+        return
       }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setValidationError(`Image must be under ${MAX_FILE_SIZE_MB}MB`)
+        return
+      }
+      setValidationError(null)
+      const imageUrl = URL.createObjectURL(file)
+      setUploadFile(file)
+      setUploadPreviewUrl(imageUrl)
+      send({ type: 'OPEN_UPLOAD', imageUrl })
     }
   }
 
@@ -212,7 +226,7 @@ export const ImageSelectionDialog = ({
     <>
       <StepHeader description={description} title={title} />
 
-      <ErrorDisplay error={state.context.error} />
+      <ErrorDisplay error={validationError || state.context.error} />
 
       <div className="space-y-4">
         <div className="space-y-2">
@@ -541,6 +555,7 @@ export const ImageSelectionDialog = ({
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
       send({ type: 'RESET' })
+      setValidationError(null)
     }
     setOpen(isOpen)
   }
@@ -549,7 +564,7 @@ export const ImageSelectionDialog = ({
     <button
       className={clsx(
         'group relative block w-full cursor-pointer overflow-hidden',
-        type === 'avatar' && 'rounded-md',
+        type === 'avatar' && 'h-full rounded-md',
         type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
       )}
       title={`Change ${type}`}
