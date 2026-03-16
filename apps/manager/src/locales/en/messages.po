@@ -52,11 +52,11 @@ msgstr "{label} avatar"
 msgid "{label} avatar placeholder"
 msgstr "{label} avatar placeholder"
 
-#: src/features/profile/components/sections/ThemeSection.tsx:36
+#: src/features/profile/components/sections/ThemeSection.tsx:39
 msgid "{label} theme"
 msgstr "{label} theme"
 
-#: src/features/profile/components/sections/ThemeSection.tsx:36
+#: src/features/profile/components/sections/ThemeSection.tsx:38
 msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
@@ -633,7 +633,7 @@ msgstr "Multi-year Discount ({discountPercentage}%)"
 msgid "My Names"
 msgstr "My Names"
 
-#: src/features/dashboard/components/FavoritesList.tsx:197
+#: src/features/dashboard/components/FavoritesList.tsx:204
 #: src/features/dashboard/components/MyNamesList.tsx:214
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
@@ -659,7 +659,7 @@ msgstr "Name on card"
 msgid "Need ${0}"
 msgstr "Need ${0}"
 
-#: src/features/dashboard/components/FavoritesList.tsx:291
+#: src/features/dashboard/components/FavoritesList.tsx:298
 msgid "Next page"
 msgstr "Next page"
 
@@ -684,8 +684,8 @@ msgstr "No ETH address record set. If you proceed, your current wallet address w
 msgid "No names found"
 msgstr "No names found"
 
-#: src/features/dashboard/components/FavoritesList.tsx:228
-#: src/features/dashboard/components/FavoritesList.tsx:239
+#: src/features/dashboard/components/FavoritesList.tsx:235
+#: src/features/dashboard/components/FavoritesList.tsx:246
 #: src/features/dashboard/components/MyNamesList.tsx:260
 msgid "No names to display"
 msgstr "No names to display"
@@ -769,7 +769,7 @@ msgstr "Preview Image"
 msgid "Preview of your image"
 msgstr "Preview of your image"
 
-#: src/features/dashboard/components/FavoritesList.tsx:282
+#: src/features/dashboard/components/FavoritesList.tsx:289
 msgid "Previous page"
 msgstr "Previous page"
 
@@ -993,7 +993,7 @@ msgstr "Setting…"
 msgid "Short Description"
 msgstr "Short Description"
 
-#: src/features/dashboard/components/FavoritesList.tsx:301
+#: src/features/dashboard/components/FavoritesList.tsx:308
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
 
@@ -1061,10 +1061,17 @@ msgstr "Something went wrong. Please try again."
 msgid "Sort by"
 msgstr "Sort by"
 
-#. placeholder {0}: sortDirection !== null && sortField === 'name' ? sortDirection : 'unsorted'
-#: src/features/dashboard/components/FavoritesList.tsx:189
-msgid "Sort by name, currently {0}"
-msgstr "Sort by name, currently {0}"
+#: src/features/dashboard/components/FavoritesList.tsx:192
+msgid "Sort by name, currently ascending"
+msgstr "Sort by name, currently ascending"
+
+#: src/features/dashboard/components/FavoritesList.tsx:193
+msgid "Sort by name, currently descending"
+msgstr "Sort by name, currently descending"
+
+#: src/features/dashboard/components/FavoritesList.tsx:195
+msgid "Sort by name, currently unsorted"
+msgstr "Sort by name, currently unsorted"
 
 #: src/features/dashboard/components/FavoritesList.tsx:151
 msgid "Sort favorites by"

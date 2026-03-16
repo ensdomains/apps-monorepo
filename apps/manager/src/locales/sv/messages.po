@@ -57,11 +57,11 @@ msgstr ""
 msgid "{label} avatar placeholder"
 msgstr "{label} avatar-placeholder"
 
-#: src/features/profile/components/sections/ThemeSection.tsx:36
+#: src/features/profile/components/sections/ThemeSection.tsx:39
 msgid "{label} theme"
 msgstr ""
 
-#: src/features/profile/components/sections/ThemeSection.tsx:36
+#: src/features/profile/components/sections/ThemeSection.tsx:38
 msgid "{label} theme (selected)"
 msgstr ""
 
@@ -638,7 +638,7 @@ msgstr ""
 msgid "My Names"
 msgstr "Mina namn"
 
-#: src/features/dashboard/components/FavoritesList.tsx:197
+#: src/features/dashboard/components/FavoritesList.tsx:204
 #: src/features/dashboard/components/MyNamesList.tsx:214
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
@@ -664,7 +664,7 @@ msgstr ""
 msgid "Need ${0}"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:291
+#: src/features/dashboard/components/FavoritesList.tsx:298
 msgid "Next page"
 msgstr ""
 
@@ -689,8 +689,8 @@ msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/dashboard/components/FavoritesList.tsx:228
-#: src/features/dashboard/components/FavoritesList.tsx:239
+#: src/features/dashboard/components/FavoritesList.tsx:235
+#: src/features/dashboard/components/FavoritesList.tsx:246
 #: src/features/dashboard/components/MyNamesList.tsx:260
 msgid "No names to display"
 msgstr "Inga namn att visa"
@@ -774,7 +774,7 @@ msgstr ""
 msgid "Preview of your image"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:282
+#: src/features/dashboard/components/FavoritesList.tsx:289
 msgid "Previous page"
 msgstr ""
 
@@ -998,7 +998,7 @@ msgstr ""
 msgid "Short Description"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:301
+#: src/features/dashboard/components/FavoritesList.tsx:308
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
@@ -1066,9 +1066,16 @@ msgstr ""
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#. placeholder {0}: sortDirection !== null && sortField === 'name' ? sortDirection : 'unsorted'
-#: src/features/dashboard/components/FavoritesList.tsx:189
-msgid "Sort by name, currently {0}"
+#: src/features/dashboard/components/FavoritesList.tsx:192
+msgid "Sort by name, currently ascending"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:193
+msgid "Sort by name, currently descending"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:195
+msgid "Sort by name, currently unsorted"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:151
