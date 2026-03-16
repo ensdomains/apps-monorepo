@@ -65,7 +65,9 @@ export const useSearchResults = ({
 }: UseSearchResultsParams): UseSearchResultsReturn => {
   const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
-  const { validTlds, isLoading: isTldsLoading } = useSuggestionTlds()
+  const { validTlds, isLoading: isTldsLoading } = useSuggestionTlds(
+    !!searchValue,
+  )
 
   const searchedAddress = isAddress(searchValue, { strict: false })
     ? searchValue
