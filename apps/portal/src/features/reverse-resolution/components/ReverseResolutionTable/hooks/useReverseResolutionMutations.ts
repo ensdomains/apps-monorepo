@@ -14,7 +14,9 @@ import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useConnection, useEnsResolver, useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getIsDedicatedResolverQueryOptions } from '@/features/resolver/hooks/useIsDedicatedResolver'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -49,11 +51,21 @@ export function useReverseResolutionMutations({
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
 
-  // Get resolver address for forward resolution (L1 only)
-  const { data: resolverAddress } = useEnsResolver({
-    name: displayName,
-    chainId: sepolia.id,
-    query: { enabled: isL1 && Boolean(displayName) },
+  // Determine which network the name lives on (V1 sepolia vs V2 namechainSepolia)
+  const { data: ownerData } = useQuery({
+    ...getEnsOwnerQueryOptions({ name: displayName }),
+    enabled: isL1 && Boolean(displayName),
+  })
+
+  const nameNetwork = ownerData?.network
+
+  // Get resolver address from the correct registry (V1 or V2)
+  const { data: resolverAddress } = useQuery({
+    ...getNameResolverAddressQueryOptions({
+      name: displayName ?? '',
+      network: nameNetwork ?? 'sepolia',
+    }),
+    enabled: isL1 && Boolean(displayName) && Boolean(nameNetwork),
   })
 
   const { data: isDedicatedResolver } = useQuery({
