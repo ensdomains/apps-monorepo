@@ -63,9 +63,9 @@ export const PrivacyPolicyPage = () => {
             3. Collection Methods
           </h2>
           <p className="mt-4 text-gray-700">
-            Data comes through direct interactions (forms, emails, Discord),
-            automated tracking via cookies and pixel tags, and third-party
-            sources like wallet providers.
+            Data comes through direct interactions (forms, emails), automated
+            tracking via cookies and pixel tags, and third-party sources like
+            wallet providers.
           </p>
         </section>
 

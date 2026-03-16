@@ -3,7 +3,6 @@ import { ExternalLink } from 'react-external-link'
 type RecordKey =
   | 'com.twitter'
   | 'org.telegram'
-  | 'com.discord'
   | 'com.github'
   | 'com.instagram'
   | 'com.linkedin'
@@ -19,7 +18,6 @@ type SocialRecordType = {
 const baseUrls: Record<RecordKey, string> = {
   'com.twitter': 'x.com',
   'org.telegram': 't.me',
-  'com.discord': 'discord.com/users',
   'com.github': 'github.com',
   'com.instagram': 'instagram.com',
   'com.linkedin': 'linkedin.com/in',
@@ -45,16 +43,6 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
         <img
           src="/icons/profile/telegram.png"
           alt="Telegram"
-          height={16}
-          width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
-        />
-      )
-    case 'com.discord':
-      return (
-        <img
-          src="/icons/profile/discord.png"
-          alt="Discord"
           height={16}
           width={16}
           className="rounded-[2px] h-[16px] w-[16px]"

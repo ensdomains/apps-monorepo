@@ -1,5 +1,4 @@
 import {
-  SiDiscord,
   SiFarcaster,
   SiGithub,
   SiInstagram,
@@ -75,14 +74,6 @@ export const textRecords: TextRecordDef[] = [
     kind: 'link',
     href: 'https://instagram.com/',
     icon: SiInstagram,
-  },
-  {
-    key: 'com.discord',
-    section: 'social',
-    name: 'Discord',
-    kind: 'copy',
-    forceFetch: 'always',
-    icon: SiDiscord,
   },
   {
     key: 'com.github',

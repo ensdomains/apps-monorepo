@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   GithubIcon,
-  MessageCircleIcon,
   MessageSquareIcon,
   TwitterIcon,
   YoutubeIcon,
@@ -107,7 +106,6 @@ const navigationSections: NavigationSection[] = [
 const socialIcons: SocialIcon[] = [
   { href: 'https://x.com/ensdomains', icon: TwitterIcon },
   { href: 'https://github.com/ensdomains', icon: GithubIcon },
-  { href: 'https://chat.ens.domains', icon: MessageCircleIcon },
   { href: 'https://support.ens.domains', icon: MessageSquareIcon },
   { href: 'https://www.youtube.com/@ENSdomains', icon: YoutubeIcon },
 ]

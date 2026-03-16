@@ -19,7 +19,6 @@ export const DEBUG_PROFILE: ProfileRecordsResult = {
     // Social records
     { key: 'com.twitter', value: 'enslabs' },
     { key: 'com.github', value: 'enslabs' },
-    { key: 'com.discord', value: 'enslabs' },
     { key: 'com.reddit', value: 'enslabs' },
     { key: 'com.telegram', value: 'enslabs' },
     { key: 'com.linkedin', value: 'enslabs' },

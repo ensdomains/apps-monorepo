@@ -37,7 +37,6 @@ export const NameProfileCard = ({ name }: { name: string }) => {
         'description',
         'com.twitter',
         'org.telegram',
-        'com.discord',
         'com.github',
         'com.instagram',
         'com.linkedin',
@@ -95,9 +94,6 @@ export const NameProfileCard = ({ name }: { name: string }) => {
             />
             <SocialRecord
               record={{ key: 'org.telegram', value: texts['org.telegram'] }}
-            />
-            <SocialRecord
-              record={{ key: 'com.discord', value: texts['com.discord'] }}
             />
             <SocialRecord
               record={{ key: 'com.github', value: texts['com.github'] }}
