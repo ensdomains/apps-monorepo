@@ -60,6 +60,10 @@ msgstr "{label} theme"
 msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:67
+msgid "60-second wait prevents attacks"
+msgstr "60-second wait prevents attacks"
+
 #: src/features/register/pages/CheckDomainPage.tsx:26
 #: src/routes/index.tsx:34
 msgid "A simple, portable identity that you control"
@@ -135,13 +139,37 @@ msgstr "Address profile"
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:110
+msgid "Almost complete"
+msgstr "Almost complete"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:70
+msgid "Almost ready"
+msgstr "Almost ready"
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:128
 msgid "An error occurred"
 msgstr "An error occurred"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:179
+msgid "An error occurred during registration. Please try again."
+msgstr "An error occurred during registration. Please try again."
+
+#: src/routes/notifications/channels/email/verify.tsx:162
+msgid "An error occurred during verification"
+msgstr "An error occurred during verification"
+
 #: src/features/wallet/components/BackendAuthModal.tsx:148
 msgid "And more..."
 msgstr "And more..."
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:77
+msgid "Approval allows registrar to charge"
+msgstr "Approval allows registrar to charge"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
+msgid "Approving"
+msgstr "Approving"
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:277
 msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
@@ -159,6 +187,10 @@ msgstr "Are you sure?"
 msgid "Auth address:"
 msgstr "Auth address:"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:80
+msgid "Authorizing payment"
+msgstr "Authorizing payment"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:377
 msgid "available"
 msgstr "available"
@@ -169,6 +201,14 @@ msgstr "available"
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:542
 msgid "Back"
 msgstr "Back"
+
+#: src/routes/notifications/channels/email/verify.tsx:232
+msgid "Back to Home"
+msgstr "Back to Home"
+
+#: src/routes/notifications/channels/email/verify.tsx:230
+msgid "Back to Settings"
+msgstr "Back to Settings"
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
@@ -189,6 +229,18 @@ msgstr "Bio"
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:239
 msgid "Browse Files"
 msgstr "Browse Files"
+
+#: src/features/notifications/settings/contact-methods/push.tsx:94
+msgid "Browser Notifications"
+msgstr "Browser Notifications"
+
+#: src/features/notifications/settings/contact-methods/push.tsx:52
+msgid "Browser notifications disabled"
+msgstr "Browser notifications disabled"
+
+#: src/features/notifications/settings/contact-methods/push.tsx:39
+msgid "Browser notifications enabled"
+msgstr "Browser notifications enabled"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
 msgid "Buy Name"
@@ -228,6 +280,10 @@ msgstr "Card number"
 msgid "Card security code"
 msgstr "Card security code"
 
+#: src/routes/notifications/channels/email/verify.tsx:101
+msgid "Check Your Email"
+msgstr "Check Your Email"
+
 #: src/features/notifications/settings/email-verify-step.tsx:109
 msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
 msgstr "Check your email for the verification code. You can also click the link in the email to verify automatically."
@@ -260,6 +316,10 @@ msgstr "Claim your"
 msgid "Clear search"
 msgstr "Clear search"
 
+#: src/routes/notifications/channels/email/verify.tsx:150
+msgid "Click the button below to verify your email address and start receiving notifications."
+msgstr "Click the button below to verify your email address and start receiving notifications."
+
 #: src/features/register/components/VerifyWalletModal.tsx:130
 #: src/features/wallet/components/EnableSessionModal.tsx:95
 msgid "Close dialog"
@@ -268,6 +328,18 @@ msgstr "Close dialog"
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:102
 msgid "Coming Soon"
 msgstr "Coming Soon"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:41
+msgid "Commit-reveal prevents front-running"
+msgstr "Commit-reveal prevents front-running"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:47
+msgid "Commitment hides your registration intent"
+msgstr "Commitment hides your registration intent"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:46
+msgid "Committing"
+msgstr "Committing"
 
 #: src/features/landing/FeaturesCarousel.tsx:69
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
@@ -289,6 +361,18 @@ msgstr "Confirm Payment"
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
 msgid "Confirm purchase"
 msgstr "Confirm purchase"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:90
+msgid "Confirming approval"
+msgstr "Confirming approval"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:60
+msgid "Confirming commitment"
+msgstr "Confirming commitment"
+
+#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+msgid "Connect"
+msgstr "Connect"
 
 #: src/features/notifications/RequireBackendAuth.tsx:87
 msgid "Connect a wallet to continue to notification settings and activity."
@@ -314,6 +398,14 @@ msgstr "Connected wallet"
 msgid "Content Hash"
 msgstr "Content Hash"
 
+#: src/routes/notifications/channels/email/verify.tsx:71
+msgid "Continue to Home"
+msgstr "Continue to Home"
+
+#: src/routes/notifications/channels/email/verify.tsx:71
+msgid "Continue to Settings"
+msgstr "Continue to Settings"
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
 msgid "Copied"
 msgstr "Copied"
@@ -329,6 +421,10 @@ msgstr "Country"
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:134
 msgid "Create Profile"
 msgstr "Create Profile"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
+msgid "Create unlimited subdomains for free"
+msgstr "Create unlimited subdomains for free"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:99
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:122
@@ -422,9 +518,21 @@ msgstr "Email options"
 msgid "Email verification sent"
 msgstr "Email verification sent"
 
+#: src/routes/notifications/channels/email/verify.tsx:83
+msgid "Email verified successfully"
+msgstr "Email verified successfully"
+
 #: src/features/notifications/settings/email-verify-step.tsx:76
 msgid "Email verified successfully! You can now receive notifications."
 msgstr "Email verified successfully! You can now receive notifications."
+
+#: src/routes/notifications/channels/email/verify.tsx:139
+msgid "Email Verified!"
+msgstr "Email Verified!"
+
+#: src/features/notifications/settings/contact-methods/push.tsx:120
+msgid "Enable"
+msgstr "Enable"
 
 #: src/features/wallet/components/EnableSessionModal.tsx:185
 msgid "Enable Sessions"
@@ -433,6 +541,19 @@ msgstr "Enable Sessions"
 #: src/features/wallet/components/EnableSessionModal.tsx:91
 msgid "Enable Smart Sessions"
 msgstr "Enable Smart Sessions"
+
+#: src/features/notifications/settings/preferences.tsx:131
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:115
+msgid "ENS Labs Updates"
+msgstr "ENS Labs Updates"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:37
+msgid "ENS names are stored on-chain as NFTs"
+msgstr "ENS names are stored on-chain as NFTs"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:51
+msgid "ENS names can be up to 255 characters"
+msgstr "ENS names can be up to 255 characters"
 
 #: src/features/notifications/settings/email-verify-step.tsx:99
 msgid "Enter 6-digit code"
@@ -496,13 +617,29 @@ msgstr "Expiry date (Latest)"
 msgid "Failed to add email"
 msgstr "Failed to add email"
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx:39
+msgid "Failed to add Telegram channel"
+msgstr "Failed to add Telegram channel"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:49
+msgid "Failed to authenticate with Telegram"
+msgstr "Failed to authenticate with Telegram"
+
 #: src/features/wallet/components/EnableSessionModal.tsx:61
 msgid "Failed to enable session"
 msgstr "Failed to enable session"
 
+#: src/features/notifications/dropdown/notification-dropdown.tsx:58
+msgid "Failed to load notifications"
+msgstr "Failed to load notifications"
+
 #: src/features/notifications/settings/contact-methods/email.tsx:170
 msgid "Failed to remove email channel"
 msgstr "Failed to remove email channel"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:70
+msgid "Failed to remove Telegram channel"
+msgstr "Failed to remove Telegram channel"
 
 #: src/features/notifications/settings/contact-methods/email.tsx:149
 msgid "Failed to resend email verification"
@@ -530,13 +667,31 @@ msgstr "Failed to sign in. Please try again."
 msgid "Failed to switch language"
 msgstr "Failed to switch language"
 
+#: src/features/notifications/settings/preferences.tsx:67
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:54
+msgid "Failed to update preferences"
+msgstr "Failed to update preferences"
+
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:67
 msgid "Failed to update resolver"
 msgstr "Failed to update resolver"
 
+#: src/routes/notifications/channels/email/verify.tsx:89
+msgid "Failed to verify email"
+msgstr "Failed to verify email"
+
 #: src/features/dashboard/components/NamesTable.tsx:107
 msgid "Favorites"
 msgstr "Favorites"
+
+#: src/features/notifications/settings/preferences.tsx:149
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:133
+msgid "Favourited Name Expiry"
+msgstr "Favourited Name Expiry"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:100
+msgid "Finalizing registration"
+msgstr "Finalizing registration"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:451
 msgid "for"
@@ -550,9 +705,23 @@ msgstr "Frequently Asked Questions"
 msgid "From:"
 msgstr "From:"
 
+#: src/features/notifications/settings/contact-methods/push.tsx:97
+msgid "Get instant push notifications in your browser"
+msgstr "Get instant push notifications in your browser"
+
+#: src/features/notifications/settings/preferences.tsx:140
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:124
+msgid "Get notified when names in your favourites expire"
+msgstr "Get notified when names in your favourites expire"
+
 #: src/features/dashboard/components/FaqSection.tsx:69
 msgid "Get support"
 msgstr "Get support"
+
+#: src/features/notifications/settings/preferences.tsx:122
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:106
+msgid "Get updated on the latest releases and features"
+msgstr "Get updated on the latest releases and features"
 
 #: src/features/register/components/VerifyWalletModal.tsx:119
 msgid "Go back"
@@ -561,6 +730,10 @@ msgstr "Go back"
 #: src/features/wallet/components/BackendAuthModal.tsx:164
 msgid "Go Back"
 msgstr "Go Back"
+
+#: src/features/not-found/pages/NotFoundPage.tsx:18
+msgid "Go back home"
+msgstr "Go back home"
 
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:138
 msgid "Go to ENS name profile"
@@ -582,6 +755,10 @@ msgstr "How can I secure my ENS name?"
 #: src/features/dashboard/components/FaqSection.tsx:25
 msgid "How do I show my .eth name instead of my address?"
 msgstr "How do I show my .eth name instead of my address?"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:107
+msgid "Human-readable addresses for wallets"
+msgstr "Human-readable addresses for wallets"
 
 #: src/features/payment/components/index.tsx:114
 msgid "If your primary card is declined, we will use this card to charge you."
@@ -624,7 +801,7 @@ msgstr "Links"
 msgid "Loading dashboard..."
 msgstr "Loading dashboard..."
 
-#: src/features/register/components/Pricing/Pricing.tsx:98
+#: src/features/register/components/Pricing/Pricing.tsx:99
 msgid "Loading prices..."
 msgstr "Loading prices..."
 
@@ -634,6 +811,7 @@ msgstr "Loading your stablecoin balances..."
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
+#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 msgid "Loading..."
 msgstr "Loading..."
 
@@ -648,6 +826,14 @@ msgstr "MAIN MENU"
 #: src/features/register/components/VerifyWalletModal.tsx:171
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr "Make sure the message starts with \"ENS would like you to ...\""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:125
+msgid "Makes crypto addresses human-readable"
+msgstr "Makes crypto addresses human-readable"
+
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:199
+msgid "Manage your notification preferences for your name(s) and ENS-related updates."
+msgstr "Manage your notification preferences for your name(s) and ENS-related updates."
 
 #: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
@@ -677,10 +863,24 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
+#: src/features/notifications/settings/preferences.tsx:113
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:97
+msgid "Name Expiry"
+msgstr "Name Expiry"
+
 #: src/features/payment/components/add.tsx:41
 #: src/features/payment/components/add.tsx:41
 msgid "Name on card"
 msgstr "Name on card"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:36
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:124
+msgid "Name registering"
+msgstr "Name registering"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:97
+msgid "Names are permanent, only expire if not renewed"
+msgstr "Names are permanent, only expire if not renewed"
 
 #. placeholder {0}: formatAmount(priceUSD)
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:382
@@ -731,13 +931,35 @@ msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY
 msgid "Not a valid name format"
 msgstr "Not a valid name format"
 
+#: src/features/notifications/dropdown/notification-dropdown.tsx:83
+msgid "Nothing here yet!"
+msgstr "Nothing here yet!"
+
+#: src/features/notifications/settings/preferences.tsx:97
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
+msgid "Notification Preferences"
+msgstr "Notification Preferences"
+
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:195
+msgid "Notification Settings"
+msgstr "Notification Settings"
+
 #: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
+#: src/features/notifications/dropdown/notification-dropdown.tsx:28
 msgid "Notifications"
 msgstr "Notifications"
+
+#: src/features/notifications/settings/contact-methods/push.tsx:130
+msgid "Notifications blocked"
+msgstr "Notifications blocked"
 
 #: src/features/landing/FeaturesCarousel.tsx:27
 msgid "One username <0/><1>everywhere</1>"
 msgstr "One username <0/><1>everywhere</1>"
+
+#: src/routes/notifications/channels/email/verify.tsx:99
+msgid "Open the verification link from your email to finish setup."
+msgstr "Open the verification link from your email to finish setup."
 
 #: src/features/payment/components/add.tsx:138
 msgid "or"
@@ -746,6 +968,14 @@ msgstr "or"
 #: src/features/profile/components/sections/OtherSection.tsx:35
 msgid "Other"
 msgstr "Other"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:57
+msgid "Over 2 million ENS names registered"
+msgstr "Over 2 million ENS names registered"
+
+#: src/features/not-found/pages/NotFoundPage.tsx:9
+msgid "Page not found"
+msgstr "Page not found"
 
 #: src/features/payment/components/add.tsx:107
 msgid "Pay with Apple"
@@ -797,6 +1027,19 @@ msgstr "Please connect your wallet first"
 msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
 msgstr "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
 
+#: src/routes/notifications/channels/email/verify.tsx:145
+msgid "Please wait while we verify your email address."
+msgstr "Please wait while we verify your email address."
+
+#: src/features/notifications/settings/preferences.tsx:64
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:51
+msgid "Preferences updated"
+msgstr "Preferences updated"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:40
+msgid "Preparing commitment"
+msgstr "Preparing commitment"
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:504
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:515
 msgid "Preview Image"
@@ -833,6 +1076,10 @@ msgstr "Primary name set successfully"
 msgid "Profile"
 msgstr "Profile"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
+msgid "Receive crypto from any chain"
+msgstr "Receive crypto from any chain"
+
 #: src/features/notifications/settings/contact-methods/email.tsx:287
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
@@ -855,12 +1102,22 @@ msgid "Registered {0}"
 msgstr "Registered {0}"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:96
 msgid "Registering"
 msgstr "Registering"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:191
+msgid "Registration Complete!"
+msgstr "Registration Complete!"
 
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:73
 msgid "Registration Details"
 msgstr "Registration Details"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:209
+msgid "Registration Failed"
+msgstr "Registration Failed"
 
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:91
 msgid "Registration Fee"
@@ -899,6 +1156,15 @@ msgstr "Removing email channel"
 msgid "Removing email for {0}"
 msgstr "Removing email for {0}"
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx:56
+msgid "Removing telegram channel"
+msgstr "Removing telegram channel"
+
+#. placeholder {0}: telegram?.label
+#: src/features/notifications/settings/contact-methods/telegram.tsx:58
+msgid "Removing telegram for {0}"
+msgstr "Removing telegram for {0}"
+
 #: src/features/notifications/settings/contact-methods/email.tsx:203
 msgid "Resend Verification"
 msgstr "Resend Verification"
@@ -924,9 +1190,19 @@ msgstr "Resolver address"
 msgid "Save"
 msgstr "Save"
 
+#: src/features/notifications/settings/preferences.tsx:175
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:170
+msgid "Save Preferences"
+msgstr "Save Preferences"
+
 #: src/features/wallet/components/BackendAuthModal.tsx:145
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
+
+#: src/features/notifications/settings/preferences.tsx:175
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:170
+msgid "Saving..."
+msgstr "Saving..."
 
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
 msgid "Saving…"
@@ -970,6 +1246,10 @@ msgstr "Search your NFTs"
 msgid "Search your NFTs..."
 msgstr "Search your NFTs..."
 
+#: src/features/notifications/dropdown/notification-dropdown.tsx:46
+msgid "See all"
+msgstr "See all"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
@@ -1005,11 +1285,19 @@ msgstr "Set as Primary"
 msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
 msgstr "Set it as your primary name. You can do this from your profile page in the ENS App."
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:61
+msgid "Set multiple records: ETH, BTC, email"
+msgstr "Set multiple records: ETH, BTC, email"
+
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:177
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:252
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:268
 msgid "Set Primary Name"
 msgstr "Set Primary Name"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:91
+msgid "Set reverse record to show your name"
+msgstr "Set reverse record to show your name"
 
 #: src/features/profile/components/sections/OtherSection.tsx:38
 msgid "Set the content hash and ABI for your name"
@@ -1086,6 +1374,10 @@ msgstr "Sign once to enable seamless transactions."
 msgid "Signing in..."
 msgstr "Signing in..."
 
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:147
+msgid "Skip"
+msgstr "Skip"
+
 #: src/features/wallet/components/BackendAuthModal.tsx:167
 msgid "Skip Anyway"
 msgstr "Skip Anyway"
@@ -1150,6 +1442,18 @@ msgstr "Stables accepted"
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
+msgid "Supports USDC and DAI payments"
+msgstr "Supports USDC and DAI payments"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:36
+msgid "Telegram channel added"
+msgstr "Telegram channel added"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:62
+msgid "Telegram channel removed"
+msgstr "Telegram channel removed"
+
 #: src/features/payment/components/add.tsx:157
 msgid "The backup payment method will be charged if the default payment method fails."
 msgstr "The backup payment method will be charged if the default payment method fails."
@@ -1159,14 +1463,26 @@ msgstr "The backup payment method will be charged if the default payment method 
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 
+#: src/features/not-found/pages/NotFoundPage.tsx:12
+msgid "The page you're looking for doesn't exist or may have been moved."
+msgstr "The page you're looking for doesn't exist or may have been moved."
+
 #: src/features/profile/components/sections/ThemeSection.tsx:22
 msgid "Theme"
 msgstr "Theme"
+
+#: src/routes/notifications/channels/email/verify.tsx:149
+msgid "There was a problem verifying your email address."
+msgstr "There was a problem verifying your email address."
 
 #: src/features/payment/components/add.tsx:18
 #: src/features/payment/components/index.tsx:92
 msgid "This card will be charged for your subscription."
 msgstr "This card will be charged for your subscription."
+
+#: src/routes/notifications/channels/email/verify.tsx:105
+msgid "This page can only verify your email when opened from the link in the verification email."
+msgstr "This page can only verify your email when opened from the link in the verification email."
 
 #: src/features/wallet/components/EnableSessionModal.tsx:204
 msgid "This signature is free and doesn't cost any gas."
@@ -1175,6 +1491,10 @@ msgstr "This signature is free and doesn't cost any gas."
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:190
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
+
+#: src/features/notifications/settings/contact-methods/push.tsx:132
+msgid "To enable, go to your browser's site settings for this page and allow notifications."
+msgstr "To enable, go to your browser's site settings for this page and allow notifications."
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:193
 msgid "To:"
@@ -1192,8 +1512,13 @@ msgstr "total"
 msgid "Total Paid"
 msgstr "Total Paid"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:87
+msgid "Transfer your name to any wallet"
+msgstr "Transfer your name to any wallet"
+
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/wallet/components/EnableSessionModal.tsx:183
+#: src/routes/notifications/channels/email/verify.tsx:193
 msgid "Try Again"
 msgstr "Try Again"
 
@@ -1235,6 +1560,10 @@ msgstr "Use This NFT"
 msgid "Verification Code"
 msgstr "Verification Code"
 
+#: src/routes/notifications/channels/email/verify.tsx:141
+msgid "Verification Failed"
+msgstr "Verification Failed"
+
 #: src/features/notifications/settings/contact-methods/email.tsx:275
 msgid "Verified"
 msgstr "Verified"
@@ -1242,6 +1571,11 @@ msgstr "Verified"
 #: src/features/register/components/VerifyWalletModal.tsx:191
 msgid "Verified!"
 msgstr "Verified!"
+
+#: src/features/notifications/settings/preferences.tsx:181
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:176
+msgid "Verify at least one contact method to save preferences"
+msgstr "Verify at least one contact method to save preferences"
 
 #: src/features/landing/FeaturesCarousel.tsx:67
 msgid "Verify authenticity and stay safe."
@@ -1251,6 +1585,10 @@ msgstr "Verify authenticity and stay safe."
 msgid "Verify Code"
 msgstr "Verify Code"
 
+#: src/routes/notifications/channels/email/verify.tsx:221
+msgid "Verify Email Address"
+msgstr "Verify Email Address"
+
 #: src/features/register/components/VerifyWalletModal.tsx:108
 msgid "Verify Wallet"
 msgstr "Verify Wallet"
@@ -1259,9 +1597,17 @@ msgstr "Verify Wallet"
 msgid "Verify wallet ownership"
 msgstr "Verify wallet ownership"
 
+#: src/routes/notifications/channels/email/verify.tsx:142
+msgid "Verify Your Email"
+msgstr "Verify Your Email"
+
 #: src/features/wallet/components/BackendAuthModal.tsx:72
 msgid "Verify your wallet"
 msgstr "Verify your wallet"
+
+#: src/routes/notifications/channels/email/verify.tsx:137
+msgid "Verifying Email..."
+msgstr "Verifying Email..."
 
 #: src/features/notifications/settings/email-verify-step.tsx:133
 msgid "Verifying..."
@@ -1271,10 +1617,30 @@ msgstr "Verifying..."
 msgid "View profile"
 msgstr "View profile"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:86
+msgid "Waiting for approval"
+msgstr "Waiting for approval"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:106
+msgid "Waiting for registration"
+msgstr "Waiting for registration"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:50
+msgid "Waiting for signature"
+msgstr "Waiting for signature"
+
 #: src/features/register/components/VerifyWalletModal.tsx:193
 #: src/features/wallet/components/EnableSessionModal.tsx:181
 msgid "Waiting for signature..."
 msgstr "Waiting for signature..."
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:56
+msgid "Waiting for transaction"
+msgstr "Waiting for transaction"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:66
+msgid "Waiting period"
+msgstr "Waiting period"
 
 #: src/features/wallet/components/BackendAuthModal.tsx:106
 msgid "Wallet client missing, please reconnect your wallet and try again."
@@ -1305,6 +1671,10 @@ msgstr "Welcome to the public alpha of the ENS app"
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
+msgid "Works across all EVM-compatible chains"
+msgstr "Works across all EVM-compatible chains"
+
 #: src/features/notifications/RequireBackendAuth.tsx:51
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
@@ -1321,6 +1691,10 @@ msgstr "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 
+#: src/routes/notifications/channels/email/verify.tsx:147
+msgid "You can now receive notifications at this email address."
+msgstr "You can now receive notifications at this email address."
+
 #: src/features/wallet/components/BackendAuthModal.tsx:155
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr "You can verify later by clicking your profile in the navbar"
@@ -1333,9 +1707,26 @@ msgstr "You may miss important alerts if you remove this contact method. Are you
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr "You need to connect a wallet to see your stablecoin balances"
 
+#: src/features/notifications/settings/preferences.tsx:104
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:88
+msgid "You'll be notified 30, 7, and 1 day before expiry"
+msgstr "You'll be notified 30, 7, and 1 day before expiry"
+
 #: src/features/wallet/components/BackendAuthModal.tsx:138
 msgid "You'll miss:"
 msgstr "You'll miss:"
+
+#: src/routes/notifications/channels/email/verify.tsx:172
+msgid "Your email has been verified successfully!"
+msgstr "Your email has been verified successfully!"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:194
+msgid "Your ENS domain has been successfully registered and is now active."
+msgstr "Your ENS domain has been successfully registered and is now active."
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:117
+msgid "Your ENS domain is now active"
+msgstr "Your ENS domain is now active"
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
