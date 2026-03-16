@@ -246,7 +246,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
   const isPendingReverse = isWritingReverse || isConfirmingReverse
   const isPendingForward = isWritingForward || isConfirmingForward
-  const isPendingUpdate = isPendingReverse
+
+  const isPendingUpdate = isPendingReverse || isPendingForward
 
   if (!row) {
     return (
