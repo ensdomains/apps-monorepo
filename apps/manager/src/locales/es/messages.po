@@ -5,16 +5,16 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: @lingui/cli\n"
-"Language: ta\n"
+"Language: es\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-03-12 12:36\n"
+"PO-Revision-Date: 2026-03-16 05:25\n"
 "Last-Translator: \n"
-"Language-Team: Tamil\n"
+"Language-Team: Spanish\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Crowdin-Project: ens-app\n"
 "X-Crowdin-Project-ID: 877908\n"
-"X-Crowdin-Language: ta\n"
+"X-Crowdin-Language: es-ES\n"
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
@@ -121,7 +121,7 @@ msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx:107
 msgid "Favorites"
-msgstr "பிடித்தவை"
+msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Frequently Asked Questions"
@@ -141,7 +141,7 @@ msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx:85
 msgid "Hello"
-msgstr "வணக்கம்"
+msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:45
 msgid "How can I secure my ENS name?"
