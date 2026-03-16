@@ -152,6 +152,10 @@ msgstr "Adressprofil"
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
 
+#: src/routes/notifications/_authenticated/index.tsx:76
+msgid "All Notifications"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:110
 msgid "Almost complete"
 msgstr ""
@@ -889,6 +893,14 @@ msgstr ""
 msgid "Manage your notification preferences for your name(s) and ENS-related updates."
 msgstr ""
 
+#: src/routes/notifications/_authenticated/index.tsx:111
+msgid "Mark all as read"
+msgstr ""
+
+#: src/routes/notifications/_authenticated/index.tsx:111
+msgid "Marking..."
+msgstr ""
+
 #: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
 msgstr ""
@@ -996,6 +1008,7 @@ msgid "Notification Preferences"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
+#: src/routes/notifications/_authenticated/index.tsx:86
 msgid "Notification Settings"
 msgstr ""
 
@@ -1317,6 +1330,11 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
+#: src/routes/notifications/_authenticated/index.tsx:116
+#: src/routes/notifications/_authenticated/index.tsx:117
+msgid "Search notifications"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:349
 msgid "Search your NFTs"
 msgstr ""
@@ -1619,6 +1637,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
 msgid "Try searching for a different coin or chain"
+msgstr ""
+
+#: src/routes/notifications/_authenticated/index.tsx:101
+msgid "Unread only"
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
