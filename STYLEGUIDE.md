@@ -14,13 +14,14 @@ A comprehensive guide for writing clean, maintainable, and type-safe code for th
 
 ```typescript
 // ✅ GOOD - Rule break is documented
-function processLargeDataset(data: any) { // Using 'any' because third-party library has no types
-  return transform(data)
+function processLargeDataset(data: any) {
+  // Using 'any' because third-party library has no types
+  return transform(data);
 }
 
 // ❌ BAD - Silent rule break
 function processLargeDataset(data: any) {
-  return transform(data)
+  return transform(data);
 }
 ```
 
@@ -62,11 +63,13 @@ The ENS Portal codebase is built on these fundamental principles:
 **Keep React components focused on presentation and user interaction, not business logic.**
 
 Components should:
+
 - Render UI based on props and state
 - Handle user events by calling external functions
 - Manage simple UI state (modals, form inputs)
 
 Components should NOT:
+
 - Contain complex business logic
 - Directly manipulate blockchain state
 - Include data transformation logic
@@ -152,23 +155,27 @@ These rules improve code quality but are stylistic preferences:
 The Portal app uses modern web and Web3 technologies:
 
 ### Core Framework
+
 - **React 19** - UI framework with modern hooks and concurrent features
 - **TypeScript 5.9** - Type-safe JavaScript with strict mode
 - **Vite 7** - Fast build tool with HMR
 
 ### State & Data Management
+
 - **TanStack Query 5** - Server state management and caching
 - **TanStack Router 1** - Type-safe routing with code splitting
 - **XState 5** - State machines for complex workflows
 - **neverthrow 8** - Functional error handling with Result types
 
 ### Web3 Stack
+
 - **wagmi 3** - React hooks for Ethereum
 - **viem 2** - TypeScript Ethereum library
 - **@ensdomains/ensjs** - ENS protocol interactions
 - **RainbowKit 2** - Wallet connection UI
 
 ### UI & Styling
+
 - **Tailwind CSS 4** - Utility-first CSS framework
 - **Shadcn UI** - Beautifully designed components built on Radix UI (in `components/ui/`)
 - **Radix UI** - Unstyled, accessible component primitives
@@ -176,6 +183,7 @@ The Portal app uses modern web and Web3 technologies:
 - **Lucide React** - Icon library (Temporary until icons are provided by UX team)
 
 ### Testing & Quality
+
 - **Vitest** - Unit testing framework
 - **Biome** - Fast formatter and linter
 - **Testing Library** - Component testing utilities
@@ -206,6 +214,7 @@ src/
 ```
 
 **Component hierarchy**:
+
 - **`ui/`** → Single-purpose primitives (Button, Input, Dialog)
 - **`molecules/`** → Composition of 2-3 UI components, minimal logic (SearchBar = Input + Button, FormField = Label + Input + ErrorText)
 - **`organisms/`** → Complex shared components with business logic, used across features (ConnectWalletModal, TransactionStatusCard)
@@ -233,6 +242,7 @@ features/profile/components/
 ```
 
 **Benefits of `*.handlers.ts`:**
+
 - ✅ Clear separation of UI from logic
 - ✅ Easy to test handlers independently
 - ✅ Co-located with the component that uses them
@@ -263,21 +273,23 @@ export const mockUsers = [mockUser, /* ... */]
 import { mockUser } from './profile.mock'
 
 export const ProfileCard = ({ userId }: Props) => {
-  const user = import.meta.env.DEV 
-    ? mockUser 
+  const user = import.meta.env.DEV
+    ? mockUser
     : fetchUser(userId)
-  
+
   return <div>{user.name}</div>
 }
 ```
 
 **Benefits:**
+
 - ✅ **No mock data in production** - Gated by dev flags
 - ✅ **Easy to find** - All mocks in `*.mock.ts` files
 - ✅ **Reusable** - Share mocks across tests and dev mode
 - ✅ **Type-safe** - Mocks match real data structures
 
 **Dev flag options:**
+
 - `import.meta.env.DEV` - Vite dev mode
 - `process.env.NODE_ENV === 'development'` - Node/general
 - Feature flags - For gradual rollout
@@ -327,15 +339,15 @@ Prefix with `is`, `has`, `should`, or `can`:
 
 ```typescript
 // Good
-const isLoading = status === 'pending'
-const hasResolver = !!resolverAddress
-const canEditRecords = checkPermission(user, 'edit')
-const shouldShowBanner = isExpiringSoon && !dismissed
+const isLoading = status === "pending";
+const hasResolver = !!resolverAddress;
+const canEditRecords = checkPermission(user, "edit");
+const shouldShowBanner = isExpiringSoon && !dismissed;
 
 // Avoid
-const loading = status === 'pending'
-const resolver = !!resolverAddress
-const editRecords = checkPermission(user, 'edit')
+const loading = status === "pending";
+const resolver = !!resolverAddress;
+const editRecords = checkPermission(user, "edit");
 ```
 
 ### Type and Interface Naming
@@ -343,24 +355,24 @@ const editRecords = checkPermission(user, 'edit')
 ```typescript
 // Use PascalCase for types and interfaces
 interface UserProfile {
-  name: string
-  address: Address
+  name: string;
+  address: Address;
 }
 
-type ProfileStatus = 'loading' | 'success' | 'error'
+type ProfileStatus = "loading" | "success" | "error";
 
 // Use descriptive names for generics
 function getProperty<TObject, TKey extends keyof TObject>(
   obj: TObject,
-  key: TKey
+  key: TKey,
 ): TObject[TKey] {
-  return obj[key]
+  return obj[key];
 }
 
 // Props interfaces: <ComponentName>Props
 interface ProfileCardProps {
-  name: string
-  address: Address
+  name: string;
+  address: Address;
 }
 ```
 
@@ -390,11 +402,13 @@ Always define types for function parameters and return values:
 ```typescript
 // Good
 interface GetProfileParams {
-  readonly name: string
-  readonly includeRecords?: boolean
+  readonly name: string;
+  readonly includeRecords?: boolean;
 }
 
-function getProfile(params: GetProfileParams): ResultAsync<Profile, ProfileError> {
+function getProfile(
+  params: GetProfileParams,
+): ResultAsync<Profile, ProfileError> {
   // ...
 }
 
@@ -409,23 +423,25 @@ function getProfile(params) {
 ```typescript
 // Good
 interface UserProfile {
-  readonly name: string
-  readonly addresses: readonly Address[]
+  readonly name: string;
+  readonly addresses: readonly Address[];
 }
 
-const processAddresses = (addresses: readonly Address[]): readonly Address[] => {
-  return addresses.filter(isValid)
-}
+const processAddresses = (
+  addresses: readonly Address[],
+): readonly Address[] => {
+  return addresses.filter(isValid);
+};
 
 // Avoid
 interface UserProfile {
-  name: string
-  addresses: Address[]
+  name: string;
+  addresses: Address[];
 }
 
 const processAddresses = (addresses: Address[]): Address[] => {
-  return addresses.filter(isValid)
-}
+  return addresses.filter(isValid);
+};
 ```
 
 ### Type Narrowing
@@ -435,21 +451,21 @@ Use type guards and discriminated unions:
 ```typescript
 // Good - Discriminated union
 type TransactionState =
-  | { status: 'idle' }
-  | { status: 'pending'; hash: Hex }
-  | { status: 'success'; hash: Hex; receipt: TransactionReceipt }
-  | { status: 'error'; error: Error }
+  | { status: "idle" }
+  | { status: "pending"; hash: Hex }
+  | { status: "success"; hash: Hex; receipt: TransactionReceipt }
+  | { status: "error"; error: Error };
 
 function handleTransaction(state: TransactionState) {
-  if (state.status === 'success') {
+  if (state.status === "success") {
     // TypeScript knows state.receipt exists
-    console.log(state.receipt)
+    console.log(state.receipt);
   }
 }
 
 // Type guard
 function isAddress(value: unknown): value is Address {
-  return typeof value === 'string' && /^0x[a-fA-F0-9]{40}$/.test(value)
+  return typeof value === "string" && /^0x[a-fA-F0-9]{40}$/.test(value);
 }
 ```
 
@@ -458,33 +474,34 @@ function isAddress(value: unknown): value is Address {
 ```typescript
 // ❌ AVOID - any bypasses type checks
 function parseData(data: any) {
-  return data.value
+  return data.value;
 }
 
 // ✅ CORRECT - unknown with type guard
 function parseData(data: unknown): string {
-  if (typeof data === 'object' && data !== null && 'value' in data) {
-    return String(data.value)
+  if (typeof data === "object" && data !== null && "value" in data) {
+    return String(data.value);
   }
-  throw new Error('Invalid data')
+  throw new Error("Invalid data");
 }
 
 // ✅ CORRECT - Record for unknown object shapes
 function processConfig(config: Record<string, unknown>) {
   // Type-safe access to object properties
-  const name = typeof config.name === 'string' ? config.name : 'default'
-  return name
+  const name = typeof config.name === "string" ? config.name : "default";
+  return name;
 }
 
 // ✅ ACCEPTABLE - Record<string, any> when structure is truly unknown
 // Use sparingly, prefer Record<string, unknown> for stricter type safety
 function processApiResponse(response: Record<string, any>) {
   // When you need flexibility but know it's an object
-  return response
+  return response;
 }
 ```
 
 **Guidelines:**
+
 - ✅ **Use `unknown`** - For values of unknown type (requires type guards)
 - ✅ **Use `Record<string, unknown>`** - For objects with unknown shape (stricter)
 - ⚠️ **Use `Record<string, any>`** - Only when you need flexibility and know it's an object
@@ -498,38 +515,39 @@ When working with strongly typed objects, use generics to preserve type informat
 // ✅ CORRECT - Generic preserves type
 function getObjectValue<T extends object, K extends keyof T>(
   obj: T,
-  key: K
+  key: K,
 ): T[K] {
-  return obj[key]
+  return obj[key];
 }
 
 // Usage - return type is automatically inferred
 interface User {
-  name: string
-  age: number
+  name: string;
+  age: number;
 }
 
-const user: User = { name: 'Alice', age: 30 }
-const userName = getObjectValue(user, 'name') // Type: string
-const userAge = getObjectValue(user, 'age')   // Type: number
+const user: User = { name: "Alice", age: 30 };
+const userName = getObjectValue(user, "name"); // Type: string
+const userAge = getObjectValue(user, "age"); // Type: number
 
 // ✅ CORRECT - Generic with constraints
 function mapObject<T extends object, R>(
   obj: T,
-  mapper: (value: T[keyof T], key: keyof T) => R
+  mapper: (value: T[keyof T], key: keyof T) => R,
 ): R[] {
-  return Object.entries(obj).map(([key, value]) => 
-    mapper(value as T[keyof T], key as keyof T)
-  )
+  return Object.entries(obj).map(([key, value]) =>
+    mapper(value as T[keyof T], key as keyof T),
+  );
 }
 
 // ❌ AVOID - Loses type information
 function getObjectValue(obj: object, key: string): unknown {
-  return (obj as any)[key] // No type safety
+  return (obj as any)[key]; // No type safety
 }
 ```
 
 **Benefits:**
+
 - ✅ **Type preservation** - Return types inferred from input types
 - ✅ **IntelliSense support** - Better autocomplete
 - ✅ **Compile-time safety** - Catch errors before runtime
@@ -573,12 +591,12 @@ export const ProfileCard = function({ name, address }: ProfileCardProps) {
 
 ```typescript
 // Good - Function declaration for route components in route files
-export const Route = createFileRoute('/$name/deploy-registry')({
+export const Route = createFileRoute("/$name/deploy-registry")({
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-  const { name } = Route.useParams()
+  const { name } = Route.useParams();
   // ...
 }
 ```
@@ -639,7 +657,7 @@ export const ProfileStatus = ({ status }: { status: ProfileStatus }) => {
 
 // Avoid - Nested ternaries
 export const ProfileStatus = ({ status }) => {
-  return status.type === 'loading' 
+  return status.type === 'loading'
     ? <LoadingSpinner />
     : status.type === 'error'
     ? <ErrorMessage error={status.error} />
@@ -673,11 +691,11 @@ export const RegistrationForm = () => {
     minDuration: YEAR_IN_SECONDS,
     maxDuration: YEAR_IN_SECONDS * 10n,
   }
-  
+
   const calculatePrice = (duration: bigint) => {
     // calculation logic
   }
-  
+
   return <form>...</form>
 }
 
@@ -711,10 +729,10 @@ export const ProfilePage = ({ name }: { name: string }) => {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  
+
   useEffect(() => {
     let cancelled = false
-    
+
     async function fetchProfile() {
       setLoading(true)
       try {
@@ -729,11 +747,11 @@ export const ProfilePage = ({ name }: { name: string }) => {
         if (!cancelled) setLoading(false)
       }
     }
-    
+
     fetchProfile()
     return () => { cancelled = true }
   }, [name])
-  
+
   if (loading) return <LoadingSpinner />
   if (error) return <ErrorMessage error={error} />
   return <ProfileView profile={profile} />
@@ -742,7 +760,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 // ✅ ALWAYS DO THIS - Use TanStack Query
 export const ProfilePage = ({ name }: { name: string }) => {
   const { data: profile, isLoading, error } = useQuery(getProfileQueryOptions(name))
-  
+
   if (isLoading) return <LoadingSpinner />
   if (error) return <ErrorMessage error={error} />
   if (!profile) return null
@@ -751,6 +769,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 ```
 
 **Why useEffect is problematic for data fetching:**
+
 - ❌ **Waterfalls** - Dependencies cause sequential fetches
 - ❌ **Race conditions** - React 18+ concurrent mode can race effects
 - ❌ **No caching** - Same data fetched multiple times
@@ -765,6 +784,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 **Default rule**: In components, extract `useEffect` into a named custom hook to document intent and keep components readable.
 
 **Valid use cases for useEffect:**
+
 - DOM manipulation (focus, scroll, resize observers)
 - Setting up/tearing down subscriptions
 - Syncing with external systems (localStorage, WebSocket)
@@ -781,7 +801,7 @@ export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
       document.body.style.overflow = ''
     }
   }, [isOpen])
-  
+
   return <div>...</div>
 }
 
@@ -804,20 +824,22 @@ export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
 
 export const ProfilePage = ({ name }: { name: string }) => {
   const [profile, setProfile] = useState<Profile | null>(null)
-  
+
   useProfileData(name, setProfile)
-  
+
   return <div>...</div>
 }
 ```
 
 **Why extract effects?**
+
 - Hook name documents the purpose
 - Component body stays focused on rendering
 - Effects are testable independently
 - Easier to reuse across components
 
 **Allowed exceptions** (must stay trivial):
+
 - ≤ 5 lines of code
 - No async logic
 - No domain or multi-branch logic  
@@ -828,11 +850,11 @@ export const ProfilePage = ({ name }: { name: string }) => {
 // ✅ Acceptable: Simple DOM sync effect
 export const AutoFocusInput = () => {
   const ref = useRef<HTMLInputElement>(null)
-  
+
   useEffect(() => {
     ref.current?.focus()
   }, [])
-  
+
   return <input ref={ref} />
 }
 ```
@@ -846,12 +868,14 @@ export const AutoFocusInput = () => {
 **Split components based on complexity, not arbitrary line counts.**
 
 **When to split:**
+
 - ✅ Component has multiple concerns (data fetching + rendering + form logic)
 - ✅ Logic is reusable across multiple parents
 - ✅ Component is hard to understand due to complexity (not size)
 - ✅ Different parts change for different reasons
 
 **When NOT to split:**
+
 - ❌ Component is mostly static JSX (navigation would take longer than reading)
 - ❌ Split components are 50% type definitions and props drilling
 - ❌ You're only splitting to hit a line count target
@@ -871,17 +895,17 @@ const ProfileHeader = ({ name, avatar }: ProfileHeaderProps) => {
 const ProfileRecordsEditor = ({ records, onChange }: Props) => {
   const [editMode, setEditMode] = useState(false)
   const { writeContractAsync } = useWriteContract()
-  
+
   const handleSave = async () => {
     // 30+ lines of validation, encoding, transaction logic
   }
-  
+
   return editMode ? <Editor /> : <Display />
 }
 
 const ProfilePage = ({ name }: ProfilePageProps) => {
   const { data: profile } = useQuery(getProfileQueryOptions(name))
-  
+
   return (
     <div>
       {/* ✅ Static header stays inline - easy to read */}
@@ -889,9 +913,9 @@ const ProfilePage = ({ name }: ProfilePageProps) => {
         <Avatar src={profile.avatar} />
         <h1>{profile.name}</h1>
       </header>
-      
+
       {/* ✅ Complex editor extracted - manages its own state and logic */}
-      <ProfileRecordsEditor 
+      <ProfileRecordsEditor
         records={profile.records}
         onChange={handleUpdate}
       />
@@ -918,7 +942,7 @@ export const Modal = () => {
 
 // 2️⃣ More complex: useReducer
 type State = { count: number; status: 'idle' | 'loading' | 'error'; data: Data | null }
-type Action = 
+type Action =
   | { type: 'increment' }
   | { type: 'fetch_start' }
   | { type: 'fetch_success'; data: Data }
@@ -954,11 +978,13 @@ const registrationMachine = createMachine({
 ```
 
 **When to move up the ladder:**
+
 - **useState → useReducer**: When you have 3+ related state values or complex update logic
 - **useReducer → XState Store**: When you need global state or subscriptions
 - **XState Store → State Machine**: When you have complex workflows with state transitions, guards, or side effects
 
 **When to stay put:**
+
 - Don't over-engineer - simple state should stay simple
 - Most components only need useState
 - State machines are for complex multi-step flows (transactions, wizards, onboarding)
@@ -970,7 +996,7 @@ const registrationMachine = createMachine({
 export const SearchBar = () => {
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
-  
+
   return (
     <div>
       <input
@@ -987,6 +1013,7 @@ export const SearchBar = () => {
 ### Use XState for Complex Workflows
 
 Use XState machines for:
+
 - Multi-step transactions
 - Complex state transitions
 - Retry logic and error recovery
@@ -1000,16 +1027,16 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
   const [state, send] = useMachine(registrationMachine, {
     input: { name },
   })
-  
+
   // Direct state matching
   const isRegistering = state.matches('registering')
   const registrationHash = state.context.transactionHash
-  
+
   // Direct event sending
   const handleRegister = () => {
     send({ type: 'REGISTER', duration: YEAR_IN_SECONDS })
   }
-  
+
   return match(state.value)
     .with('idle', () => (
       <button onClick={handleRegister}>Register</button>
@@ -1031,6 +1058,7 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
 #### How to Detect This Anti-Pattern
 
 Look for these signals:
+
 - `useEffect` watching a transaction state (e.g., `state.status === 'success'`)
 - Calling `transactionManager.startTransaction()` inside that effect
 - Multiple `useState` for separate transaction IDs
@@ -1039,25 +1067,30 @@ Look for these signals:
 ```typescript
 // ❌ ANTI-PATTERN: Effect-based transaction chaining
 function useAutoTriggerSecondTransaction({ firstTxState, walletClient }) {
-  const [secondTxId, setSecondTxId] = useState<string | null>(null)
-  const [hasTriggered, setHasTriggered] = useState(false)
+  const [secondTxId, setSecondTxId] = useState<string | null>(null);
+  const [hasTriggered, setHasTriggered] = useState(false);
 
   useEffect(() => {
-    if (firstTxState.status !== 'success' || hasTriggered) return
+    if (firstTxState.status !== "success" || hasTriggered) return;
 
-    setHasTriggered(true)
+    setHasTriggered(true);
 
     prepareSecondTransaction().then((result) => {
-      const txId = transactionManager.startTransaction(result.value, signer, options)
-      setSecondTxId(txId)
-    })
-  }, [firstTxState, hasTriggered])
+      const txId = transactionManager.startTransaction(
+        result.value,
+        signer,
+        options,
+      );
+      setSecondTxId(txId);
+    });
+  }, [firstTxState, hasTriggered]);
 
-  return { secondTxId }
+  return { secondTxId };
 }
 ```
 
 **Problems with this approach:**
+
 - Two-layer state tracking (hook state + transaction manager state)
 - Manual watching via React effect
 - `hasTriggered` flag is a code smell for effect misuse
@@ -1070,36 +1103,37 @@ const multiStepMachine = setup({
   // ... machine definition
 }).createMachine({
   states: {
-    idle: { on: { START: 'firstStep' } },
+    idle: { on: { START: "firstStep" } },
     firstStep: {
-      invoke: { src: 'submitFirstTransaction', onDone: 'waitingForFirst' }
+      invoke: { src: "submitFirstTransaction", onDone: "waitingForFirst" },
     },
     waitingForFirst: {
-      invoke: { src: 'pollTransactionStatus', onDone: 'secondStep' }
+      invoke: { src: "pollTransactionStatus", onDone: "secondStep" },
     },
     secondStep: {
-      invoke: { src: 'submitSecondTransaction', onDone: 'waitingForSecond' }
+      invoke: { src: "submitSecondTransaction", onDone: "waitingForSecond" },
     },
     waitingForSecond: {
-      invoke: { src: 'pollTransactionStatus', onDone: 'success' }
+      invoke: { src: "pollTransactionStatus", onDone: "success" },
     },
-    success: { type: 'final' },
-    error: { on: { RETRY: 'firstStep' } }
-  }
-})
+    success: { type: "final" },
+    error: { on: { RETRY: "firstStep" } },
+  },
+});
 
 // In component - direct function call, not a hook
 const handleStart = () => {
-  const txId = transactionManager.startTransaction(request, signer, options)
-  setTxId(txId)
-}
+  const txId = transactionManager.startTransaction(request, signer, options);
+  setTxId(txId);
+};
 
 // Subscribe to transaction state
-const actor = transactionManager.getTransaction(txId)
-const snapshot = useSelector(actor, s => s)
+const actor = transactionManager.getTransaction(txId);
+const snapshot = useSelector(actor, (s) => s);
 ```
 
 **Benefits of XState machine for multi-step flows:**
+
 - ✅ Single transaction ID tracks the flow
 - ✅ Machine orchestrates transitions automatically
 - ✅ Built-in retry and error handling
@@ -1133,19 +1167,19 @@ export async function saveRecords(
   params: SaveRecordsParams,
 ): Promise<SaveRecordsResult> {
   // 1. Build and validate the transaction request
-  const { request, description } = buildRecordsUpdateRequest(params)
+  const { request, description } = buildRecordsUpdateRequest(params);
 
   // 2. Start via transaction manager (handles signing)
   const txId = transactionManager.startTransaction(
-    { type: 'custom', request },
+    { type: "custom", request },
     params.signer,
     { description, publicClient: params.publicClient, chainId: params.chainId },
-  )
+  );
 
   // 3. Wait for completion (subscribes to transaction actor)
-  const result = await waitForTransaction(txId)
+  const result = await waitForTransaction(txId);
 
-  return { ...result, txId }
+  return { ...result, txId };
 }
 ```
 
@@ -1171,9 +1205,9 @@ const saveRecordsMutation = useMutation({
 
 ```typescript
 // ❌ AVOID: Unnecessary derived state
-const isSubmitting = saveRecordsMutation.isPending  // Just use .isPending directly
-const isSuccess = saveRecordsMutation.isSuccess     // Just use .isSuccess directly
-const txHash = saveRecordsMutation.data?.hash       // Just use .data?.hash directly
+const isSubmitting = saveRecordsMutation.isPending; // Just use .isPending directly
+const isSuccess = saveRecordsMutation.isSuccess; // Just use .isSuccess directly
+const txHash = saveRecordsMutation.data?.hash; // Just use .data?.hash directly
 ```
 
 #### File Co-location
@@ -1187,19 +1221,17 @@ features/profile/components/
 └── ProfileEdit.handlers.ts      # UI event handlers
 ```
 
-
-
 #### Why Not Just Use Wagmi?
 
 Wagmi's `useWriteContract` and `useSendTransaction` work well for EOA-only transactions, but the ENS app supports multiple account types:
 
-| Feature | Wagmi | Transaction Manager |
-|---------|-------|---------------------|
-| EOA transactions | ✅ Native | ✅ Via Signer abstraction |
-| Smart accounts (ERC-4337) | ❌ Requires permissionless.js | ✅ Built-in Rhinestone/ZeroDev support |
-| Unified API across account types | ❌ Different hooks per account type | ✅ Same `startTransaction()` call |
-| Transaction persistence | ❌ Not built-in | ✅ IndexedDB/localStorage |
-| Receipt polling | ✅ `useWaitForTransactionReceipt` | ✅ `waitForTransaction()` |
+| Feature                          | Wagmi                               | Transaction Manager                    |
+| -------------------------------- | ----------------------------------- | -------------------------------------- |
+| EOA transactions                 | ✅ Native                           | ✅ Via Signer abstraction              |
+| Smart accounts (ERC-4337)        | ❌ Requires permissionless.js       | ✅ Built-in Rhinestone/ZeroDev support |
+| Unified API across account types | ❌ Different hooks per account type | ✅ Same `startTransaction()` call      |
+| Transaction persistence          | ❌ Not built-in                     | ✅ IndexedDB/localStorage              |
+| Receipt polling                  | ✅ `useWaitForTransactionReceipt`   | ✅ `waitForTransaction()`              |
 
 ### Use TanStack Query for Server State 🟡 Default
 
@@ -1211,7 +1243,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  
+
   useEffect(() => {
     setLoading(true)
     fetchProfile(name)
@@ -1219,7 +1251,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
       .catch(setError)
       .finally(() => setLoading(false))
   }, [name])
-  
+
   if (loading) return <LoadingState />
   if (error) return <ErrorState error={error} />
   return <ProfileView profile={profile} />
@@ -1228,7 +1260,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 // ✅ CORRECT: Use TanStack Query
 export const ProfilePage = ({ name }: { name: string }) => {
   const { data: profile, isLoading, error } = useQuery(getProfileQueryOptions(name))
-  
+
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
   return <ProfileView profile={profile} />
@@ -1236,6 +1268,7 @@ export const ProfilePage = ({ name }: { name: string }) => {
 ```
 
 **Benefits of TanStack Query:**
+
 - ✅ **Automatic caching** - No duplicate requests
 - ✅ **Background refetching** - Keep data fresh
 - ✅ **Error handling** - Built-in retry logic
@@ -1255,12 +1288,12 @@ Extract business logic into pure helper functions, not custom hooks:
 // ❌ AVOID: Business logic in custom hook
 function useENSRenewal(name: string) {
   const [state, setState] = useState<RenewalState>('idle')
-  
+
   const renew = useCallback(async (duration: bigint) => {
     setState('preparing')
     // 50+ lines of business logic
   }, [name])
-  
+
   return { renew, state }
 }
 
@@ -1285,10 +1318,10 @@ export const RenewalButton = ({ name }: { name: string }) => {
   const { data: walletClient } = useWalletClient()
   const { writeContractAsync } = useWriteContract()
   const [isPending, setIsPending] = useState(false)
-  
+
   const handleRenew = async () => {
     if (!walletClient) return
-    
+
     setIsPending(true)
     try {
       const result = await prepareENSRenewal({
@@ -1297,13 +1330,13 @@ export const RenewalButton = ({ name }: { name: string }) => {
         publicClient,
         walletClient,
       })
-      
+
       // If helper returns Result, check for errors
       if (result.isErr()) {
         console.error('Failed to prepare renewal:', result.error.message)
         return
       }
-      
+
       // Use the prepared data
       const hash = await writeContractAsync(result.value)
       console.log('Transaction sent:', hash)
@@ -1313,7 +1346,7 @@ export const RenewalButton = ({ name }: { name: string }) => {
       setIsPending(false)
     }
   }
-  
+
   return (
     <button onClick={handleRenew} disabled={isPending}>
       {isPending ? 'Renewing...' : 'Renew'}
@@ -1327,6 +1360,7 @@ export const RenewalButton = ({ name }: { name: string }) => {
 **The core problem with custom hooks for business logic**: Hooks are triggered by React's render cycle, but business logic should be triggered by user actions (clicks, form submits, page loads).
 
 **This is a fundamental mismatch:**
+
 - ❌ **React renders** → Run hook → Execute business logic (wrong trigger)
 - ✅ **User action** → Call pure function → Execute business logic (correct trigger)
 
@@ -1348,12 +1382,14 @@ Custom hooks make you carefully manage _when they run_ (dependencies, conditiona
 
 ```typescript
 // ✅ Good: Framework/Browser API wrapper
-const { address } = useAccount()
-const publicClient = usePublicClient()
-const [value, setValue] = useLocalStorageState('theme', { defaultValue: 'dark' })
+const { address } = useAccount();
+const publicClient = usePublicClient();
+const [value, setValue] = useLocalStorageState("theme", {
+  defaultValue: "dark",
+});
 
 // ✅ Good: XState integration
-const [state, send] = useMachine(transactionMachine)
+const [state, send] = useMachine(transactionMachine);
 
 // ❌ Bad: Business logic in hook
 function useENSRenewal(name: string) {
@@ -1362,13 +1398,16 @@ function useENSRenewal(name: string) {
 }
 
 // ✅ Good: Pure functions + thin hook
-function calculateRenewalPrice(name: string, duration: bigint): Result<bigint, Error> {
+function calculateRenewalPrice(
+  name: string,
+  duration: bigint,
+): Result<bigint, Error> {
   // Pure business logic
 }
 
 function useENSRenewalMutation() {
   // Just wraps wagmi's useMutation
-  return useMutation({ mutationFn: calculateRenewalPrice })
+  return useMutation({ mutationFn: calculateRenewalPrice });
 }
 ```
 
@@ -1376,26 +1415,26 @@ function useENSRenewalMutation() {
 
 ```typescript
 // Good helper structure
-import { ResultAsync, errAsync, okAsync } from 'neverthrow'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultAsync, errAsync, okAsync } from "neverthrow";
+import { ResultFn, TaggedError } from "@ens-apps/utils/neverthrow";
 
-export class RenewalPriceError extends TaggedError('RenewalPriceError')<{
-  cause: unknown
+export class RenewalPriceError extends TaggedError("RenewalPriceError")<{
+  cause: unknown;
 }> {}
 
 export const calculateRenewalPrice = ResultFn(async function* (
   name: string,
-  duration: bigint
+  duration: bigint,
 ) {
-  const client = yield* safeGetClient()
-  
+  const client = yield* safeGetClient();
+
   const price = yield* ResultAsync.fromPromise(
     getRenewalPrice(client, { name, duration }),
-    (error) => new RenewalPriceError({ cause: error })
-  )
-  
-  return okAsync(price)
-})
+    (error) => new RenewalPriceError({ cause: error }),
+  );
+
+  return okAsync(price);
+});
 ```
 
 ## Error Handling with neverthrow
@@ -1412,33 +1451,33 @@ The codebase uses `neverthrow` for functional error handling with `Result` types
 ### Creating Result Functions
 
 ```typescript
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { ok, err, ResultAsync } from 'neverthrow'
+import { ResultFn, TaggedError } from "@ens-apps/utils/neverthrow";
+import { ok, err, ResultAsync } from "neverthrow";
 
 // Define specific error types
-export class ProfileNotFoundError extends TaggedError('ProfileNotFoundError')<{
-  name: string
+export class ProfileNotFoundError extends TaggedError("ProfileNotFoundError")<{
+  name: string;
 }> {}
 
-export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
-  cause: unknown
+export class ProfileFetchError extends TaggedError("ProfileFetchError")<{
+  cause: unknown;
 }> {}
 
 // Use ResultFn for generator-based composition
 export const getProfile = ResultFn(async function* (name: string) {
-  const client = yield* safeGetClient()
-  
+  const client = yield* safeGetClient();
+
   const profile = yield* ResultAsync.fromPromise(
     fetchProfile(client, name),
-    (error) => new ProfileFetchError({ cause: error })
-  )
-  
+    (error) => new ProfileFetchError({ cause: error }),
+  );
+
   if (!profile) {
-    yield* new ProfileNotFoundError({ name })
+    yield* new ProfileNotFoundError({ name });
   }
-  
-  return ok(profile)
-})
+
+  return ok(profile);
+});
 ```
 
 ### Consuming Results
@@ -1475,9 +1514,11 @@ export const ProfileCard = ({ name }: { name: string }) => {
 // Internally, resultQueryOptions calls .match() for you:
 queryFn: (context) =>
   rawQueryFn(context).match(
-    (value) => value,        // Returns unwrapped value → becomes `data`
-    (error) => { throw error } // Throws error → becomes `error`
-  )
+    (value) => value, // Returns unwrapped value → becomes `data`
+    (error) => {
+      throw error;
+    }, // Throws error → becomes `error`
+  );
 ```
 
 **Outside TanStack Query** (in helper functions):
@@ -1486,34 +1527,34 @@ When composing Results in helper functions, use chaining:
 
 ```typescript
 // ✅ Chaining operations
-const finalResult = await getProfile('vitalik.eth')
+const finalResult = await getProfile("vitalik.eth")
   .andThen((profile) => validateProfile(profile))
   .andThen((validProfile) => saveProfile(validProfile))
-  .map((savedProfile) => formatProfile(savedProfile))
+  .map((savedProfile) => formatProfile(savedProfile));
 
 // ✅ Using .match() for final handling
 finalResult.match(
-  (profile) => console.log('Success:', profile),
-  (error) => console.error('Failed:', error.message)
-)
+  (profile) => console.log("Success:", profile),
+  (error) => console.error("Failed:", error.message),
+);
 
 // ✅ Early return pattern
 if (result.isErr()) {
-  console.error('Error:', result.error.message)
-  return null
+  console.error("Error:", result.error.message);
+  return null;
 }
-const profile = result.value
+const profile = result.value;
 ```
 
 **Checking Result types manually** (rare, when not using TanStack Query):
 
 ```typescript
 // Only needed outside TanStack Query
-const result = yield* getProfile('vitalik.eth')
+const result = yield * getProfile("vitalik.eth");
 
 if (result.isOk()) {
-  const canEdit = yield* canEditRecords(result.value)
-  return ok(canEdit)
+  const canEdit = yield * canEditRecords(result.value);
+  return ok(canEdit);
 }
 ```
 
@@ -1522,39 +1563,39 @@ if (result.isOk()) {
 ```typescript
 // ✅ PREFERRED: Early return pattern
 const handleSubmit = async () => {
-  const result = await registerUser({ email, name })
-  
+  const result = await registerUser({ email, name });
+
   if (result.isErr()) {
-    console.error('Registration failed:', result.error.message)
-    return
+    console.error("Registration failed:", result.error.message);
+    return;
   }
-  
-  console.log('Success:', result.value)
-  navigate('/dashboard')
-}
+
+  console.log("Success:", result.value);
+  navigate("/dashboard");
+};
 
 // ⚠️ AVOID: .match() in event handlers (feels awkward)
 const handleSubmit = async () => {
-  const result = await registerUser({ email, name })
-  
+  const result = await registerUser({ email, name });
+
   result.match(
     (user) => {
-      console.log('Success:', user)
-      navigate('/dashboard')
+      console.log("Success:", user);
+      navigate("/dashboard");
     },
-    (error) => console.error('Failed:', error)
-  )
-}
+    (error) => console.error("Failed:", error),
+  );
+};
 
 // ✅ ALSO GOOD: try-catch when helper throws
 const handleSubmit = async () => {
   try {
-    await sendTransaction(params)
-    console.log('Success')
+    await sendTransaction(params);
+    console.log("Success");
   } catch (error) {
-    console.error('Failed:', error)
+    console.error("Failed:", error);
   }
-}
+};
 ```
 
 > **Why avoid `.match()` in handlers?** Early returns and try-catch are more idiomatic for imperative control flow in event handlers. Reserve `.match()` for functional composition in helpers.
@@ -1619,6 +1660,7 @@ export function normalizeEnsName(name: string): Result<string, NormalizationErro
 ### Quick Reference
 
 **Creating Results:**
+
 - `ok(value)` / `err(error)` → for `Result<T, E>` (sync)
 - `okAsync(value)` / `errAsync(error)` → for `ResultAsync<T, E>` (async)
 - `fromPromise(promise, errorFn)` → wrap async code that might throw
@@ -1626,11 +1668,13 @@ export function normalizeEnsName(name: string): Result<string, NormalizationErro
 - `fromThrowable(fn, errorFn)` → create reusable sync wrapper (from `neverthrow`)
 
 **Transforming Results:**
+
 - `.andThen(fn)` → chain Results (flatMap)
 - `.map(fn)` / `.mapErr(fn)` → transform values/errors
 - `.match(onOk, onErr)` → handle both cases
 
 **Advanced Composition:**
+
 - `ResultFn(function* ...)` → generator-based composition with `yield*`
 - `yield* new TaggedError(...)` → early error return in ResultFn generators (no need for `return err(...)`)
 - `yield* resultFn()` → unwrap Results (no `await` needed, `yield*` handles async)
@@ -1639,11 +1683,11 @@ export function normalizeEnsName(name: string): Result<string, NormalizationErro
 
 ```typescript
 // ✅ CORRECT - yield* handles async
-const profile = yield* ResultAsync.fromPromise(fetchData(), errorFn)
-const records = yield* getRecords(params)
+const profile = yield * ResultAsync.fromPromise(fetchData(), errorFn);
+const records = yield * getRecords(params);
 
 // ❌ WRONG - redundant await
-const profile = yield* await ResultAsync.fromPromise(fetchData(), errorFn)
+const profile = yield * (await ResultAsync.fromPromise(fetchData(), errorFn));
 ```
 
 ## Data Fetching with TanStack Query
@@ -1653,43 +1697,43 @@ The codebase uses TanStack Query with a custom `resultQueryOptions` wrapper for 
 ### Query Structure
 
 ```typescript
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useQuery } from '@tanstack/react-query'
+import { ResultFn, TaggedError } from "@ens-apps/utils/neverthrow";
+import { resultQueryOptions } from "@ens-apps/utils/tanstack-query/neverthrow";
+import { createQueryKey } from "@ens-apps/utils/tanstack-query/queryKey";
+import { useQuery } from "@tanstack/react-query";
 
 // 1. Define error types
-export class GetProfileError extends TaggedError('GetProfileError')<{
-  cause: unknown
+export class GetProfileError extends TaggedError("GetProfileError")<{
+  cause: unknown;
 }> {}
 
 // 2. Create the data fetching function
 export const getProfile = ResultFn(async function* (name: string) {
-  const client = yield* safeGetClient()
-  
+  const client = yield* safeGetClient();
+
   const profile = yield* ResultAsync.fromPromise(
     fetchProfile(client, { name }),
-    (error) => new GetProfileError({ cause: error })
-  )
-  
-  return ok(profile)
-})
+    (error) => new GetProfileError({ cause: error }),
+  );
+
+  return ok(profile);
+});
 
 // 3. Create query key
-export const profileQueryKey = createQueryKey<
-  'profile',
-  { name: string }
->('profile')
+export const profileQueryKey = createQueryKey<"profile", { name: string }>(
+  "profile",
+);
 
 // 4. Create query options factory
 export const getProfileQueryOptions = (name: string) =>
   resultQueryOptions({
     queryKey: profileQueryKey({ name }),
     queryFn: ({ queryKey: [, { name }] }) => getProfile(name),
-  })
+  });
 ```
 
 **Why no custom hook wrapper?**
+
 - ✅ **Works with all query hooks** - `useQuery`, `useSuspenseQuery`, `useQueries`
 - ✅ **Preloading in router loaders** - Can use options directly in `loader`
 - ✅ **Customizable per use case** - Add `staleTime`, `enabled`, etc. in component
@@ -1700,16 +1744,15 @@ export const getProfileQueryOptions = (name: string) =>
 **Use `createQueryKey` helper for type-safe, invalidation-friendly keys:**
 
 ```typescript
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { createQueryKey } from "@ens-apps/utils/tanstack-query/queryKey";
 
 // Define query key factory with typed variables
-export const profileQueryKey = createQueryKey<
-  'profile',
-  { name: string }
->('profile')
+export const profileQueryKey = createQueryKey<"profile", { name: string }>(
+  "profile",
+);
 
 // Usage
-const key = profileQueryKey({ name: 'vitalik.eth' })
+const key = profileQueryKey({ name: "vitalik.eth" });
 // Returns: ['profile', { name: 'vitalik.eth' }] as const
 ```
 
@@ -1719,20 +1762,20 @@ Using a **singular object for query key parameters** enables powerful **partial 
 
 ```typescript
 // Invalidate ALL profile queries
-queryClient.invalidateQueries({ queryKey: ['profile'] })
+queryClient.invalidateQueries({ queryKey: ["profile"] });
 
 // Invalidate specific profile
-queryClient.invalidateQueries({ 
-  queryKey: ['profile', { name: 'vitalik.eth' }] 
-})
+queryClient.invalidateQueries({
+  queryKey: ["profile", { name: "vitalik.eth" }],
+});
 
 // Partial match - invalidate all profiles on a specific network
 queryClient.invalidateQueries({
   predicate: (query) => {
-    const [key, params] = query.queryKey as ['profile', { network?: string }]
-    return key === 'profile' && params?.network === 'mainnet'
-  }
-})
+    const [key, params] = query.queryKey as ["profile", { network?: string }];
+    return key === "profile" && params?.network === "mainnet";
+  },
+});
 ```
 
 **Query Key Best Practices:**
@@ -1744,19 +1787,18 @@ queryClient.invalidateQueries({
 
 ```typescript
 // ✅ Good - Type-safe, invalidation-friendly
-export const recordsQueryKey = createQueryKey<
-  'records',
-  GetRecordsParameters
->('records')
+export const recordsQueryKey = createQueryKey<"records", GetRecordsParameters>(
+  "records",
+);
 
-const key = recordsQueryKey({ name: 'vitalik.eth', texts: true })
+const key = recordsQueryKey({ name: "vitalik.eth", texts: true });
 // ['records', { name: 'vitalik.eth', texts: true }]
 
 // ❌ Avoid - Positional params, hard to invalidate partially
-queryKey: ['records', name, texts]
+queryKey: ["records", name, texts];
 
 // ❌ Avoid - Reversed order
-queryKey: [name, 'records']
+queryKey: [name, "records"];
 ```
 
 > **⚠️ Standardization In Progress**: Query key structure is evolving toward better standardization with scope-based invalidation patterns (e.g., `$qk({ $scope: 'wallet' })` to invalidate all wallet-related queries). The `createQueryKey` helper is the current recommended approach, but standardized key structures and common scopes are being defined to make cross-feature invalidations easier. When defining new query keys, consider how they might be grouped with related queries for bulk invalidation.
@@ -1769,19 +1811,19 @@ queryKey: [name, 'records']
 // ✅ Basic usage - data is unwrapped, error is TaggedError
 export const ProfileCard = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(getProfileQueryOptions(name))
-  
+
   if (isLoading) return <LoadingMessage />
-  
+
   if (error) {
     // error is the TaggedError instance
     const message = error.cause?.message || error.message || 'Could not load profile'
     return <ErrorMessage title="Profile unavailable" description={message} />
   }
-  
+
   if (!data) {
     return <ErrorMessage title="Profile unavailable" description="No data returned" />
   }
-  
+
   // data is already unwrapped - use directly!
   return <ProfileDetails records={data.records} />
 }
@@ -1793,11 +1835,11 @@ export const LiveProfileCard = ({ name }: { name: string }) => {
     staleTime: 5000, // Refetch every 5s
     refetchInterval: 5000,
   })
-  
+
   if (isLoading) return <LoadingSpinner />
   if (error) return <ErrorMessage title="Error" description={error.message} />
   if (!data) return null
-  
+
   return <ProfileDetails records={data.records} />
 }
 
@@ -1805,10 +1847,10 @@ export const LiveProfileCard = ({ name }: { name: string }) => {
 export const SuspenseProfileCard = ({ name }: { name: string }) => {
   const { data, error } = useSuspenseQuery(getProfileQueryOptions(name))
   // No loading state needed - suspense handles it
-  
+
   if (error) return <ErrorMessage error={error} />
   if (!data) return null
-  
+
   return <ProfileDetails records={data.records} />
 }
 
@@ -1817,7 +1859,7 @@ export const MultiProfileCard = ({ names }: { names: string[] }) => {
   const queries = useQueries({
     queries: names.map(name => getProfileQueryOptions(name)),
   })
-  
+
   return (
     <div>
       {queries.map((q, i) => {
@@ -1840,6 +1882,7 @@ export const Route = createFileRoute('/$name/records')({
 ```
 
 **Key points**:
+
 - ✅ `data` is the **unwrapped value** (not a Result)
 - ✅ `error` is the **TaggedError instance** thrown by the query
 - ✅ Always check `isLoading`, `error`, and `!data` before using `data`
@@ -1852,31 +1895,31 @@ export const Route = createFileRoute('/$name/records')({
 ```typescript
 // ❌ AVOID - Waterfall queries in same component
 export const ProfilePage = ({ name }: { name: string }) => {
-  const { data: profile, isLoading: isLoadingProfile, error: profileError } = 
+  const { data: profile, isLoading: isLoadingProfile, error: profileError } =
     useQuery(getProfileQueryOptions(name))
-  
+
   // This waits for profile to load before fetching
-  const { data: records, isLoading: isLoadingRecords, error: recordsError } = 
+  const { data: records, isLoading: isLoadingRecords, error: recordsError } =
     useQuery({
       ...getRecordsQueryOptions(profile?.address),
       enabled: !!profile?.address, // Dependent query
     })
-  
+
   // Now you have 4 states to manage: 2 loading, 2 errors
   if (isLoadingProfile || isLoadingRecords) return <LoadingSpinner />
   if (profileError || recordsError) return <ErrorMessage />
-  
+
   return <div>{/* Complex state management */}</div>
 }
 
 // ✅ CORRECT - Split into separate components
 export const ProfilePage = ({ name }: { name: string }) => {
   const { data: profile, isLoading, error } = useQuery(getProfileQueryOptions(name))
-  
+
   if (isLoading) return <LoadingSpinner />
   if (error) return <ErrorMessage error={error} />
   if (!profile) return null
-  
+
   // Pass profile to child component that handles records
   return <ProfileWithRecords profile={profile} />
 }
@@ -1885,16 +1928,17 @@ export const ProfileWithRecords = ({ profile }: { profile: Profile }) => {
   const { data: records, isLoading, error } = useQuery(
     getRecordsQueryOptions(profile.address)
   )
-  
+
   if (isLoading) return <LoadingSpinner />
   if (error) return <ErrorMessage error={error} />
   if (!records) return null
-  
+
   return <RecordsView profile={profile} records={records} />
 }
 ```
 
 **Benefits of splitting**:
+
 - ✅ **Clearer state management** - One query per component
 - ✅ **Better loading UX** - Show profile while records load
 - ✅ **Easier error handling** - Each error is specific to its data
@@ -1907,25 +1951,25 @@ export const ProfileWithRecords = ({ profile }: { profile: Profile }) => {
 ```typescript
 // ❌ AVOID - Grouped loading/error states
 export const DashboardPage = () => {
-  const { data: profile, isLoading: isLoadingProfile, error: profileError } = 
+  const { data: profile, isLoading: isLoadingProfile, error: profileError } =
     useQuery(getProfileQueryOptions())
-  const { data: names, isLoading: isLoadingNames, error: namesError } = 
+  const { data: names, isLoading: isLoadingNames, error: namesError } =
     useQuery(getNamesQueryOptions())
-  
+
   // This hides which data is loading/erroring
   if (isLoadingProfile || isLoadingNames) return <LoadingSpinner />
   if (profileError || namesError) return <ErrorMessage />
-  
+
   return <Dashboard profile={profile} names={names} />
 }
 
 // ✅ CORRECT - Handle each query independently
 export const DashboardPage = () => {
-  const { data: profile, isLoading: isLoadingProfile, error: profileError } = 
+  const { data: profile, isLoading: isLoadingProfile, error: profileError } =
     useQuery(getProfileQueryOptions())
-  const { data: names, isLoading: isLoadingNames, error: namesError } = 
+  const { data: names, isLoading: isLoadingNames, error: namesError } =
     useQuery(getNamesQueryOptions())
-  
+
   return (
     <div>
       {/* Show profile section state independently */}
@@ -1936,7 +1980,7 @@ export const DashboardPage = () => {
       ) : (
         <ProfileSection profile={profile} />
       )}
-      
+
       {/* Show names section state independently */}
       {isLoadingNames ? (
         <LoadingSpinner />
@@ -1951,6 +1995,7 @@ export const DashboardPage = () => {
 ```
 
 **Why this matters**:
+
 - ✅ **Different errors mean different things** - Profile error ≠ names error
 - ✅ **Show partial data** - Display profile even if names fails
 - ✅ **Better UX** - User sees some content immediately
@@ -1966,14 +2011,14 @@ export const MultiProfilePage = ({ names }: { names: string[] }) => {
   const profile1 = useQuery(getProfileQueryOptions(names[0]))
   const profile2 = useQuery(getProfileQueryOptions(names[1]))
   const profile3 = useQuery(getProfileQueryOptions(names[2]))
-  
+
   // Verbose state management
   const isLoading = profile1.isLoading || profile2.isLoading || profile3.isLoading
   const errors = [profile1.error, profile2.error, profile3.error].filter(Boolean)
-  
+
   if (isLoading) return <LoadingSpinner />
   if (errors.length > 0) return <ErrorMessage />
-  
+
   return <div>...</div>
 }
 
@@ -1982,7 +2027,7 @@ export const MultiProfilePage = ({ names }: { names: string[] }) => {
   const queries = useQueries({
     queries: names.map(name => getProfileQueryOptions(name)),
   })
-  
+
   return (
     <div>
       {queries.map((query, i) => {
@@ -2000,20 +2045,21 @@ export const MultiProfilePage = ({ names }: { names: string[] }) => {
   const queries = useQueries({
     queries: names.map(name => getProfileQueryOptions(name)),
   })
-  
+
   const isLoading = queries.some(q => q.isLoading)
   const errors = queries.filter(q => q.error).map(q => q.error)
   const allData = queries.every(q => q.data) ? queries.map(q => q.data) : null
-  
+
   if (isLoading) return <LoadingSpinner />
   if (errors.length > 0) return <ErrorList errors={errors} />
   if (!allData) return null
-  
+
   return <ProfileList profiles={allData} />
 }
 ```
 
 **Benefits**:
+
 - ✅ **Less verbose** - One hook instead of many
 - ✅ **Dynamic** - Works with variable-length arrays
 - ✅ **Type-safe** - Proper TypeScript inference
@@ -2050,17 +2096,17 @@ For app-specific or package-level contract interactions, create pure functions t
 // 1. Define the return type (union if multiple variants)
 export type SetReverseNameRequest =
   | {
-      address: Address
-      abi: typeof l2ReverseRegistrarSetNameForAddrSnippet
-      functionName: 'setNameForAddr'
-      args: readonly [address: Address, name: string]
+      address: Address;
+      abi: typeof l2ReverseRegistrarSetNameForAddrSnippet;
+      functionName: "setNameForAddr";
+      args: readonly [address: Address, name: string];
     }
   | {
-      address: Address
-      abi: typeof l2ReverseRegistrarSetNameSnippet
-      functionName: 'setName'
-      args: readonly [name: string]
-    }
+      address: Address;
+      abi: typeof l2ReverseRegistrarSetNameSnippet;
+      functionName: "setName";
+      args: readonly [name: string];
+    };
 
 // 2. Create the builder function with JSDoc
 /**
@@ -2078,39 +2124,43 @@ export function createSetReverseNameRequest({
   chain,
   targetAddress,
 }: {
-  name: string
-  reverseRegistrarChainId: ReverseRegistrarChainId
-  chain?: Chain
-  targetAddress?: Address
+  name: string;
+  reverseRegistrarChainId: ReverseRegistrarChainId;
+  chain?: Chain;
+  targetAddress?: Address;
 }): SetReverseNameRequest {
-  const network = resolveNetworkFromChain(chain)
-  const registrarAddress = getRegistrarAddress(reverseRegistrarChainId, network)
-  
+  const network = resolveNetworkFromChain(chain);
+  const registrarAddress = getRegistrarAddress(
+    reverseRegistrarChainId,
+    network,
+  );
+
   if (!registrarAddress) {
     throw new Error(
-      `No registrar found for coin type ${reverseRegistrarChainId} on ${network}`
-    )
+      `No registrar found for coin type ${reverseRegistrarChainId} on ${network}`,
+    );
   }
-  
+
   if (targetAddress) {
     return {
       address: registrarAddress,
       abi: l2ReverseRegistrarSetNameForAddrSnippet,
-      functionName: 'setNameForAddr',
+      functionName: "setNameForAddr",
       args: [targetAddress, name] as const,
-    }
+    };
   }
-  
+
   return {
     address: registrarAddress,
     abi: l2ReverseRegistrarSetNameSnippet,
-    functionName: 'setName',
+    functionName: "setName",
     args: [name] as const,
-  }
+  };
 }
 ```
 
 **Key characteristics:**
+
 - Pure function that returns typed request object
 - Returns `{ address, abi, functionName, args }`
 - Throws errors for invalid states
@@ -2129,14 +2179,14 @@ For the `@ensdomains/ensjs` package, follow this two-part pattern for writes and
 // 1. Export type aliases
 export type GetNameRegistryAddressParameters = {
   /** The parent registry address */
-  registryAddress: Address
+  registryAddress: Address;
   /** The label to look up */
-  label: string
-}
+  label: string;
+};
 
-export type GetNameRegistryAddressReturnType = Address
+export type GetNameRegistryAddressReturnType = Address;
 
-export type GetNameRegistryAddressErrorType = ReadContractErrorType
+export type GetNameRegistryAddressErrorType = ReadContractErrorType;
 
 // 2. Create the async function
 /**
@@ -2162,18 +2212,18 @@ export type GetNameRegistryAddressErrorType = ReadContractErrorType
  */
 export async function getNameRegistryAddress(
   client: Client,
-  { registryAddress, label }: GetNameRegistryAddressParameters
+  { registryAddress, label }: GetNameRegistryAddressParameters,
 ): Promise<GetNameRegistryAddressReturnType> {
-  ASSERT_NO_TYPE_ERROR(client)
-  
-  const readContractAction = getAction(client, readContract, 'readContract')
-  
+  ASSERT_NO_TYPE_ERROR(client);
+
+  const readContractAction = getAction(client, readContract, "readContract");
+
   return readContractAction({
     address: registryAddress,
     abi: registryGetSubregistrySnippet,
-    functionName: 'getSubregistry',
+    functionName: "getSubregistry",
     args: [label],
-  })
+  });
 }
 ```
 
@@ -2188,19 +2238,19 @@ export async function getNameRegistryAddress(
 
 // 1. Export parameter types
 export type DeploySubregistryWriteParametersParameters = {
-  factoryAddress: Address
-  implAddress: Address
-  adminAddress?: Address
-  roleBitmap?: bigint
-  salt?: bigint
-}
+  factoryAddress: Address;
+  implAddress: Address;
+  adminAddress?: Address;
+  roleBitmap?: bigint;
+  salt?: bigint;
+};
 
 export type DeploySubregistryWriteParametersReturnType = ReturnType<
   typeof deploySubregistryWriteParameters
->
+>;
 
-export type DeploySubregistryWriteParametersErrorType = 
-  EncodeFunctionDataErrorType
+export type DeploySubregistryWriteParametersErrorType =
+  EncodeFunctionDataErrorType;
 
 // 2. Create the write parameters function
 export const deploySubregistryWriteParameters = <
@@ -2214,29 +2264,29 @@ export const deploySubregistryWriteParameters = <
     adminAddress,
     roleBitmap = DEFAULT_ROLE_BITMAP,
     salt = DEFAULT_SALT,
-  }: DeploySubregistryWriteParametersParameters
+  }: DeploySubregistryWriteParametersParameters,
 ) => {
-  ASSERT_NO_TYPE_ERROR(client)
-  
-  const finalAdminAddress = adminAddress ?? client.account.address
-  
+  ASSERT_NO_TYPE_ERROR(client);
+
+  const finalAdminAddress = adminAddress ?? client.account.address;
+
   const callData = encodeFunctionData({
     abi: subregistryInitializeSnippet,
-    functionName: 'initialize',
+    functionName: "initialize",
     args: [finalAdminAddress, roleBitmap],
-  })
-  
+  });
+
   return {
     address: factoryAddress,
     abi: verifiableFactoryDeployProxySnippet,
-    functionName: 'deployProxy',
+    functionName: "deployProxy",
     args: [implAddress, salt, callData],
     chain: client.chain,
     account: client.account,
   } as const satisfies WriteContractParameters<
     typeof verifiableFactoryDeployProxySnippet
-  >
-}
+  >;
+};
 
 // ================================
 // Part 2: Action Function
@@ -2250,14 +2300,14 @@ export type DeploySubregistryParameters<
 > = Prettify<
   DeploySubregistryWriteParametersParameters &
     WriteTransactionParameters<chain, account, chainOverride>
->
+>;
 
-export type DeploySubregistryReturnType = Hash
+export type DeploySubregistryReturnType = Hash;
 
 export type DeploySubregistryErrorType =
   | DeploySubregistryWriteParametersErrorType
   | ClientWithOverridesErrorType
-  | WriteContractErrorType
+  | WriteContractErrorType;
 
 // 4. Create the action function
 /**
@@ -2293,10 +2343,10 @@ export async function deploySubregistry<
     roleBitmap,
     salt,
     ...txArgs
-  }: DeploySubregistryParameters<chain, account, chainOverride>
+  }: DeploySubregistryParameters<chain, account, chainOverride>,
 ): Promise<DeploySubregistryReturnType> {
-  ASSERT_NO_TYPE_ERROR(client)
-  
+  ASSERT_NO_TYPE_ERROR(client);
+
   const writeParameters = deploySubregistryWriteParameters(
     clientWithOverrides(client, txArgs),
     {
@@ -2305,18 +2355,19 @@ export async function deploySubregistry<
       adminAddress,
       roleBitmap,
       salt,
-    }
-  )
-  
-  const writeContractAction = getAction(client, writeContract, 'writeContract')
+    },
+  );
+
+  const writeContractAction = getAction(client, writeContract, "writeContract");
   return writeContractAction({
     ...writeParameters,
     ...txArgs,
-  } as WriteContractParameters)
+  } as WriteContractParameters);
 }
 ```
 
 **Key characteristics for ENSjs:**
+
 - Three type exports per function: `Parameters`, `ReturnType`, `ErrorType`
 - Use `ASSERT_NO_TYPE_ERROR(client)` macro
 - Use `getAction(client, action, 'actionName')` pattern
@@ -2337,19 +2388,19 @@ import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
 export const DeployButton = () => {
   const { data: walletClient } = useWalletClient()
   const { writeContractAsync, data: txHash, isPending } = useWriteContract()
-  
-  const { data: receipt, isLoading: isConfirming } = 
+
+  const { data: receipt, isLoading: isConfirming } =
     useWaitForTransactionReceipt({ hash: txHash })
-  
+
   const handleDeploy = async () => {
     if (!walletClient) return
-    
+
     // Get contract parameters
     const params = deploySubregistryWriteParameters(walletClient, {
       factoryAddress: FACTORY_ADDRESS,
       implAddress: IMPL_ADDRESS,
     })
-    
+
     // Execute transaction
     await writeContractAsync({
       address: params.address,
@@ -2358,7 +2409,7 @@ export const DeployButton = () => {
       args: params.args,
     })
   }
-  
+
   return (
     <button onClick={handleDeploy} disabled={isPending || isConfirming}>
       {isPending ? 'Confirm in wallet...' : isConfirming ? 'Confirming...' : 'Deploy'}
@@ -2376,7 +2427,7 @@ import { createSetReverseNameRequest } from '@ens-apps/l2-primary/utils'
 export const SetPrimaryNameButton = ({ name }: { name: string }) => {
   const { chain } = useConnection()
   const { writeContractAsync } = useWriteContract()
-  
+
   const handleSetPrimaryName = async () => {
     try {
       // Create request
@@ -2385,7 +2436,7 @@ export const SetPrimaryNameButton = ({ name }: { name: string }) => {
         reverseRegistrarChainId: 60, // ETH
         chain,
       })
-      
+
       // Execute
       const hash = await writeContractAsync(request)
       console.log('Transaction hash:', hash)
@@ -2393,7 +2444,7 @@ export const SetPrimaryNameButton = ({ name }: { name: string }) => {
       console.error('Failed to set primary name:', error)
     }
   }
-  
+
   return <button onClick={handleSetPrimaryName}>Set Primary Name</button>
 }
 ```
@@ -2406,18 +2457,18 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
   const { writeContractAsync } = useWriteContract()
   const [reverseHash, setReverseHash] = useState<Hash>()
   const [forwardHash, setForwardHash] = useState<Hash>()
-  
+
   // Step 1: Set reverse resolution
   const setReverse = async () => {
     const request = createSetReverseNameRequest({
       name,
       reverseRegistrarChainId: 60,
     })
-    
+
     const hash = await writeContractAsync(request)
     setReverseHash(hash)
   }
-  
+
   // Step 2: Set forward resolution
   const setForward = async () => {
     const request = createSetForwardResolutionRequest({
@@ -2425,12 +2476,13 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
       reverseRegistrarChainId: 60,
       resolverAddress,
       targetAddress: address,
+      isDedicatedResolver,
     })
-    
+
     const hash = await writeContractAsync(request)
     setForwardHash(hash)
   }
-  
+
   return (
     <div>
       <button onClick={setReverse}>1. Set Reverse</button>
@@ -2445,6 +2497,7 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
 ### Contract Helper Pattern Summary
 
 **When to use Simple Request Builders (Pattern 1):**
+
 - ✅ App-specific contract interactions
 - ✅ Package-level utilities (like `@ens-apps/l2-primary`)
 - ✅ Simpler contracts with straightforward parameters
@@ -2454,6 +2507,7 @@ export const SetPrimaryNameFlow = ({ name, address }: Props) => {
 **Example:** `createSetReverseNameRequest`, `createSetForwardResolutionRequest`
 
 **When to use ENSjs Two-Part Pattern (Pattern 2):**
+
 - ✅ Core ENS protocol interactions
 - ✅ Functions in `@ensdomains/ensjs` package
 - ✅ Operations that benefit from both "get params" and "execute" variants
@@ -2485,28 +2539,28 @@ import { type Address } from 'viem'
 export const TransactionButton = () => {
   // Get account info
   const { address, isConnected, chain } = useAccount()
-  
+
   // Get clients
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
-  
+
   // Check connection
   if (!isConnected || !address) {
     return <ConnectWallet />
   }
-  
+
   const handleTransaction = async () => {
     if (!walletClient) return
-    
+
     const result = await prepareTransaction({
       address,
       publicClient,
       walletClient,
     })
-    
+
     // Handle result
   }
-  
+
   return <button onClick={handleTransaction}>Send Transaction</button>
 }
 ```
@@ -2516,20 +2570,20 @@ export const TransactionButton = () => {
 Use the `safeGetClient` helper for error handling:
 
 ```typescript
-import { safeGetClient } from '@/lib/wagmi/helpers'
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { safeGetClient } from "@/lib/wagmi/helpers";
+import { ResultFn } from "@ens-apps/utils/neverthrow";
 
 export const getNameOwner = ResultFn(async function* (name: string) {
   // Safely get client with error handling
-  const client = yield* safeGetClient()
-  
+  const client = yield* safeGetClient();
+
   const owner = yield* ResultAsync.fromPromise(
     getOwner(client, { name }),
-    (error) => new GetOwnerError({ cause: error })
-  )
-  
-  return ok(owner)
-})
+    (error) => new GetOwnerError({ cause: error }),
+  );
+
+  return ok(owner);
+});
 ```
 
 ### Working with ENS
@@ -2537,22 +2591,22 @@ export const getNameOwner = ResultFn(async function* (name: string) {
 Always normalize ENS names and import types from ENSjs for proper error handling:
 
 ```typescript
-import { normalize } from 'viem/ens'
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { fromPromise, ok } from 'neverthrow'
+import { normalize } from "viem/ens";
+import { ResultFn, TaggedError } from "@ens-apps/utils/neverthrow";
+import { fromPromise, ok } from "neverthrow";
 import {
   getRecords as ensjs_getRecords,
   type GetRecordsErrorType,
   type GetRecordsParameters,
-} from '@ensdomains/ensjs/public'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+} from "@ensdomains/ensjs/public";
+import { safeGetClient } from "@/lib/wagmi/helpers";
 
 // Always normalize ENS names before using them
-const normalizedName = normalize('vitalik.eth')
+const normalizedName = normalize("vitalik.eth");
 
 // Define error class with ENSjs error type
-class RecordsError extends TaggedError('RecordsError')<{
-  cause: GetRecordsErrorType
+class RecordsError extends TaggedError("RecordsError")<{
+  cause: GetRecordsErrorType;
 }> {}
 
 /**
@@ -2562,16 +2616,16 @@ class RecordsError extends TaggedError('RecordsError')<{
 export const getRecords = ResultFn(async function* (
   params: GetRecordsParameters,
 ) {
-  const client = yield* safeGetClient()
-  
+  const client = yield* safeGetClient();
+
   // Use fromPromise with proper ENSjs error typing
   const records = yield* fromPromise(
     ensjs_getRecords(client, params),
     (e) => new RecordsError({ cause: e as GetRecordsErrorType }),
-  )
-  
-  return ok(records)
-})
+  );
+
+  return ok(records);
+});
 ```
 
 **Key patterns:**
@@ -2588,10 +2642,10 @@ export const getRecords = ResultFn(async function* (
 import {
   getNameRegistries as ensjsGetNameRegistries,
   type GetNameRegistriesErrorType,
-} from '@ensdomains/ensjs/public/v2'
+} from "@ensdomains/ensjs/public/v2";
 
-export class NameRegistriesError extends TaggedError('NameRegistriesError')<{
-  cause: GetNameRegistriesErrorType | GetEnsOwnerError
+export class NameRegistriesError extends TaggedError("NameRegistriesError")<{
+  cause: GetNameRegistriesErrorType | GetEnsOwnerError;
 }> {}
 
 /**
@@ -2602,69 +2656,70 @@ export const getNameRegistries = ResultFn(async function* ({
   network,
   name,
 }: GetNameRegistriesParameters) {
-  const l1Client = yield* safeGetClient()
-  const l2Client = yield* safeGetNamechainSepoliaClient()
-  
-  if (!network) return ok(null)
-  
-  if (network === 'sepolia') {
+  const l1Client = yield* safeGetClient();
+  const l2Client = yield* safeGetNamechainSepoliaClient();
+
+  if (!network) return ok(null);
+
+  if (network === "sepolia") {
     const registries = yield* fromPromise(
       ensjsGetNameRegistries(l1Client, { name }),
-      (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
-    )
+      (e) =>
+        new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
+    );
     return ok({
       registries,
-      network: 'sepolia',
-      protocolVersion: 'ENSv1',
-    } as const)
+      network: "sepolia",
+      protocolVersion: "ENSv1",
+    } as const);
   }
-  
+
   // ... handle other networks
-  return ok(null)
-})
+  return ok(null);
+});
 ```
 
 ### BigInt Handling
 
 ```typescript
 // Use BigInt for all blockchain numeric values
-const YEAR_IN_SECONDS = 31536000n
-const price = 100000000000000000n // Wei
+const YEAR_IN_SECONDS = 31536000n;
+const price = 100000000000000000n; // Wei
 
 // Format for display
-import { formatEther, formatUnits, parseEther } from 'viem'
+import { formatEther, formatUnits, parseEther } from "viem";
 
-const displayPrice = formatEther(price) // "0.1 ETH"
-const parsedAmount = parseEther('0.1') // 100000000000000000n
+const displayPrice = formatEther(price); // "0.1 ETH"
+const parsedAmount = parseEther("0.1"); // 100000000000000000n
 
 // Always use bigint arithmetic
-const totalCost = price * duration / YEAR_IN_SECONDS
-const withBuffer = (price * 105n) / 100n // Add 5% buffer
+const totalCost = (price * duration) / YEAR_IN_SECONDS;
+const withBuffer = (price * 105n) / 100n; // Add 5% buffer
 ```
 
 ### Address Type Safety
 
 ```typescript
-import { type Address, isAddress } from 'viem'
+import { type Address, isAddress } from "viem";
 
 // Always use Address type
 interface ProfileParams {
-  address: Address
+  address: Address;
 }
 
 // Validate addresses
 function validateAddress(value: string): value is Address {
-  return isAddress(value)
+  return isAddress(value);
 }
 
 // Type guard in use
 function getProfile(address: string) {
   if (!validateAddress(address)) {
-    return err(new InvalidAddressError({ address }))
+    return err(new InvalidAddressError({ address }));
   }
-  
+
   // TypeScript knows address is Address here
-  return fetchProfile(address)
+  return fetchProfile(address);
 }
 ```
 
@@ -2678,7 +2733,7 @@ Build flexible components through composition:
 // Good - Composition
 export const ProfilePage = ({ name }: { name: string }) => {
   const { data: profile } = useQuery(getProfileQueryOptions(name))
-  
+
   return (
     <Card>
       <CardHeader>
@@ -2751,7 +2806,7 @@ export const DataTable = <T,>({ data, renderRow, renderEmpty }: DataTableProps<T
   if (data.length === 0) {
     return renderEmpty?.() ?? <p>No data</p>
   }
-  
+
   return (
     <table>
       <tbody>
@@ -2801,7 +2856,7 @@ export const NameValidator = ({ name }: { name: string }) => {
     // Expensive regex or normalization
     return validateENSName(name) // Only recompute when name changes
   }, [name])
-  
+
   return <div>{isValid ? '✓' : '✗'}</div>
 }
 
@@ -2826,7 +2881,7 @@ export const Parent = () => {
   const handleSave = useCallback((data: FormData) => {
     // Save logic
   }, [])
-  
+
   return <MemoizedChild onSave={handleSave} />
 }
 ```
@@ -2855,6 +2910,7 @@ import { Profiler } from 'react'
 ```
 
 **Key metrics:**
+
 - **Initial render** - Should be < 100ms for most components
 - **Re-render time** - Should be < 16ms (60fps)
 - **Bundle size** - Keep route chunks under 200KB (gzipped)
@@ -2975,7 +3031,7 @@ const buttonVariants = cva(
   }
 )
 
-interface ButtonProps 
+interface ButtonProps
   extends React.ComponentProps<'button'>,
     VariantProps<typeof buttonVariants> {}
 
@@ -3023,6 +3079,7 @@ export const Card = ({ isActive, className }: CardProps) => {
 ```
 
 **When to use `clsx` vs `cn`:**
+
 - Use `clsx` when you just need to merge classes and don't have conflicting Tailwind utilities
 - Use `cn` when composing classes that might conflict (e.g., different padding/margin values, different background colors)
 
@@ -3047,6 +3104,7 @@ import { tw, twm } from '@/utils/tailwind'
 ```
 
 **About `tw` and `twm`:**
+
 - `tw` is a unified utility that handles all use cases: single strings, template literals, and `clsx` function syntax
 - **Performance-optimized**: Only invokes `clsx` when there are multiple inputs; single string inputs are returned directly
 - Supports all `clsx` features: strings, arrays, objects, conditionals, nested structures
@@ -3057,16 +3115,17 @@ import { tw, twm } from '@/utils/tailwind'
 
 ```typescript
 // No intellisense
-const myVar = "text-red-500"
+const myVar = "text-red-500";
 
 // Intellisense enabled from var name
-const className = "text-red-500"
+const className = "text-red-500";
 
 // Intellisense manually enabled (works everywhere)
-const myVar = tw`text-red-500`
+const myVar = tw`text-red-500`;
 ```
 
 **Benefits of consistency:**
+
 - ✅ **One import** - Team knows where to look
 - ✅ **Better IDE support** - Configure once
 - ✅ **Easier onboarding** - One pattern to learn
@@ -3086,18 +3145,20 @@ const myVar = tw`text-red-500`
 
 // ✅ ACCEPTABLE - When design system doesn't have the value
 // Always leave a comment explaining why
-<div 
+<div
   className="w-[120px]" // Specific width needed to align with external component
 />
 ```
 
 **Why avoid arbitrary values:**
+
 - ❌ **Breaks consistency** - Diverges from design system
 - ❌ **Hard to maintain** - Magic numbers scattered everywhere
 - ❌ **No type safety** - Easy to make typos
 - ❌ **Larger bundle** - Each arbitrary value adds CSS
 
 **When arbitrary values are justified:**
+
 - ✅ Interfacing with third-party components with fixed dimensions
 - ✅ Dynamic values from props/API that can't use tokens
 - ✅ One-off exceptions that don't fit the design system (document why!)
@@ -3146,17 +3207,17 @@ export const Route = createFileRoute('/$name')({
   validateSearch: (search) => ({
     tab: (search.tab as 'profile' | 'records') || 'profile',
   }),
-  
+
   // Load data before rendering
   loader: async ({ params: { name } }) => {
     return await getProfile(name)
   },
-  
+
   // Component
   component: function NamePage() {
     const { name } = Route.useParams()
     const { tab } = Route.useSearch()
-    
+
     return <div>...</div>
   },
 })
@@ -3169,14 +3230,14 @@ import { Link, useNavigate } from '@tanstack/react-router'
 
 export const Navigation = () => {
   const navigate = useNavigate()
-  
+
   return (
     <nav>
       {/* Type-safe Link */}
       <Link to="/$name" params={{ name: 'vitalik.eth' }}>
         View Profile
       </Link>
-      
+
       {/* Programmatic navigation */}
       <button
         onClick={() => {
@@ -3199,6 +3260,7 @@ export const Navigation = () => {
 Use WCAG 2 guidelines wherever possible (prefer WCAG 2.2).
 
 Quick references:
+
 - WCAG overview: https://www.w3.org/WAI/standards-guidelines/wcag/
 - How to Meet WCAG 2.2 (Quick Reference): https://www.w3.org/WAI/WCAG22/quickref/
 
@@ -3308,38 +3370,44 @@ export const MenuItem = ({ onClick }: { onClick: () => void }) => {
 
 ```typescript
 // Good
-const isEligible = user.age >= 18 && user.hasVerifiedEmail && !user.isBanned
-if (isEligible) { /* ... */ }
+const isEligible = user.age >= 18 && user.hasVerifiedEmail && !user.isBanned;
+if (isEligible) {
+  /* ... */
+}
 
 // Avoid
-if (user.age >= 18 && user.hasVerifiedEmail && !user.isBanned) { /* ... */ }
+if (user.age >= 18 && user.hasVerifiedEmail && !user.isBanned) {
+  /* ... */
+}
 ```
 
 **Avoid Magic Values** - Replace magic numbers and strings with named constants:
 
 ```typescript
 // Good
-const SECONDS_PER_YEAR = 31536000n
-const MIN_REGISTRATION_DURATION = SECONDS_PER_YEAR
+const SECONDS_PER_YEAR = 31536000n;
+const MIN_REGISTRATION_DURATION = SECONDS_PER_YEAR;
 
 // Avoid
-if (duration < 31536000n) { /* ... */ }
+if (duration < 31536000n) {
+  /* ... */
+}
 ```
 
 **Prefer Array Methods** (🟢 Guideline) - Use `map`, `filter`, `reduce` for transformations:
 
 ```typescript
 // Good - Declarative transformations
-const activeUsers = users.filter(user => user.isActive)
-const userNames = users.map(user => user.name)
-const totalBalance = users.reduce((sum, user) => sum + user.balance, 0n)
+const activeUsers = users.filter((user) => user.isActive);
+const userNames = users.map((user) => user.name);
+const totalBalance = users.reduce((sum, user) => sum + user.balance, 0n);
 
 // Also Good - Loop with early exit
 function findFirstExpired(names: NameRecord[]): NameRecord | null {
   for (const record of names) {
-    if (record.expiresAt < Date.now()) return record
+    if (record.expiresAt < Date.now()) return record;
   }
-  return null
+  return null;
 }
 ```
 
@@ -3347,12 +3415,15 @@ function findFirstExpired(names: NameRecord[]): NameRecord | null {
 
 ```typescript
 // Good
-const addItem = <T,>(items: readonly T[], newItem: T) => [...items, newItem]
-const updateItem = <T extends { id: string }>(items: readonly T[], id: string, updates: Partial<T>) =>
-  items.map(item => item.id === id ? { ...item, ...updates } : item)
+const addItem = <T>(items: readonly T[], newItem: T) => [...items, newItem];
+const updateItem = <T extends { id: string }>(
+  items: readonly T[],
+  id: string,
+  updates: Partial<T>,
+) => items.map((item) => (item.id === id ? { ...item, ...updates } : item));
 
 // Avoid mutation
-items.push(newItem) // ❌
+items.push(newItem); // ❌
 ```
 
 ## Advanced neverthrow Patterns
@@ -3362,34 +3433,47 @@ items.push(newItem) // ❌
 The `ResultFn` wrapper enables generator-based composition with automatic error propagation:
 
 ```typescript
-import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from "@ens-apps/utils/neverthrow";
 
-class ValidationError extends TaggedError('VALIDATION_ERROR')<{ field?: string }> {}
-class NetworkError extends TaggedError('NETWORK_ERROR')<{ cause?: unknown }> {}
+class ValidationError extends TaggedError("VALIDATION_ERROR")<{
+  field?: string;
+}> {}
+class NetworkError extends TaggedError("NETWORK_ERROR")<{ cause?: unknown }> {}
 
-const processUserRegistration = ResultFn(async function* (userData: { email: string; name: string }) {
+const processUserRegistration = ResultFn(async function* (userData: {
+  email: string;
+  name: string;
+}) {
   // Early error return - TaggedErrors can be yielded directly
   if (!userData.email) {
-    yield* new ValidationError({ message: 'Email is required', field: 'email' })
+    yield* new ValidationError({
+      message: "Email is required",
+      field: "email",
+    });
   }
-  
+
   // yield* automatically unwraps Results and propagates errors
   const existingUser = yield* ResultAsync.fromPromise(
     checkUserExists(userData.email),
-    (error) => new NetworkError({ message: 'Failed to check user', cause: error })
-  )
-  
+    (error) =>
+      new NetworkError({ message: "Failed to check user", cause: error }),
+  );
+
   if (existingUser) {
-    yield* new ValidationError({ message: 'User already exists', field: 'email' })
+    yield* new ValidationError({
+      message: "User already exists",
+      field: "email",
+    });
   }
-  
+
   const newUser = yield* ResultAsync.fromPromise(
     createUser(userData),
-    (error) => new NetworkError({ message: 'Failed to create user', cause: error })
-  )
-  
-  return ok(newUser)
-})
+    (error) =>
+      new NetworkError({ message: "Failed to create user", cause: error }),
+  );
+
+  return ok(newUser);
+});
 ```
 
 **Benefits**: Automatic error propagation, no manual chaining, type-safe, early returns.
@@ -3399,59 +3483,63 @@ const processUserRegistration = ResultFn(async function* (userData: { email: str
 ```typescript
 // Inside ResultFn generators
 if (!userData.email) {
-  yield* new ValidationError({ message: 'Email is required' })
+  yield * new ValidationError({ message: "Email is required" });
   // Immediately returns with error - no need for return err(...)
 }
 
 // In regular functions (not generators)
 function validateData(data: unknown): Result<Data, ValidationError> {
   if (!data) {
-    return err(new ValidationError({ message: 'Data is required' }))
+    return err(new ValidationError({ message: "Data is required" }));
     // Use return err() - yield* only works in generators
   }
-  return ok(data as Data)
+  return ok(data as Data);
 }
 ```
 
 ### Pattern Matching with Tagged Errors
 
 ```typescript
-import { match } from 'ts-pattern'
+import { match } from "ts-pattern";
 
-const result = await processUserRegistration(userData)
+const result = await processUserRegistration(userData);
 
 result.match(
-  (user) => console.log('Success:', user),
-  (error) => match(error)
-    .with({ _tag: 'VALIDATION_ERROR' }, (err) => 
-      console.log(`Validation failed on ${err.field}: ${err.message}`)
-    )
-    .with({ _tag: 'NETWORK_ERROR' }, (err) => 
-      console.log(`Network error: ${err.message}`)
-    )
-    .exhaustive()
-)
+  (user) => console.log("Success:", user),
+  (error) =>
+    match(error)
+      .with({ _tag: "VALIDATION_ERROR" }, (err) =>
+        console.log(`Validation failed on ${err.field}: ${err.message}`),
+      )
+      .with({ _tag: "NETWORK_ERROR" }, (err) =>
+        console.log(`Network error: ${err.message}`),
+      )
+      .exhaustive(),
+);
 ```
 
 ### Testing with neverthrow
 
 ```typescript
-import { assert } from 'vitest'
+import { assert } from "vitest";
 
-it('should return validation error for missing email', async () => {
-  const result = await processUserRegistration({ email: '', name: 'John' })
-  
-  assert(result.isErr())
-  expect(result.error._tag).toBe('VALIDATION_ERROR')
-  expect(result.error.field).toBe('email')
-})
+it("should return validation error for missing email", async () => {
+  const result = await processUserRegistration({ email: "", name: "John" });
 
-it('should create user successfully', async () => {
-  const result = await processUserRegistration({ email: 'john@example.com', name: 'John' })
-  
-  assert(result.isOk())
-  expect(result.value.email).toBe('john@example.com')
-})
+  assert(result.isErr());
+  expect(result.error._tag).toBe("VALIDATION_ERROR");
+  expect(result.error.field).toBe("email");
+});
+
+it("should create user successfully", async () => {
+  const result = await processUserRegistration({
+    email: "john@example.com",
+    name: "John",
+  });
+
+  assert(result.isOk());
+  expect(result.value.email).toBe("john@example.com");
+});
 ```
 
 ## Testing Strategy
@@ -3461,13 +3549,14 @@ it('should create user successfully', async () => {
 Write code that is easy to test by design:
 
 1. **Pure functions** - Same inputs always produce same outputs
-2. **Explicit dependencies** - Pass dependencies as parameters  
+2. **Explicit dependencies** - Pass dependencies as parameters
 3. **Separation of concerns** - Business logic separate from UI
 4. **Small, focused functions** - Each function does one thing
 
 ### The Testing Pyramid
 
 **Test Distribution:**
+
 - **70% Unit Tests** - Fast, isolated, test pure functions
 - **20% Integration Tests** - Test module interactions
 - **10% E2E Tests** - Test critical user flows
@@ -3505,13 +3594,13 @@ export const registerUser = ResultFn(async function* (data) {
 export const RegistrationForm = () => {
   const handleSubmit = async () => {
     const result = await registerUser({ email, name })
-    
+
     // Early return pattern (preferred)
     if (result.isErr()) {
       onError(result.error)
       return
     }
-    
+
     onSuccess(result.value)
   }
   return <form onSubmit={handleSubmit}>...</form>
@@ -3521,18 +3610,21 @@ export const RegistrationForm = () => {
 **Test in isolation:**
 
 ```typescript
-describe('validateRegistration', () => {
-  it('should validate correct data', () => {
-    const result = validateRegistration({ email: 'john@example.com', name: 'John' })
-    assert(result.isOk())
-  })
-  
-  it('should reject invalid email', () => {
-    const result = validateRegistration({ email: 'invalid', name: 'John' })
-    assert(result.isErr())
-    expect(result.error.field).toBe('email')
-  })
-})
+describe("validateRegistration", () => {
+  it("should validate correct data", () => {
+    const result = validateRegistration({
+      email: "john@example.com",
+      name: "John",
+    });
+    assert(result.isOk());
+  });
+
+  it("should reject invalid email", () => {
+    const result = validateRegistration({ email: "invalid", name: "John" });
+    assert(result.isErr());
+    expect(result.error.field).toBe("email");
+  });
+});
 ```
 
 **Dependency Injection** - Pass dependencies as parameters for easy mocking:
@@ -3558,19 +3650,19 @@ it('should return cached user', async () => {
 **Unit Tests** - Test pure functions with Result types:
 
 ```typescript
-describe('calculateRenewalPrice', () => {
-  it('should calculate price for 1 year', async () => {
-    const result = await calculateRenewalPrice('vitalik.eth', YEAR_IN_SECONDS)
-    assert(result.isOk())
-    expect(result.value).toBeGreaterThan(0n)
-  })
-  
-  it('should handle invalid names', async () => {
-    const result = await calculateRenewalPrice('', YEAR_IN_SECONDS)
-    assert(result.isErr())
-    expect(result.error).toBeInstanceOf(InvalidNameError)
-  })
-})
+describe("calculateRenewalPrice", () => {
+  it("should calculate price for 1 year", async () => {
+    const result = await calculateRenewalPrice("vitalik.eth", YEAR_IN_SECONDS);
+    assert(result.isOk());
+    expect(result.value).toBeGreaterThan(0n);
+  });
+
+  it("should handle invalid names", async () => {
+    const result = await calculateRenewalPrice("", YEAR_IN_SECONDS);
+    assert(result.isErr());
+    expect(result.error).toBeInstanceOf(InvalidNameError);
+  });
+});
 ```
 
 **Component Tests** - Test from user's perspective:
@@ -3581,7 +3673,7 @@ describe('ProfileCard', () => {
     render(<ProfileCard name="vitalik.eth" />)
     await waitFor(() => expect(screen.getByText('vitalik.eth')).toBeInTheDocument())
   })
-  
+
   it('should handle edit button click', async () => {
     const onEdit = vi.fn()
     render(<ProfileCard name="vitalik.eth" onEdit={onEdit} />)
@@ -3594,6 +3686,7 @@ describe('ProfileCard', () => {
 ### What to Test
 
 **✅ DO Test:**
+
 - Business logic (pure functions, calculations)
 - Error handling (all error paths with neverthrow)
 - Edge cases (empty arrays, null/undefined, boundaries)
@@ -3601,6 +3694,7 @@ describe('ProfileCard', () => {
 - State transitions (XState machines)
 
 **❌ DON'T Test:**
+
 - Third-party libraries
 - Implementation details
 - Styling/visual appearance
@@ -3624,6 +3718,7 @@ Biome is a fast, unified toolchain for formatting and linting. It replaces ESLin
 Project uses Biome for formatting and linting. See `biome.jsonc` in the root.
 
 **Key Settings:**
+
 - **Formatter**: 2 spaces, single quotes, semicolons as needed
 - **Linter**: All recommended rules + custom a11y rules
 - **Auto-organize imports**: Enabled
@@ -3637,15 +3732,15 @@ Project uses Biome for formatting and linting. See `biome.jsonc` in the root.
 
 ```typescript
 // Format example
-const name = 'vitalik.eth'
-const config = { timeout: 5000, retries: 3 }
+const name = "vitalik.eth";
+const config = { timeout: 5000, retries: 3 };
 
 // Imports auto-organized
-import type { Address } from 'viem'
-import { formatEther } from 'viem'
-import { useAccount } from 'wagmi'
+import type { Address } from "viem";
+import { formatEther } from "viem";
+import { useAccount } from "wagmi";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 ```
 
 ### Key Linting Rules
@@ -3680,7 +3775,7 @@ Use sparingly for legitimate cases:
 ```typescript
 // Ignore specific line
 // biome-ignore lint/suspicious/noExplicitAny: Third-party types unavailable
-const data: any = externalLibrary.getData()
+const data: any = externalLibrary.getData();
 ```
 
 **When to ignore**: Third-party type issues, generated files, documented edge cases  
@@ -3781,11 +3876,13 @@ const data: any = externalLibrary.getData()
 Ask yourself these questions when writing code:
 
 #### Separation of Concerns
+
 - Can this logic work outside React? → **Extract to helper function**
 - Does this have side effects? → **Use `useEffect` in custom hook**
 - Is this testable in isolation? → **Extract to pure function**
 
 #### State Management
+
 - Is this async data fetching? → **Use TanStack Query, not useState**
 - Is this UI state or business state? → **React state vs XState**
 - Does this need to be cached? → **Use TanStack Query**
@@ -3793,26 +3890,31 @@ Ask yourself these questions when writing code:
 - Creating a query key? → **Use `createQueryKey` with object params for easy invalidation**
 
 #### Type Safety
+
 - Am I using `any`? → **Use `unknown` or proper types**
 - Can this fail? → **Return `Result` type**
 - Are there multiple variants? → **Use discriminated union**
 
 #### Code Clarity
+
 - Am I hiding complexity? → **Make it explicit**
 - Is the data flow clear? → **Add types and explaining variables**
 - Will new developers understand this? → **Document intent with names**
 
 #### Error Handling
+
 - Can this operation fail? → **Return `Result` type**
 - Do I need multiple error types? → **Use `TaggedError` classes**
 - Am I composing multiple operations? → **Use `ResultFn` generator**
 
 #### Testing
+
 - Is this easy to test? → **Extract dependencies, use pure functions**
 - What's the user impact? → **Focus tests on behavior**
 - Can I mock this? → **Pass dependencies as parameters**
 
 #### Accessibility
+
 - Can keyboard users access this? → **Add keyboard handlers**
 - Is this element semantic? → **Use proper HTML elements**
 - Are labels associated? → **Connect labels to inputs**
@@ -3880,4 +3982,4 @@ Ask yourself these questions when writing code:
 
 ---
 
-*This style guide is a living document. As the ENS Portal evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability.*
+_This style guide is a living document. As the ENS Portal evolves, so should these guidelines. When in doubt, follow existing patterns in the codebase and prioritize clarity and maintainability._

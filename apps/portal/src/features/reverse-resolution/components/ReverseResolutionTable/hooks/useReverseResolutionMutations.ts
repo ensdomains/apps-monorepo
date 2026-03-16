@@ -105,6 +105,12 @@ export function useReverseResolutionMutations({
           'Forward resolution is only for Ethereum (reverseRegistrarChainId 60)',
         )
 
+      if (typeof isDedicatedResolver !== 'boolean') {
+        throw new Error(
+          'Resolver type must be known before setting forward resolution.',
+        )
+      }
+
       return createSetForwardResolutionRequest({
         name: displayName,
         reverseRegistrarChainId,
@@ -125,6 +131,7 @@ export function useReverseResolutionMutations({
   return {
     isL1,
     resolverAddress,
+    isDedicatedResolver,
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,

@@ -25,13 +25,13 @@ export function createSetForwardResolutionRequest({
   reverseRegistrarChainId: _reverseRegistrarChainId,
   resolverAddress,
   targetAddress,
-  isDedicatedResolver = false,
+  isDedicatedResolver,
 }: {
   name: string | undefined
   reverseRegistrarChainId: ReverseRegistrarChainId
   resolverAddress: Address | null | undefined
   targetAddress: Address
-  isDedicatedResolver?: boolean
+  isDedicatedResolver: boolean
 }) {
   if (!name) {
     throw new Error('No name provided')
@@ -40,6 +40,12 @@ export function createSetForwardResolutionRequest({
   if (!resolverAddress || resolverAddress === zeroAddress) {
     throw new Error(
       `No resolver found for name: ${name}. Set a resolver for this name first (e.g. via the Manager app).`,
+    )
+  }
+
+  if (typeof isDedicatedResolver !== 'boolean') {
+    throw new Error(
+      'Resolver type must be known before setting forward resolution. Wait for the resolver type query to complete.',
     )
   }
 

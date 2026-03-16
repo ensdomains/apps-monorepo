@@ -213,6 +213,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,
+    isDedicatedResolver,
+    isL1,
   } = useReverseResolutionMutations({
     reverseRegistrarChainId,
     displayName,
@@ -340,7 +342,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   onClick={handleSetPrimaryName}
                   variant="default"
                   disabled={
-                    !isConnected || isPendingForward || isSwitchingChain
+                    !isConnected ||
+                    isPendingForward ||
+                    isSwitchingChain ||
+                    (isL1 && isDedicatedResolver === undefined)
                   }
                 >
                   {match({
@@ -348,11 +353,14 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     isSwitchingChain,
                     isPendingForward,
                     isWrongChain,
+                    isResolverTypeLoading:
+                      isL1 && isDedicatedResolver === undefined,
                   })
                     .with({ isConnected: false }, () => 'Connect Wallet')
                     .with({ isSwitchingChain: true }, () => 'Switching...')
                     .with({ isPendingForward: true }, () => 'Setting...')
                     .with({ isWrongChain: true }, () => 'Switch Network')
+                    .with({ isResolverTypeLoading: true }, () => 'Loading...')
                     .otherwise(() => 'Set primary name')}
                 </Button>
               )}
