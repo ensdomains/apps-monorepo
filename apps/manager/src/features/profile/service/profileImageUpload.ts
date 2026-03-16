@@ -174,7 +174,6 @@ export const uploadImageMutationOptions = ({
           onImageChange(endpoint)
           setOpen(false)
           setUploadFile(null)
-          setUploadPreviewUrl(null)
           send({ type: 'RESET' })
           return
         }

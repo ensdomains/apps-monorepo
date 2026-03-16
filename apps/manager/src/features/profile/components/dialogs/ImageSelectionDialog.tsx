@@ -560,6 +560,7 @@ export const ImageSelectionDialog = ({
     if (isOpen) {
       send({ type: 'RESET' })
       setValidationError(null)
+      setUploadPreviewUrl(null)
     }
     setOpen(isOpen)
   }
@@ -589,7 +590,7 @@ export const ImageSelectionDialog = ({
         <ImageFallback.Image
           alt={`${name || 'Profile'} ${type}`}
           className="h-full w-full object-cover"
-          src={displayImage}
+          src={uploadPreviewUrl || displayImage}
         />
         <ImageFallback.Fallback>
           {defaultImage ? (
