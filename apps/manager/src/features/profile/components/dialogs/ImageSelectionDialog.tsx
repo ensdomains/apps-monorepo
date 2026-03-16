@@ -445,10 +445,14 @@ export const ImageSelectionDialog = ({
 
       <StepFooter>
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-          Back
+          <Trans>Back</Trans>
         </Button>
         <Button disabled={isUploading} onClick={() => uploadImage()}>
-          {isUploading ? 'Uploading…' : 'Upload & Use Image'}
+          {isUploading ? (
+            <Trans>Uploading…</Trans>
+          ) : (
+            <Trans>Upload & Use Image</Trans>
+          )}
         </Button>
       </StepFooter>
     </>
@@ -460,19 +464,21 @@ export const ImageSelectionDialog = ({
       <StepHeader
         description={
           <>
-            Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP.
+            <Trans>
+              Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP.
+            </Trans>
             <a
               className="ml-1 text-blue-600 hover:underline"
               href="https://docs.ens.domains/ens-app/profile/records/avatar"
               rel="noopener noreferrer"
               target="_blank"
             >
-              Learn more
+              <Trans>Learn more</Trans>
             </a>
           </>
         }
         onBack={() => send({ type: 'BACK' })}
-        title="Enter Image URL"
+        title={t`Enter Image URL`}
       />
 
       <ErrorDisplay error={state.context.error} />
@@ -495,7 +501,7 @@ export const ImageSelectionDialog = ({
           disabled={!state.context.manualUrl.trim()}
           onClick={() => send({ type: 'PREVIEW_MANUAL_URL' })}
         >
-          Preview Image
+          <Trans>Preview Image</Trans>
         </Button>
       </div>
     </>
@@ -504,10 +510,11 @@ export const ImageSelectionDialog = ({
   // Manual preview step
   const renderManualPreviewStep = () => (
     <>
-      <StepHeader onBack={() => send({ type: 'BACK' })} title="Preview Image" />
-
+      <StepHeader
+        onBack={() => send({ type: 'BACK' })}
+        title={t`Preview Image`}
+      />
       <ErrorDisplay error={state.context.error} />
-
       <div className="space-y-4">
         <div className="text-center">
           <img
@@ -525,17 +532,17 @@ export const ImageSelectionDialog = ({
           />
           <p className="mt-2 text-gray-500 text-sm">
             <Eye className="mr-1 inline size-4" />
-            Preview of your image
+            <Trans>Preview of your image</Trans>
           </p>
         </div>
       </div>
 
       <StepFooter>
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-          Back
+          <Trans>Back</Trans>
         </Button>
         <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
-          Use This Image
+          <Trans>Use This Image</Trans>
         </Button>
       </StepFooter>
     </>

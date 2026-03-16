@@ -115,15 +115,19 @@ msgstr "Address"
 msgid "Address profile"
 msgstr "Address profile"
 
+#: src/features/wallet/components/EnableSessionModal.tsx:157
+msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
+msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:128
 msgid "An error occurred"
 msgstr "An error occurred"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:269
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:277
 msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
 msgstr "Are you sure you want to remove your current avatar? This will revert to the default image."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:269
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:278
 msgid "Are you sure you want to remove your current header? This will revert to the default image."
 msgstr "Are you sure you want to remove your current header? This will revert to the default image."
 
@@ -131,7 +135,10 @@ msgstr "Are you sure you want to remove your current header? This will revert to
 msgid "available"
 msgstr "available"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:392
+#: src/features/notifications/settings/email-verify-step.tsx:125
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:407
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:448
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:533
 msgid "Back"
 msgstr "Back"
 
@@ -151,7 +158,7 @@ msgstr "Billing zip code"
 msgid "Bio"
 msgstr "Bio"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:237
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:239
 msgid "Browse Files"
 msgstr "Browse Files"
 
@@ -167,8 +174,14 @@ msgstr "Can I change my primary name later?"
 msgid "Can I send crypto to a .eth name (instead of an address)?"
 msgstr "Can I send crypto to a .eth name (instead of an address)?"
 
+#: src/features/landing/FeaturesCarousel.tsx:91
+msgid "Can you share your order number?"
+msgstr "Can you share your order number?"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:311
+#: src/features/notifications/settings/contact-methods/email.tsx:239
+#: src/features/notifications/settings/email-verify-step.tsx:163
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:323
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
 msgid "Cancel"
 msgstr "Cancel"
@@ -186,11 +199,15 @@ msgstr "Card number"
 msgid "Card security code"
 msgstr "Card security code"
 
+#: src/features/notifications/settings/email-verify-step.tsx:109
+msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
+msgstr "Check your email for the verification code. You can also click the link in the email to verify automatically."
+
 #: src/features/profile/components/sections/ThemeSection.tsx:25
 msgid "Choose a color for your profile"
 msgstr "Choose a color for your profile"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:326
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:340
 msgid "Choose an NFT"
 msgstr "Choose an NFT"
 
@@ -207,6 +224,7 @@ msgid "Clear search"
 msgstr "Clear search"
 
 #: src/features/register/components/VerifyWalletModal.tsx:130
+#: src/features/wallet/components/EnableSessionModal.tsx:95
 msgid "Close dialog"
 msgstr "Close dialog"
 
@@ -214,11 +232,15 @@ msgstr "Close dialog"
 msgid "Coming Soon"
 msgstr "Coming Soon"
 
+#: src/features/landing/FeaturesCarousel.tsx:69
+msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+
 #: src/features/payment/components/add.tsx:187
 msgid "Confirm"
 msgstr "Confirm"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:375
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:390
 msgid "Confirm NFT Selection"
 msgstr "Confirm NFT Selection"
 
@@ -253,23 +275,23 @@ msgstr "Credit Card Payment"
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:408
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:427
 msgid "Crop Image"
 msgstr "Crop Image"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:406
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:423
 msgid "Crop your image to fit the avatar dimensions."
 msgstr "Crop your image to fit the avatar dimensions."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:406
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:424
 msgid "Crop your image to fit the header dimensions."
 msgstr "Crop your image to fit the header dimensions."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:422
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:441
 msgid "Cropping functionality coming soon"
 msgstr "Cropping functionality coming soon"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:277
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:288
 msgid "Current"
 msgstr "Current"
 
@@ -294,7 +316,7 @@ msgid "Date added (Oldest)"
 msgstr "Date added (Oldest)"
 
 #: src/features/payment/components/index.tsx:42
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:298
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:310
 msgid "Default"
 msgstr "Default"
 
@@ -306,21 +328,70 @@ msgstr "Delete"
 msgid "Did You Know?"
 msgstr "Did You Know?"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:234
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:236
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:47
+msgid "Email added"
+msgstr "Email added"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:164
+#: src/features/notifications/settings/contact-methods/email.tsx:167
+msgid "Email channel removed"
+msgstr "Email channel removed"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:284
+msgid "Email Notifications"
+msgstr "Email Notifications"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:181
+msgid "Email options"
+msgstr "Email options"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:144
+msgid "Email verification sent"
+msgstr "Email verification sent"
+
+#: src/features/notifications/settings/email-verify-step.tsx:76
+msgid "Email verified successfully! You can now receive notifications."
+msgstr "Email verified successfully! You can now receive notifications."
+
+#: src/features/wallet/components/EnableSessionModal.tsx:185
+msgid "Enable Sessions"
+msgstr "Enable Sessions"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:91
+msgid "Enable Smart Sessions"
+msgstr "Enable Smart Sessions"
+
+#: src/features/notifications/settings/email-verify-step.tsx:99
+msgid "Enter 6-digit code"
+msgstr "Enter 6-digit code"
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:248
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:475
+msgid "Enter Image URL"
+msgstr "Enter Image URL"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:463
+msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
+msgstr "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:250
 msgid "Enter URL Manually"
 msgstr "Enter URL Manually"
 
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:57
 msgid "Enter wallet address"
 msgstr "Enter wallet address"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:78
+msgid "Enter your email"
+msgstr "Enter your email"
 
 #: src/features/dashboard/components/MyNamesList.tsx:165
 msgid "Error loading names"
@@ -350,6 +421,22 @@ msgstr "Expiry date (Earliest)"
 #: src/features/dashboard/components/MyNamesList.tsx:197
 msgid "Expiry date (Latest)"
 msgstr "Expiry date (Latest)"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:50
+msgid "Failed to add email"
+msgstr "Failed to add email"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:61
+msgid "Failed to enable session"
+msgstr "Failed to enable session"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:170
+msgid "Failed to remove email channel"
+msgstr "Failed to remove email channel"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:149
+msgid "Failed to resend email verification"
+msgstr "Failed to resend email verification"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:157
 msgid "Failed to set ETH address record"
@@ -419,6 +506,10 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 #: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
 msgid "Language"
 msgstr "Language"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:470
+msgid "Learn more"
+msgstr "Learn more"
 
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:160
 msgid "Link"
@@ -513,9 +604,17 @@ msgstr "No names found"
 msgid "No names to display"
 msgstr "No names to display"
 
+#: src/features/landing/FeaturesCarousel.tsx:103
+msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
+msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
+
 #: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
 msgid "Notifications"
 msgstr "Notifications"
+
+#: src/features/landing/FeaturesCarousel.tsx:27
+msgid "One username <0/><1>everywhere</1>"
+msgstr "One username <0/><1>everywhere</1>"
 
 #: src/features/payment/components/add.tsx:138
 msgid "or"
@@ -558,6 +657,10 @@ msgstr "Payment method options"
 msgid "Payment Methods"
 msgstr "Payment Methods"
 
+#: src/features/notifications/settings/contact-methods/email.tsx:267
+msgid "Pending"
+msgstr "Pending"
+
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:150
 msgid "Personal Site"
 msgstr "Personal Site"
@@ -573,6 +676,15 @@ msgstr "Please sign a message to verify your ownership of the wallet. This will 
 #: src/features/register/components/VerifyWalletModal.tsx:112
 msgid "Please sign a message to verify your wallet ownership. This will not incur any cost."
 msgstr "Please sign a message to verify your wallet ownership. This will not incur any cost."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:498
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:507
+msgid "Preview Image"
+msgstr "Preview Image"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:526
+msgid "Preview of your image"
+msgstr "Preview of your image"
 
 #: src/features/dashboard/components/FavoritesList.tsx:282
 msgid "Previous page"
@@ -591,6 +703,10 @@ msgstr "Primary name set successfully"
 msgid "Profile"
 msgstr "Profile"
 
+#: src/features/notifications/settings/contact-methods/email.tsx:287
+msgid "Receive notifications via email for important domain events"
+msgstr "Receive notifications via email for important domain events"
+
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 msgid "Registered"
 msgstr "Registered"
@@ -604,19 +720,47 @@ msgstr "Registered {0}"
 msgid "Registering"
 msgstr "Registering"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:317
+#: src/features/notifications/settings/contact-methods/email.tsx:214
+#: src/features/notifications/settings/contact-methods/email.tsx:250
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:329
 msgid "Remove"
 msgstr "Remove"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:258
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:271
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:261
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:281
 msgid "Remove Avatar"
 msgstr "Remove Avatar"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:258
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:271
+#: src/features/notifications/settings/contact-methods/email.tsx:223
+msgid "Remove Email Contact Method?"
+msgstr "Remove Email Contact Method?"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:263
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:281
 msgid "Remove Header"
 msgstr "Remove Header"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:158
+msgid "Removing email channel"
+msgstr "Removing email channel"
+
+#. placeholder {0}: email.label
+#: src/features/notifications/settings/contact-methods/email.tsx:160
+msgid "Removing email for {0}"
+msgstr "Removing email for {0}"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:203
+msgid "Resend Verification"
+msgstr "Resend Verification"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:138
+msgid "Resending email verification"
+msgstr "Resending email verification"
+
+#. placeholder {0}: email.label
+#: src/features/notifications/settings/contact-methods/email.tsx:140
+msgid "Resending email verification for {0}"
+msgstr "Resending email verification for {0}"
 
 #: src/features/profile/components/ProfileEdit.tsx:173
 msgid "Reset Changes"
@@ -660,11 +804,11 @@ msgstr "Search name, address..."
 msgid "Search name..."
 msgstr "Search name..."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:334
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:349
 msgid "Search your NFTs"
 msgstr "Search your NFTs"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:339
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:354
 msgid "Search your NFTs..."
 msgstr "Search your NFTs..."
 
@@ -681,6 +825,18 @@ msgstr "Select coin"
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:522
 msgid "Select payment method"
 msgstr "Select payment method"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:122
+msgid "Send Verification"
+msgstr "Send Verification"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:120
+msgid "Sending..."
+msgstr "Sending..."
+
+#: src/features/wallet/components/EnableSessionModal.tsx:140
+msgid "Sessions enabled! You can now transact without signing each time."
+msgstr "Sessions enabled! You can now transact without signing each time."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:379
 msgid "Set as Primary"
@@ -726,6 +882,26 @@ msgstr "Sign in to view favorites"
 msgid "Sign Message"
 msgstr "Sign Message"
 
+#: src/features/wallet/components/EnableSessionModal.tsx:106
+msgid "Sign once to enable gasless transactions for your ENS operations."
+msgstr "Sign once to enable gasless transactions for your ENS operations."
+
+#: src/features/wallet/components/EnableSessionModal.tsx:154
+msgid "Sign once to enable seamless transactions."
+msgstr "Sign once to enable seamless transactions."
+
+#: src/features/wallet/components/EnableSessionModal.tsx:195
+msgid "Skip for now"
+msgstr "Skip for now"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:128
+msgid "Smart Account"
+msgstr "Smart Account"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:148
+msgid "Something went wrong. Please try again."
+msgstr "Something went wrong. Please try again."
+
 #: src/features/dashboard/components/FavoritesList.tsx:148
 #: src/features/dashboard/components/MyNamesList.tsx:176
 msgid "Sort by"
@@ -769,6 +945,10 @@ msgstr "Theme"
 msgid "This card will be charged for your subscription."
 msgstr "This card will be charged for your subscription."
 
+#: src/features/wallet/components/EnableSessionModal.tsx:204
+msgid "This signature is free and doesn't cost any gas."
+msgstr "This signature is free and doesn't cost any gas."
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:193
 msgid "To:"
 msgstr "To:"
@@ -777,43 +957,89 @@ msgstr "To:"
 msgid "total"
 msgstr "total"
 
+#: src/features/notifications/settings/email-verify-step.tsx:148
+#: src/features/wallet/components/EnableSessionModal.tsx:183
+msgid "Try Again"
+msgstr "Try Again"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
 msgid "Try searching for a different coin or chain"
 msgstr "Try searching for a different coin or chain"
 
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:146
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:160
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:147
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:163
 msgid "Update Resolver"
 msgstr "Update Resolver"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:222
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:451
+msgid "Upload & Use Image"
+msgstr "Upload & Use Image"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:223
 msgid "Upload or drag & drop"
 msgstr "Upload or drag & drop"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:395
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:451
+msgid "Uploading…"
+msgstr "Uploading…"
+
+#: src/features/notifications/settings/email-verify-step.tsx:151
+msgid "Use Different Email"
+msgstr "Use Different Email"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:536
+msgid "Use This Image"
+msgstr "Use This Image"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:410
 msgid "Use This NFT"
 msgstr "Use This NFT"
+
+#: src/features/notifications/settings/email-verify-step.tsx:93
+msgid "Verification Code"
+msgstr "Verification Code"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:275
+msgid "Verified"
+msgstr "Verified"
 
 #: src/features/register/components/VerifyWalletModal.tsx:191
 msgid "Verified!"
 msgstr "Verified!"
 
+#: src/features/landing/FeaturesCarousel.tsx:67
+msgid "Verify authenticity and stay safe."
+msgstr "Verify authenticity and stay safe."
+
+#: src/features/notifications/settings/email-verify-step.tsx:135
+msgid "Verify Code"
+msgstr "Verify Code"
+
 #: src/features/register/components/VerifyWalletModal.tsx:108
 msgid "Verify Wallet"
 msgstr "Verify Wallet"
+
+#: src/features/notifications/settings/email-verify-step.tsx:133
+msgid "Verifying..."
+msgstr "Verifying..."
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:153
 msgid "View profile"
 msgstr "View profile"
 
 #: src/features/register/components/VerifyWalletModal.tsx:193
+#: src/features/wallet/components/EnableSessionModal.tsx:181
 msgid "Waiting for signature..."
 msgstr "Waiting for signature..."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:198
 msgid "Wallet signer not available"
 msgstr "Wallet signer not available"
+
+#: src/features/notifications/settings/email-verify-step.tsx:68
+msgid "We sent a verification code to your email address."
+msgstr "We sent a verification code to your email address."
 
 #: src/features/profile/components/sections/BioSection.tsx:113
 msgid "Website"
@@ -839,6 +1065,10 @@ msgstr "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the 
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 
+#: src/features/notifications/settings/contact-methods/email.tsx:226
+msgid "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
+msgstr "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:289
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr "You need to connect a wallet to see your stablecoin balances"
@@ -846,6 +1076,10 @@ msgstr "You need to connect a wallet to see your stablecoin balances"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr "Your ENS name"
+
+#: src/features/landing/FeaturesCarousel.tsx:33
+msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
+msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
 #: src/features/payment/components/add.tsx:43
 msgid "Zip code"
