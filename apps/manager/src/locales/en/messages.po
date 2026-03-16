@@ -127,6 +127,10 @@ msgstr "Add Payment Method"
 msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
 msgstr "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx:105
+msgid "Adding telegram..."
+msgstr "Adding telegram..."
+
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr "Address"
@@ -260,6 +264,7 @@ msgstr "Can you share your order number?"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
 #: src/features/notifications/settings/contact-methods/email.tsx:239
+#: src/features/notifications/settings/contact-methods/telegram.tsx:164
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:323
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:231
@@ -621,6 +626,10 @@ msgstr "Failed to add email"
 msgid "Failed to add Telegram channel"
 msgstr "Failed to add Telegram channel"
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx:108
+msgid "Failed to add telegram: "
+msgstr "Failed to add telegram: "
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx:49
 msgid "Failed to authenticate with Telegram"
 msgstr "Failed to authenticate with Telegram"
@@ -708,6 +717,10 @@ msgstr "From:"
 #: src/features/notifications/settings/contact-methods/push.tsx:97
 msgid "Get instant push notifications in your browser"
 msgstr "Get instant push notifications in your browser"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:114
+msgid "Get instant updates through Telegram for your domains."
+msgstr "Get instant updates through Telegram for your domains."
 
 #: src/features/notifications/settings/preferences.tsx:140
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:124
@@ -1011,6 +1024,7 @@ msgid "Payment Methods"
 msgstr "Payment Methods"
 
 #: src/features/notifications/settings/contact-methods/email.tsx:267
+#: src/features/notifications/settings/contact-methods/telegram.tsx:132
 msgid "Pending"
 msgstr "Pending"
 
@@ -1026,6 +1040,10 @@ msgstr "Please connect your wallet first"
 #: src/features/register/components/VerifyWalletModal.tsx:163
 msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
 msgstr "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:102
+msgid "Please sign in to telegram in the popup window."
+msgstr "Please sign in to telegram in the popup window."
 
 #: src/routes/notifications/channels/email/verify.tsx:145
 msgid "Please wait while we verify your email address."
@@ -1129,6 +1147,7 @@ msgstr "Registration Period"
 
 #: src/features/notifications/settings/contact-methods/email.tsx:214
 #: src/features/notifications/settings/contact-methods/email.tsx:250
+#: src/features/notifications/settings/contact-methods/telegram.tsx:176
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:329
 msgid "Remove"
 msgstr "Remove"
@@ -1146,6 +1165,10 @@ msgstr "Remove Email Contact Method?"
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:281
 msgid "Remove Header"
 msgstr "Remove Header"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:151
+msgid "Remove Telegram Contact Method?"
+msgstr "Remove Telegram Contact Method?"
 
 #: src/features/notifications/settings/contact-methods/email.tsx:158
 msgid "Removing email channel"
@@ -1190,7 +1213,7 @@ msgstr "Resolver address"
 msgid "Save"
 msgstr "Save"
 
-#: src/features/notifications/settings/preferences.tsx:175
+#: src/features/notifications/settings/preferences.tsx:178
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:170
 msgid "Save Preferences"
 msgstr "Save Preferences"
@@ -1199,7 +1222,7 @@ msgstr "Save Preferences"
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
 
-#: src/features/notifications/settings/preferences.tsx:175
+#: src/features/notifications/settings/preferences.tsx:176
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:170
 msgid "Saving..."
 msgstr "Saving..."
@@ -1446,6 +1469,10 @@ msgstr "Start typing to check if your perfect name is available"
 msgid "Supports USDC and DAI payments"
 msgstr "Supports USDC and DAI payments"
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx:127
+msgid "Telegram"
+msgstr "Telegram"
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx:36
 msgid "Telegram channel added"
 msgstr "Telegram channel added"
@@ -1453,6 +1480,10 @@ msgstr "Telegram channel added"
 #: src/features/notifications/settings/contact-methods/telegram.tsx:62
 msgid "Telegram channel removed"
 msgstr "Telegram channel removed"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:90
+msgid "Telegram Notifications"
+msgstr "Telegram Notifications"
 
 #: src/features/payment/components/add.tsx:157
 msgid "The backup payment method will be charged if the default payment method fails."
@@ -1572,7 +1603,7 @@ msgstr "Verified"
 msgid "Verified!"
 msgstr "Verified!"
 
-#: src/features/notifications/settings/preferences.tsx:181
+#: src/features/notifications/settings/preferences.tsx:185
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:176
 msgid "Verify at least one contact method to save preferences"
 msgstr "Verify at least one contact method to save preferences"
@@ -1702,6 +1733,10 @@ msgstr "You can verify later by clicking your profile in the navbar"
 #: src/features/notifications/settings/contact-methods/email.tsx:226
 msgid "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:153
+msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
+msgstr "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:289
 msgid "You need to connect a wallet to see your stablecoin balances"
