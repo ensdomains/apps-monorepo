@@ -49,13 +49,17 @@ msgid "{label} avatar placeholder"
 msgstr "{label} avatar placeholder"
 
 #. placeholder {0}: isSelected ? ' (selected)' : ''
-#: src/features/profile/components/sections/ThemeSection.tsx:34
+#: src/features/profile/components/sections/ThemeSection.tsx:36
 msgid "{label} theme{0}"
 msgstr "{label} theme{0}"
 
 #: src/routes/index.tsx:34
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
+
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:174
+msgid "Add"
+msgstr "Add"
 
 #: src/features/payment/components/add.tsx:154
 msgid "Add a Backup Payment Method"
@@ -81,6 +85,11 @@ msgstr "Add Backup Card"
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:78
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
+
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:76
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:77
+msgid "Add Link"
+msgstr "Add Link"
 
 #: src/features/profile/components/sections/LinksSection.tsx:24
 msgid "Add links to your profile"
@@ -110,9 +119,21 @@ msgstr "Address profile"
 msgid "An error occurred"
 msgstr "An error occurred"
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:269
+msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
+msgstr "Are you sure you want to remove your current avatar? This will revert to the default image."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:269
+msgid "Are you sure you want to remove your current header? This will revert to the default image."
+msgstr "Are you sure you want to remove your current header? This will revert to the default image."
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:377
 msgid "available"
 msgstr "available"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:392
+msgid "Back"
+msgstr "Back"
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
@@ -130,6 +151,10 @@ msgstr "Billing zip code"
 msgid "Bio"
 msgstr "Bio"
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:237
+msgid "Browse Files"
+msgstr "Browse Files"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
 msgid "Buy Name"
 msgstr "Buy Name"
@@ -143,6 +168,8 @@ msgid "Can I send crypto to a .eth name (instead of an address)?"
 msgstr "Can I send crypto to a .eth name (instead of an address)?"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:311
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -159,9 +186,13 @@ msgstr "Card number"
 msgid "Card security code"
 msgstr "Card security code"
 
-#: src/features/profile/components/sections/ThemeSection.tsx:23
+#: src/features/profile/components/sections/ThemeSection.tsx:25
 msgid "Choose a color for your profile"
 msgstr "Choose a color for your profile"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:326
+msgid "Choose an NFT"
+msgstr "Choose an NFT"
 
 #: src/features/payment/components/add.tsx:60
 msgid "Choose how you'd like to pay for your subscription."
@@ -186,6 +217,10 @@ msgstr "Coming Soon"
 #: src/features/payment/components/add.tsx:187
 msgid "Confirm"
 msgstr "Confirm"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:375
+msgid "Confirm NFT Selection"
+msgstr "Confirm NFT Selection"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:405
 msgid "Confirm Payment"
@@ -218,6 +253,26 @@ msgstr "Credit Card Payment"
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:408
+msgid "Crop Image"
+msgstr "Crop Image"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:406
+msgid "Crop your image to fit the avatar dimensions."
+msgstr "Crop your image to fit the avatar dimensions."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:406
+msgid "Crop your image to fit the header dimensions."
+msgstr "Crop your image to fit the header dimensions."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:422
+msgid "Cropping functionality coming soon"
+msgstr "Cropping functionality coming soon"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:277
+msgid "Current"
+msgstr "Current"
+
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
@@ -239,7 +294,7 @@ msgid "Date added (Oldest)"
 msgstr "Date added (Oldest)"
 
 #: src/features/payment/components/index.tsx:42
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:298
 msgid "Default"
 msgstr "Default"
 
@@ -251,9 +306,17 @@ msgstr "Delete"
 msgid "Did You Know?"
 msgstr "Did You Know?"
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:234
+msgid "Drag and drop an image here, or"
+msgstr "Drag and drop an image here, or"
+
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:248
+msgid "Enter URL Manually"
+msgstr "Enter URL Manually"
 
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:57
 msgid "Enter wallet address"
@@ -357,6 +420,10 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 msgid "Language"
 msgstr "Language"
 
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:160
+msgid "Link"
+msgstr "Link"
+
 #: src/features/profile/components/sections/LinksSection.tsx:21
 msgid "Links"
 msgstr "Links"
@@ -396,6 +463,7 @@ msgstr "My Names"
 
 #: src/features/dashboard/components/FavoritesList.tsx:197
 #: src/features/dashboard/components/MyNamesList.tsx:214
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Name"
 
@@ -490,6 +558,10 @@ msgstr "Payment method options"
 msgid "Payment Methods"
 msgstr "Payment Methods"
 
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:150
+msgid "Personal Site"
+msgstr "Personal Site"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:286
 msgid "Please connect your wallet first"
 msgstr "Please connect your wallet first"
@@ -532,9 +604,35 @@ msgstr "Registered {0}"
 msgid "Registering"
 msgstr "Registering"
 
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:317
+msgid "Remove"
+msgstr "Remove"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:258
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:271
+msgid "Remove Avatar"
+msgstr "Remove Avatar"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:258
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:271
+msgid "Remove Header"
+msgstr "Remove Header"
+
 #: src/features/profile/components/ProfileEdit.tsx:173
 msgid "Reset Changes"
 msgstr "Reset Changes"
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:121
+msgid "Resolver address"
+msgstr "Resolver address"
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+msgid "Save"
+msgstr "Save"
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+msgid "Saving…"
+msgstr "Saving…"
 
 #: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
 msgid "Search"
@@ -561,6 +659,14 @@ msgstr "Search name, address..."
 #: src/features/dashboard/components/NamesTable.tsx:145
 msgid "Search name..."
 msgstr "Search name..."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:334
+msgid "Search your NFTs"
+msgstr "Search your NFTs"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:339
+msgid "Search your NFTs..."
+msgstr "Search your NFTs..."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
 msgid "Select {label} as primary name"
@@ -654,7 +760,7 @@ msgstr "The backup payment method will be charged if the default payment method 
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 
-#: src/features/profile/components/sections/ThemeSection.tsx:21
+#: src/features/profile/components/sections/ThemeSection.tsx:22
 msgid "Theme"
 msgstr "Theme"
 
@@ -676,8 +782,18 @@ msgid "Try searching for a different coin or chain"
 msgstr "Try searching for a different coin or chain"
 
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:146
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:160
 msgid "Update Resolver"
 msgstr "Update Resolver"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:222
+msgid "Upload or drag & drop"
+msgstr "Upload or drag & drop"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:395
+msgid "Use This NFT"
+msgstr "Use This NFT"
 
 #: src/features/register/components/VerifyWalletModal.tsx:191
 msgid "Verified!"
