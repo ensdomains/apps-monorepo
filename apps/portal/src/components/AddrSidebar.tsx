@@ -58,6 +58,7 @@ const getItemGroups = (addr: string) => [
     defineAddrSidebarItem({
       title: 'Address Resolution',
       icon: CopyIcon,
+      upcoming: true,
       link: {
         to: '/addr/$addr/resolution',
         params: { addr },

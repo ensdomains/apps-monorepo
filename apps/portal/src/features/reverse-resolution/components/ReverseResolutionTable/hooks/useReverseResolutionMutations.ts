@@ -135,9 +135,6 @@ export function useReverseResolutionMutations({
   )
 
   return {
-    isL1,
-    resolverAddress,
-    isDedicatedResolver,
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,

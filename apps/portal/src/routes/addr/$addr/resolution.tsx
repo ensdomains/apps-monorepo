@@ -47,8 +47,6 @@ function RouteComponent() {
     }),
   )
 
-  console.log('data', data)
-
   const table = useReactTable({
     data: data || [],
     columns,
