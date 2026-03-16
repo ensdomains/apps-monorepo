@@ -43,6 +43,12 @@ export function createSetForwardResolutionRequest({
     )
   }
 
+  if (resolverAddress.toLowerCase() === targetAddress.toLowerCase()) {
+    throw new Error(
+      `The resolver for ${name} is set to your own address (${resolverAddress}), which is not a valid resolver contract. Update the resolver for this name to a valid resolver contract (e.g. the Public Resolver) before setting forward resolution.`,
+    )
+  }
+
   if (typeof isDedicatedResolver !== 'boolean') {
     throw new Error(
       'Resolver type must be known before setting forward resolution. Wait for the resolver type query to complete.',

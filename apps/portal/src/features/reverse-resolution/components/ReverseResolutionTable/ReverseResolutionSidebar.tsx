@@ -21,6 +21,7 @@ import {
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -224,6 +225,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const [forwardHash, setForwardHash] = useState<Hash | undefined>(undefined)
   const [isWritingReverse, setIsWritingReverse] = useState(false)
   const [isWritingForward, setIsWritingForward] = useState(false)
+  const [forwardError, setForwardError] = useState<string | null>(null)
 
   const { isLoading: isConfirmingReverse, isSuccess: isReverseSuccess } =
     useWaitForTransactionReceipt({
@@ -310,6 +312,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     }
     if (displayName) {
       try {
+        setForwardError(null)
         const request = getForwardResolutionRequest(address)
         setIsWritingForward(true)
         const hash = await writeContract.mutateAsync(
@@ -317,6 +320,11 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         )
         setForwardHash(hash)
       } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to set forward resolution'
+        setForwardError(message)
         console.error('Failed to set forward resolution', error)
       } finally {
         setIsWritingForward(false)
@@ -378,6 +386,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                 The set address does not resolve back to this name on {label}
               </span>
             </div>
+          )}
+
+          {forwardError && (
+            <Alert variant="destructive">
+              <XCircle />
+              <AlertDescription>{forwardError}</AlertDescription>
+            </Alert>
           )}
 
           <div className="flex flex-col gap-6">
