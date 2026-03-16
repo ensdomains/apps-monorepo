@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import {
   Check as CheckIcon,
   Link as LinkIcon,
@@ -36,6 +37,7 @@ export const ShareProfileDialog = ({
   avatarUrl,
   trigger,
 }: ShareProfileDialogProps) => {
+  const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -66,7 +68,7 @@ export const ShareProfileDialog = ({
         await navigator.share({ title: `${name} – ENS Profile`, url: safeUrl })
       } else {
         await navigator.clipboard.writeText(safeUrl)
-        toast.success('Link copied to clipboard')
+        toast.success(t`Link copied to clipboard`)
       }
     } catch {
       // user canceled or unsupported – no-op
@@ -87,7 +89,7 @@ export const ShareProfileDialog = ({
   const triggerButton = trigger ?? (
     <Button size="sm" variant="outline">
       <ShareIcon className="size-3" />
-      Share
+      <Trans>Share</Trans>
     </Button>
   )
 
@@ -118,7 +120,7 @@ export const ShareProfileDialog = ({
     <div className="mx-auto grid grid-cols-2 gap-2">
       <Button onClick={handleNativeShare} variant="outline">
         <ShareIcon className="mr-2 size-4" />
-        Share
+        <Trans>Share</Trans>
       </Button>
       <Button onClick={handleCopy} variant="outline">
         {copied ? (
@@ -126,7 +128,7 @@ export const ShareProfileDialog = ({
         ) : (
           <LinkIcon className="mr-2 size-4" />
         )}
-        {copied ? 'Copied' : 'Copy Link'}
+        {copied ? <Trans>Copied</Trans> : <Trans>Copy Link</Trans>}
       </Button>
     </div>
   )

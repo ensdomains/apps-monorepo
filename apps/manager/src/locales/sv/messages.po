@@ -299,6 +299,10 @@ msgstr ""
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr ""
 
+#: src/features/register/components/Pricing/PricingPaymentSection.tsx:56
+msgid "Connect or sign in"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx:93
 msgid "Connect Wallet"
 msgstr ""
@@ -313,6 +317,14 @@ msgstr ""
 
 #: src/features/profile/components/sections/OtherSection.tsx:92
 msgid "Content Hash"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+msgid "Copied"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+msgid "Copy Link"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:44
@@ -580,6 +592,14 @@ msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
 msgid "If your primary card is declined, we will use this card to charge you."
 msgstr ""
 
+#: src/features/register/components/Pricing/PricingPaymentSection.tsx:72
+msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:12
+msgid "Invalid character"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx:47
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
@@ -608,6 +628,10 @@ msgstr ""
 #: src/features/dashboard/components/DashboardLoading.tsx:8
 msgid "Loading dashboard..."
 msgstr "Laddar översikten..."
+
+#: src/features/register/components/Pricing/Pricing.tsx:98
+msgid "Loading prices..."
+msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:278
 msgid "Loading your stablecoin balances..."
@@ -706,6 +730,10 @@ msgstr "Inga namn att visa"
 
 #: src/features/landing/FeaturesCarousel.tsx:105
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:13
+msgid "Not a valid name format"
 msgstr ""
 
 #: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
@@ -1013,6 +1041,7 @@ msgid "Setting…"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:92
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:123
 msgid "Share"
 msgstr ""
 
@@ -1154,6 +1183,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:193
 msgid "To:"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:11
+msgid "Too short"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184

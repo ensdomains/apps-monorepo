@@ -294,6 +294,10 @@ msgstr "Confirm purchase"
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr "Connect a wallet to continue to notification settings and activity."
 
+#: src/features/register/components/Pricing/PricingPaymentSection.tsx:56
+msgid "Connect or sign in"
+msgstr "Connect or sign in"
+
 #: src/features/notifications/RequireBackendAuth.tsx:93
 msgid "Connect Wallet"
 msgstr "Connect Wallet"
@@ -309,6 +313,14 @@ msgstr "Connected wallet"
 #: src/features/profile/components/sections/OtherSection.tsx:92
 msgid "Content Hash"
 msgstr "Content Hash"
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+msgid "Copied"
+msgstr "Copied"
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+msgid "Copy Link"
+msgstr "Copy Link"
 
 #: src/features/payment/components/add.tsx:44
 msgid "Country"
@@ -575,6 +587,14 @@ msgstr "How do I show my .eth name instead of my address?"
 msgid "If your primary card is declined, we will use this card to charge you."
 msgstr "If your primary card is declined, we will use this card to charge you."
 
+#: src/features/register/components/Pricing/PricingPaymentSection.tsx:72
+msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
+msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:12
+msgid "Invalid character"
+msgstr "Invalid character"
+
 #: src/features/dashboard/components/FaqSection.tsx:47
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
@@ -603,6 +623,10 @@ msgstr "Links"
 #: src/features/dashboard/components/DashboardLoading.tsx:8
 msgid "Loading dashboard..."
 msgstr "Loading dashboard..."
+
+#: src/features/register/components/Pricing/Pricing.tsx:98
+msgid "Loading prices..."
+msgstr "Loading prices..."
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:278
 msgid "Loading your stablecoin balances..."
@@ -702,6 +726,10 @@ msgstr "No names to display"
 #: src/features/landing/FeaturesCarousel.tsx:105
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:13
+msgid "Not a valid name format"
+msgstr "Not a valid name format"
 
 #: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
 msgid "Notifications"
@@ -1008,6 +1036,7 @@ msgid "Setting…"
 msgstr "Setting…"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:92
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:123
 msgid "Share"
 msgstr "Share"
 
@@ -1150,6 +1179,10 @@ msgstr "This will set <0>{name}</0> as your primary ENS name for this account, s
 #: src/features/profile/components/dialogs/DiffDialog.tsx:193
 msgid "To:"
 msgstr "To:"
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:11
+msgid "Too short"
+msgstr "Too short"
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"

@@ -1,19 +1,25 @@
+import { useLingui } from '@lingui/react/macro'
 import type { ValidationError as ValidationErrorType } from '@/features/register/utils'
 
 interface ValidationErrorProps {
   error: ValidationErrorType
 }
 
-const ERROR_TITLES: Record<NonNullable<ValidationErrorType>['type'], string> = {
-  TOO_SHORT: 'Too short',
-  INVALID_CHARACTER: 'Invalid character',
-  INVALID_FORMAT: 'Not a valid name format',
+const useErrorTitles = () => {
+  const { t } = useLingui()
+  return {
+    TOO_SHORT: t`Too short`,
+    INVALID_CHARACTER: t`Invalid character`,
+    INVALID_FORMAT: t`Not a valid name format`,
+  } satisfies Record<NonNullable<ValidationErrorType>['type'], string>
 }
 
 export const ValidationError = ({ error }: ValidationErrorProps) => {
+  const errorTitles = useErrorTitles()
+
   if (!error) return null
 
-  const title = ERROR_TITLES[error.type]
+  const title = errorTitles[error.type]
   const message = error.message
 
   return (
