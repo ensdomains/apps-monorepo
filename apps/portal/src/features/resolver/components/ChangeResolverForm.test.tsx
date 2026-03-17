@@ -1,8 +1,22 @@
-import { act, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { Address, Hash } from 'viem'
+import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangeResolverForm } from './ChangeResolverForm'
+
+vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
+  TransactionModal: () => null,
+}))
+
+const mockOpenModal = vi.fn()
+vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
+  useTransactionModal: () => ({
+    isOpen: false,
+    openModal: mockOpenModal,
+    closeModal: vi.fn(),
+    clearTransaction: vi.fn(),
+  }),
+}))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -37,33 +51,34 @@ vi.mock('wagmi', () => ({
   }),
 }))
 
-const mockChangeResolverAsync = vi.fn()
-const changeResolverState = {
-  txHash: undefined as Hash | undefined,
-  isWriting: false,
-  isConfirming: false,
-  isConfirmed: false,
-  isReverted: false,
-  error: null as Error | null,
+const mockChangeResolver = vi.fn()
+const changeResolverHookState = {
+  isPending: false,
+  hasWallet: true,
 }
 
 vi.mock('@/features/resolver/hooks/useChangeResolver', () => ({
-  useChangeResolver: (_params: { name: string; registryAddress: string }) => {
-    return {
-      changeResolverAsync: mockChangeResolverAsync,
-      txHash: changeResolverState.txHash,
-      isWriting: changeResolverState.isWriting,
-      isConfirming: changeResolverState.isConfirming,
-      isConfirmed: changeResolverState.isConfirmed,
-      isReverted: changeResolverState.isReverted,
-      error: changeResolverState.error,
-    }
-  },
+  useChangeResolver: (_params: {
+    name: string
+    registryAddress: string
+    id?: string
+  }) => ({
+    changeResolver: mockChangeResolver,
+    changeResolverAsync: vi.fn(),
+    isPending: changeResolverHookState.isPending,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    data: undefined,
+    reset: vi.fn(),
+    hasWallet: changeResolverHookState.hasWallet,
+  }),
 }))
 
 const mockDeployDedicatedResolverAsync = vi.fn()
 vi.mock('@/features/resolver/hooks/useDeployDedicatedResolver', () => ({
   useDeployDedicatedResolver: (_params: { name: string }) => ({
+    deployDedicatedResolver: vi.fn(),
     deployDedicatedResolverAsync: mockDeployDedicatedResolverAsync,
     txHash: undefined,
     deployedResolverAddress: undefined,
@@ -71,6 +86,7 @@ vi.mock('@/features/resolver/hooks/useDeployDedicatedResolver', () => ({
     isConfirming: false,
     isConfirmed: false,
     error: null,
+    reset: vi.fn(),
     hasWallet: true,
   }),
 }))
@@ -91,14 +107,11 @@ describe('ChangeResolverForm', () => {
   const registryAddress: Address = '0x1234567890123456789012345678901234567890'
 
   beforeEach(() => {
-    mockChangeResolverAsync.mockReset()
+    mockChangeResolver.mockReset()
     mockDeployDedicatedResolverAsync.mockReset()
-    changeResolverState.txHash = undefined
-    changeResolverState.isWriting = false
-    changeResolverState.isConfirming = false
-    changeResolverState.isConfirmed = false
-    changeResolverState.isReverted = false
-    changeResolverState.error = null
+    mockOpenModal.mockReset()
+    changeResolverHookState.isPending = false
+    changeResolverHookState.hasWallet = true
   })
 
   it('renders default custom resolver mode', () => {
@@ -114,9 +127,8 @@ describe('ChangeResolverForm', () => {
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
   })
 
-  it('calls changeResolverAsync when valid custom resolver is submitted', async () => {
+  it('opens transaction modal when valid custom resolver is submitted', async () => {
     const user = userEvent.setup()
-    mockChangeResolverAsync.mockResolvedValue(undefined)
 
     render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
@@ -126,18 +138,11 @@ describe('ChangeResolverForm', () => {
     )
     await user.click(screen.getByRole('button', { name: /Save changes/i }))
 
-    expect(mockChangeResolverAsync).toHaveBeenCalledTimes(1)
-    expect(mockChangeResolverAsync).toHaveBeenCalledWith(
-      '0xabcdef123456789012345678901234567890abcd',
-    )
+    expect(mockOpenModal).toHaveBeenCalledTimes(1)
   })
 
-  it('deploys a resolver then sets it when non-custom + deploy is enabled', async () => {
+  it('opens transaction modal when non-custom + deploy is enabled', async () => {
     const user = userEvent.setup()
-    mockDeployDedicatedResolverAsync.mockResolvedValue({
-      resolverAddress: '0x9999999999999999999999999999999999999999',
-    })
-    mockChangeResolverAsync.mockResolvedValue(undefined)
 
     render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
@@ -146,15 +151,11 @@ describe('ChangeResolverForm', () => {
     )
     await user.click(screen.getByRole('button', { name: /Save changes/i }))
 
-    expect(mockDeployDedicatedResolverAsync).toHaveBeenCalledTimes(1)
-    expect(mockChangeResolverAsync).toHaveBeenCalledWith(
-      '0x9999999999999999999999999999999999999999',
-    )
+    expect(mockOpenModal).toHaveBeenCalledTimes(1)
   })
 
-  it('uses selected existing resolver when non-custom + deploy disabled', async () => {
+  it('opens transaction modal when using existing resolver', async () => {
     const user = userEvent.setup()
-    mockChangeResolverAsync.mockResolvedValue(undefined)
 
     render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
@@ -170,36 +171,16 @@ describe('ChangeResolverForm', () => {
     )
     await user.click(screen.getByRole('button', { name: /Save changes/i }))
 
-    expect(mockDeployDedicatedResolverAsync).not.toHaveBeenCalled()
-    expect(mockChangeResolverAsync).toHaveBeenCalledWith(
-      '0x1234512345123451234512345123451234512345',
-    )
+    expect(mockOpenModal).toHaveBeenCalledTimes(1)
   })
 
-  it('resets the success button label after 5 seconds', () => {
-    vi.useFakeTimers()
-    try {
-      changeResolverState.isConfirmed = true
-      changeResolverState.txHash =
-        '0x1111111111111111111111111111111111111111111111111111111111111111'
+  it('shows pending button text when change resolver is pending', () => {
+    changeResolverHookState.isPending = true
 
-      render(
-        <ChangeResolverForm name={name} registryAddress={registryAddress} />,
-      )
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
-      expect(
-        screen.getByRole('button', { name: /Resolver changed!/i }),
-      ).toBeInTheDocument()
-
-      act(() => {
-        vi.advanceTimersByTime(5000)
-      })
-
-      expect(
-        screen.getByRole('button', { name: /Save changes/i }),
-      ).toBeInTheDocument()
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(
+      screen.getByRole('button', { name: /Changing resolver.../i }),
+    ).toBeInTheDocument()
   })
 })
