@@ -52,13 +52,13 @@ export const RegistrationExpiryDatePicker = ({
           id="registration-expiry-date"
           type="button"
           className={cn(
-            'flex h-13 w-full cursor-pointer items-center gap-2 rounded-md border p-3 text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
+            'flex w-full cursor-pointer items-center gap-2 rounded-md text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
           )}
         >
           <span className="flex-1 truncate text-2xl font-medium">
             {displayValue}
           </span>
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-secondary">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary">
             <CalendarIcon className="size-3" />
           </span>
         </button>
