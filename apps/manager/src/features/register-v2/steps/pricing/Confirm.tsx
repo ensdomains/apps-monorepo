@@ -77,8 +77,8 @@ export const ConfirmPayment = () => {
           <span
             className={cn(
               'w-full min-w-0 text-center font-medium font-semi-mono',
-              'text-[40px] leading-[96%] tracking-[-0.8px]',
-              'text-[var(--Primary-Grey,#4A5C63)]',
+              'text-[40px] leading-ens-none tracking-[-0.8px]',
+              'text-ens-gray',
             )}
             title={domainName}
           >
