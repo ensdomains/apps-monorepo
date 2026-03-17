@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +16,9 @@ export const ViewLinksSection = ({ records }: ViewLinksSectionProps) => {
   return (
     <Card className="border-[0.25px] border-border bg-white shadow-none">
       <CardHeader>
-        <CardTitle className="text-base tracking-tight">Links</CardTitle>
+        <CardTitle className="text-base tracking-tight">
+          <Trans>Links</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
