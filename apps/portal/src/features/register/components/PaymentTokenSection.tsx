@@ -177,10 +177,12 @@ export const PaymentTokenSection = ({
                             formatUnits(token.balance, token.decimals),
                           ).toLocaleString()}
                         </p>
-                        <p className="text-muted-foreground text-xs">
-                          available
-                        </p>
-                        {!hasSufficientBalance && (
+
+                        {hasSufficientBalance ? (
+                          <p className="text-muted-foreground text-xs">
+                            available
+                          </p>
+                        ) : (
                           <p className="text-destructive text-xs">
                             Insufficient balance
                           </p>
