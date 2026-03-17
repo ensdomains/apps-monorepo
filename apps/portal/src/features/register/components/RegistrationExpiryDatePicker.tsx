@@ -1,5 +1,6 @@
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Calendar } from '@/components/ui/calendar'
 import {
   Popover,
@@ -16,6 +17,29 @@ type RegistrationExpiryDatePickerProps = {
   readonly maxDate: Date
 }
 
+const DISCOUNT_CONFIG = [
+  {
+    spanValue: 1,
+    spanLabel: '1 year',
+    discount: undefined,
+  },
+  {
+    spanValue: 3,
+    spanLabel: '3 years',
+    discount: '25% off',
+  },
+  {
+    spanValue: 5,
+    spanLabel: '5 years',
+    discount: '40% off',
+  },
+  {
+    spanValue: 10,
+    spanLabel: '10 years',
+    discount: '50% off',
+  },
+]
+
 export const RegistrationExpiryDatePicker = ({
   date,
   onDateChange,
@@ -23,6 +47,10 @@ export const RegistrationExpiryDatePicker = ({
   maxDate,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [selectedDiscountYears, setSelectedDiscountYears] = useState<
+    number | undefined
+  >(undefined)
+
   const displayValue = formatDateTime(date) ?? ''
 
   const handleSelect = (d: Date | undefined) => {
@@ -46,44 +74,76 @@ export const RegistrationExpiryDatePicker = ({
   }
 
   return (
-    <Popover onOpenChange={setIsOpen} open={isOpen}>
-      <PopoverTrigger asChild>
-        <button
-          id="registration-expiry-date"
-          type="button"
-          className={cn(
-            'flex w-full cursor-pointer items-center gap-2 rounded-md text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
-          )}
+    <div className="space-y-5">
+      <Popover onOpenChange={setIsOpen} open={isOpen}>
+        <PopoverTrigger asChild>
+          <button
+            id="registration-expiry-date"
+            type="button"
+            className={cn(
+              'flex w-full cursor-pointer items-center gap-2 rounded-md text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
+            )}
+          >
+            <span className="flex-1 truncate text-2xl font-medium">
+              {displayValue}
+            </span>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary">
+              <CalendarIcon className="size-3" />
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-0 border border-border rounded-md"
+          align="start"
         >
-          <span className="flex-1 truncate text-2xl font-medium">
-            {displayValue}
-          </span>
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary">
-            <CalendarIcon className="size-3" />
-          </span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-auto p-0 border border-border rounded-md"
-        align="start"
-      >
-        <Calendar
-          captionLayout="dropdown"
-          defaultMonth={date}
-          disabled={disabled}
-          endMonth={maxDate}
-          formatters={{
-            formatMonthDropdown: (d) =>
-              d.toLocaleString('default', { month: 'long' }),
-            formatYearDropdown: (d) => d.getFullYear().toString(),
-          }}
-          mode="single"
-          onSelect={handleSelect}
-          required
-          selected={date}
-          startMonth={minDate}
-        />
-      </PopoverContent>
-    </Popover>
+          <Calendar
+            captionLayout="dropdown"
+            defaultMonth={date}
+            disabled={disabled}
+            endMonth={maxDate}
+            formatters={{
+              formatMonthDropdown: (d) =>
+                d.toLocaleString('default', { month: 'long' }),
+              formatYearDropdown: (d) => d.getFullYear().toString(),
+            }}
+            mode="single"
+            onSelect={handleSelect}
+            required
+            selected={date}
+            startMonth={minDate}
+          />
+        </PopoverContent>
+      </Popover>
+      <div className="flex gap-2 items-center">
+        {DISCOUNT_CONFIG.map(({ spanValue, spanLabel, discount }) => {
+          const isSelected = selectedDiscountYears === spanValue
+
+          return (
+            <Badge
+              key={spanValue}
+              variant={isSelected ? 'secondary' : 'outline'}
+              onClick={() => setSelectedDiscountYears(spanValue)}
+              className={cn(
+                'cursor-pointer rounded-xs justtify-center text-center px-2.5',
+                'border',
+                isSelected && 'border-transparent',
+              )}
+            >
+              {spanLabel}{' '}
+              {discount ? (
+                <span
+                  className={cn(
+                    'font-normal',
+                    isSelected ? 'text-primary' : 'text-success',
+                  )}
+                >
+                  {discount}
+                </span>
+              ) : null}
+            </Badge>
+          )
+        })}
+      </div>
+    </div>
   )
 }
