@@ -6,7 +6,6 @@ import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
-import { profileExpiryQuery } from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
 import {
   type ProfileRecordsResult,
@@ -67,25 +66,7 @@ const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
   }
 }
 
-const useExpiryRedirect = (name: string) => {
-  const navigate = useNavigate()
-  const { data: expiryData } = useSuspenseQuery({
-    ...profileExpiryQuery(name),
-  })
-
-  const shouldRedirect =
-    !expiryData?.expiry || Number(expiryData.expiry) * 1000 < Date.now()
-
-  if (shouldRedirect) {
-    navigate({ to: '/register', search: { name }, replace: true })
-  }
-
-  return shouldRedirect
-}
-
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const isExpired = useExpiryRedirect(name)
-
   const { data: profileRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -95,7 +76,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
 
-  if (isExpired || shouldHide) {
+  if (shouldHide) {
     return null
   }
 

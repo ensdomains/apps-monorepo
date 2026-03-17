@@ -1,5 +1,5 @@
 import type { ErrorComponentProps } from '@tanstack/react-router'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { Suspense } from 'react'
 import { type Address, isAddress } from 'viem'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
@@ -38,12 +38,23 @@ export const Route = createFileRoute('/p/$name/')({
       }
     }
 
-    const [profileRecords, ownerData] = await Promise.all([
+    const [profileRecords, ownerData, expiryData] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(resolvedName)),
       queryClient.ensureQueryData(profileOwnerQuery(resolvedName)),
-      queryClient.prefetchQuery(profileExpiryQuery(resolvedName)),
+      queryClient.ensureQueryData(profileExpiryQuery(resolvedName)),
       queryClient.prefetchQuery(profileRegistrationQuery(resolvedName)),
     ])
+
+    const isExpired =
+      !expiryData?.expiry || Number(expiryData.expiry) * 1000 < Date.now()
+
+    if (isExpired) {
+      throw redirect({
+        to: '/register',
+        search: { name: resolvedName },
+        replace: true,
+      })
+    }
 
     if (ownerData?.owner) {
       await queryClient.prefetchQuery(
