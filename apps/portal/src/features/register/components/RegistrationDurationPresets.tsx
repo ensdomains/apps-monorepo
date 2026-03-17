@@ -1,14 +1,17 @@
 import { Badge } from '@/components/ui/badge'
+import { getDiscountForYears } from '@/features/register/utils/registrationDiscount'
 import { cn } from '@/lib/utils'
 
-const DISCOUNT_CONFIG = [
-  { spanValue: 1, spanLabel: '1 year', discount: undefined },
-  { spanValue: 3, spanLabel: '3 years', discount: '25% off' },
-  { spanValue: 5, spanLabel: '5 years', discount: '40% off' },
-  { spanValue: 10, spanLabel: '10 years', discount: '50% off' },
-] as const
+const PRESET_YEARS = [1, 3, 5, 10] as const
 
-const PRESET_YEARS: readonly number[] = [1, 3, 5, 10]
+const DISCOUNT_CONFIG = PRESET_YEARS.map((years) => {
+  const { percent } = getDiscountForYears(years)
+  return {
+    spanValue: years,
+    spanLabel: `${years} year${years > 1 ? 's' : ''}`,
+    discount: percent > 0 ? `${Math.round(percent)}% off` : undefined,
+  }
+})
 
 type RegistrationDurationPresetsProps = {
   readonly value: number
@@ -19,7 +22,9 @@ export const RegistrationDurationPresets = ({
   value,
   onSelect,
 }: RegistrationDurationPresetsProps) => {
-  const selectedYears = PRESET_YEARS.includes(value) ? value : undefined
+  const selectedYears = (PRESET_YEARS as readonly number[]).includes(value)
+    ? value
+    : undefined
 
   return (
     <div className="flex gap-2 items-center">
