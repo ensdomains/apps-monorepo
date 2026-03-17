@@ -12,7 +12,6 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { useRegistrationV2Context } from '../../machines/RegistrationV2UiContext'
 import { getPricingQueryOptions } from '../../queries/pricing'
-import { startRegistrationV2 } from '../../transactions/startRegistrationV2'
 
 export const ConfirmPayment = () => {
   const { label, uiActor } = useRegistrationV2Context()
@@ -25,6 +24,14 @@ export const ConfirmPayment = () => {
   const pricingQuery = useQuery({
     ...getPricingQueryOptions(label, duration, selectedToken),
     select: (data) => ({
+      basePriceNumber: decimalBigintToNumber(
+        data.basePrice,
+        selectedToken ? TOKENS[selectedToken].decimals : 0,
+      ),
+      premiumPriceNumber: decimalBigintToNumber(
+        data.premium,
+        selectedToken ? TOKENS[selectedToken].decimals : 0,
+      ),
       totalPriceNumber: decimalBigintToNumber(
         data.totalPrice,
         selectedToken ? TOKENS[selectedToken].decimals : 0,
@@ -97,20 +104,32 @@ export const ConfirmPayment = () => {
 
       <Button
         className="h-20 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
+        disabled={!pricingQuery.data || !selectedToken}
         onClick={() => {
-          const tokenPrice = pricingQuery.data?.rawPrice
-          if (!tokenPrice || !selectedToken) return
-          startRegistrationV2(
-            {
-              name: label,
-              duration,
-              selectedToken,
-              tokenPrice,
-            },
+          if (!pricingQuery.data || !selectedToken) return
+          const tokenPrice = pricingQuery.data.rawPrice
+
+          uiActor.send({
+            type: 'registration.start',
+            label,
+            duration: BigInt(duration),
+            token: selectedToken,
+            totalPrice: tokenPrice,
             account,
-            uiActor,
-            { fast: true },
-          )
+            basePriceNumber: pricingQuery.data.basePriceNumber,
+            premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
+          })
+          // startRegistrationV2(
+          //   {
+          //     name: label,
+          //     duration,
+          //     selectedToken,
+          //     tokenPrice,
+          //   },
+          //   account,
+          //   uiActor,
+          //   { fast: true },
+          // )
         }}
       >
         Buy Name

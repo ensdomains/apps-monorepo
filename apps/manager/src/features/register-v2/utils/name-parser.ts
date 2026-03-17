@@ -57,3 +57,14 @@ export const parseName = (name: string) => {
     tld,
   })
 }
+
+/**
+ * Correctly calculates the length of a ENS label by iterating over the string iterator and counting the number of code points.
+ */
+export const getLabelLength = (label: string) => {
+  let length = 0
+  for (const _ of label) {
+    length++
+  }
+  return length
+}

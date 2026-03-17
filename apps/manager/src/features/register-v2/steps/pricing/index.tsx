@@ -55,8 +55,8 @@ const PricingDomainHeader = () => {
       )}
       <h1
         className={twm(
-          'font-semi-mono text-ens-blue-midnight leading-tight tracking-tighter',
-          'min-h-0 w-full break-words',
+          'font-semi-mono text-ens-gray leading-ens-none tracking-tighter',
+          'wrap-break-word min-h-0 w-full',
           sizeClasses,
         )}
         title={name}
@@ -69,7 +69,7 @@ const PricingDomainHeader = () => {
 
 export function PricingStep() {
   return (
-    <div className="mx-auto h-screen w-full max-w-6xl">
+    <>
       <PricingDomainHeader />
 
       <div className="grid grid-cols-1 gap-2 lg:grid-cols-[2fr_420px] lg:items-stretch">
@@ -83,7 +83,7 @@ export function PricingStep() {
         </div>
       </div>
       <PopUp />
-    </div>
+    </>
   )
 }
 

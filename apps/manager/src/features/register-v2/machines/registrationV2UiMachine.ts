@@ -4,15 +4,20 @@ import {
 } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { secondsInYear } from 'date-fns/constants'
+import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import {
   type ActorRefFrom,
   assign,
+  enqueueActions,
   raise,
   type SnapshotFrom,
   sendTo,
   setup,
 } from 'xstate'
+import type { SmartAccountState } from '@/lib/smart-account/types'
+import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
@@ -24,6 +29,23 @@ type Context = {
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
   lastErrorMessage?: string
+
+  /**
+   * Data set after registration has been started as a snapshot
+   */
+  confirmedData?: {
+    label: string
+    duration: bigint
+    ownerAddress: Address
+    token: SUPPORTED_TOKEN
+    /** Price in token units */
+    totalPrice: bigint
+
+    /** Formatted base price */
+    basePriceNumber: number
+    /** Formatted premium price */
+    premiumPriceNumber: number
+  }
 }
 
 type Events =
@@ -36,15 +58,34 @@ type Events =
       type: 'registration.submit'
       startEvent: Extract<RegistrationEvent, { type: 'START_REGISTRATION' }>
     }
-  | { type: 'TX_SUCCEEDED' }
-  | { type: 'TX_FAILED'; message?: string }
-  | { type: 'RETRY' }
-  | { type: 'CANCEL' }
+  | {
+      type: 'registration.start'
+      label: string
+      duration: bigint
+      token: SUPPORTED_TOKEN
+      /** Price in token units */
+      totalPrice: bigint
+      account: SmartAccountState
+
+      /** Formatted base price */
+      basePriceNumber: number
+      /** Formatted premium price */
+      premiumPriceNumber: number
+    }
+  | { type: 'notifications.step.next' }
+  | { type: 'transaction.success' }
+  | { type: 'transaction.failed'; message?: string }
+  | { type: 'retry' }
+  | { type: 'cancel' }
+  | { type: '$error'; error: Error }
 
 const machineSetup = setup({
   types: {
     context: {} as Context,
     events: {} as Events,
+    children: {} as {
+      [REGISTRATION_V2_ACTOR_ID]: 'registrationFlow'
+    },
   },
   actors: {
     registrationFlow: registrationMachine,
@@ -65,7 +106,10 @@ const machineSetup = setup({
     }),
     setError: assign({
       lastErrorMessage: ({ event }) =>
-        event.type === 'TX_FAILED' ? event.message : undefined,
+        match(event)
+          .with({ type: 'transaction.failed' }, ({ message }) => message)
+          .with({ type: '$error' }, ({ error }) => error.message)
+          .otherwise(() => undefined),
     }),
     forwardStartRegistration: sendTo(REGISTRATION_V2_ACTOR_ID, ({ event }) => {
       if (event.type !== 'registration.submit') {
@@ -76,8 +120,63 @@ const machineSetup = setup({
     }),
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
+    clearConfirmedData: assign({
+      confirmedData: () => undefined,
+    }),
   },
 })
+
+const startRegistrationAction = machineSetup.createAction(
+  enqueueActions(({ enqueue, event }) => {
+    if (event.type !== 'registration.start') {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error('registration.start event required'),
+      })
+    }
+
+    if (!event.account.signer || !event.account.accountAddress) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error('Account not ready'),
+      })
+    }
+
+    const ownerAddress =
+      event.account.ownerAddress ?? event.account.accountAddress
+
+    enqueue.assign({
+      confirmedData: {
+        label: event.label,
+        duration: event.duration,
+        ownerAddress,
+        token: event.token,
+        totalPrice: event.totalPrice,
+        basePriceNumber: event.basePriceNumber,
+        premiumPriceNumber: event.premiumPriceNumber,
+      },
+    })
+
+    enqueue(
+      machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
+        type: 'START_REGISTRATION',
+        name: event.label,
+        duration: event.duration,
+        token: event.token,
+        price: event.totalPrice,
+        signer: event.account.signer,
+        accountAddress: event.account.accountAddress,
+        ownerAddress,
+        publicClient: defaultPublicClient,
+        useFastRegistrar: true,
+        sponsored:
+          import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
+            ? true
+            : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true',
+      } satisfies RegistrationEvent),
+    )
+  }),
+)
 
 export const registrationV2UiMachine = machineSetup.createMachine({
   id: 'registrationV2Ui',
@@ -90,7 +189,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     onDone: {
       actions: [
         raise({
-          type: 'TX_SUCCEEDED',
+          type: 'transaction.success',
         }),
       ],
     },
@@ -98,7 +197,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       guard: ({ event: { snapshot } }) => snapshot.matches('error'),
       actions: [
         raise(({ event: { snapshot } }) => ({
-          type: 'TX_FAILED',
+          type: 'transaction.failed',
           message: snapshot.context.error?.message,
         })),
       ],
@@ -153,37 +252,75 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               target: '#registrationV2Ui.registering',
               actions: ['clearError', 'forwardStartRegistration'],
             },
+            'registration.start': {
+              target: '#registrationV2Ui.registering',
+              actions: ['clearError', startRegistrationAction],
+            },
           },
         },
       },
     },
     registering: {
-      on: {
-        TX_SUCCEEDED: {
-          target: 'success',
+      type: 'parallel',
+      states: {
+        transaction: {
+          initial: 'pending',
+          states: {
+            pending: {
+              on: {
+                'transaction.success': {
+                  target: 'success',
+                },
+                'transaction.failed': {
+                  target: '#registrationV2Ui.failure',
+                  actions: ['setError'],
+                },
+              },
+              // TODO: Check if TX already done and if so, skip to success
+            },
+            success: {
+              type: 'final',
+            },
+          },
         },
-        TX_FAILED: {
-          target: 'failure',
-          actions: 'setError',
+        notifications: {
+          initial: 'settings',
+          states: {
+            settings: {
+              on: {
+                'notifications.step.next': {
+                  target: 'completed',
+                },
+              },
+            },
+            completed: {
+              type: 'final',
+            },
+          },
         },
-        CANCEL: {
-          target: 'pricing',
-          actions: 'forwardCancel',
-        },
+      },
+      onDone: {
+        target: 'success',
       },
     },
     success: {},
     failure: {
       on: {
-        RETRY: {
+        retry: {
           target: 'registering',
-          actions: ['clearError', 'forwardRetry'],
+          actions: ['clearConfirmedData', 'clearError', 'forwardRetry'],
         },
-        CANCEL: {
+        cancel: {
           target: 'pricing',
-          actions: ['clearError', 'forwardCancel'],
+          actions: ['clearConfirmedData', 'clearError', 'forwardCancel'],
         },
       },
+    },
+  },
+  on: {
+    $error: {
+      target: '.failure',
+      actions: ['setError'],
     },
   },
 })

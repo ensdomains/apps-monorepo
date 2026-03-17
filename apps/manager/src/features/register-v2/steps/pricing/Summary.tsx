@@ -24,8 +24,12 @@ export const PricingSummary = () => {
     (a, b) => a[0] === b[0] && a[1].getTime() === b[1].getTime(),
   )
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
+  const [now] = useState(() => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    return now
+  })
 
-  const now = new Date()
   const minSelectableDate = addSeconds(now, MIN_REGISTER_DURATION_SECONDS)
 
   return (
@@ -58,17 +62,30 @@ export const PricingSummary = () => {
             endMonth={addMonths(new Date(), 1200)}
             onSelect={(date) => {
               if (date) {
-                const now = new Date()
-                now.setHours(0, 0, 0, 0)
                 date.setHours(0, 0, 0, 0)
-                const duration = Math.round(
-                  (date.getTime() - now.getTime()) / 1000,
+                console.log({ now, date })
+                const duration = Math.max(
+                  MIN_REGISTER_DURATION_SECONDS,
+                  Math.round((date.getTime() - now.getTime()) / 1000),
                 )
                 uiActor.send({
                   type: 'pricing.duration.set',
                   duration,
                 })
               }
+            }}
+            onToday={() => {
+              const minDate = new Date(minSelectableDate)
+              minDate.setHours(0, 0, 0, 0)
+              console.log({ now, minDate })
+              const duration = Math.max(
+                MIN_REGISTER_DURATION_SECONDS,
+                Math.round((minDate.getTime() - now.getTime()) / 1000),
+              )
+              uiActor.send({
+                type: 'pricing.duration.set',
+                duration,
+              })
             }}
             selected={expirationDate}
             showTodayButton
