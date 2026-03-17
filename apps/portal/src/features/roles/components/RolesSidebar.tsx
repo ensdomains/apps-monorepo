@@ -1,7 +1,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { Save, Trash2 } from 'lucide-react'
+import { Save, Trash2, TriangleAlert } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -282,10 +282,11 @@ export const RolesSidebar = <
                             roles? This action cannot be undone.
                           </span>
                           {isRemovingOwner && (
-                            <span className="text-amber-600 font-medium">
-                              Warning: You are about to remove the owner of this
-                              name. The owner will lose all administrative
-                              privileges.
+                            <span className="text-lapis-500 font-medium flex items-center gap-2">
+                              <TriangleAlert className="size-4" />
+                              You are trying to delete the owner of this name.
+                              Deleting it would prohibit you from adding more
+                              users. Are you sure?
                             </span>
                           )}
                           {isRemovingSelf && (
