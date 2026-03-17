@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { CalendarIcon, ClockIcon } from 'lucide-react'
+import { CalendarIcon, ClockIcon, PlusCircleIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Label } from '@/components/ui/label'
@@ -98,7 +98,17 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      {data.registeredAt && (
+      {data.createdAt !== null && (
+        <div className="flex flex-col gap-1">
+          <Label>Created</Label>
+          <span className="flex flex-row gap-1 items-center h-[38px]">
+            <PlusCircleIcon className="size-3.5" />
+            {new Date(Number(data.createdAt) * 1000).toUTCString()}
+          </span>
+        </div>
+      )}
+
+      {data.registeredAt !== null && (
         <div className="flex flex-col gap-1">
           <Label>Registered</Label>
           <span className="flex flex-row gap-1 items-center h-[38px]">
@@ -108,7 +118,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
         </div>
       )}
 
-      {data.expiry && (
+      {data.expiry !== null && (
         <div className="flex flex-col gap-1">
           <Label>Expires</Label>
           <span className="flex flex-row gap-1 items-center h-[38px]">
@@ -131,7 +141,7 @@ export const ExpiryWithRegistrationData = ({
   network,
 }: ExpiryWithRegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-col p-6 gap-4 rounded-lg border border-border lg:col-span-1">
+    <div className="w-full flex flex-col justify-between p-6 gap-4 rounded-lg border border-border lg:col-span-1">
       {network === 'sepolia' ? (
         <V1ExpiryWithRegistrationData name={name} />
       ) : (
