@@ -1,3 +1,4 @@
+import { addYears } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +10,7 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
+import { getStartOfToday } from '../utils/registrationDuration'
 
 type RegistrationExpiryDatePickerProps = {
   readonly date: Date
@@ -55,9 +57,19 @@ export const RegistrationExpiryDatePicker = ({
 
   const handleSelect = (d: Date | undefined) => {
     if (d) {
+      setSelectedDiscountYears(undefined)
       onDateChange(d)
       setIsOpen(false)
     }
+  }
+
+  const handleDiscountBadgeClick = (spanValue: number) => {
+    setSelectedDiscountYears(spanValue)
+    const startOfToday = getStartOfToday()
+    const expiryDate = addYears(startOfToday, spanValue)
+    const cappedDate =
+      expiryDate.getTime() > maxDate.getTime() ? maxDate : expiryDate
+    onDateChange(cappedDate)
   }
 
   const disabled = (d: Date) => {
@@ -122,9 +134,9 @@ export const RegistrationExpiryDatePicker = ({
             <Badge
               key={spanValue}
               variant={isSelected ? 'secondary' : 'outline'}
-              onClick={() => setSelectedDiscountYears(spanValue)}
+              onClick={() => handleDiscountBadgeClick(spanValue)}
               className={cn(
-                'cursor-pointer rounded-xs justtify-center text-center px-2.5',
+                'cursor-pointer rounded-xs justify-center text-center px-2.5',
                 'border',
                 isSelected && 'border-transparent',
               )}
