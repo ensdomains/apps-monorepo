@@ -17,10 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import {
-  EST_GAS_USD,
-  formatTotalWithGas,
-} from '@/features/register/utils/registrationPrice'
+import { formatTotalWithGas } from '@/features/register/utils/registrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
 import {
   DAI_DECIMALS,
@@ -215,7 +212,6 @@ export const PaymentTokenModal = ({
                         {formatTotalWithGas(
                           token.price.base,
                           token.price.premium,
-                          EST_GAS_USD,
                           token.price.decimals,
                         )}{' '}
                         USD
@@ -268,7 +264,6 @@ export const PaymentTokenModal = ({
                   {formatTotalWithGas(
                     selectedTokenData.price.base,
                     selectedTokenData.price.premium,
-                    EST_GAS_USD,
                     selectedTokenData.price.decimals,
                   )}
                 </span>
@@ -277,17 +272,12 @@ export const PaymentTokenModal = ({
             </div>
 
             <dl className="w-full space-y-2 border-t border-border pt-4">
-              <div className="flex items-center justify-between text-sm">
-                <dt className="text-muted-foreground">Est. gas cost</dt>
-                <dd className="font-mono">~{formatUsd(EST_GAS_USD)}</dd>
-              </div>
               <div className="flex items-center justify-between border-t border-border pt-2 font-medium">
                 <dt>Est. total</dt>
                 <dd className="font-mono">
                   {formatTotalWithGas(
                     selectedTokenData.price.base,
                     selectedTokenData.price.premium,
-                    EST_GAS_USD,
                     selectedTokenData.price.decimals,
                   )}
                 </dd>

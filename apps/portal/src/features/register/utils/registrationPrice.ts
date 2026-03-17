@@ -3,8 +3,6 @@ import type { RegistrationPriceResult } from '@/features/register/hooks/useRegis
 import { USDC_DECIMALS } from '@/lib/constants/tokens'
 import { formatUsd, formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
 
-export const EST_GAS_USD = 0.05
-
 /**
  * Formats a raw token amount (smallest units) as USD for display.
  */
@@ -20,14 +18,12 @@ export function formatPriceDisplay(raw: bigint, decimals: number): string {
 export function formatTotalWithGas(
   base: bigint,
   premium: bigint,
-  gasUsd: number,
   decimals: number = USDC_DECIMALS,
 ): string {
   const baseUsd = Number(base) / 10 ** decimals
   const premiumUsd = Number(premium) / 10 ** decimals
   const registrationCeil = Math.ceil(baseUsd) + Math.ceil(premiumUsd)
-  const totalWithFees = registrationCeil + gasUsd
-  return formatUsd(totalWithFees)
+  return formatUsd(registrationCeil)
 }
 
 export function isPriceResult(

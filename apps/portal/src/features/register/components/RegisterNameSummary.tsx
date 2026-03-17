@@ -24,7 +24,6 @@ import {
   getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import {
-  EST_GAS_USD,
   formatPriceDisplay,
   formatTotalWithGas,
   isPriceResult,
@@ -232,13 +231,6 @@ const PriceBreakdownSkeleton = ({
           <span className="text-xs">USD</span>
         </dd>
       </div>
-      <div className="flex items-center justify-between">
-        <dt className="text-base font-normal">Est. gas cost</dt>
-        <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-          <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
       <div className="flex items-center justify-between pt-3 border-t border-border">
         <dt className="text-xl font-bold">Est. total</dt>
         <dd className="flex items-center gap-1 m-0">
@@ -382,12 +374,7 @@ const PriceBreakdown = ({
           value={
             <>
               <span className="font-mono text-xl font-bold">
-                {formatTotalWithGas(
-                  price.base,
-                  price.premium,
-                  EST_GAS_USD,
-                  price.decimals,
-                )}
+                {formatTotalWithGas(price.base, price.premium, price.decimals)}
               </span>
               <span className="text-xs">USD</span>
             </>
