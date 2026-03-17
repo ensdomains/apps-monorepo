@@ -130,6 +130,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   if (isError) {
     return (
       <MessageCard
+        variant="danger"
         icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
         title="Could not check availability"
         description={
