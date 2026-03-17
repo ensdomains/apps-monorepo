@@ -100,9 +100,11 @@ export const NonAutoRenewalWarning = ({
       <CircleAlert className="size-8" />
       <div className="text-gray-500">
         <div className="font-medium">
-          <Trans>
-            {nonAutoRenewals.length} ENS names are expiring without auto-renewal
-          </Trans>
+          <Plural
+            one="# ENS name is expiring without auto-renewal"
+            other="# ENS names are expiring without auto-renewal"
+            value={nonAutoRenewals.length}
+          />
         </div>
         <div className="text-gray-500 text-sm">
           {/* "erni.eth expires on July 10, 2025. Enable autorenewal or renew manually to avoid expiration." if only one name */}

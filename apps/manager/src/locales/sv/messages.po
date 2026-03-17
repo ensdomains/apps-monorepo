@@ -27,6 +27,11 @@ msgstr ""
 msgid "{0, plural, one {# day remaining} other {# days remaining}}"
 msgstr ""
 
+#. placeholder {0}: nonAutoRenewals.length
+#: src/features/auto-renewal/components/index.tsx:103
+msgid "{0, plural, one {# ENS name is expiring without auto-renewal} other {# ENS names are expiring without auto-renewal}}"
+msgstr ""
+
 #. placeholder {0}: Number(formattedDurationYears)
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:82
 msgid "{0, plural, one {# Year} other {# Years}}"
@@ -34,7 +39,7 @@ msgstr ""
 
 #. placeholder {0}: nonAutoRenewals.join(', ')
 #. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
-#: src/features/auto-renewal/components/index.tsx:118
+#: src/features/auto-renewal/components/index.tsx:120
 msgid "{0} are expiring without auto-renewal with the earliest expiring on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 msgstr ""
 
@@ -48,14 +53,9 @@ msgstr ""
 msgid "{0} avatar placeholder"
 msgstr "{0} avatar-placeholder"
 
-#. placeholder {0}: nonAutoRenewals.length
-#: src/features/auto-renewal/components/index.tsx:103
-msgid "{0} ENS names are expiring without auto-renewal"
-msgstr ""
-
 #. placeholder {0}: nonAutoRenewals[0].name
 #. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
-#: src/features/auto-renewal/components/index.tsx:110
+#: src/features/auto-renewal/components/index.tsx:112
 msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 msgstr ""
 
@@ -173,7 +173,7 @@ msgstr ""
 msgid "Add Payment Method"
 msgstr ""
 
-#: src/features/profile/components/sections/SocialLinksSection.tsx:22
+#: src/features/profile/components/sections/SocialLinksSection.tsx:24
 msgid "Add your social media profiles to your profile"
 msgstr ""
 
@@ -306,7 +306,7 @@ msgid "Billing zip code"
 msgstr ""
 
 #: src/features/profile/components/sections/BioSection.tsx:38
-#: src/features/profile/components/view/ViewBioSection.tsx:81
+#: src/features/profile/components/view/ViewBioSection.tsx:82
 msgid "Bio"
 msgstr ""
 
@@ -432,7 +432,7 @@ msgstr ""
 msgid "Click to copy"
 msgstr ""
 
-#: src/components/ui/dialog.tsx:94
+#: src/components/ui/dialog.tsx:95
 msgid "Close"
 msgstr ""
 
@@ -462,7 +462,7 @@ msgid "Companies and projects use ENS because it's secured by ethereum, so you c
 msgstr ""
 
 #: src/features/payment/components/add.tsx:187
-#: src/routes/auto-renewal/index.tsx:31
+#: src/routes/auto-renewal/index.tsx:33
 msgid "Confirm"
 msgstr ""
 
@@ -776,7 +776,7 @@ msgstr ""
 msgid "expires {expiryDateString}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:332
+#: src/features/dashboard/components/MyNamesList.tsx:330
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -788,7 +788,7 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:241
+#: src/features/dashboard/components/MyNamesList.tsx:239
 msgid "Expiry"
 msgstr "Utgång"
 
@@ -1032,7 +1032,7 @@ msgid "links"
 msgstr ""
 
 #: src/features/profile/components/sections/LinksSection.tsx:21
-#: src/features/profile/components/view/ViewLinksSection.tsx:19
+#: src/features/profile/components/view/ViewLinksSection.tsx:20
 msgid "Links"
 msgstr ""
 
@@ -1085,7 +1085,7 @@ msgstr ""
 msgid "Manage Para Wallet"
 msgstr ""
 
-#: src/routes/auto-renewal/index.tsx:20
+#: src/routes/auto-renewal/index.tsx:21
 msgid "Manage Renewals"
 msgstr ""
 
@@ -1117,8 +1117,8 @@ msgstr ""
 msgid "My Names"
 msgstr "Mina namn"
 
-#: src/features/dashboard/components/FavoritesList.tsx:204
-#: src/features/dashboard/components/MyNamesList.tsx:221
+#: src/features/dashboard/components/FavoritesList.tsx:203
+#: src/features/dashboard/components/MyNamesList.tsx:220
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
@@ -1169,8 +1169,8 @@ msgstr ""
 msgid "Next card"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:298
-#: src/features/dashboard/components/MyNamesList.tsx:357
+#: src/features/dashboard/components/FavoritesList.tsx:297
+#: src/features/dashboard/components/MyNamesList.tsx:355
 #: src/features/profile/components/view/AddressProfileView.tsx:275
 msgid "Next page"
 msgstr ""
@@ -1204,9 +1204,9 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/dashboard/components/FavoritesList.tsx:235
-#: src/features/dashboard/components/FavoritesList.tsx:246
-#: src/features/dashboard/components/MyNamesList.tsx:274
+#: src/features/dashboard/components/FavoritesList.tsx:234
+#: src/features/dashboard/components/FavoritesList.tsx:245
+#: src/features/dashboard/components/MyNamesList.tsx:272
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1362,8 +1362,8 @@ msgstr ""
 msgid "Previous card"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:289
-#: src/features/dashboard/components/MyNamesList.tsx:348
+#: src/features/dashboard/components/FavoritesList.tsx:288
+#: src/features/dashboard/components/MyNamesList.tsx:346
 #: src/features/profile/components/view/AddressProfileView.tsx:266
 msgid "Previous page"
 msgstr ""
@@ -1552,8 +1552,8 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:280
-#: src/features/profile/components/dialogs/DiffDialog.tsx:294
+#: src/features/profile/components/dialogs/DiffDialog.tsx:281
+#: src/features/profile/components/dialogs/DiffDialog.tsx:297
 msgid "Review Changes"
 msgstr ""
 
@@ -1719,11 +1719,11 @@ msgstr ""
 msgid "Short Description"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:308
+#: src/features/dashboard/components/FavoritesList.tsx:307
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:370
+#: src/features/dashboard/components/MyNamesList.tsx:368
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -1791,7 +1791,7 @@ msgstr ""
 msgid "Smart Session Disabled"
 msgstr ""
 
-#: src/features/profile/components/sections/SocialLinksSection.tsx:20
+#: src/features/profile/components/sections/SocialLinksSection.tsx:21
 msgid "Social Links"
 msgstr ""
 
@@ -1804,15 +1804,15 @@ msgstr ""
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:229
+#: src/features/dashboard/components/MyNamesList.tsx:228
 msgid "Sort by expiry, currently ascending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:230
+#: src/features/dashboard/components/MyNamesList.tsx:229
 msgid "Sort by expiry, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:232
+#: src/features/dashboard/components/MyNamesList.tsx:230
 msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
@@ -1826,8 +1826,8 @@ msgstr ""
 msgid "Sort by name, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:195
-#: src/features/dashboard/components/MyNamesList.tsx:212
+#: src/features/dashboard/components/FavoritesList.tsx:194
+#: src/features/dashboard/components/MyNamesList.tsx:211
 msgid "Sort by name, currently unsorted"
 msgstr ""
 

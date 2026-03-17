@@ -186,14 +186,13 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
-          aria-label={(() => {
-            if (sortDirection !== null && sortField === 'name') {
-              return sortDirection === OrderDirection.Asc
+          aria-label={
+            sortDirection !== null && sortField === 'name'
+              ? sortDirection === OrderDirection.Asc
                 ? t`Sort by name, currently ascending`
                 : t`Sort by name, currently descending`
-            }
-            return t`Sort by name, currently unsorted`
-          })()}
+              : t`Sort by name, currently unsorted`
+          }
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => handleSort('name')}
           type="button"
