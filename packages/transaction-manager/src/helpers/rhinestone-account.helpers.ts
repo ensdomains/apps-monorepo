@@ -63,6 +63,15 @@ export function initializeRhinestoneAccount(
     return errAsync(new RhinestoneAccountError('No wallet client available'))
   }
 
+  if (!config.rhinestoneApiKey) {
+    console.error(
+      '❌ No Rhinestone API key available for smart account initialization',
+    )
+    return errAsync(
+      new RhinestoneAccountError('No Rhinestone API key available'),
+    )
+  }
+
   // Initialize Rhinestone SDK with API key
   const rhinestone = new RhinestoneSDK({
     apiKey: config.rhinestoneApiKey,
