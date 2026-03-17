@@ -42,6 +42,7 @@ export type SaveRecordsParameters = {
   publicClient: PublicClient
   signer: Signer
   chainId: number
+  id: string
   /**
    * The type of resolver to use:
    * - `'dedicated'` (default): For V2 names, uses `multicallWithNodeCheck(node, calls)`
@@ -109,6 +110,7 @@ export async function saveRecords(
     publicClient,
     signer,
     chainId,
+    id,
     resolverType = 'dedicated',
   } = params
 
@@ -171,6 +173,7 @@ export async function saveRecords(
     },
     signer,
     {
+      id,
       description: `Update records for ${name}`,
       publicClient,
       chainId,
