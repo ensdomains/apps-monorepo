@@ -83,6 +83,13 @@ describe('register utils', () => {
       expect(determinePremium('')).toBe(false)
       expect(determinePremium('.eth')).toBe(false)
     })
+
+    it('should count emojis as single characters (code points)', () => {
+      expect(determinePremium('🎲🎲🎲')).toBe(true) // 3 code points = premium
+      expect(determinePremium('🎲🎲🎲🎲')).toBe(true) // 4 code points = premium
+      expect(determinePremium('🎲🎲🎲🎲🎲')).toBe(false) // 5 code points = not premium
+      expect(determinePremium('🎲🎲🎲.eth')).toBe(true)
+    })
   })
 
   describe('getPremiumLabel', () => {
@@ -132,6 +139,18 @@ describe('register utils', () => {
       // Names with multiple dots like 'abc.sub.eth' have a label of 'abc.sub'
       // which is longer than 4 characters, so they are not premium
       expect(getPremiumLabel('abc.sub.eth')).toBeUndefined()
+    })
+
+    it('should count emojis as single characters (code points)', () => {
+      expect(getPremiumLabel('🎲🎲🎲')).toEqual({
+        label: '3 character premium name',
+        variant: 'premium-3',
+      })
+      expect(getPremiumLabel('🎲🎲🎲🎲')).toEqual({
+        label: '4 character premium name',
+        variant: 'premium-4',
+      })
+      expect(getPremiumLabel('🎲🎲🎲🎲🎲')).toBeUndefined() // 5 code points = not premium
     })
   })
 
@@ -264,6 +283,15 @@ describe('register utils', () => {
         type: 'TOO_SHORT',
         message: 'Names must be 3 characters or more to register.',
       })
+    })
+
+    it('should count emojis as single characters (code points)', () => {
+      expect(validateENSName('🎲🎲')).toEqual({
+        type: 'TOO_SHORT',
+        message: 'Names must be 3 characters or more to register.',
+      })
+      expect(validateENSName('🎲🎲🎲')).toBeNull() // 3 code points = valid
+      expect(validateENSName('🎲🎲🎲🎲🎲')).toBeNull() // 5 code points = valid
     })
   })
 
