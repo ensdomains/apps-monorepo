@@ -288,7 +288,7 @@ const PriceBreakdown = ({
                 <span className="text-xs">USD</span>
               </>
             }
-            labelClassName="text-base font-normal flex items-center gap-1"
+            labelClassName="flex items-center gap-1"
             valueClassName="flex items-center gap-1 m-0"
           />
         )}
@@ -297,8 +297,8 @@ const PriceBreakdown = ({
           label="Total:"
           value={formatTotalWithGas(price.base, price.premium, price.decimals)}
           className="pt-3 border-t border-border"
-          labelClassName="text-2xl text-primary font-medium"
-          valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-2xl"
+          labelClassName="text-xl text-primary font-medium"
+          valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
         />
       </dl>
     </div>
