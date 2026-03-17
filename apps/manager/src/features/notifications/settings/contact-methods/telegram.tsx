@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import {
   AlertDialogAction as AlertDialogActionPrimitive,
   AlertDialogCancel as AlertDialogCancelPrimitive,
@@ -27,13 +28,15 @@ import {
 const TELEGRAM_BOT_USERNAME = '@ens_earl_bot'
 
 export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
+  const { t } = useLingui()
+
   const addTelegramChannelMutation = useMutation({
     ...addTelegramChannelMutationOptions,
     onSuccess: () => {
-      toast.success('Telegram channel added')
+      toast.success(t`Telegram channel added`)
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add Telegram channel')
+      toast.error(error.message || t`Failed to add Telegram channel`)
     },
   })
 
@@ -43,20 +46,20 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       addTelegramChannelMutation.mutate({ auth_data: authData })
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to authenticate with Telegram')
+      toast.error(error.message || t`Failed to authenticate with Telegram`)
     },
   })
 
   const deleteMutation = useMutation({
     ...deleteChannelMutationOptions,
     onMutate: (id) => {
-      toast.loading('Removing telegram channel', {
+      toast.loading(t`Removing telegram channel`, {
         id: `remove-telegram-${id}`,
-        description: `Removing telegram for ${telegram?.label}`,
+        description: t`Removing telegram for ${telegram?.label}`,
       })
     },
     onSuccess: (_, id) => {
-      toast.success('Telegram channel removed', {
+      toast.success(t`Telegram channel removed`, {
         id: `remove-telegram-${id}`,
       })
 
@@ -64,7 +67,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       addTelegramChannelMutation.reset()
     },
     onError: (error: Error, id) => {
-      toast.error(error.message || 'Failed to remove Telegram channel', {
+      toast.error(error.message || t`Failed to remove Telegram channel`, {
         id: `remove-telegram-${id}`,
       })
     },
@@ -84,7 +87,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
         >
           <TelegramIcon className="size-5 text-ens-white" />
           <span className="font-medium text-base text-ens-white leading-ens-none">
-            Telegram Notifications
+            <Trans>Telegram Notifications</Trans>
           </span>
         </button>
         <p className="text-[#45556C] text-sm leading-ens-normal">
@@ -96,19 +99,27 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
           })
             .with({ authPending: true }, () => (
               <span className="">
-                Please sign in to telegram in the popup window.
+                <Trans>Please sign in to telegram in the popup window.</Trans>
               </span>
             ))
-            .with({ addPending: true }, () => <span>Adding telegram...</span>)
+            .with({ addPending: true }, () => (
+              <span>
+                <Trans>Adding telegram...</Trans>
+              </span>
+            ))
             .with({ error: P.not(P.nullish) }, ({ error }) => (
               <div className="">
-                <span className="font-medium">Failed to add telegram: </span>
+                <span className="font-medium">
+                  <Trans>Failed to add telegram: </Trans>
+                </span>
                 <span>{error.message}</span>
               </div>
             ))
             .otherwise(() => (
               <span>
-                Get instant updates through Telegram for your domains.
+                <Trans>
+                  Get instant updates through Telegram for your domains.
+                </Trans>
               </span>
             ))}
         </p>
@@ -121,12 +132,14 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       <div className="flex items-center gap-2">
         <TelegramIcon className="size-5 text-ens-lapis-surface" />
         <span className="font-normal text-base text-ens-blue-dark leading-ens-none">
-          Telegram
+          <Trans>Telegram</Trans>
         </span>
         {telegram.status === 'pending' && (
           <div className="flex w-fit items-center rounded bg-[#F8F7E2] px-2 py-1 text-[#CA6200]">
             <MSymbol className="ms-opsz-16 ms-wght-300" symbol="schedule" />
-            <span className="ml-2 text-xs">Pending</span>
+            <span className="ml-2 text-xs">
+              <Trans>Pending</Trans>
+            </span>
           </div>
         )}
       </div>
@@ -145,10 +158,14 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Telegram Contact Method?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <Trans>Remove Telegram Contact Method?</Trans>
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              You may miss important notifications if you remove this contact
-              method. Are you sure you want to continue?
+              <Trans>
+                You may miss important notifications if you remove this contact
+                method. Are you sure you want to continue?
+              </Trans>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
@@ -158,7 +175,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
                 size="lg"
                 variant="outline"
               >
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
             </AlertDialogCancelPrimitive>
             <AlertDialogActionPrimitive asChild>
@@ -170,7 +187,7 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
                 size="lg"
                 variant="lightBlue"
               >
-                Remove
+                <Trans>Remove</Trans>
               </Button>
             </AlertDialogActionPrimitive>
           </AlertDialogFooter>
@@ -179,16 +196,18 @@ export const TelegramContactMethod = ({ telegram }: { telegram?: Channel }) => {
       {telegram.status === 'pending' && (
         <p className="text-[#45556C] text-sm leading-ens-normal">
           <span>
-            To finish connecting Telegram, you need to&nbsp;
-            <a
-              className="text-[#54A9EC] underline hover:text-[#357bb8]"
-              href={`https://t.me/${TELEGRAM_BOT_USERNAME.replace(/^@/, '')}?start`}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              start the ENS Notifications Bot
-            </a>
-            &nbsp;in Telegram.
+            <Trans>
+              To finish connecting Telegram, you need to{' '}
+              <a
+                className="text-[#54A9EC] underline hover:text-[#357bb8]"
+                href={`https://t.me/${TELEGRAM_BOT_USERNAME.replace(/^@/, '')}?start`}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                start the ENS Notifications Bot
+              </a>{' '}
+              in Telegram.
+            </Trans>
           </span>
         </p>
       )}

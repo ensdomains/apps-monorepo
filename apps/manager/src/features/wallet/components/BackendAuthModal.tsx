@@ -1,4 +1,5 @@
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans } from '@lingui/react/macro'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import { useState } from 'react'
@@ -67,11 +68,15 @@ export const BackendAuthModal = () => {
         {modalStep === 'verification' ? (
           <>
             <AlertDialog.Header>
-              <AlertDialog.Title>Verify your wallet</AlertDialog.Title>
+              <AlertDialog.Title>
+                <Trans>Verify your wallet</Trans>
+              </AlertDialog.Title>
               <AlertDialog.Description>
-                Sign in with your wallet to enable backend features, including
-                notifications about your ENS domains, transfers, expiry
-                reminders, and important updates.
+                <Trans>
+                  Sign in with your wallet to enable backend features, including
+                  notifications about your ENS domains, transfers, expiry
+                  reminders, and important updates.
+                </Trans>
               </AlertDialog.Description>
             </AlertDialog.Header>
             <div className="space-y-4">
@@ -81,66 +86,85 @@ export const BackendAuthModal = () => {
                 onClick={handleSignIn}
                 size="lg"
               >
-                {signIn.isPending ? 'Signing in...' : 'Sign in with Wallet'}
+                {signIn.isPending ? (
+                  <Trans>Signing in...</Trans>
+                ) : (
+                  <Trans>Sign in with Wallet</Trans>
+                )}
               </Button>
 
               {signIn.isError && (
                 <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
                   <p className="text-destructive text-sm">
-                    Failed to sign in. Please try again.
+                    <Trans>Failed to sign in. Please try again.</Trans>
                   </p>
                 </div>
               )}
               {!walletClient && (
                 <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
                   <p className="text-destructive text-sm">
-                    Wallet client missing, please reconnect your wallet and try
-                    again.
+                    <Trans>
+                      Wallet client missing, please reconnect your wallet and
+                      try again.
+                    </Trans>
                   </p>
                 </div>
               )}
             </div>
             <AlertDialog.Footer>
               <AlertDialog.Cancel onClick={handleSkip}>
-                Skip for now
+                <Trans>Skip for now</Trans>
               </AlertDialog.Cancel>
             </AlertDialog.Footer>
           </>
         ) : (
           <>
             <AlertDialog.Header>
-              <AlertDialog.Title>Are you sure?</AlertDialog.Title>
+              <AlertDialog.Title>
+                <Trans>Are you sure?</Trans>
+              </AlertDialog.Title>
               <AlertDialog.Description>
-                Skipping SIWE verification means you won't get notifications
-                about your domains or be able to save favorites while browsing.
+                <Trans>
+                  Skipping SIWE verification means you won't get notifications
+                  about your domains or be able to save favorites while
+                  browsing.
+                </Trans>
               </AlertDialog.Description>
             </AlertDialog.Header>
 
             <div className="space-y-3">
               <div className="rounded-lg border border-ens-lapis-dust/50 bg-ens-lapis-dust/20 p-4">
                 <h4 className="mb-2 font-medium text-ens-lapis-dense text-sm">
-                  You'll miss:
+                  <Trans>You'll miss:</Trans>
                 </h4>
                 <ul className="space-y-1 text-ens-gray text-sm">
-                  <li>• Domain transfer & expiry notifications</li>
-                  <li>• Saved favorites & searches</li>
-                  <li>• And more...</li>
+                  <li>
+                    <Trans>Domain transfer & expiry notifications</Trans>
+                  </li>
+                  <li>
+                    <Trans>Saved favorites & searches</Trans>
+                  </li>
+                  <li>
+                    <Trans>And more...</Trans>
+                  </li>
                 </ul>
               </div>
 
               <div className="rounded-lg bg-ens-peridot-dust/30 p-3">
                 <p className="text-ens-peridot-text-medium text-xs">
-                  💡 You can verify later by clicking your profile in the navbar
+                  <Trans>
+                    You can verify later by clicking your profile in the navbar
+                  </Trans>
                 </p>
               </div>
             </div>
 
             <AlertDialog.Footer>
               <Button onClick={handleGoBack} variant="outline">
-                Go Back
+                <Trans>Go Back</Trans>
               </Button>
               <Button onClick={handleConfirmSkip} variant="destructive">
-                Skip Anyway
+                <Trans>Skip Anyway</Trans>
               </Button>
             </AlertDialog.Footer>
           </>

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
@@ -27,6 +28,7 @@ const isPushChannelWithEndpointHash = (
 }
 
 export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
+  const { t } = useLingui()
   const queryClient = useQueryClient()
 
   const browserState = useQuery(browserPushStateQueryOptions)
@@ -34,7 +36,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
   const enableMutation = useMutation({
     ...enableBrowserPushMutationOptions,
     onSuccess: () => {
-      toast.success('Browser notifications enabled')
+      toast.success(t`Browser notifications enabled`)
       browserState.refetch()
     },
     onError: (error) => {
@@ -47,7 +49,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
   const disableMutation = useMutation({
     ...disableBrowserPushMutationOptions(queryClient),
     onSuccess: () => {
-      toast.success('Browser notifications disabled')
+      toast.success(t`Browser notifications disabled`)
       browserState.refetch()
     },
     onError: (error) => {
@@ -89,10 +91,10 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
         />
         <div className="flex flex-col gap-1.5">
           <div className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
-            Browser Notifications
+            <Trans>Browser Notifications</Trans>
           </div>
           <div className="text-slate-600 text-sm">
-            Get instant push notifications in your browser
+            <Trans>Get instant push notifications in your browser</Trans>
           </div>
         </div>
 
@@ -115,7 +117,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
                 size="lg"
                 variant="lightBlue"
               >
-                Enable
+                <Trans>Enable</Trans>
               </Button>
             ))
             .otherwise(() => null)}
@@ -125,10 +127,14 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
       {isSupported && permission === 'denied' && (
         <Alert variant="destructive">
           <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="warning" />
-          <AlertTitle>Notifications blocked</AlertTitle>
+          <AlertTitle>
+            <Trans>Notifications blocked</Trans>
+          </AlertTitle>
           <AlertDescription>
-            To enable, go to your browser&apos;s site settings for this page and
-            allow notifications.
+            <Trans>
+              To enable, go to your browser's site settings for this page and
+              allow notifications.
+            </Trans>
           </AlertDescription>
         </Alert>
       )}
