@@ -109,7 +109,8 @@ export const validateENSName = (name: string): ValidationError => {
     }
   }
 
-  if ([...label].length > 0 && [...label].length < 3) {
+  const labelLength = [...label].length
+  if (labelLength > 0 && labelLength < 3) {
     return {
       type: 'TOO_SHORT',
       message: 'Names must be 3 characters or more to register.',
