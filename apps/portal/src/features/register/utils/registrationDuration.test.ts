@@ -1,5 +1,6 @@
-import { addMonths, addYears } from 'date-fns'
+import { addDays, addMonths, addYears } from 'date-fns'
 import { describe, expect, it } from 'vitest'
+import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import {
   calculateDurationFromDate,
   formatDurationLabel,
@@ -7,6 +8,8 @@ import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
   getExpiryDateForPicker,
+  getMaxExpiryDateForPicker,
+  getMinExpiryDateForPicker,
   getRegistrationDurationInSeconds,
   getRegistrationExpiryDateFromSeconds,
   getYearsFromDuration,
@@ -235,6 +238,57 @@ describe('registrationDuration', () => {
       expect(expiry.getMonth()).toBe(0)
       expect(expiry.getDate()).toBe(1)
     })
+
+    it('should cap at MAX_REGISTRATION_YEARS when years exceed max', () => {
+      const result = getDurationInSecondsFromYears(5000, startOfFixedToday)
+      const expected = getDurationInSecondsFromYears(
+        MAX_REGISTRATION_YEARS,
+        startOfFixedToday,
+      )
+      expect(result).toBe(expected)
+    })
+
+    it('should cap at MAX_REGISTRATION_YEARS for very large values', () => {
+      const result = getDurationInSecondsFromYears(
+        100_000_000,
+        startOfFixedToday,
+      )
+      const expected = getDurationInSecondsFromYears(
+        MAX_REGISTRATION_YEARS,
+        startOfFixedToday,
+      )
+      expect(result).toBe(expected)
+    })
+
+    it('should floor fractional years before capping', () => {
+      const result = getDurationInSecondsFromYears(1500.7, startOfFixedToday)
+      const expected = getDurationInSecondsFromYears(
+        MAX_REGISTRATION_YEARS,
+        startOfFixedToday,
+      )
+      expect(result).toBe(expected)
+    })
+  })
+
+  describe('getMinExpiryDateForPicker', () => {
+    it('should return 28 days from start date', () => {
+      const result = getMinExpiryDateForPicker(startOfFixedToday)
+      const expected = addDays(startOfFixedToday, 28)
+      expect(result.getTime()).toBe(expected.getTime())
+    })
+  })
+
+  describe('getMaxExpiryDateForPicker', () => {
+    it('should return MAX_REGISTRATION_YEARS from start date', () => {
+      const result = getMaxExpiryDateForPicker(startOfFixedToday)
+      const expected = addYears(startOfFixedToday, MAX_REGISTRATION_YEARS)
+      expect(result.getTime()).toBe(expected.getTime())
+    })
+
+    it('should return year 3025 for Jan 15 2025 start with 1000 years', () => {
+      const result = getMaxExpiryDateForPicker(startOfFixedToday)
+      expect(result.getFullYear()).toBe(2025 + MAX_REGISTRATION_YEARS)
+    })
   })
 
   describe('formatDurationLabel', () => {
@@ -246,6 +300,16 @@ describe('registrationDuration', () => {
     it('should return "3 years" for 3 year duration', () => {
       const duration = getDurationInSecondsFromYears(3, startOfFixedToday)
       expect(formatDurationLabel(duration, startOfFixedToday)).toBe('3 years')
+    })
+
+    it('should return "1000 years" for max duration', () => {
+      const duration = getDurationInSecondsFromYears(
+        MAX_REGISTRATION_YEARS,
+        startOfFixedToday,
+      )
+      expect(formatDurationLabel(duration, startOfFixedToday)).toBe(
+        '1000 years',
+      )
     })
   })
 
@@ -273,6 +337,17 @@ describe('registrationDuration', () => {
       const date = getExpiryDateForPicker(duration, startOfFixedToday)
       const result = getDurationFromPickerDate(date, startOfFixedToday)
       expect(getYearsFromDuration(result, startOfFixedToday)).toBe(3)
+    })
+
+    it('should cap duration when date is beyond max expiry', () => {
+      const maxExpiry = getMaxExpiryDateForPicker(startOfFixedToday)
+      const beyondMax = addYears(maxExpiry, 100)
+      const result = getDurationFromPickerDate(beyondMax, startOfFixedToday)
+      const expectedDuration = getDurationInSecondsFromYears(
+        MAX_REGISTRATION_YEARS,
+        startOfFixedToday,
+      )
+      expect(result).toBe(expectedDuration)
     })
   })
 
