@@ -2,6 +2,7 @@ import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans, useLingui } from '@lingui/react/macro'
 import {
   useMutation,
   useQueries,
@@ -51,6 +52,7 @@ export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
 }: ChoosePrimaryNameDialogProps) => {
+  const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const { data: wallet } = useWallet()
@@ -152,7 +154,7 @@ export const ChoosePrimaryNameDialog = ({
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error('Failed to set ETH address record')
+      toast.error(t`Failed to set ETH address record`)
     },
   })
 
@@ -167,7 +169,7 @@ export const ChoosePrimaryNameDialog = ({
   useEffect(() => {
     const subscription = primaryNameActor.subscribe((snapshot) => {
       if (snapshot.matches('success')) {
-        toast.success('Primary name set successfully')
+        toast.success(t`Primary name set successfully`)
         queryClient.invalidateQueries({
           queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
         })
@@ -180,7 +182,7 @@ export const ChoosePrimaryNameDialog = ({
     })
 
     return () => subscription.unsubscribe()
-  }, [primaryNameActor, queryClient, onUpdated])
+  }, [primaryNameActor, queryClient, onUpdated, t])
 
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
@@ -193,7 +195,7 @@ export const ChoosePrimaryNameDialog = ({
 
     if (needsEthAddressUpdate) {
       if (!account.signer || !account.accountAddress) {
-        toast.error('Wallet signer not available')
+        toast.error(t`Wallet signer not available`)
         return
       }
 
@@ -236,11 +238,13 @@ export const ChoosePrimaryNameDialog = ({
       <DialogContent className="flex max-h-[90vh] max-w-[500px] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-serif text-[24px] text-foreground">
-            Choose Primary Name
+            <Trans>Choose Primary Name</Trans>
           </DialogTitle>
           <DialogDescription className="font-sans text-muted-foreground text-sm">
-            Set which ENS name displays as your identity across apps and
-            wallets.
+            <Trans>
+              Set which ENS name displays as your identity across apps and
+              wallets.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -265,7 +269,7 @@ export const ChoosePrimaryNameDialog = ({
               ))
               .with({ domains: [] }, () => (
                 <div className="py-8 text-center font-sans text-muted-foreground text-sm">
-                  No names found
+                  <Trans>No names found</Trans>
                 </div>
               ))
               .otherwise(({ domains }) =>
@@ -279,7 +283,7 @@ export const ChoosePrimaryNameDialog = ({
 
                   return (
                     <button
-                      aria-label={`Select ${label} as primary name`}
+                      aria-label={t`Select ${label} as primary name`}
                       aria-pressed={isSelected}
                       className={`flex items-center justify-between gap-3 rounded-[4px] border p-3 transition-colors ${
                         isSelected
@@ -295,13 +299,13 @@ export const ChoosePrimaryNameDialog = ({
                         <div className="relative size-[40px] shrink-0 overflow-hidden rounded-full bg-ens-white">
                           <ImageFallback.Root className="contents">
                             <ImageFallback.Image
-                              alt={`${label} avatar`}
+                              alt={t`${label} avatar`}
                               className="size-full object-cover"
                               src={avatarUrl}
                             />
                             <ImageFallback.Fallback>
                               <img
-                                alt={`${label} avatar placeholder`}
+                                alt={t`${label} avatar placeholder`}
                                 className="size-full object-cover"
                                 src={placeholderAvatar}
                               />
@@ -327,7 +331,7 @@ export const ChoosePrimaryNameDialog = ({
           {/* Error Message */}
           {isError && (
             <div className="rounded-[4px] border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
-              Failed to set primary name. Please try again.
+              <Trans>Failed to set primary name. Please try again.</Trans>
             </div>
           )}
           {/* ETH Address Mismatch/Missing Info */}
@@ -337,8 +341,8 @@ export const ChoosePrimaryNameDialog = ({
               <div className="text-amber-800 text-sm">
                 <p>
                   {existingEthAddress
-                    ? 'The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.'
-                    : 'No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.'}
+                    ? t`The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.`
+                    : t`No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.`}
                 </p>
                 <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
                   <p className="break-all font-mono text-amber-900 text-xs">
@@ -356,7 +360,7 @@ export const ChoosePrimaryNameDialog = ({
               onClick={handleCancel}
               variant="outline"
             >
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button
               className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
@@ -369,10 +373,10 @@ export const ChoosePrimaryNameDialog = ({
               onClick={handleConfirm}
             >
               {updateEthAddressMutation.isPending
-                ? 'Setting ETH address...'
+                ? t`Setting ETH address...`
                 : isSubmitting
-                  ? 'Setting...'
-                  : 'Set as Primary'}
+                  ? t`Setting...`
+                  : t`Set as Primary`}
             </Button>
           </div>
         </div>

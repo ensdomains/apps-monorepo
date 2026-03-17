@@ -18,6 +18,7 @@ import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedReg
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
+import { getChainIdForNetwork } from '@/lib/wagmi'
 import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/registry')({
@@ -163,6 +164,7 @@ const RegistryInfo = ({
                     registry={{
                       protocol: data.protocolVersion,
                     }}
+                    chainId={getChainIdForNetwork(data.network)}
                   />
                 ) : (
                   <RegistryCard
@@ -171,6 +173,7 @@ const RegistryInfo = ({
                       protocol: data.protocolVersion,
                       factory: namechainVerifiableFactory,
                     }}
+                    chainId={getChainIdForNetwork(data.network)}
                   />
                 )}
                 <h2 className="leading-none text-heading font-medium">
@@ -182,6 +185,7 @@ const RegistryInfo = ({
                     address: data.registries.at(-2) as Address,
                     protocol: data.protocolVersion,
                   }}
+                  chainId={getChainIdForNetwork(data.network)}
                 />
               </>
             )
@@ -206,6 +210,7 @@ const RegistryInfo = ({
                     address: data.registries.at(-2) as Address,
                     protocol: data.protocolVersion,
                   }}
+                  chainId={getChainIdForNetwork(data.network)}
                 />
               </>
             )
@@ -233,6 +238,7 @@ const RegistryInfo = ({
                       protocol: data.protocolVersion,
                       factory: namechainVerifiableFactory,
                     }}
+                    chainId={getChainIdForNetwork(data.network)}
                   />
                 )}
                 <h2 className="leading-none text-heading font-medium">
@@ -245,6 +251,7 @@ const RegistryInfo = ({
                     address: data.registries.at(-3) as Address,
                     protocol: data.protocolVersion,
                   }}
+                  chainId={getChainIdForNetwork(data.network)}
                 />
               </>
             )

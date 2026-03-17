@@ -17,7 +17,9 @@ const badgeVariants = cva(
         destructive:
           'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
         success:
-          'border-transparent bg-peridot-100 text-peridot-500 [a&]:hover:bg-peridot-100/90',
+          'border-transparent bg-peridot-100 text-success [a&]:hover:bg-peridot-100/90',
+        danger:
+          'border-transparent bg-garnet-100 text-danger [a&]:hover:bg-garnet-100/90',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
       },

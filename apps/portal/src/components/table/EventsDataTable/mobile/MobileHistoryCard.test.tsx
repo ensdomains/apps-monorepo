@@ -28,6 +28,16 @@ vi.mock('./MobileExpandedEvents', () => ({
   ),
 }))
 
+vi.mock('@/components/BlockExplorerTxLink', () => ({
+  BlockExplorerTxLink: ({
+    txHash,
+  }: {
+    txHash: string
+    chainId?: number
+    className?: string
+  }) => <span>{`${txHash.slice(0, 6)}...${txHash.slice(-4)}`}</span>,
+}))
+
 vi.mock('@/components/CopyableRecord', () => ({
   CopyableRecord: ({ displayValue }: { displayValue: React.ReactNode }) => (
     <div>{displayValue}</div>

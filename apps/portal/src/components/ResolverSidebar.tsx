@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   ClockIcon,
+  GridIcon,
   IdCardLanyard,
   RefreshCwIcon,
   SplitIcon,
@@ -9,7 +10,6 @@ import {
 } from 'lucide-react'
 import type { Address } from 'viem'
 import { LogoWithTextSVG } from '@/assets/logo'
-import { SoonBadge } from '@/components/ui/badge'
 import { createDefineLinkItem } from '@/utils/tsr'
 import {
   Sidebar,
@@ -27,7 +27,6 @@ type SidebarItemData = {
   title: string
   icon: LucideIcon
   disabled?: boolean
-  upcoming?: boolean
 }
 
 const defineResolverSidebarItem = createDefineLinkItem<SidebarItemData>()
@@ -43,23 +42,27 @@ const getItemGroups = (address: string) => [
         activeOptions: { exact: true },
       },
     }),
-  ],
-  [
     defineResolverSidebarItem({
-      title: 'Roles',
-      icon: UserRoundCog,
-      upcoming: true,
+      title: 'Nodes',
+      icon: GridIcon,
       link: {
-        to: '/resolver/$address',
+        to: '/resolver/$address/nodes',
         params: { address },
       },
     }),
     defineResolverSidebarItem({
       title: 'Aliases',
       icon: SplitIcon,
-      upcoming: true,
       link: {
-        to: '/resolver/$address',
+        to: '/resolver/$address/aliases',
+        params: { address },
+      },
+    }),
+    defineResolverSidebarItem({
+      title: 'Roles',
+      icon: UserRoundCog,
+      link: {
+        to: '/resolver/$address/roles',
         params: { address },
       },
     }),
@@ -68,9 +71,8 @@ const getItemGroups = (address: string) => [
     defineResolverSidebarItem({
       title: 'History',
       icon: ClockIcon,
-      upcoming: true,
       link: {
-        to: '/resolver/$address',
+        to: '/resolver/$address/history',
         params: { address },
       },
     }),
@@ -110,7 +112,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
                 <SidebarMenu>
                   {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      {item.disabled || item.upcoming ? (
+                      {item.disabled ? (
                         <SidebarMenuButton
                           disabled
                           className="opacity-50 cursor-not-allowed"
@@ -119,7 +121,6 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
                           <span className="text-sm font-medium">
                             {item.title}
                           </span>
-                          {item.upcoming && <SoonBadge />}
                         </SidebarMenuButton>
                       ) : (
                         <SidebarMenuButton asChild>
