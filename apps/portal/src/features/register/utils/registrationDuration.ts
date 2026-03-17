@@ -58,7 +58,7 @@ export const formatRegistrationDuration = (
 
 /**
  * Calculates the duration in years from today to a target date.
- * Returns exact fractional years (e.g. 2.12) - no rounding for accurate pricing.
+ * Returns years rounded to two decimal places (e.g. 1.00, 3.00, 2.50).
  */
 export const calculateDurationFromDate = (
   startDate: Date,
@@ -71,7 +71,7 @@ export const calculateDurationFromDate = (
   }
 
   const diffYears = diffMs / (SECONDS_PER_YEAR * 1000)
-  return diffYears
+  return Math.round(diffYears * 100) / 100
 }
 
 /**
@@ -159,19 +159,6 @@ export const getMinExpiryDateForPicker = (
 export const getMaxExpiryDateForPicker = (
   startOfToday: Date = getStartOfToday(),
 ): Date => addYears(startOfToday, MAX_REGISTRATION_YEARS)
-
-/**
- * Formats a duration in years for display (e.g. in price breakdown).
- * Integers show as-is; decimals show 2 places.
- *
- * @param years - Duration in years (can be fractional)
- * @returns Formatted string like "1", "3", or "2.50"
- */
-export const formatYearsDisplay = (years: number): string => {
-  if (!Number.isFinite(years) || years <= 0) return '0'
-  if (Number.isInteger(years)) return years.toString()
-  return years.toFixed(2)
-}
 
 /**
  * Formats a duration (seconds) as a human-readable label.

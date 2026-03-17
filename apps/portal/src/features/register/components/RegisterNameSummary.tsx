@@ -1,7 +1,7 @@
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { InfoIcon } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -19,7 +19,7 @@ import { getPremiumLabel } from '@/features/register/utils/premium'
 import { getDiscountForYears } from '@/features/register/utils/registrationDiscount'
 import {
   calculateDurationFromDate,
-  formatYearsDisplay,
+  formatRegistrationDuration,
   getRegistrationExpiryDateFromSeconds,
   getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
@@ -31,6 +31,7 @@ import {
 } from '@/features/register/utils/registrationPrice'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { cn } from '@/lib/utils'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
@@ -174,6 +175,31 @@ export const RegisterNameCheckoutSummary = ({
   )
 }
 
+type SummaryRowProps = {
+  readonly label: ReactNode
+  readonly value: ReactNode
+  readonly className?: string
+  readonly labelClassName?: string
+  readonly valueClassName?: string
+}
+
+const SummaryRow = ({
+  label,
+  value,
+  className,
+  labelClassName,
+  valueClassName,
+}: SummaryRowProps) => (
+  <div className={cn('flex items-center justify-between', className)}>
+    <dt className={cn('text-base font-normal text-quartz-350', labelClassName)}>
+      {label}
+    </dt>
+    <dd className={cn('m-0 font-normal text-quartz-900', valueClassName)}>
+      {value}
+    </dd>
+  </div>
+)
+
 type PriceBreakdownSkeletonProps = {
   readonly durationLabel: string
   readonly premiumLabel: ReturnType<typeof getPremiumLabel>
@@ -247,7 +273,10 @@ const PriceBreakdown = ({
     duration,
   )
   const years = calculateDurationFromDate(startOfToday, expiryDate)
-  const yearsDisplay = formatYearsDisplay(years)
+  const registrationDuration = formatRegistrationDuration(
+    startOfToday,
+    expiryDate,
+  )
   const expiryFormatted = formatExpiryDate(expiryDate)
 
   const { percent: discountPercent, label: discountLabel } =
@@ -275,85 +304,98 @@ const PriceBreakdown = ({
         </div>
       )}
       <dl className="space-y-3">
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Registration</dt>
-          <dd className="m-0">{yearsDisplay} years</dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Expires</dt>
-          <dd className="m-0">{expiryFormatted}</dd>
-        </div>
+        <SummaryRow label="Registration" value={registrationDuration} />
+        <SummaryRow label="Expires" value={expiryFormatted} />
 
         <hr className="border-border" />
 
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Price</dt>
-          <dd className="m-0 font-mono text-base">
-            {formatUsd(pricePerYear)}/year × {yearsDisplay}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Subtotal</dt>
-          <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-base font-medium">
-              {formatUsd(Math.ceil(theoreticalSubtotal))}
+        <SummaryRow
+          label="Price"
+          value={
+            <span className="font-mono text-base">
+              {formatUsd(pricePerYear)}/year × {years}
             </span>
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
-
-        {discountPercent > 0 && (
-          <div className="flex items-center justify-between text-success">
-            <dt className="text-base font-normal">
-              {discountLabel} discount ({discountPercent}%)
-            </dt>
-            <dd className="flex items-center gap-1 m-0">
+          }
+          valueClassName="m-0 text-base"
+        />
+        <SummaryRow
+          label="Subtotal"
+          value={
+            <>
               <span className="font-mono text-base font-medium">
-                -{formatUsd(Math.ceil(discountAmount))}
+                {formatUsd(Math.ceil(theoreticalSubtotal))}
               </span>
               <span className="text-xs">USD</span>
-            </dd>
-          </div>
+            </>
+          }
+          valueClassName="flex items-center gap-1 m-0"
+        />
+
+        {discountPercent > 0 && (
+          <SummaryRow
+            label={`${discountLabel} discount (${discountPercent}%)`}
+            value={
+              <>
+                <span className="font-mono text-base font-medium">
+                  -{formatUsd(Math.ceil(discountAmount))}
+                </span>
+                <span className="text-xs">USD</span>
+              </>
+            }
+            className="text-success"
+            valueClassName="flex items-center gap-1 m-0"
+          />
         )}
 
         {price.hasPremium && (
-          <div className="flex items-center justify-between">
-            <dt className="text-base font-normal flex items-center gap-1">
-              Temporary premium{' '}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6"
-                onClick={onOpenPremiumDrawer}
-                aria-label="Learn more about temporary premium"
-              >
-                <InfoIcon className="size-3.5" />
-              </Button>
-            </dt>
-            <dd className="flex items-center gap-1 m-0">
-              <span className="font-mono text-base font-medium">
-                {formatPriceDisplay(price.premium, price.decimals)}
-              </span>
-              <span className="text-xs">USD</span>
-            </dd>
-          </div>
+          <SummaryRow
+            label={
+              <>
+                Temporary premium{' '}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  onClick={onOpenPremiumDrawer}
+                  aria-label="Learn more about temporary premium"
+                >
+                  <InfoIcon className="size-3.5" />
+                </Button>
+              </>
+            }
+            value={
+              <>
+                <span className="font-mono text-base font-medium">
+                  {formatPriceDisplay(price.premium, price.decimals)}
+                </span>
+                <span className="text-xs">USD</span>
+              </>
+            }
+            labelClassName="text-base font-normal flex items-center gap-1"
+            valueClassName="flex items-center gap-1 m-0"
+          />
         )}
 
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <dt className="text-xl font-bold">Total</dt>
-          <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-xl font-bold">
-              {formatTotalWithGas(
-                price.base,
-                price.premium,
-                EST_GAS_USD,
-                price.decimals,
-              )}
-            </span>
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
+        <SummaryRow
+          label="Total"
+          value={
+            <>
+              <span className="font-mono text-xl font-bold">
+                {formatTotalWithGas(
+                  price.base,
+                  price.premium,
+                  EST_GAS_USD,
+                  price.decimals,
+                )}
+              </span>
+              <span className="text-xs">USD</span>
+            </>
+          }
+          className="pt-3 border-t border-border"
+          labelClassName="text-xl font-bold"
+          valueClassName="flex items-center gap-1 m-0"
+        />
 
         <p className="text-xs text-muted-foreground pt-1">
           Paid in USDC or DAI. Gas and network fees are approximations.

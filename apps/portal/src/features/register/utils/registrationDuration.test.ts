@@ -5,7 +5,6 @@ import {
   calculateDurationFromDate,
   formatDurationLabel,
   formatRegistrationDuration,
-  formatYearsDisplay,
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
   getExpiryDateForPicker,
@@ -99,28 +98,6 @@ describe('registrationDuration', () => {
     })
   })
 
-  describe('formatYearsDisplay', () => {
-    it('should return "0" for non-finite or zero/negative years', () => {
-      expect(formatYearsDisplay(NaN)).toBe('0')
-      expect(formatYearsDisplay(Infinity)).toBe('0')
-      expect(formatYearsDisplay(-Infinity)).toBe('0')
-      expect(formatYearsDisplay(0)).toBe('0')
-      expect(formatYearsDisplay(-1)).toBe('0')
-    })
-
-    it('should return integer string for whole years', () => {
-      expect(formatYearsDisplay(1)).toBe('1')
-      expect(formatYearsDisplay(3)).toBe('3')
-      expect(formatYearsDisplay(10)).toBe('10')
-    })
-
-    it('should return 2 decimal places for fractional years', () => {
-      expect(formatYearsDisplay(2.5)).toBe('2.50')
-      expect(formatYearsDisplay(3.25)).toBe('3.25')
-      expect(formatYearsDisplay(1.123)).toBe('1.12')
-    })
-  })
-
   describe('calculateDurationFromDate', () => {
     it('should return 1 when target is today or in the past', () => {
       expect(
@@ -164,15 +141,14 @@ describe('registrationDuration', () => {
       expect(result).toBeLessThan(0.51)
     })
 
-    it('should preserve fractional years for 1 year and 1 day', () => {
+    it('should round to 2 decimals for 1 year and 1 day', () => {
       const justOverOneYear = addYears(startOfFixedToday, 1)
       justOverOneYear.setDate(justOverOneYear.getDate() + 1)
       const result = calculateDurationFromDate(
         startOfFixedToday,
         justOverOneYear,
       )
-      expect(result).toBeGreaterThan(1)
-      expect(result).toBeLessThan(1.01)
+      expect(result).toBe(1)
     })
 
     it('should return at least 1', () => {
