@@ -99,6 +99,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   if (nameLengthError) {
     return (
       <MessageCard
+        variant="warning"
         icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
         title="Name too short"
         description={
@@ -122,6 +123,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   if (isError) {
     return (
       <MessageCard
+        variant="danger"
         icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
         title="Could not check availability"
         description={

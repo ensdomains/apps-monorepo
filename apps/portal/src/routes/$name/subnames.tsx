@@ -31,9 +31,8 @@ const NoSubregistryMessage = ({
   canDeploy,
 }: NoSubregistryMessageProps) => (
   <MessageCard
-    icon={
-      <AlertCircle size={30} strokeWidth={1.5} className="text-quartz-500" />
-    }
+    variant="warning"
+    icon={<AlertCircle size={30} strokeWidth={1.5} />}
     title="No subregistry"
     description={
       <p>
