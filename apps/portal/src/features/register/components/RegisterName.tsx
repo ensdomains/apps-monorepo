@@ -1,10 +1,12 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, UserCheck } from 'lucide-react'
 import { useState } from 'react'
 import { sepolia } from 'viem/chains'
+import { useConnection } from 'wagmi'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
@@ -22,6 +24,7 @@ import {
   validateNameLength,
   validateRegistrableEthName,
 } from '@/utils/token/nameValidation'
+import { PaymentTokenSection } from './PaymentTokenSection'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
 import { RegistrationProgress } from './RegistrationProgress'
@@ -50,6 +53,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   })
 
   const machineState = useSelector(actor, (state) => state.value)
+  const { isConnected } = useConnection()
+  const { openConnectModal } = useConnectModal()
 
   const isIdle = machineState === 'idle'
   const isSuccess = machineState === 'success'
@@ -185,7 +190,13 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             name={name}
             duration={duration}
             durationLabel={formatDurationLabel(duration)}
-            onContinue={startRegistration}
+          />
+          <PaymentTokenSection
+            name={name}
+            duration={duration}
+            onConfirm={startRegistration}
+            onConnectWallet={openConnectModal}
+            isConnected={isConnected}
           />
         </>
       ) : (

@@ -1,14 +1,10 @@
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { InfoIcon } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
-import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PaymentTokenModal } from '@/features/register/components/PaymentTokenModal'
 import { PremiumPill } from '@/features/register/components/PremiumPill'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
 import {
@@ -39,7 +35,6 @@ type RegisterNameCheckoutSummaryProps = {
   readonly name: string
   readonly duration: number
   readonly durationLabel: string
-  readonly onContinue: (selectedToken: Address, tokenPrice: bigint) => void
 }
 
 /** ENS docs explaining premium pricing for short names */
@@ -50,14 +45,9 @@ export const RegisterNameCheckoutSummary = ({
   name,
   duration,
   durationLabel,
-  onContinue,
 }: RegisterNameCheckoutSummaryProps) => {
   const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
-
-  const { address, isConnected } = useConnection()
-  const { openConnectModal } = useConnectModal()
 
   const {
     data: price,
@@ -72,14 +62,7 @@ export const RegisterNameCheckoutSummary = ({
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
 
-  const isReady = !isLoading && !isError && price
   const hasPrice = price && isPriceResult(price)
-
-  const canContinue = isReady && hasPrice && isConnected && Boolean(address)
-
-  const handleContinueClick = () => {
-    if (canContinue) setPaymentModalOpen(true)
-  }
 
   return (
     <section
@@ -122,46 +105,6 @@ export const RegisterNameCheckoutSummary = ({
             </p>
           </div>
         ))}
-
-      {match({ isConnected, openConnectModal })
-        .when(
-          ({ isConnected, openConnectModal }) =>
-            !isConnected && typeof openConnectModal === 'function',
-          ({ openConnectModal }) => (
-            <Button
-              className="w-full mt-4 h-12"
-              onClick={() => openConnectModal?.()}
-              type="button"
-            >
-              Connect Wallet
-            </Button>
-          ),
-        )
-        .when(
-          ({ isConnected }) => !isConnected,
-          () => (
-            <Button className="w-full mt-4 h-12" disabled type="button">
-              Wallet not connected
-            </Button>
-          ),
-        )
-        .otherwise(() => (
-          <Button
-            className="w-full mt-4 h-12"
-            onClick={handleContinueClick}
-            disabled={!canContinue}
-          >
-            {isLoading ? 'Loading...' : 'Continue'}
-          </Button>
-        ))}
-
-      <PaymentTokenModal
-        open={paymentModalOpen}
-        onOpenChange={setPaymentModalOpen}
-        name={name}
-        duration={duration}
-        onConfirm={onContinue}
-      />
 
       {hasPrice && price.hasPremium && (
         <TemporaryPremiumDrawer
