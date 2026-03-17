@@ -238,7 +238,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
             <span className="text-base">.{name}</span>
           </div>
           {isLabelTaken && (
-            <p className="text-sm text-garnet-500">
+            <p className="text-sm text-danger">
               {trimmedLabel}.{name} is already registered.
             </p>
           )}
@@ -330,15 +330,15 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
 
         {match({ isConnected, prepareError, resolveError })
           .with({ isConnected: false }, () => (
-            <p className="text-sm text-amber-600">
+            <p className="text-sm text-warning">
               Please connect your wallet to create a subname.
             </p>
           ))
           .with({ resolveError: P.string.minLength(1) }, ({ resolveError }) => (
-            <p className="text-sm text-garnet-500">{resolveError}</p>
+            <p className="text-sm text-danger">{resolveError}</p>
           ))
           .with({ prepareError: P.string.minLength(1) }, ({ prepareError }) => (
-            <p className="text-sm text-red-500">Error: {prepareError}</p>
+            <p className="text-sm text-danger">Error: {prepareError}</p>
           ))
           .otherwise(() => null)}
 

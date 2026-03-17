@@ -282,14 +282,14 @@ function RouteComponent() {
                 )}
               >
                 {normalized ? (
-                  <CheckCircleIcon className="size-4 text-peridot-500" />
+                  <CheckCircleIcon className="size-4 text-success" />
                 ) : (
-                  <XCircleIcon className="size-4 text-garnet-500" />
+                  <XCircleIcon className="size-4 text-danger" />
                 )}
                 <span
                   className={cn(
                     'text-xs font-medium',
-                    normalized ? 'text-peridot-500' : 'text-garnet-500',
+                    normalized ? 'text-success' : 'text-danger',
                   )}
                 >
                   {normalized ? 'Normalized' : 'Not Normalized'}

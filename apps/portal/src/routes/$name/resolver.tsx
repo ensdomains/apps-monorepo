@@ -21,6 +21,7 @@ import { ResolverNetwork } from '@/features/resolver/components/ResolverNetwork'
 import { ResolverPrimaryName } from '@/features/resolver/components/ResolverPrimaryName'
 import { ResolverType } from '@/features/resolver/components/ResolverType'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import { namechainSepolia } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
@@ -221,7 +222,7 @@ function RouteComponent() {
     error,
   } = useEnsResolver({
     name,
-    universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+    universalResolverAddress,
   })
 
   if (error) {

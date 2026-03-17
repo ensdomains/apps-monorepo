@@ -1,7 +1,10 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { hasRoles as ensjsHasRoles } from '@ensdomains/ensjs/public/v2'
+import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import {
+  type HasRolesParameters as EnsjsHasRolesParameters,
+  hasRoles as ensjsHasRoles,
+} from '@ensdomains/ensjs/public/v2'
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
@@ -15,50 +18,55 @@ class HasRolesError extends TaggedError('HasRolesError')<{
   cause: unknown
 }> {}
 
-type GetHasRolesParameters = {
-  /** The registry address to check */
-  registryAddress: Address
-  /** The label to check roles for */
-  label: string
-  /** The roles to check */
-  roles: Role[]
-  /** The account address to check */
-  account: Address
-  /** The network to check on */
-  network: EnsNetworkName
+type RegistryRolesParameters = {
+  readonly registryAddress: Address
+  readonly label: string
+  readonly roles: Role[]
+  readonly account: Address
+  readonly network: EnsNetworkName
 }
 
-const getHasRoles = ResultFn(async function* ({
-  registryAddress,
-  label,
-  roles,
-  account,
-  network,
-}: GetHasRolesParameters) {
+type ResolverRootRolesParameters = {
+  readonly resolverAddress: Address
+  readonly roles: ResolverRole[]
+  readonly account: Address
+  readonly network: EnsNetworkName
+}
+
+type ResolverRolesParameters = {
+  readonly resolverAddress: Address
+  readonly resource: bigint
+  readonly roles: ResolverRole[]
+  readonly account: Address
+  readonly network: EnsNetworkName
+}
+
+type GetHasRolesParameters =
+  | RegistryRolesParameters
+  | ResolverRootRolesParameters
+  | ResolverRolesParameters
+
+const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
   const client =
-    network === 'namechainSepolia'
+    params.network === 'namechainSepolia'
       ? yield* safeGetNamechainSepoliaClient()
       : yield* safeGetClient()
 
+  const { network: _, ...ensjsParams } = params
+
   const result = yield* await fromPromise(
-    ensjsHasRoles(client, {
-      registryAddress,
-      label,
-      roles,
-      account,
-    }),
+    ensjsHasRoles(client, ensjsParams as EnsjsHasRolesParameters),
     (e) => new HasRolesError({ cause: e }),
   )
 
   return ok(result)
 })
 
-const hasRolesQueryKey = createQueryKey<'hasRoles', GetHasRolesParameters>(
-  'hasRoles',
-)
+const hasRolesQueryKey = (params: GetHasRolesParameters) =>
+  ['hasRoles', params] as const
 
 export const getHasRolesQueryOptions = (params: GetHasRolesParameters) =>
   resultQueryOptions({
     queryKey: hasRolesQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getHasRoles(params),
+    queryFn: () => getHasRoles(params),
   })

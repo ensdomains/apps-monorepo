@@ -46,7 +46,7 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
         await pollForIndexerSync({
           invalidateQueries: () =>
             queryClient.invalidateQueries({
-              queryKey: getProfileQueryOptions(name).queryKey,
+              queryKey: getProfileQueryOptions({ name }).queryKey,
               refetchType: 'all',
             }),
         })
