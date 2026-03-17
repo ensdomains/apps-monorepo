@@ -190,7 +190,6 @@ export const RolesSidebar = <
                   {canManageRoles && selectedAccount && (
                     <Button
                       variant="secondary"
-                      className="bg-lapis-100 text-primary hover:bg-lapis-100/80 gap-2"
                       disabled={!isWalletConnected}
                       onClick={() => setConfirmOpen(true)}
                     >
@@ -284,7 +283,6 @@ export const RolesSidebar = <
                   <div className="flex justify-end px-6 py-4 border-t border-border bg-quartz-0">
                     <Button
                       variant="secondary"
-                      className="gap-2 text-quartz-400 bg-quartz-50 hover:bg-quartz-50/80"
                       disabled={!hasChanges || !isWalletConnected}
                       onClick={handleSaveChanges}
                     >
@@ -300,10 +298,7 @@ export const RolesSidebar = <
                     <h3 className="text-2xl font-medium leading-snug">
                       History
                     </h3>
-                    <Button
-                      variant="secondary"
-                      className="bg-lapis-100 text-primary hover:bg-lapis-100/80 gap-1 h-8 px-2 py-1 text-sm"
-                    >
+                    <Button variant="secondary">
                       <Clock className="size-4" />
                       Full history
                     </Button>
