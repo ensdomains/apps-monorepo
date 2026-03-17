@@ -1,7 +1,6 @@
 import { addYears } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Calendar } from '@/components/ui/calendar'
 import {
   Popover,
@@ -11,6 +10,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { getStartOfToday } from '../utils/registrationDuration'
+import { RegistrationDurationPresets } from './RegistrationDurationPresets'
 
 type RegistrationExpiryDatePickerProps = {
   readonly date: Date
@@ -19,29 +19,6 @@ type RegistrationExpiryDatePickerProps = {
   readonly maxDate: Date
 }
 
-const DISCOUNT_CONFIG = [
-  {
-    spanValue: 1,
-    spanLabel: '1 year',
-    discount: undefined,
-  },
-  {
-    spanValue: 3,
-    spanLabel: '3 years',
-    discount: '25% off',
-  },
-  {
-    spanValue: 5,
-    spanLabel: '5 years',
-    discount: '40% off',
-  },
-  {
-    spanValue: 10,
-    spanLabel: '10 years',
-    discount: '50% off',
-  },
-]
-
 export const RegistrationExpiryDatePicker = ({
   date,
   onDateChange,
@@ -49,22 +26,17 @@ export const RegistrationExpiryDatePicker = ({
   maxDate,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
-  const [selectedDiscountYears, setSelectedDiscountYears] = useState<
-    number | undefined
-  >(undefined)
 
   const displayValue = formatDateTime(date) ?? ''
 
   const handleSelect = (d: Date | undefined) => {
     if (d) {
-      setSelectedDiscountYears(undefined)
       onDateChange(d)
       setIsOpen(false)
     }
   }
 
-  const handleDiscountBadgeClick = (spanValue: number) => {
-    setSelectedDiscountYears(spanValue)
+  const handlePresetSelect = (spanValue: number) => {
     const startOfToday = getStartOfToday()
     const expiryDate = addYears(startOfToday, spanValue)
     const cappedDate =
@@ -126,36 +98,7 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      <div className="flex gap-2 items-center">
-        {DISCOUNT_CONFIG.map(({ spanValue, spanLabel, discount }) => {
-          const isSelected = selectedDiscountYears === spanValue
-
-          return (
-            <Badge
-              key={spanValue}
-              variant={isSelected ? 'secondary' : 'outline'}
-              onClick={() => handleDiscountBadgeClick(spanValue)}
-              className={cn(
-                'cursor-pointer rounded-xs justify-center text-center px-2.5',
-                'border',
-                isSelected && 'border-transparent',
-              )}
-            >
-              {spanLabel}{' '}
-              {discount ? (
-                <span
-                  className={cn(
-                    'font-normal',
-                    isSelected ? 'text-primary' : 'text-success',
-                  )}
-                >
-                  {discount}
-                </span>
-              ) : null}
-            </Badge>
-          )
-        })}
-      </div>
+      <RegistrationDurationPresets onSelect={handlePresetSelect} />
     </div>
   )
 }
