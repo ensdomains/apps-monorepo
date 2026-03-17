@@ -96,7 +96,7 @@ msgstr "{label} theme (selected)"
 msgid "<0>Connection failed:</0> {0}"
 msgstr "<0>Connection failed:</0> {0}"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:67
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:72
 msgid "60-second wait prevents attacks"
 msgstr "60-second wait prevents attacks"
 
@@ -200,11 +200,11 @@ msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't
 msgid "All Notifications"
 msgstr "All Notifications"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:110
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:115
 msgid "Almost complete"
 msgstr "Almost complete"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:70
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:75
 msgid "Almost ready"
 msgstr "Almost ready"
 
@@ -212,7 +212,7 @@ msgstr "Almost ready"
 msgid "An error occurred"
 msgstr "An error occurred"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:179
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:180
 msgid "An error occurred during registration. Please try again."
 msgstr "An error occurred during registration. Please try again."
 
@@ -224,11 +224,11 @@ msgstr "An error occurred during verification"
 msgid "And more..."
 msgstr "And more..."
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:77
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:82
 msgid "Approval allows registrar to charge"
 msgstr "Approval allows registrar to charge"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
 msgstr "Approving"
 
@@ -248,7 +248,7 @@ msgstr "Are you sure?"
 msgid "Auth address:"
 msgstr "Auth address:"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:80
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:85
 msgid "Authorizing payment"
 msgstr "Authorizing payment"
 
@@ -305,7 +305,7 @@ msgstr "Billing zip code"
 msgid "Bio"
 msgstr "Bio"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:95
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:94
 msgid "Blog"
 msgstr "Blog"
 
@@ -440,15 +440,15 @@ msgstr "Close dialog"
 msgid "Coming Soon"
 msgstr "Coming Soon"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:41
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:46
 msgid "Commit-reveal prevents front-running"
 msgstr "Commit-reveal prevents front-running"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:47
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:52
 msgid "Commitment hides your registration intent"
 msgstr "Commitment hides your registration intent"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:46
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:51
 msgid "Committing"
 msgstr "Committing"
 
@@ -474,11 +474,11 @@ msgstr "Confirm Payment"
 msgid "Confirm purchase"
 msgstr "Confirm purchase"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:90
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:95
 msgid "Confirming approval"
 msgstr "Confirming approval"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:60
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:65
 msgid "Confirming commitment"
 msgstr "Confirming commitment"
 
@@ -567,7 +567,7 @@ msgstr "Create profile"
 msgid "Create Profile"
 msgstr "Create Profile"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:106
 msgid "Create unlimited subdomains for free"
 msgstr "Create unlimited subdomains for free"
 
@@ -613,7 +613,7 @@ msgstr "Customize your profile to share what matters"
 msgid "CVV"
 msgstr "CVV"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:101
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:100
 msgid "DAO Forum"
 msgstr "DAO Forum"
 
@@ -716,11 +716,11 @@ msgstr "ENS App Homepage"
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:37
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:42
 msgid "ENS names are stored on-chain as NFTs"
 msgstr "ENS names are stored on-chain as NFTs"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:51
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:56
 msgid "ENS names can be up to 255 characters"
 msgstr "ENS names can be up to 255 characters"
 
@@ -889,7 +889,7 @@ msgstr "Favorites"
 msgid "Favourited Name Expiry"
 msgstr "Favourited Name Expiry"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:100
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
 msgid "Finalizing registration"
 msgstr "Finalizing registration"
 
@@ -976,7 +976,7 @@ msgstr "How can I secure my ENS name?"
 msgid "How do I show my .eth name instead of my address?"
 msgstr "How do I show my .eth name instead of my address?"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:107
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:112
 msgid "Human-readable addresses for wallets"
 msgstr "Human-readable addresses for wallets"
 
@@ -996,7 +996,7 @@ msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your w
 msgid "Invalid character"
 msgstr "Invalid character"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:92
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:91
 msgid "Join the community"
 msgstr "Join the community"
 
@@ -1072,7 +1072,7 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 msgid "Make sure you have a wallet extension installed"
 msgstr "Make sure you have a wallet extension installed"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:125
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:130
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
 
@@ -1138,12 +1138,12 @@ msgstr "Name Expiry"
 msgid "Name on card"
 msgstr "Name on card"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:36
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:124
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:41
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:129
 msgid "Name registering"
 msgstr "Name registering"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:97
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:102
 msgid "Names are permanent, only expire if not renewed"
 msgstr "Names are permanent, only expire if not renewed"
 
@@ -1268,7 +1268,7 @@ msgstr "or"
 msgid "Other"
 msgstr "Other"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:57
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:62
 msgid "Over 2 million ENS names registered"
 msgstr "Over 2 million ENS names registered"
 
@@ -1340,7 +1340,7 @@ msgstr "Please wait while we verify your email address."
 msgid "Preferences updated"
 msgstr "Preferences updated"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:40
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:45
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
 
@@ -1393,7 +1393,7 @@ msgstr "Profile updated"
 msgid "Protect your name with autorenewal"
 msgstr "Protect your name with autorenewal"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
 msgid "Receive crypto from any chain"
 msgstr "Receive crypto from any chain"
 
@@ -1430,7 +1430,7 @@ msgid "Registered ENS names"
 msgstr "Registered ENS names"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:96
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
 msgid "Registering"
 msgstr "Registering"
 
@@ -1438,8 +1438,8 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:191
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:121
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:192
 msgid "Registration Complete!"
 msgstr "Registration Complete!"
 
@@ -1447,7 +1447,7 @@ msgstr "Registration Complete!"
 msgid "Registration Details"
 msgstr "Registration Details"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:209
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:210
 msgid "Registration Failed"
 msgstr "Registration Failed"
 
@@ -1667,7 +1667,7 @@ msgstr "Set as Primary"
 msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
 msgstr "Set it as your primary name. You can do this from your profile page in the ENS App."
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:61
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:66
 msgid "Set multiple records: ETH, BTC, email"
 msgstr "Set multiple records: ETH, BTC, email"
 
@@ -1677,7 +1677,7 @@ msgstr "Set multiple records: ETH, BTC, email"
 msgid "Set Primary Name"
 msgstr "Set Primary Name"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:91
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:96
 msgid "Set reverse record to show your name"
 msgstr "Set reverse record to show your name"
 
@@ -1854,7 +1854,7 @@ msgstr "Successfully connected! You can now use the application."
 msgid "Support"
 msgstr "Support"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:86
 msgid "Supports USDC and DAI payments"
 msgstr "Supports USDC and DAI payments"
 
@@ -1964,7 +1964,7 @@ msgstr "Trademark Guidelines"
 msgid "Transaction:"
 msgstr "Transaction:"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:87
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
 msgstr "Transfer your name to any wallet"
 
@@ -2086,15 +2086,15 @@ msgstr "Verifying..."
 msgid "View profile"
 msgstr "View profile"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:86
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:91
 msgid "Waiting for approval"
 msgstr "Waiting for approval"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:106
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
 msgid "Waiting for registration"
 msgstr "Waiting for registration"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:50
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:55
 msgid "Waiting for signature"
 msgstr "Waiting for signature"
 
@@ -2107,11 +2107,11 @@ msgstr "Waiting for signature..."
 msgid "Waiting for the transaction to be confirmed…"
 msgstr "Waiting for the transaction to be confirmed…"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:56
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:61
 msgid "Waiting for transaction"
 msgstr "Waiting for transaction"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:66
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
 msgid "Waiting period"
 msgstr "Waiting period"
 
@@ -2161,7 +2161,7 @@ msgstr "Welcome to the public alpha of the ENS app"
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
 msgid "Works across all EVM-compatible chains"
 msgstr "Works across all EVM-compatible chains"
 
@@ -2227,11 +2227,11 @@ msgstr "Your {formattedDurationYears}-year registration expires on {expiryDateSt
 msgid "Your email has been verified successfully!"
 msgstr "Your email has been verified successfully!"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:194
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:195
 msgid "Your ENS domain has been successfully registered and is now active."
 msgstr "Your ENS domain has been successfully registered and is now active."
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:117
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:122
 msgid "Your ENS domain is now active"
 msgstr "Your ENS domain is now active"
 

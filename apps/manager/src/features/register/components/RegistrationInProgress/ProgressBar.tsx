@@ -1,6 +1,9 @@
 'use client'
 
-import { Trans, useLingui } from '@lingui/react/macro'
+import type { MessageDescriptor } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
+import { useLingui } from '@lingui/react'
+import { Trans } from '@lingui/react/macro'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -27,107 +30,106 @@ const STAGE_PROGRESS: Record<ProgressStage, number> = {
   error: 0,
 }
 
-const useStateMessages = () => {
-  const { t } = useLingui()
-
-  const stateMessages: Record<string, { primary: string; fact?: string }[]> = {
-    preparingCommitment: [
-      {
-        primary: t`Name registering`,
-        fact: t`ENS names are stored on-chain as NFTs`,
-      },
-      {
-        primary: t`Preparing commitment`,
-        fact: t`Commit-reveal prevents front-running`,
-      },
-    ],
-    committingTransaction: [
-      {
-        primary: t`Committing`,
-        fact: t`Commitment hides your registration intent`,
-      },
-      {
-        primary: t`Waiting for signature`,
-        fact: t`ENS names can be up to 255 characters`,
-      },
-    ],
-    waitingForCommitment: [
-      {
-        primary: t`Waiting for transaction`,
-        fact: t`Over 2 million ENS names registered`,
-      },
-      {
-        primary: t`Confirming commitment`,
-        fact: t`Set multiple records: ETH, BTC, email`,
-      },
-    ],
-    commitmentCooldown: [
-      {
-        primary: t`Waiting period`,
-        fact: t`60-second wait prevents attacks`,
-      },
-      {
-        primary: t`Almost ready`,
-        fact: t`Works across all EVM-compatible chains`,
-      },
-    ],
-    approvingToken: [
-      {
-        primary: t`Approving`,
-        fact: t`Approval allows registrar to charge`,
-      },
-      {
-        primary: t`Authorizing payment`,
-        fact: t`Supports USDC and DAI payments`,
-      },
-    ],
-    waitingForApproval: [
-      {
-        primary: t`Waiting for approval`,
-        fact: t`Transfer your name to any wallet`,
-      },
-      {
-        primary: t`Confirming approval`,
-        fact: t`Set reverse record to show your name`,
-      },
-    ],
-    registeringDomain: [
-      {
-        primary: t`Registering`,
-        fact: t`Names are permanent, only expire if not renewed`,
-      },
-      {
-        primary: t`Finalizing registration`,
-        fact: t`Create unlimited subdomains for free`,
-      },
-    ],
-    waitingForRegistration: [
-      {
-        primary: t`Waiting for registration`,
-        fact: t`Human-readable addresses for wallets`,
-      },
-      {
-        primary: t`Almost complete`,
-        fact: t`Receive crypto from any chain`,
-      },
-    ],
-    success: [
-      {
-        primary: t`Registration Complete!`,
-        fact: t`Your ENS domain is now active`,
-      },
-    ],
-  }
-
-  const defaultMessages = [
-    {
-      primary: t`Name registering`,
-      fact: t`Makes crypto addresses human-readable`,
-    },
-  ]
-
-  return { stateMessages, defaultMessages }
+interface StateMessage {
+  primary: MessageDescriptor
+  fact?: MessageDescriptor
 }
+
+const stateMessages: Record<string, StateMessage[]> = {
+  preparingCommitment: [
+    {
+      primary: msg`Name registering`,
+      fact: msg`ENS names are stored on-chain as NFTs`,
+    },
+    {
+      primary: msg`Preparing commitment`,
+      fact: msg`Commit-reveal prevents front-running`,
+    },
+  ],
+  committingTransaction: [
+    {
+      primary: msg`Committing`,
+      fact: msg`Commitment hides your registration intent`,
+    },
+    {
+      primary: msg`Waiting for signature`,
+      fact: msg`ENS names can be up to 255 characters`,
+    },
+  ],
+  waitingForCommitment: [
+    {
+      primary: msg`Waiting for transaction`,
+      fact: msg`Over 2 million ENS names registered`,
+    },
+    {
+      primary: msg`Confirming commitment`,
+      fact: msg`Set multiple records: ETH, BTC, email`,
+    },
+  ],
+  commitmentCooldown: [
+    {
+      primary: msg`Waiting period`,
+      fact: msg`60-second wait prevents attacks`,
+    },
+    {
+      primary: msg`Almost ready`,
+      fact: msg`Works across all EVM-compatible chains`,
+    },
+  ],
+  approvingToken: [
+    {
+      primary: msg`Approving`,
+      fact: msg`Approval allows registrar to charge`,
+    },
+    {
+      primary: msg`Authorizing payment`,
+      fact: msg`Supports USDC and DAI payments`,
+    },
+  ],
+  waitingForApproval: [
+    {
+      primary: msg`Waiting for approval`,
+      fact: msg`Transfer your name to any wallet`,
+    },
+    {
+      primary: msg`Confirming approval`,
+      fact: msg`Set reverse record to show your name`,
+    },
+  ],
+  registeringDomain: [
+    {
+      primary: msg`Registering`,
+      fact: msg`Names are permanent, only expire if not renewed`,
+    },
+    {
+      primary: msg`Finalizing registration`,
+      fact: msg`Create unlimited subdomains for free`,
+    },
+  ],
+  waitingForRegistration: [
+    {
+      primary: msg`Waiting for registration`,
+      fact: msg`Human-readable addresses for wallets`,
+    },
+    {
+      primary: msg`Almost complete`,
+      fact: msg`Receive crypto from any chain`,
+    },
+  ],
+  success: [
+    {
+      primary: msg`Registration Complete!`,
+      fact: msg`Your ENS domain is now active`,
+    },
+  ],
+}
+
+const defaultMessages: StateMessage[] = [
+  {
+    primary: msg`Name registering`,
+    fact: msg`Makes crypto addresses human-readable`,
+  },
+]
 
 export const ProgressBar = ({
   stage,
@@ -135,8 +137,7 @@ export const ProgressBar = ({
   error,
   className,
 }: ProgressBarProps) => {
-  const { t } = useLingui()
-  const { stateMessages, defaultMessages } = useStateMessages()
+  const { _ } = useLingui()
   const progress = STAGE_PROGRESS[stage]
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -176,7 +177,7 @@ export const ProgressBar = ({
       ? error.message
       : typeof error === 'string'
         ? error
-        : t`An error occurred during registration. Please try again.`
+        : _(msg`An error occurred during registration. Please try again.`)
 
   return (
     <div className={cn('mx-auto w-full max-w-6xl', className)}>
@@ -223,10 +224,12 @@ export const ProgressBar = ({
               )}
             >
               <p className="font-medium text-base text-ens-blue">
-                {currentMessage?.primary}
+                {currentMessage?.primary && _(currentMessage.primary)}
               </p>
               {currentMessage?.fact && (
-                <p className="text-ens-gray text-sm">{currentMessage?.fact}</p>
+                <p className="text-ens-gray text-sm">
+                  {_(currentMessage.fact)}
+                </p>
               )}
             </div>
           </div>
