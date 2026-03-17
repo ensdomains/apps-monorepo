@@ -26,6 +26,9 @@ export const RegistrationExpiryDatePicker = ({
   maxDate,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [selectedYears, setSelectedYears] = useState<number | undefined>(
+    undefined,
+  )
 
   const displayValue = formatDateTime(date) ?? ''
 
@@ -34,6 +37,7 @@ export const RegistrationExpiryDatePicker = ({
       onDateChange(d)
       setIsOpen(false)
     }
+    setSelectedYears(undefined)
   }
 
   const handlePresetSelect = (spanValue: number) => {
@@ -42,6 +46,7 @@ export const RegistrationExpiryDatePicker = ({
     const cappedDate =
       expiryDate.getTime() > maxDate.getTime() ? maxDate : expiryDate
     onDateChange(cappedDate)
+    setSelectedYears(spanValue)
   }
 
   const disabled = (d: Date) => {
@@ -65,19 +70,19 @@ export const RegistrationExpiryDatePicker = ({
             id="registration-expiry-date"
             type="button"
             className={cn(
-              'flex w-full cursor-pointer items-center gap-2 rounded-md text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
+              'flex w-full cursor-pointer items-center gap-2 text-left text-foreground outline-none transition-[color,box-shadow] hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
             )}
           >
             <span className="flex-1 truncate text-2xl font-medium">
               {displayValue}
             </span>
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-secondary">
+            <span className="flex size-8 shrink-0 items-center justify-center bg-secondary">
               <CalendarIcon className="size-3" />
             </span>
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-0 border border-border rounded-md"
+          className="w-auto p-0 border border-border"
           align="start"
         >
           <Calendar
@@ -98,7 +103,10 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      <RegistrationDurationPresets onSelect={handlePresetSelect} />
+      <RegistrationDurationPresets
+        selectedYears={selectedYears}
+        onSelectedYearsChange={handlePresetSelect}
+      />
     </div>
   )
 }

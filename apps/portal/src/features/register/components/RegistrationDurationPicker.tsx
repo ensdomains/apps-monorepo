@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { getDurationInSecondsFromYears } from '../utils/registrationDuration'
 import { RegistrationDurationPresets } from './RegistrationDurationPresets'
 
 type RegistrationDurationPickerProps = {
@@ -23,17 +22,22 @@ export const RegistrationDurationPicker = ({
   className,
 }: RegistrationDurationPickerProps) => {
   const [isFocused, setIsFocused] = useState(false)
+  const [selectedYears, setSelectedYears] = useState<number | undefined>(
+    undefined,
+  )
 
   const handleDecrement = () => {
     if (value > min) {
       onChange(value - 1)
     }
+    setSelectedYears(undefined)
   }
 
   const handleIncrement = () => {
     if (value < max) {
       onChange(value + 1)
     }
+    setSelectedYears(undefined)
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,6 +46,13 @@ export const RegistrationDurationPicker = ({
       const capped = Math.min(Math.max(parsed, min), max)
       onChange(capped)
     }
+    setSelectedYears(undefined)
+  }
+
+  const handlePresetSelect = (years: number) => {
+    setSelectedYears(years)
+    const capped = Math.min(Math.max(years, min), max)
+    onChange(capped)
   }
 
   const label = value === 1 ? '1 year' : `${value} years`
@@ -49,11 +60,7 @@ export const RegistrationDurationPicker = ({
   return (
     <div className="space-y-5">
       <div
-        className={cn(
-          'flex items-center gap-0 rounded-md',
-          'overflow-hidden',
-          className,
-        )}
+        className={cn('flex items-center gap-0', 'overflow-hidden', className)}
       >
         <div className="relative flex min-w-0 flex-1 items-start justify-between">
           <Input
@@ -72,7 +79,7 @@ export const RegistrationDurationPicker = ({
               'shadow-none focus-visible:ring-0 [appearance:textfield]',
               '[&::-webkit-inner-spin-button]:appearance-none',
               '[&::-webkit-outer-spin-button]:appearance-none',
-              'text-2xl md:text-2xl',
+              'text-2xl md:text-2xl rounded-none',
               isFocused && 'font-medium',
             )}
           />
@@ -111,7 +118,8 @@ export const RegistrationDurationPicker = ({
         </Button>
       </div>
       <RegistrationDurationPresets
-        onSelect={(years) => onChange(getDurationInSecondsFromYears(years))}
+        selectedYears={selectedYears}
+        onSelectedYearsChange={handlePresetSelect}
       />
     </div>
   )

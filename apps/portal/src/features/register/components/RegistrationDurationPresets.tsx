@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
@@ -10,21 +9,14 @@ const DISCOUNT_CONFIG = [
 ] as const
 
 type RegistrationDurationPresetsProps = {
-  readonly onSelect: (years: number) => void
+  readonly selectedYears: number | undefined
+  readonly onSelectedYearsChange: (years: number) => void
 }
 
 export const RegistrationDurationPresets = ({
-  onSelect,
+  selectedYears,
+  onSelectedYearsChange,
 }: RegistrationDurationPresetsProps) => {
-  const [selectedYears, setSelectedYears] = useState<number | undefined>(
-    undefined,
-  )
-
-  const handleSelect = (years: number) => {
-    setSelectedYears(years)
-    onSelect(years)
-  }
-
   return (
     <div className="flex gap-2 items-center">
       {DISCOUNT_CONFIG.map(({ spanValue, spanLabel, discount }) => {
@@ -34,7 +26,7 @@ export const RegistrationDurationPresets = ({
           <Badge
             key={spanValue}
             variant={isSelected ? 'secondary' : 'outline'}
-            onClick={() => handleSelect(spanValue)}
+            onClick={() => onSelectedYearsChange(spanValue)}
             className={cn(
               'cursor-pointer rounded-xs justify-center text-center px-2.5',
               'border',
