@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronDown, PlusIcon } from 'lucide-react'
@@ -10,32 +11,37 @@ export const PaymentMethodAdd = () => {
   return (
     <div className="space-y-3.5 rounded-md border border-gray-200 p-5">
       <div>
-        <h2 className="font-medium text-lg">Payment Methods</h2>
+        <h2 className="font-medium text-lg">
+          <Trans>Payment Methods</Trans>
+        </h2>
         <div className="mb-4 text-gray-500 text-sm">
-          This card will be charged for your subscription.
+          <Trans>This card will be charged for your subscription.</Trans>
         </div>
       </div>
       <LinkButton className="w-full" to="/payment/add" variant="default">
         <PlusIcon />
-        Add Payment Method
+        <Trans>Add Payment Method</Trans>
       </LinkButton>
     </div>
   )
 }
 
 const PaymentMethodAddScreenCardDetails = () => {
+  const { t } = useLingui()
   return (
     <div className="flex flex-col gap-2 space-y-4">
-      <h2 className="font-medium text-lg">Add a credit card</h2>
-      <Input placeholder="Card number" />
+      <h2 className="font-medium text-lg">
+        <Trans>Add a credit card</Trans>
+      </h2>
+      <Input aria-label={t`Card number`} placeholder={t`Card number`} />
       <div className="flex gap-2">
-        <Input placeholder="MM/YY" />
-        <Input placeholder="CVV" />
+        <Input aria-label={t`Card expiry date`} placeholder={t`MM/YY`} />
+        <Input aria-label={t`Card security code`} placeholder={t`CVV`} />
       </div>
-      <Input placeholder="Name on card" />
+      <Input aria-label={t`Name on card`} placeholder={t`Name on card`} />
       <div className="flex gap-2">
-        <Input placeholder="Zip code" />
-        <Input placeholder="Country" />
+        <Input aria-label={t`Billing zip code`} placeholder={t`Zip code`} />
+        <Input aria-label={t`Billing country`} placeholder={t`Country`} />
       </div>
     </div>
   )
@@ -47,9 +53,11 @@ export const PaymentMethodAddScreen = () => {
   return (
     <div className="space-y-4 px-4">
       <div>
-        <h2 className="font-medium text-lg">Payment Methods</h2>
+        <h2 className="font-medium text-lg">
+          <Trans>Payment Methods</Trans>
+        </h2>
         <div className="mb-4 text-gray-500 text-sm">
-          Choose how you'd like to pay for your subscription.
+          <Trans>Choose how you'd like to pay for your subscription.</Trans>
         </div>
       </div>
 
@@ -73,7 +81,7 @@ export const PaymentMethodAddScreen = () => {
             <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500">
               <span className="font-bold text-white text-xs">G</span>
             </div>
-            Pay with Google
+            <Trans>Pay with Google</Trans>
           </div>
         </Button>
 
@@ -96,7 +104,7 @@ export const PaymentMethodAddScreen = () => {
             <div className="flex h-6 w-6 items-center justify-center rounded bg-black">
               <span className="font-bold text-white text-xs">A</span>
             </div>
-            Pay with Apple
+            <Trans>Pay with Apple</Trans>
           </div>
         </Button>
 
@@ -119,14 +127,16 @@ export const PaymentMethodAddScreen = () => {
             <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600">
               <span className="font-bold text-white text-xs">P</span>
             </div>
-            Pay with PayPal
+            <Trans>Pay with PayPal</Trans>
           </div>
         </Button>
       </div>
 
       <div className="flex items-center justify-center gap-2">
         <div className="w-full border-gray-300 border-t" />
-        <span className="px-2 text-gray-500">or</span>
+        <span className="px-2 text-gray-500">
+          <Trans>or</Trans>
+        </span>
         <div className="w-full border-gray-300 border-t" />
       </div>
 
@@ -136,14 +146,18 @@ export const PaymentMethodAddScreen = () => {
         variant="default"
       >
         <PlusIcon />
-        Add a credit card
+        <Trans>Add a credit card</Trans>
       </Button>
 
       <div className="flex flex-col items-center justify-center gap-2 text-center leading-ens-tight">
-        <div className="font-medium">Add a Backup Payment Method</div>
+        <div className="font-medium">
+          <Trans>Add a Backup Payment Method</Trans>
+        </div>
         <div className="text-gray-500">
-          The backup payment method will be charged if the default payment
-          method fails.
+          <Trans>
+            The backup payment method will be charged if the default payment
+            method fails.
+          </Trans>
         </div>
 
         <ChevronDown
@@ -170,7 +184,7 @@ export const PaymentMethodAddScreen = () => {
           }}
           variant="default"
         >
-          Confirm
+          <Trans>Confirm</Trans>
         </Button>
       </div>
     </div>

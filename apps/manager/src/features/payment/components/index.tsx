@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import clsx from 'clsx'
 import { CreditCard, EllipsisIcon, Star } from 'lucide-react'
@@ -19,6 +20,7 @@ const PaymentMethodItem = ({
   paymentMethod: PaymentMethod
   isDefault?: boolean
 }) => {
+  const { t } = useLingui()
   return (
     <div className="flex items-center gap-3.5 rounded-md border border-gray-200 p-4">
       <div
@@ -37,18 +39,22 @@ const PaymentMethodItem = ({
           <span>{paymentMethod.name}</span>
           {isDefault && (
             <Badge variant="gray">
-              <Star /> Default
+              <Star /> <Trans>Default</Trans>
             </Badge>
           )}
         </div>
         <div className="text-gray-500 text-sm">
-          Expires {paymentMethod.expires}
+          <Trans>Expires {paymentMethod.expires}</Trans>
         </div>
       </div>
       <div className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="secondary">
+            <Button
+              aria-label={t`Payment method options`}
+              size="icon"
+              variant="secondary"
+            >
               <EllipsisIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -58,7 +64,7 @@ const PaymentMethodItem = ({
                 paymentMethodsStore.trigger.remove({ id: paymentMethod.id })
               }}
             >
-              Delete
+              <Trans>Delete</Trans>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -79,9 +85,11 @@ export const PaymentMethodList = () => {
   return (
     <div className="space-y-3.5 rounded-md border border-gray-200 p-5">
       <div>
-        <h2 className="font-medium text-lg">Payment Method</h2>
+        <h2 className="font-medium text-lg">
+          <Trans>Payment Method</Trans>
+        </h2>
         <div className="mb-4 text-gray-500 text-sm">
-          This card will be charged for your subscription.
+          <Trans>This card will be charged for your subscription.</Trans>
         </div>
       </div>
       {defaultPaymentMethod ? (
@@ -91,15 +99,22 @@ export const PaymentMethodList = () => {
           paymentMethod={defaultPaymentMethod}
         />
       ) : (
-        <div className="text-gray-500">No default payment method set.</div>
+        <div className="text-gray-500">
+          <Trans>No default payment method set.</Trans>
+        </div>
       )}
       <div className="border-gray-200 border-t" />
 
       {/* Backup card */}
       <div>
-        <h3 className="font-medium text-sm">Backup Card</h3>
+        <h3 className="font-medium text-sm">
+          <Trans>Backup Card</Trans>
+        </h3>
         <div className="text-gray-500 text-sm">
-          If your primary card is declined, we will use this card to charge you.
+          <Trans>
+            If your primary card is declined, we will use this card to charge
+            you.
+          </Trans>
         </div>
       </div>
       {backupPaymentMethods.length > 0 ? (
@@ -108,7 +123,7 @@ export const PaymentMethodList = () => {
         ))
       ) : (
         <LinkButton className="w-full" to="/payment/add" variant="secondary">
-          Add Backup Card
+          <Trans>Add Backup Card</Trans>
         </LinkButton>
       )}
     </div>

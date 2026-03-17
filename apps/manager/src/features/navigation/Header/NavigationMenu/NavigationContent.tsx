@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
+import { useLingui } from '@lingui/react'
 import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -15,7 +18,7 @@ interface NavigationContentProps {
 }
 
 interface NavigationLink {
-  label: string
+  label: MessageDescriptor
   href?: string
   to?: string
   icon?: React.ReactNode
@@ -24,7 +27,7 @@ interface NavigationLink {
 }
 
 interface NavigationSection {
-  title: string
+  title: MessageDescriptor | string
   links: NavigationLink[]
 }
 
@@ -40,62 +43,61 @@ const navigationSections: NavigationSection[] = [
     title: '',
     links: [
       {
-        label: 'ENS App Homepage',
+        label: msg`ENS App Homepage`,
         href: '/',
         icon: <LogoIconBlack />,
       },
     ],
   },
   {
-    title: 'Need help?',
+    title: msg`Need help?`,
     links: [
       {
-        label: 'Support',
+        label: msg`Support`,
         href: 'https://support.ens.domains',
         target: '_blank',
         rel: 'noreferrer',
       },
       {
-        label: 'Contact',
+        label: msg`Contact`,
         href: 'mailto:support@ens.domains',
       },
     ],
   },
   {
-    title: 'ENS',
+    title: msg`ENS`,
     links: [
       {
-        label: 'Privacy Policy',
+        label: msg`Privacy Policy`,
         to: '/legal/privacy-policy',
       },
       {
-        label: 'Terms of Use',
+        label: msg`Terms of Use`,
         to: '/legal/terms-of-use',
       },
       {
-        label: 'Trademark Guidelines',
+        label: msg`Trademark Guidelines`,
         to: '/legal/trademark-guidelines',
       },
       {
-        label: 'Bug bounty',
+        label: msg`Bug bounty`,
         href: 'https://immunefi.com/bug-bounty/ens/information',
         target: '_blank',
         rel: 'noreferrer',
       },
     ],
   },
-
   {
-    title: 'Join the community',
+    title: msg`Join the community`,
     links: [
       {
-        label: 'Blog',
+        label: msg`Blog`,
         href: 'https://ens.domains/blog',
         target: '_blank',
         rel: 'noreferrer',
       },
       {
-        label: 'DAO Forum',
+        label: msg`DAO Forum`,
         href: 'https://discuss.ens.domains/',
         target: '_blank',
         rel: 'noreferrer',
@@ -113,53 +115,63 @@ const socialIcons: SocialIcon[] = [
 ]
 
 export const NavigationContent = ({ onAction }: NavigationContentProps) => {
+  const { _ } = useLingui()
   const handleLinkClick = () => {
     onAction()
   }
 
+  const resolveTitle = (title: MessageDescriptor | string) =>
+    typeof title === 'string' ? title : _(title)
+
   return (
     <div className="w-full space-y-6">
-      {navigationSections.map((section, sectionIndex) => (
-        <div key={section.title}>
-          <div className="flex flex-col gap-3">
-            {sectionIndex > 0 && <div className="border-gray-200 border-t" />}
-            <h3 className="font-medium text-base text-ens-lapis-core">
-              {section.title}
-            </h3>
-            <div className="flex flex-col gap-4">
-              {section.links.map((link) => (
-                <div
-                  className="flex items-center gap-2"
-                  key={`${section.title}-${link.label}-${link.to ?? link.href}`}
-                >
-                  {link.icon && <div className="size-6">{link.icon}</div>}
-                  {link.to ? (
-                    <Link
-                      className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
-                      key={link.label}
-                      onClick={handleLinkClick}
-                      to={link.to}
+      {navigationSections.map((section, sectionIndex) => {
+        const title = resolveTitle(section.title)
+        return (
+          <div key={title}>
+            <div className="flex flex-col gap-3">
+              {sectionIndex > 0 && <div className="border-gray-200 border-t" />}
+              <h3 className="font-medium text-base text-ens-lapis-core">
+                {title}
+              </h3>
+              <div className="flex flex-col gap-4">
+                {section.links.map((link) => {
+                  const label = _(link.label)
+                  return (
+                    <div
+                      className="flex items-center gap-2"
+                      key={`${title}-${label}-${link.to ?? link.href}`}
                     >
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <a
-                      className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
-                      href={link.href}
-                      key={link.label}
-                      onClick={handleLinkClick}
-                      rel={link.rel}
-                      target={link.target}
-                    >
-                      {link.label}
-                    </a>
-                  )}
-                </div>
-              ))}
+                      {link.icon && <div className="size-6">{link.icon}</div>}
+                      {link.to ? (
+                        <Link
+                          className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
+                          key={label}
+                          onClick={handleLinkClick}
+                          to={link.to}
+                        >
+                          {label}
+                        </Link>
+                      ) : (
+                        <a
+                          className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
+                          href={link.href}
+                          key={label}
+                          onClick={handleLinkClick}
+                          rel={link.rel}
+                          target={link.target}
+                        >
+                          {label}
+                        </a>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       <div className="flex items-center justify-center gap-4">
         {socialIcons.map(({ href, icon: Icon }) => (

@@ -35,7 +35,7 @@ function RouteComponent() {
   return (
     <div className="max-w-360 w-full mx-auto flex flex-col gap-4 p-4 sm:gap-6 sm:p-6">
       <div className="flex flex-row justify-between">
-        <h1 className="font-medium text-[28px]">Ownership</h1>
+        <h1 className="font-medium text-heading">Ownership</h1>
       </div>
       <div className="flex flex-col gap-4 sm:gap-6">
         <ExpiryWithRegistrationData name={name} network={data.network} />

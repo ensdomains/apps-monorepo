@@ -69,6 +69,7 @@ describe('saveRecords', () => {
   } as any
 
   const mockParams: SaveRecordsParameters = {
+    id: 'mock-tx-id',
     name: 'test.eth',
     resolverAddress: '0x1234567890123456789012345678901234567890',
     originalRecords: [
@@ -186,6 +187,7 @@ describe('saveRecords encoding (integration)', () => {
     vi.mocked(transactionManager.startTransaction).mockClear()
 
     const params: SaveRecordsParameters = {
+      id: 'mock-tx-id',
       name: 'test.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [{ type: 'text', key: 'description', value: 'old' }],
@@ -216,6 +218,7 @@ describe('saveRecords encoding (integration)', () => {
     vi.mocked(transactionManager.startTransaction).mockClear()
 
     const params: SaveRecordsParameters = {
+      id: 'mock-tx-id',
       name: 'test.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [{ type: 'text', key: 'twitter', value: '@john' }],
@@ -245,6 +248,7 @@ describe('saveRecords encoding (integration)', () => {
     vi.mocked(transactionManager.startTransaction).mockClear()
 
     const params: SaveRecordsParameters = {
+      id: 'mock-tx-id',
       name: 'test.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [],
@@ -273,6 +277,7 @@ describe('saveRecords encoding (integration)', () => {
     vi.mocked(transactionManager.startTransaction).mockClear()
 
     const params: SaveRecordsParameters = {
+      id: 'mock-tx-id',
       name: 'myname.eth',
       resolverAddress: '0x1234567890123456789012345678901234567890',
       originalRecords: [{ type: 'text', key: 'name', value: 'old' }],

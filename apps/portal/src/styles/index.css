@@ -20,9 +20,10 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: var(--lapis-500);
-  --destructive: oklch(0.577 0.245 27.325);
-  --success: var(--peridot-400);
-  --warning: oklch(0.75 0.15 75);
+  --destructive: var(--garnet-500);
+  --danger: var(--garnet-500);
+  --success: var(--peridot-500);
+  --warning: var(--citrine-500);
   --border: var(--quartz-100);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -92,6 +93,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-danger: var(--danger);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-border: var(--border);
@@ -146,4 +148,5 @@
   --font-mono: "ABCMonumentGroteskMono";
   --font-semi-mono: "ABCMonumentGroteskSemiMono";
   --font-serif: "ABCMarist";
+  --text-heading: 1.75rem;
 }

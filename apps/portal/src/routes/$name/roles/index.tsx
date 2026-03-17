@@ -9,6 +9,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
+import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -56,11 +57,17 @@ const V2NameRoles = ({
   if (!nameRolesQuery.data) return 'No data'
 
   return (
-    <RolesTable
-      roles={nameRolesQuery.data}
-      name={name}
-      canManageRoles={canManageRoles}
-    />
+    <div className="flex flex-col gap-8">
+      <RolesTable
+        roles={nameRolesQuery.data}
+        name={name}
+        canManageRoles={canManageRoles}
+      />
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-medium">Role History</h2>
+        <RoleHistoryTable name={name} label={currentLabel} />
+      </div>
+    </div>
   )
 }
 
@@ -125,7 +132,7 @@ function RouteComponent() {
     return (
       <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-[28px] font-medium leading-none">Roles</h1>
+          <h1 className="text-heading font-medium leading-none">Roles</h1>
           {address && (
             <AddUserButton name={name} canManageRoles={canManageRoles} />
           )}

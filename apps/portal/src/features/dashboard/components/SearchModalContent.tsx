@@ -12,6 +12,7 @@ export type SearchModalContentProps = {
   onSelectAvailableName?: (name: string) => void
   navigateToName: (name: string) => void
   navigateToAddress: (address: string) => void
+  navigateToResolver: (address: string) => void
 }
 
 export const SearchModalContent = ({
@@ -21,6 +22,7 @@ export const SearchModalContent = ({
   onSelectAvailableName,
   navigateToName,
   navigateToAddress,
+  navigateToResolver,
 }: SearchModalContentProps) => {
   const {
     suggestions,
@@ -34,6 +36,7 @@ export const SearchModalContent = ({
     searchValue,
     navigateToName,
     navigateToAddress,
+    navigateToResolver,
   })
 
   const availableNameIds = useMemo(

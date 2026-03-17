@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
@@ -42,6 +43,10 @@ export const DashboardPage = () => {
     (text) => text.key === 'avatar',
   )?.value
 
+  const themeColor = reverseRecords?.texts.find(
+    (text) => text.key === 'theme',
+  )?.value
+
   const { data: parsedAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
     enabled: !!avatarRecord,
@@ -61,13 +66,15 @@ export const DashboardPage = () => {
               symbol="waving_hand"
             />
             <AlertTitle className="mb-2 text-[16px] text-ens-blue tracking-[0.28px]">
-              Welcome to the public alpha of the ENS app
+              <Trans>Welcome to the public alpha of the ENS app</Trans>
             </AlertTitle>
             <AlertDescription className="max-w-5xl text-muted-foreground text-sm">
-              Welcome to the public alpha of the ENS App. You're seeing the
-              earliest version of our app. There will be things that break,
-              change, or disappear as we iterate. We'd love to hear what you
-              think—share feedback anytime!
+              <Trans>
+                Welcome to the public alpha of the ENS App. You're seeing the
+                earliest version of our app. There will be things that break,
+                change, or disappear as we iterate. We'd love to hear what you
+                think-share feedback anytime!
+              </Trans>
             </AlertDescription>
           </Alert>
         </motion.div>
@@ -75,7 +82,7 @@ export const DashboardPage = () => {
           className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]"
           {...stagger(1, shouldReduceMotion)}
         >
-          Hello{' '}
+          <Trans>Hello</Trans>{' '}
           {defaultName ??
             (ownerAddress && (
               <CopyableAddress
@@ -87,7 +94,11 @@ export const DashboardPage = () => {
         </motion.h1>
         {hasProfile && (
           <motion.div {...stagger(2, shouldReduceMotion)}>
-            <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
+            <PrimaryNameCard
+              avatarUrl={avatarUrl}
+              primaryName={defaultName}
+              themeColor={themeColor}
+            />
           </motion.div>
         )}
         <motion.div

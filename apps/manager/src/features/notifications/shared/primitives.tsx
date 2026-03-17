@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { X } from 'lucide-react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import {
@@ -46,29 +47,37 @@ export const NotificationHeader = ({
   timestamp: number
   onMarkAsRead?: () => void
   onRemove?: () => void
-}) => (
-  <div className="flex items-center gap-2">
-    {seen ? null : <span className="size-2 rounded-full bg-[#ff5a3d]" />}
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-1 font-normal text-sm leading-none ${pillToneClass[categoryTone]}`}
-    >
-      {category}
-    </span>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="ml-auto text-[#717182] text-sm">
-          {formatRelativeTime(timestamp)}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>{formatAbsoluteTime(timestamp)}</TooltipContent>
-    </Tooltip>
-    {onRemove ? (
-      <button className="cursor-pointer" onClick={onRemove} type="button">
-        <X className="size-4 text-[#9b9cac]" />
-      </button>
-    ) : null}
-  </div>
-)
+}) => {
+  const { t } = useLingui()
+  return (
+    <div className="flex items-center gap-2">
+      {seen ? null : <span className="size-2 rounded-full bg-[#ff5a3d]" />}
+      <span
+        className={`inline-flex items-center rounded-full px-2 py-1 font-normal text-sm leading-none ${pillToneClass[categoryTone]}`}
+      >
+        {category}
+      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="ml-auto text-[#717182] text-sm">
+            {formatRelativeTime(timestamp)}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{formatAbsoluteTime(timestamp)}</TooltipContent>
+      </Tooltip>
+      {onRemove ? (
+        <button
+          aria-label={t`Remove notification`}
+          className="cursor-pointer"
+          onClick={onRemove}
+          type="button"
+        >
+          <X className="size-4 text-[#9b9cac]" />
+        </button>
+      ) : null}
+    </div>
+  )
+}
 
 export const NameDisplay = ({ name }: { name: string }) => (
   <div

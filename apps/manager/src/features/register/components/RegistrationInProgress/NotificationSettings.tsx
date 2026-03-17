@@ -17,6 +17,7 @@
  */
 'use client'
 
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -38,6 +39,8 @@ const NotificationPreferences = ({
   onConfirm,
   onSkip,
 }: NotificationSettingsProps) => {
+  const { t } = useLingui()
+
   const preferences = useQuery({
     ...preferencesQueryOptions,
   })
@@ -45,10 +48,10 @@ const NotificationPreferences = ({
   const updatePreferencesMutation = useMutation({
     ...updatePreferenceMutationOptions,
     onSuccess: () => {
-      toast.success('Preferences updated')
+      toast.success(t`Preferences updated`)
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update preferences')
+      toast.error(error.message || t`Failed to update preferences`)
     },
   })
 
@@ -75,14 +78,14 @@ const NotificationPreferences = ({
   return (
     <div className="flex flex-col gap-6">
       <h2 className="font-medium font-sans text-[#232222] text-base leading-ens-none">
-        Notification Preferences
+        <Trans>Notification Preferences</Trans>
       </h2>
       <div className="flex flex-col gap-3">
         <form.Field name="ownedNameExpiry">
           {(field) => (
             <Preference
               checked={field.state.value}
-              description="You'll be notified 30, 7, and 1 day before expiry"
+              description={t`You'll be notified 30, 7, and 1 day before expiry`}
               disabled={!hasVerifiedChannels || preferences.isRefetching}
               icon={
                 <MSymbol
@@ -91,7 +94,7 @@ const NotificationPreferences = ({
                 />
               }
               isLoading={preferences.isLoading}
-              label="Name Expiry"
+              label={t`Name Expiry`}
               onChange={(checked) => field.handleChange(checked)}
             />
           )}
@@ -100,7 +103,7 @@ const NotificationPreferences = ({
           {(field) => (
             <Preference
               checked={field.state.value}
-              description="Get updated on the latest releases and features"
+              description={t`Get updated on the latest releases and features`}
               disabled={!hasVerifiedChannels || preferences.isRefetching}
               icon={
                 <MSymbol
@@ -109,7 +112,7 @@ const NotificationPreferences = ({
                 />
               }
               isLoading={preferences.isLoading}
-              label="ENS Labs Updates"
+              label={t`ENS Labs Updates`}
               onChange={(checked) => field.handleChange(checked)}
             />
           )}
@@ -118,7 +121,7 @@ const NotificationPreferences = ({
           {(field) => (
             <Preference
               checked={field.state.value}
-              description="Get notified when names in your favourites expire"
+              description={t`Get notified when names in your favourites expire`}
               disabled={!hasVerifiedChannels || preferences.isRefetching}
               icon={
                 <MSymbol
@@ -127,7 +130,7 @@ const NotificationPreferences = ({
                 />
               }
               isLoading={preferences.isLoading}
-              label="Favourited Name Expiry"
+              label={t`Favourited Name Expiry`}
               onChange={(checked) => field.handleChange(checked)}
             />
           )}
@@ -141,7 +144,7 @@ const NotificationPreferences = ({
             size="xl"
             variant="ghost"
           >
-            Skip
+            <Trans>Skip</Trans>
           </Button>
         </div>
         <div className="">
@@ -164,13 +167,19 @@ const NotificationPreferences = ({
                 size="xl"
                 variant="lightBlue"
               >
-                {isSubmitting ? 'Saving...' : 'Save Preferences'}
+                {isSubmitting ? (
+                  <Trans>Saving...</Trans>
+                ) : (
+                  <Trans>Save Preferences</Trans>
+                )}
               </Button>
             )}
           </form.Subscribe>
           {!hasVerifiedChannels && (
             <p className="mt-2 text-base text-slate-600 leading-ens-normal">
-              Verify at least one contact method to save preferences
+              <Trans>
+                Verify at least one contact method to save preferences
+              </Trans>
             </p>
           )}
         </div>
@@ -189,12 +198,14 @@ export const NotificationSettings = ({
       <div className="flex flex-col gap-4">
         {/* title */}
         <h1 className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
-          Notification Settings
+          <Trans>Notification Settings</Trans>
         </h1>
 
         <p className="text-[#717182] text-base">
-          Manage your notification preferences for your name(s) and ENS-related
-          updates.
+          <Trans>
+            Manage your notification preferences for your name(s) and
+            ENS-related updates.
+          </Trans>
         </p>
       </div>
 

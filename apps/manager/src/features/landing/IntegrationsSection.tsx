@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import arbitrumIcon from '@/assets/coins/arb1-icon.svg'
 import baseIcon from '@/assets/coins/base-icon.svg'
 import bitcoinIcon from '@/assets/coins/btc-icon.svg'
@@ -85,11 +86,13 @@ export const IntegrationsSection = () => {
       <div className="mx-auto w-full-[4rem] max-w-6xl py-20">
         <div className="space-y-6">
           <h2 className="font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
-            Your ENS name works across web3
+            <Trans>Your ENS name works across web3</Trans>
           </h2>
           <p className="max-w-md font-serif text-lg leading-ens-normal">
-            Use your ENS name in wallets, apps, blockchains, and browsers you
-            already know - no setup required.
+            <Trans>
+              Use your ENS name in wallets, apps, blockchains, and browsers you
+              already know - no setup required.
+            </Trans>
           </p>
         </div>
 

@@ -1,5 +1,6 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useLingui } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import type { RefObject } from 'react'
@@ -13,15 +14,15 @@ import {
   formatDashboardDate,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
+import { useDebounce } from '@/hooks/useDebounce'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 
 type Suggestion = {
-  id: string
-  label: string
-  description: string
-  value: string
-  avatarRecord?: string | null
+  readonly id: string
+  readonly label: string
+  readonly description: string
+  readonly value: string
 }
 
 const useCloseOnOutsideClick = ({
@@ -62,12 +63,16 @@ export const DashboardSidebarSearch = ({
 }: {
   onSelect?: (value: string) => void
 }) => {
+  const { t } = useLingui()
   const navigate = useNavigate({ from: '/dashboard' })
   const containerRef = useRef<HTMLDivElement>(null)
   const [searchValue, setSearchValue] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
+    delay: 500,
+  })
 
-  const normalizedInput = searchValue.trim()
+  const normalizedInput = debouncedSearchValue.trim()
   const isAddressInput = isAddress(normalizedInput, { strict: false })
 
   const { data: searchData } = useQuery(
@@ -99,7 +104,7 @@ export const DashboardSidebarSearch = ({
         addSuggestion({
           id: `address:${checksummed}`,
           label: checksummed,
-          description: 'Address profile',
+          description: t`Address profile`,
           value: checksummed,
         })
       } catch {
@@ -119,11 +124,10 @@ export const DashboardSidebarSearch = ({
       addSuggestion({
         id: `domain:${domain.id}`,
         label,
-        description: `Registered ${formatDashboardDate(
+        description: t`Registered ${formatDashboardDate(
           toDateFromSeconds(domain.createdAt),
         )}`,
         value: label.toLowerCase(),
-        avatarRecord: domain.resolver?.avatar ?? null,
       })
     }
 
@@ -131,13 +135,13 @@ export const DashboardSidebarSearch = ({
       addSuggestion({
         id: `name:${loweredName}`,
         label: loweredName,
-        description: 'Go to ENS name profile',
+        description: t`Go to ENS name profile`,
         value: loweredName,
       })
     }
 
     return items
-  }, [isAddressInput, normalizedInput, searchData])
+  }, [isAddressInput, normalizedInput, searchData, t])
 
   const handleSuggestionSelect = useCallback(
     (value: string) => {
@@ -174,12 +178,6 @@ export const DashboardSidebarSearch = ({
 
   const shouldShowSuggestions = isDropdownOpen && suggestions.length > 0
 
-  const avatarQueries = useQueries({
-    queries: suggestions.map((suggestion) =>
-      parseAvatarQuery(suggestion.avatarRecord ?? undefined),
-    ),
-  })
-
   useCloseOnOutsideClick({
     containerRef,
     enabled: shouldShowSuggestions,
@@ -190,6 +188,7 @@ export const DashboardSidebarSearch = ({
     <div className="relative" ref={containerRef}>
       <form onSubmit={handleSearchSubmit}>
         <Input
+          aria-label={t`Search name or address`}
           autoComplete="off"
           className="h-[44px] rounded-[4px] border-[0.4px] border-ens-gray-two bg-white text-muted-foreground placeholder:text-muted-foreground"
           onChange={(event) => {
@@ -197,7 +196,7 @@ export const DashboardSidebarSearch = ({
             setIsDropdownOpen(true)
           }}
           onFocus={() => setIsDropdownOpen(true)}
-          placeholder="Search name, address..."
+          placeholder={t`Search name, address...`}
           size="default"
           startIcon={<Search className="size-[18px] text-muted-foreground" />}
           value={searchValue}
@@ -206,11 +205,8 @@ export const DashboardSidebarSearch = ({
       {shouldShowSuggestions && (
         <div className="absolute z-10 mt-2 w-full rounded-md border border-slate-200 bg-white shadow-md">
           <ul className="divide-y divide-slate-100">
-            {suggestions.map((suggestion, index) => {
-              const avatarUrl =
-                avatarQueries[index]?.data ??
-                suggestion.avatarRecord ??
-                undefined
+            {suggestions.map((suggestion) => {
+              const avatarUrl = getAvatarUrl(suggestion.label)
 
               return (
                 <li key={suggestion.id}>
@@ -226,13 +222,13 @@ export const DashboardSidebarSearch = ({
                       <div className="relative size-8 overflow-hidden rounded-full bg-slate-100">
                         <ImageFallback.Root className="contents">
                           <ImageFallback.Image
-                            alt={`${suggestion.label} avatar`}
+                            alt={t`${suggestion.label} avatar`}
                             className="size-full object-cover"
                             src={avatarUrl}
                           />
                           <ImageFallback.Fallback>
                             <img
-                              alt={`${suggestion.label} avatar placeholder`}
+                              alt={t`${suggestion.label} avatar placeholder`}
                               className="size-full object-cover"
                               src={placeholderAvatar}
                             />

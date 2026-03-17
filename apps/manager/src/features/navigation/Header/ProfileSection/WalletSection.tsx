@@ -1,4 +1,5 @@
 import { useLogout, useModal } from '@getpara/react-sdk-lite'
+import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import {
   BookmarkCheckIcon,
@@ -50,7 +51,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
             <CopyIcon className="size-5" />
           )}
           <span className="text-base leading-ens-tight">
-            {copied ? 'Copied!' : truncateAddress(accountAddress)}
+            {copied ? <Trans>Copied!</Trans> : truncateAddress(accountAddress)}
           </span>
         </button>
       )}
@@ -69,7 +70,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
                 onClick={() => openModal()}
                 type="button"
               >
-                Manage Para Wallet
+                <Trans>Manage Para Wallet</Trans>
               </button>
               <div className="truncate text-muted-foreground text-xs leading-ens-normal">
                 {truncateAddress(accountAddress)}
@@ -95,9 +96,11 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
             >
               <BookmarkCheckIcon className="size-5 text-ens-lapis-core" />
               <div className="text-base text-ens-lapis-surface">
-                {isSessionClient
-                  ? 'Smart Session Active'
-                  : 'Smart Session Disabled'}
+                {isSessionClient ? (
+                  <Trans>Smart Session Active</Trans>
+                ) : (
+                  <Trans>Smart Session Disabled</Trans>
+                )}
               </div>
               <Switch
                 checked={isSessionClient}
@@ -128,7 +131,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         >
           <WalletIcon className="size-5 text-ens-lapis-core" />
           <span className="text-base text-ens-lapis-core leading-ens-tight">
-            Verify wallet ownership
+            <Trans>Verify wallet ownership</Trans>
           </span>
         </button>
       )}
@@ -147,7 +150,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           <UnlinkIcon className="size-5" />
         )}
         <span className="text-base text-foreground leading-ens-tight">
-          Disconnect
+          <Trans>Disconnect</Trans>
         </span>
       </button>
     </div>

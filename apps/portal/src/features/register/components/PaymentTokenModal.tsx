@@ -19,8 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import {
   EST_GAS_USD,
-  EST_NETWORK_FEE_USD,
-  formatTotalWithGasAndFees,
+  formatTotalWithGas,
 } from '@/features/register/utils/registrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
 import {
@@ -29,6 +28,7 @@ import {
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 type PaymentModalStep = 'select_token' | 'confirm_purchase'
@@ -68,6 +68,18 @@ export const PaymentTokenModal = ({
 
   const [step, setStep] = useState<PaymentModalStep>('select_token')
 
+  const { data: balances = [], isLoading: isLoadingBalances } =
+    useReadContracts({
+      contracts: PAYMENT_TOKENS.map((token) => ({
+        address: token.address,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: address ? [address] : undefined,
+        chainId: sepoliaWithEns.id,
+      })),
+      query: { enabled: Boolean(address) },
+    })
+
   const priceQueries = useQueries({
     queries: PAYMENT_TOKENS.map((token) =>
       getRegistrationPriceQueryOptions({
@@ -80,17 +92,6 @@ export const PaymentTokenModal = ({
 
   const usdcPriceQuery = priceQueries[0]
   const daiPriceQuery = priceQueries[1]
-
-  const { data: balances = [], isLoading: isLoadingBalances } =
-    useReadContracts({
-      contracts: PAYMENT_TOKENS.map((token) => ({
-        address: token.address,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: address ? [address] : undefined,
-      })),
-      query: { enabled: Boolean(address) },
-    })
 
   const [usdcBalance, daiBalance] = balances.map((balance) => {
     if (balance.status === 'success' && balance.result !== undefined) {
@@ -112,6 +113,10 @@ export const PaymentTokenModal = ({
 
   const isPriceLoading =
     usdcPriceQuery.isLoading || daiPriceQuery.isLoading || isLoadingBalances
+
+  const noSupportedTokenHasSufficientBalance =
+    !isPriceLoading &&
+    tokenData.every((token) => token.balance < token.price.total)
 
   const resetState = () => {
     setSelectedToken(null)
@@ -139,10 +144,6 @@ export const PaymentTokenModal = ({
 
   const isContinueDisabled = !selectedToken || isPriceLoading || !address
 
-  const noSupportedTokenHasSufficientBalance =
-    !isPriceLoading &&
-    tokenData.every((token) => token.balance < token.price.total)
-
   const currentContent = match(step)
     .with('select_token', () => (
       <>
@@ -151,18 +152,8 @@ export const PaymentTokenModal = ({
             <AlertTitle>Insufficient balance</AlertTitle>
             <AlertDescription>
               <p>
-                We auto-fund wallets with USDC and DAI on testnet since we're in
-                beta. Connect your wallet to the{' '}
-                <a
-                  href="https://app.ens.dev/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4 hover:text-warning"
-                >
-                  Manager app
-                </a>{' '}
-                to receive test tokens, then return here to complete your
-                registration.
+                We auto-fund wallets with USDC and DAI when you connect. If you
+                just connected, please wait a moment and try again.
               </p>
             </AlertDescription>
           </Alert>
@@ -221,10 +212,10 @@ export const PaymentTokenModal = ({
                   ) : (
                     <>
                       <p className="font-medium">
-                        {formatTotalWithGasAndFees(
+                        {formatTotalWithGas(
                           token.price.base,
                           token.price.premium,
-                          EST_GAS_USD + EST_NETWORK_FEE_USD,
+                          EST_GAS_USD,
                           token.price.decimals,
                         )}{' '}
                         USD
@@ -274,10 +265,10 @@ export const PaymentTokenModal = ({
               <div className="flex items-baseline gap-1">
                 <selectedTokenData.Icon className="size-6 shrink-0" />
                 <span className="font-medium text-2xl tracking-tight">
-                  {formatTotalWithGasAndFees(
+                  {formatTotalWithGas(
                     selectedTokenData.price.base,
                     selectedTokenData.price.premium,
-                    EST_GAS_USD + EST_NETWORK_FEE_USD,
+                    EST_GAS_USD,
                     selectedTokenData.price.decimals,
                   )}
                 </span>
@@ -290,17 +281,13 @@ export const PaymentTokenModal = ({
                 <dt className="text-muted-foreground">Est. gas cost</dt>
                 <dd className="font-mono">~{formatUsd(EST_GAS_USD)}</dd>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <dt className="text-muted-foreground">Est. network fee</dt>
-                <dd className="font-mono">~{formatUsd(EST_NETWORK_FEE_USD)}</dd>
-              </div>
               <div className="flex items-center justify-between border-t border-border pt-2 font-medium">
                 <dt>Est. total</dt>
                 <dd className="font-mono">
-                  {formatTotalWithGasAndFees(
+                  {formatTotalWithGas(
                     selectedTokenData.price.base,
                     selectedTokenData.price.premium,
-                    EST_GAS_USD + EST_NETWORK_FEE_USD,
+                    EST_GAS_USD,
                     selectedTokenData.price.decimals,
                   )}
                 </dd>

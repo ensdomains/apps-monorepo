@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -39,13 +40,14 @@ const newEmailContactMethodFormSchema = v.object({
 })
 
 const NewEmailContactMethod = () => {
+  const { t } = useLingui()
   const addEmailMutation = useMutation({
     ...addEmailChannelMutationOptions,
     onSuccess: () => {
-      toast.success('Email added')
+      toast.success(t`Email added`)
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add email')
+      toast.error(error.message || t`Failed to add email`)
     },
   })
 
@@ -73,7 +75,7 @@ const NewEmailContactMethod = () => {
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(event) => field.handleChange(event.target.value)}
-                placeholder="Enter your email"
+                placeholder={t`Enter your email`}
                 type="email"
                 value={field.state.value}
               />
@@ -114,7 +116,11 @@ const NewEmailContactMethod = () => {
             size="lg"
             variant="lightBlue"
           >
-            {isSubmitting ? 'Sending...' : 'Send Verification'}
+            {isSubmitting ? (
+              <Trans>Sending...</Trans>
+            ) : (
+              <Trans>Send Verification</Trans>
+            )}
           </Button>
         )}
       </form.Subscribe>
@@ -123,23 +129,24 @@ const NewEmailContactMethod = () => {
 }
 
 const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
+  const { t } = useLingui()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const resendMutation = useMutation({
     ...resendVerificationMutationOptions,
     onMutate: (id) => {
-      toast.loading('Resending email verification', {
+      toast.loading(t`Resending email verification`, {
         id: `resend-email-verification-${id}`,
-        description: `Resending email verification for ${email.label}`,
+        description: t`Resending email verification for ${email.label}`,
       })
     },
     onSuccess: (_, id) => {
-      toast.success('Email verification sent', {
+      toast.success(t`Email verification sent`, {
         id: `resend-email-verification-${id}`,
       })
     },
     onError: (error: Error, id) => {
-      toast.error(error.message || 'Failed to resend email verification', {
+      toast.error(error.message || t`Failed to resend email verification`, {
         id: `resend-email-verification-${id}`,
       })
     },
@@ -148,19 +155,19 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   const deleteMutation = useMutation({
     ...deleteChannelMutationOptions,
     onMutate: (id) => {
-      toast.loading('Removing email channel', {
+      toast.loading(t`Removing email channel`, {
         id: `remove-email-${id}`,
-        description: `Removing email for ${email.label}`,
+        description: t`Removing email for ${email.label}`,
       })
     },
     onSuccess: (_, id) => {
-      toast.success('Email channel removed', {
+      toast.success(t`Email channel removed`, {
         id: `remove-email-${id}`,
       })
-      toast.success('Email channel removed')
+      toast.success(t`Email channel removed`)
     },
     onError: (error: Error, id) => {
-      toast.error(error.message || 'Failed to remove email channel', {
+      toast.error(error.message || t`Failed to remove email channel`, {
         id: `remove-email-${id}`,
       })
     },
@@ -170,7 +177,12 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
       <div className="text-[#515151] text-base">{email.label}</div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button className="ml-auto" size="icon" variant="ghost">
+          <Button
+            aria-label={t`Email options`}
+            className="ml-auto"
+            size="icon"
+            variant="ghost"
+          >
             <MSymbol
               className="ms-wght-300 text-[#1C1B1F]"
               symbol="more_horiz"
@@ -188,7 +200,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
                   className="ms-wght-300 text-[#515151]"
                   symbol="cached"
                 />
-                Resend Verification
+                <Trans>Resend Verification</Trans>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
@@ -199,7 +211,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
             onClick={() => setShowDeleteDialog(true)}
           >
             <MSymbol className="ms-wght-300 text-[#515151]" symbol="delete" />
-            Remove
+            <Trans>Remove</Trans>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -207,10 +219,14 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
       <AlertDialog onOpenChange={setShowDeleteDialog} open={showDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Email Contact Method?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <Trans>Remove Email Contact Method?</Trans>
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              You may miss important alerts if you remove this contact method.
-              Are you sure you want to continue?
+              <Trans>
+                You may miss important alerts if you remove this contact method.
+                Are you sure you want to continue?
+              </Trans>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row md:ml-auto md:w-2/3">
@@ -220,7 +236,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
               size="lg"
               variant="outline"
             >
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button
               className="flex-2/3 uppercase"
@@ -231,7 +247,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
               size="lg"
               variant="lightBlue"
             >
-              Remove
+              <Trans>Remove</Trans>
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -247,13 +263,17 @@ export const EmailContactMethod = ({ email }: { email?: Channel }) => {
         .with('pending', () => (
           <div className="flex w-fit items-center rounded bg-[#F8F7E2] px-2 py-1 text-[#CA6200]">
             <MSymbol className="ms-opsz-16 ms-wght-300" symbol="schedule" />
-            <span className="ml-2 text-xs">Pending</span>
+            <span className="ml-2 text-xs">
+              <Trans>Pending</Trans>
+            </span>
           </div>
         ))
         .with('verified', () => (
           <div className="flex w-fit items-center rounded bg-[#DCFCE7] px-2 py-1 text-ens-peridot-core">
             <MSymbol className="ms-opsz-16 ms-wght-300" symbol="check" />
-            <span className="ml-2 text-xs">Verified</span>
+            <span className="ml-2 text-xs">
+              <Trans>Verified</Trans>
+            </span>
           </div>
         ))
         .otherwise(() => null)}
@@ -261,10 +281,12 @@ export const EmailContactMethod = ({ email }: { email?: Channel }) => {
         <MSymbol className="ms-wght-300 text-ens-lapis-surface" symbol="mail" />
         <div className="flex flex-col gap-1.5">
           <div className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
-            Email Notifications
+            <Trans>Email Notifications</Trans>
           </div>
           <div className="text-slate-600 text-sm">
-            Receive notifications via email for important domain events
+            <Trans>
+              Receive notifications via email for important domain events
+            </Trans>
           </div>
         </div>
       </div>

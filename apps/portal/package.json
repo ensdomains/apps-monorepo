@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "deploy:version": "wrangler versions upload",
-    "knip": "knip"
+    "knip": "knip",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
@@ -51,6 +52,7 @@
     "@wagmi/connectors": "^7.1.1",
     "@wagmi/core": "^3.0.0",
     "@xstate/react": "^6.0.0",
+    "@xstate/store-react": "^1.0.1",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
@@ -73,6 +75,7 @@
     "use-local-storage-state": "^19.5.0",
     "viem": "^2.40.3",
     "wagmi": "^3.0.2",
+    "workers-og": "^0.0.27",
     "xstate": "catalog:"
   },
   "devDependencies": {

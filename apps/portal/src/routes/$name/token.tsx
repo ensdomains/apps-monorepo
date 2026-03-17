@@ -10,6 +10,7 @@ import {
 import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { DataRow } from '@/components/DataRow'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -31,11 +32,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getRegistryNameDataQueryOptions } from '@/features/registry/hooks/useRegistryNameData'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -50,33 +46,6 @@ export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
-
-const DataRow = ({
-  label,
-  tooltip,
-  children,
-}: {
-  label: string
-  tooltip?: string
-  children: React.ReactNode
-}) => {
-  return (
-    <div className="flex flex-col lg:flex-row gap-2 lg:gap-4 items-start lg:items-center w-full">
-      <div className="flex gap-1 items-center min-w-[160px]">
-        <span className="font-medium text-base">{label}</span>
-        {tooltip && (
-          <Tooltip>
-            <TooltipTrigger>
-              <InfoIcon className="size-4 text-quartz-400" />
-            </TooltipTrigger>
-            <TooltipContent>{tooltip}</TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-      <div className="flex-1 min-w-0 w-full">{children}</div>
-    </div>
-  )
-}
 
 const TokenInfoCard = ({
   contractAddress,
@@ -313,14 +282,14 @@ function RouteComponent() {
                 )}
               >
                 {normalized ? (
-                  <CheckCircleIcon className="size-4 text-peridot-500" />
+                  <CheckCircleIcon className="size-4 text-success" />
                 ) : (
-                  <XCircleIcon className="size-4 text-garnet-500" />
+                  <XCircleIcon className="size-4 text-danger" />
                 )}
                 <span
                   className={cn(
                     'text-xs font-medium',
-                    normalized ? 'text-peridot-500' : 'text-garnet-500',
+                    normalized ? 'text-success' : 'text-danger',
                   )}
                 >
                   {normalized ? 'Normalized' : 'Not Normalized'}

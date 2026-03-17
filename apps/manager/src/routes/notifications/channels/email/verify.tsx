@@ -1,5 +1,7 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useAtom } from '@xstate/store-react'
 import { CheckCircle, Mail, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import * as v from 'valibot'
@@ -13,7 +15,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { verifyEmailMutationOptions } from '@/features/notifications/data/queries/channels'
-import { EmailVerifyStep } from '@/features/notifications/settings/email-verify-step'
+import { isBackendAuthed } from '@/utils/backend-client'
 
 // Shared card wrapper component
 function VerificationCard({ children }: { children: React.ReactNode }) {
@@ -60,11 +62,16 @@ export const Route = createFileRoute('/notifications/channels/email/verify')({
 function EmailVerificationPage() {
   const { token } = Route.useLoaderDeps()
   const navigate = useNavigate()
+  const isAuthed = useAtom(isBackendAuthed)
+  const { t } = useLingui()
 
   const verifyEmailMutation = useMutation(verifyEmailMutationOptions)
 
+  const continueTo = isAuthed ? '/notifications/settings' : '/'
+  const continueLabel = isAuthed ? t`Continue to Settings` : t`Continue to Home`
+
   const handleContinue = () => {
-    navigate({ to: '/notifications/settings' })
+    navigate({ to: continueTo })
   }
 
   const handleVerify = (verificationToken?: string) => {
@@ -73,13 +80,13 @@ function EmailVerificationPage() {
 
     verifyEmailMutation.mutate(tokenToUse, {
       onSuccess: () => {
-        toast.success('Email verified successfully')
+        toast.success(t`Email verified successfully`)
         setTimeout(() => {
-          navigate({ to: '/notifications/settings' })
+          navigate({ to: continueTo })
         }, 1200)
       },
       onError: () => {
-        toast.error('Failed to verify email')
+        toast.error(t`Failed to verify email`)
       },
     })
   }
@@ -89,21 +96,25 @@ function EmailVerificationPage() {
     return (
       <VerificationCard>
         <VerificationHeader
-          description="Enter the verification code from your email to verify your address."
+          description={t`Open the verification link from your email to finish setup.`}
           icon={<Mail className="h-6 w-6 text-gray-400" />}
-          title="Enter Verification Code"
+          title={t`Check Your Email`}
         />
-        <CardContent>
-          <EmailVerifyStep
-            channelId=""
-            isVerified={verifyEmailMutation.isSuccess}
-            isVerifying={verifyEmailMutation.isPending}
-            onBackToSend={() => {}}
-            onCancel={handleContinue}
-            onSuccess={handleContinue} // Not applicable for this route
-            onVerifyCode={(code) => handleVerify(code)}
-            verificationError={verifyEmailMutation.error?.message || null}
-          />
+        <CardContent className="space-y-4">
+          <p className="text-center text-muted-foreground text-sm">
+            <Trans>
+              This page can only verify your email when opened from the link in
+              the verification email.
+            </Trans>
+          </p>
+          <Button
+            className="w-full text-sm leading-ens-none"
+            onClick={handleContinue}
+            size="lg"
+            variant="outline"
+          >
+            {continueLabel}
+          </Button>
         </CardContent>
       </VerificationCard>
     )
@@ -126,20 +137,20 @@ function EmailVerificationPage() {
   )
 
   const title = isPending
-    ? 'Verifying Email...'
+    ? t`Verifying Email...`
     : isSuccess
-      ? 'Email Verified!'
+      ? t`Email Verified!`
       : isError
-        ? 'Verification Failed'
-        : 'Verify Your Email'
+        ? t`Verification Failed`
+        : t`Verify Your Email`
 
   const description = isPending
-    ? 'Please wait while we verify your email address.'
+    ? t`Please wait while we verify your email address.`
     : isSuccess
-      ? 'You can now receive notifications at this email address.'
+      ? t`You can now receive notifications at this email address.`
       : isError
-        ? 'There was a problem verifying your email address.'
-        : 'Click the button below to verify your email address and start receiving notifications.'
+        ? t`There was a problem verifying your email address.`
+        : t`Click the button below to verify your email address and start receiving notifications.`
 
   return (
     <VerificationCard>
@@ -151,7 +162,7 @@ function EmailVerificationPage() {
             <XCircle className="h-4 w-4" />
             <AlertDescription>
               {verifyEmailMutation.error?.message ||
-                'An error occurred during verification'}
+                t`An error occurred during verification`}
             </AlertDescription>
           </Alert>
         )}
@@ -161,7 +172,7 @@ function EmailVerificationPage() {
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
-              Your email has been verified successfully!
+              <Trans>Your email has been verified successfully!</Trans>
             </AlertDescription>
           </Alert>
         )}
@@ -182,7 +193,7 @@ function EmailVerificationPage() {
               size="lg"
               variant="blue"
             >
-              Try Again
+              <Trans>Try Again</Trans>
             </Button>
             <Button
               className="w-full text-sm leading-ens-none"
@@ -190,7 +201,7 @@ function EmailVerificationPage() {
               size="lg"
               variant="outline"
             >
-              Continue to Settings
+              {continueLabel}
             </Button>
           </div>
         ) : isSuccess ? (
@@ -200,7 +211,7 @@ function EmailVerificationPage() {
             size="lg"
             variant="lightBlue"
           >
-            Continue to Settings
+            {continueLabel}
           </Button>
         ) : (
           <div className="space-y-2">
@@ -210,7 +221,7 @@ function EmailVerificationPage() {
               size="lg"
               variant="blue"
             >
-              Verify Email Address
+              <Trans>Verify Email Address</Trans>
             </Button>
             <Button
               asChild
@@ -218,7 +229,15 @@ function EmailVerificationPage() {
               size="lg"
               variant="outline"
             >
-              <Link to="/notifications/settings">Back to Settings</Link>
+              {isAuthed ? (
+                <Link to="/notifications/settings">
+                  <Trans>Back to Settings</Trans>
+                </Link>
+              ) : (
+                <Link to="/">
+                  <Trans>Back to Home</Trans>
+                </Link>
+              )}
             </Button>
           </div>
         )}

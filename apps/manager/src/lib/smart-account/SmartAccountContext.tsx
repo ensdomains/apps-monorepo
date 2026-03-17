@@ -7,6 +7,7 @@ import {
   useClient as useParaClient,
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
+import { useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
@@ -81,6 +82,7 @@ export const SmartAccountContextProvider = ({
   children,
   accountType = 'hca',
 }: SmartAccountContextProviderProps) => {
+  const { t } = useLingui()
   const paraClient = useParaClient()
   const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()
@@ -196,8 +198,8 @@ export const SmartAccountContextProvider = ({
       address: accountAddress,
     }),
     mutationFn: async (address: Address) => {
-      toast.loading('Funding wallet', {
-        description: `Funding wallet ${address} with mock USDC & DAI tokens`,
+      toast.loading(t`Funding wallet`, {
+        description: t`Funding wallet ${address} with mock USDC & DAI tokens`,
         id: `fund-wallet-${address}`,
       })
       const response = await backendClient.wallet.fund.$post({
@@ -211,12 +213,12 @@ export const SmartAccountContextProvider = ({
       return response.json()
     },
     onSuccess: (data, address, _, context) => {
-      if (!data || (!data.usdcTxHash && !data.daiTxHash)) {
+      if (!data || !data.txHash) {
         toast.dismiss(`fund-wallet-${address}`)
         return
       }
-      toast.success('Wallet funded successfully', {
-        description: `Wallet ${address} funded successfully`,
+      toast.success(t`Wallet funded successfully`, {
+        description: t`Wallet ${address} funded successfully`,
         id: `fund-wallet-${address}`,
       })
       context.client.invalidateQueries({
@@ -227,8 +229,8 @@ export const SmartAccountContextProvider = ({
       })
     },
     onError: (error, address) => {
-      toast.error('Failed to fund wallet', {
-        description: `Failed to fund wallet: ${error.message}`,
+      toast.error(t`Failed to fund wallet`, {
+        description: t`Failed to fund wallet: ${error.message}`,
         id: `fund-wallet-${address}`,
       })
     },

@@ -23,10 +23,17 @@ import { columns } from '@/features/forward-resolution/components/ForwardNamesTa
 import { ForwardNamesTable } from '@/features/forward-resolution/components/ForwardNamesTable/ForwardNamesTable'
 import { getResolvedNamesForAddressQueryOptions } from '@/features/forward-resolution/components/hooks/useNamesForResolvedAddress'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
+import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/addr/$addr/resolution')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(
+      getResolvedNamesForAddressQueryOptions({
+        address: params.addr as Address,
+      }),
+    ),
 })
 
 function RouteComponent() {
@@ -79,7 +86,7 @@ function RouteComponent() {
     <>
       <header className="bg-quartz-50 p-6 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-[28px] font-medium">Address Resolution</h1>
+          <h1 className="text-heading font-medium">Address Resolution</h1>
         </div>
         <InputGroup className="bg-white rounded-sm">
           <InputGroupInput

@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { Loader2Icon, Search, X } from 'lucide-react'
 import { useState } from 'react'
 import * as Drawer from '@/components/ui/drawer'
@@ -27,9 +28,11 @@ const SearchInput = ({
   onFocus,
   isLoading = false,
 }: SearchInputProps) => {
+  const { t } = useLingui()
   return (
     <div className="relative flex-1">
       <Input
+        aria-label={t`Search for a name or address`}
         autoComplete="off"
         className="h-[44px] rounded-[4px] border-[0.4px] border-ens-gray-two bg-white text-muted-foreground placeholder:text-muted-foreground"
         endIcon={
@@ -37,6 +40,7 @@ const SearchInput = ({
             <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
           ) : searchValue ? (
             <button
+              aria-label={t`Clear search`}
               className="flex items-center justify-center"
               onClick={() => setSearchValue('')}
               type="button"
@@ -48,7 +52,7 @@ const SearchInput = ({
         id={SEARCH_INPUT_ID}
         onChange={(event) => setSearchValue(event.target.value)}
         onFocus={onFocus}
-        placeholder="Search name, address..."
+        placeholder={t`Search name, address...`}
         size="default"
         startIcon={<Search className="size-[18px] text-muted-foreground" />}
         value={searchValue}
@@ -63,7 +67,7 @@ export const HeaderSearchSection = ({
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
-    delay: 300,
+    delay: 500,
   })
 
   if (isDesktop) {

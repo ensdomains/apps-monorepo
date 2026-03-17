@@ -18,7 +18,8 @@ import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedReg
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
-import type { WithEnsNetwork } from '@/utils/types'
+import { getChainIdForNetwork } from '@/lib/wagmi'
+import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -29,11 +30,13 @@ const DeploySubregistryButton = ({
   label,
   name,
   account,
+  network,
 }: {
   registryAddress: Address
   label: string
   name: string
   account: Address
+  network: EnsNetworkName
 }) => {
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
@@ -41,6 +44,7 @@ const DeploySubregistryButton = ({
       label,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account,
+      network,
     }),
   })
 
@@ -120,7 +124,7 @@ const RegistryInfo = ({
   return (
     <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[28px] font-medium leading-none">Registry</h1>
+        <h1 className="text-heading font-medium leading-none">Registry</h1>
         {ethRegistryAddress &&
           account &&
           labels.length === 2 &&
@@ -130,6 +134,7 @@ const RegistryInfo = ({
               registryAddress={ethRegistryAddress}
               label={firstLabel}
               account={account}
+              network={data.network}
             />
           )}
       </div>
@@ -159,6 +164,7 @@ const RegistryInfo = ({
                     registry={{
                       protocol: data.protocolVersion,
                     }}
+                    chainId={getChainIdForNetwork(data.network)}
                   />
                 ) : (
                   <RegistryCard
@@ -167,9 +173,10 @@ const RegistryInfo = ({
                       protocol: data.protocolVersion,
                       factory: namechainVerifiableFactory,
                     }}
+                    chainId={getChainIdForNetwork(data.network)}
                   />
                 )}
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
                 <RegistryCardsGrid label={labels[1]} network={data.network} />
@@ -178,6 +185,7 @@ const RegistryInfo = ({
                     address: data.registries.at(-2) as Address,
                     protocol: data.protocolVersion,
                   }}
+                  chainId={getChainIdForNetwork(data.network)}
                 />
               </>
             )
@@ -193,7 +201,7 @@ const RegistryInfo = ({
                   network={data.network}
                   owner={ownerData.owner}
                 />
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
                 <RegistryCardsGrid label={labels[1]} network={data.network} />
@@ -202,6 +210,7 @@ const RegistryInfo = ({
                     address: data.registries.at(-2) as Address,
                     protocol: data.protocolVersion,
                   }}
+                  chainId={getChainIdForNetwork(data.network)}
                 />
               </>
             )
@@ -229,9 +238,10 @@ const RegistryInfo = ({
                       protocol: data.protocolVersion,
                       factory: namechainVerifiableFactory,
                     }}
+                    chainId={getChainIdForNetwork(data.network)}
                   />
                 )}
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
 
@@ -241,6 +251,7 @@ const RegistryInfo = ({
                     address: data.registries.at(-3) as Address,
                     protocol: data.protocolVersion,
                   }}
+                  chainId={getChainIdForNetwork(data.network)}
                 />
               </>
             )
@@ -260,7 +271,7 @@ const RegistryInfo = ({
                   network={data.network}
                   owner={ownerData.owner}
                 />
-                <h2 className="leading-none text-[28px] font-medium">
+                <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
                 <RegistryCardsGrid label={labels[1]} network={data.network} />

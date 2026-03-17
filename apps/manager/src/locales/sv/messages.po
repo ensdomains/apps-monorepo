@@ -1,0 +1,2273 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-03-03 15:00+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: sv\n"
+"Project-Id-Version: ens-app\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: 2026-03-12 12:36\n"
+"Last-Translator: \n"
+"Language-Team: Swedish\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Crowdin-Project: ens-app\n"
+"X-Crowdin-Project-ID: 877908\n"
+"X-Crowdin-Language: sv-SE\n"
+"X-Crowdin-File: /src/locales/en/messages.po\n"
+"X-Crowdin-File-ID: 18\n"
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:41
+msgid "(empty)"
+msgstr ""
+
+#. placeholder {0}: Math.floor( (autoRenewal.expires - Date.now()) / TIME_UNITS.DAY, )
+#: src/features/auto-renewal/components/index.tsx:65
+msgid "{0, plural, one {# day remaining} other {# days remaining}}"
+msgstr ""
+
+#. placeholder {0}: nonAutoRenewals.length
+#: src/features/auto-renewal/components/index.tsx:103
+msgid "{0, plural, one {# ENS name is expiring without auto-renewal} other {# ENS names are expiring without auto-renewal}}"
+msgstr ""
+
+#. placeholder {0}: Number(formattedDurationYears)
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:82
+msgid "{0, plural, one {# Year} other {# Years}}"
+msgstr ""
+
+#. placeholder {0}: nonAutoRenewals.join(', ')
+#. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
+#: src/features/auto-renewal/components/index.tsx:120
+msgid "{0} are expiring without auto-renewal with the earliest expiring on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
+msgstr ""
+
+#. placeholder {0}: suggestion.label
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:225
+msgid "{0} avatar"
+msgstr ""
+
+#. placeholder {0}: suggestion.label
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:231
+msgid "{0} avatar placeholder"
+msgstr "{0} avatar-placeholder"
+
+#. placeholder {0}: nonAutoRenewals[0].name
+#. placeholder {1}: new Date(nonAutoRenewals[0].expires).toLocaleDateString()
+#: src/features/auto-renewal/components/index.tsx:112
+msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
+msgstr ""
+
+#. placeholder {0}: currentPage + 1
+#: src/features/dashboard/components/EducationCarousel.tsx:40
+msgid "{0} of {totalPages}"
+msgstr "{0} av {totalPages}"
+
+#. placeholder {0}: autoRenewal.price
+#: src/features/auto-renewal/components/index.tsx:76
+msgid "{0} USD/year"
+msgstr ""
+
+#. placeholder {0}: option.discount
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:172
+msgid "{0}% off"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
+msgid "{duration, plural, one {# year} other {# years}}"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:302
+#: src/features/dashboard/components/NameRow.tsx:65
+msgid "{label} avatar"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:308
+#: src/features/dashboard/components/NameRow.tsx:71
+msgid "{label} avatar placeholder"
+msgstr "{label} avatar-placeholder"
+
+#: src/features/profile/components/sections/ThemeSection.tsx:39
+msgid "{label} theme"
+msgstr ""
+
+#: src/features/profile/components/sections/ThemeSection.tsx:38
+msgid "{label} theme (selected)"
+msgstr ""
+
+#. placeholder {0}: getErrorMessage(error)
+#: src/routes/wallet.tsx:192
+msgid "<0>Connection failed:</0> {0}"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:72
+msgid "60-second wait prevents attacks"
+msgstr ""
+
+#: src/features/register/pages/CheckDomainPage.tsx:26
+#: src/routes/index.tsx:36
+msgid "A simple, portable identity that you control"
+msgstr "En enkel, portabel identitet som du kontrollerar"
+
+#: src/features/landing/FeaturesCarousel.tsx:120
+msgid "A simpler way to<0/><1>get paid.</1>"
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:64
+msgid "Account address:"
+msgstr ""
+
+#: src/features/profile/components/ProfileEdit.tsx:93
+msgid "Account not ready. Please wait for wallet to connect."
+msgstr ""
+
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:174
+msgid "Add"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:154
+msgid "Add a Backup Payment Method"
+msgstr ""
+
+#: src/features/profile/components/sections/BioSection.tsx:41
+msgid "Add a bio to your profile"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:34
+#: src/features/payment/components/add.tsx:149
+msgid "Add a credit card"
+msgstr ""
+
+#: src/features/profile/components/sections/BioSection.tsx:85
+msgid "Add a short bio to your profile"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:126
+msgid "Add Backup Card"
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:103
+msgid "Add credit card"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:78
+msgid "Add Crypto Address"
+msgstr ""
+
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:76
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:77
+msgid "Add Link"
+msgstr ""
+
+#: src/features/profile/components/sections/LinksSection.tsx:24
+msgid "Add links to your profile"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:67
+msgid "Add more"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:23
+#: src/routes/payment/list.tsx:29
+msgid "Add Payment Method"
+msgstr ""
+
+#: src/features/profile/components/sections/SocialLinksSection.tsx:24
+msgid "Add your social media profiles to your profile"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:30
+msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:34
+msgid "Added"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:107
+msgid "Adding telegram..."
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:27
+msgid "Address"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
+msgid "Address profile"
+msgstr "Adressprofil"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:157
+msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
+msgstr ""
+
+#: src/routes/notifications/_authenticated/index.tsx:76
+msgid "All Notifications"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:115
+msgid "Almost complete"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:75
+msgid "Almost ready"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:128
+msgid "An error occurred"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:180
+msgid "An error occurred during registration. Please try again."
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:165
+msgid "An error occurred during verification"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:148
+msgid "And more..."
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:82
+msgid "Approval allows registrar to charge"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
+msgid "Approving"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:277
+msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:278
+msgid "Are you sure you want to remove your current header? This will revert to the default image."
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:124
+msgid "Are you sure?"
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:61
+msgid "Auth address:"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:85
+msgid "Authorizing payment"
+msgstr ""
+
+#: src/features/auto-renewal/components/index.tsx:81
+msgid "Autorenews on"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:377
+msgid "available"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:109
+msgid "Available"
+msgstr ""
+
+#: src/routes/wallet.tsx:204
+msgid "Available Wallets"
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:125
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:407
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:448
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:542
+msgid "Back"
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:81
+msgid "Back to dashboard"
+msgstr ""
+
+#: src/features/legal/pages/PrivacyPolicyPage.tsx:13
+#: src/routes/notifications/channels/email/verify.tsx:238
+msgid "Back to Home"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:234
+msgid "Back to Settings"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:111
+msgid "Backup Card"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:44
+msgid "Billing country"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:43
+msgid "Billing zip code"
+msgstr ""
+
+#: src/features/profile/components/sections/BioSection.tsx:38
+#: src/features/profile/components/view/ViewBioSection.tsx:82
+msgid "Bio"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:94
+msgid "Blog"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:239
+msgid "Browse Files"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx:94
+msgid "Browser Notifications"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx:52
+msgid "Browser notifications disabled"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx:39
+msgid "Browser notifications enabled"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:83
+msgid "Bug bounty"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
+msgid "Buy Name"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:35
+msgid "Can I change my primary name later?"
+msgstr "Kan jag byta mitt primära namn senare?"
+
+#: src/features/dashboard/components/FaqSection.tsx:14
+msgid "Can I send crypto to a .eth name (instead of an address)?"
+msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
+
+#: src/features/landing/FeaturesCarousel.tsx:92
+msgid "Can you share your order number?"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
+#: src/features/notifications/settings/contact-methods/email.tsx:239
+#: src/features/notifications/settings/contact-methods/telegram.tsx:178
+#: src/features/notifications/settings/email-verify-step.tsx:163
+#: src/features/profile/components/dialogs/DiffDialog.tsx:253
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:323
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:231
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
+msgid "Cancel"
+msgstr "Avbryt"
+
+#: src/features/profile/components/ProfileEdit.tsx:86
+msgid "Cannot save profile - ENS owner is not available."
+msgstr ""
+
+#: src/features/payment/components/add.tsx:38
+msgid "Card expiry date"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:36
+#: src/features/payment/components/add.tsx:36
+msgid "Card number"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:39
+msgid "Card security code"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:101
+msgid "Check Your Email"
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:109
+msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:34
+msgid "Checking wallet connection..."
+msgstr ""
+
+#: src/features/profile/components/sections/ThemeSection.tsx:25
+msgid "Choose a color for your profile"
+msgstr ""
+
+#: src/routes/wallet.tsx:207
+msgid "Choose a wallet to connect to the application"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:340
+msgid "Choose an NFT"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:60
+msgid "Choose how you'd like to pay for your subscription."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:241
+msgid "Choose Primary Name"
+msgstr "Välj primärt namn"
+
+#: src/features/register/pages/CheckDomainPage.tsx:18
+#: src/routes/index.tsx:28
+msgid "Claim your"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:42
+msgid "Clear"
+msgstr ""
+
+#: src/components/molecules/SearchField/SearchField.tsx:93
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
+msgid "Clear search"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:153
+msgid "Click the button below to verify your email address and start receiving notifications."
+msgstr ""
+
+#: src/features/profile/components/view/ViewBioSection.tsx:55
+msgid "Click to copy"
+msgstr ""
+
+#: src/components/ui/dialog.tsx:95
+msgid "Close"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:130
+#: src/features/wallet/components/EnableSessionModal.tsx:95
+msgid "Close dialog"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:102
+msgid "Coming Soon"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:46
+msgid "Commit-reveal prevents front-running"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:52
+msgid "Commitment hides your registration intent"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:51
+msgid "Committing"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:69
+msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+msgstr ""
+
+#: src/features/payment/components/add.tsx:187
+#: src/routes/auto-renewal/index.tsx:33
+msgid "Confirm"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:390
+msgid "Confirm NFT Selection"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:405
+msgid "Confirm Payment"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+msgid "Confirm purchase"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:95
+msgid "Confirming approval"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:65
+msgid "Confirming commitment"
+msgstr ""
+
+#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+msgid "Connect"
+msgstr ""
+
+#: src/routes/wallet.tsx:151
+msgid "Connect a Wallet"
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:87
+msgid "Connect a wallet to continue to notification settings and activity."
+msgstr ""
+
+#: src/features/register/components/Pricing/PricingPaymentSection.tsx:56
+msgid "Connect or sign in"
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:93
+msgid "Connect Wallet"
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:84
+msgid "Connect your wallet"
+msgstr ""
+
+#: src/routes/wallet.tsx:301
+msgid "Connected via:"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:146
+msgid "Connected wallet"
+msgstr ""
+
+#: src/routes/wallet.tsx:159
+msgid "Connecting to {connectingConnector}... Please approve the connection in your wallet."
+msgstr ""
+
+#: src/routes/wallet.tsx:281
+msgid "Connection Details"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:62
+msgid "Contact"
+msgstr ""
+
+#: src/features/profile/components/sections/OtherSection.tsx:92
+msgid "Content Hash"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:71
+msgid "Continue to Home"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:71
+msgid "Continue to Settings"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+msgid "Copied"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:54
+msgid "Copied!"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+msgid "Copy Link"
+msgstr ""
+
+#: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx:16
+#: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx:19
+msgid "Copy to clipboard"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:44
+msgid "Country"
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:74
+msgid "Create profile"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:135
+msgid "Create Profile"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:106
+msgid "Create unlimited subdomains for free"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:99
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:122
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:138
+msgid "Credit Card Payment"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:105
+msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:427
+msgid "Crop Image"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:423
+msgid "Crop your image to fit the avatar dimensions."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:424
+msgid "Crop your image to fit the header dimensions."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:441
+msgid "Cropping functionality coming soon"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:288
+msgid "Current"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
+msgid "Custom duration in years"
+msgstr ""
+
+#: src/features/landing/ProfilesShowcase.tsx:13
+msgid "Customize your profile to share what matters"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:39
+msgid "CVV"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:100
+msgid "DAO Forum"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebar.tsx:47
+msgid "Dashboard"
+msgstr "Översikt"
+
+#: src/features/dashboard/components/FavoritesList.tsx:180
+msgid "Date added (Newest)"
+msgstr "Datum tillagt (nyast)"
+
+#: src/features/dashboard/components/FavoritesList.tsx:177
+msgid "Date added (Oldest)"
+msgstr "Datum tillagt (äldst)"
+
+#: src/features/payment/components/index.tsx:42
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:310
+msgid "Default"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:67
+msgid "Delete"
+msgstr ""
+
+#: src/features/dashboard/components/EducationCarousel.tsx:24
+msgid "Did You Know?"
+msgstr "Visste du att?"
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:153
+msgid "Disconnect"
+msgstr ""
+
+#: src/routes/wallet.tsx:313
+msgid "Disconnect Wallet"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:142
+msgid "Domain transfer & expiry notifications"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:236
+msgid "Drag and drop an image here, or"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:47
+msgid "Email added"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:164
+#: src/features/notifications/settings/contact-methods/email.tsx:167
+msgid "Email channel removed"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:284
+msgid "Email Notifications"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:181
+msgid "Email options"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:144
+msgid "Email verification sent"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:83
+msgid "Email verified successfully"
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:76
+msgid "Email verified successfully! You can now receive notifications."
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:142
+msgid "Email Verified!"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx:120
+msgid "Enable"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:185
+msgid "Enable Sessions"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:91
+msgid "Enable Smart Sessions"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
+msgid "ENS"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:46
+msgid "ENS App Homepage"
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:131
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:115
+msgid "ENS Labs Updates"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:42
+msgid "ENS names are stored on-chain as NFTs"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:56
+msgid "ENS names can be up to 255 characters"
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:99
+msgid "Enter 6-digit code"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
+msgid "Enter custom duration"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:481
+msgid "Enter Image URL"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:467
+msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:250
+msgid "Enter URL Manually"
+msgstr ""
+
+#: src/features/profile/components/sections/WalletAddressesSection.tsx:57
+msgid "Enter wallet address"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:78
+msgid "Enter your email"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:165
+msgid "Error loading names"
+msgstr "Fel vid laddning av namn"
+
+#: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
+#: src/features/dashboard/components/PrimaryNameCard.tsx:135
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
+msgid "Expires"
+msgstr "Går ut"
+
+#. placeholder {0}: paymentMethod.expires
+#: src/features/payment/components/index.tsx:47
+msgid "Expires {0}"
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:64
+msgid "expires {expiryDateString}"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:330
+msgid "Expires in {daysUntilExpiry} days"
+msgstr "Går ut om {daysUntilExpiry} dagar"
+
+#: src/features/auto-renewal/components/index.tsx:57
+msgid "Expires:"
+msgstr ""
+
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
+msgid "expiring on"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:239
+msgid "Expiry"
+msgstr "Utgång"
+
+#: src/features/dashboard/components/MyNamesList.tsx:194
+msgid "Expiry date (Earliest)"
+msgstr "Utgångsdatum (tidigast)"
+
+#: src/features/dashboard/components/MyNamesList.tsx:197
+msgid "Expiry date (Latest)"
+msgstr "Utgångsdatum (senast)"
+
+#: src/features/notifications/settings/contact-methods/email.tsx:50
+msgid "Failed to add email"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:39
+msgid "Failed to add Telegram channel"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:113
+msgid "Failed to add telegram: "
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:49
+msgid "Failed to authenticate with Telegram"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:61
+msgid "Failed to enable session"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:232
+msgid "Failed to fund wallet"
+msgstr ""
+
+#. placeholder {0}: error.message
+#: src/lib/smart-account/SmartAccountContext.tsx:233
+msgid "Failed to fund wallet: {0}"
+msgstr ""
+
+#: src/features/notifications/dropdown/notification-dropdown.tsx:58
+#: src/features/notifications/inbox/list.tsx:97
+msgid "Failed to load notifications"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:170
+msgid "Failed to remove email channel"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:70
+msgid "Failed to remove Telegram channel"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:49
+msgid "Failed to request test tokens"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:149
+msgid "Failed to resend email verification"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:157
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:142
+msgid "Failed to set ETH address record"
+msgstr "Kunde inte ange ETH-adresspost"
+
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:99
+msgid "Failed to set primary name"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:334
+msgid "Failed to set primary name. Please try again."
+msgstr "Kunde inte ange primärt namn. Försök igen."
+
+#: src/features/notifications/RequireBackendAuth.tsx:143
+#: src/features/wallet/components/BackendAuthModal.tsx:99
+msgid "Failed to sign in. Please try again."
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:39
+msgid "Failed to switch language"
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:67
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:54
+msgid "Failed to update preferences"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:67
+msgid "Failed to update resolver"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:89
+msgid "Failed to verify email"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:107
+msgid "Favorites"
+msgstr "Favoriter"
+
+#: src/features/notifications/settings/preferences.tsx:149
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:133
+msgid "Favourited Name Expiry"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
+msgid "Finalizing registration"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:451
+msgid "for"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:15
+msgid "For this alpha release, accounts are automatically funded with test tokens."
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:60
+msgid "Frequently Asked Questions"
+msgstr "Vanliga frågor"
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:196
+msgid "From:"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:201
+msgid "Funding wallet"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:202
+msgid "Funding wallet {address} with mock USDC & DAI tokens"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx:97
+msgid "Get instant push notifications in your browser"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:120
+msgid "Get instant updates through Telegram for your domains."
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:140
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:124
+msgid "Get notified when names in your favourites expire"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:69
+msgid "Get support"
+msgstr "Få support"
+
+#: src/features/notifications/settings/preferences.tsx:122
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:106
+msgid "Get updated on the latest releases and features"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:119
+msgid "Go back"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:164
+msgid "Go Back"
+msgstr ""
+
+#: src/features/not-found/pages/NotFoundPage.tsx:18
+msgid "Go back home"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:138
+msgid "Go to ENS name profile"
+msgstr "Gå till ENS-namnprofil"
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:248
+msgid "Go to Profile"
+msgstr ""
+
+#. placeholder {0}: index + 1
+#: src/features/landing/FeaturesCarousel.tsx:301
+msgid "Go to slide {0}"
+msgstr ""
+
+#: src/features/dashboard/pages/DashboardPage.tsx:85
+msgid "Hello"
+msgstr "Hej"
+
+#: src/features/dashboard/components/FaqSection.tsx:45
+msgid "How can I secure my ENS name?"
+msgstr "Hur kan jag säkra mitt ENS-namn?"
+
+#: src/features/dashboard/components/FaqSection.tsx:25
+msgid "How do I show my .eth name instead of my address?"
+msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:112
+msgid "Human-readable addresses for wallets"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:114
+msgid "If your primary card is declined, we will use this card to charge you."
+msgstr ""
+
+#: src/components/atoms/ImageFallback/ImageFallback.tsx:190
+msgid "Image not available"
+msgstr ""
+
+#: src/features/register/components/Pricing/PricingPaymentSection.tsx:72
+msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:12
+msgid "Invalid character"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:91
+msgid "Join the community"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:47
+msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
+msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
+
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:77
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
+msgid "Language"
+msgstr "Språk"
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:476
+msgid "Learn more"
+msgstr ""
+
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:160
+msgid "Link"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:71
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:81
+msgid "Link copied to clipboard"
+msgstr ""
+
+#: src/features/landing/components/ProfileCard.tsx:142
+msgid "links"
+msgstr ""
+
+#: src/features/profile/components/sections/LinksSection.tsx:21
+#: src/features/profile/components/view/ViewLinksSection.tsx:20
+msgid "Links"
+msgstr ""
+
+#: src/features/notifications/inbox/list.tsx:48
+msgid "Load more"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardLoading.tsx:8
+msgid "Loading dashboard..."
+msgstr "Laddar översikten..."
+
+#: src/features/register/components/Pricing/Pricing.tsx:99
+msgid "Loading prices..."
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:278
+msgid "Loading your stablecoin balances..."
+msgstr ""
+
+#: src/components/atoms/ImageFallback/ImageFallback.tsx:215
+#: src/features/dashboard/components/PrimaryNameCard.tsx:52
+#: src/features/dashboard/components/PrimaryNameCard.tsx:55
+#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+#: src/features/notifications/inbox/list.tsx:46
+msgid "Loading..."
+msgstr "Laddar..."
+
+#: src/features/dashboard/components/NameRow.tsx:57
+#: src/features/profile/components/view/FavoriteButton.tsx:72
+msgid "Login to favorite"
+msgstr "Logga in för att favorisera"
+
+#: src/features/dashboard/components/DashboardSidebar.tsx:36
+msgid "MAIN MENU"
+msgstr "HUVUDMENY"
+
+#: src/features/register/components/VerifyWalletModal.tsx:171
+msgid "Make sure the message starts with \"ENS would like you to ...\""
+msgstr ""
+
+#: src/routes/wallet.tsx:253
+msgid "Make sure you have a wallet extension installed"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:130
+msgid "Makes crypto addresses human-readable"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:73
+msgid "Manage Para Wallet"
+msgstr ""
+
+#: src/routes/auto-renewal/index.tsx:21
+msgid "Manage Renewals"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
+msgid "Manage your notification preferences for your name(s) and ENS-related updates."
+msgstr ""
+
+#: src/routes/notifications/_authenticated/index.tsx:114
+msgid "Mark all as read"
+msgstr ""
+
+#: src/routes/notifications/_authenticated/index.tsx:112
+msgid "Marking..."
+msgstr ""
+
+#: src/features/payment/components/add.tsx:38
+msgid "MM/YY"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:36
+msgid "Modified"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:102
+msgid "Multi-year Discount ({discountPercentage}%)"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:102
+msgid "My Names"
+msgstr "Mina namn"
+
+#: src/features/dashboard/components/FavoritesList.tsx:203
+#: src/features/dashboard/components/MyNamesList.tsx:220
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
+msgid "Name"
+msgstr "Namn"
+
+#: src/features/dashboard/components/FavoritesList.tsx:171
+#: src/features/dashboard/components/MyNamesList.tsx:188
+msgid "Name (A-Z)"
+msgstr "Namn (A-Ö)"
+
+#: src/features/dashboard/components/FavoritesList.tsx:174
+#: src/features/dashboard/components/MyNamesList.tsx:191
+msgid "Name (Z-A)"
+msgstr "Namn (Ö-A)"
+
+#: src/features/notifications/settings/preferences.tsx:113
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:97
+msgid "Name Expiry"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:41
+#: src/features/payment/components/add.tsx:41
+msgid "Name on card"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:41
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:129
+msgid "Name registering"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:102
+msgid "Names are permanent, only expire if not renewed"
+msgstr ""
+
+#. placeholder {0}: formatAmount(priceUSD)
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:382
+msgid "Need ${0}"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:53
+msgid "Need help?"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:179
+msgid "New value:"
+msgstr ""
+
+#: src/features/dashboard/components/EducationCarousel.tsx:45
+msgid "Next card"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:297
+#: src/features/dashboard/components/MyNamesList.tsx:355
+#: src/features/profile/components/view/AddressProfileView.tsx:275
+msgid "Next page"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:316
+msgid "Next slide"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:233
+msgid "No changes to save"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:305
+msgid "No coins found"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:103
+msgid "No default payment method set."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:345
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:208
+msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
+msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
+
+#: src/features/profile/components/dialogs/AddAddressRecordsDialog.tsx:106
+msgid "No more records to add"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:272
+msgid "No names found"
+msgstr "Inga namn hittades"
+
+#: src/features/dashboard/components/FavoritesList.tsx:234
+#: src/features/dashboard/components/FavoritesList.tsx:245
+#: src/features/dashboard/components/MyNamesList.tsx:272
+msgid "No names to display"
+msgstr "Inga namn att visa"
+
+#: src/routes/payment/list.tsx:26
+msgid "No payment methods found."
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:105
+msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
+msgid "No recent searches"
+msgstr ""
+
+#: src/routes/wallet.tsx:250
+msgid "No wallet connectors available"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:13
+msgid "Not a valid name format"
+msgstr ""
+
+#: src/features/profile/components/view/ViewBioSection.tsx:33
+msgid "Not set"
+msgstr ""
+
+#: src/features/notifications/dropdown/notification-dropdown.tsx:83
+msgid "Nothing here yet!"
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:97
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
+msgid "Notification Preferences"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
+#: src/routes/notifications/_authenticated/index.tsx:86
+msgid "Notification Settings"
+msgstr ""
+
+#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
+#: src/features/notifications/dropdown/notification-dropdown.tsx:28
+msgid "Notifications"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx:131
+msgid "Notifications blocked"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:27
+msgid "One username <0/><1>everywhere</1>"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:99
+msgid "Open the verification link from your email to finish setup."
+msgstr ""
+
+#: src/features/payment/components/add.tsx:138
+msgid "or"
+msgstr ""
+
+#: src/features/profile/components/sections/OtherSection.tsx:35
+msgid "Other"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:62
+msgid "Over 2 million ENS names registered"
+msgstr ""
+
+#: src/features/not-found/pages/NotFoundPage.tsx:9
+msgid "Page not found"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:107
+msgid "Pay with Apple"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:74
+msgid "Pay with credit card"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:84
+msgid "Pay with Google"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:130
+msgid "Pay with PayPal"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:233
+msgid "Pay with stablecoins"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:89
+msgid "Payment Method"
+msgstr ""
+
+#: src/features/payment/components/index.tsx:54
+msgid "Payment method options"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:15
+#: src/features/payment/components/add.tsx:57
+msgid "Payment Methods"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:267
+#: src/features/notifications/settings/contact-methods/telegram.tsx:141
+msgid "Pending"
+msgstr ""
+
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:150
+msgid "Personal Site"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:286
+msgid "Please connect your wallet first"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:112
+#: src/features/register/components/VerifyWalletModal.tsx:163
+msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:102
+msgid "Please sign in to telegram in the popup window."
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:148
+msgid "Please wait while we verify your email address."
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:64
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:51
+msgid "Preferences updated"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:45
+msgid "Preparing commitment"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:504
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:515
+msgid "Preview Image"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:535
+msgid "Preview of your image"
+msgstr ""
+
+#: src/features/dashboard/components/EducationCarousel.tsx:28
+msgid "Previous card"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:288
+#: src/features/dashboard/components/MyNamesList.tsx:346
+#: src/features/profile/components/view/AddressProfileView.tsx:266
+msgid "Previous page"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:291
+msgid "Previous slide"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryBadge.tsx:20
+msgid "Primary Name"
+msgstr "Primärt namn"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:172
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:66
+msgid "Primary name set successfully"
+msgstr "Primärt namn angivet"
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:71
+msgid "Privacy Policy"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebar.tsx:62
+#: src/features/dashboard/components/DashboardSidebar.tsx:74
+msgid "Profile"
+msgstr "Profil"
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
+msgid "Profile updated"
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:88
+msgid "Protect your name with autorenewal"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
+msgid "Receive crypto from any chain"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:287
+msgid "Receive notifications via email for important domain events"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
+msgid "Recent"
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:54
+msgid "Reconnect the wallet used for notifications, then sign in again."
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:68
+msgid "Reconnect Wallet"
+msgstr ""
+
+#: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
+#: src/features/dashboard/components/PrimaryNameCard.tsx:121
+#: src/features/landing/components/ProfileCard.tsx:123
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:99
+msgid "Registered"
+msgstr "Registrerad"
+
+#. placeholder {0}: formatDashboardDate( toDateFromSeconds(domain.createdAt), )
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:127
+msgid "Registered {0}"
+msgstr "Registrerad {0}"
+
+#: src/features/profile/components/view/AddressProfileView.tsx:245
+msgid "Registered ENS names"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
+msgid "Registering"
+msgstr ""
+
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
+msgid "Registering for"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:121
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:192
+msgid "Registration Complete!"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:73
+msgid "Registration Details"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:210
+msgid "Registration Failed"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:92
+msgid "Registration Fee"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
+msgid "Registration Period"
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:120
+msgid "Registration successful"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:60
+msgid "Registration successful! You'll receive a confirmation shortly."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:214
+#: src/features/notifications/settings/contact-methods/email.tsx:250
+#: src/features/notifications/settings/contact-methods/telegram.tsx:190
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:329
+msgid "Remove"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:261
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:281
+msgid "Remove Avatar"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:223
+msgid "Remove Email Contact Method?"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:263
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:281
+msgid "Remove Header"
+msgstr ""
+
+#: src/features/notifications/shared/primitives.tsx:70
+msgid "Remove notification"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:162
+msgid "Remove Telegram Contact Method?"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:35
+msgid "Removed"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:187
+msgid "Removed:"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:158
+msgid "Removing email channel"
+msgstr ""
+
+#. placeholder {0}: email.label
+#: src/features/notifications/settings/contact-methods/email.tsx:160
+msgid "Removing email for {0}"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:56
+msgid "Removing telegram channel"
+msgstr ""
+
+#. placeholder {0}: telegram?.label
+#: src/features/notifications/settings/contact-methods/telegram.tsx:58
+msgid "Removing telegram for {0}"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:42
+msgid "Requesting test tokens..."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:203
+msgid "Resend Verification"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:138
+msgid "Resending email verification"
+msgstr ""
+
+#. placeholder {0}: email.label
+#: src/features/notifications/settings/contact-methods/email.tsx:140
+msgid "Resending email verification for {0}"
+msgstr ""
+
+#: src/features/profile/components/ProfileEdit.tsx:174
+msgid "Reset Changes"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:121
+msgid "Resolver address"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:281
+#: src/features/profile/components/dialogs/DiffDialog.tsx:297
+msgid "Review Changes"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+msgid "Save"
+msgstr ""
+
+#. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
+#: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:55
+msgid "Save ${0}"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:142
+#: src/features/profile/components/dialogs/DiffDialog.tsx:267
+msgid "Save Changes"
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:178
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:173
+msgid "Save Preferences"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:145
+msgid "Saved favorites & searches"
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:176
+#: src/features/profile/components/dialogs/DiffDialog.tsx:262
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:171
+msgid "Saving..."
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+msgid "Saving…"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
+msgid "Search"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:262
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:265
+msgid "Search coins"
+msgstr ""
+
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
+msgid "Search for a name or address"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:145
+msgid "Search my name..."
+msgstr "Sök mitt namn..."
+
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:191
+msgid "Search name or address"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
+msgid "Search name, address..."
+msgstr "Sök namn, adress..."
+
+#: src/features/dashboard/components/NamesTable.tsx:145
+msgid "Search name..."
+msgstr "Sök namn..."
+
+#: src/routes/notifications/_authenticated/index.tsx:120
+#: src/routes/notifications/_authenticated/index.tsx:121
+msgid "Search notifications"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:349
+msgid "Search your NFTs"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:354
+msgid "Search your NFTs..."
+msgstr ""
+
+#: src/features/notifications/dropdown/notification-dropdown.tsx:46
+msgid "See all"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
+msgid "Select {label} as primary name"
+msgstr "Välj {label} som primärt namn"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:244
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+msgid "Select coin"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:522
+msgid "Select payment method"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:122
+msgid "Send Verification"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:120
+msgid "Sending..."
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:140
+msgid "Sessions enabled! You can now transact without signing each time."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:379
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:239
+msgid "Set as Primary"
+msgstr "Ange som primärt"
+
+#: src/features/dashboard/components/FaqSection.tsx:27
+msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
+msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida i ENS-appen."
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:66
+msgid "Set multiple records: ETH, BTC, email"
+msgstr ""
+
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:177
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:252
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:268
+msgid "Set Primary Name"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:96
+msgid "Set reverse record to show your name"
+msgstr ""
+
+#: src/features/profile/components/sections/OtherSection.tsx:38
+msgid "Set the content hash and ABI for your name"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:244
+msgid "Set which ENS name displays as your identity across apps and wallets."
+msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:376
+msgid "Setting ETH address..."
+msgstr "Anger ETH-adress..."
+
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:235
+msgid "Setting ETH address…"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:378
+msgid "Setting..."
+msgstr "Anger..."
+
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:237
+msgid "Setting…"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:92
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:123
+msgid "Share"
+msgstr ""
+
+#: src/features/profile/components/sections/BioSection.tsx:81
+msgid "Short Description"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:307
+msgid "Showing {startIndex}-{endIndex} of {totalCount}"
+msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
+
+#: src/features/dashboard/components/MyNamesList.tsx:368
+msgid "Showing your names"
+msgstr "Visar dina namn"
+
+#: src/features/notifications/RequireBackendAuth.tsx:120
+msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:110
+msgid "Sign in to view favorites"
+msgstr "Logga in för att se favoriter"
+
+#: src/features/notifications/RequireBackendAuth.tsx:136
+#: src/features/wallet/components/BackendAuthModal.tsx:92
+msgid "Sign in with Wallet"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:75
+msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:195
+msgid "Sign Message"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:106
+msgid "Sign once to enable gasless transactions for your ENS operations."
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:154
+msgid "Sign once to enable seamless transactions."
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:134
+#: src/features/wallet/components/BackendAuthModal.tsx:90
+msgid "Signing in..."
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:110
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:147
+msgid "Skip"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:167
+msgid "Skip Anyway"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:116
+#: src/features/wallet/components/EnableSessionModal.tsx:195
+msgid "Skip for now"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:127
+msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:128
+msgid "Smart Account"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:100
+msgid "Smart Session Active"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:102
+msgid "Smart Session Disabled"
+msgstr ""
+
+#: src/features/profile/components/sections/SocialLinksSection.tsx:21
+msgid "Social Links"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:148
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:148
+#: src/features/dashboard/components/MyNamesList.tsx:176
+msgid "Sort by"
+msgstr "Sortera efter"
+
+#: src/features/dashboard/components/MyNamesList.tsx:228
+msgid "Sort by expiry, currently ascending"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:229
+msgid "Sort by expiry, currently descending"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:230
+msgid "Sort by expiry, currently unsorted"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:192
+#: src/features/dashboard/components/MyNamesList.tsx:209
+msgid "Sort by name, currently ascending"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:193
+#: src/features/dashboard/components/MyNamesList.tsx:210
+msgid "Sort by name, currently descending"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:194
+#: src/features/dashboard/components/MyNamesList.tsx:211
+msgid "Sort by name, currently unsorted"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:151
+msgid "Sort favorites by"
+msgstr "Sortera favoriter efter"
+
+#: src/features/dashboard/components/MyNamesList.tsx:179
+msgid "Sort names by"
+msgstr "Sortera namn efter"
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:248
+msgid "Stables accepted"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:232
+msgid "Start typing to check if your perfect name is available"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
+msgid "Submitting your ENS profile update. This may take a few moments."
+msgstr ""
+
+#: src/routes/wallet.tsx:171
+msgid "Successfully connected! You can now use the application."
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:56
+msgid "Support"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:86
+msgid "Supports USDC and DAI payments"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:135
+msgid "Telegram"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:36
+msgid "Telegram channel added"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:62
+msgid "Telegram channel removed"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:90
+msgid "Telegram Notifications"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:75
+msgid "Terms of Use"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:157
+msgid "The backup payment method will be charged if the default payment method fails."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:344
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:202
+msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
+msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
+
+#: src/features/not-found/pages/NotFoundPage.tsx:12
+msgid "The page you're looking for doesn't exist or may have been moved."
+msgstr ""
+
+#: src/features/profile/components/sections/ThemeSection.tsx:22
+msgid "Theme"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:152
+msgid "There was a problem verifying your email address."
+msgstr ""
+
+#: src/features/profile/components/view/AddressProfileView.tsx:233
+msgid "This address does not have a primary ENS name."
+msgstr ""
+
+#: src/features/payment/components/add.tsx:18
+#: src/features/payment/components/index.tsx:92
+msgid "This card will be charged for your subscription."
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:77
+msgid "This name is already registered or not available for registration."
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:105
+msgid "This page can only verify your email when opened from the link in the verification email."
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:204
+msgid "This signature is free and doesn't cost any gas."
+msgstr ""
+
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:190
+msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/push.tsx:134
+msgid "To enable, go to your browser's site settings for this page and allow notifications."
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:199
+msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:202
+msgid "To:"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:12
+msgid "TOKEN BALANCES"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/ValidationError.tsx:11
+msgid "Too short"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
+msgid "total"
+msgstr ""
+
+#: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:22
+msgid "TOTAL"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:112
+msgid "Total Paid"
+msgstr ""
+
+#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:79
+msgid "Trademark Guidelines"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
+msgid "Transaction:"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
+msgid "Transfer your name to any wallet"
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:148
+#: src/features/wallet/components/EnableSessionModal.tsx:183
+#: src/routes/notifications/channels/email/verify.tsx:196
+msgid "Try Again"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
+msgid "Try searching for a different coin or chain"
+msgstr ""
+
+#: src/routes/notifications/_authenticated/index.tsx:101
+msgid "Unread only"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
+msgid "Update failed"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:147
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:163
+msgid "Update Resolver"
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
+msgid "Updating profile"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
+msgid "Upload & Use Image"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:223
+msgid "Upload or drag & drop"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:452
+msgid "Uploading…"
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:151
+msgid "Use Different Email"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:545
+msgid "Use This Image"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:410
+msgid "Use This NFT"
+msgstr ""
+
+#: src/features/landing/IntegrationsSection.tsx:92
+msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:93
+msgid "Verification Code"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:144
+msgid "Verification Failed"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:275
+msgid "Verified"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:191
+msgid "Verified!"
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:185
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:180
+msgid "Verify at least one contact method to save preferences"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:67
+msgid "Verify authenticity and stay safe."
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:135
+msgid "Verify Code"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:224
+msgid "Verify Email Address"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:108
+msgid "Verify Wallet"
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:134
+#: src/features/notifications/RequireBackendAuth.tsx:117
+msgid "Verify wallet ownership"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:145
+msgid "Verify Your Email"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:72
+msgid "Verify your wallet"
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:140
+msgid "Verifying Email..."
+msgstr ""
+
+#: src/features/notifications/settings/email-verify-step.tsx:133
+msgid "Verifying..."
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:153
+msgid "View profile"
+msgstr "Visa profil"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:91
+msgid "Waiting for approval"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
+msgid "Waiting for registration"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:55
+msgid "Waiting for signature"
+msgstr ""
+
+#: src/features/register/components/VerifyWalletModal.tsx:193
+#: src/features/wallet/components/EnableSessionModal.tsx:181
+msgid "Waiting for signature..."
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
+msgid "Waiting for the transaction to be confirmed…"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:61
+msgid "Waiting for transaction"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
+msgid "Waiting period"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:221
+msgid "Wallet {address} funded successfully"
+msgstr ""
+
+#: src/routes/wallet.tsx:292
+msgid "Wallet Address:"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:106
+msgid "Wallet client missing, please reconnect your wallet and try again."
+msgstr ""
+
+#: src/routes/wallet.tsx:274
+msgid "Wallet Connected"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:220
+msgid "Wallet funded successfully"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:198
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:149
+msgid "Wallet signer not available"
+msgstr "Plånbokssignering inte tillgänglig"
+
+#: src/features/notifications/settings/email-verify-step.tsx:68
+msgid "We sent a verification code to your email address."
+msgstr ""
+
+#: src/features/register/pages/CheckDomainPage.tsx:22
+#: src/routes/index.tsx:32
+msgid "web3 username"
+msgstr ""
+
+#: src/features/profile/components/sections/BioSection.tsx:113
+msgid "Website"
+msgstr ""
+
+#: src/features/dashboard/pages/DashboardPage.tsx:69
+msgid "Welcome to the public alpha of the ENS app"
+msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
+
+#: src/features/dashboard/pages/DashboardPage.tsx:72
+msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
+msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
+msgid "Works across all EVM-compatible chains"
+msgstr ""
+
+#: src/features/notifications/RequireBackendAuth.tsx:51
+msgid "Wrong wallet connected"
+msgstr ""
+
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
+msgid "years"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:17
+msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
+msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 – appen slår upp adressen automatiskt."
+
+#: src/features/dashboard/components/FaqSection.tsx:37
+msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
+msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
+
+#: src/routes/notifications/channels/email/verify.tsx:150
+msgid "You can now receive notifications at this email address."
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:155
+msgid "You can verify later by clicking your profile in the navbar"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:109
+msgid "You have unsaved changes. Are you sure you want to leave?"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/email.tsx:226
+msgid "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
+msgstr ""
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:165
+msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:289
+msgid "You need to connect a wallet to see your stablecoin balances"
+msgstr ""
+
+#: src/features/notifications/settings/preferences.tsx:104
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:88
+msgid "You'll be notified 30, 7, and 1 day before expiry"
+msgstr ""
+
+#: src/features/wallet/components/BackendAuthModal.tsx:138
+msgid "You'll miss:"
+msgstr ""
+
+#: src/features/notifications/inbox/list.tsx:108
+msgid "You're all caught up!"
+msgstr ""
+
+#: src/features/register/components/Autorenewal.tsx:91
+msgid "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
+msgstr ""
+
+#: src/routes/notifications/channels/email/verify.tsx:175
+msgid "Your email has been verified successfully!"
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:195
+msgid "Your ENS domain has been successfully registered and is now active."
+msgstr ""
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:122
+msgid "Your ENS domain is now active"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:50
+msgid "Your ENS name"
+msgstr "Ditt ENS-namn"
+
+#: src/features/landing/ProfilesShowcase.tsx:16
+msgid "Your ENS name is your onchain identity. Personalize it with an avatar, a banner, and the links that matter most. Showcase your work, connect your socials, and make it easy for anyone to verify and follow you across the web."
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:127
+msgid "Your ENS name replaces your wallet addresses so friends and clients can send money to <0>friend.eth</0> instead of a confusing jumble of letters and numbers."
+msgstr ""
+
+#: src/features/landing/IntegrationsSection.tsx:89
+msgid "Your ENS name works across web3"
+msgstr ""
+
+#: src/features/landing/FeaturesCarousel.tsx:33
+msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
+msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
+msgid "Your profile changes have been confirmed on-chain."
+msgstr ""
+
+#: src/routes/wallet.tsx:284
+msgid "Your wallet is successfully connected to the application"
+msgstr ""
+
+#: src/features/payment/components/add.tsx:43
+msgid "Zip code"
+msgstr ""

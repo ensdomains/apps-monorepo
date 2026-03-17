@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
@@ -69,6 +70,10 @@ export const CheckAvailability = ({
     (text) => text.key === 'avatar',
   )?.value
 
+  const themeColor = profileRecords?.texts.find(
+    (text) => text.key === 'theme',
+  )?.value
+
   const { data: profileAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
     enabled: !!profileName && !!avatarRecord,
@@ -117,9 +122,11 @@ export const CheckAvailability = ({
               <motion.div key="error" {...dropdownAnimation}>
                 <Alert variant="destructive">
                   <AlertDescription>
-                    {error instanceof Error
-                      ? error.message
-                      : 'An error occurred'}
+                    {error instanceof Error ? (
+                      error.message
+                    ) : (
+                      <Trans>An error occurred</Trans>
+                    )}
                   </AlertDescription>
                 </Alert>
               </motion.div>
@@ -158,6 +165,7 @@ export const CheckAvailability = ({
                                 )
                               : null
                           }
+                          themeColor={themeColor}
                         />
                       </Link>
                     )}
@@ -211,6 +219,7 @@ export const CheckAvailability = ({
                             )
                           : null
                       }
+                      themeColor={themeColor}
                     />
                   </Link>
                 )}
@@ -220,7 +229,8 @@ export const CheckAvailability = ({
         </div>
       </div>
       <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-sm leading-normal tracking-wide">
-        Start typing to check if your perfect name is available 🕵️‍♀️
+        <Trans>Start typing to check if your perfect name is available</Trans>{' '}
+        🕵️‍♀️
       </p>
     </div>
   )

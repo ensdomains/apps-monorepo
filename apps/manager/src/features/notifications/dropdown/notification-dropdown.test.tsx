@@ -1,11 +1,13 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import type { AnchorHTMLAttributes } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render } from '@/utils/test-utils'
 import { NotificationsDropdown } from './notification-dropdown'
 
 const mockUseInfiniteQuery = vi.fn()
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useInfiniteQuery: () => mockUseInfiniteQuery(),
 }))
 

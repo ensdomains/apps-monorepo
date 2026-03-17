@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { AnimatePresence } from 'motion/react'
 import {
   Card,
@@ -16,9 +17,11 @@ export const SocialLinksSection = withForm({
   render: ({ form }) => (
     <Card className="border-[0.25px] border-border bg-white shadow-none">
       <CardHeader>
-        <CardTitle className="text-base tracking-tight">Social Links</CardTitle>
+        <CardTitle className="text-base tracking-tight">
+          <Trans>Social Links</Trans>
+        </CardTitle>
         <CardDescription className="text-base">
-          Add your social media profiles to your profile
+          <Trans>Add your social media profiles to your profile</Trans>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

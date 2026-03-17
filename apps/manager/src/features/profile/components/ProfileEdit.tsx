@@ -1,4 +1,5 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { Trans, useLingui } from '@lingui/react/macro'
 import {
   useMutation,
   useQuery,
@@ -33,6 +34,7 @@ import { HeaderSection } from './sections/HeaderSection'
 import { LinksSection } from './sections/LinksSection'
 import { OtherSection } from './sections/OtherSection'
 import { SocialLinksSection } from './sections/SocialLinksSection'
+import { ThemeSection } from './sections/ThemeSection'
 import { WalletAddressesSection } from './sections/WalletAddressesSection'
 
 interface ProfileEditProps {
@@ -40,6 +42,7 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
+  const { t } = useLingui()
   const { data: recordsData, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
@@ -80,14 +83,14 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const handleSave = () => {
     if (!ownerAddress) {
-      const message = 'Cannot save profile - ENS owner is not available.'
+      const message = t`Cannot save profile - ENS owner is not available.`
       console.warn(message)
       alert(message)
       return
     }
 
     if (!account.signer || !account.accountAddress) {
-      const message = 'Account not ready. Please wait for wallet to connect.'
+      const message = t`Account not ready. Please wait for wallet to connect.`
       console.error('❌ Smart account not connected or not initialized', {
         accountAddress: account.accountAddress,
         hasSigner: !!account.signer,
@@ -143,6 +146,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
           <OtherSection form={form} />
         </div>
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
+          <ThemeSection form={form} />
           <WalletAddressesSection form={form} />
           {/* Hidden for alpha - users don't need to change the resolver
           <UpdateResolverDialog
@@ -167,7 +171,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
                     type="button"
                     variant="outline"
                   >
-                    Reset Changes
+                    <Trans>Reset Changes</Trans>
                   </Button>
                 )
               }

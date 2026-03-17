@@ -28,6 +28,7 @@ const MATERIAL_SYMBOLS = [
   'delete',
   'cached',
   'close',
+  'warning',
 ] as const satisfies readonly string[]
 
 // Google Fonts requires the icons to be sorted alphabetically

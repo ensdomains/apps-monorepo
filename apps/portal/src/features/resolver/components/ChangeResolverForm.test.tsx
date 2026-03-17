@@ -1,7 +1,22 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangeResolverForm } from './ChangeResolverForm'
+
+vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
+  TransactionModal: () => null,
+}))
+
+const mockOpenModal = vi.fn()
+vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
+  useTransactionModal: () => ({
+    isOpen: false,
+    openModal: mockOpenModal,
+    closeModal: vi.fn(),
+    clearTransaction: vi.fn(),
+  }),
+}))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -19,105 +34,153 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }))
 
-const mockChangeResolverAsync = vi.fn()
+vi.mock('wagmi', () => ({
+  useConnection: () => ({
+    address: '0x1234567890123456789012345678901234567890',
+  }),
+  useChainId: () => 11155111,
+  useConfig: () => ({
+    chains: [
+      {
+        id: 11155111,
+        blockExplorers: {
+          default: { url: 'https://sepolia.etherscan.io' },
+        },
+      },
+    ],
+  }),
+}))
+
+const mockChangeResolver = vi.fn()
+const changeResolverHookState = {
+  isPending: false,
+  hasWallet: true,
+}
+
 vi.mock('@/features/resolver/hooks/useChangeResolver', () => ({
-  useChangeResolver: (_params: { name: string; registryAddress: string }) => {
-    return {
-      changeResolverAsync: mockChangeResolverAsync,
-      txHash: undefined,
-      isWriting: false,
-      isConfirming: false,
-      isConfirmed: false,
-      isReverted: false,
-      error: null,
-    }
-  },
+  useChangeResolver: (_params: {
+    name: string
+    registryAddress: string
+    id?: string
+  }) => ({
+    changeResolver: mockChangeResolver,
+    changeResolverAsync: vi.fn(),
+    isPending: changeResolverHookState.isPending,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    data: undefined,
+    reset: vi.fn(),
+    hasWallet: changeResolverHookState.hasWallet,
+  }),
+}))
+
+const mockDeployDedicatedResolverAsync = vi.fn()
+vi.mock('@/features/resolver/hooks/useDeployDedicatedResolver', () => ({
+  useDeployDedicatedResolver: (_params: { name: string }) => ({
+    deployDedicatedResolver: vi.fn(),
+    deployDedicatedResolverAsync: mockDeployDedicatedResolverAsync,
+    txHash: undefined,
+    deployedResolverAddress: undefined,
+    isWriting: false,
+    isConfirming: false,
+    isConfirmed: false,
+    error: null,
+    reset: vi.fn(),
+    hasWallet: true,
+  }),
+}))
+
+vi.mock('@/features/resolver/hooks/useUserDedicatedResolvers', () => ({
+  useUserDedicatedResolvers: (_params: { senderAddress?: string }) => ({
+    data: [
+      '0xabcdef123456789012345678901234567890abcd',
+      '0x1234512345123451234512345123451234512345',
+    ],
+    isLoading: false,
+    error: null,
+  }),
 }))
 
 describe('ChangeResolverForm', () => {
   const name = 'myname.eth'
-  const registryAddress = '0x1234567890123456789012345678901234567890'
+  const registryAddress: Address = '0x1234567890123456789012345678901234567890'
 
   beforeEach(() => {
-    mockChangeResolverAsync.mockReset()
+    mockChangeResolver.mockReset()
+    mockDeployDedicatedResolverAsync.mockReset()
+    mockOpenModal.mockReset()
+    changeResolverHookState.isPending = false
+    changeResolverHookState.hasWallet = true
   })
 
-  it('renders title, input, and submit button', () => {
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as `0x${string}`}
-      />,
-    )
+  it('renders default custom resolver mode', () => {
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
     expect(
       screen.getByRole('heading', { name: 'Change resolver' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText(/Contract address/)).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Change resolver' }),
-    ).toBeInTheDocument()
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    ).toBeChecked()
+    expect(screen.getByLabelText(/Contract address/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled()
   })
 
-  it('disables submit when input is empty', () => {
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as `0x${string}`}
-      />,
-    )
-    expect(
-      screen.getByRole('button', { name: 'Change resolver' }),
-    ).toBeDisabled()
-  })
-
-  it('disables submit when input is not a valid address', async () => {
+  it('opens transaction modal when valid custom resolver is submitted', async () => {
     const user = userEvent.setup()
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as `0x${string}`}
-      />,
-    )
-    await user.type(screen.getByPlaceholderText('0x...'), 'not-an-address')
-    expect(
-      screen.getByRole('button', { name: 'Change resolver' }),
-    ).toBeDisabled()
-  })
 
-  it('calls changeResolverAsync when valid address is entered and submit clicked', async () => {
-    const user = userEvent.setup()
-    mockChangeResolverAsync.mockResolvedValue(undefined)
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
 
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as `0x${string}`}
-      />,
-    )
     await user.type(
       screen.getByPlaceholderText('0x...'),
       '0xabcdef123456789012345678901234567890abcd',
     )
-    await user.click(screen.getByRole('button', { name: 'Change resolver' }))
+    await user.click(screen.getByRole('button', { name: /Save changes/i }))
 
-    expect(mockChangeResolverAsync).toHaveBeenCalledTimes(1)
-    expect(mockChangeResolverAsync).toHaveBeenCalledWith(
-      '0xabcdef123456789012345678901234567890abcd',
-    )
+    expect(mockOpenModal).toHaveBeenCalledTimes(1)
   })
 
-  it('does not call changeResolverAsync when address is invalid', async () => {
+  it('opens transaction modal when non-custom + deploy is enabled', async () => {
     const user = userEvent.setup()
-    render(
-      <ChangeResolverForm
-        name={name}
-        registryAddress={registryAddress as `0x${string}`}
-      />,
-    )
-    await user.type(screen.getByPlaceholderText('0x...'), '0xshort')
-    await user.click(screen.getByRole('button', { name: 'Change resolver' }))
 
-    expect(mockChangeResolverAsync).not.toHaveBeenCalled()
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+    await user.click(screen.getByRole('button', { name: /Save changes/i }))
+
+    expect(mockOpenModal).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens transaction modal when using existing resolver', async () => {
+    const user = userEvent.setup()
+
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+    await user.click(
+      screen.getByRole('switch', { name: /Deploy new dedicated resolver/i }),
+    )
+    await user.selectOptions(
+      screen.getByLabelText(/Existing dedicated resolver/i),
+      '0x1234512345123451234512345123451234512345',
+    )
+    await user.click(screen.getByRole('button', { name: /Save changes/i }))
+
+    expect(mockOpenModal).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows pending button text when change resolver is pending', () => {
+    changeResolverHookState.isPending = true
+
+    render(<ChangeResolverForm name={name} registryAddress={registryAddress} />)
+
+    expect(
+      screen.getByRole('button', { name: /Changing resolver.../i }),
+    ).toBeInTheDocument()
   })
 })

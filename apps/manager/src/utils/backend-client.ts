@@ -10,6 +10,7 @@ type BackendAuthContext = {
   authKey: string | undefined
   address: string | undefined
   modalDismissed: boolean
+  apiBaseUrlOverride: string | undefined
 }
 
 type BackendAuthEvents = {
@@ -17,6 +18,8 @@ type BackendAuthEvents = {
   signOut: Record<string, never>
   dismissModal: Record<string, never>
   resetModal: Record<string, never>
+  setApiBaseUrlOverride: { url: string }
+  clearApiBaseUrlOverride: Record<string, never>
 }
 
 export const backendAuthStore = createStore<
@@ -28,6 +31,7 @@ export const backendAuthStore = createStore<
     authKey: undefined,
     address: undefined,
     modalDismissed: false,
+    apiBaseUrlOverride: undefined,
   },
   on: {
     signIn: (context, event: { authKey: string; address: string }) => ({
@@ -50,6 +54,14 @@ export const backendAuthStore = createStore<
       ...context,
       modalDismissed: false,
     }),
+    setApiBaseUrlOverride: (context, event: { url: string }) => ({
+      ...context,
+      apiBaseUrlOverride: event.url,
+    }),
+    clearApiBaseUrlOverride: (context) => ({
+      ...context,
+      apiBaseUrlOverride: undefined,
+    }),
   },
 }).with(
   persist({
@@ -61,10 +73,47 @@ export const isBackendAuthed = backendAuthStore.select(
   (state) => state.authKey !== undefined,
 )
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
+export const DEFAULT_BACKEND_API_URL = import.meta.env.VITE_API_URL ?? '/api'
+
+export const getBackendApiBaseUrl = () =>
+  backendAuthStore.get().context.apiBaseUrlOverride ?? DEFAULT_BACKEND_API_URL
+
+const resolveBaseUrl = (baseUrl: string) => {
+  if (baseUrl.startsWith('/')) {
+    const origin =
+      typeof window !== 'undefined'
+        ? window.location.origin
+        : 'http://localhost'
+    return new URL(baseUrl, origin)
+  }
+
+  return new URL(baseUrl)
+}
+
+const resolveBackendRequestUrl = (input: RequestInfo | URL) => {
+  const inputUrl =
+    input instanceof URL
+      ? input.toString()
+      : typeof Request !== 'undefined' && input instanceof Request
+        ? input.url
+        : input.toString()
+  const nextBaseUrl = resolveBaseUrl(getBackendApiBaseUrl())
+  const parsedInputUrl = new URL(inputUrl, nextBaseUrl)
+  const rebasedUrl = new URL(nextBaseUrl.toString())
+
+  rebasedUrl.pathname = parsedInputUrl.pathname
+  rebasedUrl.search = parsedInputUrl.search
+  rebasedUrl.hash = parsedInputUrl.hash
+
+  return rebasedUrl.toString()
+}
 
 const authFetch: typeof fetch = async (input, init) => {
-  const response = await fetch(input, init)
+  const resolvedUrl = resolveBackendRequestUrl(input)
+  const response =
+    typeof Request !== 'undefined' && input instanceof Request
+      ? await fetch(new Request(resolvedUrl, input), init)
+      : await fetch(resolvedUrl, init)
 
   if (response.status === 401) {
     if (isBackendAuthed.get()) {
@@ -75,7 +124,7 @@ const authFetch: typeof fetch = async (input, init) => {
   return response
 }
 
-export const backendClient = hc<AppRouter>(BASE_URL, {
+export const backendClient = hc<AppRouter>(DEFAULT_BACKEND_API_URL, {
   headers: () => {
     const auth = backendAuthStore.get().context.authKey
     const posthogId = posthog.get_distinct_id()
