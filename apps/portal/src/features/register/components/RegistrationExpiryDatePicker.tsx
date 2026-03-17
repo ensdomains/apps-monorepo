@@ -1,4 +1,3 @@
-import { addMonths } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -14,12 +13,14 @@ type RegistrationExpiryDatePickerProps = {
   readonly date: Date
   readonly onDateChange: (date: Date) => void
   readonly minDate: Date
+  readonly maxDate: Date
 }
 
 export const RegistrationExpiryDatePicker = ({
   date,
   onDateChange,
   minDate,
+  maxDate,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const displayValue = formatDateTime(date) ?? ''
@@ -31,15 +32,18 @@ export const RegistrationExpiryDatePicker = ({
     }
   }
 
-  const disabled = minDate
-    ? (d: Date) => {
-        const today = new Date(minDate)
-        today.setHours(0, 0, 0, 0)
-        const dateToCheck = new Date(d)
-        dateToCheck.setHours(0, 0, 0, 0)
-        return dateToCheck.getTime() < today.getTime()
-      }
-    : undefined
+  const disabled = (d: Date) => {
+    const dateToCheck = new Date(d)
+    dateToCheck.setHours(0, 0, 0, 0)
+    const min = new Date(minDate)
+    min.setHours(0, 0, 0, 0)
+    const max = new Date(maxDate)
+    max.setHours(23, 59, 59, 999)
+    return (
+      dateToCheck.getTime() < min.getTime() ||
+      dateToCheck.getTime() > max.getTime()
+    )
+  }
 
   return (
     <Popover onOpenChange={setIsOpen} open={isOpen}>
@@ -67,7 +71,7 @@ export const RegistrationExpiryDatePicker = ({
           captionLayout="dropdown"
           defaultMonth={date}
           disabled={disabled}
-          endMonth={addMonths(new Date(), 1200)}
+          endMonth={maxDate}
           formatters={{
             formatMonthDropdown: (d) =>
               d.toLocaleString('default', { month: 'long' }),

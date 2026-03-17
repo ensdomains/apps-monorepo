@@ -9,6 +9,7 @@ import {
   startOfDay,
 } from 'date-fns'
 import {
+  MAX_REGISTRATION_YEARS,
   MIN_REGISTRATION_DURATION,
   SECONDS_PER_YEAR,
 } from '@/lib/constants/duration'
@@ -45,6 +46,10 @@ export const formatRegistrationDuration = (
   }
 
   if (parts.length === 0) {
+    const yearsOnly = differenceInYears(expiryDate, startDate)
+    if (Number.isFinite(yearsOnly) && yearsOnly > 0) {
+      return yearsOnly === 1 ? '1 year' : `${yearsOnly} years`
+    }
     throw new Error('Duration is less than 1 day')
   }
 
@@ -94,7 +99,11 @@ export const getDurationInSecondsFromYears = (
   years: number,
   startOfToday: Date = getStartOfToday(),
 ): number => {
-  const expiry = addYears(startOfToday, Math.max(1, years))
+  const cappedYears = Math.min(
+    Math.max(1, Math.floor(years)),
+    MAX_REGISTRATION_YEARS,
+  )
+  const expiry = addYears(startOfToday, cappedYears)
   return Math.floor((expiry.getTime() - startOfToday.getTime()) / 1000)
 }
 
@@ -145,6 +154,13 @@ export const getMinExpiryDateForPicker = (
 ): Date => addDays(startOfToday, 28)
 
 /**
+ * Returns the maximum expiry date for the date picker (MAX_REGISTRATION_YEARS from today).
+ */
+export const getMaxExpiryDateForPicker = (
+  startOfToday: Date = getStartOfToday(),
+): Date => addYears(startOfToday, MAX_REGISTRATION_YEARS)
+
+/**
  * Formats a duration (seconds) as a human-readable label.
  * e.g. formatDurationLabel(31557600) → "1 year"
  * Pass `startOfToday` for deterministic testing.
@@ -181,4 +197,9 @@ export const getExpiryDateForPicker = (
 export const getDurationFromPickerDate = (
   date: Date,
   startOfToday: Date = getStartOfToday(),
-): number => getRegistrationDurationInSeconds(startOfToday, endOfDay(date))
+): number => {
+  const maxExpiry = getMaxExpiryDateForPicker(startOfToday)
+  const cappedDate =
+    endOfDay(date).getTime() > maxExpiry.getTime() ? maxExpiry : endOfDay(date)
+  return getRegistrationDurationInSeconds(startOfToday, cappedDate)
+}

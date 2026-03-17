@@ -2,10 +2,12 @@ import { CalendarIcon, HashIcon } from 'lucide-react'
 import { useState } from 'react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
+import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
   getExpiryDateForPicker,
+  getMaxExpiryDateForPicker,
   getMinExpiryDateForPicker,
   getYearsFromDuration,
 } from '../utils/registrationDuration'
@@ -74,6 +76,7 @@ export const RegisterNameForm = ({
         {registrationSpanType === 'years' ? (
           <RegistrationDurationPicker
             value={Math.max(1, Math.round(getYearsFromDuration(duration)))}
+            max={MAX_REGISTRATION_YEARS}
             onChange={(years) =>
               setDuration(getDurationInSecondsFromYears(years))
             }
@@ -85,6 +88,7 @@ export const RegisterNameForm = ({
               setDuration(getDurationFromPickerDate(date))
             }
             minDate={getMinExpiryDateForPicker()}
+            maxDate={getMaxExpiryDateForPicker()}
           />
         )}
       </div>
