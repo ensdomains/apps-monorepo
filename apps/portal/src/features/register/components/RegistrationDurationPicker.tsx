@@ -48,22 +48,12 @@ export const RegistrationDurationPicker = ({
   return (
     <div
       className={cn(
-        'flex items-center gap-0 rounded-md border border-input bg-background px-2 h-13',
+        'flex items-center gap-0 rounded-md',
         'overflow-hidden',
         className,
       )}
     >
-      <Button
-        type="button"
-        size="icon"
-        variant="secondary"
-        onClick={handleDecrement}
-        disabled={value <= min}
-      >
-        <Minus className="size-4" strokeWidth={2} />
-      </Button>
-
-      <div className="relative flex min-w-0 flex-1 items-center justify-center px-2 py-1">
+      <div className="relative flex min-w-0 flex-1 items-start justify-between">
         <Input
           type="number"
           min={min}
@@ -76,7 +66,7 @@ export const RegistrationDurationPicker = ({
           onBlur={() => setIsFocused(false)}
           aria-label={label}
           className={cn(
-            'h-8 w-full min-w-0 border-0 bg-transparent p-0 text-center',
+            'h-8 w-full min-w-0 border-0 bg-transparent p-0 text-start',
             'shadow-none focus-visible:ring-0 [appearance:textfield]',
             '[&::-webkit-inner-spin-button]:appearance-none',
             '[&::-webkit-outer-spin-button]:appearance-none',
@@ -88,7 +78,7 @@ export const RegistrationDurationPicker = ({
           className={cn(
             'pointer-events-none absolute inset-0',
             'text-2xl font-medium',
-            'flex items-center justify-center bg-background',
+            'flex items-center justify-start bg-background',
             isFocused && 'hidden',
           )}
         >
@@ -98,10 +88,22 @@ export const RegistrationDurationPicker = ({
 
       <Button
         type="button"
+        size="icon"
+        variant="secondary"
+        onClick={handleDecrement}
+        disabled={value <= min}
+        className="size-8 mr-1"
+      >
+        <Minus className="size-4" strokeWidth={2} />
+      </Button>
+
+      <Button
+        type="button"
         variant="secondary"
         size="icon"
         onClick={handleIncrement}
         disabled={value >= max}
+        className="size-8"
       >
         <Plus className="size-4" strokeWidth={2} />
       </Button>

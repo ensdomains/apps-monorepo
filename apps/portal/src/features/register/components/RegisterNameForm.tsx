@@ -49,9 +49,9 @@ export const RegisterNameForm = ({
           textClassName="text-3xl sm:text-4xl font-medium"
         />
       </div>
-      <div className="flex flex-col gap-2 border border-border rounded-lg px-6 pb-6 pt-4">
+      <div className="flex flex-col gap-4 border border-border rounded-lg px-6 pb-6 pt-4">
         <div className="flex items-center justify-between">
-          <span className="text-base font-normal">
+          <span className="text-base font-medium">
             Register {registrationSpanType === 'years' ? 'for' : 'until'}
           </span>
           <Button
