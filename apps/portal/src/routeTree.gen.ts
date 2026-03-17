@@ -22,6 +22,7 @@ import { Route as NameRegistryRouteImport } from './routes/$name/registry'
 import { Route as NameRecordsRouteImport } from './routes/$name/records'
 import { Route as NameOwnershipRouteImport } from './routes/$name/ownership'
 import { Route as NameHistoryRouteImport } from './routes/$name/history'
+import { Route as NameFusesRouteImport } from './routes/$name/fuses'
 import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
 import { Route as NameDeployRegistryRouteImport } from './routes/$name/deploy-registry'
 import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
@@ -104,6 +105,11 @@ const NameOwnershipRoute = NameOwnershipRouteImport.update({
 const NameHistoryRoute = NameHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => NameRoute,
+} as any)
+const NameFusesRoute = NameFusesRouteImport.update({
+  id: '/fuses',
+  path: '/fuses',
   getParentRoute: () => NameRoute,
 } as any)
 const NameEditRecordsRoute = NameEditRecordsRouteImport.update({
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
+  '/$name/fuses': typeof NameFusesRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
+  '/$name/fuses': typeof NameFusesRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
@@ -272,6 +280,7 @@ export interface FileRoutesById {
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/deploy-registry': typeof NameDeployRegistryRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
+  '/$name/fuses': typeof NameFusesRoute
   '/$name/history': typeof NameHistoryRoute
   '/$name/ownership': typeof NameOwnershipRoute
   '/$name/records': typeof NameRecordsRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
+    | '/$name/fuses'
     | '/$name/history'
     | '/$name/ownership'
     | '/$name/records'
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
+    | '/$name/fuses'
     | '/$name/history'
     | '/$name/ownership'
     | '/$name/records'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/$name/create-subname'
     | '/$name/deploy-registry'
     | '/$name/edit-records'
+    | '/$name/fuses'
     | '/$name/history'
     | '/$name/ownership'
     | '/$name/records'
@@ -496,6 +508,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/$name/history'
       preLoaderRoute: typeof NameHistoryRouteImport
+      parentRoute: typeof NameRoute
+    }
+    '/$name/fuses': {
+      id: '/$name/fuses'
+      path: '/fuses'
+      fullPath: '/$name/fuses'
+      preLoaderRoute: typeof NameFusesRouteImport
       parentRoute: typeof NameRoute
     }
     '/$name/edit-records': {
@@ -632,6 +651,7 @@ interface NameRouteChildren {
   NameCreateSubnameRoute: typeof NameCreateSubnameRoute
   NameDeployRegistryRoute: typeof NameDeployRegistryRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
+  NameFusesRoute: typeof NameFusesRoute
   NameHistoryRoute: typeof NameHistoryRoute
   NameOwnershipRoute: typeof NameOwnershipRoute
   NameRecordsRoute: typeof NameRecordsRoute
@@ -649,6 +669,7 @@ const NameRouteChildren: NameRouteChildren = {
   NameCreateSubnameRoute: NameCreateSubnameRoute,
   NameDeployRegistryRoute: NameDeployRegistryRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,
+  NameFusesRoute: NameFusesRoute,
   NameHistoryRoute: NameHistoryRoute,
   NameOwnershipRoute: NameOwnershipRoute,
   NameRecordsRoute: NameRecordsRoute,
