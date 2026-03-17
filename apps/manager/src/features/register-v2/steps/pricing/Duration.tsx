@@ -11,6 +11,7 @@ import { useRegistrationV2Context } from '../../machines/RegistrationV2UiContext
 import {
   type GetPricingError,
   getPricingQueryOptions,
+  type MissingTokenError,
 } from '../../queries/pricing'
 import { secondsToDuration } from '../../utils/time'
 
@@ -167,7 +168,7 @@ const CustomDurationRow = ({
 
 type PresetPricingQuery = {
   isPending: boolean
-  error: GetPricingError | null
+  error: GetPricingError | MissingTokenError | null
   data?: number
 }
 

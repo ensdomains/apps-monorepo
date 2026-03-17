@@ -216,7 +216,7 @@ export const NotificationSettings = ({
               </Button>
               <Button
                 className="flex-1 uppercase"
-                onClick={(e) => {
+                onClick={() => {
                   backendAuthStore.trigger.resetModal()
                 }}
                 size="xl"

@@ -198,7 +198,7 @@ const StableCoin = ({
   onSelectCoin,
 }: {
   stablecoin: StablecoinBalance
-  selectedCoin: SUPPORTED_TOKEN
+  selectedCoin: SUPPORTED_TOKEN | undefined
   priceUSD: number
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
 }) => {
