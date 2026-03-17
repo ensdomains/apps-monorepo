@@ -5,13 +5,15 @@ import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PremiumPill } from '@/features/register/components/PremiumPill'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
-import { getPremiumLabel } from '@/features/register/utils/premium'
+import {
+  CHARACTER_PREMIUM_USD,
+  getPremiumLabel,
+} from '@/features/register/utils/premium'
 import { getDiscountForYears } from '@/features/register/utils/registrationDiscount'
 import {
   calculateDurationFromDate,
@@ -68,9 +70,7 @@ export const RegisterNameCheckoutSummary = ({
       aria-labelledby="checkout-heading"
     >
       {match({ isLoading, isError, hasPrice })
-        .with({ isLoading: true }, () => (
-          <PriceBreakdownSkeleton premiumLabel={getPremiumLabel(name)} />
-        ))
+        .with({ isLoading: true }, () => <PriceBreakdownSkeleton />)
         .with({ isError: true }, () => {
           const errorInfo = error ? getTransactionErrorInfo(error) : null
           return (
@@ -137,29 +137,9 @@ const SummaryRow = ({
   </div>
 )
 
-type PriceBreakdownSkeletonProps = {
-  readonly premiumLabel: ReturnType<typeof getPremiumLabel>
-}
-
-const PriceBreakdownSkeleton = ({
-  premiumLabel,
-}: PriceBreakdownSkeletonProps) => (
-  <div className="space-y-3">
-    {premiumLabel && (
-      <div className="flex flex-wrap items-center gap-2">
-        <PremiumPill
-          label={premiumLabel.label}
-          variant={premiumLabel.variant}
-        />
-        <ExternalLink
-          href={ENS_PREMIUM_PRICING_DOCS_URL}
-          className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
-        >
-          Learn more
-        </ExternalLink>
-      </div>
-    )}
-    <dl className="space-y-3">
+const PriceBreakdownSkeleton = () => (
+  <div className="space-y-2">
+    <dl className="space-y-2">
       <SummaryRow
         label="Registration:"
         value={<Skeleton className="h-5 w-16" />}
@@ -208,6 +188,7 @@ const PriceBreakdown = ({
   onOpenPremiumDrawer,
 }: PriceBreakdownProps) => {
   const premiumLabel = getPremiumLabel(name)
+
   const startOfToday = getStartOfToday()
   const expiryDate = getRegistrationExpiryDateFromSeconds(
     startOfToday,
@@ -229,43 +210,28 @@ const PriceBreakdown = ({
   const pricePerYear = years > 0 ? theoreticalSubtotal / years : 0
 
   return (
-    <div className="space-y-3">
-      {premiumLabel && (
-        <div className="flex flex-wrap items-center gap-2">
-          <PremiumPill
-            label={premiumLabel.label}
-            variant={premiumLabel.variant}
-          />
-          <ExternalLink
-            href={ENS_PREMIUM_PRICING_DOCS_URL}
-            className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
-          >
-            Learn more
-          </ExternalLink>
-        </div>
-      )}
-      <dl className="space-y-3">
+    <div className="space-y-2">
+      <dl className="space-y-2">
         <SummaryRow label="Registration:" value={registrationDuration} />
         <SummaryRow label="Expires:" value={expiryFormatted} />
 
-        <hr className="border-border" />
+        <hr className="border-border my-3" />
 
-        <SummaryRow
-          label="Price:"
-          value={`${formatUsd(pricePerYear)}/year × ${years}`}
-        />
-        <SummaryRow
-          label="Subtotal:"
-          value={formatUsd(Math.ceil(theoreticalSubtotal))}
-          valueClassName="flex items-center gap-1 m-0"
-        />
-
-        {discountPercent > 0 && (
+        {premiumLabel && (
           <SummaryRow
-            label={`${discountLabel} discount (${discountPercent}%):`}
-            value={`-${formatUsd(Math.ceil(discountAmount))}`}
-            valueClassName="flex items-center gap-1 m-0 text-success"
-            labelClassName="text-success"
+            label={
+              <div className="flex flex-wrap items-center gap-2">
+                <ExternalLink
+                  href={ENS_PREMIUM_PRICING_DOCS_URL}
+                  className="underline decoration-dotted underline-offset-2"
+                >
+                  {premiumLabel.label}
+                </ExternalLink>
+              </div>
+            }
+            value={`${formatUsd(CHARACTER_PREMIUM_USD[premiumLabel.variant])} / year`}
+            labelClassName="font-medium text-quartz-900"
+            valueClassName="font-medium text-quartz-900"
           />
         )}
 
@@ -286,16 +252,29 @@ const PriceBreakdown = ({
                 </Button>
               </>
             }
-            value={
-              <>
-                <span className="font-mono text-base font-medium">
-                  {formatPriceDisplay(price.premium, price.decimals)}
-                </span>
-                <span className="text-xs">USD</span>
-              </>
-            }
-            labelClassName="flex items-center gap-1"
-            valueClassName="flex items-center gap-1 m-0"
+            value={formatPriceDisplay(price.premium, price.decimals)}
+            labelClassName="font-medium text-quartz-900"
+            valueClassName="font-medium text-quartz-900"
+          />
+        )}
+
+        <SummaryRow
+          label="Price:"
+          value={`${formatUsd(pricePerYear)}/year × ${years}`}
+        />
+
+        <SummaryRow
+          label="Subtotal:"
+          value={formatUsd(Math.ceil(theoreticalSubtotal))}
+          valueClassName="flex items-center gap-1 m-0"
+        />
+
+        {discountPercent > 0 && (
+          <SummaryRow
+            label={`${discountLabel} discount (${discountPercent}%):`}
+            value={`-${formatUsd(Math.ceil(discountAmount))}`}
+            valueClassName="flex items-center gap-1 m-0 text-success"
+            labelClassName="text-success"
           />
         )}
 

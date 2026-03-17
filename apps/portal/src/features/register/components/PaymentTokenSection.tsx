@@ -136,7 +136,7 @@ export const PaymentTokenSection = ({
           className="xl:min-w-none"
           titleClassName="text-base text-inherit font-medium"
           descriptionClassName="text-sm text-inherit"
-          description="We auto-fund wallets with USDC and DAI on testnet since we're in beta. Connect your wallet to the Manager app to receive test tokens, then return here to complete your registration."
+          description="You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
         />
       ) : (
         <Fragment>
