@@ -5,10 +5,10 @@ import {
 } from './nameValidation'
 
 describe('validateRegistrableEthName', () => {
-  it('returns null for valid .eth 2LD names', () => {
-    expect(validateRegistrableEthName('vitalik.eth')).toBeNull()
-    expect(validateRegistrableEthName('hello.eth')).toBeNull()
-    expect(validateRegistrableEthName('abc.eth')).toBeNull()
+  it('returns undefined for valid .eth 2LD names', () => {
+    expect(validateRegistrableEthName('vitalik.eth')).toBeUndefined()
+    expect(validateRegistrableEthName('hello.eth')).toBeUndefined()
+    expect(validateRegistrableEthName('abc.eth')).toBeUndefined()
   })
 
   it('returns error for names without .eth TLD', () => {

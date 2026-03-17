@@ -6,7 +6,7 @@ import { isValidEnsName } from './isNormalized'
 /**
  * Validates that a name is a valid .eth name that can be registered.
  * Must be: normalized, valid labels, 2LD, and end with .eth.
- * Returns an error message if invalid, null if valid.
+ * Returns an error message if invalid, undefined if valid.
  */
 export const validateRegistrableEthName = (
   name: string,
@@ -22,6 +22,8 @@ export const validateRegistrableEthName = (
   if (!isRegistrable(name)) {
     return 'Only .eth names can be registered (e.g. name.eth).'
   }
+
+  return undefined
 }
 
 /**
