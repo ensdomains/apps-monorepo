@@ -121,8 +121,8 @@ describe('initializeRhinestoneAccount', () => {
     // Verify walletClientToAccount was called
     expect(walletClientToAccount).toHaveBeenCalledWith(mockWalletClient)
 
-    // Verify wrapParaAccount was called with the account
-    expect(wrapParaAccount).toHaveBeenCalled()
+    // External wallets should NOT be wrapped with wrapParaAccount (Para v-byte adjustment)
+    expect(wrapParaAccount).not.toHaveBeenCalled()
 
     // SDK always includes bundler when Pimlico key is available (needed for session UserOps)
     expect(RhinestoneSDK).toHaveBeenCalledWith({

@@ -19,7 +19,7 @@ import {
   walletClientToAccount,
   wrapParaAccount,
 } from '@rhinestone/sdk'
-import type { Address, WalletClient } from 'viem'
+import type { Account, Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient, SmartAccountType } from './types'
@@ -74,16 +74,15 @@ export async function initializeRhinestoneAccount(
   }
 
   let eoaAddress: Address
-  let wrappedAccount: ReturnType<typeof wrapParaAccount>
+  let ownerAccount: Account
 
   if (walletClient?.account?.address) {
-    const account = walletClientToAccount(walletClient)
+    ownerAccount = walletClientToAccount(walletClient)
     eoaAddress = walletClient.account.address
-    wrappedAccount = wrapParaAccount(account)
   } else if (paraClient) {
     const paraAccount = createParaAccount(paraClient)
     eoaAddress = paraAccount.address as Address
-    wrappedAccount = wrapParaAccount(paraAccount)
+    ownerAccount = wrapParaAccount(paraAccount)
   } else {
     throw new Error(
       'Either walletClient or paraClient must be provided for Rhinestone initialization',
@@ -112,7 +111,7 @@ export async function initializeRhinestoneAccount(
   const rhinestoneAccount = await sdk.createAccount({
     owners: {
       type: 'ecdsa' as const,
-      accounts: [wrappedAccount],
+      accounts: [ownerAccount],
     },
     experimental_sessions: { enabled: true },
   })
