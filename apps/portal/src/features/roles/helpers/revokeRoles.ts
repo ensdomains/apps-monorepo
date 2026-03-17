@@ -36,6 +36,7 @@ export type RevokeRolesParameters = {
   readonly signer: Signer
   readonly chainId: number
   readonly registryAddress?: Address
+  readonly id: string
 }
 
 export interface RevokeRolesResult {
@@ -59,6 +60,7 @@ export async function revokeRoles(
     signer,
     chainId,
     registryAddress = namechainEthRegistryAddress,
+    id,
   } = params
 
   if (!walletClient.account || !walletClient.chain) {
@@ -108,6 +110,7 @@ export async function revokeRoles(
     },
     signer,
     {
+      id,
       description: `Remove user from ${name} roles`,
       publicClient,
       chainId,

@@ -36,6 +36,7 @@ export type GrantRolesParameters = {
   readonly signer: Signer
   readonly chainId: number
   readonly registryAddress?: Address
+  readonly id: string
 }
 
 export interface GrantRolesResult {
@@ -59,6 +60,7 @@ export async function grantRoles(
     signer,
     chainId,
     registryAddress = namechainEthRegistryAddress,
+    id,
   } = params
 
   if (!walletClient.account || !walletClient.chain) {
@@ -108,6 +110,7 @@ export async function grantRoles(
     },
     signer,
     {
+      id,
       description: `Grant roles for ${name}`,
       publicClient,
       chainId,

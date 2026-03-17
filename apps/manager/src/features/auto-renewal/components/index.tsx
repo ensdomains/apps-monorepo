@@ -1,3 +1,4 @@
+import { Plural, Trans } from '@lingui/react/macro'
 import { Calendar, CircleAlert } from 'lucide-react'
 import { Highlight } from '@/components/atoms/Highlight'
 import { Badge } from '@/components/ui/badge'
@@ -52,24 +53,33 @@ export const AutoRenewalItem = ({
       </div>
       <div className="flex items-center gap-1">
         <Calendar className="size-3 text-gray-500" />
-        <span className="text-gray-500 text-sm">Expires:</span>
+        <span className="text-gray-500 text-sm">
+          <Trans>Expires:</Trans>
+        </span>
         <span className="text-sm">
           {new Date(autoRenewal.expires).toLocaleDateString()}
         </span>
       </div>
       {autoRenewal.expires - Date.now() < TIME_UNITS.DAY * 16 && (
         <div className="text-red-600 text-sm">
-          {Math.floor((autoRenewal.expires - Date.now()) / TIME_UNITS.DAY)} days
-          remaining
+          <Plural
+            one="# day remaining"
+            other="# days remaining"
+            value={Math.floor(
+              (autoRenewal.expires - Date.now()) / TIME_UNITS.DAY,
+            )}
+          />
         </div>
       )}
       <div className="flex justify-end">
         <span className="text-gray-500 text-sm">
-          {autoRenewal.price} USD/year
+          <Trans>{autoRenewal.price} USD/year</Trans>
         </span>
       </div>
       <div className="flex items-center justify-end gap-1">
-        <span className="text-gray-500 text-sm">Autorenews on</span>
+        <span className="text-gray-500 text-sm">
+          <Trans>Autorenews on</Trans>
+        </span>
         <span className="text-sm">
           {new Date(autoRenewal.expires - TIME_UNITS.DAY).toLocaleDateString()}
         </span>
@@ -90,27 +100,31 @@ export const NonAutoRenewalWarning = ({
       <CircleAlert className="size-8" />
       <div className="text-gray-500">
         <div className="font-medium">
-          {nonAutoRenewals.length} ENS names are expiring without auto-renewal
+          <Plural
+            one="# ENS name is expiring without auto-renewal"
+            other="# ENS names are expiring without auto-renewal"
+            value={nonAutoRenewals.length}
+          />
         </div>
         <div className="text-gray-500 text-sm">
           {/* "erni.eth expires on July 10, 2025. Enable autorenewal or renew manually to avoid expiration." if only one name */}
           {nonAutoRenewals.length === 1 && nonAutoRenewals[0] ? (
-            <>
+            <Trans>
               {nonAutoRenewals[0].name} expires on{' '}
               <span className="font-medium">
                 {new Date(nonAutoRenewals[0].expires).toLocaleDateString()}
               </span>
               . Enable auto-renewal or renew manually to avoid expiration.
-            </>
+            </Trans>
           ) : nonAutoRenewals[0] ? (
-            <>
+            <Trans>
               {nonAutoRenewals.join(', ')} are expiring without auto-renewal
               with the earliest expiring on{' '}
               <span className="font-medium">
                 {new Date(nonAutoRenewals[0].expires).toLocaleDateString()}
               </span>
               . Enable auto-renewal or renew manually to avoid expiration.
-            </>
+            </Trans>
           ) : null}
         </div>
       </div>
