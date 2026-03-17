@@ -1,16 +1,16 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useQueries } from '@tanstack/react-query'
+import { AlertTriangle } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
 import { DAIcon } from '@/assets/dai-icon'
 import { USDCIcon } from '@/assets/usdc-icon'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { MessageCard } from '@/components/ui/message-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { formatTotalWithGas } from '@/features/register/utils/registrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
 import {
   DAI_DECIMALS,
@@ -110,18 +110,16 @@ export const PaymentTokenSection = ({
 
   if (!isConnected) {
     return (
-      <div>
-        <Button
-          className="w-full h-12"
-          onClick={onConnectWallet}
-          disabled={typeof onConnectWallet !== 'function'}
-          type="button"
-        >
-          {typeof onConnectWallet === 'function'
-            ? 'Connect Wallet'
-            : 'Wallet not connected'}
-        </Button>
-      </div>
+      <Button
+        className="w-full max-w-xs mx-auto"
+        onClick={onConnectWallet}
+        disabled={typeof onConnectWallet !== 'function'}
+        type="button"
+      >
+        {typeof onConnectWallet === 'function'
+          ? 'Connect to register'
+          : 'Wallet not connected'}
+      </Button>
     )
   }
 
@@ -131,15 +129,15 @@ export const PaymentTokenSection = ({
       aria-labelledby="payment-heading"
     >
       {noSupportedTokenHasSufficientBalance ? (
-        <Alert variant="warning">
-          <AlertTitle>Insufficient balance</AlertTitle>
-          <AlertDescription>
-            <p>
-              We auto-fund wallets with USDC and DAI when you connect. If you
-              just connected, please wait a moment and try again.
-            </p>
-          </AlertDescription>
-        </Alert>
+        <MessageCard
+          variant="warning"
+          icon={<AlertTriangle className="size-6" />}
+          title="Insufficient balance"
+          className="xl:min-w-none"
+          titleClassName="text-base text-inherit font-medium"
+          descriptionClassName="text-sm text-inherit"
+          description="We auto-fund wallets with USDC and DAI on testnet since we're in beta. Connect your wallet to the Manager app to receive test tokens, then return here to complete your registration."
+        />
       ) : (
         <Fragment>
           <div className="flex items-center gap-2">
@@ -156,48 +154,31 @@ export const PaymentTokenSection = ({
                   onClick={() => setSelectedToken(token.address)}
                   disabled={!hasSufficientBalance}
                   className={cn(
-                    'flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors',
+                    'flex w-full cursor-pointer items-center justify-between rounded-lg border-border border p-4 text-left transition-colors',
                     selectedToken === token.address
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-muted/50',
+                      ? 'bg-muted'
+                      : 'hover:bg-muted/30',
                     !hasSufficientBalance && 'cursor-not-allowed opacity-60',
                   )}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
                     <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden">
                       <token.Icon className="size-8 min-w-0 shrink-0" />
                     </div>
-                    <div>
-                      <p className="font-medium">{token.symbol}</p>
-                      <p className="text-muted-foreground text-sm">
-                        {isPriceLoading ? (
-                          <Skeleton className="h-4 w-20" />
-                        ) : (
-                          <>
-                            Balance:{' '}
-                            {Number(
-                              formatUnits(token.balance, token.decimals),
-                            ).toLocaleString()}
-                          </>
-                        )}
-                      </p>
-                    </div>
+                    <p className="font-medium">{token.symbol}</p>
                   </div>
                   <div className="text-right">
                     {isPriceLoading ? (
                       <Skeleton className="h-5 w-14" />
                     ) : (
                       <>
-                        <p className="font-medium">
-                          {formatTotalWithGas(
-                            token.price.base,
-                            token.price.premium,
-                            token.price.decimals,
-                          )}{' '}
-                          USD
+                        <p className="font-normal">
+                          {Number(
+                            formatUnits(token.balance, token.decimals),
+                          ).toLocaleString()}
                         </p>
                         <p className="text-muted-foreground text-xs">
-                          incl. est. gas & network fee
+                          available
                         </p>
                         {!hasSufficientBalance && (
                           <p className="text-destructive text-xs">
@@ -215,13 +196,12 @@ export const PaymentTokenSection = ({
       )}
 
       <Button
-        className="w-full h-12"
+        className="w-full"
         onClick={handleBuyName}
         disabled={isRegisterDisabled}
+        variant={'secondary'}
       >
-        {selectedTokenData?.symbol
-          ? `Register with ${selectedTokenData.symbol}`
-          : 'Select a token'}
+        Register
       </Button>
     </section>
   )
