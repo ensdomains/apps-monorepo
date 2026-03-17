@@ -16,6 +16,13 @@ import {
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
 import { getPremiumLabel } from '@/features/register/utils/premium'
+import { getDiscountForYears } from '@/features/register/utils/registrationDiscount'
+import {
+  calculateDurationFromDate,
+  formatYearsDisplay,
+  getRegistrationExpiryDateFromSeconds,
+  getStartOfToday,
+} from '@/features/register/utils/registrationDuration'
 import {
   EST_GAS_USD,
   formatPriceDisplay,
@@ -24,6 +31,7 @@ import {
 } from '@/features/register/utils/registrationPrice'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
@@ -78,10 +86,6 @@ export const RegisterNameCheckoutSummary = ({
       className="border border-border rounded-lg bg-card p-5"
       aria-labelledby="checkout-heading"
     >
-      <h2 id="checkout-heading" className="text-lg font-semibold mb-4">
-        Registration summary
-      </h2>
-
       {match({ isLoading, isError, hasPrice })
         .with({ isLoading: true }, () => (
           <PriceBreakdownSkeleton
@@ -106,7 +110,7 @@ export const RegisterNameCheckoutSummary = ({
             <PriceBreakdown
               name={name}
               price={price}
-              durationLabel={durationLabel}
+              duration={duration}
               onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
             />
           ) : null,
@@ -226,17 +230,33 @@ const PriceBreakdownSkeleton = ({
 type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
-  readonly durationLabel: string
+  readonly duration: number
   readonly onOpenPremiumDrawer: () => void
 }
 
 const PriceBreakdown = ({
   name,
   price,
-  durationLabel,
+  duration,
   onOpenPremiumDrawer,
 }: PriceBreakdownProps) => {
   const premiumLabel = getPremiumLabel(name)
+  const startOfToday = getStartOfToday()
+  const expiryDate = getRegistrationExpiryDateFromSeconds(
+    startOfToday,
+    duration,
+  )
+  const years = calculateDurationFromDate(startOfToday, expiryDate)
+  const yearsDisplay = formatYearsDisplay(years)
+  const expiryFormatted = formatExpiryDate(expiryDate)
+
+  const { percent: discountPercent, label: discountLabel } =
+    getDiscountForYears(years)
+  const baseUsd = Number(price.base) / 10 ** price.decimals
+  const theoreticalSubtotal =
+    discountPercent > 0 ? baseUsd / (1 - discountPercent / 100) : baseUsd
+  const discountAmount = discountPercent > 0 ? theoreticalSubtotal - baseUsd : 0
+  const pricePerYear = years > 0 ? theoreticalSubtotal / years : 0
 
   return (
     <div className="space-y-3">
@@ -256,16 +276,45 @@ const PriceBreakdown = ({
       )}
       <dl className="space-y-3">
         <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">
-            {durationLabel} registration
-          </dt>
+          <dt className="text-base font-normal">Registration</dt>
+          <dd className="m-0">{yearsDisplay} years</dd>
+        </div>
+        <div className="flex items-center justify-between">
+          <dt className="text-base font-normal">Expires</dt>
+          <dd className="m-0">{expiryFormatted}</dd>
+        </div>
+
+        <hr className="border-border" />
+
+        <div className="flex items-center justify-between">
+          <dt className="text-base font-normal">Price</dt>
+          <dd className="m-0 font-mono text-base">
+            {formatUsd(pricePerYear)}/year × {yearsDisplay}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between">
+          <dt className="text-base font-normal">Subtotal</dt>
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-base font-medium">
-              {formatPriceDisplay(price.base, price.decimals)}
+              {formatUsd(Math.ceil(theoreticalSubtotal))}
             </span>
             <span className="text-xs">USD</span>
           </dd>
         </div>
+
+        {discountPercent > 0 && (
+          <div className="flex items-center justify-between text-success">
+            <dt className="text-base font-normal">
+              {discountLabel} discount ({discountPercent}%)
+            </dt>
+            <dd className="flex items-center gap-1 m-0">
+              <span className="font-mono text-base font-medium">
+                -{formatUsd(Math.ceil(discountAmount))}
+              </span>
+              <span className="text-xs">USD</span>
+            </dd>
+          </div>
+        )}
 
         {price.hasPremium && (
           <div className="flex items-center justify-between">
@@ -291,16 +340,8 @@ const PriceBreakdown = ({
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Est. gas cost</dt>
-          <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-            <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
-
         <div className="flex items-center justify-between pt-3 border-t border-border">
-          <dt className="text-xl font-bold">Est. total</dt>
+          <dt className="text-xl font-bold">Total</dt>
           <dd className="flex items-center gap-1 m-0">
             <span className="font-mono text-xl font-bold">
               {formatTotalWithGas(

@@ -161,6 +161,19 @@ export const getMaxExpiryDateForPicker = (
 ): Date => addYears(startOfToday, MAX_REGISTRATION_YEARS)
 
 /**
+ * Formats a duration in years for display (e.g. in price breakdown).
+ * Integers show as-is; decimals show 2 places.
+ *
+ * @param years - Duration in years (can be fractional)
+ * @returns Formatted string like "1", "3", or "2.50"
+ */
+export const formatYearsDisplay = (years: number): string => {
+  if (!Number.isFinite(years) || years <= 0) return '0'
+  if (Number.isInteger(years)) return years.toString()
+  return years.toFixed(2)
+}
+
+/**
  * Formats a duration (seconds) as a human-readable label.
  * e.g. formatDurationLabel(31557600) → "1 year"
  * Pass `startOfToday` for deterministic testing.

@@ -5,6 +5,7 @@ import {
   calculateDurationFromDate,
   formatDurationLabel,
   formatRegistrationDuration,
+  formatYearsDisplay,
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
   getExpiryDateForPicker,
@@ -95,6 +96,28 @@ describe('registrationDuration', () => {
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '1 month 5 days',
       )
+    })
+  })
+
+  describe('formatYearsDisplay', () => {
+    it('should return "0" for non-finite or zero/negative years', () => {
+      expect(formatYearsDisplay(NaN)).toBe('0')
+      expect(formatYearsDisplay(Infinity)).toBe('0')
+      expect(formatYearsDisplay(-Infinity)).toBe('0')
+      expect(formatYearsDisplay(0)).toBe('0')
+      expect(formatYearsDisplay(-1)).toBe('0')
+    })
+
+    it('should return integer string for whole years', () => {
+      expect(formatYearsDisplay(1)).toBe('1')
+      expect(formatYearsDisplay(3)).toBe('3')
+      expect(formatYearsDisplay(10)).toBe('10')
+    })
+
+    it('should return 2 decimal places for fractional years', () => {
+      expect(formatYearsDisplay(2.5)).toBe('2.50')
+      expect(formatYearsDisplay(3.25)).toBe('3.25')
+      expect(formatYearsDisplay(1.123)).toBe('1.12')
     })
   })
 

@@ -18,3 +18,21 @@ export const formatDateTime = (date?: Date): string | undefined => {
     day: 'numeric',
   }).format(date)
 }
+
+/**
+ * Formats a Date as a short expiry-style date string.
+ * Format: "MMM DD, YYYY" (e.g., "Feb 17, 2029")
+ *
+ * @param date - Date to format
+ * @returns Formatted date string
+ *
+ * @example
+ * formatExpiryDate(new Date('2029-02-17')) // "Feb 17, 2029"
+ */
+export const formatExpiryDate = (date: Date): string => {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
