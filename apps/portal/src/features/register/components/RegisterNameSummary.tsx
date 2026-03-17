@@ -34,7 +34,6 @@ import { validateNameLength } from '@/utils/token/nameValidation'
 type RegisterNameCheckoutSummaryProps = {
   readonly name: string
   readonly duration: number
-  readonly durationLabel: string
 }
 
 /** ENS docs explaining premium pricing for short names */
@@ -44,7 +43,6 @@ const ENS_PREMIUM_PRICING_DOCS_URL =
 export const RegisterNameCheckoutSummary = ({
   name,
   duration,
-  durationLabel,
 }: RegisterNameCheckoutSummaryProps) => {
   const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
@@ -71,10 +69,7 @@ export const RegisterNameCheckoutSummary = ({
     >
       {match({ isLoading, isError, hasPrice })
         .with({ isLoading: true }, () => (
-          <PriceBreakdownSkeleton
-            durationLabel={durationLabel}
-            premiumLabel={getPremiumLabel(name)}
-          />
+          <PriceBreakdownSkeleton premiumLabel={getPremiumLabel(name)} />
         ))
         .with({ isError: true }, () => {
           const errorInfo = error ? getTransactionErrorInfo(error) : null
@@ -143,12 +138,10 @@ const SummaryRow = ({
 )
 
 type PriceBreakdownSkeletonProps = {
-  readonly durationLabel: string
   readonly premiumLabel: ReturnType<typeof getPremiumLabel>
 }
 
 const PriceBreakdownSkeleton = ({
-  durationLabel,
   premiumLabel,
 }: PriceBreakdownSkeletonProps) => (
   <div className="space-y-3">
@@ -167,23 +160,36 @@ const PriceBreakdownSkeleton = ({
       </div>
     )}
     <dl className="space-y-3">
-      <div className="flex items-center justify-between">
-        <dt className="text-base font-normal">{durationLabel} registration</dt>
-        <dd className="flex items-center gap-1 m-0">
-          <Skeleton className="h-5 w-12" />
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
-      <div className="flex items-center justify-between pt-3 border-t border-border">
-        <dt className="text-xl font-bold">Est. total</dt>
-        <dd className="flex items-center gap-1 m-0">
-          <Skeleton className="h-7 w-14" />
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
-      <p className="text-xs text-muted-foreground pt-1">
-        Paid in USDC or DAI. Gas and network fees are approximations.
-      </p>
+      <SummaryRow
+        label="Registration:"
+        value={<Skeleton className="h-5 w-16" />}
+      />
+      <SummaryRow label="Expires:" value={<Skeleton className="h-5 w-24" />} />
+
+      <hr className="border-border" />
+
+      <SummaryRow label="Price:" value={<Skeleton className="h-5 w-20" />} />
+      <SummaryRow
+        label="Subtotal:"
+        value={
+          <span className="flex items-center gap-1">
+            <Skeleton className="h-5 w-14" />
+          </span>
+        }
+        valueClassName="flex items-center gap-1 m-0"
+      />
+
+      <SummaryRow
+        label="Total:"
+        value={
+          <span className="flex items-center gap-1">
+            <Skeleton className="h-7 w-14" />
+          </span>
+        }
+        className="pt-3 border-t border-border"
+        labelClassName="text-xl text-primary font-medium"
+        valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+      />
     </dl>
   </div>
 )

@@ -15,10 +15,7 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 
 import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
-import {
-  formatDurationLabel,
-  getDurationInSecondsFromYears,
-} from '@/features/register/utils/registrationDuration'
+import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
   validateNameLength,
@@ -186,11 +183,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             duration={duration}
             setDuration={setDuration}
           />
-          <RegisterNameCheckoutSummary
-            name={name}
-            duration={duration}
-            durationLabel={formatDurationLabel(duration)}
-          />
+          <RegisterNameCheckoutSummary name={name} duration={duration} />
           <PaymentTokenSection
             name={name}
             duration={duration}
