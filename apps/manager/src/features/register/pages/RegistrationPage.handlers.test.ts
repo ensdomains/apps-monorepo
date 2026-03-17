@@ -1,4 +1,8 @@
+import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type { PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ActorRefFrom } from 'xstate'
+import type { SmartAccountState } from '@/lib/smart-account'
 import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 import {
   handleStartRegistration,
@@ -8,7 +12,9 @@ import {
 vi.mock('@ens-apps/transaction-manager', () => ({}))
 
 const mockSend = vi.fn()
-const mockActor = { send: mockSend }
+const mockActor = { send: mockSend } as unknown as ActorRefFrom<
+  typeof registrationMachine
+>
 
 const validAccount = {
   signer: {},
@@ -16,7 +22,7 @@ const validAccount = {
   ownerAddress: '0xowner',
   type: 'zerodev' as const,
   config: {},
-}
+} as unknown as SmartAccountState
 
 const baseParams: StartRegistrationParams = {
   name: 'test.eth',
@@ -26,7 +32,7 @@ const baseParams: StartRegistrationParams = {
 }
 
 const baseOptions = {
-  publicClient: {} as never,
+  publicClient: {} as unknown as PublicClient,
   fast: true,
 }
 
@@ -41,8 +47,8 @@ describe('handleStartRegistration', () => {
 
     handleStartRegistration(
       baseParams,
-      { ...validAccount, signer: undefined } as never,
-      mockActor as never,
+      { ...validAccount, signer: undefined } as unknown as SmartAccountState,
+      mockActor,
       baseOptions,
     )
 
@@ -59,8 +65,11 @@ describe('handleStartRegistration', () => {
 
     handleStartRegistration(
       baseParams,
-      { ...validAccount, accountAddress: undefined } as never,
-      mockActor as never,
+      {
+        ...validAccount,
+        accountAddress: undefined,
+      } as unknown as SmartAccountState,
+      mockActor,
       baseOptions,
     )
 
@@ -70,12 +79,7 @@ describe('handleStartRegistration', () => {
   })
 
   it('sends START_REGISTRATION with USDC when selectedToken is USDC', () => {
-    handleStartRegistration(
-      baseParams,
-      validAccount as never,
-      mockActor as never,
-      baseOptions,
-    )
+    handleStartRegistration(baseParams, validAccount, mockActor, baseOptions)
 
     expect(mockSend).toHaveBeenCalledTimes(1)
     expect(mockSend).toHaveBeenCalledWith(
@@ -92,8 +96,8 @@ describe('handleStartRegistration', () => {
   it('sends START_REGISTRATION with DAI when selectedToken is DAI', () => {
     handleStartRegistration(
       { ...baseParams, selectedToken: SUPPORTED_TOKENS.DAI },
-      validAccount as never,
-      mockActor as never,
+      validAccount,
+      mockActor,
       baseOptions,
     )
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createInitialStateFactory,
+  type PricingAction,
   type PricingState,
   pricingReducer,
 } from './pricing.reducer'
@@ -78,8 +79,8 @@ describe('pricingReducer', () => {
     it('returns unchanged state for unknown action', () => {
       const state = createDefaultState()
       const result = pricingReducer(state, {
-        type: 'UNKNOWN' as PricingState extends never ? never : never,
-      } as never)
+        type: 'UNKNOWN',
+      } as unknown as PricingAction)
       expect(result).toBe(state)
     })
   })

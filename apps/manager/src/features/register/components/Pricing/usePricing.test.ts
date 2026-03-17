@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { ok } from 'neverthrow'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getTokenPrices } from '../../services/nameChainContractService'
@@ -51,14 +52,12 @@ describe('usePricing', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getTokenPrices).mockResolvedValue({
-      isErr: () => false,
-      isOk: () => true,
-      value: {
+    vi.mocked(getTokenPrices).mockResolvedValue(
+      ok({
         usdc: { formatted: '100' },
         dai: { formatted: '100' },
-      },
-    } as never)
+      }),
+    )
   })
 
   it('returns initial state and handlers', () => {
