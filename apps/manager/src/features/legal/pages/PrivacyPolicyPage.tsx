@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 
@@ -9,7 +10,7 @@ export const PrivacyPolicyPage = () => {
         to="/"
       >
         <ArrowLeft className="size-4" />
-        Back to Home
+        <Trans>Back to Home</Trans>
       </Link>
 
       <article className="prose prose-gray max-w-none">

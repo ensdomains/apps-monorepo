@@ -87,9 +87,9 @@ export const PendingChangesBar = ({
           <X className="size-4 ml-1" />
         </Button>
         <Button
+          disabled={hasValidationErrors}
           onClick={onSave}
           className="rounded-lg"
-          disabled={isSaving || hasValidationErrors}
         >
           {isSaving ? (
             <>

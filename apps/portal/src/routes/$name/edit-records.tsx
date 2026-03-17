@@ -25,6 +25,8 @@ import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsStat
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { useIsDedicatedResolver } from '@/features/resolver/hooks/useIsDedicatedResolver'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
@@ -49,6 +51,8 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 
 /** Record types that don't require a key input (single-value records) */
 const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
+
+const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
 
 function EditRecordsPage() {
   const { name } = Route.useParams()
@@ -208,6 +212,12 @@ const EditRecordsContent = ({
     discardAll,
   } = useEditRecordsState(originalRecords)
 
+  const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
   const hasValidationErrors = validationErrors.length > 0
@@ -232,11 +242,14 @@ const EditRecordsContent = ({
   })
 
   const handleSaveRecords = () => {
+    openTransactionModal()
+
     saveRecords({
       name,
       resolverAddress,
       originalRecords,
       pendingChanges,
+      id: SAVE_RECORDS_TRANSACTION_ID,
       resolverType: isDedicatedResolver ? 'dedicated' : 'public',
     })
   }
@@ -455,13 +468,28 @@ const EditRecordsContent = ({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={handleSaveRecords}
+        onSave={openTransactionModal}
         onDiscard={discardAll}
         onDismissError={resetSaveError}
         isSaving={isWriting || isConfirming}
         isSyncing={isSyncing}
         errorMessage={saveError?.message}
         hasValidationErrors={hasValidationErrors}
+      />
+      <TransactionModal
+        transactions={[
+          {
+            id: SAVE_RECORDS_TRANSACTION_ID,
+            title: 'Save records',
+            transactionName: 'Set resolver records',
+            estimatedGasCost: 0.0001,
+            onStart: handleSaveRecords,
+            onDone: () => {
+              closeTransactionModal()
+              clearTransaction()
+            },
+          },
+        ]}
       />
     </div>
   )

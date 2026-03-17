@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
@@ -51,6 +52,8 @@ export const Preference = ({
 }
 
 export const NotificationPreferences = () => {
+  const { t } = useLingui()
+
   const preferences = useQuery({
     ...preferencesQueryOptions,
   })
@@ -58,10 +61,10 @@ export const NotificationPreferences = () => {
   const updatePreferencesMutation = useMutation({
     ...updatePreferenceMutationOptions,
     onSuccess: () => {
-      toast.success('Preferences updated')
+      toast.success(t`Preferences updated`)
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update preferences')
+      toast.error(error.message || t`Failed to update preferences`)
     },
   })
 
@@ -91,14 +94,14 @@ export const NotificationPreferences = () => {
   return (
     <div className="flex flex-col gap-6">
       <h2 className="font-medium font-sans text-[#232222] text-base leading-ens-none">
-        Notification Preferences
+        <Trans>Notification Preferences</Trans>
       </h2>
       <div className="flex flex-col gap-3">
         <form.Field name="ownedNameExpiry">
           {(field) => (
             <Preference
               checked={field.state.value}
-              description="You'll be notified 30, 7, and 1 day before expiry"
+              description={t`You'll be notified 30, 7, and 1 day before expiry`}
               disabled={preferences.isRefetching}
               icon={
                 <MSymbol
@@ -107,7 +110,7 @@ export const NotificationPreferences = () => {
                 />
               }
               isLoading={preferences.isLoading}
-              label="Name Expiry"
+              label={t`Name Expiry`}
               onChange={(checked) => field.handleChange(checked)}
             />
           )}
@@ -116,7 +119,7 @@ export const NotificationPreferences = () => {
           {(field) => (
             <Preference
               checked={field.state.value}
-              description="Get updated on the latest releases and features"
+              description={t`Get updated on the latest releases and features`}
               disabled={preferences.isRefetching}
               icon={
                 <MSymbol
@@ -125,7 +128,7 @@ export const NotificationPreferences = () => {
                 />
               }
               isLoading={preferences.isLoading}
-              label="ENS Labs Updates"
+              label={t`ENS Labs Updates`}
               onChange={(checked) => field.handleChange(checked)}
             />
           )}
@@ -134,7 +137,7 @@ export const NotificationPreferences = () => {
           {(field) => (
             <Preference
               checked={field.state.value}
-              description="Get notified when names in your favourites expire"
+              description={t`Get notified when names in your favourites expire`}
               disabled={preferences.isRefetching}
               icon={
                 <MSymbol
@@ -143,7 +146,7 @@ export const NotificationPreferences = () => {
                 />
               }
               isLoading={preferences.isLoading}
-              label="Favourited Name Expiry"
+              label={t`Favourited Name Expiry`}
               onChange={(checked) => field.handleChange(checked)}
             />
           )}
@@ -169,13 +172,19 @@ export const NotificationPreferences = () => {
               size="xl"
               variant="lightBlue"
             >
-              {isSubmitting ? 'Saving...' : 'Save Preferences'}
+              {isSubmitting ? (
+                <Trans>Saving...</Trans>
+              ) : (
+                <Trans>Save Preferences</Trans>
+              )}
             </Button>
           )}
         </form.Subscribe>
         {!hasVerifiedChannels && (
           <p className="mt-2 text-base text-slate-600 leading-ens-normal">
-            Verify at least one contact method to save preferences
+            <Trans>
+              Verify at least one contact method to save preferences
+            </Trans>
           </p>
         )}
       </div>

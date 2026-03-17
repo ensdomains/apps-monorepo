@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { GithubIcon, GlobeIcon, MailIcon, TwitterIcon } from 'lucide-react'
 import erniAvatar from '@/assets/pages/landing/erni.webp'
 import nickAvatar from '@/assets/pages/landing/nick.webp'
@@ -9,13 +10,15 @@ export const ProfilesShowcase = () => {
     <div className="mx-auto mt-20 mb-28 w-full-[4rem] max-w-6xl">
       <div className="space-y-6">
         <h2 className="max-w-md font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
-          Customize your profile to share what matters
+          <Trans>Customize your profile to share what matters</Trans>
         </h2>
         <p className="max-w-md font-serif text-lg leading-ens-normal">
-          Your ENS name is your onchain identity. Personalize it with an avatar,
-          a banner, and the links that matter most. Showcase your work, connect
-          your socials, and make it easy for anyone to verify and follow you
-          across the web.
+          <Trans>
+            Your ENS name is your onchain identity. Personalize it with an
+            avatar, a banner, and the links that matter most. Showcase your
+            work, connect your socials, and make it easy for anyone to verify
+            and follow you across the web.
+          </Trans>
         </p>
       </div>
 

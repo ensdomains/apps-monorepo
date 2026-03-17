@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { LinkButton } from '@/components/ui/button'
@@ -21,9 +22,11 @@ function RouteComponent() {
         </ClientOnly>
       ) : (
         <>
-          <div className="text-gray-500">No payment methods found.</div>
+          <div className="text-gray-500">
+            <Trans>No payment methods found.</Trans>
+          </div>
           <LinkButton className="w-full" to="/payment/add" variant="secondary">
-            Add Payment Method
+            <Trans>Add Payment Method</Trans>
           </LinkButton>
         </>
       )}

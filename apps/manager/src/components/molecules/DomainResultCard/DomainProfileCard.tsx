@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
@@ -80,7 +81,7 @@ export const DomainProfileCard = ({
                 <Calendar className="size-5 text-(--theme-surface)" />
                 <div className="flex items-end gap-[3.611px]">
                   <p className="text-(--theme-surface) text-sm leading-none tracking-[-0.28px]">
-                    Registered
+                    <Trans>Registered</Trans>
                   </p>
                   <p className="whitespace-nowrap font-medium text-(--theme-color) text-sm leading-none tracking-[-0.28px]">
                     {formattedRegisteredDate}
@@ -95,7 +96,7 @@ export const DomainProfileCard = ({
                 <Clock className="size-5 text-(--theme-surface)" />
                 <div className="flex items-center gap-1">
                   <p className="text-(--theme-surface) text-sm leading-none tracking-[-0.28px]">
-                    Expires
+                    <Trans>Expires</Trans>
                   </p>
                   <p className="whitespace-nowrap font-medium text-(--theme-color) text-sm leading-none tracking-[-0.28px]">
                     {formattedExpiryDate}
