@@ -109,8 +109,16 @@ describe('decodeResolverRoleBitmap', () => {
   })
 })
 
-const makeRole = (account: string, bitmap: bigint) => ({
+const ROOT_RESOURCE =
+  '0x0000000000000000000000000000000000000000000000000000000000000000'
+
+const makeRole = (
+  account: string,
+  bitmap: bigint,
+  resource = ROOT_RESOURCE,
+) => ({
   account,
+  resource,
   roleBitmap: `0x${bitmap.toString(16)}`,
 })
 
