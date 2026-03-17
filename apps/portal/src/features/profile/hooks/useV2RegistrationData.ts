@@ -16,19 +16,22 @@ type GetRegistrationDataParameters = { name: string }
 const getV2RegistrationData = ResultFn(async function* ({
   name,
 }: GetRegistrationDataParameters) {
-  const { events, domains } = yield* fromPromise(
+  const { domains } = yield* fromPromise(
     graphqlIndexerClient.request<{
-      events: [{ timestamp: number }] | []
-      domains: [{ expiryDate: number }] | []
+      domains:
+        | [
+            {
+              createdAt: number
+              registrationDate: number
+              expiryDate: number
+            },
+          ]
+        | []
     }>(gql`
       query getRegistrationAndExpiry {
-        events(
-          first: 1
-          where: {domain: "${name}", type: "NameRegistered"}
-        ) {
-          timestamp
-        }
         domains(where: {name: "${name}" }) {
+          createdAt
+          registrationDate
           expiryDate
         }
       }
@@ -39,9 +42,12 @@ const getV2RegistrationData = ResultFn(async function* ({
       }),
   )
 
+  const domain = domains[0]
+
   return ok({
-    registeredAt: events[0]?.timestamp || null,
-    expiry: domains[0]?.expiryDate || null,
+    createdAt: domain?.createdAt || null,
+    registeredAt: domain?.registrationDate || null,
+    expiry: domain?.expiryDate || null,
   })
 })
 
