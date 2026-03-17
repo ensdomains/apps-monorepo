@@ -28,8 +28,13 @@ export const namechainSepolia = extendChainWithL2Ens(sepolia)
 export const getChainIdForNetwork = (network: EnsNetworkName): number =>
   network === 'sepolia' ? sepoliaWithEns.id : namechainSepolia.id
 
-const drpc = (chain: Chain) =>
-  `https://lb.drpc.live/${chain.name.toLowerCase()}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`
+const getRpcUrl = (chain: Chain): string => {
+  const drpcKey = import.meta.env.VITE_PUBLIC_DRPC_API_KEY
+  if (drpcKey) {
+    return `https://lb.drpc.live/${chain.name.toLowerCase()}/${drpcKey}`
+  }
+  return chain.rpcUrls.default.http[0]
+}
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -56,7 +61,7 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(drpc(chain), {
+      transport: http(getRpcUrl(chain), {
         batch: {
           wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
         },

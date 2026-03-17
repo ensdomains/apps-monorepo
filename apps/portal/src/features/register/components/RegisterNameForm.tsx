@@ -1,4 +1,4 @@
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, HashIcon } from 'lucide-react'
 import { useState } from 'react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
@@ -49,21 +49,25 @@ export const RegisterNameForm = ({
           textClassName="text-3xl sm:text-4xl font-medium"
         />
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 border border-border rounded-lg px-6 pb-6 pt-4">
         <div className="flex items-center justify-between">
-          <span className="text-base font-medium">
+          <span className="text-base font-normal">
             Register {registrationSpanType === 'years' ? 'for' : 'until'}
           </span>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleRegistrationSpanTypeChange}
-            className="gap-1"
+            className="gap-1 text-primary"
           >
             <span className="text-xs font-normal">
               Choose by {registrationSpanType === 'years' ? 'date' : 'years'}
             </span>
-            <CalendarIcon className="size-3" />
+            {registrationSpanType === 'years' ? (
+              <CalendarIcon className="size-3" />
+            ) : (
+              <HashIcon className="size-3" />
+            )}
           </Button>
         </div>
 
