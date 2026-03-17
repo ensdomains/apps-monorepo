@@ -8,15 +8,19 @@ const DISCOUNT_CONFIG = [
   { spanValue: 10, spanLabel: '10 years', discount: '50% off' },
 ] as const
 
+const PRESET_YEARS: readonly number[] = [1, 3, 5, 10]
+
 type RegistrationDurationPresetsProps = {
-  readonly selectedYears: number | undefined
-  readonly onSelectedYearsChange: (years: number) => void
+  readonly value: number
+  readonly onSelect: (years: number) => void
 }
 
 export const RegistrationDurationPresets = ({
-  selectedYears,
-  onSelectedYearsChange,
+  value,
+  onSelect,
 }: RegistrationDurationPresetsProps) => {
+  const selectedYears = PRESET_YEARS.includes(value) ? value : undefined
+
   return (
     <div className="flex gap-2 items-center">
       {DISCOUNT_CONFIG.map(({ spanValue, spanLabel, discount }) => {
@@ -26,7 +30,7 @@ export const RegistrationDurationPresets = ({
           <Badge
             key={spanValue}
             variant={isSelected ? 'secondary' : 'outline'}
-            onClick={() => onSelectedYearsChange(spanValue)}
+            onClick={() => onSelect(spanValue)}
             className={cn(
               'cursor-pointer rounded-xs justify-center text-center px-2.5',
               'border',

@@ -9,7 +9,11 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { getStartOfToday } from '../utils/registrationDuration'
+import {
+  getDurationFromPickerDate,
+  getStartOfToday,
+  getYearsFromDuration,
+} from '../utils/registrationDuration'
 import { RegistrationDurationPresets } from './RegistrationDurationPresets'
 
 type RegistrationExpiryDatePickerProps = {
@@ -26,9 +30,6 @@ export const RegistrationExpiryDatePicker = ({
   maxDate,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
-  const [selectedYears, setSelectedYears] = useState<number | undefined>(
-    undefined,
-  )
 
   const displayValue = formatDateTime(date) ?? ''
 
@@ -37,7 +38,6 @@ export const RegistrationExpiryDatePicker = ({
       onDateChange(d)
       setIsOpen(false)
     }
-    setSelectedYears(undefined)
   }
 
   const handlePresetSelect = (spanValue: number) => {
@@ -46,7 +46,6 @@ export const RegistrationExpiryDatePicker = ({
     const cappedDate =
       expiryDate.getTime() > maxDate.getTime() ? maxDate : expiryDate
     onDateChange(cappedDate)
-    setSelectedYears(spanValue)
   }
 
   const disabled = (d: Date) => {
@@ -104,8 +103,10 @@ export const RegistrationExpiryDatePicker = ({
         </PopoverContent>
       </Popover>
       <RegistrationDurationPresets
-        selectedYears={selectedYears}
-        onSelectedYearsChange={handlePresetSelect}
+        value={Math.round(
+          getYearsFromDuration(getDurationFromPickerDate(date)),
+        )}
+        onSelect={handlePresetSelect}
       />
     </div>
   )

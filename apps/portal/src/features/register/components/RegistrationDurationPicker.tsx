@@ -22,22 +22,17 @@ export const RegistrationDurationPicker = ({
   className,
 }: RegistrationDurationPickerProps) => {
   const [isFocused, setIsFocused] = useState(false)
-  const [selectedYears, setSelectedYears] = useState<number | undefined>(
-    undefined,
-  )
 
   const handleDecrement = () => {
     if (value > min) {
       onChange(value - 1)
     }
-    setSelectedYears(undefined)
   }
 
   const handleIncrement = () => {
     if (value < max) {
       onChange(value + 1)
     }
-    setSelectedYears(undefined)
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,11 +41,9 @@ export const RegistrationDurationPicker = ({
       const capped = Math.min(Math.max(parsed, min), max)
       onChange(capped)
     }
-    setSelectedYears(undefined)
   }
 
   const handlePresetSelect = (years: number) => {
-    setSelectedYears(years)
     const capped = Math.min(Math.max(years, min), max)
     onChange(capped)
   }
@@ -118,8 +111,8 @@ export const RegistrationDurationPicker = ({
         </Button>
       </div>
       <RegistrationDurationPresets
-        selectedYears={selectedYears}
-        onSelectedYearsChange={handlePresetSelect}
+        value={value}
+        onSelect={handlePresetSelect}
       />
     </div>
   )
