@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useEffect, useRef } from 'react'
 import { DurationSelector } from '@/features/register/components/CheckAvailability/DurationSelector'
 import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
@@ -94,7 +95,9 @@ export const Pricing = ({
           />
           {isPricingLoading && (
             <div className="text-center">
-              <p className="text-slate-500 text-sm">Loading prices...</p>
+              <p className="text-slate-500 text-sm">
+                <Trans>Loading prices...</Trans>
+              </p>
             </div>
           )}
         </div>

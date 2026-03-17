@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Braces, Hash } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
@@ -24,14 +25,17 @@ type OtherKey = (typeof otherRecords)[number]['key']
 export const OtherSection = withForm({
   ...sharedOptions,
   render: ({ form }) => {
+    const { t } = useLingui()
     const reduceMotion = useReducedMotion()
 
     return (
       <Card className="border-[0.25px] border-border bg-white shadow-none">
         <CardHeader>
-          <CardTitle className="text-base tracking-tight">Other</CardTitle>
+          <CardTitle className="text-base tracking-tight">
+            <Trans>Other</Trans>
+          </CardTitle>
           <CardDescription className="text-base">
-            Set the content hash and ABI for your name
+            <Trans>Set the content hash and ABI for your name</Trans>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -85,7 +89,7 @@ export const OtherSection = withForm({
                                   ? field.state.meta.errors[0]
                                   : undefined
                               }
-                              name="Content Hash"
+                              name={t`Content Hash`}
                               onBlur={field.handleBlur}
                               onChange={field.handleChange}
                               placeholder="ipfs://..."

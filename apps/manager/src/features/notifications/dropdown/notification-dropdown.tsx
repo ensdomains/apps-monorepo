@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Loader2Icon } from 'lucide-react'
@@ -24,7 +25,7 @@ export const NotificationsDropdown = ({
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
             <div className="font-[350] font-serif text-2xl text-[#232222] leading-ens-none">
-              Notifications
+              <Trans>Notifications</Trans>
             </div>
             <UnreadCount />
           </div>
@@ -42,7 +43,7 @@ export const NotificationsDropdown = ({
         onClick={() => onAction?.()}
         to="/notifications"
       >
-        See all
+        <Trans>See all</Trans>
       </Link>
 
       {isLoading ? (
@@ -54,7 +55,7 @@ export const NotificationsDropdown = ({
       {isError ? (
         <div className="flex min-h-40 items-center justify-center py-8">
           <span className="text-[#717182] text-sm leading-ens-none">
-            Failed to load notifications
+            <Trans>Failed to load notifications</Trans>
           </span>
         </div>
       ) : null}
@@ -79,7 +80,7 @@ export const NotificationsDropdown = ({
             symbol="drafts"
           />
           <span className="text-[#717182] text-sm leading-ens-none">
-            Nothing here yet!
+            <Trans>Nothing here yet!</Trans>
           </span>
         </div>
       ) : null}

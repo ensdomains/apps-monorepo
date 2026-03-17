@@ -1,4 +1,5 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle, Mail, XCircle } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
@@ -29,6 +30,7 @@ export const EmailVerifyStep = ({
   onCancel,
   onSuccess,
 }: EmailVerifyStepProps) => {
+  const { t } = useLingui()
   const [verificationCode, setVerificationCode] = useState('')
   const verificationCodeId = useId()
 
@@ -63,7 +65,7 @@ export const EmailVerifyStep = ({
       <Alert>
         <Mail className="h-4 w-4" />
         <AlertDescription>
-          We sent a verification code to your email address.
+          <Trans>We sent a verification code to your email address.</Trans>
         </AlertDescription>
       </Alert>
 
@@ -71,7 +73,9 @@ export const EmailVerifyStep = ({
         <Alert>
           <CheckCircle className="h-4 w-4" />
           <AlertDescription>
-            Email verified successfully! You can now receive notifications.
+            <Trans>
+              Email verified successfully! You can now receive notifications.
+            </Trans>
           </AlertDescription>
         </Alert>
       )}
@@ -85,12 +89,14 @@ export const EmailVerifyStep = ({
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
-          <Label htmlFor={verificationCodeId}>Verification Code</Label>
+          <Label htmlFor={verificationCodeId}>
+            <Trans>Verification Code</Trans>
+          </Label>
           <Input
             disabled={isVerifying || isVerified}
             id={verificationCodeId}
             onChange={(e) => setVerificationCode(e.target.value)}
-            placeholder="Enter 6-digit code"
+            placeholder={t`Enter 6-digit code`}
             required
             type="text"
             value={verificationCode}
@@ -100,8 +106,10 @@ export const EmailVerifyStep = ({
         <Alert>
           <Mail className="h-4 w-4" />
           <AlertDescription>
-            Check your email for the verification code. You can also click the
-            link in the email to verify automatically.
+            <Trans>
+              Check your email for the verification code. You can also click the
+              link in the email to verify automatically.
+            </Trans>
           </AlertDescription>
         </Alert>
 
@@ -114,14 +122,18 @@ export const EmailVerifyStep = ({
             variant="outline"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            <Trans>Back</Trans>
           </Button>
           <Button
             className="flex-1"
             disabled={isVerifying || isVerified || !verificationCode.trim()}
             type="submit"
           >
-            {isVerifying ? 'Verifying...' : 'Verify Code'}
+            {isVerifying ? (
+              <Trans>Verifying...</Trans>
+            ) : (
+              <Trans>Verify Code</Trans>
+            )}
           </Button>
         </div>
       </form>
@@ -133,10 +145,10 @@ export const EmailVerifyStep = ({
             disabled={isVerifying}
             onClick={() => onVerifyCode(verificationCode)}
           >
-            Try Again
+            <Trans>Try Again</Trans>
           </Button>
           <Button className="w-full" onClick={onBackToSend} variant="outline">
-            Use Different Email
+            <Trans>Use Different Email</Trans>
           </Button>
         </div>
       )}
@@ -148,7 +160,7 @@ export const EmailVerifyStep = ({
         type="button"
         variant="outline"
       >
-        Cancel
+        <Trans>Cancel</Trans>
       </Button>
     </div>
   )

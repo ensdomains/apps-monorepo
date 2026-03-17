@@ -1,4 +1,5 @@
 import { resolverMachine } from '@ens-apps/transaction-manager'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { PublicClient } from 'viem'
@@ -40,6 +41,7 @@ export const UpdateResolverDialog = ({
   currentResolver,
   onUpdated,
 }: UpdateResolverDialogProps) => {
+  const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [resolver, setResolver] = useState(currentResolver ?? '')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
@@ -62,7 +64,7 @@ export const UpdateResolverDialog = ({
     (isError &&
       resolverState.context.error &&
       resolverState.context.error.message) ||
-    (isError && 'Failed to update resolver') ||
+    (isError && t`Failed to update resolver`) ||
     undefined
 
   useEffect(() => {
@@ -101,7 +103,7 @@ export const UpdateResolverDialog = ({
 
   const triggerButton = (
     <Button className="w-full" variant="outline">
-      Update Resolver
+      <Trans>Update Resolver</Trans>
     </Button>
   )
 
@@ -116,7 +118,7 @@ export const UpdateResolverDialog = ({
       <FloatingInput
         disabled={isSubmitting}
         id="resolver-address"
-        label="Resolver address"
+        label={t`Resolver address`}
         onChange={(e) => setResolver(e.target.value)}
         placeholder="0x..."
         value={resolver}
@@ -127,10 +129,10 @@ export const UpdateResolverDialog = ({
   const footer = (
     <>
       <Button disabled={isSubmitting} onClick={handleCancel} variant="outline">
-        Cancel
+        <Trans>Cancel</Trans>
       </Button>
       <Button disabled={isSubmitting} onClick={handleSave}>
-        {isSubmitting ? 'Saving…' : 'Save'}
+        {isSubmitting ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
       </Button>
     </>
   )
@@ -141,7 +143,9 @@ export const UpdateResolverDialog = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Update Resolver</DialogTitle>
+            <DialogTitle>
+              <Trans>Update Resolver</Trans>
+            </DialogTitle>
           </DialogHeader>
           {content}
           <DialogFooter>{footer}</DialogFooter>
@@ -155,7 +159,9 @@ export const UpdateResolverDialog = ({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Update Resolver</DrawerTitle>
+          <DrawerTitle>
+            <Trans>Update Resolver</Trans>
+          </DrawerTitle>
         </DrawerHeader>
         <div className="space-y-4 px-4">{content}</div>
         <DrawerFooter>{footer}</DrawerFooter>

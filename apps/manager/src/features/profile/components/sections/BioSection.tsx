@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { CircleUserRound, Globe } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
@@ -27,14 +28,17 @@ const fieldMap = {
 export const BioSection = withForm({
   ...sharedOptions,
   render: ({ form }) => {
+    const { t } = useLingui()
     const reduceMotion = useReducedMotion()
 
     return (
       <Card className="border-[0.25px] border-border bg-white shadow-none">
         <CardHeader>
-          <CardTitle className="text-base tracking-tight">Bio</CardTitle>
+          <CardTitle className="text-base tracking-tight">
+            <Trans>Bio</Trans>
+          </CardTitle>
           <CardDescription className="text-base">
-            Add a bio to your profile
+            <Trans>Add a bio to your profile</Trans>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -74,11 +78,11 @@ export const BioSection = withForm({
                             <div className="pt-1">
                               <FloatingTextarea
                                 className="flex-1"
-                                label="Short Description"
+                                label={t`Short Description`}
                                 onChange={(e) => {
                                   field.handleChange(e.target.value)
                                 }}
-                                placeholder="Add a short bio to your profile"
+                                placeholder={t`Add a short bio to your profile`}
                                 value={field.state.value}
                               />
                             </div>
@@ -106,7 +110,7 @@ export const BioSection = withForm({
                                   ? field.state.meta.errors[0]
                                   : undefined
                               }
-                              name="Website"
+                              name={t`Website`}
                               onBlur={field.handleBlur}
                               onChange={field.handleChange}
                               placeholder="https://"

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { Minus, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -101,7 +102,9 @@ export const AddAddressRecordsDialog = ({
         })}
       </div>
     ) : (
-      <p>No more records to add</p>
+      <p>
+        <Trans>No more records to add</Trans>
+      </p>
     )
 
   const addButton = (

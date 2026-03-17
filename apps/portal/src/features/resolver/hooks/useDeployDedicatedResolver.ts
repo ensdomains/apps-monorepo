@@ -3,7 +3,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type Address, encodeFunctionData, type Hash, parseAbi } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -14,6 +14,8 @@ import {
 } from '@/features/resolver/utils/dedicatedResolver'
 import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
 import { namechainSepolia } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
 const verifiableFactoryAbi = parseAbi([
   'function deployProxy(address implementation, uint256 salt, bytes data)',
@@ -36,12 +38,14 @@ const deployDedicatedResolver = async ({
   publicClient,
   accountAddress,
   chainId,
+  id,
 }: {
   name: string
   signer: Signer
   publicClient: NonNullable<ReturnType<typeof usePublicClient>>
   accountAddress: Address
   chainId: number
+  id: string
 }): Promise<DeployDedicatedResolverResult> => {
   const salt = generateResolverSalt(name)
   const initCalldata = getResolverInitCalldata(accountAddress)
@@ -69,6 +73,7 @@ const deployDedicatedResolver = async ({
     },
     signer,
     {
+      id,
       description: `Deploy dedicated resolver for ${name}`,
       publicClient,
       timeout: 120_000,
@@ -93,11 +98,16 @@ export const useDeployDedicatedResolver = ({
   name,
 }: UseDeployDedicatedResolverParams) => {
   const chainId = namechainSepolia.id
+  const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
 
   const mutation = useMutation({
-    mutationFn: async (): Promise<DeployDedicatedResolverResult> => {
+    mutationFn: async ({
+      id,
+    }: {
+      id: string
+    }): Promise<DeployDedicatedResolverResult> => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -114,6 +124,13 @@ export const useDeployDedicatedResolver = ({
         publicClient,
         accountAddress: walletClient.account.address,
         chainId,
+        id,
+      })
+    },
+    onSuccess: () => {
+      invalidateResolverQueries(queryClient)
+      pollForIndexerSync({
+        invalidateQueries: () => invalidateResolverQueries(queryClient),
       })
     },
   })
@@ -128,6 +145,6 @@ export const useDeployDedicatedResolver = ({
     isConfirmed: mutation.isSuccess,
     error: mutation.error,
     reset: mutation.reset,
-    hasWallet: !!walletClient,
+    hasWallet: Boolean(walletClient?.account),
   }
 }
