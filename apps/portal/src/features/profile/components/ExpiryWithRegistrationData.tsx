@@ -98,7 +98,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      {data.createdAt && (
+      {data.createdAt !== null && (
         <div className="flex flex-col gap-1">
           <Label>Created</Label>
           <span className="flex flex-row gap-1 items-center h-[38px]">
@@ -108,7 +108,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
         </div>
       )}
 
-      {data.registeredAt && (
+      {data.registeredAt !== null && (
         <div className="flex flex-col gap-1">
           <Label>Registered</Label>
           <span className="flex flex-row gap-1 items-center h-[38px]">
@@ -118,7 +118,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
         </div>
       )}
 
-      {data.expiry && (
+      {data.expiry !== null && (
         <div className="flex flex-col gap-1">
           <Label>Expires</Label>
           <span className="flex flex-row gap-1 items-center h-[38px]">
