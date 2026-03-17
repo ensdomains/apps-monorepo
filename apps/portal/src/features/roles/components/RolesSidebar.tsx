@@ -83,6 +83,10 @@ export const RolesSidebar = <
     [row],
   )
 
+  const isOwnerRole = originalRoles.some(
+    (role) => role === 'owner' || role === 'owner_ADMIN',
+  )
+
   const { editedPermissions, setEditedPermissions } = useEditedPermissions(row)
 
   const hasChanges = hasPermissionsChanged(
@@ -322,8 +326,9 @@ export const RolesSidebar = <
               <DialogHeader>
                 <DialogTitle>Remove user</DialogTitle>
                 <DialogDescription>
-                  Are you sure you want to remove this user from all roles? This
-                  action cannot be undone.
+                  {isOwnerRole
+                    ? 'You are trying to delete the owner of this role. Deleting it would prohibit you from adding more users. Are you sure?'
+                    : 'Are you sure you want to remove this user from all roles? This action cannot be undone.'}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
