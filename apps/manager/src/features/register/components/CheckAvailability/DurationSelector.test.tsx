@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { PricingOptions } from '@/features/register/components/Pricing/types'
+import { render } from '@/utils/test-utils'
 import { DurationSelector } from './DurationSelector'
 
 const defaultPricing: PricingOptions = {

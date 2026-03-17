@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { render } from '@/utils/test-utils'
 import { CreditCardPaymentDrawer } from './PaymentDrawer'
 
 vi.mock('@/hooks/useMediaQuery', () => ({

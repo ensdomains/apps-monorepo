@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { render } from '@/utils/test-utils'
 import { Autorenewal } from './Autorenewal'
 
 const mockNavigate = vi.fn()

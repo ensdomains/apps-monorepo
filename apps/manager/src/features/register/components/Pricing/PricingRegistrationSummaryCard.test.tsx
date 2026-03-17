@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { render } from '@/utils/test-utils'
 import { PricingRegistrationSummaryCard } from './PricingRegistrationSummaryCard'
 
 vi.mock('@/components/ui/calendar', () => ({
