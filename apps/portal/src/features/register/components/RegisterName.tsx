@@ -17,7 +17,10 @@ import {
   getDurationInSecondsFromYears,
 } from '@/features/register/utils/registrationDuration'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { validateNameLength } from '@/utils/token/nameValidation'
+import {
+  validateNameLength,
+  validateRegistrableEthName,
+} from '@/utils/token/nameValidation'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
 import { RegistrationProgress } from './RegistrationProgress'
@@ -50,8 +53,9 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const isIdle = machineState === 'idle'
   const isSuccess = machineState === 'success'
 
+  const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
-  const isNameValid = !nameLengthError
+  const isNameValid = !registrableEthError && !nameLengthError
 
   const {
     data: availability,
@@ -94,6 +98,21 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     } finally {
       setIsNavigatingToProfile(false)
     }
+  }
+
+  if (registrableEthError) {
+    return (
+      <MessageCard
+        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+        title="Invalid name"
+        description={
+          <div className="text-base">
+            <p>{registrableEthError}</p>
+          </div>
+        }
+        badge="Alpha"
+      />
+    )
   }
 
   if (nameLengthError) {

@@ -1,4 +1,28 @@
+import { isRegistrable } from '@/utils/ens/tldHelpers'
+
 import { getLabel } from './getLabel'
+import { isValidEnsName } from './isNormalized'
+
+/**
+ * Validates that a name is a valid .eth name that can be registered.
+ * Must be: normalized, valid labels, 2LD, and end with .eth.
+ * Returns an error message if invalid, null if valid.
+ */
+export const validateRegistrableEthName = (
+  name: string,
+): string | undefined => {
+  if (!name.trim()) {
+    return 'Enter a name to register.'
+  }
+
+  if (!isValidEnsName(name)) {
+    return 'Names must be normalized (lowercase, valid characters).'
+  }
+
+  if (!isRegistrable(name)) {
+    return 'Only .eth names can be registered (e.g. name.eth).'
+  }
+}
 
 /**
  * Validates that a name meets ENS minimum length (3+ chars for the first label).

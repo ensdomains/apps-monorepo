@@ -1,5 +1,42 @@
 import { describe, expect, it } from 'vitest'
-import { validateNameLength } from './nameValidation'
+import {
+  validateNameLength,
+  validateRegistrableEthName,
+} from './nameValidation'
+
+describe('validateRegistrableEthName', () => {
+  it('returns null for valid .eth 2LD names', () => {
+    expect(validateRegistrableEthName('vitalik.eth')).toBeNull()
+    expect(validateRegistrableEthName('hello.eth')).toBeNull()
+    expect(validateRegistrableEthName('abc.eth')).toBeNull()
+  })
+
+  it('returns error for names without .eth TLD', () => {
+    expect(validateRegistrableEthName('vitalik')).toBe(
+      'Only .eth names can be registered (e.g. name.eth).',
+    )
+    expect(validateRegistrableEthName('vitalik.xyz')).toBe(
+      'Only .eth names can be registered (e.g. name.eth).',
+    )
+  })
+
+  it('returns error for subnames (3LD+)', () => {
+    expect(validateRegistrableEthName('sub.vitalik.eth')).toBe(
+      'Only .eth names can be registered (e.g. name.eth).',
+    )
+  })
+
+  it('returns error for non-normalized names', () => {
+    expect(validateRegistrableEthName('Vitalik.eth')).toBe(
+      'Names must be normalized (lowercase, valid characters).',
+    )
+  })
+
+  it('returns error for empty or whitespace', () => {
+    expect(validateRegistrableEthName('')).toBe('Enter a name to register.')
+    expect(validateRegistrableEthName('   ')).toBe('Enter a name to register.')
+  })
+})
 
 describe('validateNameLength', () => {
   it('returns error for 1–2 character names', () => {
