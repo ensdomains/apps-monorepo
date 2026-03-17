@@ -5,6 +5,7 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, UserCheck } from 'lucide-react'
 import { useState } from 'react'
 import { sepolia } from 'viem/chains'
+import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -102,30 +103,18 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
 
   if (registrableEthError) {
     return (
-      <MessageCard
-        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+      <InvalidNameMessage
         title="Invalid name"
-        description={
-          <div className="text-base">
-            <p>{registrableEthError}</p>
-          </div>
-        }
-        badge="Alpha"
+        description={registrableEthError}
       />
     )
   }
 
   if (nameLengthError) {
     return (
-      <MessageCard
-        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+      <InvalidNameMessage
         title="Name too short"
-        description={
-          <div className="text-base">
-            <p>{nameLengthError}</p>
-          </div>
-        }
-        badge="Alpha"
+        description={nameLengthError}
       />
     )
   }
