@@ -296,46 +296,27 @@ const PriceBreakdown = ({
         </div>
       )}
       <dl className="space-y-3">
-        <SummaryRow label="Registration" value={registrationDuration} />
-        <SummaryRow label="Expires" value={expiryFormatted} />
+        <SummaryRow label="Registration:" value={registrationDuration} />
+        <SummaryRow label="Expires:" value={expiryFormatted} />
 
         <hr className="border-border" />
 
         <SummaryRow
-          label="Price"
-          value={
-            <span className="font-mono text-base">
-              {formatUsd(pricePerYear)}/year × {years}
-            </span>
-          }
-          valueClassName="m-0 text-base"
+          label="Price:"
+          value={`${formatUsd(pricePerYear)}/year × ${years}`}
         />
         <SummaryRow
-          label="Subtotal"
-          value={
-            <>
-              <span className="font-mono text-base font-medium">
-                {formatUsd(Math.ceil(theoreticalSubtotal))}
-              </span>
-              <span className="text-xs">USD</span>
-            </>
-          }
+          label="Subtotal:"
+          value={formatUsd(Math.ceil(theoreticalSubtotal))}
           valueClassName="flex items-center gap-1 m-0"
         />
 
         {discountPercent > 0 && (
           <SummaryRow
-            label={`${discountLabel} discount (${discountPercent}%)`}
-            value={
-              <>
-                <span className="font-mono text-base font-medium">
-                  -{formatUsd(Math.ceil(discountAmount))}
-                </span>
-                <span className="text-xs">USD</span>
-              </>
-            }
-            className="text-success"
-            valueClassName="flex items-center gap-1 m-0"
+            label={`${discountLabel} discount (${discountPercent}%):`}
+            value={`-${formatUsd(Math.ceil(discountAmount))}`}
+            valueClassName="flex items-center gap-1 m-0 text-success"
+            labelClassName="text-success"
           />
         )}
 
@@ -343,7 +324,7 @@ const PriceBreakdown = ({
           <SummaryRow
             label={
               <>
-                Temporary premium{' '}
+                Temporary premium:
                 <Button
                   type="button"
                   variant="ghost"
@@ -370,23 +351,12 @@ const PriceBreakdown = ({
         )}
 
         <SummaryRow
-          label="Total"
-          value={
-            <>
-              <span className="font-mono text-xl font-bold">
-                {formatTotalWithGas(price.base, price.premium, price.decimals)}
-              </span>
-              <span className="text-xs">USD</span>
-            </>
-          }
+          label="Total:"
+          value={formatTotalWithGas(price.base, price.premium, price.decimals)}
           className="pt-3 border-t border-border"
-          labelClassName="text-xl font-bold"
-          valueClassName="flex items-center gap-1 m-0"
+          labelClassName="text-2xl text-primary font-medium"
+          valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-2xl"
         />
-
-        <p className="text-xs text-muted-foreground pt-1">
-          Paid in USDC or DAI. Gas and network fees are approximations.
-        </p>
       </dl>
     </div>
   )

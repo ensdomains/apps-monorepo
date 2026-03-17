@@ -26,7 +26,6 @@ import {
 } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 type PaymentModalStep = 'select_token' | 'confirm_purchase'
 
