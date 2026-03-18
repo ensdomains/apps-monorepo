@@ -79,7 +79,8 @@ export const RegisterNameCheckoutSummary = ({
           <Button
             variant="outline"
             size="sm"
-            className="text-primary items-center"
+            className="text-primary"
+            onClick={() => setPremiumDrawerOpen(true)}
           >
             Learn more
           </Button>
@@ -106,12 +107,7 @@ export const RegisterNameCheckoutSummary = ({
           })
           .with({ hasPrice: true }, () =>
             price ? (
-              <PriceBreakdown
-                name={name}
-                price={price}
-                duration={duration}
-                onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
-              />
+              <PriceBreakdown name={name} price={price} duration={duration} />
             ) : null,
           )
           .otherwise(() => (
@@ -200,15 +196,9 @@ type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
   readonly duration: number
-  readonly onOpenPremiumDrawer: () => void
 }
 
-const PriceBreakdown = ({
-  name,
-  price,
-  duration,
-  onOpenPremiumDrawer,
-}: PriceBreakdownProps) => {
+const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
   const premiumLabel = getPremiumLabel(name)
 
   const startOfToday = getStartOfToday()
@@ -221,13 +211,16 @@ const PriceBreakdown = ({
     startOfToday,
     expiryDate,
   )
+
   const expiryFormatted = formatExpiryDate(expiryDate)
 
   const { percent: discountPercent, label: discountLabel } =
     getDiscountForYears(years)
   const baseUsd = Number(price.base) / 10 ** price.decimals
+
   const theoreticalSubtotal =
     discountPercent > 0 ? baseUsd / (1 - discountPercent / 100) : baseUsd
+
   const discountAmount = discountPercent > 0 ? theoreticalSubtotal - baseUsd : 0
   const pricePerYear = years > 0 ? theoreticalSubtotal / years : 0
 
@@ -267,7 +260,6 @@ const PriceBreakdown = ({
                   variant="ghost"
                   size="icon"
                   className="size-6"
-                  onClick={onOpenPremiumDrawer}
                   aria-label="Learn more about temporary premium"
                 >
                   <InfoIcon className="size-3.5" />
