@@ -60,9 +60,12 @@ export function filterAndSortOwnedNames(
   const q = searchQuery.trim().toLowerCase()
   if (!q) return []
 
-  // Strip TLD suffix so "dom.eth" matches names containing "dom"
+  // Strip a short TLD-like suffix (e.g. "dom.eth" → "dom") but preserve longer
+  // subname labels (e.g. "test.florin" stays "test.florin", not "test").
   const lastDot = q.lastIndexOf('.')
-  const matchQuery = lastDot >= 0 ? q.slice(0, lastDot) : q
+  const afterLastDot = lastDot >= 0 ? q.slice(lastDot + 1) : ''
+  const shouldStripSuffix = afterLastDot === '' || afterLastDot.length <= 3
+  const matchQuery = shouldStripSuffix && lastDot >= 0 ? q.slice(0, lastDot) : q
   if (!matchQuery) return []
 
   const matching = ownedNames.filter((d) =>

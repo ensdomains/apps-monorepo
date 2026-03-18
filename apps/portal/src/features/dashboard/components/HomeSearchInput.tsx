@@ -124,6 +124,7 @@ export const HomeSearchInput = () => {
     (value: string) => {
       closePopover()
       if (value.startsWith('owned:')) {
+        setSearchValue('')
         setModalOpen(false)
         setMenuOpen(false)
         navigateToName(value.slice('owned:'.length))
