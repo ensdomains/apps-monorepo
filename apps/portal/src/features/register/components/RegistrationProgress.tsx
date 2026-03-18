@@ -4,7 +4,8 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { useBlocker } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { CheckCircle2, Info } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
+import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -177,112 +178,116 @@ export const RegistrationProgress = ({
   const errorInfo = error ? getTransactionErrorInfo(error) : null
 
   return (
-    <div className="flex flex-col gap-6 rounded-lg border border-border bg-card p-8">
-      <div className="flex flex-col items-center gap-6">
-        {match({ isComplete, isError })
-          .with({ isComplete: true }, () => (
-            <Alert variant="success" className="w-full max-w-md">
-              <CheckCircle2 aria-hidden />
-              <AlertTitle>Registration complete!</AlertTitle>
-              <AlertDescription>
-                Your ENS domain has been successfully registered and is now
-                active.
-              </AlertDescription>
-            </Alert>
-          ))
-          .with({ isError: true }, () => (
-            <div className="w-full max-w-md">
-              <TransactionErrorAlert
-                title="Registration failed"
-                summary={
-                  errorInfo?.summary ??
-                  error?.message ??
-                  'An error occurred. Please try again.'
-                }
-                details={errorInfo?.details}
-              />
-            </div>
-          ))
-          .otherwise(() => (
-            <>
-              <div className="flex w-full max-w-md flex-col gap-3">
-                <div className="flex flex-col gap-1">
-                  <p className="font-medium text-base">
-                    {currentMessage.primary}
-                  </p>
-                  {currentMessage.description && (
-                    <p className="text-muted-foreground text-sm">
-                      {currentMessage.description}
-                    </p>
-                  )}
-                </div>
-                <Progress
-                  value={progress}
-                  className="h-2"
-                  indicatorClassName="animate-pulse"
-                />
-              </div>
-            </>
-          ))}
+    <Fragment>
+      <h3 className="text-3xl font-medium" title={domainName}>
+        Registering {domainName}
+      </h3>
 
-        <h3 className="text-2xl font-bold" title={domainName}>
-          {domainName}
-        </h3>
+      {progress ? (
+        <Progress
+          value={progress}
+          className="h-6"
+          indicatorClassName="animate-pulse"
+        />
+      ) : null}
 
-        {isInProgress && (
-          <Alert variant="warning" className="w-full max-w-md">
-            <Info className="size-4" />
-            <AlertTitle>Please stay on this page</AlertTitle>
-            <AlertDescription>
-              Do not refresh or exit this page. Your registration is in
-              progress. Closing or refreshing may interrupt the process.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-6 rounded-lg border border-border bg-card p-6">
+        <div className="flex flex-col items-center gap-6">
           {match({ isComplete, isError })
             .with({ isComplete: true }, () => (
-              <Button
-                onClick={onViewProfile}
-                className="min-w-32"
-                disabled={isViewProfileLoading}
-              >
-                {isViewProfileLoading ? 'Loading...' : 'View profile'}
-              </Button>
+              <Alert variant="success" className="w-full">
+                <CheckCircle2 aria-hidden />
+                <AlertTitle>Registration complete!</AlertTitle>
+                <AlertDescription>
+                  Your ENS domain has been successfully registered and is now
+                  active.
+                </AlertDescription>
+              </Alert>
             ))
             .with({ isError: true }, () => (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => actor.send({ type: 'RETRY' })}
-                  className="min-w-32"
-                >
-                  Try again
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => actor.send({ type: 'CANCEL' })}
-                  className="min-w-32"
-                >
-                  Go back
-                </Button>
-              </>
+              <div className="w-full">
+                <TransactionErrorAlert
+                  title="Registration failed"
+                  summary={
+                    errorInfo?.summary ??
+                    error?.message ??
+                    'An error occurred. Please try again.'
+                  }
+                  details={errorInfo?.details}
+                />
+              </div>
             ))
-            .otherwise(
-              () =>
-                progressStage === 'settingUp' && (
+            .otherwise(() => (
+              <>
+                <div className="flex w-full flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <p className="font-medium text-base">
+                      {currentMessage.primary}
+                    </p>
+                    {currentMessage.description && (
+                      <p className="text-muted-foreground text-sm">
+                        {currentMessage.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
+            ))}
+
+          {isInProgress && (
+            <Alert variant="warning" className="w-full text-center p-4">
+              <AlertDescription>
+                Do not refresh or edit this page. Your registration is in
+                progress and will complete shortly. Closing or refreshing may
+                interrupt the process.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {match({ isComplete, isError })
+              .with({ isComplete: true }, () => (
+                <Button
+                  onClick={onViewProfile}
+                  className="min-w-32"
+                  disabled={isViewProfileLoading}
+                >
+                  {isViewProfileLoading ? 'Loading...' : 'View profile'}
+                </Button>
+              ))
+              .with({ isError: true }, () => (
+                <>
                   <Button
-                    variant="ghost"
-                    onClick={() => actor.send({ type: 'CANCEL' })}
-                    className="min-w-32 text-muted-foreground"
+                    variant="outline"
+                    onClick={() => actor.send({ type: 'RETRY' })}
+                    className="min-w-32"
                   >
-                    Cancel
+                    Try again
                   </Button>
-                ),
-            )}
+                  <Button
+                    variant="outline"
+                    onClick={() => actor.send({ type: 'CANCEL' })}
+                    className="min-w-32"
+                  >
+                    Go back
+                  </Button>
+                </>
+              ))
+              .otherwise(
+                () =>
+                  progressStage === 'settingUp' && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => actor.send({ type: 'CANCEL' })}
+                      className="min-w-32 text-danger hover:text-danger/80"
+                    >
+                      Cancel Registration
+                    </Button>
+                  ),
+              )}
+          </div>
         </div>
       </div>
-    </div>
+    </Fragment>
   )
 }
