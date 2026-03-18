@@ -189,10 +189,11 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
   const [nameInput, setNameInput] = useState('')
 
-  // Reset input when sidebar closes or row changes
+  // Reset input and error state when sidebar closes or row changes
   useEffect(() => {
     if (!open || !row) {
       setNameInput('')
+      setForwardError(null)
     }
   }, [open, row])
 
