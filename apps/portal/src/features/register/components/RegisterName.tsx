@@ -152,27 +152,27 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     )
   }
 
-  if (isNameTaken && !isNavigatingToProfile) {
-    return (
-      <MessageCard
-        icon={<UserCheck className="size-8" strokeWidth={1.5} />}
-        title={`${name} is already registered`}
-        description={
-          <div className="text-base">
-            <p>
-              This name is already registered. View its profile to see details
-              and records.
-            </p>
-          </div>
-        }
-        badge="Alpha"
-        actionButton={{
-          label: `View ${name}`,
-          href: `/${name}`,
-        }}
-      />
-    )
-  }
+  // if (isNameTaken && !isNavigatingToProfile) {
+  //   return (
+  //     <MessageCard
+  //       icon={<UserCheck className="size-8" strokeWidth={1.5} />}
+  //       title={`${name} is already registered`}
+  //       description={
+  //         <div className="text-base">
+  //           <p>
+  //             This name is already registered. View its profile to see details
+  //             and records.
+  //           </p>
+  //         </div>
+  //       }
+  //       badge="Alpha"
+  //       actionButton={{
+  //         label: `View ${name}`,
+  //         href: `/${name}`,
+  //       }}
+  //     />
+  //   )
+  // }
 
   return (
     <main className="flex-1 mx-auto w-full max-w-xl px-6 py-8 flex flex-col gap-8">

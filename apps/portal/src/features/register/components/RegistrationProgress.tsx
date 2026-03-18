@@ -177,6 +177,22 @@ export const RegistrationProgress = ({
 
   const errorInfo = error ? getTransactionErrorInfo(error) : null
 
+  if (progress === 100 && isComplete) {
+    return (
+      <section>
+        <div className="flex flex-col items-center gap-2">
+          <CheckCircle2 className="size-10" />
+          <h3 className="text-3xl font-medium" title={domainName}>
+            Congratulations!
+          </h3>
+          <p className="text-base text-muted-foreground">
+            You're now the owner of <b>{domainName}</b>
+          </p>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <Fragment>
       <h3 className="text-3xl font-medium" title={domainName}>
