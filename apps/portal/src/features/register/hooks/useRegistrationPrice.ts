@@ -4,6 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
+import type { Address } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
@@ -21,6 +22,7 @@ export type RegistrationPriceParameters = {
   readonly name: string
   readonly duration: number
   readonly token?: SupportedTokenAddresses
+  readonly owner?: Address
 }
 
 export type RegistrationPriceResult = {
@@ -35,6 +37,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   name,
   duration,
   token,
+  owner,
 }: RegistrationPriceParameters) {
   const client = yield* safeGetNamechainSepoliaClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
@@ -49,12 +52,15 @@ export const getRegistrationPrice = ResultFn(async function* ({
     )
   }
 
+  // Pass the user's address so the contract includes the temporary premium in the price.
+  // address(0) is treated as "exclude premium" by the StandardRentPriceOracle.
   const { base, premium } = yield* fromPromise(
     getPrice(client, {
       nameOrNames: label,
       duration: BigInt(duration),
       paymentToken: resolvedToken,
       registrarAddress: fastTestETHRegistrar,
+      owner,
     }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
   )
@@ -67,8 +73,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
     premium,
     total,
     decimals,
-    // TODO: remove this once testing is done
-    hasPremium: true || premium > 0n,
+    hasPremium: premium > 0n,
   })
 })
 

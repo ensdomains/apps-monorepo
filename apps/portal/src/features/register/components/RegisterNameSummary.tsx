@@ -3,6 +3,7 @@ import { InfoIcon, SirenIcon } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
+import { useConnection } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -17,8 +18,8 @@ import {
   getPremiumLabel,
 } from '@/features/register/utils/premium'
 import {
-  getGracePeriodEndDate,
   getPremiumEndDate,
+  getPremiumStartDate,
 } from '@/features/register/utils/premiumDecay'
 import {
   formatDiscountPercentForDisplay,
@@ -57,6 +58,7 @@ export const RegisterNameCheckoutSummary = ({
 }: RegisterNameCheckoutSummaryProps) => {
   const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
+  const { address } = useConnection()
 
   const {
     data: price,
@@ -67,6 +69,7 @@ export const RegisterNameCheckoutSummary = ({
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
+      owner: address,
     }),
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
@@ -79,7 +82,7 @@ export const RegisterNameCheckoutSummary = ({
   const hasPrice = price && isPriceResult(price)
 
   const premiumEndDate = nameExpiry ? getPremiumEndDate(nameExpiry) : null
-  const premiumStartDate = nameExpiry ? getGracePeriodEndDate(nameExpiry) : null
+  const premiumStartDate = nameExpiry ? getPremiumStartDate(nameExpiry) : null
 
   const premiumEndFormatted = premiumEndDate
     ? formatExpiryDate(premiumEndDate)

@@ -71,6 +71,7 @@ export const PaymentTokenSection = ({
         name,
         duration,
         token: token.address,
+        owner: address,
       }),
     ),
   })

@@ -5,17 +5,14 @@
  *   price(t) = startPrice * FACTOR^(t / resolutionPerDay) - OFFSET
  *
  * Constants match the v2 StandardRentPriceOracle deployment:
- *   - Premium period: 21 days
+ *   - Premium period: 21 days (starts immediately at expiry)
  *   - Halving period: 1 day (price halves daily)
  *   - Start price: $100,000,000 (in base units)
  *
- * Grace period is 90 days after name expiry, then premium period begins.
+ * There is no grace period — the premium begins immediately when a name expires.
  */
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
-
-/** Grace period after name expiry before premium begins (90 days). */
-export const GRACE_PERIOD_MS = 90 * MS_PER_DAY
 
 /** Total premium window duration (21 days). */
 export const PREMIUM_PERIOD_MS = 21 * MS_PER_DAY
@@ -30,27 +27,29 @@ const OFFSET = 47.6837158203125
 const FACTOR = 0.5
 
 /**
- * Calculates the premium end date from a name's previous expiry timestamp.
+ * Calculates the premium end date from a name's expiry timestamp.
+ * Premium starts immediately at expiry and lasts 21 days.
  *
  * @param expiryTimestamp - The name's expiry as a bigint (seconds since epoch from contract).
  * @returns The Date when the temporary premium reaches $0.
  */
 export function getPremiumEndDate(expiryTimestamp: bigint): Date {
   const expiryMs = Number(expiryTimestamp) * 1000
-  return new Date(expiryMs + GRACE_PERIOD_MS + PREMIUM_PERIOD_MS)
+  return new Date(expiryMs + PREMIUM_PERIOD_MS)
 }
 
 /**
- * Calculates the grace period end date (= premium start date) from expiry.
+ * Calculates the premium start date from expiry.
+ * Premium starts immediately at expiry (no grace period).
  */
-export function getGracePeriodEndDate(expiryTimestamp: bigint): Date {
-  return new Date(Number(expiryTimestamp) * 1000 + GRACE_PERIOD_MS)
+export function getPremiumStartDate(expiryTimestamp: bigint): Date {
+  return new Date(Number(expiryTimestamp) * 1000)
 }
 
 /**
  * Calculates the premium price at a given date.
  *
- * @param premiumStartDate - When the premium period begins (grace period end).
+ * @param premiumStartDate - When the premium period begins (= expiry date).
  * @param targetDate - The date to calculate the price for.
  * @returns The premium price in USD, or 0 if outside premium window.
  */
@@ -73,7 +72,7 @@ export function getPremiumPriceAtDate(
  *   price = startPrice * FACTOR^days - OFFSET
  *   days = log((price + OFFSET) / startPrice) / log(FACTOR)
  *
- * @param premiumStartDate - When the premium period begins (grace period end).
+ * @param premiumStartDate - When the premium period begins (= expiry date).
  * @param targetPrice - The desired premium price in USD.
  * @returns The Date when premium reaches that price, clamped to the premium window.
  */

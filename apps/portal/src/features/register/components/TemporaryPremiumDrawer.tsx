@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -32,6 +32,14 @@ function toDateTimeLocalValue(date: Date): string {
   return `${y}-${m}-${d}T${h}:${min}`
 }
 
+/** Format a number as a display price string (e.g. "7,680,717.20"). */
+function formatPriceForInput(value: number): string {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
 /**
  * Drawer explaining the temporary premium for recently expired names,
  * with an interactive calculator to convert between price and date.
@@ -57,11 +65,25 @@ export const TemporaryPremiumDrawer = ({
     [premiumStartDate, now],
   )
 
+  // Tracks the selected price on the decay curve
+  const [selectedPrice, setSelectedPrice] = useState<number>(0)
+  const [selectedDate, setSelectedDate] = useState<Date>(now)
+
+  // Raw input values (may differ while user is typing)
   const [priceInput, setPriceInput] = useState('')
   const [dateInput, setDateInput] = useState('')
 
-  const [calculatedDate, setCalculatedDate] = useState<Date | null>(null)
-  const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null)
+  const priceInputRef = useRef<HTMLInputElement>(null)
+
+  // Initialize with current premium values when drawer opens
+  useEffect(() => {
+    if (open && premiumStartDate) {
+      setSelectedPrice(currentCalculatedPrice)
+      setSelectedDate(now)
+      setPriceInput(formatPriceForInput(currentCalculatedPrice))
+      setDateInput(toDateTimeLocalValue(now))
+    }
+  }, [open, premiumStartDate, currentCalculatedPrice, now])
 
   const handlePriceChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,20 +92,37 @@ export const TemporaryPremiumDrawer = ({
 
       if (!premiumStartDate) return
 
-      const parsed = Number.parseFloat(raw)
-      if (Number.isNaN(parsed) || parsed < 0) {
-        setCalculatedDate(null)
-        return
-      }
+      let parsed = Number.parseFloat(raw)
+      if (Number.isNaN(parsed) || parsed < 0) parsed = 0
+      if (parsed > currentCalculatedPrice) parsed = currentCalculatedPrice
 
-      const clamped = Math.min(parsed, currentCalculatedPrice)
-      const date = getDateForPremiumPrice(premiumStartDate, clamped)
-      setCalculatedDate(date)
-
+      const date = getDateForPremiumPrice(premiumStartDate, parsed)
+      setSelectedPrice(parsed)
+      setSelectedDate(date)
       setDateInput(toDateTimeLocalValue(date))
-      setCalculatedPrice(clamped)
     },
     [premiumStartDate, currentCalculatedPrice],
+  )
+
+  const handlePriceFocus = useCallback(
+    (e: React.FocusEvent<HTMLInputElement>) => {
+      e.target.placeholder = selectedPrice.toFixed(2)
+      setPriceInput('')
+    },
+    [selectedPrice],
+  )
+
+  const handlePriceBlur = useCallback(() => {
+    setPriceInput(formatPriceForInput(selectedPrice))
+  }, [selectedPrice])
+
+  const handlePriceKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.currentTarget.blur()
+      }
+    },
+    [],
   )
 
   const handleDateChange = useCallback(
@@ -93,10 +132,7 @@ export const TemporaryPremiumDrawer = ({
       if (!premiumStartDate || !premiumEndDate) return
 
       const parsed = new Date(e.target.value)
-      if (Number.isNaN(parsed.getTime())) {
-        setCalculatedPrice(null)
-        return
-      }
+      if (Number.isNaN(parsed.getTime())) return
 
       const clamped = new Date(
         Math.max(
@@ -106,12 +142,19 @@ export const TemporaryPremiumDrawer = ({
       )
 
       const price = getPremiumPriceAtDate(premiumStartDate, clamped)
-      setCalculatedPrice(price)
-      setCalculatedDate(clamped)
-
-      setPriceInput(price > 0 ? price.toFixed(2) : '0')
+      setSelectedPrice(price)
+      setSelectedDate(clamped)
+      setPriceInput(formatPriceForInput(price))
     },
     [premiumStartDate, premiumEndDate, now],
+  )
+
+  const timezoneOffset = useMemo(
+    () =>
+      now
+        .toLocaleString(undefined, { timeZoneName: 'longOffset' })
+        .replace(/.* /g, ''),
+    [now],
   )
 
   return (
@@ -146,24 +189,34 @@ export const TemporaryPremiumDrawer = ({
               </p>
 
               <div className="space-y-1.5">
-                <Label htmlFor="premium-price-input">Target price (USD)</Label>
-                <Input
-                  id="premium-price-input"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="e.g. 1000"
-                  value={priceInput}
-                  onChange={handlePriceChange}
-                />
-                {calculatedDate && priceInput && (
+                <Label htmlFor="premium-price-input">Target price</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                    $
+                  </span>
+                  <Input
+                    id="premium-price-input"
+                    ref={priceInputRef}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="e.g. 1000"
+                    value={priceInput}
+                    onChange={handlePriceChange}
+                    onFocus={handlePriceFocus}
+                    onBlur={handlePriceBlur}
+                    onKeyDown={handlePriceKeyDown}
+                    className="pl-7"
+                  />
+                </div>
+                {selectedPrice > 0 && (
                   <p className="text-xs text-muted-foreground">
                     Premium reaches{' '}
                     <span className="font-medium text-foreground">
-                      {formatUsd(calculatedPrice ?? 0)}
+                      {formatUsd(selectedPrice)}
                     </span>{' '}
                     on{' '}
                     <span className="font-medium text-foreground">
-                      {formatExpiryDate(calculatedDate)}
+                      {formatExpiryDate(selectedDate)}
                     </span>
                   </p>
                 )}
@@ -177,24 +230,30 @@ export const TemporaryPremiumDrawer = ({
                   value={dateInput}
                   min={toDateTimeLocalValue(now)}
                   max={toDateTimeLocalValue(premiumEndDate)}
+                  step={60}
                   onChange={handleDateChange}
                 />
-                {calculatedPrice !== null && dateInput && (
+                {dateInput && (
                   <p className="text-xs text-muted-foreground">
                     Premium on that date:{' '}
                     <span className="font-medium text-foreground">
-                      {formatUsd(calculatedPrice)}
+                      {formatUsd(selectedPrice)}
                     </span>
                   </p>
                 )}
               </div>
 
-              <p className="text-xs text-muted-foreground pt-2">
-                Premium ends on{' '}
-                <span className="font-medium text-foreground">
-                  {formatExpiryDate(premiumEndDate)}
-                </span>
-              </p>
+              <div className="space-y-1 pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Premium ends on{' '}
+                  <span className="font-medium text-foreground">
+                    {formatExpiryDate(premiumEndDate)}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Timezone: {timezoneOffset}
+                </p>
+              </div>
             </div>
           )}
         </div>
