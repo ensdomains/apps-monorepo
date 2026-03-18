@@ -34,7 +34,12 @@ export const getPricing = ResultFn(async function* (
       address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
       abi: FASTTESTETHREGISTRAR_ABI,
       functionName: 'rentPrice',
-      args: [name, zeroAddress, BigInt(durationInSeconds), tokenInfo.address],
+      args: [
+        name,
+        zeroAddress,
+        BigInt(Math.ceil(durationInSeconds)),
+        tokenInfo.address,
+      ],
     }),
     (e) => new GetPricingError({ cause: e as ReadContractErrorType }),
   )

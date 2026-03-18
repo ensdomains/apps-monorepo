@@ -33,7 +33,7 @@ export const PricingSummaryCard = () => {
   const minSelectableDate = addSeconds(now, MIN_REGISTER_DURATION_SECONDS)
 
   return (
-    <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#DDDDDE] bg-white px-6 py-12 font-[350] text-2xl text-neutral-800 leading-ens-none">
+    <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#DDDDDE] bg-white px-6 py-8 font-[350] text-neutral-800 text-xl leading-ens-none md:py-12 md:text-2xl">
       <div>
         Registering for <span className="text-[#024A70]">{durationYears}</span>{' '}
         years

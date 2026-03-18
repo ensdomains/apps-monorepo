@@ -3,7 +3,7 @@ import { RegistrationDetails } from '../registering/components/RegistrationDetai
 
 export const SuccessStep = () => {
   return (
-    <div className="mx-auto mt-12 w-full max-w-6xl space-y-6.5">
+    <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
       <RegistrationCompletionBanner />
       <RegistrationDetails />
     </div>

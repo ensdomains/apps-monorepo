@@ -1,4 +1,8 @@
 import { secondsInYear } from 'date-fns/constants'
+import {
+  MIN_REGISTER_DURATION_SECONDS,
+  MIN_REGISTER_DURATION_YEARS,
+} from '@/features/register/components/Pricing/utils'
 import { cn } from '@/lib/utils'
 
 export const DurationCustomRow = ({
@@ -11,11 +15,13 @@ export const DurationCustomRow = ({
   isSelected: boolean
 }) => {
   const customValue = selectedDuration / secondsInYear
+  const isDurationValid = selectedDuration >= MIN_REGISTER_DURATION_SECONDS
 
   return (
     <label
       className={cn(
-        'group flex w-full cursor-pointer items-center justify-between rounded-lg border border-[#DEDEDF] bg-neutral-50 p-5 transition-all focus-within:border-ens-blue hover:border-ens-blue aria-pressed:border-ens-blue',
+        'group flex w-full cursor-pointer flex-col justify-between gap-3 rounded-lg md:flex-row md:items-center',
+        'border border-[#DEDEDF] bg-neutral-50 p-5 transition-all focus-within:border-ens-blue hover:border-ens-blue aria-pressed:border-ens-blue max-md:px-3',
         isSelected && 'border-ens-blue',
       )}
       htmlFor="custom-duration-input"
@@ -33,7 +39,8 @@ export const DurationCustomRow = ({
         <input
           aria-label="Custom duration in years"
           className={cn(
-            'w-10 md:w-12',
+            // 'w-10 md:w-12',
+            'field-sizing-content',
             'border-none bg-transparent outline-none',
             'font-medium font-mono text-ens-blue-dark text-sm leading-none tracking-tighter md:text-xl',
             'text-right',
@@ -43,17 +50,28 @@ export const DurationCustomRow = ({
           id="custom-duration-input"
           max={1000}
           min={1}
-          onChange={(e) =>
+          onChange={(e) => {
+            const duration = Number(e.target.value) * secondsInYear
+            if (duration === selectedDuration) return
+
             onDurationSet(Number(e.target.value) * secondsInYear)
-          }
+          }}
           step={1}
           type="number"
-          value={customValue}
+          value={customValue.toString()}
         />
         <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
           years
         </span>
       </div>
+
+      {/* Error message if duration is less than minimum */}
+      {isSelected && !isDurationValid && (
+        <p className="text-ens-error text-xs">
+          Duration must be at least 28 days (
+          {MIN_REGISTER_DURATION_YEARS.toFixed(2)} years)
+        </p>
+      )}
     </label>
   )
 }

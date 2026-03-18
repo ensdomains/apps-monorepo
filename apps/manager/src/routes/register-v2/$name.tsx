@@ -78,7 +78,7 @@ function PageContent() {
   const step = useRegistrationStep(uiActor)
 
   return (
-    <div className="mx-auto mt-12 w-full max-w-6xl space-y-6.5">
+    <div>
       {match(step)
         .with('pricing', () => <PricingStep />)
         .with('registering', () => <RegisteringStep />)

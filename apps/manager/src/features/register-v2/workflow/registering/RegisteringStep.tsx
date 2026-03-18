@@ -39,33 +39,37 @@ export const RegisteringStep = () => {
   })
 
   return (
-    <>
-      {match(uiStage?.transaction)
-        .with('pending', () => (
-          <RegistrationProgressBar
-            description={stageMessages.stageDescription}
-            label={stageMessages.stageLabel}
-            progress={stageMessages.progress}
-          />
-        ))
-        .with('success', () => <RegistrationCompletionBanner />)
-        .with(undefined, () => (
-          <RegistrationProgressBar label="Loading..." progress={0} />
-        ))
-        .exhaustive()}
-      {match(uiStage)
-        .with({ notifications: 'settings' }, () => (
-          <NotificationSettingsStep
-            onConfirm={() => {
-              uiActor.send({ type: 'notifications.step.next' })
-            }}
-            onSkip={() => {
-              uiActor.send({ type: 'notifications.step.next' })
-            }}
-          />
-        ))
-        .with({ transaction: P.string }, () => <RegistrationDetails />)
-        .otherwise(() => null)}
-    </>
+    <div className="h-full space-y-6 pb-4 max-md:bg-white md:space-y-4 md:pt-5">
+      <div className="mx-auto max-w-6xl pt-3 md:w-full-[32px]">
+        {match(uiStage?.transaction)
+          .with('pending', () => (
+            <RegistrationProgressBar
+              description={stageMessages.stageDescription}
+              label={stageMessages.stageLabel}
+              progress={stageMessages.progress}
+            />
+          ))
+          .with('success', () => <RegistrationCompletionBanner />)
+          .with(undefined, () => (
+            <RegistrationProgressBar label="Loading..." progress={0} />
+          ))
+          .exhaustive()}
+      </div>
+      <div className="mx-auto w-full-[32px] max-w-6xl space-y-6.5">
+        {match(uiStage)
+          .with({ notifications: 'settings' }, () => (
+            <NotificationSettingsStep
+              onConfirm={() => {
+                uiActor.send({ type: 'notifications.step.next' })
+              }}
+              onSkip={() => {
+                uiActor.send({ type: 'notifications.step.next' })
+              }}
+            />
+          ))
+          .with({ transaction: P.string }, () => <RegistrationDetails />)
+          .otherwise(() => null)}
+      </div>
+    </div>
   )
 }

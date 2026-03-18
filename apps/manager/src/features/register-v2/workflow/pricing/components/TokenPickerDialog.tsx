@@ -60,8 +60,8 @@ export const TokenPickerDialog = () => {
 
   return (
     <Drawer onOpenChange={handleOpenChange} open={isOpen}>
-      <DrawerContent>
-        <DrawerHeader className="px-4 pt-5 pb-5 text-left">
+      <DrawerContent className="h-full pb-4">
+        <DrawerHeader>
           <DrawerTitle className="sr-only">{header}</DrawerTitle>
         </DrawerHeader>
         {content}

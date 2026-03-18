@@ -119,7 +119,7 @@ export const NotificationPreferencesForm = ({
             className="w-full uppercase md:min-w-32"
             onClick={onSkip}
             size="xl"
-            variant="ghost"
+            variant="outline"
           >
             Skip
           </Button>

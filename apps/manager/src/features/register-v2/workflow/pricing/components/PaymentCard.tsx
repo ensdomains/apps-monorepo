@@ -16,9 +16,9 @@ export const PaymentCard = () => {
   const { isConnected } = useSmartAccountContext()
   const { openModal, isOpen } = useModal()
 
-  const [duration, isPricing] = useSelector(uiActor, (state) => [
+  const [duration, canNext] = useSelector(uiActor, (state) => [
     state.context.duration,
-    state.matches('pricing'),
+    state.can({ type: 'pricing.step.next' }),
   ])
 
   const pricingQuery = useQuery({
@@ -39,8 +39,12 @@ export const PaymentCard = () => {
           <Trans>Total</Trans>
         </p>
         <div className="flex items-end gap-1.5">
-          <span className="font-medium text-5xl text-ens-blue-midnight leading-ens-none">
-            {formatUsd(pricingQuery.data ?? 0)}
+          <span className="font-medium text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl">
+            {pricingQuery.data ? (
+              formatUsd(pricingQuery.data)
+            ) : (
+              <span className="animate-pulse">$...</span>
+            )}
           </span>
           <span className="font-normal text-base text-ens-blue-midnight leading-7">
             USD
@@ -51,7 +55,7 @@ export const PaymentCard = () => {
       {isConnected ? (
         <Button
           className="w-full uppercase"
-          disabled={!isPricing}
+          disabled={!canNext}
           onClick={() => uiActor.send({ type: 'pricing.step.next' })}
           size="xl"
           variant="blue"

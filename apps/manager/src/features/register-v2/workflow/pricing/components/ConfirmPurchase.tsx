@@ -11,6 +11,7 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { truncateName } from '../../../utils/truncate-name'
 import { getPremiumLabel } from '../lib/premiumLabel'
 
 export const ConfirmPurchase = () => {
@@ -47,9 +48,9 @@ export const ConfirmPurchase = () => {
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
   return (
-    <div className="flex min-h-[500px] flex-col justify-between gap-4 px-4">
+    <div className="flex h-full flex-col justify-between gap-4 px-4">
       <div className="flex flex-col items-center gap-6">
-        <h2 className="text-center font-medium text-2xl text-ens-blue tracking-wide">
+        <h2 className="text-center font-medium text-2xl text-ens-lapis-dense tracking-wide">
           Registering
         </h2>
 
@@ -68,9 +69,7 @@ export const ConfirmPurchase = () => {
             )}
             title={domainName}
           >
-            {domainName.length > 10
-              ? `${domainName.slice(0, 10)}…`
-              : domainName}
+            {truncateName(label, 'eth', 10)}
           </span>
         </div>
 
@@ -99,7 +98,7 @@ export const ConfirmPurchase = () => {
           uiActor.send({
             type: 'registration.start',
             label,
-            duration: BigInt(duration),
+            duration: BigInt(Math.ceil(duration)),
             token: selectedToken,
             totalPrice: pricingQuery.data.rawPrice,
             account,

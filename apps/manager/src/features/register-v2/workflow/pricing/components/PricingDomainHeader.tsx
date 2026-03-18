@@ -12,7 +12,7 @@ export const PricingDomainHeader = () => {
   const premiumLabel = getPremiumLabel(label.length)
 
   return (
-    <div className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">
+    <div className="flex flex-col items-center gap-3 text-center md:items-start md:text-left">
       {premiumLabel && (
         <DomainAttributePill
           label={premiumLabel.label}

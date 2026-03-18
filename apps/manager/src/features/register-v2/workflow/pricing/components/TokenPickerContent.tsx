@@ -65,7 +65,7 @@ export const TokenPickerContent = () => {
     !hasSufficientBalanceForSelectedCoin
 
   return (
-    <div className="flex min-h-[500px] flex-col justify-between gap-4 px-4">
+    <div className="flex h-full flex-col justify-between gap-4 px-4">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col items-center gap-4">
           <div className="flex flex-col items-center gap-2">
@@ -84,7 +84,7 @@ export const TokenPickerContent = () => {
             </div>
           </div>
 
-          <div className="w-2/3">
+          <div className="w-full">
             <Input
               aria-label="Search coins"
               className="h-9 rounded border-ens-gray-two"

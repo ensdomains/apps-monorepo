@@ -27,23 +27,23 @@ export const DurationPresetRow = ({
   onSelect: () => void
   discount: number
 }) => {
-  if (isLoading) {
-    return (
-      <div className="flex h-[58px] w-full items-center justify-between md:h-[100px]">
-        <div className="flex items-center gap-3 md:gap-5">
-          <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
-            Loading...
-          </span>
-        </div>
-      </div>
-    )
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex h-[58px] w-full items-center justify-between md:h-[100px]">
+  //       <div className="flex items-center gap-3 md:gap-5">
+  //         <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
+  //           Loading...
+  //         </span>
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
   return (
     <button
       aria-pressed={isSelected}
       className={cn(
-        'group flex w-full cursor-pointer items-center justify-between rounded-lg border border-[#DEDEDF] bg-neutral-50 px-5 py-8 transition-all hover:border-ens-blue aria-pressed:border-ens-blue',
+        'group flex w-full cursor-pointer items-center justify-between rounded-lg border border-[#DEDEDF] bg-neutral-50 px-3 py-4 transition-all hover:border-ens-blue aria-pressed:border-ens-blue md:px-5 md:py-8',
       )}
       onClick={onSelect}
       type="button"
@@ -68,9 +68,13 @@ export const DurationPresetRow = ({
           </div>
         )}
 
-        <div className="flex items-baseline gap-1 md:gap-1.5">
+        <div className="flex h-5 items-baseline gap-1 md:gap-1.5">
           <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
-            {formatUsdCeil(price ?? 0)}
+            {price ? (
+              formatUsdCeil(price)
+            ) : (
+              <span className="animate-pulse">$...</span>
+            )}
           </span>
           <span className="font-normal text-[#A0A4A6] text-xs leading-none tracking-tight md:text-base">
             total

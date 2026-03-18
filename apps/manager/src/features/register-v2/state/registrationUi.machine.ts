@@ -16,6 +16,7 @@ import {
   sendTo,
   setup,
 } from 'xstate'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import type { SmartAccountState } from '@/lib/smart-account/types'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
@@ -89,6 +90,10 @@ const machineSetup = setup({
   },
   actors: {
     registrationFlow: registrationMachine,
+  },
+  guards: {
+    isDurationValid: ({ context }) =>
+      context.duration >= MIN_REGISTER_DURATION_SECONDS,
   },
   actions: {
     setDuration: assign({
@@ -220,6 +225,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               actions: 'setDuration',
             },
             'pricing.step.next': {
+              guard: 'isDurationValid',
               target: 'tokens',
             },
           },
@@ -233,6 +239,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               actions: 'setToken',
             },
             'pricing.step.next': {
+              guard: 'isDurationValid',
               target: 'confirm',
             },
             'pricing.dialog.dismiss': {
@@ -254,6 +261,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             },
             'registration.start': {
               target: '#registrationV2Ui.registering',
+              guard: ({ event }) =>
+                event.duration >= MIN_REGISTER_DURATION_SECONDS,
               actions: ['clearError', startRegistrationAction],
             },
           },

@@ -10,7 +10,7 @@ export const FailureStep = () => {
   )
 
   return (
-    <>
+    <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
       <div className="flex items-start gap-3 rounded-lg border border-ens-garnet-dust bg-ens-garnet-dust/15 p-4">
         <XCircle
           aria-hidden="true"
@@ -65,6 +65,6 @@ export const FailureStep = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
