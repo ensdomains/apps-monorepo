@@ -2,7 +2,7 @@ import type { DecodedFuses } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { ArrowDownUp, Flame, Info } from 'lucide-react'
+import { ArrowDownUp, Ban, Flame, Info } from 'lucide-react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
@@ -278,7 +278,7 @@ const columns: ColumnDef<FuseRow>[] = [
           {isBurnt ? (
             <Flame className="w-4 h-4" />
           ) : (
-            <span className="w-4 h-4 flex items-center justify-center">✗</span>
+            <Ban className="w-4 h-4" />
           )}
           {isBurnt ? 'True' : 'False'}
         </div>
