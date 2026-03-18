@@ -193,7 +193,18 @@ function RouteComponent() {
 const columns: ColumnDef<FuseRow>[] = [
   {
     accessorKey: 'name',
-    header: 'Fuse',
+    header: ({ column }) => {
+      return (
+        <button
+          type="button"
+          className="flex items-center gap-1 hover:text-quartz-900"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          <span>Fuse</span>
+          <ArrowDownUp className="h-3 w-3" />
+        </button>
+      )
+    },
     cell: ({ row }) => {
       const { name } = row.original
       return (
@@ -206,7 +217,18 @@ const columns: ColumnDef<FuseRow>[] = [
   },
   {
     accessorKey: 'scope',
-    header: 'Scope',
+    header: ({ column }) => {
+      return (
+        <button
+          type="button"
+          className="flex items-center gap-1 hover:text-quartz-900"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          <span>Scope</span>
+          <ArrowDownUp className="h-3 w-3" />
+        </button>
+      )
+    },
     cell: ({ row }) => {
       const { scope } = row.original
       return scope
@@ -217,6 +239,7 @@ const columns: ColumnDef<FuseRow>[] = [
     header: ({ column }) => {
       return (
         <button
+          type="button"
           className="flex items-center gap-1 hover:text-quartz-900"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
