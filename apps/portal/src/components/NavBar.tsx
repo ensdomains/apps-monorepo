@@ -1,3 +1,4 @@
+import { useHotkey } from '@tanstack/react-hotkeys'
 import { Link, useMatches, useRouterState } from '@tanstack/react-router'
 import {
   BookIcon,
@@ -5,7 +6,7 @@ import {
   Menu,
   SettingsIcon,
 } from 'lucide-react'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
@@ -34,6 +35,9 @@ const SidebarTrigger = lazy(() =>
 export const NavBar = () => {
   const { location } = useRouterState()
   const matches = useMatches()
+  const [helpOpen, setHelpOpen] = useState(false)
+
+  useHotkey('Shift+/', () => setHelpOpen((prev) => !prev))
 
   // Show sidebar when any match in the route chain has hideSidebar !== true (default)
   const hasSidebar = matches.some((match) => !match.staticData?.hideSidebar)
@@ -127,7 +131,7 @@ export const NavBar = () => {
 
         {/* Desktop icons */}
         <div className="hidden md:flex gap-2 flex-row items-center">
-          <Popover>
+          <Popover open={helpOpen} onOpenChange={setHelpOpen}>
             <PopoverTrigger asChild>
               <Button
                 size="icon"
