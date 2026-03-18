@@ -155,7 +155,7 @@ function RouteComponent() {
             href="https://docs.ens.domains/wrapper/fuses"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-lapis-500 underline decoration-[10%] decoration-dotted"
+            className="text-quartz-500 underline decoration-[10%] decoration-dotted"
           >
             Learn more about Fuses in the documentation
           </a>
