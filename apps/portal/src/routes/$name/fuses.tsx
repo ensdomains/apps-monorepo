@@ -2,7 +2,7 @@ import type { DecodedFuses } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Flame, Info } from 'lucide-react'
+import { ArrowDownUp, Flame, Info } from 'lucide-react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -214,7 +214,17 @@ const columns: ColumnDef<FuseRow>[] = [
   },
   {
     accessorKey: 'isBurnt',
-    header: 'Burnt',
+    header: ({ column }) => {
+      return (
+        <button
+          className="flex items-center gap-1 hover:text-quartz-900"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          <span>Burnt</span>
+          <ArrowDownUp className="h-3 w-3" />
+        </button>
+      )
+    },
     cell: ({ row }) => {
       const { isBurnt } = row.original
       return (
