@@ -4,6 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowDownUp, Flame, Info } from 'lucide-react'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -206,10 +207,11 @@ const columns: ColumnDef<FuseRow>[] = [
       )
     },
     cell: ({ row }) => {
-      const { name } = row.original
+      const { name, key } = row.original
       return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <span className="font-mono">{name}</span>
+          <CopyButton value={key} />
           <Info className="w-5 h-5 text-quartz-500 cursor-help" />
         </div>
       )
