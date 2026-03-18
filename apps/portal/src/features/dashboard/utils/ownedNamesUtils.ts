@@ -64,7 +64,9 @@ export function filterAndSortOwnedNames(
   // subname labels (e.g. "test.florin" stays "test.florin", not "test").
   const lastDot = q.lastIndexOf('.')
   const afterLastDot = lastDot >= 0 ? q.slice(lastDot + 1) : ''
-  const shouldStripSuffix = afterLastDot === '' || afterLastDot.length <= 3
+  const MAX_TLD_LENGTH = 3
+  const shouldStripSuffix =
+    afterLastDot === '' || afterLastDot.length <= MAX_TLD_LENGTH
   const matchQuery = shouldStripSuffix && lastDot >= 0 ? q.slice(0, lastDot) : q
   if (!matchQuery) return []
 

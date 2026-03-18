@@ -127,7 +127,7 @@ export const useSearchResults = ({
         v1NamesQuery.data ?? [],
         (v2NamesQuery.data ?? []).flatMap((d) => [
           { name: d.name },
-          ...d.subdomains.map((s) => ({ name: s.name })),
+          ...(d.subdomains ?? []).map((s) => ({ name: s.name })),
         ]),
       ),
     [v1NamesQuery.data, v2NamesQuery.data],
