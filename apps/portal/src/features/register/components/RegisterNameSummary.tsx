@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { InfoIcon, SirenIcon } from 'lucide-react'
+import { SirenIcon } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
@@ -8,7 +8,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
-import { getNameExpiryQueryOptions } from '@/features/register/hooks/useNameExpiry'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
@@ -17,10 +16,7 @@ import {
   CHARACTER_PREMIUM_USD,
   getPremiumLabel,
 } from '@/features/register/utils/premium'
-import {
-  getPremiumEndDate,
-  getPremiumStartDate,
-} from '@/features/register/utils/premiumDecay'
+import { getPremiumDatesFromRegistrationPrice } from '@/features/register/utils/premiumDecay'
 import {
   formatDiscountPercentForDisplay,
   getDiscountForYears,
@@ -39,7 +35,10 @@ import {
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { cn } from '@/lib/utils'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
+import {
+  formatExpiryDate,
+  formatExpiryDateTimeLocal,
+} from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
@@ -74,40 +73,29 @@ export const RegisterNameCheckoutSummary = ({
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
 
-  const { data: nameExpiry } = useQuery({
-    ...getNameExpiryQueryOptions({ name }),
-    enabled: Boolean(name) && isNameValid,
-  })
-
   const hasPrice = price && isPriceResult(price)
-
-  const premiumEndDate = nameExpiry ? getPremiumEndDate(nameExpiry) : null
-  const premiumStartDate = nameExpiry ? getPremiumStartDate(nameExpiry) : null
-
-  const premiumEndFormatted = premiumEndDate
-    ? formatExpiryDate(premiumEndDate)
-    : null
+  const premiumDates =
+    hasPrice && price ? getPremiumDatesFromRegistrationPrice(price) : null
 
   return (
     <Fragment>
-      {hasPrice && price.hasPremium ? (
+      {premiumDates && (
         <Alert variant="default" className="flex p-5 items-center">
-          <SirenIcon className="size-12 shrink-0" />
+          <SirenIcon className="h-12 w-12 shrink-0" />
           <AlertDescription className="text-base">
-            {premiumEndFormatted
-              ? `This name is in Temporary premium until ${premiumEndFormatted}.`
-              : 'This name is in Temporary premium.'}
+            This name is in Temporary premium until{' '}
+            {formatExpiryDateTimeLocal(premiumDates.premiumEndDate)}.
           </AlertDescription>
           <Button
             variant="outline"
             size="sm"
-            className="text-primary"
+            className="text-primary text-sm"
             onClick={() => setPremiumDrawerOpen(true)}
           >
             Learn more
           </Button>
         </Alert>
-      ) : null}
+      )}
       <section
         className="border border-border rounded-lg bg-card p-5"
         aria-labelledby="checkout-heading"
@@ -145,7 +133,7 @@ export const RegisterNameCheckoutSummary = ({
             open={premiumDrawerOpen}
             onOpenChange={setPremiumDrawerOpen}
             currentPremium={formatPriceDisplay(price.premium, price.decimals)}
-            premiumStartDate={premiumStartDate}
+            premiumStartDate={premiumDates?.premiumStartDate ?? null}
           />
         )}
       </section>
@@ -275,20 +263,7 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
 
         {price.hasPremium && (
           <SummaryRow
-            label={
-              <>
-                Temporary premium:
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-6"
-                  aria-label="Learn more about temporary premium"
-                >
-                  <InfoIcon className="size-3.5" />
-                </Button>
-              </>
-            }
+            label={'Temporary premium:'}
             value={formatPriceDisplay(price.premium, price.decimals)}
             labelClassName="font-medium text-quartz-900"
             valueClassName="font-medium text-quartz-900"

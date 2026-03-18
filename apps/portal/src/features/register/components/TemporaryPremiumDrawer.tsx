@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarIcon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Sheet,
   SheetContent,
@@ -12,8 +19,8 @@ import {
   getPremiumPriceAtDate,
   PREMIUM_PERIOD_MS,
 } from '@/features/register/utils/premiumDecay'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { cn } from '@/lib/utils'
+import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 
 type TemporaryPremiumDrawerProps = {
   readonly open: boolean
@@ -22,14 +29,17 @@ type TemporaryPremiumDrawerProps = {
   readonly premiumStartDate: Date | null
 }
 
-/** Format a Date to a datetime-local input value (YYYY-MM-DDTHH:mm). */
-function toDateTimeLocalValue(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  return `${y}-${m}-${d}T${h}:${min}`
+/** Format a Date to HH:mm for the time input. */
+function dateToTimeValue(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+/** Merge a time string (HH:mm) into a date's date part. */
+function mergeTimeIntoDate(baseDate: Date, timeStr: string): Date {
+  const [h, m] = timeStr.split(':').map(Number)
+  const result = new Date(baseDate)
+  result.setHours(Number.isNaN(h) ? 0 : h, Number.isNaN(m) ? 0 : m, 0, 0)
+  return result
 }
 
 /** Format a number as a display price string (e.g. "7,680,717.20"). */
@@ -65,23 +75,17 @@ export const TemporaryPremiumDrawer = ({
     [premiumStartDate, now],
   )
 
-  // Tracks the selected price on the decay curve
-  const [selectedPrice, setSelectedPrice] = useState<number>(0)
-  const [selectedDate, setSelectedDate] = useState<Date>(now)
-
-  // Raw input values (may differ while user is typing)
+  const [selectedPrice, setSelectedPrice] = useState(0)
+  const [selectedDate, setSelectedDate] = useState(now)
   const [priceInput, setPriceInput] = useState('')
-  const [dateInput, setDateInput] = useState('')
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
 
-  const priceInputRef = useRef<HTMLInputElement>(null)
-
-  // Initialize with current premium values when drawer opens
+  // Reset calculator state when the drawer opens
   useEffect(() => {
     if (open && premiumStartDate) {
       setSelectedPrice(currentCalculatedPrice)
       setSelectedDate(now)
       setPriceInput(formatPriceForInput(currentCalculatedPrice))
-      setDateInput(toDateTimeLocalValue(now))
     }
   }, [open, premiumStartDate, currentCalculatedPrice, now])
 
@@ -99,7 +103,6 @@ export const TemporaryPremiumDrawer = ({
       const date = getDateForPremiumPrice(premiumStartDate, parsed)
       setSelectedPrice(parsed)
       setSelectedDate(date)
-      setDateInput(toDateTimeLocalValue(date))
     },
     [premiumStartDate, currentCalculatedPrice],
   )
@@ -118,26 +121,19 @@ export const TemporaryPremiumDrawer = ({
 
   const handlePriceKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        e.currentTarget.blur()
-      }
+      if (e.key === 'Enter') e.currentTarget.blur()
     },
     [],
   )
 
-  const handleDateChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setDateInput(e.target.value)
-
+  const applyDateSelection = useCallback(
+    (newDate: Date) => {
       if (!premiumStartDate || !premiumEndDate) return
-
-      const parsed = new Date(e.target.value)
-      if (Number.isNaN(parsed.getTime())) return
 
       const clamped = new Date(
         Math.max(
           now.getTime(),
-          Math.min(parsed.getTime(), premiumEndDate.getTime()),
+          Math.min(newDate.getTime(), premiumEndDate.getTime()),
         ),
       )
 
@@ -149,110 +145,169 @@ export const TemporaryPremiumDrawer = ({
     [premiumStartDate, premiumEndDate, now],
   )
 
-  const timezoneOffset = useMemo(
-    () =>
-      now
-        .toLocaleString(undefined, { timeZoneName: 'longOffset' })
-        .replace(/.* /g, ''),
-    [now],
+  const handleCalendarSelect = useCallback(
+    (d: Date | undefined) => {
+      if (!d) return
+      const merged = mergeTimeIntoDate(d, dateToTimeValue(selectedDate))
+      applyDateSelection(merged)
+    },
+    [selectedDate, applyDateSelection],
+  )
+
+  const handleTimeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const merged = mergeTimeIntoDate(selectedDate, e.target.value)
+      applyDateSelection(merged)
+    },
+    [selectedDate, applyDateSelection],
+  )
+
+  const isDateDisabled = useCallback(
+    (d: Date) => {
+      if (!premiumEndDate) return true
+      const dayStart = new Date(d)
+      dayStart.setHours(0, 0, 0, 0)
+      const nowStart = new Date(now)
+      nowStart.setHours(0, 0, 0, 0)
+      const endDay = new Date(premiumEndDate)
+      endDay.setHours(23, 59, 59, 999)
+      return (
+        dayStart.getTime() < nowStart.getTime() ||
+        dayStart.getTime() > endDay.getTime()
+      )
+    },
+    [now, premiumEndDate],
   )
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col sm:max-w-md">
+      <SheetContent side="right" className="flex flex-col sm:max-w-2xl">
         <SheetHeader>
-          <SheetTitle className="text-xl font-semibold">
+          <SheetTitle className="text-3xl font-semibold">
             Temporary premium
           </SheetTitle>
         </SheetHeader>
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5">
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Temporary premiums are applied to recently expired names to give
-            fair opportunity to new registrations. The premium starts high and
-            reduces to $0 over 21 days, and is only applied once on top of the
-            usual registration costs.
+          <p className="text-base leading-relaxed">
+            Temporary premiums are a <b>one time</b> cost applied to recently
+            expired names to give fair opportunity to new registrations. The
+            premium starts at $100,000,000 and reduces to $0 over 21 days, and
+            is only applied once on top of the usual registration costs.
+          </p>
+          <p className="text-base leading-relaxed font-medium">
+            The previous owner of this name is exempt from the temporary
+            premium.
           </p>
 
-          <div className="space-y-2">
-            <h3 className="font-medium text-sm">Current temporary premium</h3>
-            <p className="font-mono text-lg font-semibold">
-              {currentPremium} <span className="text-sm font-normal">USD</span>
-            </p>
+          <div className="grid grid-cols-2 gap-4 grid-row-1">
+            <div className="space-y-1">
+              <h3 className="text-base font-medium">
+                Current temporary premium
+              </h3>
+              <p className="text-base font-normal">
+                {currentPremium}{' '}
+                <span className="text-xs font-normal">USD</span>
+              </p>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-medium">Temporary premium ends</h3>
+              <p className="text-base font-normal">
+                {premiumEndDate
+                  ? formatExpiryDateTimeLocal(premiumEndDate)
+                  : 'N/A'}
+              </p>
+            </div>
           </div>
 
           {premiumStartDate && premiumEndDate && (
-            <div className="space-y-4 border-t border-border pt-4">
-              <h3 className="font-medium text-sm">Premium calculator</h3>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                Enter a target price to see when the premium will drop to that
-                amount, or pick a date to see the premium at that time.
-              </p>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="premium-price-input">Target price</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                    $
-                  </span>
-                  <Input
-                    id="premium-price-input"
-                    ref={priceInputRef}
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="e.g. 1000"
-                    value={priceInput}
-                    onChange={handlePriceChange}
-                    onFocus={handlePriceFocus}
-                    onBlur={handlePriceBlur}
-                    onKeyDown={handlePriceKeyDown}
-                    className="pl-7"
-                  />
+            <div className="space-y-4">
+              <h3 className="text-base font-medium">
+                Calculate premium at a specific date
+              </h3>
+              <div className="flex items-center gap-4 border border-border rounded-md p-4">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label
+                    className="text-base font-medium"
+                    htmlFor="premium-price-input"
+                  >
+                    Price
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                      $
+                    </span>
+                    <Input
+                      id="premium-price-input"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 1000"
+                      value={priceInput}
+                      onChange={handlePriceChange}
+                      onFocus={handlePriceFocus}
+                      onBlur={handlePriceBlur}
+                      onKeyDown={handlePriceKeyDown}
+                      className="pl-7"
+                    />
+                  </div>
                 </div>
-                {selectedPrice > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Premium reaches{' '}
-                    <span className="font-medium text-foreground">
-                      {formatUsd(selectedPrice)}
-                    </span>{' '}
-                    on{' '}
-                    <span className="font-medium text-foreground">
-                      {formatExpiryDate(selectedDate)}
-                    </span>
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="premium-date-input">Target date</Label>
-                <Input
-                  id="premium-date-input"
-                  type="datetime-local"
-                  value={dateInput}
-                  min={toDateTimeLocalValue(now)}
-                  max={toDateTimeLocalValue(premiumEndDate)}
-                  step={60}
-                  onChange={handleDateChange}
-                />
-                {dateInput && (
-                  <p className="text-xs text-muted-foreground">
-                    Premium on that date:{' '}
-                    <span className="font-medium text-foreground">
-                      {formatUsd(selectedPrice)}
-                    </span>
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1 pt-2">
-                <p className="text-xs text-muted-foreground">
-                  Premium ends on{' '}
-                  <span className="font-medium text-foreground">
-                    {formatExpiryDate(premiumEndDate)}
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Timezone: {timezoneOffset}
-                </p>
+                <span className="self-center">=</span>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label
+                    className="text-base font-medium"
+                    htmlFor="premium-date-input"
+                  >
+                    Date
+                  </Label>
+                  <Popover
+                    open={datePickerOpen}
+                    onOpenChange={setDatePickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        id="premium-date-input"
+                        type="button"
+                        className={cn(
+                          'flex w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm outline-none transition-colors',
+                          'hover:bg-accent/50 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2',
+                        )}
+                      >
+                        <span className="flex-1 truncate">
+                          {formatExpiryDateTimeLocal(selectedDate)}
+                        </span>
+                        <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 border border-border"
+                      align="start"
+                    >
+                      <Calendar
+                        defaultMonth={selectedDate}
+                        disabled={isDateDisabled}
+                        endMonth={premiumEndDate}
+                        mode="single"
+                        onSelect={handleCalendarSelect}
+                        selected={selectedDate}
+                        startMonth={now}
+                      />
+                      <div className="border-t border-border p-3">
+                        <Label
+                          htmlFor="premium-time-input"
+                          className="text-xs text-muted-foreground"
+                        >
+                          Time
+                        </Label>
+                        <Input
+                          id="premium-time-input"
+                          type="time"
+                          value={dateToTimeValue(selectedDate)}
+                          onChange={handleTimeChange}
+                          className="mt-1"
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
           )}

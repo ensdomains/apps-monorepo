@@ -36,3 +36,20 @@ export const formatExpiryDate = (date: Date): string => {
     year: 'numeric',
   })
 }
+
+/**
+ * Formats a Date as a short date string with local time.
+ * Format: "MMM DD, YYYY, HH:MM AM/PM" (e.g., "Feb 17, 2029, 10:30 AM")
+ *
+ * @param date - Date to format
+ * @returns Formatted date and time string in user's local timezone
+ */
+export const formatExpiryDateTimeLocal = (date: Date): string => {
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}

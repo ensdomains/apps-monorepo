@@ -1,15 +1,14 @@
 /**
- * Premium decay calculation utilities.
+ * Premium decay calculation utilities for the v2 StandardRentPriceOracle.
  *
  * The temporary premium follows an exponential halving decay:
- *   price(t) = startPrice * FACTOR^(t / resolutionPerDay) - OFFSET
+ *   price(t) = START_PRICE * FACTOR^(days) - OFFSET
  *
- * Constants match the v2 StandardRentPriceOracle deployment:
- *   - Premium period: 21 days (starts immediately at expiry)
+ * Contract parameters (from StandardRentPriceOracle):
+ *   - Premium period: 21 days (starts immediately at expiry, no grace period)
  *   - Halving period: 1 day (price halves daily)
- *   - Start price: $100,000,000 (in base units)
- *
- * There is no grace period — the premium begins immediately when a name expires.
+ *   - Start price: 100,000,000 (base pricing units)
+ *   - Offset: ensures curve reaches exactly 0 at the end of the premium period
  */
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -26,32 +25,65 @@ const OFFSET = 47.6837158203125
 /** Decay factor per day — price halves daily. */
 const FACTOR = 0.5
 
-/**
- * Calculates the premium end date from a name's expiry timestamp.
- * Premium starts immediately at expiry and lasts 21 days.
- *
- * @param expiryTimestamp - The name's expiry as a bigint (seconds since epoch from contract).
- * @returns The Date when the temporary premium reaches $0.
- */
-export function getPremiumEndDate(expiryTimestamp: bigint): Date {
-  const expiryMs = Number(expiryTimestamp) * 1000
-  return new Date(expiryMs + PREMIUM_PERIOD_MS)
+export type PremiumDatesResult = {
+  premiumStartDate: Date
+  premiumEndDate: Date
 }
 
 /**
- * Calculates the premium start date from expiry.
- * Premium starts immediately at expiry (no grace period).
+ * Derives the premium start/end dates from a registration price result.
+ *
+ * Returns null if the price has no premium. Use this when you have a
+ * RegistrationPriceResult from the price query.
  */
-export function getPremiumStartDate(expiryTimestamp: bigint): Date {
-  return new Date(Number(expiryTimestamp) * 1000)
+export function getPremiumDatesFromRegistrationPrice(price: {
+  premium: bigint
+  decimals: number
+  hasPremium: boolean
+}): PremiumDatesResult | null {
+  if (!price.hasPremium) return null
+
+  const premiumUsd = Number(price.premium) / 10 ** price.decimals
+  return getPremiumDatesFromPrice(premiumUsd)
+}
+
+/**
+ * Derives the premium start/end dates from the current premium price.
+ *
+ * Since the contract's `getExpiry` returns 0 for available names, we can't rely
+ * on it. Instead, we invert the decay formula to determine how far into the
+ * premium window we are, based on the price the contract returned.
+ *
+ *   premium = START_PRICE * FACTOR^days - OFFSET
+ *   days = log((premium + OFFSET) / START_PRICE) / log(FACTOR)
+ *   premiumStartDate = now - days
+ *   premiumEndDate = premiumStartDate + 21 days
+ */
+export function getPremiumDatesFromPrice(
+  currentPremiumUsd: number,
+): PremiumDatesResult | null {
+  if (currentPremiumUsd <= 0) return null
+
+  const days =
+    Math.log((currentPremiumUsd + OFFSET) / START_PRICE) / Math.log(FACTOR)
+
+  const elapsedMs = days * MS_PER_DAY
+
+  const premiumStartDate = new Date(Date.now() - elapsedMs)
+
+  const premiumEndDate = new Date(
+    premiumStartDate.getTime() + PREMIUM_PERIOD_MS,
+  )
+
+  return { premiumStartDate, premiumEndDate }
 }
 
 /**
  * Calculates the premium price at a given date.
  *
- * @param premiumStartDate - When the premium period begins (= expiry date).
+ * @param premiumStartDate - When the premium period began (= name expiry date).
  * @param targetDate - The date to calculate the price for.
- * @returns The premium price in USD, or 0 if outside premium window.
+ * @returns The premium price in USD, or 0 if outside the premium window.
  */
 export function getPremiumPriceAtDate(
   premiumStartDate: Date,
@@ -66,13 +98,12 @@ export function getPremiumPriceAtDate(
 }
 
 /**
- * Calculates the date when the premium will reach a given price.
+ * Calculates the date when the premium will reach a given target price.
  *
  * Inverts the decay formula:
- *   price = startPrice * FACTOR^days - OFFSET
- *   days = log((price + OFFSET) / startPrice) / log(FACTOR)
+ *   days = log((price + OFFSET) / START_PRICE) / log(FACTOR)
  *
- * @param premiumStartDate - When the premium period begins (= expiry date).
+ * @param premiumStartDate - When the premium period began (= name expiry date).
  * @param targetPrice - The desired premium price in USD.
  * @returns The Date when premium reaches that price, clamped to the premium window.
  */

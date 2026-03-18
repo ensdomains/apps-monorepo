@@ -52,8 +52,9 @@ export const getRegistrationPrice = ResultFn(async function* ({
     )
   }
 
-  // Pass the user's address so the contract includes the temporary premium in the price.
-  // address(0) is treated as "exclude premium" by the StandardRentPriceOracle.
+  // The StandardRentPriceOracle skips the temporary premium when owner is
+  // address(0) (the ensjs default). Passing the user's address ensures the
+  // returned price includes any active premium for recently expired names.
   const { base, premium } = yield* fromPromise(
     getPrice(client, {
       nameOrNames: label,
