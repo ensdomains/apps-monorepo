@@ -30,8 +30,6 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
-const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
-
 type SidebarContextProps = {
   state: 'expanded' | 'collapsed'
   open: boolean
@@ -94,7 +92,7 @@ function SidebarProvider({
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
   }, [isMobile, setOpen])
 
-  useHotkey(`Mod+${SIDEBAR_KEYBOARD_SHORTCUT}`, toggleSidebar)
+  useHotkey('Mod+B', toggleSidebar)
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.

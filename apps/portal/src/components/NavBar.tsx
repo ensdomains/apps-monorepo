@@ -37,7 +37,7 @@ export const NavBar = () => {
   const matches = useMatches()
   const [helpOpen, setHelpOpen] = useState(false)
 
-  useHotkey('Shift+/', () => setHelpOpen((prev) => !prev))
+  useHotkey({ key: '?' }, () => setHelpOpen((prev) => !prev))
 
   // Show sidebar when any match in the route chain has hideSidebar !== true (default)
   const hasSidebar = matches.some((match) => !match.staticData?.hideSidebar)
