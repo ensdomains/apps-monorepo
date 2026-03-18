@@ -51,6 +51,12 @@
   a[aria-disabled="true"] {
     @apply cursor-default;
   }
+
+  /* Lower Intercom widget z-index so it doesn't overlay drawers/dialogs */
+  .intercom-lightweight-app,
+  .intercom-namespace {
+    z-index: 40 !important;
+  }
 }
 
 @layer utilities {
