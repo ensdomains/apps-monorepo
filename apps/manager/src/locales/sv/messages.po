@@ -969,7 +969,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:85
+#: src/features/dashboard/pages/DashboardPage.tsx:87
 msgid "Hello"
 msgstr "Hej"
 
@@ -1676,6 +1676,10 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
+#: src/features/dashboard/pages/DashboardPage.tsx:108
+msgid "Set primary name"
+msgstr ""
+
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:177
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:252
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:268
@@ -2158,11 +2162,11 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:69
+#: src/features/dashboard/pages/DashboardPage.tsx:70
 msgid "Welcome to the public alpha of the ENS app"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:72
+#: src/features/dashboard/pages/DashboardPage.tsx:73
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
 
