@@ -125,7 +125,10 @@ export const useSearchResults = ({
     () =>
       mergeOwnedNames(
         v1NamesQuery.data ?? [],
-        (v2NamesQuery.data ?? []).map((d) => ({ name: d.name })),
+        (v2NamesQuery.data ?? []).flatMap((d) => [
+          { name: d.name },
+          ...(d.subdomains ?? []).map((s) => ({ name: s.name })),
+        ]),
       ),
     [v1NamesQuery.data, v2NamesQuery.data],
   )
@@ -167,7 +170,8 @@ export const useSearchResults = ({
       | undefined
     >()
     nameSuggestions.forEach((s, i) => {
-      m.set(s.id, ownerQueries[i]?.data)
+      const query = ownerQueries[i]
+      m.set(s.id, query?.isError ? null : query?.data)
     })
     return m
   }, [nameSuggestions, ownerQueries])

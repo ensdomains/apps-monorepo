@@ -44,7 +44,7 @@ describe('computeDisplayNameState', () => {
       })
 
       expect(result).toEqual({
-        displayName: null,
+        displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
         canSetAsPrimary: false,
@@ -60,7 +60,7 @@ describe('computeDisplayNameState', () => {
       })
 
       expect(result).toEqual({
-        displayName: null,
+        displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
         canSetAsPrimary: false,
@@ -110,7 +110,7 @@ describe('computeDisplayNameState', () => {
       })
 
       expect(result).toEqual({
-        displayName: null,
+        displayName: undefined,
         isInheritingDefault: false,
         isPrimaryName: false,
         canSetAsPrimary: false,

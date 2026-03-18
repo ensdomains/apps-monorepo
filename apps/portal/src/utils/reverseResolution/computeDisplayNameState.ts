@@ -19,7 +19,7 @@ export type DisplayNameStateParams = {
  */
 export type DisplayNameState = {
   /** The name to display (prioritizes name over defaultName for L2) */
-  displayName: string | null
+  displayName: string | undefined
   /** Whether the display name is inherited from L1 (L2 only) */
   isInheritingDefault: boolean
   /** Whether this name is set as the primary name */
@@ -71,7 +71,7 @@ export const computeDisplayNameState = ({
   const isL1 = isL1ReverseRegistrarChainId(reverseRegistrarChainId)
 
   // Display name: use name if set, otherwise use defaultName on L2 only
-  const displayName = name || (defaultName && !isL1 ? defaultName : null)
+  const displayName = name || (defaultName && !isL1 ? defaultName : undefined)
 
   // Inheriting default: L2 with no name but has defaultName
   const isInheritingDefault = !name && !!defaultName && !isL1

@@ -32,6 +32,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
 
+const MAX_FILE_SIZE_MB = 3
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
 interface ErrorDisplayProps {
   error: string | null
 }
@@ -134,6 +137,25 @@ export const ImageSelectionDialog = ({
   })
 
   // File handling functions
+  const processSelectedFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      send({ type: 'SET_ERROR', error: t`Please select a valid image file` })
+      return
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      send({
+        type: 'SET_ERROR',
+        error: t`Image must be under ${MAX_FILE_SIZE_MB}MB`,
+      })
+      return
+    }
+    send({ type: 'CLEAR_ERROR' })
+    const imageUrl = URL.createObjectURL(file)
+    setUploadFile(file)
+    setUploadPreviewUrl(imageUrl)
+    send({ type: 'OPEN_UPLOAD', imageUrl })
+  }
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -143,35 +165,20 @@ export const ImageSelectionDialog = ({
     e.preventDefault()
     e.stopPropagation()
 
-    const files = e.dataTransfer.files
-    if (files.length === 0) return
-
-    const file = files[0]
-    if (file?.type.startsWith('image/')) {
-      const imageUrl = URL.createObjectURL(file)
-      setUploadFile(file)
-      setUploadPreviewUrl(imageUrl)
-      send({ type: 'OPEN_UPLOAD', imageUrl })
-    } else {
-      send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
-    }
+    const file = e.dataTransfer.files[0]
+    if (file) processSelectedFile(file)
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
-      if (file.type.startsWith('image/')) {
-        const imageUrl = URL.createObjectURL(file)
-        setUploadFile(file)
-        setUploadPreviewUrl(imageUrl)
-        send({ type: 'OPEN_UPLOAD', imageUrl })
-      } else {
-        send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
-      }
-    }
+    if (file) processSelectedFile(file)
   }
 
-  const { mutate: uploadImage, isPending: isUploading } = useMutation(
+  const {
+    mutate: uploadImage,
+    isPending: isUploading,
+    error: uploadError,
+  } = useMutation(
     uploadImageMutationOptions({
       type,
       name,
@@ -183,7 +190,6 @@ export const ImageSelectionDialog = ({
       onImageChange,
       setOpen,
       setUploadFile,
-      setUploadPreviewUrl,
       send,
     }),
   )
@@ -415,6 +421,8 @@ export const ImageSelectionDialog = ({
   }
 
   // Upload preview step
+  const uploadErrorMessage =
+    uploadError instanceof Error ? uploadError.message : null
   const renderUploadPreviewStep = () => (
     <>
       <StepHeader
@@ -426,9 +434,7 @@ export const ImageSelectionDialog = ({
         onBack={() => send({ type: 'BACK' })}
         title={t`Crop Image`}
       />
-
-      <ErrorDisplay error={state.context.error} />
-
+      <ErrorDisplay error={uploadErrorMessage} />
       <div className="space-y-4">
         <div className="text-center">
           <img
@@ -568,6 +574,7 @@ export const ImageSelectionDialog = ({
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
       send({ type: 'RESET' })
+      setUploadPreviewUrl(null)
     }
     setOpen(isOpen)
   }
@@ -576,7 +583,7 @@ export const ImageSelectionDialog = ({
     <button
       className={clsx(
         'group relative block w-full cursor-pointer overflow-hidden',
-        type === 'avatar' && 'rounded-md',
+        type === 'avatar' && 'h-full rounded-md',
         type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
       )}
       title={`Change ${type}`}
@@ -597,7 +604,7 @@ export const ImageSelectionDialog = ({
         <ImageFallback.Image
           alt={`${name || 'Profile'} ${type}`}
           className="h-full w-full object-cover"
-          src={displayImage}
+          src={uploadPreviewUrl || displayImage}
         />
         <ImageFallback.Fallback>
           {defaultImage ? (

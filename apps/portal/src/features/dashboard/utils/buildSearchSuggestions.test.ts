@@ -216,10 +216,9 @@ describe('buildSearchSuggestions', () => {
         value: 'sub.vitalik',
       })
 
-      // ensureEthSuffix doesn't add .eth to names with dots,
-      // so only the name as-is is shown
-      expect(result.length).toBe(1)
+      expect(result.length).toBe(2)
       expect(result[0].label).toBe('sub.vitalik')
+      expect(result[1].label).toBe('sub.vitalik.eth')
     })
 
     it('should handle names with .eth subdomains', () => {
@@ -383,6 +382,87 @@ describe('buildSearchSuggestions', () => {
       expect(result[1].label.length).toBeLessThanOrEqual(30)
       expect(result[1].label).toContain('…')
       expect(result[1].label.endsWith('.eth')).toBe(true)
+    })
+  })
+
+  describe('Subname suggestions', () => {
+    it('should suggest test.florin.eth when typing "test.florin.eth" with validTlds', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'test.florin.eth',
+        validTlds: ['eth', 'xyz', 'com'],
+      })
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('test.florin.eth')
+      expect(result[0].id).toBe('name:test.florin.eth')
+    })
+
+    it('should suggest test.florin.eth when typing "test.florin" with validTlds', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'test.florin',
+        validTlds: ['eth', 'xyz', 'com'],
+      })
+      expect(result.length).toBe(2)
+      expect(result[0].label).toBe('test.florin')
+      expect(result[1].label).toBe('test.florin.eth')
+    })
+
+    it('should still suggest multi-TLD when typing "test." with validTlds', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'test.',
+        validTlds: ['eth', 'xyz', 'com'],
+      })
+      expect(result.length).toBe(3)
+      expect(result.map((s) => s.label)).toEqual([
+        'test.eth',
+        'test.xyz',
+        'test.com',
+      ])
+    })
+
+    it('should handle deep subnames like a.b.c.eth', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'a.b.c.eth',
+        validTlds: ['eth', 'xyz'],
+      })
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('a.b.c.eth')
+    })
+
+    it('should complete partial TLD on subnames (test.florin.e → test.florin.eth)', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'test.florin.e',
+        validTlds: ['eth', 'xyz', 'com'],
+      })
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('test.florin.eth')
+    })
+
+    it('should suggest all TLDs for subname with trailing dot (test.florin.)', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'test.florin.',
+        validTlds: ['eth', 'xyz'],
+      })
+      expect(result.length).toBe(2)
+      expect(result.map((s) => s.label)).toEqual([
+        'test.florin.eth',
+        'test.florin.xyz',
+      ])
+    })
+
+    it('should suggest subname with non-.eth TLD (test.florin.xyz)', () => {
+      const result = buildSearchSuggestions({
+        ...defaultOptions,
+        value: 'test.florin.xyz',
+        validTlds: ['eth', 'xyz'],
+      })
+      expect(result.length).toBe(1)
+      expect(result[0].label).toBe('test.florin.xyz')
     })
   })
 })
