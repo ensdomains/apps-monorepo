@@ -14,7 +14,10 @@ import {
   CHARACTER_PREMIUM_USD,
   getPremiumLabel,
 } from '@/features/register/utils/premium'
-import { getDiscountForYears } from '@/features/register/utils/registrationDiscount'
+import {
+  formatDiscountPercentForDisplay,
+  getDiscountForYears,
+} from '@/features/register/utils/registrationDiscount'
 import {
   calculateDurationFromDate,
   formatRegistrationDuration,
@@ -271,7 +274,7 @@ const PriceBreakdown = ({
 
         {discountPercent > 0 && (
           <SummaryRow
-            label={`${discountLabel} discount (${discountPercent}%):`}
+            label={`${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}):`}
             value={`-${formatUsd(Math.ceil(discountAmount))}`}
             valueClassName="flex items-center gap-1 m-0 text-success"
             labelClassName="text-success"

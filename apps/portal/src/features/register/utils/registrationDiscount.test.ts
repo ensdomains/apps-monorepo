@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
+  formatDiscountPercentForDisplay,
   getDiscountForYears,
   getEffectiveDiscountPercent,
 } from './registrationDiscount'
@@ -83,6 +84,27 @@ describe('registrationDiscount', () => {
       const decimalPlaces = (result.percent.toString().split('.')[1] ?? '')
         .length
       expect(decimalPlaces).toBeLessThanOrEqual(2)
+    })
+  })
+
+  describe('formatDiscountPercentForDisplay', () => {
+    it('returns "0%" for zero or negative', () => {
+      expect(formatDiscountPercentForDisplay(0)).toBe('0%')
+      expect(formatDiscountPercentForDisplay(-1)).toBe('0%')
+    })
+
+    it('formats whole numbers without decimals', () => {
+      expect(formatDiscountPercentForDisplay(10)).toBe('10%')
+      expect(formatDiscountPercentForDisplay(20)).toBe('20%')
+    })
+
+    it('formats decimals with one decimal place', () => {
+      expect(formatDiscountPercentForDisplay(17.5)).toBe('17.5%')
+    })
+
+    it('matches getDiscountForYears output for 5 years (17.5%)', () => {
+      const { percent } = getDiscountForYears(5)
+      expect(formatDiscountPercentForDisplay(percent)).toBe('17.5%')
     })
   })
 })

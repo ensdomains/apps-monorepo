@@ -1,5 +1,8 @@
 import { Badge } from '@/components/ui/badge'
-import { getDiscountForYears } from '@/features/register/utils/registrationDiscount'
+import {
+  formatDiscountPercentForDisplay,
+  getDiscountForYears,
+} from '@/features/register/utils/registrationDiscount'
 import { cn } from '@/lib/utils'
 
 const PRESET_YEARS = [1, 3, 5, 10] as const
@@ -9,7 +12,10 @@ const DISCOUNT_CONFIG = PRESET_YEARS.map((years) => {
   return {
     spanValue: years,
     spanLabel: `${years} year${years > 1 ? 's' : ''}`,
-    discount: percent > 0 ? `${Math.round(percent)}% off` : undefined,
+    discount:
+      percent > 0
+        ? `${formatDiscountPercentForDisplay(percent)} off`
+        : undefined,
   }
 })
 
