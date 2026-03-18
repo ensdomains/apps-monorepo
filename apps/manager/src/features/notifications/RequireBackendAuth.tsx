@@ -1,4 +1,5 @@
 import { useModal } from '@getpara/react-sdk-lite'
+import { Trans } from '@lingui/react/macro'
 import { useMutation } from '@tanstack/react-query'
 import { useAtom, useSelector } from '@xstate/store-react'
 import type { ReactNode } from 'react'
@@ -30,7 +31,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     return (
       <div className="mx-auto max-w-md px-4 py-6 text-center">
         <p className="text-muted-foreground text-sm">
-          Checking wallet connection...
+          <Trans>Checking wallet connection...</Trans>
         </p>
       </div>
     )
@@ -46,17 +47,25 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     return (
       <div className="mx-auto max-w-md px-4 py-6">
         <div className="space-y-4 text-center">
-          <h3 className="font-medium text-lg">Wrong wallet connected</h3>
+          <h3 className="font-medium text-lg">
+            <Trans>Wrong wallet connected</Trans>
+          </h3>
           <p className="text-muted-foreground text-sm">
-            Reconnect the wallet used for notifications, then sign in again.
+            <Trans>
+              Reconnect the wallet used for notifications, then sign in again.
+            </Trans>
           </p>
           {/* Show the two addresses */}
           <div className="flex flex-col gap-2">
-            <div>Auth address: {authAddress}</div>
-            <div>Account address: {ownerAddress}</div>
+            <div>
+              <Trans>Auth address:</Trans> {authAddress}
+            </div>
+            <div>
+              <Trans>Account address:</Trans> {ownerAddress}
+            </div>
           </div>
           <Button className="w-full" onClick={() => openModal()} size="lg">
-            Reconnect Wallet
+            <Trans>Reconnect Wallet</Trans>
           </Button>
         </div>
       </div>
@@ -71,12 +80,17 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     return (
       <div className="mx-auto max-w-md px-4 py-6">
         <div className="space-y-4 text-center">
-          <h3 className="font-medium text-lg">Connect your wallet</h3>
+          <h3 className="font-medium text-lg">
+            <Trans>Connect your wallet</Trans>
+          </h3>
           <p className="text-muted-foreground text-sm">
-            Connect a wallet to continue to notification settings and activity.
+            <Trans>
+              Connect a wallet to continue to notification settings and
+              activity.
+            </Trans>
           </p>
           <Button className="w-full" onClick={() => openModal()} size="lg">
-            Connect Wallet
+            <Trans>Connect Wallet</Trans>
           </Button>
         </div>
       </div>
@@ -99,10 +113,14 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     <div className="mx-auto max-w-md px-4 py-6">
       <div className="space-y-4 text-center">
         <div className="space-y-2">
-          <h3 className="font-medium text-lg">Verify wallet ownership</h3>
+          <h3 className="font-medium text-lg">
+            <Trans>Verify wallet ownership</Trans>
+          </h3>
           <p className="text-muted-foreground text-sm">
-            Sign in to access notifications about your ENS domains, including
-            transfers, expiry reminders, and important updates.
+            <Trans>
+              Sign in to access notifications about your ENS domains, including
+              transfers, expiry reminders, and important updates.
+            </Trans>
           </p>
         </div>
 
@@ -112,13 +130,17 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
           onClick={handleSignIn}
           size="lg"
         >
-          {signIn.isPending ? 'Signing in...' : 'Sign in with Wallet'}
+          {signIn.isPending ? (
+            <Trans>Signing in...</Trans>
+          ) : (
+            <Trans>Sign in with Wallet</Trans>
+          )}
         </Button>
 
         {signIn.isError && (
           <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3">
             <p className="text-destructive text-sm">
-              Failed to sign in. Please try again.
+              <Trans>Failed to sign in. Please try again.</Trans>
             </p>
           </div>
         )}

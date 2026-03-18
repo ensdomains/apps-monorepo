@@ -1,4 +1,5 @@
 import { useModal, useWallet } from '@getpara/react-sdk-lite'
+import { Trans } from '@lingui/react/macro'
 import { WalletIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { tw } from '@/utils/tailwind'
@@ -24,7 +25,7 @@ export const DisconnectedHeaderContent = () => {
         onClick={handleConnect}
         variant="ghost"
       >
-        {walletLoading ? 'Loading...' : 'Connect'}
+        {walletLoading ? <Trans>Loading...</Trans> : <Trans>Connect</Trans>}
         <WalletIcon className={tw('size-4', walletLoading && 'animate-spin')} />
       </Button>
     </div>

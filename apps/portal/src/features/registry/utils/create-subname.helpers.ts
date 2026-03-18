@@ -10,10 +10,9 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { createSubnameV2WriteParameters } from '@ensdomains/ensjs/wallet'
 import { errAsync, fromThrowable, okAsync, type ResultAsync } from 'neverthrow'
-import type { Account, Address, Chain, Transport, WalletClient } from 'viem'
+import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData, zeroAddress } from 'viem'
-
-type WalletClientWithAccount = WalletClient<Transport, Chain, Account>
+import type { WalletClientWithAccount } from '@/utils/types'
 
 const safeEncodeFunctionData = fromThrowable(encodeFunctionData, (e) =>
   e instanceof Error ? e : new Error(String(e)),

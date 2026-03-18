@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { Loader2, Search, X } from 'lucide-react'
 import { forwardRef, type InputHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
@@ -24,6 +25,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
     },
     ref,
   ) => {
+    const { t } = useLingui()
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter' && onSearch) {
         onSearch(event.currentTarget.value)
@@ -88,7 +90,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
 
         {hasValue && !isLoading && (
           <button
-            aria-label="Clear search"
+            aria-label={t`Clear search`}
             className="-translate-y-1/2 absolute top-1/2 right-[18px] flex size-8 items-center justify-center rounded-full text-ens-lapis-surface transition-colors hover:bg-ens-gray-two/50 hover:text-ens-blue-midnight"
             onClick={handleClear}
             type="button"

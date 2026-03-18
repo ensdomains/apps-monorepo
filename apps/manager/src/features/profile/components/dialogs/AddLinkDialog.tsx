@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import * as v from 'valibot'
@@ -67,10 +68,13 @@ interface AddLinkDialogProps {
 }
 
 export const AddLinkDialog = ({
-  buttonLabel = 'Add Link',
-  title = 'Add Link',
+  buttonLabel,
+  title,
   onAdd,
 }: AddLinkDialogProps) => {
+  const { t } = useLingui()
+  const resolvedButtonLabel = buttonLabel ?? t`Add Link`
+  const resolvedTitle = title ?? t`Add Link`
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
@@ -132,7 +136,7 @@ export const AddLinkDialog = ({
       variant="ghost"
     >
       <Plus className="size-4" />
-      {buttonLabel}
+      {resolvedButtonLabel}
     </Button>
   )
 
@@ -141,9 +145,9 @@ export const AddLinkDialog = ({
       <div>
         <FloatingInput
           aria-invalid={!!nameError}
-          label="Name"
+          label={t`Name`}
           onChange={(e) => handleNameChange(e.target.value)}
-          placeholder="Personal Site"
+          placeholder={t`Personal Site`}
           value={name}
         />
         {nameError && (
@@ -153,7 +157,7 @@ export const AddLinkDialog = ({
       <div>
         <FloatingInput
           aria-invalid={!!urlError}
-          label="Link"
+          label={t`Link`}
           onChange={(e) => handleUrlChange(e.target.value)}
           placeholder="https://example.com"
           value={url}
@@ -167,7 +171,7 @@ export const AddLinkDialog = ({
 
   const addButton = (
     <Button className="w-full" disabled={!canSubmit} onClick={handleAdd}>
-      Add
+      <Trans>Add</Trans>
     </Button>
   )
 
@@ -177,7 +181,7 @@ export const AddLinkDialog = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
+            <DialogTitle>{resolvedTitle}</DialogTitle>
           </DialogHeader>
           {content}
           <DialogFooter>{addButton}</DialogFooter>
@@ -191,7 +195,7 @@ export const AddLinkDialog = ({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>{title}</DrawerTitle>
+          <DrawerTitle>{resolvedTitle}</DrawerTitle>
         </DrawerHeader>
         <div className="px-4">{content}</div>
         <DrawerFooter>{addButton}</DrawerFooter>

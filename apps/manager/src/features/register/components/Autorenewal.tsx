@@ -1,5 +1,6 @@
 'use client'
 
+import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowRightIcon, CheckCircleIcon } from 'lucide-react'
 import { useState } from 'react'
@@ -59,7 +60,9 @@ export const Autorenewal = ({
               {domainName}
             </div>
           </div>
-          <p className="text-gray-600 text-sm">expires {expiryDateString}</p>
+          <p className="text-gray-600 text-sm">
+            <Trans>expires {expiryDateString}</Trans>
+          </p>
         </div>
 
         {skipped ? (
@@ -68,26 +71,28 @@ export const Autorenewal = ({
               className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white"
               onClick={() => handleNavigateAway('/')}
             >
-              Create profile
+              <Trans>Create profile</Trans>
               <ArrowRightIcon className="h-4 w-4" />
             </Button>
             <Button
               className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-background px-4 py-4 text-foreground hover:text-white"
               onClick={() => handleNavigateAway('/')}
             >
-              Back to dashboard
+              <Trans>Back to dashboard</Trans>
               <ArrowRightIcon className="h-4 w-4" />
             </Button>
           </div>
         ) : (
           <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 text-left">
             <h3 className="font-medium text-gray-900">
-              Protect your name with autorenewal
+              <Trans>Protect your name with autorenewal</Trans>
             </h3>
             <p className="text-gray-600 text-sm">
-              Your {formattedDurationYears}-year registration expires on{' '}
-              {expiryDateString}. Add a credit card to renew it automatically.
-              You can pause or cancel anytime.
+              <Trans>
+                Your {formattedDurationYears}-year registration expires on{' '}
+                {expiryDateString}. Add a credit card to renew it automatically.
+                You can pause or cancel anytime.
+              </Trans>
             </p>
           </div>
         )}
@@ -95,14 +100,14 @@ export const Autorenewal = ({
         {!skipped && (
           <div className="space-y-3">
             <Button className="w-full bg-gray-900 text-white hover:bg-gray-800">
-              Add credit card
+              <Trans>Add credit card</Trans>
             </Button>
             <Button
               className="w-full text-gray-600"
               onClick={handleSkipAutorenewal}
               variant="ghost"
             >
-              Skip →
+              <Trans>Skip</Trans> →
             </Button>
           </div>
         )}
@@ -112,7 +117,7 @@ export const Autorenewal = ({
             <div className="flex items-start justify-start gap-2">
               <CheckCircleIcon className="h-4 w-4 text-gray-600" />
               <span className="font-medium text-gray-900 text-sm">
-                Registration successful
+                <Trans>Registration successful</Trans>
               </span>
             </div>
             <div className="h-1 w-full rounded-full bg-gray-200">

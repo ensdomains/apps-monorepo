@@ -11,6 +11,7 @@ interface TransactionErrorAlertProps {
   readonly details?: string
   readonly txHash?: Hash
   readonly txHashLabel?: string
+  readonly showIcon?: boolean
   readonly chainId?: number
 }
 
@@ -20,12 +21,13 @@ export const TransactionErrorAlert = ({
   details,
   txHash,
   txHashLabel = 'Tx hash:',
+  showIcon = true,
   chainId,
 }: TransactionErrorAlertProps): ReactElement => {
   const txUrl = useBlockExplorerTxUrl(txHash, chainId)
   return (
     <Alert variant="destructive" className="max-w-full">
-      <AlertCircle />
+      {showIcon && <AlertCircle />}
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
         <div className="flex flex-col gap-2">
