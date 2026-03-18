@@ -36,7 +36,7 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
       onAction()
     },
     onError: (error) => {
-      toast.error('Failed to switch language', {
+      toast.error(t`Failed to switch language`, {
         description: error.message,
         id: 'switch-language-error',
       })

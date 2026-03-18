@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { CircleArrowLeft, CircleArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { FEATURE_CARDS } from '@/features/landing/FeaturesCarousel'
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 const CARDS_PER_PAGE = 2
 
 export const EducationCarousel = () => {
+  const { t } = useLingui()
   const [currentPage, setCurrentPage] = useState(0)
   const totalPages = Math.ceil(FEATURE_CARDS.length / CARDS_PER_PAGE)
 
@@ -24,7 +25,7 @@ export const EducationCarousel = () => {
         </h2>
         <div className="flex items-center gap-2">
           <button
-            aria-label="Previous card"
+            aria-label={t`Previous card`}
             className={cn(
               'transition-colors',
               currentPage === 0 ? 'text-border' : 'text-ens-blue',
@@ -41,7 +42,7 @@ export const EducationCarousel = () => {
             </Trans>
           </span>
           <button
-            aria-label="Next card"
+            aria-label={t`Next card`}
             className={cn(
               'transition-colors',
               currentPage === totalPages - 1 ? 'text-border' : 'text-ens-blue',

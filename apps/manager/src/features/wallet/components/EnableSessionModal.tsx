@@ -1,5 +1,6 @@
 'use client'
 
+import { Trans, useLingui } from '@lingui/react/macro'
 import { BrainCircuit, CheckCircle2, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ export const EnableSessionModal = ({
   walletAddress: _walletAddress,
   smartAccountAddress,
 }: EnableSessionModalProps) => {
+  const { t } = useLingui()
   const [status, setStatus] = useState<
     'idle' | 'signing' | 'success' | 'error'
   >('idle')
@@ -56,7 +58,7 @@ export const EnableSessionModal = ({
       console.error('Failed to enable session:', error)
       setStatus('error')
       setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to enable session',
+        error instanceof Error ? error.message : t`Failed to enable session`,
       )
     }
   }
@@ -86,11 +88,11 @@ export const EnableSessionModal = ({
           <div className="flex items-center justify-between">
             <DialogTitle asChild>
               <h2 className="font-medium text-ens-blue-midnight text-xl tracking-tight">
-                Enable Smart Sessions
+                <Trans>Enable Smart Sessions</Trans>
               </h2>
             </DialogTitle>
             <Button
-              aria-label="Close dialog"
+              aria-label={t`Close dialog`}
               className="h-6 w-6 p-0"
               disabled={status === 'signing'}
               onClick={handleClose}
@@ -101,7 +103,9 @@ export const EnableSessionModal = ({
             </Button>
           </div>
           <DialogDescription className="sr-only">
-            Sign once to enable gasless transactions for your ENS operations.
+            <Trans>
+              Sign once to enable gasless transactions for your ENS operations.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -120,7 +124,9 @@ export const EnableSessionModal = ({
           {/* Account Info */}
           {smartAccountAddress && (
             <div className="flex flex-col items-center gap-1">
-              <p className="text-ens-gray text-xs">Smart Account</p>
+              <p className="text-ens-gray text-xs">
+                <Trans>Smart Account</Trans>
+              </p>
               <p className="font-mono text-ens-blue-midnight text-sm">
                 {formatAddress(smartAccountAddress)}
               </p>
@@ -131,23 +137,27 @@ export const EnableSessionModal = ({
           <div className="text-center">
             {status === 'success' ? (
               <p className="text-green-600">
-                Sessions enabled! You can now transact without signing each
-                time.
+                <Trans>
+                  Sessions enabled! You can now transact without signing each
+                  time.
+                </Trans>
               </p>
             ) : status === 'error' ? (
               <div className="flex flex-col gap-2">
                 <p className="text-red-600">
-                  {errorMessage || 'Something went wrong. Please try again.'}
+                  {errorMessage || t`Something went wrong. Please try again.`}
                 </p>
               </div>
             ) : (
               <>
                 <p className="text-ens-blue-midnight">
-                  Sign once to enable seamless transactions.
+                  <Trans>Sign once to enable seamless transactions.</Trans>
                 </p>
                 <p className="mt-2 text-ens-gray text-sm">
-                  After signing, your ENS operations (registrations, renewals,
-                  etc.) won&apos;t require additional wallet signatures.
+                  <Trans>
+                    After signing, your ENS operations (registrations, renewals,
+                    etc.) won&apos;t require additional wallet signatures.
+                  </Trans>
                 </p>
               </>
             )}
@@ -167,11 +177,13 @@ export const EnableSessionModal = ({
                 disabled={status === 'signing'}
                 onClick={handleEnable}
               >
-                {status === 'signing'
-                  ? 'Waiting for signature...'
-                  : status === 'error'
-                    ? 'Try Again'
-                    : 'Enable Sessions'}
+                {status === 'signing' ? (
+                  <Trans>Waiting for signature...</Trans>
+                ) : status === 'error' ? (
+                  <Trans>Try Again</Trans>
+                ) : (
+                  <Trans>Enable Sessions</Trans>
+                )}
               </Button>
 
               <Button
@@ -180,7 +192,7 @@ export const EnableSessionModal = ({
                 onClick={handleSkip}
                 variant="ghost"
               >
-                Skip for now
+                <Trans>Skip for now</Trans>
               </Button>
             </>
           )}
@@ -189,7 +201,7 @@ export const EnableSessionModal = ({
         {/* Footer note */}
         {status === 'idle' && (
           <p className="text-center text-ens-gray text-xs">
-            This signature is free and doesn&apos;t cost any gas.
+            <Trans>This signature is free and doesn&apos;t cost any gas.</Trans>
           </p>
         )}
       </DialogContent>

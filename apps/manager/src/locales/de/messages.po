@@ -1,0 +1,335 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-03-03 15:00+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: de\n"
+"Project-Id-Version: ens-app\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: 2026-03-16 05:25\n"
+"Last-Translator: \n"
+"Language-Team: German\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Crowdin-Project: ens-app\n"
+"X-Crowdin-Project-ID: 877908\n"
+"X-Crowdin-Language: de\n"
+"X-Crowdin-File: /src/locales/en/messages.po\n"
+"X-Crowdin-File-ID: 18\n"
+
+#. placeholder {0}: suggestion.label
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:225
+msgid "{0} avatar"
+msgstr ""
+
+#. placeholder {0}: suggestion.label
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:231
+msgid "{0} avatar placeholder"
+msgstr ""
+
+#. placeholder {0}: currentPage + 1
+#: src/features/dashboard/components/EducationCarousel.tsx:39
+msgid "{0} of {totalPages}"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:302
+#: src/features/dashboard/components/NameRow.tsx:65
+msgid "{label} avatar"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:308
+#: src/features/dashboard/components/NameRow.tsx:71
+msgid "{label} avatar placeholder"
+msgstr ""
+
+#: src/routes/index.tsx:34
+msgid "A simple, portable identity that you control"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:107
+msgid "Address profile"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:35
+msgid "Can I change my primary name later?"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:14
+msgid "Can I send crypto to a .eth name (instead of an address)?"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
+msgid "Cancel"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:241
+msgid "Choose Primary Name"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebar.tsx:47
+msgid "Dashboard"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:180
+msgid "Date added (Newest)"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:177
+msgid "Date added (Oldest)"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
+msgid "Default"
+msgstr ""
+
+#: src/features/dashboard/components/EducationCarousel.tsx:23
+msgid "Did You Know?"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:165
+msgid "Error loading names"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:135
+msgid "Expires"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:318
+msgid "Expires in {daysUntilExpiry} days"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:227
+msgid "Expiry"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:194
+msgid "Expiry date (Earliest)"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:197
+msgid "Expiry date (Latest)"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:157
+msgid "Failed to set ETH address record"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:334
+msgid "Failed to set primary name. Please try again."
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:107
+msgid "Favorites"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:60
+msgid "Frequently Asked Questions"
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:187
+msgid "From:"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:69
+msgid "Get support"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:138
+msgid "Go to ENS name profile"
+msgstr ""
+
+#: src/features/dashboard/pages/DashboardPage.tsx:85
+msgid "Hello"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:45
+msgid "How can I secure my ENS name?"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:25
+msgid "How do I show my .eth name instead of my address?"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:47
+msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
+msgstr ""
+
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:77
+#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
+msgid "Language"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardLoading.tsx:8
+msgid "Loading dashboard..."
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:52
+#: src/features/dashboard/components/PrimaryNameCard.tsx:55
+msgid "Loading..."
+msgstr ""
+
+#: src/features/dashboard/components/NameRow.tsx:57
+msgid "Login to favorite"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebar.tsx:36
+msgid "MAIN MENU"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:102
+msgid "My Names"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:197
+#: src/features/dashboard/components/MyNamesList.tsx:214
+msgid "Name"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:171
+#: src/features/dashboard/components/MyNamesList.tsx:188
+msgid "Name (A-Z)"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:174
+#: src/features/dashboard/components/MyNamesList.tsx:191
+msgid "Name (Z-A)"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:345
+msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:272
+msgid "No names found"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:228
+#: src/features/dashboard/components/FavoritesList.tsx:239
+#: src/features/dashboard/components/MyNamesList.tsx:260
+msgid "No names to display"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryBadge.tsx:20
+msgid "Primary Name"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:172
+msgid "Primary name set successfully"
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebar.tsx:62
+#: src/features/dashboard/components/DashboardSidebar.tsx:74
+msgid "Profile"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:121
+msgid "Registered"
+msgstr ""
+
+#. placeholder {0}: formatDashboardDate( toDateFromSeconds(domain.createdAt), )
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:127
+msgid "Registered {0}"
+msgstr ""
+
+#: src/features/profile/components/ProfileEdit.tsx:173
+msgid "Reset Changes"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:145
+msgid "Search my name..."
+msgstr ""
+
+#: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
+msgid "Search name, address..."
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:145
+msgid "Search name..."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
+msgid "Select {label} as primary name"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:379
+msgid "Set as Primary"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:27
+msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:244
+msgid "Set which ENS name displays as your identity across apps and wallets."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:376
+msgid "Setting ETH address..."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:378
+msgid "Setting..."
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:301
+msgid "Showing {startIndex}-{endIndex} of {totalCount}"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:356
+msgid "Showing your names"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx:110
+msgid "Sign in to view favorites"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:148
+#: src/features/dashboard/components/MyNamesList.tsx:176
+msgid "Sort by"
+msgstr ""
+
+#: src/features/dashboard/components/FavoritesList.tsx:151
+msgid "Sort favorites by"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:179
+msgid "Sort names by"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:344
+msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
+msgstr ""
+
+#: src/features/profile/components/dialogs/DiffDialog.tsx:193
+msgid "To:"
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:153
+msgid "View profile"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:198
+msgid "Wallet signer not available"
+msgstr ""
+
+#: src/features/dashboard/pages/DashboardPage.tsx:69
+msgid "Welcome to the public alpha of the ENS app"
+msgstr ""
+
+#: src/features/dashboard/pages/DashboardPage.tsx:72
+msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:17
+msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:37
+msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
+msgstr ""
+
+#: src/features/dashboard/components/PrimaryNameCard.tsx:50
+msgid "Your ENS name"
+msgstr ""
+

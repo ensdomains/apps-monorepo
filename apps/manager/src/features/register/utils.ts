@@ -35,7 +35,8 @@ export const determinePremium = (name: string): boolean => {
   const label = normalized.endsWith('.eth')
     ? normalized.replace('.eth', '')
     : normalized
-  return label.length > 0 && label.length <= 4
+  const labelLength = [...label].length
+  return labelLength > 0 && labelLength <= 4
 }
 
 export type PremiumLabel = {
@@ -55,7 +56,7 @@ export const getPremiumLabel = (
   const name = domainName.includes('.')
     ? domainName.slice(0, domainName.lastIndexOf('.'))
     : domainName
-  const length = name.length
+  const length = [...name].length
   if (!length) return undefined
 
   const variant: 'premium-3' | 'premium-4' =
@@ -108,7 +109,8 @@ export const validateENSName = (name: string): ValidationError => {
     }
   }
 
-  if (label.length > 0 && label.length < 3) {
+  const labelLength = [...label].length
+  if (labelLength > 0 && labelLength < 3) {
     return {
       type: 'TOO_SHORT',
       message: 'Names must be 3 characters or more to register.',
