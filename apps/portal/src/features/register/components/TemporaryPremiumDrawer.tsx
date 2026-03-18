@@ -1,5 +1,5 @@
 import { CalendarIcon } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,6 +15,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import {
+  dateToTimeValue,
+  mergeTimeIntoDate,
+} from '@/features/register/utils/dateTimeInput'
+import { formatPriceForInput } from '@/features/register/utils/formatPriceForInput'
+import {
   getDateForPremiumPrice,
   getPremiumPriceAtDate,
   PREMIUM_PERIOD_MS,
@@ -29,27 +34,6 @@ type TemporaryPremiumDrawerProps = {
   readonly premiumStartDate: Date | null
 }
 
-/** Format a Date to HH:mm for the time input. */
-function dateToTimeValue(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-/** Merge a time string (HH:mm) into a date's date part. */
-function mergeTimeIntoDate(baseDate: Date, timeStr: string): Date {
-  const [h, m] = timeStr.split(':').map(Number)
-  const result = new Date(baseDate)
-  result.setHours(Number.isNaN(h) ? 0 : h, Number.isNaN(m) ? 0 : m, 0, 0)
-  return result
-}
-
-/** Format a number as a display price string (e.g. "7,680,717.20"). */
-function formatPriceForInput(value: number): string {
-  return value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
-
 /**
  * Drawer explaining the temporary premium for recently expired names,
  * with an interactive calculator to convert between price and date.
@@ -60,124 +44,96 @@ export const TemporaryPremiumDrawer = ({
   currentPremium,
   premiumStartDate,
 }: TemporaryPremiumDrawerProps) => {
-  const now = useMemo(() => new Date(), [])
+  const premiumEndDate = premiumStartDate
+    ? new Date(premiumStartDate.getTime() + PREMIUM_PERIOD_MS)
+    : null
 
-  const premiumEndDate = useMemo(
-    () =>
-      premiumStartDate
-        ? new Date(premiumStartDate.getTime() + PREMIUM_PERIOD_MS)
-        : null,
-    [premiumStartDate],
-  )
-
-  const currentCalculatedPrice = useMemo(
-    () => (premiumStartDate ? getPremiumPriceAtDate(premiumStartDate, now) : 0),
-    [premiumStartDate, now],
-  )
+  const currentCalculatedPrice = premiumStartDate
+    ? getPremiumPriceAtDate(premiumStartDate, new Date())
+    : 0
 
   const [selectedPrice, setSelectedPrice] = useState(0)
-  const [selectedDate, setSelectedDate] = useState(now)
+  const [selectedDate, setSelectedDate] = useState(() => new Date())
   const [priceInput, setPriceInput] = useState('')
   const [datePickerOpen, setDatePickerOpen] = useState(false)
 
-  // Reset calculator state when the drawer opens
   useEffect(() => {
     if (open && premiumStartDate) {
-      setSelectedPrice(currentCalculatedPrice)
-      setSelectedDate(now)
-      setPriceInput(formatPriceForInput(currentCalculatedPrice))
-    }
-  }, [open, premiumStartDate, currentCalculatedPrice, now])
-
-  const handlePriceChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = e.target.value.replace(/[^0-9.]/g, '')
-      setPriceInput(raw)
-
-      if (!premiumStartDate) return
-
-      let parsed = Number.parseFloat(raw)
-      if (Number.isNaN(parsed) || parsed < 0) parsed = 0
-      if (parsed > currentCalculatedPrice) parsed = currentCalculatedPrice
-
-      const date = getDateForPremiumPrice(premiumStartDate, parsed)
-      setSelectedPrice(parsed)
-      setSelectedDate(date)
-    },
-    [premiumStartDate, currentCalculatedPrice],
-  )
-
-  const handlePriceFocus = useCallback(
-    (e: React.FocusEvent<HTMLInputElement>) => {
-      e.target.placeholder = selectedPrice.toFixed(2)
-      setPriceInput('')
-    },
-    [selectedPrice],
-  )
-
-  const handlePriceBlur = useCallback(() => {
-    setPriceInput(formatPriceForInput(selectedPrice))
-  }, [selectedPrice])
-
-  const handlePriceKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') e.currentTarget.blur()
-    },
-    [],
-  )
-
-  const applyDateSelection = useCallback(
-    (newDate: Date) => {
-      if (!premiumStartDate || !premiumEndDate) return
-
-      const clamped = new Date(
-        Math.max(
-          now.getTime(),
-          Math.min(newDate.getTime(), premiumEndDate.getTime()),
-        ),
-      )
-
-      const price = getPremiumPriceAtDate(premiumStartDate, clamped)
+      const price = getPremiumPriceAtDate(premiumStartDate, new Date())
       setSelectedPrice(price)
-      setSelectedDate(clamped)
+      setSelectedDate(new Date())
       setPriceInput(formatPriceForInput(price))
-    },
-    [premiumStartDate, premiumEndDate, now],
-  )
+    }
+  }, [open, premiumStartDate])
 
-  const handleCalendarSelect = useCallback(
-    (d: Date | undefined) => {
-      if (!d) return
-      const merged = mergeTimeIntoDate(d, dateToTimeValue(selectedDate))
-      applyDateSelection(merged)
-    },
-    [selectedDate, applyDateSelection],
-  )
+  function applyDateSelection(newDate: Date) {
+    if (!premiumStartDate || !premiumEndDate) return
 
-  const handleTimeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const merged = mergeTimeIntoDate(selectedDate, e.target.value)
-      applyDateSelection(merged)
-    },
-    [selectedDate, applyDateSelection],
-  )
+    const clamped = new Date(
+      Math.max(
+        Date.now(),
+        Math.min(newDate.getTime(), premiumEndDate.getTime()),
+      ),
+    )
 
-  const isDateDisabled = useCallback(
-    (d: Date) => {
-      if (!premiumEndDate) return true
-      const dayStart = new Date(d)
-      dayStart.setHours(0, 0, 0, 0)
-      const nowStart = new Date(now)
-      nowStart.setHours(0, 0, 0, 0)
-      const endDay = new Date(premiumEndDate)
-      endDay.setHours(23, 59, 59, 999)
-      return (
-        dayStart.getTime() < nowStart.getTime() ||
-        dayStart.getTime() > endDay.getTime()
-      )
-    },
-    [now, premiumEndDate],
-  )
+    const price = getPremiumPriceAtDate(premiumStartDate, clamped)
+    setSelectedPrice(price)
+    setSelectedDate(clamped)
+    setPriceInput(formatPriceForInput(price))
+  }
+
+  function handlePriceChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/[^0-9.]/g, '')
+    setPriceInput(raw)
+
+    if (!premiumStartDate) return
+
+    let parsed = Number.parseFloat(raw)
+    if (Number.isNaN(parsed) || parsed < 0) parsed = 0
+    if (parsed > currentCalculatedPrice) parsed = currentCalculatedPrice
+
+    const date = getDateForPremiumPrice(premiumStartDate, parsed)
+    setSelectedPrice(parsed)
+    setSelectedDate(date)
+  }
+
+  function handlePriceFocus(e: React.FocusEvent<HTMLInputElement>) {
+    e.target.placeholder = selectedPrice.toFixed(2)
+    setPriceInput('')
+  }
+
+  function handlePriceBlur() {
+    setPriceInput(formatPriceForInput(selectedPrice))
+  }
+
+  function handlePriceKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') e.currentTarget.blur()
+  }
+
+  function handleCalendarSelect(d: Date | undefined) {
+    if (!d) return
+    const merged = mergeTimeIntoDate(d, dateToTimeValue(selectedDate))
+    applyDateSelection(merged)
+  }
+
+  function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const merged = mergeTimeIntoDate(selectedDate, e.target.value)
+    applyDateSelection(merged)
+  }
+
+  function isDateDisabled(d: Date) {
+    if (!premiumEndDate) return true
+    const dayStart = new Date(d)
+    dayStart.setHours(0, 0, 0, 0)
+    const nowStart = new Date()
+    nowStart.setHours(0, 0, 0, 0)
+    const endDay = new Date(premiumEndDate)
+    endDay.setHours(23, 59, 59, 999)
+    return (
+      dayStart.getTime() < nowStart.getTime() ||
+      dayStart.getTime() > endDay.getTime()
+    )
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -288,7 +244,7 @@ export const TemporaryPremiumDrawer = ({
                         mode="single"
                         onSelect={handleCalendarSelect}
                         selected={selectedDate}
-                        startMonth={now}
+                        startMonth={new Date()}
                       />
                       <div className="border-t border-border p-3">
                         <Label
