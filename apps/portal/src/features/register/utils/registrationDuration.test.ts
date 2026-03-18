@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import {
   calculateDurationFromDate,
-  formatDurationLabel,
   formatRegistrationDuration,
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
@@ -287,28 +286,6 @@ describe('registrationDuration', () => {
     it('should return year 3025 for Jan 15 2025 start with 1000 years', () => {
       const result = getMaxExpiryDateForPicker(startOfFixedToday)
       expect(result.getFullYear()).toBe(2025 + MAX_REGISTRATION_YEARS)
-    })
-  })
-
-  describe('formatDurationLabel', () => {
-    it('should return "1 year" for 1 year duration', () => {
-      const duration = getDurationInSecondsFromYears(1, startOfFixedToday)
-      expect(formatDurationLabel(duration, startOfFixedToday)).toBe('1 year')
-    })
-
-    it('should return "3 years" for 3 year duration', () => {
-      const duration = getDurationInSecondsFromYears(3, startOfFixedToday)
-      expect(formatDurationLabel(duration, startOfFixedToday)).toBe('3 years')
-    })
-
-    it('should return "1000 years" for max duration', () => {
-      const duration = getDurationInSecondsFromYears(
-        MAX_REGISTRATION_YEARS,
-        startOfFixedToday,
-      )
-      expect(formatDurationLabel(duration, startOfFixedToday)).toBe(
-        '1000 years',
-      )
     })
   })
 

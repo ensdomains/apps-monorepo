@@ -161,22 +161,6 @@ export const getMaxExpiryDateForPicker = (
 ): Date => addYears(startOfToday, MAX_REGISTRATION_YEARS)
 
 /**
- * Formats a duration (seconds) as a human-readable label.
- * e.g. formatDurationLabel(31557600) → "1 year"
- * Pass `startOfToday` for deterministic testing.
- */
-export const formatDurationLabel = (
-  durationInSeconds: number,
-  startOfToday: Date = getStartOfToday(),
-): string => {
-  const expiry = getRegistrationExpiryDateFromSeconds(
-    startOfToday,
-    durationInSeconds,
-  )
-  return formatRegistrationDuration(startOfToday, expiry)
-}
-
-/**
  * Converts duration (seconds) to expiry Date for the date picker.
  * Returns end of the expiry day for consistent picker behavior.
  * Pass `startOfToday` for deterministic testing.
