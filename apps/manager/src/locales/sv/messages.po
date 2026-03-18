@@ -885,7 +885,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:107
+#: src/features/dashboard/components/NamesTable.tsx:108
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1113,7 +1113,7 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:102
+#: src/features/dashboard/components/NamesTable.tsx:103
 msgid "My Names"
 msgstr "Mina namn"
 
@@ -1603,7 +1603,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:145
+#: src/features/dashboard/components/NamesTable.tsx:146
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
@@ -1616,7 +1616,7 @@ msgstr ""
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/dashboard/components/NamesTable.tsx:145
+#: src/features/dashboard/components/NamesTable.tsx:146
 msgid "Search name..."
 msgstr "Sök namn..."
 
@@ -1731,7 +1731,7 @@ msgstr "Visar dina namn"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:110
+#: src/features/dashboard/components/NamesTable.tsx:111
 msgid "Sign in to view favorites"
 msgstr "Logga in för att se favoriter"
 

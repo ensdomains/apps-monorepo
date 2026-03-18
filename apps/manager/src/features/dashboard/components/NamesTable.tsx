@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
+import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { FavoritesList } from './FavoritesList'
@@ -41,13 +42,19 @@ const DashboardTabButton = ({
 }: TabButtonProps) => {
   const button = (
     <button
-      className={`flex shrink-0 items-center gap-[12px] ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      className={cn(
+        'flex shrink-0 items-center gap-[12px]',
+        disabled && 'cursor-not-allowed opacity-50',
+      )}
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
       type="button"
     >
       <span
-        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}
+        className={cn(
+          'font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]',
+          isActive ? 'text-foreground' : 'text-quartz-400',
+        )}
       >
         {label}
       </span>

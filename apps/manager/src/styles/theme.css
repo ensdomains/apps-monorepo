@@ -57,6 +57,9 @@
   --color-ens-gray-three: #c4c7c8;
   --color-ens-white: #f6f6f6;
 
+  /* Quartz neutrals */
+  --color-quartz-400: #737373;
+
   /* 4-character premium name pill (Figma: 4-character-premium-name) */
   --4-character-premium-name: linear-gradient(
     103deg,

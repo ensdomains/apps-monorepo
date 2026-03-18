@@ -880,7 +880,7 @@ msgstr "Failed to update resolver"
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
 
-#: src/features/dashboard/components/NamesTable.tsx:107
+#: src/features/dashboard/components/NamesTable.tsx:108
 msgid "Favorites"
 msgstr "Favorites"
 
@@ -1108,7 +1108,7 @@ msgstr "Modified"
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr "Multi-year Discount ({discountPercentage}%)"
 
-#: src/features/dashboard/components/NamesTable.tsx:102
+#: src/features/dashboard/components/NamesTable.tsx:103
 msgid "My Names"
 msgstr "My Names"
 
@@ -1598,7 +1598,7 @@ msgstr "Search coins"
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
-#: src/features/dashboard/components/NamesTable.tsx:145
+#: src/features/dashboard/components/NamesTable.tsx:146
 msgid "Search my name..."
 msgstr "Search my name..."
 
@@ -1611,7 +1611,7 @@ msgstr "Search name or address"
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
-#: src/features/dashboard/components/NamesTable.tsx:145
+#: src/features/dashboard/components/NamesTable.tsx:146
 msgid "Search name..."
 msgstr "Search name..."
 
@@ -1726,7 +1726,7 @@ msgstr "Showing your names"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
-#: src/features/dashboard/components/NamesTable.tsx:110
+#: src/features/dashboard/components/NamesTable.tsx:111
 msgid "Sign in to view favorites"
 msgstr "Sign in to view favorites"
 
