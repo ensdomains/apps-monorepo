@@ -77,6 +77,7 @@ export const getEnsOwner = ResultFn(async function* ({
       (e) =>
         new GetEnsOwnerError({ cause: e as GetNameRegistryAddressErrorType }),
     )
+    if (registryAddress === zeroAddress) return ok(null)
   }
 
   const l2v2Owner = yield* fromPromise(

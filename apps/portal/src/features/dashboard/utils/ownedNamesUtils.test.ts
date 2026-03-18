@@ -168,4 +168,43 @@ describe('filterAndSortOwnedNames', () => {
     expect(result.length).toBeGreaterThan(0)
     expect(result.map((d) => d.name)).toContain('fox.eth')
   })
+
+  it('preserves long subname labels when matching (test.florin matches test.florin.eth)', () => {
+    const owned = [
+      { name: 'test.florin.eth' },
+      { name: 'testing.eth' },
+      { name: 'florin.eth' },
+    ]
+    const result = filterAndSortOwnedNames(owned, 'test.florin')
+    const resultNames = result.map((d) => d.name)
+    expect(resultNames).toContain('test.florin.eth')
+    expect(resultNames).not.toContain('testing.eth')
+    expect(resultNames).not.toContain('florin.eth')
+  })
+
+  it('still strips short TLD suffixes (test.eth matches names containing "test")', () => {
+    const owned = [
+      { name: 'test.eth' },
+      { name: 'testing.eth' },
+      { name: 'other.eth' },
+    ]
+    const result = filterAndSortOwnedNames(owned, 'test.eth')
+    const resultNames = result.map((d) => d.name)
+    expect(resultNames).toContain('test.eth')
+    expect(resultNames).toContain('testing.eth')
+    expect(resultNames).not.toContain('other.eth')
+  })
+
+  it('handles trailing dot by stripping it for matching', () => {
+    const owned = [
+      { name: 'test.florin.eth' },
+      { name: 'testing.eth' },
+      { name: 'other.eth' },
+    ]
+    const result = filterAndSortOwnedNames(owned, 'test.')
+    const resultNames = result.map((d) => d.name)
+    expect(resultNames).toContain('test.florin.eth')
+    expect(resultNames).toContain('testing.eth')
+    expect(resultNames).not.toContain('other.eth')
+  })
 })
