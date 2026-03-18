@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
+import { getNameExpiryQueryOptions } from '@/features/register/hooks/useNameExpiry'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
@@ -15,6 +16,10 @@ import {
   CHARACTER_PREMIUM_USD,
   getPremiumLabel,
 } from '@/features/register/utils/premium'
+import {
+  getGracePeriodEndDate,
+  getPremiumEndDate,
+} from '@/features/register/utils/premiumDecay'
 import {
   formatDiscountPercentForDisplay,
   getDiscountForYears,
@@ -66,7 +71,19 @@ export const RegisterNameCheckoutSummary = ({
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
 
+  const { data: nameExpiry } = useQuery({
+    ...getNameExpiryQueryOptions({ name }),
+    enabled: Boolean(name) && isNameValid,
+  })
+
   const hasPrice = price && isPriceResult(price)
+
+  const premiumEndDate = nameExpiry ? getPremiumEndDate(nameExpiry) : null
+  const premiumStartDate = nameExpiry ? getGracePeriodEndDate(nameExpiry) : null
+
+  const premiumEndFormatted = premiumEndDate
+    ? formatExpiryDate(premiumEndDate)
+    : null
 
   return (
     <Fragment>
@@ -74,7 +91,9 @@ export const RegisterNameCheckoutSummary = ({
         <Alert variant="default" className="flex p-5 items-center">
           <SirenIcon className="size-12 shrink-0" />
           <AlertDescription className="text-base">
-            This name is in Temporary premium until 6 April, 2026, 02:44:15 GMT.
+            {premiumEndFormatted
+              ? `This name is in Temporary premium until ${premiumEndFormatted}.`
+              : 'This name is in Temporary premium.'}
           </AlertDescription>
           <Button
             variant="outline"
@@ -123,6 +142,7 @@ export const RegisterNameCheckoutSummary = ({
             open={premiumDrawerOpen}
             onOpenChange={setPremiumDrawerOpen}
             currentPremium={formatPriceDisplay(price.premium, price.decimals)}
+            premiumStartDate={premiumStartDate}
           />
         )}
       </section>
