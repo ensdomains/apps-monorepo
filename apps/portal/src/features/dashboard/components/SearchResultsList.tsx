@@ -24,22 +24,31 @@ const RegisterLink = ({ name }: { name: string }) => (
   </Button>
 )
 
+const isSubname = (name: string) => name.split('.').length > 2
+
 const getSuggestionDescription = ({
   isAvailable,
   isName,
   ownerResolved,
+  hasOwner,
   isPendingAvailability,
+  nameValue,
   defaultDescription,
 }: {
   isAvailable: boolean
   isName: boolean
   ownerResolved: boolean
+  hasOwner: boolean
   isPendingAvailability: boolean
+  nameValue: string
   defaultDescription: string
 }): React.ReactNode => {
   if (isAvailable) return 'Available to register'
   if (isName && (!ownerResolved || isPendingAvailability)) {
     return <Skeleton className="h-3 w-24" />
+  }
+  if (isName && ownerResolved && !hasOwner && isSubname(nameValue)) {
+    return 'Name not found'
   }
   return defaultDescription
 }
@@ -158,6 +167,13 @@ export const SearchResultsList = ({
                 : undefined
               const ownerResolved = ownerData !== undefined
               const hasOwner = ownerData !== null && ownerData !== undefined
+              const isAvailable = availableNameIds.has(suggestion.id)
+              const nameNotFound =
+                isName &&
+                ownerResolved &&
+                !hasOwner &&
+                !isAvailable &&
+                isSubname(suggestion.inputValue)
               const avatar = isName ? (
                 hasOwner ? (
                   <NameAvatar
@@ -172,14 +188,15 @@ export const SearchResultsList = ({
               ) : (
                 <AvatarPlaceholder />
               )
-              const isAvailable = availableNameIds.has(suggestion.id)
               const description = getSuggestionDescription({
                 isAvailable,
                 isName,
                 ownerResolved,
+                hasOwner,
                 isPendingAvailability: pendingAvailabilityIds.has(
                   suggestion.id,
                 ),
+                nameValue: suggestion.inputValue,
                 defaultDescription: suggestion.description,
               })
               return (
@@ -187,6 +204,7 @@ export const SearchResultsList = ({
                   key={suggestion.id}
                   value={suggestion.id}
                   onSelect={onSelect}
+                  disabled={nameNotFound}
                   className="flex flex-row items-center gap-3 py-2"
                 >
                   {rowContent(avatar, suggestion.label, description)}
@@ -206,6 +224,13 @@ export const SearchResultsList = ({
                 : undefined
               const ownerResolved = ownerData !== undefined
               const hasOwner = ownerData !== null && ownerData !== undefined
+              const isAvailable = availableNameIds.has(suggestion.id)
+              const nameNotFound =
+                isName &&
+                ownerResolved &&
+                !hasOwner &&
+                !isAvailable &&
+                isSubname(suggestion.inputValue)
               const avatar = isName ? (
                 hasOwner ? (
                   <NameAvatar
@@ -220,14 +245,15 @@ export const SearchResultsList = ({
               ) : (
                 <AvatarPlaceholder />
               )
-              const isAvailable = availableNameIds.has(suggestion.id)
               const description = getSuggestionDescription({
                 isAvailable,
                 isName,
                 ownerResolved,
+                hasOwner,
                 isPendingAvailability: pendingAvailabilityIds.has(
                   suggestion.id,
                 ),
+                nameValue: suggestion.inputValue,
                 defaultDescription: suggestion.description,
               })
               return (
@@ -237,7 +263,11 @@ export const SearchResultsList = ({
                   type="button"
                   role="option"
                   aria-selected={idx === activeIndex}
-                  className={rowClassName(idx === activeIndex)}
+                  disabled={nameNotFound}
+                  className={cn(
+                    rowClassName(idx === activeIndex),
+                    nameNotFound && 'opacity-50 cursor-default',
+                  )}
                   onClick={() => onSelect(suggestion.id)}
                 >
                   {rowContent(avatar, suggestion.label, description)}

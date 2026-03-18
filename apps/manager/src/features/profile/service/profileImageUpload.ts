@@ -77,7 +77,6 @@ export interface UploadImageMutationOptionsArgs {
   onImageChange: (imageUrl: string) => void
   setOpen: (open: boolean) => void
   setUploadFile: (file: File | null) => void
-  setUploadPreviewUrl: (url: string | null) => void
   send: (event: ImageSelectionEvent) => void
 }
 
@@ -92,7 +91,6 @@ export const uploadImageMutationOptions = ({
   onImageChange,
   setOpen,
   setUploadFile,
-  setUploadPreviewUrl,
   send,
 }: UploadImageMutationOptionsArgs) =>
   mutationOptions({
@@ -174,7 +172,6 @@ export const uploadImageMutationOptions = ({
           onImageChange(endpoint)
           setOpen(false)
           setUploadFile(null)
-          setUploadPreviewUrl(null)
           send({ type: 'RESET' })
           return
         }
