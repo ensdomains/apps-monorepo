@@ -78,6 +78,11 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
 
+  const handleRegisterAnother = () => {
+    // TODO: this needs to open the search modal.
+    navigate({ to: '/register' })
+  }
+
   const handleViewProfile = async () => {
     setIsNavigatingToProfile(true)
     try {
@@ -152,27 +157,27 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     )
   }
 
-  // if (isNameTaken && !isNavigatingToProfile) {
-  //   return (
-  //     <MessageCard
-  //       icon={<UserCheck className="size-8" strokeWidth={1.5} />}
-  //       title={`${name} is already registered`}
-  //       description={
-  //         <div className="text-base">
-  //           <p>
-  //             This name is already registered. View its profile to see details
-  //             and records.
-  //           </p>
-  //         </div>
-  //       }
-  //       badge="Alpha"
-  //       actionButton={{
-  //         label: `View ${name}`,
-  //         href: `/${name}`,
-  //       }}
-  //     />
-  //   )
-  // }
+  if (isNameTaken && !isNavigatingToProfile) {
+    return (
+      <MessageCard
+        icon={<UserCheck className="size-8" strokeWidth={1.5} />}
+        title={`${name} is already registered`}
+        description={
+          <div className="text-base">
+            <p>
+              This name is already registered. View its profile to see details
+              and records.
+            </p>
+          </div>
+        }
+        badge="Alpha"
+        actionButton={{
+          label: `View ${name}`,
+          href: `/${name}`,
+        }}
+      />
+    )
+  }
 
   return (
     <main className="flex-1 mx-auto w-full max-w-xl px-6 py-8 flex flex-col gap-8">
@@ -197,6 +202,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           domainName={name}
           actor={actor}
           onViewProfile={handleViewProfile}
+          onRegisterAnother={handleRegisterAnother}
           isViewProfileLoading={isNavigatingToProfile}
         />
       )}

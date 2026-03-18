@@ -227,6 +227,7 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
 
   const { percent: discountPercent, label: discountLabel } =
     getDiscountForYears(years)
+
   const baseUsd = Number(price.base) / 10 ** price.decimals
 
   const theoreticalSubtotal =
