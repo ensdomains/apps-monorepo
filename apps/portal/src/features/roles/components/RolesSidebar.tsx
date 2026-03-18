@@ -1,4 +1,5 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { useQuery } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import { CheckCircle, Clock, Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
@@ -23,7 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
@@ -80,6 +81,9 @@ export const RolesSidebar = <
   const { revokeRoles } = useRevokeRoles()
 
   const selectedAccount = row?.original.account
+  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const isOwnerRole = selectedAccount === ownerData?.owner
+
   const originalRoles = useMemo(
     () => (row?.original.items ?? []) as Role[],
     [row],
@@ -324,8 +328,9 @@ export const RolesSidebar = <
               <DialogHeader>
                 <DialogTitle>Remove user</DialogTitle>
                 <DialogDescription>
-                  Are you sure you want to remove this user from all roles? This
-                  action cannot be undone.
+                  {isOwnerRole
+                    ? 'You are trying to delete the owner of this name. Deleting it would prohibit you from adding more users. Are you sure?'
+                    : 'Are you sure you want to remove this user from all roles? This action cannot be undone.'}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>

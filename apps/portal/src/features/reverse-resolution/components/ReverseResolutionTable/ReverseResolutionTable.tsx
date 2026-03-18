@@ -32,14 +32,41 @@ export const ReverseResolutionTable = ({
   table: TableData<ReverseResolutionResult>
   address: Address
 }) => {
-  const [clickedRow, setClickedRow] =
-    useState<Row<ReverseResolutionResult> | null>(null)
+  const [selectedReverseRegistrarChainId, setSelectedReverseRegistrarChainId] =
+    useState<number | null>(null)
 
   const [open, setOpen] = useState(false)
 
   const [tableView] = useTableViewSettings(defaultTableSettings)
 
   const { address: account } = useConnection()
+
+  const clickedRow = selectedReverseRegistrarChainId
+    ? (table
+        .getRowModel()
+        .rows.find(
+          (r) =>
+            r.original.reverseRegistrarChainId ===
+            selectedReverseRegistrarChainId,
+        ) ?? null)
+    : null
+
+  const setClickedRow = (
+    value: React.SetStateAction<Row<ReverseResolutionResult> | null>,
+  ) => {
+    setSelectedReverseRegistrarChainId((prev) => {
+      const prevRow = prev
+        ? (table
+            .getRowModel()
+            .rows.find((r) => r.original.reverseRegistrarChainId === prev) ??
+          null)
+        : null
+
+      const newRow = typeof value === 'function' ? value(prevRow) : value
+
+      return newRow?.original.reverseRegistrarChainId ?? null
+    })
+  }
 
   // Only show "More" button if the displayed address matches the connected account
   // Using isAddressEqual for case-insensitive comparison
