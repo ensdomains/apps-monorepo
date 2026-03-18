@@ -8,15 +8,13 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
-  dedicatedResolverNameSnippet,
-  getChainContractAddress,
-  registryResolverSnippet,
-} from '@ensdomains/ensjs/contracts'
-import { getAddressRecord, getName } from '@ensdomains/ensjs/public'
+  getAddressRecord,
+  getName,
+  getReverseRecordFromRegistry,
+} from '@ensdomains/ensjs/public'
 import { ok } from 'neverthrow'
-import { type Address, type Client, type Transport, zeroAddress } from 'viem'
+import type { Address, Client, Transport } from 'viem'
 import { readContract } from 'viem/actions'
-import { namehash } from 'viem/ens'
 import { getAction } from 'viem/utils'
 import type { sepoliaWithEns } from '@/lib/wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
@@ -56,45 +54,6 @@ function createEmptyResult(network: Network): ReverseResolutionResult {
   }
 }
 
-/**
- * Direct on-chain read of L1 reverse record (bypasses Universal Resolver/CCIP).
- * Returns the name from the resolver for the reverse node, or null.
- */
-async function getL1ReverseRecordDirect(
-  client: EnsV1Client,
-  address: Address,
-): Promise<{ name: string; reverseResolverAddress: Address } | null> {
-  const reverseNode = `${address.toLowerCase().slice(2)}.addr.reverse`
-  const nodeHash = namehash(reverseNode)
-  const registryAddress = getChainContractAddress({
-    client,
-    contract: 'ensRegistry',
-  })
-  const readContractAction = getAction(client, readContract, 'readContract')
-
-  const resolverAddress = await readContractAction({
-    address: registryAddress,
-    abi: registryResolverSnippet,
-    functionName: 'resolver',
-    args: [nodeHash],
-  })
-
-  if (!resolverAddress || resolverAddress === zeroAddress) {
-    return null
-  }
-
-  const name = await readContractAction({
-    address: resolverAddress,
-    abi: dedicatedResolverNameSnippet,
-    functionName: 'name',
-    args: [nodeHash],
-  })
-
-  if (!name || name === '') return null
-
-  return { name, reverseResolverAddress: resolverAddress }
-}
-
 async function getL1ReverseRecord(
   client: EnsV1Client,
   address: Address,
@@ -107,7 +66,8 @@ async function getL1ReverseRecord(
   })
 
   if (!nameResult) {
-    const direct = await getL1ReverseRecordDirect(client, address)
+    const direct = await getReverseRecordFromRegistry(client, { address })
+
     if (direct) {
       nameResult = {
         name: direct.name,

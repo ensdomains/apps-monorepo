@@ -5,7 +5,7 @@ packages:
 
 catalog:
   xstate: ^5.24.0
-  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@595bf70
+  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@051ead1
 
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
