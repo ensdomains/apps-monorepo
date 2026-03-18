@@ -140,11 +140,11 @@ export const ImageSelectionDialog = ({
   // File handling functions
   const processSelectedFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setValidationError('Please select a valid image file')
+      setValidationError(t`Please select a valid image file`)
       return
     }
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setValidationError(`Image must be under ${MAX_FILE_SIZE_MB}MB`)
+      setValidationError(t`Image must be under ${MAX_FILE_SIZE_MB}MB`)
       return
     }
     setValidationError(null)
