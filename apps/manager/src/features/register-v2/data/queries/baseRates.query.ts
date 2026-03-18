@@ -8,7 +8,7 @@ import { fromPromise } from 'neverthrow'
 import type { ReadContractErrorType } from 'viem'
 import { readContract } from 'viem/actions'
 import { publicClient } from '@/lib/wagmi'
-import { getLabelLength } from '../utils/name-parser'
+import { getLabelLength } from '../../utils/name-parser'
 
 export class GetBaseRatesError extends TaggedError('GetBaseRatesError')<{
   readonly cause: ReadContractErrorType

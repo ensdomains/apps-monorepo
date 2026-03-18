@@ -1,7 +1,7 @@
 import { XCircle } from 'lucide-react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Button } from '@/components/ui/button'
-import { RegisterV2Context } from '../../machines/RegistrationV2UiContext'
+import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
   const { uiActor, label } = RegisterV2Context.use()

@@ -10,9 +10,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
-import { useRegistrationV2Context } from '../../machines/RegistrationV2UiContext'
+import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
-export const PricingSummary = () => {
+export const PricingSummaryCard = () => {
   const { uiActor } = useRegistrationV2Context()
   const [durationYears, expirationDate] = useSelector(
     uiActor,
@@ -25,23 +25,26 @@ export const PricingSummary = () => {
   )
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [now] = useState(() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    return now
+    const value = new Date()
+    value.setHours(0, 0, 0, 0)
+    return value
   })
 
   const minSelectableDate = addSeconds(now, MIN_REGISTER_DURATION_SECONDS)
 
   return (
     <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#DDDDDE] bg-white px-6 py-12 font-[350] text-2xl text-neutral-800 leading-ens-none">
-      <div className="">
+      <div>
         Registering for <span className="text-[#024A70]">{durationYears}</span>{' '}
         years
       </div>
-      <div className="">expiring on</div>
+      <div>expiring on</div>
       <Popover onOpenChange={setIsDatePopoverOpen} open={isDatePopoverOpen}>
         <PopoverTrigger asChild>
-          <button className="flex items-center gap-1 bg-ens-white/50 px-1 py-0.5 font-normal text-[#024A70]">
+          <button
+            className="flex items-center gap-1 bg-ens-white/50 px-1 py-0.5 font-normal text-[#024A70]"
+            type="button"
+          >
             <span className="font-normal text-[#024A70]">
               {format(expirationDate, 'MMMM d, yyyy')}
             </span>
@@ -61,23 +64,22 @@ export const PricingSummary = () => {
             }}
             endMonth={addMonths(new Date(), 1200)}
             onSelect={(date) => {
-              if (date) {
-                date.setHours(0, 0, 0, 0)
-                console.log({ now, date })
-                const duration = Math.max(
-                  MIN_REGISTER_DURATION_SECONDS,
-                  Math.round((date.getTime() - now.getTime()) / 1000),
-                )
-                uiActor.send({
-                  type: 'pricing.duration.set',
-                  duration,
-                })
+              if (!date) {
+                return
               }
+              date.setHours(0, 0, 0, 0)
+              const duration = Math.max(
+                MIN_REGISTER_DURATION_SECONDS,
+                Math.round((date.getTime() - now.getTime()) / 1000),
+              )
+              uiActor.send({
+                type: 'pricing.duration.set',
+                duration,
+              })
             }}
             onToday={() => {
               const minDate = new Date(minSelectableDate)
               minDate.setHours(0, 0, 0, 0)
-              console.log({ now, minDate })
               const duration = Math.max(
                 MIN_REGISTER_DURATION_SECONDS,
                 Math.round((minDate.getTime() - now.getTime()) / 1000),

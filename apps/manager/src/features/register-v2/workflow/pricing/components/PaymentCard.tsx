@@ -8,10 +8,10 @@ import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
-import { useRegistrationV2Context } from '../../machines/RegistrationV2UiContext'
-import { getPricingQueryOptions } from '../../queries/pricing'
+import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
-export const Payment = () => {
+export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
   const { isConnected } = useSmartAccountContext()
   const { openModal, isOpen } = useModal()
@@ -34,7 +34,6 @@ export const Payment = () => {
         'rounded-xl border border-[#DDDDDE] bg-white p-8',
       )}
     >
-      {/* Total Price Section */}
       <div className="space-y-3 text-center">
         <p className="text-ens-lapis-surface text-xs uppercase">
           <Trans>Total</Trans>
@@ -49,7 +48,6 @@ export const Payment = () => {
         </div>
       </div>
 
-      {/* Payment Methods Section */}
       {isConnected ? (
         <Button
           className="w-full uppercase"

@@ -5,7 +5,7 @@ import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import {
   getRegistrationV2ChildActor,
   registrationV2UiMachine,
-} from './registrationV2UiMachine'
+} from './registrationUi.machine'
 
 const RegistrationV2UiContext2 = createContext<{
   uiActor: Actor<typeof registrationV2UiMachine>
@@ -42,7 +42,7 @@ export const RegistrationV2UiProvider = ({
     })
 
     return subscription.unsubscribe
-  })
+  }, [registrationV2UiActor])
 
   return (
     <RegistrationV2UiContext2.Provider

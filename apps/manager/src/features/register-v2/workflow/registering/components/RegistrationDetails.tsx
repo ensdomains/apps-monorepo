@@ -5,8 +5,8 @@ import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { RegisterV2Context } from '../../machines/RegistrationV2UiContext'
-import { useBaseRate } from '../../queries/baseRates'
+import { useBaseRate } from '../../../data/queries/baseRates.query'
+import { RegisterV2Context } from '../../../state/registrationUi.context'
 
 const useDetails = RegisterV2Context.createSelector(
   (state) => state.context.confirmedData,
@@ -43,15 +43,13 @@ export const RegistrationDetails = () => {
   const baseRate = useBaseRate(label)
 
   const expirationDate = useMemo(
-    () =>
-      format(
-        new Date(Date.now() + Number(details?.duration ?? 0) * 1000),
-        'MMMM d, yyyy',
-      ),
+    () => new Date(Date.now() + Number(details?.duration ?? 0n) * 1000),
     [details?.duration],
   )
 
-  if (!details) return null
+  if (!details) {
+    return null
+  }
 
   const { discountAmount, discountPercentage } = getDiscount(
     details.basePriceNumber,
@@ -59,20 +57,17 @@ export const RegistrationDetails = () => {
     details.duration,
   )
 
-  const durationYears = Math.round(Number(details?.duration) / secondsInYear)
+  const durationYears = Math.round(Number(details.duration) / secondsInYear)
   const totalPrice =
     details.basePriceNumber + details.premiumPriceNumber - discountAmount
 
   return (
-    <div className={'flex w-full flex-col gap-6'}>
-      {/* Main Content - Two columns on desktop, stacked on mobile */}
+    <div className="flex w-full flex-col gap-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
-        {/* Domain Card */}
         <div className="w-full lg:w-1/2">
           <DomainCard domainName={`${details.label}.eth`} variant="garnet" />
         </div>
 
-        {/* Registration Details */}
         <div className="flex w-full flex-col gap-6 lg:w-1/2">
           <div className="flex flex-col gap-5">
             <h3 className="font-medium text-ens-blue-dark text-xl tracking-tight">

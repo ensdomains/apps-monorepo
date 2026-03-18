@@ -1,19 +1,19 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { match } from 'ts-pattern'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
-import { type PremiumLabel, STABLECOINS } from '@/features/register/utils'
+import { STABLECOINS } from '@/features/register/utils'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { useRegistrationV2Context } from '../../machines/RegistrationV2UiContext'
-import { getPricingQueryOptions } from '../../queries/pricing'
+import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { getPremiumLabel } from '../lib/premiumLabel'
 
-export const ConfirmPayment = () => {
+export const ConfirmPurchase = () => {
   const { label, uiActor } = useRegistrationV2Context()
   const account = useSmartAccountContext()
   const [duration, selectedToken] = useSelector(
@@ -40,29 +40,15 @@ export const ConfirmPayment = () => {
     }),
   })
 
-  const premiumLabel: PremiumLabel | undefined = match(label.length)
-    .with(
-      3,
-      () =>
-        ({ label: '3 character premium name', variant: 'premium-3' }) as const,
-    )
-    .with(
-      4,
-      () =>
-        ({ label: '4 character premium name', variant: 'premium-4' }) as const,
-    )
-    .otherwise(() => undefined)
-
+  const premiumLabel = getPremiumLabel(label.length)
   const domainName = `${label}.eth`
 
   const selectedCoinConfig = selectedToken && STABLECOINS[selectedToken]
-
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
   return (
     <div className="flex min-h-[500px] flex-col justify-between gap-4 px-4">
       <div className="flex flex-col items-center gap-6">
-        {/* Header */}
         <h2 className="text-center font-medium text-2xl text-ens-blue tracking-wide">
           Registering
         </h2>
@@ -106,30 +92,20 @@ export const ConfirmPayment = () => {
         className="h-20 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
         disabled={!pricingQuery.data || !selectedToken}
         onClick={() => {
-          if (!pricingQuery.data || !selectedToken) return
-          const tokenPrice = pricingQuery.data.rawPrice
+          if (!pricingQuery.data || !selectedToken) {
+            return
+          }
 
           uiActor.send({
             type: 'registration.start',
             label,
             duration: BigInt(duration),
             token: selectedToken,
-            totalPrice: tokenPrice,
+            totalPrice: pricingQuery.data.rawPrice,
             account,
             basePriceNumber: pricingQuery.data.basePriceNumber,
             premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
           })
-          // startRegistrationV2(
-          //   {
-          //     name: label,
-          //     duration,
-          //     selectedToken,
-          //     tokenPrice,
-          //   },
-          //   account,
-          //   uiActor,
-          //   { fast: true },
-          // )
         }}
       >
         Buy Name

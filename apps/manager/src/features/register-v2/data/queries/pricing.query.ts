@@ -16,7 +16,9 @@ export class GetPricingError extends TaggedError('GetPricingError')<{
   readonly cause: ReadContractErrorType
 }> {}
 
-export class MissingTokenError extends TaggedError('MissingTokenError')<{}> {}
+export class MissingTokenError extends TaggedError('MissingTokenError')<
+  Record<string, never>
+> {}
 
 export const getPricing = ResultFn(async function* (
   name: string,

@@ -3,18 +3,18 @@ import {
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
 import {
-  createRegistrationV2UiSelector,
+  FailureStep,
+  getRegistrationV2AvailabilityQueryOptions,
+  PricingStep,
+  parseName,
+  RegisteringStep,
   RegistrationV2UiProvider,
+  SuccessStep,
+  useRegistrationStep,
   useRegistrationV2Context,
-} from '@/features/register-v2/machines/RegistrationV2UiContext'
-import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/queries/registrationV2AvailabilityQueryOptions'
-import { FailureStep } from '@/features/register-v2/steps/failure'
-import { PricingStep } from '@/features/register-v2/steps/pricing'
-import { RegisteringStep } from '@/features/register-v2/steps/registering'
-import { SuccessStep } from '@/features/register-v2/steps/success'
-import { parseName } from '@/features/register-v2/utils/name-parser'
+} from '@/features/register-v2'
 
 export const Route = createFileRoute('/register-v2/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
@@ -66,23 +66,17 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
       <div className="flex items-center justify-center py-8">
         <div className="text-red-600">Error loading name: {error.message}</div>
       </div>
-      <button onClick={reset}>Try again</button>
+      <button onClick={reset} type="button">
+        Try again
+      </button>
     </div>
   )
 }
 
-const useRegistrationStep = createRegistrationV2UiSelector((state) =>
-  match(state.value)
-    .with({ pricing: P.string }, () => 'pricing' as const)
-    .with({ registering: P.any }, () => 'registering' as const)
-    .with(P.string, (step) => step)
-    .exhaustive(),
-)
-
 function PageContent() {
   const { uiActor } = useRegistrationV2Context()
-
   const step = useRegistrationStep(uiActor)
+
   return (
     <div className="mx-auto mt-12 w-full max-w-6xl space-y-6.5">
       {match(step)
