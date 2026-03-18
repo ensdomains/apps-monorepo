@@ -260,6 +260,19 @@ function App() {
   }
 
   if (error) {
+    if (!is2LD(name) && !isTLD(name)) {
+      return (
+        <NotFoundMessage
+          title="Name not found"
+          description={
+            <>
+              <strong>{name}</strong> does not exist.
+            </>
+          }
+        />
+      )
+    }
+
     const message =
       (error?.cause as Error | undefined)?.message ||
       (error as Error | undefined)?.message ||

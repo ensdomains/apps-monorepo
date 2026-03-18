@@ -170,7 +170,8 @@ export const useSearchResults = ({
       | undefined
     >()
     nameSuggestions.forEach((s, i) => {
-      m.set(s.id, ownerQueries[i]?.data)
+      const query = ownerQueries[i]
+      m.set(s.id, query?.isError ? null : query?.data)
     })
     return m
   }, [nameSuggestions, ownerQueries])
