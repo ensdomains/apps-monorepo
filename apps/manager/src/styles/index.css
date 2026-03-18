@@ -52,9 +52,11 @@
     @apply cursor-default;
   }
 
-  /* Lower Intercom widget z-index so it doesn't overlay drawers/dialogs */
+  /* Lower third-party widget z-index so they don't overlay drawers/dialogs */
   .intercom-lightweight-app,
-  .intercom-namespace {
+  .intercom-namespace,
+  [class^="PostHogSurvey"] {
+    position: relative !important;
     z-index: 40 !important;
   }
 }
