@@ -135,7 +135,7 @@ function RouteComponent() {
   }))
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1360px] mx-auto px-6 py-6 w-full">
+    <div className="flex flex-col gap-6 max-w-screen-2xl mx-auto px-6 py-6 w-full">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-medium">Fuses</h1>
@@ -220,7 +220,7 @@ const columns: ColumnDef<FuseRow>[] = [
       return (
         <div
           className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-            isBurnt ? 'bg-quartz-50' : 'bg-quartz-50'
+            isBurnt ? 'bg-orange-50' : 'bg-quartz-50'
           }`}
         >
           {isBurnt ? (
@@ -237,7 +237,7 @@ const columns: ColumnDef<FuseRow>[] = [
 
 const V2NameMessage = () => (
   <MessageCard
-    icon={<Info className="w-[30px] h-[30px]" />}
+    icon={<Info className="size-8" />}
     title="Fuses not available"
     description={
       <>
