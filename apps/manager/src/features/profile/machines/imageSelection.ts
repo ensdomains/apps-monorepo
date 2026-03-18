@@ -216,6 +216,12 @@ export const imageSelectionMachine = setup({
       target: '.main',
       actions: ['resetContext', 'clearError'],
     },
+    SET_ERROR: {
+      actions: 'setError',
+    },
+    CLEAR_ERROR: {
+      actions: 'clearError',
+    },
   },
   states: {
     main: {

@@ -103,7 +103,6 @@ export const ImageSelectionDialog = ({
   const [open, setOpen] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
-  const [validationError, setValidationError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLButtonElement>(null)
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -140,14 +139,17 @@ export const ImageSelectionDialog = ({
   // File handling functions
   const processSelectedFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setValidationError(t`Please select a valid image file`)
+      send({ type: 'SET_ERROR', error: t`Please select a valid image file` })
       return
     }
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setValidationError(t`Image must be under ${MAX_FILE_SIZE_MB}MB`)
+      send({
+        type: 'SET_ERROR',
+        error: t`Image must be under ${MAX_FILE_SIZE_MB}MB`,
+      })
       return
     }
-    setValidationError(null)
+    send({ type: 'CLEAR_ERROR' })
     const imageUrl = URL.createObjectURL(file)
     setUploadFile(file)
     setUploadPreviewUrl(imageUrl)
@@ -217,7 +219,7 @@ export const ImageSelectionDialog = ({
     <>
       <StepHeader description={description} title={title} />
 
-      <ErrorDisplay error={validationError || state.context.error} />
+      <ErrorDisplay error={state.context.error} />
 
       <div className="space-y-4">
         <div className="space-y-2">
@@ -572,7 +574,6 @@ export const ImageSelectionDialog = ({
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
       send({ type: 'RESET' })
-      setValidationError(null)
       setUploadPreviewUrl(null)
     }
     setOpen(isOpen)
