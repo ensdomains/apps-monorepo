@@ -74,7 +74,7 @@ msgstr "Date added (Newest)"
 msgid "Date added (Oldest)"
 msgstr "Date added (Oldest)"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:301
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
 msgid "Default"
 msgstr "Default"
 
