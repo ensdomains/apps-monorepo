@@ -11,6 +11,11 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { MessageCard } from '@/components/ui/message-card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 
 export const Route = createFileRoute('/$name/fuses')({
@@ -44,55 +49,60 @@ const fuseDefinitions: FuseDefinition[] = [
     name: 'Parent Cannot Control',
     key: 'PARENT_CANNOT_CONTROL',
     scope: 'Parent',
-    description: 'When burned, the parent name can no longer control this name',
+    description:
+      'Allows a parent owner to emancipate a child name. After this is burned, the parent will no longer be able to burn any further fuses, and will no longer be able to replace/delete the child name. This fuse must be burned in order for any owner-controlled fuses to be burned on the name.',
   },
   {
     name: 'Is Dot ETH',
     key: 'IS_DOT_ETH',
     scope: 'Parent',
-    description: 'Indicates this name is a .eth second-level domain',
+    description:
+      'This fuse cannot be burned by users of the Name Wrapper, it is only set internally when a .eth 2LD is wrapped.',
   },
   {
     name: 'Can Extend Expiry',
     key: 'CAN_EXTEND_EXPIRY',
     scope: 'Parent',
-    description: 'Allows the owner to extend the expiry of the name',
+    description:
+      'The owner of the child name will be able to extend their own expiry. Normally, only the parent owner can extend the expiry of a child name.',
   },
   {
     name: 'Cannot Unwrap',
     key: 'CANNOT_UNWRAP',
-    scope: 'Parent',
-    description: 'When burned, the name cannot be unwrapped back to a DNS name',
+    scope: 'Owner',
+    description:
+      'The name will be locked, and can no longer be unwrapped. This fuse must be burned in order for any other owner-controlled fuses to be burned on the name.',
   },
   {
     name: 'Cannot Burn Fuses',
     key: 'CANNOT_BURN_FUSES',
     scope: 'Owner',
-    description: 'When burned, the owner can no longer burn fuses',
+    description: 'No further fuses can be burned on the name.',
   },
   {
     name: 'Cannot Transfer',
     key: 'CANNOT_TRANSFER',
     scope: 'Owner',
-    description: 'When burned, the name cannot be transferred',
+    description: 'The name (wrapped NFT) can no longer be transferred.',
   },
   {
     name: 'Cannot Set TTL',
     key: 'CANNOT_SET_TTL',
     scope: 'Owner',
-    description: 'When burned, the TTL cannot be changed',
+    description: 'The TTL for the name can no longer be updated.',
   },
   {
     name: 'Cannot Create Subname',
     key: 'CANNOT_CREATE_SUBDOMAIN',
     scope: 'Owner',
-    description: 'When burned, subnames cannot be created',
+    description: 'New subdomains can no longer be created.',
   },
   {
     name: 'Cannot Approve',
     key: 'CANNOT_APPROVE',
     scope: 'Owner',
-    description: 'When burned, token approvals are not allowed',
+    description:
+      'The approved "subname renewal manager" for the name can no longer be updated.',
   },
 ]
 
@@ -207,12 +217,19 @@ const columns: ColumnDef<FuseRow>[] = [
       )
     },
     cell: ({ row }) => {
-      const { name, key } = row.original
+      const { name, key, description } = row.original
       return (
         <div className="flex items-center gap-2">
           <span className="font-mono">{name}</span>
           <CopyButton value={key} />
-          <Info className="w-5 h-5 text-quartz-500 cursor-help" />
+          <Tooltip>
+            <TooltipTrigger>
+              <Info className="w-5 h-5 text-quartz-500 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>{description}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       )
     },
