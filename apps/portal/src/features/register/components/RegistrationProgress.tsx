@@ -71,59 +71,73 @@ const STATE_MESSAGES: Record<
   RegistrationMachineState,
   { primary: string; description: string }
 > = {
-  idle: { primary: 'Setting up', description: 'Please wait...' },
-  error: { primary: 'Registration failed', description: 'Please try again.' },
+  idle: {
+    primary: 'Initializing',
+    description: 'Loading registration flow...',
+  },
+  error: {
+    primary: 'Registration failed',
+    description: 'An error occurred. You can try again or go back.',
+  },
   settingUpRegistration: {
-    primary: 'Setting up',
-    description: 'Preparing your name.',
+    primary: 'Initializing registration',
+    description: 'Preparing registration parameters and checking availability.',
   },
   deployingResolver: {
-    primary: 'Getting your name ready',
-    description: 'Please wait...',
+    primary: 'Deploying resolver',
+    description: 'Creating your resolver contract on-chain.',
   },
   waitingForResolverDeployment: {
-    primary: 'Confirming',
-    description: 'This usually takes a moment.',
+    primary: 'Confirming resolver deployment',
+    description:
+      'Waiting for the resolver deployment transaction to confirm on-chain.',
   },
   preparingCommitment: {
-    primary: 'Preparing',
-    description: 'Almost ready for the next step.',
+    primary: 'Preparing commitment',
+    description:
+      'Generating commitment hash for the commit-reveal registration.',
   },
   committingTransaction: {
-    primary: 'Check your wallet',
-    description: 'Approve the transaction.',
+    primary: 'Sign commitment transaction',
+    description:
+      'Approve the commitment transaction in your wallet. This hides your registration intent on-chain.',
   },
   waitingForCommitment: {
-    primary: 'Confirming',
-    description: 'Please wait...',
+    primary: 'Confirming commitment',
+    description: 'Waiting for the commitment transaction to confirm on-chain.',
   },
   commitmentCooldown: {
-    primary: 'Almost there',
-    description: 'Short wait before the next step.',
+    primary: 'Commitment cooldown',
+    description:
+      'Waiting 60 seconds before reveal (ENS commit-reveal security requirement).',
   },
   validatingCommitment: {
-    primary: 'Validating',
-    description: 'Almost ready to register.',
+    primary: 'Validating commitment',
+    description: 'Verifying commitment is ready for the reveal step.',
   },
   approvingToken: {
-    primary: 'Approve payment',
-    description: 'Check your wallet.',
+    primary: 'Approve payment token',
+    description:
+      'Approve token spending allowance in your wallet for the registration fee.',
   },
   waitingForApproval: {
-    primary: 'Confirming payment',
-    description: 'Please wait...',
+    primary: 'Confirming token approval',
+    description:
+      'Waiting for the token approval transaction to confirm on-chain.',
   },
   registeringDomain: {
-    primary: 'Registering',
-    description: 'Final step — check your wallet.',
+    primary: 'Register domain',
+    description: 'Approve the final registration transaction in your wallet.',
   },
   waitingForRegistration: {
-    primary: 'Almost complete',
-    description: 'Your name will be ready shortly.',
+    primary: 'Confirming registration',
+    description:
+      'Waiting for the registration transaction to confirm on-chain.',
   },
   success: {
-    primary: 'Registration complete!',
-    description: 'Your name is now active.',
+    primary: 'Registration complete',
+    description:
+      'Your ENS name has been registered and is now active on-chain.',
   },
 }
 
