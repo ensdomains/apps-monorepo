@@ -21,6 +21,7 @@ import {
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -188,10 +189,11 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
   const [nameInput, setNameInput] = useState('')
 
-  // Reset input when sidebar closes or row changes
+  // Reset input and error state when sidebar closes or row changes
   useEffect(() => {
     if (!open || !row) {
       setNameInput('')
+      setForwardError(null)
     }
   }, [open, row])
 
@@ -202,6 +204,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const {
     isWrongChain,
     isSwitchingChain,
+    requiredChainId,
     switchChain,
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
@@ -217,17 +220,24 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     displayName,
   })
 
-  const { writeContractAsync } = useWriteContract()
+  const writeContract = useWriteContract()
 
   const [reverseHash, setReverseHash] = useState<Hash | undefined>(undefined)
   const [forwardHash, setForwardHash] = useState<Hash | undefined>(undefined)
   const [isWritingReverse, setIsWritingReverse] = useState(false)
   const [isWritingForward, setIsWritingForward] = useState(false)
+  const [forwardError, setForwardError] = useState<string | null>(null)
 
   const { isLoading: isConfirmingReverse, isSuccess: isReverseSuccess } =
-    useWaitForTransactionReceipt({ hash: reverseHash })
+    useWaitForTransactionReceipt({
+      hash: reverseHash,
+      chainId: requiredChainId,
+    })
   const { isLoading: isConfirmingForward, isSuccess: isForwardSuccess } =
-    useWaitForTransactionReceipt({ hash: forwardHash })
+    useWaitForTransactionReceipt({
+      hash: forwardHash,
+      chainId: requiredChainId,
+    })
 
   useEffect(() => {
     if (isReverseSuccess || isForwardSuccess) {
@@ -237,7 +247,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
   const isPendingReverse = isWritingReverse || isConfirmingReverse
   const isPendingForward = isWritingForward || isConfirmingForward
-  const isPendingUpdate = isPendingReverse
 
   if (!row) {
     return (
@@ -264,6 +273,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     if (!input?.reportValidity()) {
       return
     }
+
     if (isWrongChain) {
       try {
         switchChain(getSwitchToRequiredNetworkRequest())
@@ -272,18 +282,22 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       }
       return
     }
+
     if (nameInput) {
       try {
         const reverseRequest = getReverseResolutionRequest(nameInput)
         setIsWritingReverse(true)
-        const hash = await writeContractAsync(
-          reverseRequest.request as Parameters<typeof writeContractAsync>[0],
+        const hash = await writeContract.mutateAsync(
+          reverseRequest.request as Parameters<
+            typeof writeContract.mutateAsync
+          >[0],
         )
         setReverseHash(hash)
       } catch (error) {
         console.error('Failed to set reverse resolution', error)
       } finally {
         setIsWritingReverse(false)
+        setNameInput('')
       }
     }
   }
@@ -299,13 +313,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     }
     if (displayName) {
       try {
+        setForwardError(null)
         const request = getForwardResolutionRequest(address)
         setIsWritingForward(true)
-        const hash = await writeContractAsync(
-          request as Parameters<typeof writeContractAsync>[0],
+        const hash = await writeContract.mutateAsync(
+          request as Parameters<typeof writeContract.mutateAsync>[0],
         )
         setForwardHash(hash)
       } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Failed to set forward resolution'
+        setForwardError(message)
         console.error('Failed to set forward resolution', error)
       } finally {
         setIsWritingForward(false)
@@ -369,6 +389,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
             </div>
           )}
 
+          {forwardError && (
+            <Alert variant="destructive">
+              <XCircle />
+              <AlertDescription>{forwardError}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex flex-col gap-6">
             <div className="flex flex-row items-start">
               <div className="w-40 font-medium">Network</div>
@@ -398,7 +425,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     value={nameInput}
                     onChange={handleNameChange}
                     disabled={
-                      !isConnected || isPendingUpdate || isSwitchingChain
+                      !isConnected || isPendingReverse || isSwitchingChain
                     }
                     placeholder={match(isConnected)
                       .with(false, () => 'Connect wallet to update')
@@ -413,20 +440,20 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       !nameInput ||
-                      isPendingUpdate ||
+                      isPendingReverse ||
                       isSwitchingChain
                     }
-                    size="sm"
+                    className="h-9"
                   >
                     {match({
                       isConnected,
                       isSwitchingChain,
-                      isPendingUpdate,
+                      isPendingReverse,
                       isWrongChain,
                     })
                       .with({ isConnected: false }, () => 'Connect Wallet')
                       .with({ isSwitchingChain: true }, () => 'Switching...')
-                      .with({ isPendingUpdate: true }, () => 'Setting...')
+                      .with({ isPendingReverse: true }, () => 'Setting...')
                       .with({ isWrongChain: true }, () => 'Switch Network')
                       .otherwise(() => 'Update')}
                   </Button>
@@ -462,14 +489,14 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   />
                   <ArrowLeftRight className="w-5 h-5" />
                   {displayName && (
-                    <>
+                    <div className="flex items-center gap-2 flex-1">
                       <NameAvatar
                         name={displayName}
                         width="20px"
                         height="20px"
                       />
                       <span>{displayName}</span>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>

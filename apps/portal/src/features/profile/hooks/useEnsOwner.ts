@@ -12,7 +12,7 @@ import {
   type GetNameRegistryAddressErrorType,
   getNameRegistryAddress,
 } from '@ensdomains/ensjs/public/v2'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
 import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
 import {
@@ -21,8 +21,15 @@ import {
 } from '@/lib/wagmi/helpers'
 import type { WithEnsNetwork } from '@/utils/types'
 
+class NameRequiredError extends TaggedError('NameRequiredError')<{
+  message: 'Name is required'
+}> {}
+
 export class GetEnsOwnerError extends TaggedError('GetEnsOwnerError')<{
-  cause: ensjsv1_GetOwnerErrorType | ensjsv2_GetOwnerErrorType
+  cause:
+    | ensjsv1_GetOwnerErrorType
+    | ensjsv2_GetOwnerErrorType
+    | NameRequiredError
 }> {}
 
 export type GetEnsOwnerReturnType = WithEnsNetwork<{
@@ -41,13 +48,21 @@ const v1EthRegistry = getChainContractAddress({
 })
 
 type GetEnsOwnerParameters = {
-  name: string
+  name: string | undefined
 }
 
 export const getEnsOwner = ResultFn(async function* ({
   name,
 }: GetEnsOwnerParameters) {
   const client = yield* safeGetClient()
+
+  if (!name) {
+    return err(
+      new GetEnsOwnerError({
+        cause: new NameRequiredError({ message: 'Name is required' }),
+      }),
+    )
+  }
 
   const l1v1Owner = yield* fromPromise(
     ensjsv1_getOwner(client, { name }),
