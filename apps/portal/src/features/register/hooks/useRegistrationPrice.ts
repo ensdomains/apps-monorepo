@@ -67,7 +67,8 @@ export const getRegistrationPrice = ResultFn(async function* ({
     premium,
     total,
     decimals,
-    hasPremium: premium > 0n,
+    // TODO: remove this once testing is done
+    hasPremium: true || premium > 0n,
   })
 })
 

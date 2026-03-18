@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { InfoIcon } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { InfoIcon, SirenIcon } from 'lucide-react'
+import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
@@ -68,50 +69,68 @@ export const RegisterNameCheckoutSummary = ({
   const hasPrice = price && isPriceResult(price)
 
   return (
-    <section
-      className="border border-border rounded-lg bg-card p-5"
-      aria-labelledby="checkout-heading"
-    >
-      {match({ isLoading, isError, hasPrice })
-        .with({ isLoading: true }, () => <PriceBreakdownSkeleton />)
-        .with({ isError: true }, () => {
-          const errorInfo = error ? getTransactionErrorInfo(error) : null
-          return (
-            <TransactionErrorAlert
-              title="Failed to load price"
-              summary={
-                errorInfo?.summary ?? 'Failed to load price. Please try again.'
-              }
-              details={errorInfo?.details}
-            />
+    <Fragment>
+      {hasPrice && price.hasPremium ? (
+        <Alert variant="default" className="flex p-5 items-center">
+          <SirenIcon className="size-12 shrink-0" />
+          <AlertDescription className="text-base">
+            This name is in Temporary premium until 6 April, 2026, 02:44:15 GMT.
+          </AlertDescription>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-primary items-center"
+          >
+            Learn more
+          </Button>
+        </Alert>
+      ) : null}
+      <section
+        className="border border-border rounded-lg bg-card p-5"
+        aria-labelledby="checkout-heading"
+      >
+        {match({ isLoading, isError, hasPrice })
+          .with({ isLoading: true }, () => <PriceBreakdownSkeleton />)
+          .with({ isError: true }, () => {
+            const errorInfo = error ? getTransactionErrorInfo(error) : null
+            return (
+              <TransactionErrorAlert
+                title="Failed to load price"
+                summary={
+                  errorInfo?.summary ??
+                  'Failed to load price. Please try again.'
+                }
+                details={errorInfo?.details}
+              />
+            )
+          })
+          .with({ hasPrice: true }, () =>
+            price ? (
+              <PriceBreakdown
+                name={name}
+                price={price}
+                duration={duration}
+                onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
+              />
+            ) : null,
           )
-        })
-        .with({ hasPrice: true }, () =>
-          price ? (
-            <PriceBreakdown
-              name={name}
-              price={price}
-              duration={duration}
-              onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
-            />
-          ) : null,
-        )
-        .otherwise(() => (
-          <div className="border border-border rounded-md p-4">
-            <p className="text-muted-foreground text-sm">
-              Unable to load price
-            </p>
-          </div>
-        ))}
+          .otherwise(() => (
+            <div className="border border-border rounded-md p-4">
+              <p className="text-muted-foreground text-sm">
+                Unable to load price
+              </p>
+            </div>
+          ))}
 
-      {hasPrice && price.hasPremium && (
-        <TemporaryPremiumDrawer
-          open={premiumDrawerOpen}
-          onOpenChange={setPremiumDrawerOpen}
-          currentPremium={formatPriceDisplay(price.premium, price.decimals)}
-        />
-      )}
-    </section>
+        {hasPrice && price.hasPremium && (
+          <TemporaryPremiumDrawer
+            open={premiumDrawerOpen}
+            onOpenChange={setPremiumDrawerOpen}
+            currentPremium={formatPriceDisplay(price.premium, price.decimals)}
+          />
+        )}
+      </section>
+    </Fragment>
   )
 }
 
