@@ -35,6 +35,8 @@
   --color-ens-garnet-dense: #8a0a49;
   --color-ens-error: #f53f3f;
 
+  --color-ens-quartz-400: #737373;
+
   /* Old brand colors */
   --color-ens-blue: #0080bc;
   --color-ens-blue-hover: #0070a4;
@@ -56,9 +58,6 @@
   --color-ens-gray-two: #e5e5e5;
   --color-ens-gray-three: #c4c7c8;
   --color-ens-white: #f6f6f6;
-
-  /* Quartz neutrals */
-  --color-quartz-400: #737373;
 
   /* 4-character premium name pill (Figma: 4-character-premium-name) */
   --4-character-premium-name: linear-gradient(
