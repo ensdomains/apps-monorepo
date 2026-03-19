@@ -1,5 +1,5 @@
 import { CalendarIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -57,14 +57,19 @@ export const TemporaryPremiumDrawer = ({
   const [priceInput, setPriceInput] = useState('')
   const [datePickerOpen, setDatePickerOpen] = useState(false)
 
-  useEffect(() => {
-    if (open && premiumStartDate) {
-      const price = getPremiumPriceAtDate(premiumStartDate, new Date())
-      setSelectedPrice(price)
-      setSelectedDate(new Date())
-      setPriceInput(formatPriceForInput(price))
-    }
-  }, [open, premiumStartDate])
+  function syncToCurrentPremium() {
+    if (!premiumStartDate) return
+
+    const price = getPremiumPriceAtDate(premiumStartDate, new Date())
+    setSelectedPrice(price)
+    setSelectedDate(new Date())
+    setPriceInput(formatPriceForInput(price))
+  }
+
+  function handleOpenChange(newOpen: boolean) {
+    if (newOpen) syncToCurrentPremium()
+    onOpenChange(newOpen)
+  }
 
   function applyDateSelection(newDate: Date) {
     if (!premiumStartDate || !premiumEndDate) return
@@ -136,7 +141,7 @@ export const TemporaryPremiumDrawer = ({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className="flex flex-col sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle className="text-3xl font-semibold">

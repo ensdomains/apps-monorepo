@@ -91,7 +91,7 @@ export const RegisterNameCheckoutSummary = ({
       )}
       <section
         className="border border-border rounded-lg bg-card p-5"
-        aria-labelledby="checkout-heading"
+        aria-label="Checkout summary"
       >
         {match({ isLoading, isError, hasPrice })
           .with({ isLoading: true }, () => <PriceBreakdownSkeleton />)

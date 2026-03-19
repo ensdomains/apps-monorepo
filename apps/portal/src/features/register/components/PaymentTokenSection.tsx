@@ -1,7 +1,7 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useQueries } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
@@ -129,6 +129,9 @@ export const PaymentTokenSection = ({
       className="border border-border rounded-lg bg-card p-5 space-y-4"
       aria-labelledby="payment-heading"
     >
+      <h2 id="payment-heading" className="text-base font-medium">
+        Select payment method
+      </h2>
       {noSupportedTokenHasSufficientBalance ? (
         <MessageCard
           variant="warning"
@@ -140,64 +143,57 @@ export const PaymentTokenSection = ({
           description="You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
         />
       ) : (
-        <Fragment>
-          <div className="flex items-center gap-2">
-            <h2 id="payment-heading" className="text-base font-medium">
-              Select payment method
-            </h2>
-          </div>
-          <div className="space-y-2">
-            {tokenData.map((token) => {
-              const hasSufficientBalance = token.balance >= token.price.total
+        <div className="space-y-2">
+          {tokenData.map((token) => {
+            const hasSufficientBalance = token.balance >= token.price.total
 
-              return (
-                <button
-                  key={token.symbol}
-                  type="button"
-                  onClick={() => setSelectedToken(token.address)}
-                  disabled={!hasSufficientBalance}
-                  className={cn(
-                    'flex w-full cursor-pointer items-center justify-between rounded-lg border-border border p-4 text-left transition-colors',
-                    selectedToken === token.address
-                      ? 'bg-muted'
-                      : 'hover:bg-muted/30',
-                    !hasSufficientBalance && 'cursor-not-allowed opacity-60',
-                  )}
-                >
-                  <div className="flex items-center gap-1">
-                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden">
-                      <token.Icon className="size-8 min-w-0 shrink-0" />
-                    </div>
-                    <p className="font-medium">{token.symbol}</p>
+            return (
+              <button
+                key={token.symbol}
+                type="button"
+                onClick={() => setSelectedToken(token.address)}
+                disabled={!hasSufficientBalance}
+                className={cn(
+                  'flex w-full cursor-pointer items-center justify-between rounded-lg border-border border p-4 text-left transition-colors',
+                  selectedToken === token.address
+                    ? 'bg-muted'
+                    : 'hover:bg-muted/30',
+                  !hasSufficientBalance && 'cursor-not-allowed opacity-60',
+                )}
+              >
+                <div className="flex items-center gap-1">
+                  <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden">
+                    <token.Icon className="size-8 min-w-0 shrink-0" />
                   </div>
-                  <div className="text-right">
-                    {isPriceLoading ? (
-                      <Skeleton className="h-5 w-14" />
-                    ) : (
-                      <>
-                        <p className="font-normal">
-                          {Number(
-                            formatUnits(token.balance, token.decimals),
-                          ).toLocaleString()}
+                  <p className="font-medium">{token.symbol}</p>
+                </div>
+                <div className="text-right">
+                  {isPriceLoading ? (
+                    <Skeleton className="h-5 w-14" />
+                  ) : (
+                    <>
+                      <p className="font-normal">
+                        {Number(
+                          formatUnits(token.balance, token.decimals),
+                        ).toLocaleString()}
+                      </p>
+
+                      {hasSufficientBalance ? (
+                        <p className="text-muted-foreground text-xs">
+                          available
                         </p>
-
-                        {hasSufficientBalance ? (
-                          <p className="text-muted-foreground text-xs">
-                            available
-                          </p>
-                        ) : (
-                          <p className="text-destructive text-xs">
-                            Insufficient balance
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </Fragment>
+                      ) : (
+                        <p className="text-destructive text-xs">
+                          Insufficient balance
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
       )}
 
       <Button
