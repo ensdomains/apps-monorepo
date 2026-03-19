@@ -1,5 +1,5 @@
 import { CalendarIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,6 +26,23 @@ import {
 } from '@/features/register/utils/premiumDecay'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
+
+function useSyncPremiumCalculatorOnOpen(
+  open: boolean,
+  premiumStartDate: Date | null,
+  setSelectedPrice: (price: number) => void,
+  setSelectedDate: (date: Date) => void,
+  setPriceInput: (value: string) => void,
+) {
+  useEffect(() => {
+    if (open && premiumStartDate) {
+      const price = getPremiumPriceAtDate(premiumStartDate, new Date())
+      setSelectedPrice(price)
+      setSelectedDate(new Date())
+      setPriceInput(formatPriceForInput(price))
+    }
+  }, [open, premiumStartDate, setSelectedPrice, setSelectedDate, setPriceInput])
+}
 
 type TemporaryPremiumDrawerProps = {
   readonly open: boolean
@@ -57,19 +74,13 @@ export const TemporaryPremiumDrawer = ({
   const [priceInput, setPriceInput] = useState('')
   const [datePickerOpen, setDatePickerOpen] = useState(false)
 
-  function syncToCurrentPremium() {
-    if (!premiumStartDate) return
-
-    const price = getPremiumPriceAtDate(premiumStartDate, new Date())
-    setSelectedPrice(price)
-    setSelectedDate(new Date())
-    setPriceInput(formatPriceForInput(price))
-  }
-
-  function handleOpenChange(newOpen: boolean) {
-    if (newOpen) syncToCurrentPremium()
-    onOpenChange(newOpen)
-  }
+  useSyncPremiumCalculatorOnOpen(
+    open,
+    premiumStartDate,
+    setSelectedPrice,
+    setSelectedDate,
+    setPriceInput,
+  )
 
   function applyDateSelection(newDate: Date) {
     if (!premiumStartDate || !premiumEndDate) return
@@ -141,7 +152,7 @@ export const TemporaryPremiumDrawer = ({
   }
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex flex-col sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle className="text-3xl font-semibold">
