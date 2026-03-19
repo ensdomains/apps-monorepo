@@ -134,7 +134,7 @@ export const SetPrimaryNameDialog = ({
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
         chainId: customSepolia.id,
-        resolverAddress: records?.resolverAddress,
+        resolverAddress: records?.resolverAddress as Address,
       })
     },
     onError: (error) => {
