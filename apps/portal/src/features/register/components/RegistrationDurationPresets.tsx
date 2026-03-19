@@ -5,7 +5,7 @@ import {
 } from '@/features/register/utils/registrationDiscount'
 import { cn } from '@/lib/utils'
 
-const PRESET_YEARS = [1, 3, 5, 10] as const
+const PRESET_YEARS = [1, 3, 5, 10]
 
 const DISCOUNT_CONFIG = PRESET_YEARS.map((years) => {
   const { percent } = getDiscountForYears(years)
@@ -28,9 +28,7 @@ export const RegistrationDurationPresets = ({
   value,
   onSelect,
 }: RegistrationDurationPresetsProps) => {
-  const selectedYears = (PRESET_YEARS as readonly number[]).includes(value)
-    ? value
-    : undefined
+  const selectedYears = PRESET_YEARS.includes(value) ? value : undefined
 
   return (
     <div className="flex gap-2 items-center">
