@@ -22,7 +22,7 @@ import {
 } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
-  formatTotalWithGas,
+  formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
 import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
@@ -275,7 +275,11 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
 
         <SummaryRow
           label="Total:"
-          value={formatTotalWithGas(price.base, price.premium, price.decimals)}
+          value={formatRegistrationTotal(
+            price.base,
+            price.premium,
+            price.decimals,
+          )}
           className="pt-3 border-t border-border"
           labelClassName="text-xl text-primary font-medium"
           valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"

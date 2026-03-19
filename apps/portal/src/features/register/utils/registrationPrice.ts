@@ -11,19 +11,18 @@ export function formatPriceDisplay(raw: bigint, decimals: number): string {
 }
 
 /**
- * Adds USD amount to token amounts (in smallest units) and formats as USD.
- * Uses Math.ceil for base and premium to match formatPriceDisplay, so the
- * displayed total equals the sum of displayed line items.
+ * Formats base + premium as USD total.
+ * Uses Math.round on the sum to avoid over-rounding (e.g. 3840.001 displaying as 3841).
  */
-export function formatTotalWithGas(
+export function formatRegistrationTotal(
   base: bigint,
   premium: bigint,
   decimals: number = USDC_DECIMALS,
 ): string {
   const baseUsd = Number(base) / 10 ** decimals
   const premiumUsd = Number(premium) / 10 ** decimals
-  const registrationCeil = Math.ceil(baseUsd) + Math.ceil(premiumUsd)
-  return formatUsd(registrationCeil)
+  const totalUsd = baseUsd + premiumUsd
+  return formatUsd(Math.round(totalUsd))
 }
 
 export function isPriceResult(
