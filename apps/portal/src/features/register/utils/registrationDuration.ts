@@ -150,8 +150,6 @@ export function getRegistrationDisplayDates(durationSeconds: number) {
     durationSeconds,
   )
   return {
-    startOfToday,
-    expiryDate,
     registrationPeriod: formatRegistrationDuration(startOfToday, expiryDate),
     registrationDays: Math.floor(durationSeconds / 86400),
     expiresFormatted: formatExpiryDate(expiryDate),
