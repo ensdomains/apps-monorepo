@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { RegistrationDurationPresets } from './RegistrationDurationPresets'
+
+// import { RegistrationDurationPresets } from './RegistrationDurationPresets'
 
 type RegistrationDurationPickerProps = {
   readonly value: number
@@ -43,10 +44,10 @@ export const RegistrationDurationPicker = ({
     }
   }
 
-  const handlePresetSelect = (years: number) => {
-    const capped = Math.min(Math.max(years, min), max)
-    onChange(capped)
-  }
+  // const handlePresetSelect = (years: number) => {
+  //   const capped = Math.min(Math.max(years, min), max)
+  //   onChange(capped)
+  // }
 
   const label = value === 1 ? '1 year' : `${value} years`
 
@@ -110,10 +111,11 @@ export const RegistrationDurationPicker = ({
           <Plus className="size-4" strokeWidth={2} />
         </Button>
       </div>
-      <RegistrationDurationPresets
+      {/* Currently we d)isabled discounts on contracts - Commenting this section out for now until we re-enable discounts */}
+      {/* <RegistrationDurationPresets
         value={value}
         onSelect={handlePresetSelect}
-      />
+      /> */}
     </div>
   )
 }

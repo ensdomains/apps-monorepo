@@ -12,12 +12,8 @@ import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
-import { getPremiumLabel } from '@/features/register/utils/premium'
 import { getPremiumDatesFromRegistrationPrice } from '@/features/register/utils/premiumDecay'
-import {
-  formatDiscountPercentForDisplay,
-  getDiscountForYears,
-} from '@/features/register/utils/registrationDiscount'
+import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import {
   calculateDurationFromDate,
   formatRegistrationDuration,
@@ -29,6 +25,7 @@ import {
   formatTotalWithGas,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
+import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { cn } from '@/lib/utils'
@@ -207,8 +204,6 @@ type PriceBreakdownProps = {
 }
 
 const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
-  const premiumLabel = getPremiumLabel(name)
-
   const startOfToday = getStartOfToday()
   const expiryDate = getRegistrationExpiryDateFromSeconds(
     startOfToday,
@@ -219,19 +214,16 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
     startOfToday,
     expiryDate,
   )
-
   const expiryFormatted = formatExpiryDate(expiryDate)
 
-  const { percent: discountPercent, label: discountLabel } =
-    getDiscountForYears(years)
-
-  const baseUsd = Number(price.base) / 10 ** price.decimals
-
-  const theoreticalSubtotal =
-    discountPercent > 0 ? baseUsd / (1 - discountPercent / 100) : baseUsd
-
-  const discountAmount = discountPercent > 0 ? theoreticalSubtotal - baseUsd : 0
-  const pricePerYear = years > 0 ? baseUsd / years : 0
+  const {
+    pricePerYear,
+    standardSubtotal,
+    discountAmount,
+    discountPercent,
+    discountLabel,
+    premiumLabel,
+  } = getPricingBreakdown(name, price, years)
 
   return (
     <div className="space-y-2">
@@ -268,11 +260,11 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
 
         <SummaryRow
           label="Subtotal:"
-          value={formatUsd(Math.ceil(theoreticalSubtotal))}
+          value={formatUsd(Math.ceil(standardSubtotal))}
           valueClassName="flex items-center gap-1 m-0"
         />
 
-        {discountPercent > 0 && (
+        {discountPercent > 0 && discountAmount > 0 && discountLabel && (
           <SummaryRow
             label={`${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}):`}
             value={`-${formatUsd(Math.ceil(discountAmount))}`}

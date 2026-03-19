@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { getDiscountForYears } from '@/features/register/utils/registrationDiscount'
+import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import {
   calculateDurationFromDate,
   formatRegistrationDuration,
@@ -24,11 +24,13 @@ import {
   formatPriceDisplay,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
+import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
 import { DAI_DECIMALS, USDC_DECIMALS } from '@/lib/constants/tokens'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 type RegistrationProgressProps = {
   readonly domainName: string
@@ -246,7 +248,13 @@ export const RegistrationProgress = ({
 
     const years = calculateDurationFromDate(startOfToday, expiryDate)
 
-    const { percent: discountPercent } = getDiscountForYears(years)
+    const { discountAmount, discountPercent, discountLabel } =
+      getPricingBreakdown(domainName, price, years)
+
+    const discountText =
+      discountPercent > 0 && discountAmount > 0 && discountLabel
+        ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(Math.ceil(discountAmount))}`
+        : undefined
 
     return (
       <section className="flex flex-col gap-6">
@@ -284,10 +292,8 @@ export const RegistrationProgress = ({
             <p className="text-foreground text-base font-medium mt-1">
               {totalCost}
             </p>
-            {discountPercent ? (
-              <p className="text-muted-foreground text-xs mt-0.5">
-                {years}+ year discount ({discountPercent}%)
-              </p>
+            {discountText ? (
+              <p className="text-success text-xs mt-0.5">{discountText}</p>
             ) : null}
           </div>
         </div>
