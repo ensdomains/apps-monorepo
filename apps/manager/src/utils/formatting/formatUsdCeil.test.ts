@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { formatUsd, formatUsdCeil } from './formatUsdCeil'
 
 describe('formatUsd', () => {
-  it('formats numbers as USD with two decimal places', () => {
-    expect(formatUsd(5)).toBe('$5.00')
-    expect(formatUsd(100)).toBe('$100.00')
-    expect(formatUsd(0)).toBe('$0.00')
-    expect(formatUsd(1000)).toBe('$1,000.00')
+  it('formats whole numbers as USD with no decimal places', () => {
+    expect(formatUsd(5)).toBe('$5')
+    expect(formatUsd(100)).toBe('$100')
+    expect(formatUsd(0)).toBe('$0')
+    expect(formatUsd(1000)).toBe('$1,000')
+  })
+
+  it('formats fractional numbers as USD with two decimal places', () => {
+    expect(formatUsd(0.5)).toBe('$0.5')
+    expect(formatUsd(0.01)).toBe('$0.01')
+    expect(formatUsd(0.001)).toBe('$0')
   })
 
   it('returns "—" for non-finite values', () => {
@@ -18,21 +24,21 @@ describe('formatUsd', () => {
 
 describe('formatUsdCeil', () => {
   it('formats whole numbers as USD', () => {
-    expect(formatUsdCeil('5')).toBe('$5.00')
-    expect(formatUsdCeil('100')).toBe('$100.00')
-    expect(formatUsdCeil('0')).toBe('$0.00')
+    expect(formatUsdCeil('5')).toBe('$5')
+    expect(formatUsdCeil('100')).toBe('$100')
+    expect(formatUsdCeil('0')).toBe('$0')
   })
 
   it('rounds up fractional amounts to whole dollars', () => {
-    expect(formatUsdCeil('99.93')).toBe('$100.00')
-    expect(formatUsdCeil('99.01')).toBe('$100.00')
-    expect(formatUsdCeil('5.1')).toBe('$6.00')
-    expect(formatUsdCeil('45.001')).toBe('$46.00')
+    expect(formatUsdCeil('99.93')).toBe('$100')
+    expect(formatUsdCeil('99.01')).toBe('$100')
+    expect(formatUsdCeil('5.1')).toBe('$6')
+    expect(formatUsdCeil('45.001')).toBe('$46')
   })
 
   it('does not round down', () => {
-    expect(formatUsdCeil('99.99')).toBe('$100.00')
-    expect(formatUsdCeil('1.001')).toBe('$2.00')
+    expect(formatUsdCeil('99.99')).toBe('$100')
+    expect(formatUsdCeil('1.001')).toBe('$2')
   })
 
   it('returns "—" for invalid input', () => {
@@ -44,13 +50,13 @@ describe('formatUsdCeil', () => {
   })
 
   it('formats large numbers with locale grouping', () => {
-    expect(formatUsdCeil('1000')).toBe('$1,000.00')
-    expect(formatUsdCeil('1234567.5')).toBe('$1,234,568.00')
+    expect(formatUsdCeil('1000')).toBe('$1,000')
+    expect(formatUsdCeil('1234567.5')).toBe('$1,234,568')
   })
 
   it('handles negative numbers', () => {
     // Math.ceil(-0.5) = -0, which formats as "-$0.00"
-    expect(formatUsdCeil('-0.5')).toBe('-$0.00')
-    expect(formatUsdCeil('-1.1')).toBe('-$1.00')
+    expect(formatUsdCeil('-0.5')).toBe('-$0')
+    expect(formatUsdCeil('-1.1')).toBe('-$1')
   })
 })

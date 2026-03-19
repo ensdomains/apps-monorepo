@@ -53,7 +53,7 @@ export const DurationCustomRow = ({
             const duration = Number(e.target.value) * secondsInYear
             if (duration === selectedDuration) return
 
-            onDurationSet(Number(e.target.value) * secondsInYear)
+            onDurationSet(duration)
           }}
           step={1}
           type="number"
