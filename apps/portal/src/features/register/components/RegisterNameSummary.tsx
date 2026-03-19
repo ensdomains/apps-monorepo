@@ -67,19 +67,21 @@ export const RegisterNameCheckoutSummary = ({
     <Fragment>
       {premiumDates && (
         <Alert variant="default" className="flex p-5 items-center">
-          <SirenIcon className="h-12 w-12 shrink-0" />
-          <AlertDescription className="text-base">
-            This name is in Temporary premium until{' '}
-            {formatExpiryDateTimeLocal(premiumDates.premiumEndDate)}.
+          <AlertDescription className="text-base flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
+            <SirenIcon className="size-6 shrink-0" />
+            <p className="text-center md:text-left">
+              This name is in Temporary premium until{' '}
+              {formatExpiryDateTimeLocal(premiumDates.premiumEndDate)}.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-primary text-sm"
+              onClick={() => setPremiumDrawerOpen(true)}
+            >
+              Learn more
+            </Button>
           </AlertDescription>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-primary text-sm"
-            onClick={() => setPremiumDrawerOpen(true)}
-          >
-            Learn more
-          </Button>
         </Alert>
       )}
       <section
