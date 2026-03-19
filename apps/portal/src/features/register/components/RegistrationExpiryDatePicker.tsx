@@ -76,8 +76,8 @@ export const RegistrationExpiryDatePicker = ({
             <span className="flex-1 truncate text-2xl font-medium">
               {displayValue}
             </span>
-            <span className="flex size-8 shrink-0 items-center justify-center bg-secondary">
-              <CalendarIcon className="size-3" />
+            <span className="flex rounded-md size-8 shrink-0 items-center justify-center bg-secondary">
+              <CalendarIcon className="size-3 text-primary" />
             </span>
           </button>
         </PopoverTrigger>

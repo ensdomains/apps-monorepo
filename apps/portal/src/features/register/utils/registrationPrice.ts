@@ -1,18 +1,17 @@
 import { formatUnits } from 'viem'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { USDC_DECIMALS } from '@/lib/constants/tokens'
-import { formatUsd, formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 /**
- * Formats a raw token amount (smallest units) as USD for display.
+ * Formats a raw token amount (smallest units) as USD for display (no rounding).
  */
 export function formatPriceDisplay(raw: bigint, decimals: number): string {
-  return formatUsdCeil(formatUnits(raw, decimals))
+  return formatUsd(Number(formatUnits(raw, decimals)))
 }
 
 /**
- * Formats base + premium as USD total.
- * Uses Math.round on the sum to avoid over-rounding (e.g. 3840.001 displaying as 3841).
+ * Formats base + premium as USD total (no rounding).
  */
 export function formatRegistrationTotal(
   base: bigint,
@@ -22,7 +21,7 @@ export function formatRegistrationTotal(
   const baseUsd = Number(base) / 10 ** decimals
   const premiumUsd = Number(premium) / 10 ** decimals
   const totalUsd = baseUsd + premiumUsd
-  return formatUsd(Math.round(totalUsd))
+  return formatUsd(totalUsd)
 }
 
 export function isPriceResult(

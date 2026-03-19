@@ -88,7 +88,7 @@ describe('formatRegistrationTotal', () => {
     expect(result).toBe('$5.00')
   })
 
-  it('rounds total to nearest dollar', () => {
+  it('formats fractional amounts without rounding to whole dollars', () => {
     const base = 3_840_001_000n // 3840.001 USDC
     const premium = 0n
     const result = formatRegistrationTotal(base, premium)

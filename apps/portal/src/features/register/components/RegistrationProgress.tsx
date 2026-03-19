@@ -15,7 +15,6 @@ import { Progress } from '@/components/ui/progress'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import {
-  calculateDurationFromDate,
   formatRegistrationDuration,
   getRegistrationExpiryDateFromSeconds,
   getStartOfToday,
@@ -246,14 +245,12 @@ export const RegistrationProgress = ({
     const totalCost =
       tokenPrice !== null ? formatPriceDisplay(tokenPrice, decimals) : '—'
 
-    const years = calculateDurationFromDate(startOfToday, expiryDate)
-
     const { discountAmount, discountPercent, discountLabel } =
-      getPricingBreakdown(domainName, price, years)
+      getPricingBreakdown(domainName, price, durationSeconds)
 
     const discountText =
       discountPercent > 0 && discountAmount > 0 && discountLabel
-        ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(Math.ceil(discountAmount))}`
+        ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(discountAmount)}`
         : undefined
 
     return (

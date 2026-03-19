@@ -1,23 +1,19 @@
-import { SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 
 /**
  * Discount points matching the v2 StandardRentPriceOracle deployment config.
- * Each entry: [interval in seconds, discount rate as a decimal (0–1)].
- *
- * The contract uses a piecewise-linear integrated discount function.
- * Longer registrations accumulate more discount via a weighted average
- * over these intervals.
+ * Uses CONTRACT_SECONDS_PER_YEAR so intervals match the contract exactly.
  *
  * @see contracts-v2/contracts/deploy/02_StandardRentPriceOracle.ts
  * @see contracts-v2/contracts/src/registrar/StandardRentPriceOracle.sol
  */
 const DISCOUNT_POINTS: readonly [seconds: number, rate: number][] = [
-  [SECONDS_PER_YEAR, 0], // Year 1: 0%
-  [SECONDS_PER_YEAR, 0.1], // Year 2: 10%
-  [SECONDS_PER_YEAR, 0.2], // Year 3: 20%
-  [SECONDS_PER_YEAR * 2, 0.2875], // Years 4–5: 28.75%
-  [SECONDS_PER_YEAR * 5, 0.325], // Years 6–10: 32.5%
-  [SECONDS_PER_YEAR * 15, 1 / 3], // Years 11–25: 33.33%
+  [CONTRACT_SECONDS_PER_YEAR, 0], // Year 1: 0%
+  [CONTRACT_SECONDS_PER_YEAR, 0.1], // Year 2: 10%
+  [CONTRACT_SECONDS_PER_YEAR, 0.2], // Year 3: 20%
+  [CONTRACT_SECONDS_PER_YEAR * 2, 0.2875], // Years 4–5: 28.75%
+  [CONTRACT_SECONDS_PER_YEAR * 5, 0.325], // Years 6–10: 32.5%
+  [CONTRACT_SECONDS_PER_YEAR * 15, 1 / 3], // Years 11–25: 33.33%
 ]
 
 /**
@@ -85,7 +81,7 @@ export function getDiscountForYears(years: number): {
   percent: number
   label: string
 } {
-  const durationSeconds = years * SECONDS_PER_YEAR
+  const durationSeconds = years * CONTRACT_SECONDS_PER_YEAR
   const percent = getEffectiveDiscountPercent(durationSeconds)
 
   if (percent <= 0) return { percent: 0, label: '' }

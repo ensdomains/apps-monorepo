@@ -4,6 +4,7 @@ import {
   getPremiumLabel,
   type PremiumLabelVariant,
 } from '@/features/register/utils/premium'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { getLabel } from '@/utils/token/getLabel'
 
 /** Standard price per year for names with more than 4 characters */
@@ -29,6 +30,7 @@ export function getStandardPricePerYear(name: string): number {
 
 export type PricingBreakdown = {
   readonly pricePerYear: number
+  readonly years: number
   readonly standardSubtotal: number
   readonly actualPrice: number
   readonly discountAmount: number
@@ -41,21 +43,25 @@ export type PricingBreakdown = {
 
 /**
  * Computes the pricing breakdown for display.
-
+ *
+ * Uses the same duration (seconds) and SECONDS_PER_YEAR as the contract so
+ * standardSubtotal matches the contract's pre-discount amount. This avoids
+ * spurious discount rows from rounding mismatches.
+ *
  * Mental model:
- * - Standard price = full price per year for this name type (constants)
- * - Standard subtotal = standard price × years (what you'd pay at full price)
- * - Actual price = what the contract charges (already includes multi-year discount)
- * - Discount = standard subtotal - actual price (the difference is your savings)
+ * - Standard subtotal = pricePerYear × (durationSeconds / SECONDS_PER_YEAR)
+ * - Actual price = what the contract charges (includes multi-year discount)
+ * - Discount = standard subtotal - actual price
  */
 export function getPricingBreakdown(
   name: string,
   price: RegistrationPriceResult,
-  years: number,
+  durationSeconds: number,
 ): PricingBreakdown {
   const premiumLabel = getPremiumLabel(name)
   const pricePerYear = getStandardPricePerYear(name)
 
+  const years = durationSeconds / CONTRACT_SECONDS_PER_YEAR
   const standardSubtotal = pricePerYear * years
 
   const actualPrice = Number(price.base) / 10 ** price.decimals
@@ -74,6 +80,7 @@ export function getPricingBreakdown(
 
   return {
     pricePerYear,
+    years,
     standardSubtotal,
     actualPrice,
     discountAmount,
