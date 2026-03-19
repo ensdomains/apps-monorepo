@@ -11,7 +11,7 @@
  */
 export const formatUsd = (value: number): string => {
   if (!Number.isFinite(value)) return '—'
-  return value.toLocaleString('en-US', {
+  return Math.round(value).toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,

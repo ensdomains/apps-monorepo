@@ -231,7 +231,7 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
     discountPercent > 0 ? baseUsd / (1 - discountPercent / 100) : baseUsd
 
   const discountAmount = discountPercent > 0 ? theoreticalSubtotal - baseUsd : 0
-  const pricePerYear = years > 0 ? theoreticalSubtotal / years : 0
+  const pricePerYear = years > 0 ? baseUsd / years : 0
 
   return (
     <div className="space-y-2">
