@@ -1,5 +1,6 @@
+import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys'
 import { useNavigate } from '@tanstack/react-router'
-import { Command as CommandIcon, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import {
   type KeyboardEvent,
   useCallback,
@@ -26,10 +27,6 @@ import { SearchModalContent } from './SearchModalContent'
 import { SearchResultsList } from './SearchResultsList'
 
 const SEARCH_DEBOUNCE_MS = 300
-
-const isMac =
-  typeof navigator !== 'undefined' &&
-  navigator.platform.toUpperCase().indexOf('MAC') >= 0
 
 export const HomeSearchInput = () => {
   const listboxId = useId()
@@ -100,16 +97,7 @@ export const HomeSearchInput = () => {
     setActiveIndex(allItems.length ? 0 : -1)
   }, [allItems.length])
 
-  useEffect(() => {
-    const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      if ((isMac ? e.metaKey : e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setModalOpen(true)
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
+  useHotkey('Mod+K', () => setModalOpen(true))
 
   useEffect(() => {
     if (!modalOpen) setModalSearchValue('')
@@ -225,13 +213,7 @@ export const HomeSearchInput = () => {
             />
             <InputGroupAddon align="inline-end" className="gap-2">
               <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
-                {isMac ? (
-                  <>
-                    <CommandIcon className="size-3" />K
-                  </>
-                ) : (
-                  'Ctrl K'
-                )}
+                {formatForDisplay('Mod+K')}
               </kbd>
               <Search className="size-4" />
             </InputGroupAddon>
