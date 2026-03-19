@@ -119,7 +119,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     )
   }
 
-  if (isNameTaken) {
+  if (isNameTaken && isIdle) {
     return (
       <MessageCard
         icon={<UserCheck className="size-8" strokeWidth={1.5} />}
