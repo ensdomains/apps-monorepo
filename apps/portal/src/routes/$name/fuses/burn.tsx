@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { MessageCard } from '@/components/ui/message-card'
 import { burnFuses } from '@/features/fuses/helpers/burnFuses'
+import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -95,15 +96,11 @@ function RouteComponent() {
   const fuses = wrapperData.fuses as DecodedFuses | undefined
   const expiry = wrapperData.expiry
 
-  const isParentFuseBurnt = (fuseKey: string): boolean => {
-    if (!fuses?.parent) return false
-    return (fuses.parent as Record<string, unknown>)[fuseKey] === true
-  }
+  const isParentFuseBurnt = (fuseKey: string): boolean =>
+    isFuseBurnt(fuseKey, 'Parent', fuses)
 
-  const isChildFuseBurnt = (fuseKey: ChildFuseKey): boolean => {
-    if (!fuses?.child) return false
-    return (fuses.child as Record<string, unknown>)[fuseKey] === true
-  }
+  const isChildFuseBurnt = (fuseKey: ChildFuseKey): boolean =>
+    isFuseBurnt(fuseKey, 'Owner', fuses)
 
   const isPCCBurnt = isParentFuseBurnt('PARENT_CANNOT_CONTROL')
   const isCannotUnwrapBurnt = isChildFuseBurnt('CANNOT_UNWRAP')
