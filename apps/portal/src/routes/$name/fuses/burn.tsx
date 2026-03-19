@@ -10,7 +10,6 @@ import {
   ShieldX,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import {
   useConnection,
@@ -60,9 +59,8 @@ function RouteComponent() {
   >(new Set())
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined)
   const [isWriting, setIsWriting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const { writeContractAsync } = useWriteContract()
+  const { writeContractAsync, error: writeError } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
   })
@@ -158,7 +156,6 @@ function RouteComponent() {
 
     try {
       setIsWriting(true)
-      setError(null)
 
       const childFusesArray = Array.from(selectedChildFuses)
 
@@ -174,16 +171,13 @@ function RouteComponent() {
       )
 
       const hash = await writeContractAsync({
-        address: params.address as Address,
+        address: params.address,
         abi: params.abi,
         functionName: params.functionName,
         args: params.args,
       })
 
       setTxHash(hash)
-    } catch (err) {
-      console.error('Failed to burn fuses:', err)
-      setError(err instanceof Error ? err.message : 'Failed to burn fuses')
     } finally {
       setIsWriting(false)
     }
@@ -294,7 +288,9 @@ function RouteComponent() {
           <p className="text-green-600 text-sm">Fuses burned successfully!</p>
         )}
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {writeError && (
+          <p className="text-red-600 text-sm">{writeError.message}</p>
+        )}
       </div>
     </div>
   )
