@@ -14,11 +14,7 @@ import {
 } from '@/features/register/hooks/useRegistrationPrice'
 import { getPremiumDatesFromRegistrationPrice } from '@/features/register/utils/premiumDecay'
 import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
-import {
-  formatRegistrationDuration,
-  getRegistrationExpiryDateFromSeconds,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
+import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
   formatRegistrationTotal,
@@ -28,10 +24,7 @@ import { getPricingBreakdown } from '@/features/register/utils/registrationPrici
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { cn } from '@/lib/utils'
-import {
-  formatExpiryDate,
-  formatExpiryDateTimeLocal,
-} from '@/utils/formatting/formatDateTime'
+import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
@@ -203,16 +196,8 @@ type PriceBreakdownProps = {
 }
 
 const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
-  const startOfToday = getStartOfToday()
-  const expiryDate = getRegistrationExpiryDateFromSeconds(
-    startOfToday,
-    duration,
-  )
-  const registrationDuration = formatRegistrationDuration(
-    startOfToday,
-    expiryDate,
-  )
-  const expiryFormatted = formatExpiryDate(expiryDate)
+  const { registrationPeriod, expiresFormatted } =
+    getRegistrationDisplayDates(duration)
 
   const {
     pricePerYear,
@@ -227,8 +212,8 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
   return (
     <div className="space-y-2">
       <dl className="space-y-2">
-        <SummaryRow label="Registration:" value={registrationDuration} />
-        <SummaryRow label="Expires:" value={expiryFormatted} />
+        <SummaryRow label="Registration:" value={registrationPeriod} />
+        <SummaryRow label="Expires:" value={expiresFormatted} />
 
         <hr className="border-border my-3" />
 

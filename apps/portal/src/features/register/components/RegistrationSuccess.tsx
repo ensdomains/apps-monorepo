@@ -8,11 +8,7 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
-import {
-  formatRegistrationDuration,
-  getRegistrationExpiryDateFromSeconds,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
+import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import {
@@ -20,7 +16,6 @@ import {
   type SupportedTokenSymbol,
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
@@ -77,17 +72,8 @@ export const RegistrationSuccess = ({
     }
   }
 
-  const startOfToday = getStartOfToday()
-  const expiryDate = getRegistrationExpiryDateFromSeconds(
-    startOfToday,
-    durationSeconds,
-  )
-  const registrationPeriod = formatRegistrationDuration(
-    startOfToday,
-    expiryDate,
-  )
-  const registrationDays = Math.floor(durationSeconds / 86400)
-  const expiresFormatted = formatExpiryDate(expiryDate)
+  const { registrationPeriod, registrationDays, expiresFormatted } =
+    getRegistrationDisplayDates(durationSeconds)
   const decimals = selectedToken ? TOKEN_DECIMALS[selectedToken] : USDC_DECIMALS
   const totalCost =
     tokenPrice !== null ? formatPriceDisplay(tokenPrice, decimals) : '—'

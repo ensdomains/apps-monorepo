@@ -13,6 +13,7 @@ import {
   MIN_REGISTRATION_DURATION,
   SECONDS_PER_YEAR,
 } from '@/lib/constants/duration'
+import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 
 /**
  * Formats the duration from today to an expiry date as a human-readable string.
@@ -136,6 +137,25 @@ export const getRegistrationExpiryDateFromSeconds = (
   }
 
   return expiryDate
+}
+
+/**
+ * Returns display values for a registration duration (period, expiry date, days).
+ * Shared by checkout summary and success screens.
+ */
+export function getRegistrationDisplayDates(durationSeconds: number) {
+  const startOfToday = getStartOfToday()
+  const expiryDate = getRegistrationExpiryDateFromSeconds(
+    startOfToday,
+    durationSeconds,
+  )
+  return {
+    startOfToday,
+    expiryDate,
+    registrationPeriod: formatRegistrationDuration(startOfToday, expiryDate),
+    registrationDays: Math.floor(durationSeconds / 86400),
+    expiresFormatted: formatExpiryDate(expiryDate),
+  }
 }
 
 /**
