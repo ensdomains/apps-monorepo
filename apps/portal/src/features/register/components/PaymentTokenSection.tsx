@@ -41,7 +41,7 @@ const PAYMENT_TOKENS = [
     decimals: DAI_DECIMALS,
     Icon: DAIcon,
   },
-]
+] as const
 
 export const PaymentTokenSection = ({
   name,
@@ -142,7 +142,9 @@ export const PaymentTokenSection = ({
       ) : (
         <Fragment>
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-medium">Select payment method</h2>
+            <h2 id="payment-heading" className="text-base font-medium">
+              Select payment method
+            </h2>
           </div>
           <div className="space-y-2">
             {tokenData.map((token) => {

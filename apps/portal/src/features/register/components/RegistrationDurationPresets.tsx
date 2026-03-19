@@ -41,7 +41,15 @@ export const RegistrationDurationPresets = ({
           <Badge
             key={spanValue}
             variant={isSelected ? 'secondary' : 'outline'}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(spanValue)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect(spanValue)
+              }
+            }}
             className={cn(
               'cursor-pointer rounded-xs justify-center text-center px-2.5',
               'border',
