@@ -74,6 +74,15 @@ export type {
   PrimaryNameInput,
 } from './machines/primary-name/primaryName.machine'
 export { primaryNameMachine } from './machines/primary-name/primaryName.machine'
+export {
+  generateCommitmentActor,
+  resolveResolverDeploymentActor,
+  submitApprovalActor,
+  submitCommitmentActor,
+  submitRegistrationActor,
+  submitResolverDeploymentActor,
+  validateCommitmentActor,
+} from './machines/registration/registration.actors'
 export type {
   RegistrationContext,
   RegistrationEvent,
