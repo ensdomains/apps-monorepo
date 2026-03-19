@@ -12,10 +12,7 @@ import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
-import {
-  CHARACTER_PREMIUM_USD,
-  getPremiumLabel,
-} from '@/features/register/utils/premium'
+import { getPremiumLabel } from '@/features/register/utils/premium'
 import { getPremiumDatesFromRegistrationPrice } from '@/features/register/utils/premiumDecay'
 import {
   formatDiscountPercentForDisplay,
@@ -244,24 +241,6 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
 
         <hr className="border-border my-3" />
 
-        {premiumLabel && (
-          <SummaryRow
-            label={
-              <div className="flex flex-wrap items-center gap-2">
-                <ExternalLink
-                  href={ENS_PREMIUM_PRICING_DOCS_URL}
-                  className="underline decoration-dotted underline-offset-2"
-                >
-                  {premiumLabel.label}
-                </ExternalLink>
-              </div>
-            }
-            value={`${formatUsd(CHARACTER_PREMIUM_USD[premiumLabel.variant])} / year`}
-            labelClassName="font-medium text-quartz-900"
-            valueClassName="font-medium text-quartz-900"
-          />
-        )}
-
         {price.hasPremium && (
           <SummaryRow
             label={'Temporary premium:'}
@@ -272,7 +251,18 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
         )}
 
         <SummaryRow
-          label="Price:"
+          label={
+            premiumLabel ? (
+              <ExternalLink
+                href={ENS_PREMIUM_PRICING_DOCS_URL}
+                className="underline decoration-dotted underline-offset-2"
+              >
+                {premiumLabel.label}:
+              </ExternalLink>
+            ) : (
+              'Price:'
+            )
+          }
           value={`${formatUsd(pricePerYear)}/year × ${years}`}
         />
 

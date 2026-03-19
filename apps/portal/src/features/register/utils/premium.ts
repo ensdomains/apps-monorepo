@@ -35,5 +35,5 @@ export const getPremiumLabel = (
 
   const variant: PremiumLabelVariant = length === 3 ? 'premium-3' : 'premium-4'
 
-  return { label: `${length} character premium`, variant }
+  return { label: `${length} letter premium price`, variant }
 }

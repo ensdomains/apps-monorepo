@@ -4,22 +4,22 @@ import { getPremiumLabel } from './premium'
 describe('getPremiumLabel', () => {
   it('returns premium-3 label for 3-character names', () => {
     expect(getPremiumLabel('abc')).toEqual({
-      label: '3 character premium',
+      label: '3 letter premium price',
       variant: 'premium-3',
     })
     expect(getPremiumLabel('abc.eth')).toEqual({
-      label: '3 character premium',
+      label: '3 letter premium price',
       variant: 'premium-3',
     })
   })
 
   it('returns premium-4 label for 4-character names', () => {
     expect(getPremiumLabel('abcd')).toEqual({
-      label: '4 character premium',
+      label: '4 letter premium price',
       variant: 'premium-4',
     })
     expect(getPremiumLabel('test.eth')).toEqual({
-      label: '4 character premium',
+      label: '4 letter premium price',
       variant: 'premium-4',
     })
   })
