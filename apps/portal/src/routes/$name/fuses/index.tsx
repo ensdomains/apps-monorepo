@@ -1,8 +1,13 @@
-import type { DecodedFuses } from '@ensdomains/ensjs/utils'
+import {
+  ChildFuseKeys,
+  type DecodedFuses,
+  FullParentFuseKeys,
+} from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowDownUp, Ban, Flame, Info } from 'lucide-react'
+import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
@@ -18,98 +23,101 @@ import {
 } from '@/components/ui/tooltip'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 
-export const Route = createFileRoute('/$name/fuses')({
+export const Route = createFileRoute('/$name/fuses/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
 
 type FuseScope = 'Parent' | 'Owner'
 
+type ParentFuseKey = (typeof FullParentFuseKeys)[number]
+type ChildFuseKey = (typeof ChildFuseKeys)[number]
+type FuseKey = ParentFuseKey | ChildFuseKey
+
 interface FuseDefinition {
   name: string
-  key: keyof typeof fuseKeys
+  key: FuseKey
   scope: FuseScope
   description: string
 }
 
-const fuseKeys = {
-  PARENT_CANNOT_CONTROL: 'PARENT_CANNOT_CONTROL',
-  IS_DOT_ETH: 'IS_DOT_ETH',
-  CAN_EXTEND_EXPIRY: 'CAN_EXTEND_EXPIRY',
-  CANNOT_UNWRAP: 'CANNOT_UNWRAP',
-  CANNOT_BURN_FUSES: 'CANNOT_BURN_FUSES',
-  CANNOT_TRANSFER: 'CANNOT_TRANSFER',
-  CANNOT_SET_TTL: 'CANNOT_SET_TTL',
-  CANNOT_CREATE_SUBDOMAIN: 'CANNOT_CREATE_SUBDOMAIN',
-  CANNOT_APPROVE: 'CANNOT_APPROVE',
-} as const
-
-const fuseDefinitions: FuseDefinition[] = [
-  {
+// Map fuse keys to display names and descriptions
+const parentFuseDisplayInfo: Record<
+  ParentFuseKey,
+  { name: string; description: string }
+> = {
+  PARENT_CANNOT_CONTROL: {
     name: 'Parent Cannot Control',
-    key: 'PARENT_CANNOT_CONTROL',
-    scope: 'Parent',
     description:
       'Allows a parent owner to emancipate a child name. After this is burned, the parent will no longer be able to burn any further fuses, and will no longer be able to replace/delete the child name. This fuse must be burned in order for any owner-controlled fuses to be burned on the name.',
   },
-  {
+  IS_DOT_ETH: {
     name: 'Is Dot ETH',
-    key: 'IS_DOT_ETH',
-    scope: 'Parent',
     description:
       'This fuse cannot be burned by users of the Name Wrapper, it is only set internally when a .eth 2LD is wrapped.',
   },
-  {
+  CAN_EXTEND_EXPIRY: {
     name: 'Can Extend Expiry',
-    key: 'CAN_EXTEND_EXPIRY',
-    scope: 'Parent',
     description:
       'The owner of the child name will be able to extend their own expiry. Normally, only the parent owner can extend the expiry of a child name.',
   },
-  {
+}
+
+const childFuseDisplayInfo: Record<
+  ChildFuseKey,
+  { name: string; description: string }
+> = {
+  CANNOT_UNWRAP: {
     name: 'Cannot Unwrap',
-    key: 'CANNOT_UNWRAP',
-    scope: 'Owner',
     description:
       'The name will be locked, and can no longer be unwrapped. This fuse must be burned in order for any other owner-controlled fuses to be burned on the name.',
   },
-  {
+  CANNOT_BURN_FUSES: {
     name: 'Cannot Burn Fuses',
-    key: 'CANNOT_BURN_FUSES',
-    scope: 'Owner',
     description: 'No further fuses can be burned on the name.',
   },
-  {
+  CANNOT_TRANSFER: {
     name: 'Cannot Transfer',
-    key: 'CANNOT_TRANSFER',
-    scope: 'Owner',
     description: 'The name (wrapped NFT) can no longer be transferred.',
   },
-  {
+  CANNOT_SET_RESOLVER: {
+    name: 'Cannot Set Resolver',
+    description: 'The resolver contract for the name can no longer be updated.',
+  },
+  CANNOT_SET_TTL: {
     name: 'Cannot Set TTL',
-    key: 'CANNOT_SET_TTL',
-    scope: 'Owner',
     description: 'The TTL for the name can no longer be updated.',
   },
-  {
+  CANNOT_CREATE_SUBDOMAIN: {
     name: 'Cannot Create Subname',
-    key: 'CANNOT_CREATE_SUBDOMAIN',
-    scope: 'Owner',
     description: 'New subdomains can no longer be created.',
   },
-  {
+  CANNOT_APPROVE: {
     name: 'Cannot Approve',
-    key: 'CANNOT_APPROVE',
-    scope: 'Owner',
     description:
       'The approved "subname renewal manager" for the name can no longer be updated.',
   },
+}
+
+// Build fuse definitions from ensjs keys
+const fuseDefinitions: FuseDefinition[] = [
+  ...FullParentFuseKeys.map((key) => ({
+    key,
+    scope: 'Parent' as const,
+    ...parentFuseDisplayInfo[key],
+  })),
+  ...ChildFuseKeys.map((key) => ({
+    key,
+    scope: 'Owner' as const,
+    ...childFuseDisplayInfo[key],
+  })),
 ]
 
 type FuseRow = FuseDefinition & { isBurnt: boolean }
 
 function RouteComponent() {
   const { name } = Route.useParams()
+  const { address } = useConnection()
 
   const wrapperDataQuery = useQuery({
     ...getWrapperDataQueryOptions({ name }),
@@ -142,18 +150,24 @@ function RouteComponent() {
 
   const data: FuseRow[] = fuseDefinitions.map((fuse) => ({
     ...fuse,
-    isBurnt: isFuseBurnt(fuse.key, fuses),
+    isBurnt: isFuseBurnt(fuse.key, fuse.scope, fuses),
   }))
+
+  const isOwner = address && wrapperData.owner === address
 
   return (
     <div className="flex flex-col gap-6 max-w-screen-2xl mx-auto px-6 py-6 w-full">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-medium">Fuses</h1>
-          <Button variant="secondary" className="gap-2">
-            <Flame className="w-4 h-4 text-lapis-500" />
-            Burn fuses
-          </Button>
+          {isOwner && (
+            <Button asChild variant="secondary" className="gap-2">
+              <Link to="/$name/fuses/burn" params={{ name }}>
+                <Flame className="w-4 h-4 text-lapis-500" />
+                Burn fuses
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -303,15 +317,15 @@ const V2NameMessage = () => (
 )
 
 function isFuseBurnt(
-  fuseKey: keyof typeof fuseKeys,
+  fuseKey: FuseKey,
+  scope: FuseScope,
   fuses?: DecodedFuses,
 ): boolean {
   if (!fuses) return false
-  const parentFuses = fuses.parent as DecodedFuses['parent'] &
-    Record<string, unknown>
-  const childFuses = fuses.child as DecodedFuses['child'] &
-    Record<string, unknown>
-  if (parentFuses && parentFuses[fuseKey] === true) return true
-  if (childFuses && childFuses[fuseKey] === true) return true
-  return false
+  if (scope === 'Parent') {
+    const parentFuses = fuses.parent as Record<string, unknown>
+    return parentFuses?.[fuseKey] === true
+  }
+  const childFuses = fuses.child as Record<string, unknown>
+  return childFuses?.[fuseKey] === true
 }
