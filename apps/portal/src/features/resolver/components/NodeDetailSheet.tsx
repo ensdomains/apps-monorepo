@@ -38,6 +38,7 @@ import { recordsToTableData } from '@/utils/records/recordsToTableData'
 type NodeDetailSheetProps = PropsWithChildren & {
   readonly node: ResolverNode | null
   readonly roles: readonly ResolverRole[]
+  readonly resolverAddress: string
   readonly open: boolean
   readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
@@ -48,18 +49,23 @@ export const NodeDetailSheet = ({
   children,
   node,
   roles,
+  resolverAddress,
   open,
   setOpen,
 }: NodeDetailSheetProps) => {
   const isMobile = useIsMobile()
   const [tableView] = useTableViewSettings()
 
+  const isInactive =
+    !!node &&
+    node.resolver?.address.toLowerCase() !== resolverAddress.toLowerCase()
+
   const {
     data: profile,
     isLoading: isLoadingRecords,
     error: recordsError,
   } = useQuery({
-    ...getProfileQueryOptions(node?.name ?? ''),
+    ...getProfileQueryOptions({ name: node?.name ?? '' }),
     enabled: !!node,
   })
 
@@ -94,6 +100,11 @@ export const NodeDetailSheet = ({
         <div className="flex-1 overflow-y-auto">
           {node ? (
             <div className="flex flex-col gap-0">
+              {isInactive && (
+                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-lg bg-garnet-100 p-6 text-sm text-danger">
+                  This node is inactive. The records and roles are read only.
+                </div>
+              )}
               <section className="p-6 border-b flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">Records</h3>
@@ -112,7 +123,7 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : recordsError ? (
-                  <p className="text-sm text-red-500">
+                  <p className="text-sm text-danger">
                     Failed to load records:{' '}
                     {recordsError.cause?.message ?? 'Unknown error'}
                   </p>

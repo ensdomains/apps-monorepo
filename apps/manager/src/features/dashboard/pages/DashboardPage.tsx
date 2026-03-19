@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
@@ -78,20 +79,38 @@ export const DashboardPage = () => {
             </AlertDescription>
           </Alert>
         </motion.div>
-        <motion.h1
-          className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]"
+        <motion.div
+          className="flex items-center gap-3 px-4 md:px-0"
           {...stagger(1, shouldReduceMotion)}
         >
-          <Trans>Hello</Trans>{' '}
-          {defaultName ??
-            (ownerAddress && (
-              <CopyableAddress
-                address={ownerAddress}
-                textClassName="font-serif text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
-                truncate={true}
-              />
-            ))}
-        </motion.h1>
+          <h1 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
+            <Trans>Hello</Trans>{' '}
+            {defaultName ??
+              (ownerAddress && (
+                <CopyableAddress
+                  address={ownerAddress}
+                  textClassName="font-serif text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
+                  truncate={true}
+                />
+              ))}
+          </h1>
+          {!hasProfile && (
+            <ChoosePrimaryNameDialog>
+              <button
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10"
+                type="button"
+              >
+                <MSymbol
+                  className="ms-opsz-20 ms-wght-500 text-sm"
+                  symbol="badge"
+                />
+                <span className="whitespace-nowrap font-medium font-sans text-xs">
+                  <Trans>Set primary name</Trans>
+                </span>
+              </button>
+            </ChoosePrimaryNameDialog>
+          )}
+        </motion.div>
         {hasProfile && (
           <motion.div {...stagger(2, shouldReduceMotion)}>
             <PrimaryNameCard

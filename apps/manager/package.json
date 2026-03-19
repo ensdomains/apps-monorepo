@@ -14,6 +14,10 @@
     "typecheck": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
+    "i18n:extract": "lingui extract",
+    "i18n:compile": "lingui compile",
+    "i18n:push": "crowdin upload sources --config crowdin.yml",
+    "i18n:pull": "crowdin download --config crowdin.yml",
     "lint": "biome check",
     "lint:fix": "biome check --fix"
   },
@@ -88,6 +92,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.23.1",
+    "@crowdin/cli": "^4.14.0",
     "@lingui/babel-plugin-lingui-macro": "6.0.0-next.1",
     "@lingui/cli": "^5.9.2",
     "@lingui/vite-plugin": "6.0.0-next.1",

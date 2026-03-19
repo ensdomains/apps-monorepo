@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import type { HTMLAttributes } from 'react'
 import {
   createContext,
@@ -184,7 +185,11 @@ const ImageFallbackFallback = forwardRef<HTMLDivElement, FallbackProps>(
 
     return shouldShowFallback ? (
       <div className={className ?? 'contents'} ref={ref} {...props}>
-        {children || <div>Image not available</div>}
+        {children || (
+          <div>
+            <Trans>Image not available</Trans>
+          </div>
+        )}
       </div>
     ) : null
   },
@@ -205,7 +210,11 @@ const ImageFallbackLoading = forwardRef<HTMLDivElement, LoadingProps>(
 
     return shouldShowLoading ? (
       <div className={className} ref={ref} {...props}>
-        {children || <div>Loading...</div>}
+        {children || (
+          <div>
+            <Trans>Loading...</Trans>
+          </div>
+        )}
       </div>
     ) : null
   },

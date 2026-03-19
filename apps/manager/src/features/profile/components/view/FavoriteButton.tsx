@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import clsx from 'clsx'
@@ -67,7 +68,9 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
-      <TooltipContent>Login to favorite</TooltipContent>
+      <TooltipContent>
+        <Trans>Login to favorite</Trans>
+      </TooltipContent>
     </Tooltip>
   )
 }

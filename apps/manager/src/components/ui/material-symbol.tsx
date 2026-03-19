@@ -26,6 +26,7 @@ const MATERIAL_SYMBOLS = [
   'priority_high',
   'more_horiz',
   'delete',
+  'badge',
   'cached',
   'close',
   'warning',

@@ -81,7 +81,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
           <Clock className="size-4" />
           Expires{' '}
           <span className="font-medium">
-            {formatDate(new Date(Number(expiry.data?.expiry) * 1000))}
+            {formatDate(new Date(Number(expiry.data.expiry) * 1000))}
           </span>
         </div>
       )}

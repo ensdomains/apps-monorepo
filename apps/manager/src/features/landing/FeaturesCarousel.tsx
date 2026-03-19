@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import clsx from 'clsx'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { motion, useMotionValue, useTransform } from 'motion/react'
@@ -23,17 +24,17 @@ export const FEATURE_CARDS: FeatureCard[] = [
     className: tw`bg-ens-peridot-dust text-ens-peridot-core`,
     indicatorClass: tw`border-ens-peridot-core data-active:bg-ens-peridot-core`,
     title: (
-      <>
+      <Trans>
         One username <br />
         <span className="font-normal font-serif italic">everywhere</span>
-      </>
+      </Trans>
     ),
     description: (
-      <>
+      <Trans>
         Your name lives onchain - you own it, not a platform. Sign in to web3
         apps with your <span className="font-medium font-sans">.eth name</span>{' '}
         and your ENS profile will load automatically.
-      </>
+      </Trans>
     ),
     children: (
       <>
@@ -63,13 +64,13 @@ export const FEATURE_CARDS: FeatureCard[] = [
   {
     className: tw`bg-ens-garnet-dust text-ens-garnet-core`,
     indicatorClass: tw`border-ens-garnet-core data-active:bg-ens-garnet-core`,
-    title: <>Verify authenticity and stay safe.</>,
+    title: <Trans>Verify authenticity and stay safe.</Trans>,
     description: (
-      <>
+      <Trans>
         Companies and projects use ENS because it's secured by ethereum, so you
         can be sure it's the real deal. Avoid impersonation scams and stay safe
         out there &lt;3.
-      </>
+      </Trans>
     ),
     children: (
       <>
@@ -87,7 +88,9 @@ export const FEATURE_CARDS: FeatureCard[] = [
               </div>
             </div>
 
-            <ChatBubble>Can you share your order number?</ChatBubble>
+            <ChatBubble>
+              <Trans>Can you share your order number?</Trans>
+            </ChatBubble>
           </div>
 
           <div className="flex flex-col items-end gap-2">
@@ -99,9 +102,11 @@ export const FEATURE_CARDS: FeatureCard[] = [
             </div>
 
             <ChatBubble kind="reply">
-              No problem. I just checked your
-              <br />
-              ENS profile, you're legit! It's HGJLY ☺️
+              <Trans>
+                No problem. I just checked your
+                <br />
+                ENS profile, you're legit! It's HGJLY ☺️
+              </Trans>
             </ChatBubble>
           </div>
         </div>
@@ -112,18 +117,18 @@ export const FEATURE_CARDS: FeatureCard[] = [
     className: tw`bg-ens-lapis-dust text-ens-lapis-core`,
     indicatorClass: tw`border-ens-lapis-core data-active:bg-ens-lapis-core`,
     title: (
-      <>
+      <Trans>
         A simpler way to
         <br />
         <span className="font-normal font-serif italic">get paid.</span>
-      </>
+      </Trans>
     ),
     description: (
-      <>
+      <Trans>
         Your ENS name replaces your wallet addresses so friends and clients can
         send money to <span className="font-medium font-sans">friend.eth</span>{' '}
         instead of a confusing jumble of letters and numbers.
-      </>
+      </Trans>
     ),
     children: (
       <>
@@ -219,6 +224,7 @@ const CarouselCard = ({
 }
 
 export const FeaturesCarousel = () => {
+  const { t } = useLingui()
   const [offset, setOffset] = useState(0)
   const constraintRef = useRef<HTMLDivElement>(null)
 
@@ -282,7 +288,7 @@ export const FeaturesCarousel = () => {
         {/* Prev button, dots for each slide, next button */}
         <div className="my-9 flex items-center justify-center gap-4 pb-4">
           <button
-            aria-label="Previous slide"
+            aria-label={t`Previous slide`}
             onClick={decrementOffset}
             type="button"
           >
@@ -292,7 +298,7 @@ export const FeaturesCarousel = () => {
             {FEATURE_CARDS.map(({ indicatorClass }, index) => {
               return (
                 <button
-                  aria-label={`Go to slide ${index + 1}`}
+                  aria-label={t`Go to slide ${index + 1}`}
                   className={clsx(
                     'size-4 rounded-xs border-2 bg-transparent transition-colors',
                     indicatorClass,
@@ -307,7 +313,7 @@ export const FeaturesCarousel = () => {
             })}
           </div>
           <button
-            aria-label="Next slide"
+            aria-label={t`Next slide`}
             onClick={incrementOffset}
             type="button"
           >

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { Link, linkOptions } from '@tanstack/react-router'
 import { Loader2Icon, XIcon } from 'lucide-react'
 import { match } from 'ts-pattern'
@@ -101,7 +102,7 @@ export const NameSuggestionItem = ({
                 'bg-ens-white text-ens-lapis-core',
               )}
             >
-              Registered
+              <Trans>Registered</Trans>
             </div>
           ))
           .with({ isRegistered: false }, () => (
@@ -111,7 +112,7 @@ export const NameSuggestionItem = ({
                 'bg-ens-peridot-bg text-ens-peridot-core',
               )}
             >
-              Available
+              <Trans>Available</Trans>
             </div>
           ))
           .otherwise(() => null)}

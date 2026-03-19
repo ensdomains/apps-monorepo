@@ -79,13 +79,13 @@ export const buildSearchSuggestions = ({
 
   // Input is NOT a valid address, treat it as an ENS name
   const lowercaseValue = trimmedValue.toLowerCase()
-  const dotIndex = lowercaseValue.indexOf('.')
-  const labelBeforeDot =
-    dotIndex >= 0 ? lowercaseValue.slice(0, dotIndex) : lowercaseValue
-  const partialTld = dotIndex >= 0 ? lowercaseValue.slice(dotIndex + 1) : ''
-  const hasLabelForTlds = labelBeforeDot.length > 0
+  const dotCount = lowercaseValue.split('.').length - 1
+  const firstDotIndex = lowercaseValue.indexOf('.')
+  const afterFirstDot =
+    firstDotIndex >= 0 ? lowercaseValue.slice(firstDotIndex + 1) : ''
+  const labelBeforeFirstDot =
+    firstDotIndex >= 0 ? lowercaseValue.slice(0, firstDotIndex) : lowercaseValue
 
-  // Helper to create a name suggestion
   const createNameSuggestion = (name: string): Suggestion => {
     const displayLabel = isMobile ? truncateAddress(name, 18, 8) : name
     return {
@@ -97,18 +97,68 @@ export const buildSearchSuggestions = ({
     }
   }
 
-  // Multi-TLD mode: suggest label.tld. If user typed a partial TLD (e.g. "fresh.e" or "fresh.c"),
-  // only suggest .eth (always) plus TLDs that start with that prefix (e.g. .eth for "e"; .eth and .com for "c").
-  if (validTlds?.length && hasLabelForTlds) {
+  const isTldPrefix = (s: string) =>
+    s === '' || (validTlds ?? []).some((t) => t.startsWith(s))
+
+  // Subname: 2+ dots (e.g. "test.florin.eth") or 1 dot where the suffix
+  // isn't a TLD prefix (e.g. "test.florin" — "florin" doesn't match any TLD).
+  const isSubname =
+    dotCount >= 2 ||
+    (dotCount === 1 && afterFirstDot !== '' && !isTldPrefix(afterFirstDot))
+
+  if (isSubname) {
+    const lastDotIndex = lowercaseValue.lastIndexOf('.')
+    const afterLastDot = lowercaseValue.slice(lastDotIndex + 1)
+    const beforeLastDot = lowercaseValue.slice(0, lastDotIndex)
+
+    const endsWithKnownTld = (validTlds ?? ['eth']).includes(afterLastDot)
+
+    if (endsWithKnownTld) {
+      if (isValidEnsName(lowercaseValue)) {
+        items.push(createNameSuggestion(lowercaseValue))
+      }
+      return items
+    }
+
+    // Part after last dot is a partial TLD (e.g. "test.florin.e" → "eth")
+    if (dotCount >= 2 && isTldPrefix(afterLastDot)) {
+      const matchingTlds =
+        afterLastDot === ''
+          ? [...(validTlds ?? ['eth'])]
+          : (validTlds ?? ['eth']).filter((t) => t.startsWith(afterLastDot))
+      for (const tld of matchingTlds) {
+        const name = `${beforeLastDot}.${tld}`
+        if (isValidEnsName(name)) {
+          items.push(createNameSuggestion(name))
+        }
+      }
+      return items
+    }
+
+    // Suffix doesn't look like a TLD — suggest as-is and with .eth appended
+    if (isValidEnsName(lowercaseValue)) {
+      items.push(createNameSuggestion(lowercaseValue))
+    }
+    const withEth = `${lowercaseValue}.eth`
+    if (isValidEnsName(withEth)) {
+      items.push(createNameSuggestion(withEth))
+    }
+    return items
+  }
+
+  // Multi-TLD mode for single labels (0 dots) or label + partial TLD (1 dot).
+  if (validTlds?.length && labelBeforeFirstDot.length > 0) {
     const tldsToSuggest =
-      partialTld === ''
+      afterFirstDot === ''
         ? [...validTlds]
         : [
             'eth',
-            ...validTlds.filter((t) => t !== 'eth' && t.startsWith(partialTld)),
+            ...validTlds.filter(
+              (t) => t !== 'eth' && t.startsWith(afterFirstDot),
+            ),
           ]
     for (const tld of tldsToSuggest) {
-      const name = `${labelBeforeDot}.${tld}`
+      const name = `${labelBeforeFirstDot}.${tld}`
       if (isValidEnsName(name)) {
         items.push(createNameSuggestion(name))
       }
@@ -116,15 +166,12 @@ export const buildSearchSuggestions = ({
     return items
   }
 
-  // If input is already a valid ENS name (e.g., "eth", "vitalik.eth"), show it first
+  // Fallback (no validTlds): suggest as-is if valid, plus .eth version
   if (isValidEnsName(lowercaseValue)) {
     items.push(createNameSuggestion(lowercaseValue))
   }
-
-  // If input doesn't end with .eth, also suggest the .eth version (if different)
   if (!lowercaseValue.endsWith('.eth')) {
     const valueWithEthSuffix = ensureEthSuffix(lowercaseValue)
-    // Only add if it's different from the original (ensureEthSuffix returns same value if input has dots)
     if (
       valueWithEthSuffix !== lowercaseValue &&
       isValidEnsName(valueWithEthSuffix)

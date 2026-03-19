@@ -97,7 +97,6 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
 function RouteComponent() {
   const { disconnect } = useDisconnect()
   const { isConnected } = useAccount()
-
   const { addr } = Route.useParams() as { addr: Address }
 
   return (

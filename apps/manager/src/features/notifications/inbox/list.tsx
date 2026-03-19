@@ -1,4 +1,5 @@
 import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
+import { Trans } from '@lingui/react/macro'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
 import { useInView } from 'motion/react'
@@ -41,7 +42,11 @@ const LoadMoreButton = ({
         onClick={() => fetchNextPage()}
         variant="outline"
       >
-        {isFetchingNextPage ? 'Loading...' : 'Load more'}
+        {isFetchingNextPage ? (
+          <Trans>Loading...</Trans>
+        ) : (
+          <Trans>Load more</Trans>
+        )}
       </Button>
       {isFetchingNextPage ? (
         <Loader2Icon className="size-5 animate-spin text-[#717182]" />
@@ -89,7 +94,7 @@ export const NotificationsList = ({
     return (
       <div className="flex flex-col items-center justify-center">
         <div className="text-ens-garnet-core text-sm">
-          Failed to load notifications
+          <Trans>Failed to load notifications</Trans>
         </div>
       </div>
     )
@@ -99,7 +104,9 @@ export const NotificationsList = ({
     return (
       <div className="flex flex-col items-center justify-center">
         <MSymbol className="ms-opsz-75 ms-wght-200" symbol="sentiment_calm" />
-        <div className="text-[#717182] text-base">You're all caught up!</div>
+        <div className="text-[#717182] text-base">
+          <Trans>You're all caught up!</Trans>
+        </div>
       </div>
     )
   }

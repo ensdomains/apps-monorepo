@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle, LoaderIcon, WalletIcon, XCircle } from 'lucide-react'
 import { useConnect, useConnection, useDisconnect } from 'wagmi'
@@ -147,7 +148,7 @@ const ConnectMenu = () => {
   return (
     <>
       <h1 className="mb-6 text-center font-bold text-3xl text-gray-800">
-        Connect a Wallet
+        <Trans>Connect a Wallet</Trans>
       </h1>
 
       {/* Status Messages */}
@@ -155,8 +156,10 @@ const ConnectMenu = () => {
         <Alert className="mb-6 border-blue-200 bg-blue-50">
           <LoaderIcon className="h-4 w-4 animate-spin text-blue-600" />
           <AlertDescription className="text-blue-800">
-            Connecting to {connectingConnector}... Please approve the connection
-            in your wallet.
+            <Trans>
+              Connecting to {connectingConnector}... Please approve the
+              connection in your wallet.
+            </Trans>
           </AlertDescription>
         </Alert>
       )}
@@ -165,7 +168,9 @@ const ConnectMenu = () => {
         <Alert className="mb-6 border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Successfully connected! You can now use the application.
+            <Trans>
+              Successfully connected! You can now use the application.
+            </Trans>
           </AlertDescription>
         </Alert>
       )}
@@ -184,7 +189,9 @@ const ConnectMenu = () => {
                   : 'text-orange-800'
             }
           >
-            <strong>Connection failed:</strong> {getErrorMessage(error)}
+            <Trans>
+              <strong>Connection failed:</strong> {getErrorMessage(error)}
+            </Trans>
           </AlertDescription>
         </Alert>
       )}
@@ -194,10 +201,10 @@ const ConnectMenu = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <WalletIcon className="h-5 w-5" />
-            Available Wallets
+            <Trans>Available Wallets</Trans>
           </CardTitle>
           <CardDescription>
-            Choose a wallet to connect to the application
+            <Trans>Choose a wallet to connect to the application</Trans>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -239,9 +246,11 @@ const ConnectMenu = () => {
           {connectors.length === 0 && (
             <div className="py-8 text-center text-gray-500">
               <WalletIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-              <p>No wallet connectors available</p>
+              <p>
+                <Trans>No wallet connectors available</Trans>
+              </p>
               <p className="text-sm">
-                Make sure you have a wallet extension installed
+                <Trans>Make sure you have a wallet extension installed</Trans>
               </p>
             </div>
           )}
@@ -262,23 +271,25 @@ const DisconnectMenu = () => {
   return (
     <>
       <h1 className="mb-6 text-center font-bold text-3xl text-gray-800">
-        Wallet Connected
+        <Trans>Wallet Connected</Trans>
       </h1>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <CheckCircle className="h-5 w-5 text-green-600" />
-            Connection Details
+            <Trans>Connection Details</Trans>
           </CardTitle>
           <CardDescription>
-            Your wallet is successfully connected to the application
+            <Trans>
+              Your wallet is successfully connected to the application
+            </Trans>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
             <span className="font-medium text-gray-600 text-sm">
-              Wallet Address:
+              <Trans>Wallet Address:</Trans>
             </span>
             <span className="rounded border bg-white px-2 py-1 font-mono text-sm">
               {formatAddress(address || '')}
@@ -287,7 +298,7 @@ const DisconnectMenu = () => {
 
           <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
             <span className="font-medium text-gray-600 text-sm">
-              Connected via:
+              <Trans>Connected via:</Trans>
             </span>
             <span className="font-medium text-sm">
               {connector?.name || 'Unknown'}
@@ -299,7 +310,7 @@ const DisconnectMenu = () => {
             onClick={() => disconnect()}
             variant="destructive"
           >
-            Disconnect Wallet
+            <Trans>Disconnect Wallet</Trans>
           </Button>
         </CardContent>
       </Card>
