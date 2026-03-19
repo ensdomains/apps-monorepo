@@ -97,7 +97,7 @@ export const TransactionModalHeader = ({
               borderRadius: '4px',
             }}
           >
-            [title]
+            {title}
           </span>
           {statusLabel && (
             <span

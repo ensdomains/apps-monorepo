@@ -1,5 +1,4 @@
 import { ChildFuseKeys, type DecodedFuses } from '@ensdomains/ensjs/utils'
-import { setFusesWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
@@ -9,22 +8,21 @@ import {
   CheckCircle,
   ShieldX,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { sepolia } from 'viem/chains'
-import {
-  useConnection,
-  useWaitForTransactionReceipt,
-  useWalletClient,
-  useWriteContract,
-} from 'wagmi'
+import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { MessageCard } from '@/components/ui/message-card'
+import { burnFuses } from '@/features/fuses/helpers/burnFuses'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 
 export const Route = createFileRoute('/$name/fuses/burn')({
   component: RouteComponent,
@@ -32,6 +30,8 @@ export const Route = createFileRoute('/$name/fuses/burn')({
 })
 
 type ChildFuseKey = (typeof ChildFuseKeys)[number]
+
+const BURN_FUSES_TX_ID = 'tx-burn-fuses'
 
 const childFuseDisplayNames: Record<ChildFuseKey, string> = {
   CANNOT_UNWRAP: 'Cannot Unwrap',
@@ -47,8 +47,10 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
   const queryClient = useQueryClient()
+  const chainId = sepolia.id
 
-  const { data: walletClient } = useWalletClient({ chainId: sepolia.id })
+  const { data: walletClient } = useWalletClient({ chainId })
+  const publicClient = usePublicClient({ chainId })
 
   const wrapperDataQuery = useQuery({
     ...getWrapperDataQueryOptions({ name }),
@@ -57,21 +59,13 @@ function RouteComponent() {
   const [selectedChildFuses, setSelectedChildFuses] = useState<
     Set<ChildFuseKey>
   >(new Set())
-  const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined)
-  const [isWriting, setIsWriting] = useState(false)
 
-  const { writeContractAsync, error: writeError } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash: txHash,
-  })
-
-  useEffect(() => {
-    if (isSuccess) {
-      queryClient.invalidateQueries({ queryKey: ['get-wrapper-data'] })
-      setSelectedChildFuses(new Set())
-      setTxHash(undefined)
-    }
-  }, [isSuccess, queryClient])
+  const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction: clearTransactionModal,
+  } = useTransactionModal()
+  const txState = useActiveTransactionState()
 
   if (wrapperDataQuery.isLoading) {
     return <LoadingMessage title="Loading fuses..." />
@@ -111,24 +105,15 @@ function RouteComponent() {
     return (fuses.child as Record<string, unknown>)[fuseKey] === true
   }
 
-  // For .eth 2LDs, PCC and IS_DOT_ETH are automatically burnt when wrapped
-  // Check if PCC is burnt (required to burn CANNOT_UNWRAP)
   const isPCCBurnt = isParentFuseBurnt('PARENT_CANNOT_CONTROL')
-  // Check if CANNOT_UNWRAP is burnt (required to burn other child fuses)
   const isCannotUnwrapBurnt = isChildFuseBurnt('CANNOT_UNWRAP')
-  // Check if CANNOT_UNWRAP is selected (to enable other fuses in the same tx)
   const isCannotUnwrapSelected = selectedChildFuses.has('CANNOT_UNWRAP')
 
   const canSelectChildFuse = (fuseKey: ChildFuseKey): boolean => {
-    // Already burnt - can't select
     if (isChildFuseBurnt(fuseKey)) return false
-
-    // CANNOT_UNWRAP requires PCC to be burnt first
     if (fuseKey === 'CANNOT_UNWRAP') {
       return isPCCBurnt
     }
-
-    // Other child fuses require CANNOT_UNWRAP to be burnt OR selected in this tx
     return isCannotUnwrapBurnt || isCannotUnwrapSelected
   }
 
@@ -137,8 +122,6 @@ function RouteComponent() {
     const newSelected = new Set(selectedChildFuses)
     if (newSelected.has(fuseKey)) {
       newSelected.delete(fuseKey)
-      // If deselecting CANNOT_UNWRAP and it's not already burnt,
-      // clear all other child fuses since they require CANNOT_UNWRAP
       if (fuseKey === 'CANNOT_UNWRAP' && !isCannotUnwrapBurnt) {
         for (const key of ChildFuseKeys) {
           if (key !== 'CANNOT_UNWRAP') newSelected.delete(key)
@@ -150,149 +133,150 @@ function RouteComponent() {
     setSelectedChildFuses(newSelected)
   }
 
-  const handleBurn = async () => {
+  const handleBurn = () => {
     if (selectedChildFuses.size === 0) return
-    if (!address || !walletClient) return
+    if (!walletClient || !publicClient) return
+    openTransactionModal()
+  }
+
+  const handleStartTransaction = async () => {
+    if (!walletClient || !publicClient) return
+
+    const signer = createEOASigner(walletClient)
+    const childFusesArray = Array.from(selectedChildFuses)
 
     try {
-      setIsWriting(true)
-
-      const childFusesArray = Array.from(selectedChildFuses)
-
-      const params = setFusesWriteParameters(
-        {
-          ...walletClient,
-          chain: sepoliaWithEns,
-        },
-        {
-          name,
-          fuses: { named: childFusesArray },
-        },
-      )
-
-      const hash = await writeContractAsync({
-        address: params.address,
-        abi: params.abi,
-        functionName: params.functionName,
-        args: params.args,
+      await burnFuses({
+        name,
+        fuses: childFusesArray,
+        walletClient,
+        publicClient,
+        signer,
+        chainId,
+        id: BURN_FUSES_TX_ID,
       })
-
-      setTxHash(hash)
-    } finally {
-      setIsWriting(false)
+    } catch (err) {
+      console.error('Failed to burn fuses:', err)
     }
   }
 
-  const isPending = isWriting || isConfirming
   const hasChanges = selectedChildFuses.size > 0
+  const isPending =
+    txState?.machineState === 'submitting' ||
+    txState?.machineState === 'pending' ||
+    txState?.machineState === 'confirming'
 
   return (
-    <div className="flex flex-col items-center px-8 py-6 w-full">
-      <div className="flex flex-col gap-6 max-w-[640px] w-full">
-        {/* Back link */}
-        <Link
-          to="/$name/fuses"
-          params={{ name }}
-          className="flex items-center gap-1 text-quartz-400 hover:text-quartz-600 text-sm font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </Link>
+    <>
+      <div className="flex flex-col items-center px-8 py-6 w-full">
+        <div className="flex flex-col gap-6 max-w-[640px] w-full">
+          <Link
+            to="/$name/fuses"
+            params={{ name }}
+            className="flex items-center gap-1 text-quartz-400 hover:text-quartz-600 text-sm font-medium"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Link>
 
-        {/* Title */}
-        <h1 className="text-[34px] font-medium leading-tight">Burn fuses</h1>
+          <h1 className="text-[34px] font-medium leading-tight">Burn fuses</h1>
 
-        {/* Warning box */}
-        <div className="bg-[#f2f2f2] rounded-2xl p-6 flex gap-4 items-start">
-          <AlertTriangle className="w-8 h-8 shrink-0" />
-          <p className="text-black">
-            Burning fuses will make permanent changes to your name.
-            <br />
-            You will not be able to undo these changes, and they will only be
-            reset if the name expires.
-          </p>
-        </div>
-
-        {/* Fuse expiry */}
-        <div className="flex flex-col gap-1">
-          <span className="font-medium">Fuse expiry</span>
-          <div className="flex items-center h-[38px] px-2 border border-quartz-100 rounded bg-white">
-            <span className="flex-1 text-sm">
-              {expiry
-                ? new Date(Number(expiry) * 1000).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    timeZoneName: 'short',
-                  })
-                : 'N/A'}
-            </span>
-            <Calendar className="w-4 h-4 text-quartz-400" />
+          <div className="bg-[#f2f2f2] rounded-2xl p-6 flex gap-4 items-start">
+            <AlertTriangle className="w-8 h-8 shrink-0" />
+            <p className="text-black">
+              Burning fuses will make permanent changes to your name.
+              <br />
+              You will not be able to undo these changes, and they will only be
+              reset if the name expires.
+            </p>
           </div>
-        </div>
 
-        {/* Fuses */}
-        <div className="flex flex-col gap-1">
-          <span className="font-medium">Fuses</span>
-          <div className="flex flex-col gap-2">
-            {ChildFuseKeys.map((fuseKey) => {
-              const burnt = isChildFuseBurnt(fuseKey)
-              const canSelect = canSelectChildFuse(fuseKey)
-              const isSelected = selectedChildFuses.has(fuseKey)
-
-              return (
-                <div key={fuseKey} className="flex gap-2 items-center">
-                  <Checkbox
-                    checked={isSelected || burnt}
-                    disabled={!canSelect}
-                    onCheckedChange={() => toggleChildFuse(fuseKey)}
-                  />
-                  <span
-                    className={
-                      !canSelect || burnt ? 'text-quartz-400' : 'text-black'
-                    }
-                  >
-                    {childFuseDisplayNames[fuseKey]}
-                  </span>
-                </div>
-              )
-            })}
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">Fuse expiry</span>
+            <div className="flex items-center h-[38px] px-2 border border-quartz-100 rounded bg-white">
+              <span className="flex-1 text-sm">
+                {expiry
+                  ? new Date(Number(expiry) * 1000).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      timeZoneName: 'short',
+                    })
+                  : 'N/A'}
+              </span>
+              <Calendar className="w-4 h-4 text-quartz-400" />
+            </div>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">Fuses</span>
+            <div className="flex flex-col gap-2">
+              {ChildFuseKeys.map((fuseKey) => {
+                const burnt = isChildFuseBurnt(fuseKey)
+                const canSelect = canSelectChildFuse(fuseKey)
+                const isSelected = selectedChildFuses.has(fuseKey)
+
+                return (
+                  <div key={fuseKey} className="flex gap-2 items-center">
+                    <Checkbox
+                      checked={isSelected || burnt}
+                      disabled={!canSelect}
+                      onCheckedChange={() => toggleChildFuse(fuseKey)}
+                    />
+                    <span
+                      className={
+                        !canSelect || burnt ? 'text-quartz-400' : 'text-black'
+                      }
+                    >
+                      {childFuseDisplayNames[fuseKey]}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <Button
+            variant="secondary"
+            onClick={handleBurn}
+            disabled={!hasChanges || isPending || !address || !walletClient}
+            className="flex items-center justify-center gap-2 h-[38px] w-fit"
+          >
+            <CheckCircle className="w-5 h-5" />
+            {isPending ? 'Burning fuses...' : 'Save changes'}
+          </Button>
+
+          {!address && (
+            <p className="text-quartz-400 text-sm">
+              Connect your wallet to burn fuses
+            </p>
+          )}
         </div>
-
-        {/* Save button */}
-        <Button
-          variant="secondary"
-          onClick={handleBurn}
-          disabled={!hasChanges || isPending || !address || !walletClient}
-          className="flex items-center justify-center gap-2 h-[38px] w-fit"
-        >
-          <CheckCircle className="w-5 h-5" />
-          {isWriting
-            ? 'Confirm in wallet...'
-            : isConfirming
-              ? 'Confirming...'
-              : 'Save changes'}
-        </Button>
-
-        {!address && (
-          <p className="text-quartz-400 text-sm">
-            Connect your wallet to burn fuses
-          </p>
-        )}
-
-        {isSuccess && (
-          <p className="text-green-600 text-sm">Fuses burned successfully!</p>
-        )}
-
-        {writeError && (
-          <p className="text-red-600 text-sm">{writeError.message}</p>
-        )}
       </div>
-    </div>
+
+      <TransactionModal
+        transactions={[
+          {
+            id: BURN_FUSES_TX_ID,
+            title: 'Burn Fuses',
+            transactionName: 'Burn fuses',
+            estimatedGasCost: 0.0001,
+            onStart: handleStartTransaction,
+            onDone: () => {
+              queryClient.invalidateQueries({
+                queryKey: ['get-wrapper-data'],
+              })
+              setSelectedChildFuses(new Set())
+              closeTransactionModal()
+              clearTransactionModal()
+            },
+          },
+        ]}
+      />
+    </>
   )
 }
 
