@@ -46,8 +46,6 @@ msgstr "A simple, portable identity that you control"
 msgid "Address profile"
 msgstr "Address profile"
 
-<<<<<<< HEAD
-=======
 #: src/features/wallet/components/EnableSessionModal.tsx:157
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
@@ -189,7 +187,6 @@ msgstr "Bug bounty"
 msgid "Buy Name"
 msgstr "Buy Name"
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/FaqSection.tsx:35
 msgid "Can I change my primary name later?"
 msgstr "Can I change my primary name later?"
@@ -199,11 +196,6 @@ msgid "Can I send crypto to a .eth name (instead of an address)?"
 msgstr "Can I send crypto to a .eth name (instead of an address)?"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
-<<<<<<< HEAD
-msgid "Cancel"
-msgstr "Cancel"
-
-=======
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
@@ -259,13 +251,10 @@ msgstr "Choose an NFT"
 msgid "Choose how you'd like to pay for your subscription."
 msgstr "Choose how you'd like to pay for your subscription."
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:241
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
-<<<<<<< HEAD
-=======
 #: src/features/register/pages/CheckDomainPage.tsx:18
 #: src/routes/index.tsx:28
 msgid "Claim your"
@@ -478,7 +467,6 @@ msgstr "CVV"
 msgid "DAO Forum"
 msgstr "DAO Forum"
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/DashboardSidebar.tsx:47
 msgid "Dashboard"
 msgstr "Dashboard"
@@ -491,12 +479,8 @@ msgstr "Date added (Newest)"
 msgid "Date added (Oldest)"
 msgstr "Date added (Oldest)"
 
-<<<<<<< HEAD
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
-=======
 #: src/features/payment/components/index.tsx:42
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:316
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 msgid "Default"
 msgstr "Default"
 
@@ -504,8 +488,6 @@ msgstr "Default"
 msgid "Did You Know?"
 msgstr "Did You Know?"
 
-<<<<<<< HEAD
-=======
 #: src/features/navigation/Header/ProfileSection/WalletSection.tsx:153
 msgid "Disconnect"
 msgstr "Disconnect"
@@ -616,7 +598,6 @@ msgstr "Enter wallet address"
 msgid "Enter your email"
 msgstr "Enter your email"
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/MyNamesList.tsx:165
 msgid "Error loading names"
 msgstr "Error loading names"
@@ -681,8 +662,6 @@ msgstr "How can I secure my ENS name?"
 msgid "How do I show my .eth name instead of my address?"
 msgstr "How do I show my .eth name instead of my address?"
 
-<<<<<<< HEAD
-=======
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:112
 msgid "Human-readable addresses for wallets"
 msgstr "Human-readable addresses for wallets"
@@ -711,7 +690,6 @@ msgstr "Invalid character"
 msgid "Join the community"
 msgstr "Join the community"
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/FaqSection.tsx:47
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
@@ -721,8 +699,6 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 msgid "Language"
 msgstr "Language"
 
-<<<<<<< HEAD
-=======
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:482
 msgid "Learn more"
 msgstr "Learn more"
@@ -749,7 +725,6 @@ msgstr "Links"
 msgid "Load more"
 msgstr "Load more"
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/DashboardLoading.tsx:8
 msgid "Loading dashboard..."
 msgstr "Loading dashboard..."
@@ -800,8 +775,6 @@ msgstr "No names found"
 msgid "No names to display"
 msgstr "No names to display"
 
-<<<<<<< HEAD
-=======
 #: src/routes/payment/list.tsx:26
 msgid "No payment methods found."
 msgstr "No payment methods found."
@@ -968,7 +941,6 @@ msgstr "Previous page"
 msgid "Previous slide"
 msgstr "Previous slide"
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/PrimaryBadge.tsx:20
 msgid "Primary Name"
 msgstr "Primary Name"
@@ -991,9 +963,6 @@ msgstr "Registered"
 msgid "Registered {0}"
 msgstr "Registered {0}"
 
-<<<<<<< HEAD
-#: src/features/profile/components/ProfileEdit.tsx:173
-=======
 #: src/features/profile/components/view/AddressProfileView.tsx:245
 msgid "Registered ENS names"
 msgstr "Registered ENS names"
@@ -1109,7 +1078,6 @@ msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
 
 #: src/features/profile/components/ProfileEdit.tsx:174
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 msgid "Reset Changes"
 msgstr "Reset Changes"
 
@@ -1125,8 +1093,6 @@ msgstr "Search name, address..."
 msgid "Search name..."
 msgstr "Search name..."
 
-<<<<<<< HEAD
-=======
 #: src/routes/notifications/_authenticated/index.tsx:120
 #: src/routes/notifications/_authenticated/index.tsx:121
 msgid "Search notifications"
@@ -1144,7 +1110,6 @@ msgstr "Search your NFTs..."
 msgid "See all"
 msgstr "See all"
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
@@ -1202,8 +1167,6 @@ msgstr "The ETH address record does not match your wallet. If you proceed, it wi
 msgid "To:"
 msgstr "To:"
 
-<<<<<<< HEAD
-=======
 #: src/features/navigation/Header/ProfileSection/TokenSection.tsx:12
 msgid "TOKEN BALANCES"
 msgstr "TOKEN BALANCES"
@@ -1350,7 +1313,6 @@ msgstr "Verifying Email..."
 msgid "Verifying..."
 msgstr "Verifying..."
 
->>>>>>> c6b94aaaa1601de21b328d8fe0b76394e0225bf1
 #: src/features/dashboard/components/PrimaryNameCard.tsx:153
 msgid "View profile"
 msgstr "View profile"
