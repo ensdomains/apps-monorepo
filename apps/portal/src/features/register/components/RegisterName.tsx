@@ -1,7 +1,6 @@
 import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, UserCheck } from 'lucide-react'
 import { useState } from 'react'
@@ -10,13 +9,10 @@ import { useConnection } from 'wagmi'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 
 import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
   validateNameLength,
   validateRegistrableEthName,
@@ -31,10 +27,6 @@ type RegisterNameProps = {
 }
 
 export const RegisterName = ({ name }: RegisterNameProps) => {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [isNavigatingToProfile, setIsNavigatingToProfile] = useState(false)
-
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
@@ -77,36 +69,6 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
 
   const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
-
-  const handleRegisterAnother = () => {
-    // TODO: this needs to open the search modal.
-    navigate({ to: '/register' })
-  }
-
-  const handleViewProfile = async () => {
-    setIsNavigatingToProfile(true)
-    try {
-      await pollForIndexerSync({
-        invalidateQueries: async () => {
-          await queryClient.invalidateQueries({
-            queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
-            refetchType: 'all',
-          })
-          await queryClient.invalidateQueries({
-            queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
-            refetchType: 'all',
-          })
-          await queryClient.invalidateQueries({
-            queryKey: getProfileQueryOptions({ name }).queryKey,
-            refetchType: 'all',
-          })
-          navigate({ to: '/$name', params: { name }, replace: true })
-        },
-      })
-    } finally {
-      setIsNavigatingToProfile(false)
-    }
-  }
 
   if (registrableEthError) {
     return (
@@ -157,7 +119,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     )
   }
 
-  if (isNameTaken && !isNavigatingToProfile) {
+  if (isNameTaken) {
     return (
       <MessageCard
         icon={<UserCheck className="size-8" strokeWidth={1.5} />}
@@ -198,13 +160,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           />
         </>
       ) : (
-        <RegistrationProgress
-          domainName={name}
-          actor={actor}
-          onViewProfile={handleViewProfile}
-          onRegisterAnother={handleRegisterAnother}
-          isViewProfileLoading={isNavigatingToProfile}
-        />
+        <RegistrationProgress domainName={name} actor={actor} />
       )}
     </main>
   )

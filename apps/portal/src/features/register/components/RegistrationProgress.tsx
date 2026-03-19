@@ -13,30 +13,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
-import {
-  formatRegistrationDuration,
-  getRegistrationExpiryDateFromSeconds,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
-import {
-  formatPriceDisplay,
-  isPriceResult,
-} from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
+import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
-import { DAI_DECIMALS, USDC_DECIMALS } from '@/lib/constants/tokens'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { RegistrationSuccess } from './RegistrationSuccess'
 
 type RegistrationProgressProps = {
   readonly domainName: string
   readonly actor: RegistrationMachineActor
-  readonly onViewProfile: () => void | Promise<void>
-  readonly onRegisterAnother: () => void
-  readonly isViewProfileLoading: boolean
 }
 
 type ProgressStage =
@@ -160,16 +145,12 @@ const STATE_MESSAGES: Record<
   },
 }
 
-const TOKEN_DECIMALS = { USDC: USDC_DECIMALS, DAI: DAI_DECIMALS } as const
-
 export const RegistrationProgress = ({
   domainName,
   actor,
-  onViewProfile,
-  onRegisterAnother,
-  isViewProfileLoading,
 }: RegistrationProgressProps) => {
   const { address } = useConnection()
+
   const stateValue = useSelector(actor, (state) => state.value)
   const duration = useSelector(actor, (state) => state.context.duration)
   const error = useSelector(actor, (state) => state.context.error)
@@ -220,94 +201,14 @@ export const RegistrationProgress = ({
   const errorInfo = error ? getTransactionErrorInfo(error) : null
 
   if (progress === 100 && isComplete && isPriceResult(price)) {
-    const startOfToday = getStartOfToday()
-
-    const expiryDate = getRegistrationExpiryDateFromSeconds(
-      startOfToday,
-      durationSeconds,
-    )
-
-    const registrationPeriod = formatRegistrationDuration(
-      startOfToday,
-      expiryDate,
-    )
-
-    const registrationDays = Math.floor(durationSeconds / 86400)
-
-    const expiresFormatted = formatExpiryDate(expiryDate)
-
-    const expiresInDays = registrationDays
-
-    const decimals = selectedToken
-      ? TOKEN_DECIMALS[selectedToken]
-      : USDC_DECIMALS
-
-    const totalCost =
-      tokenPrice !== null ? formatPriceDisplay(tokenPrice, decimals) : '—'
-
-    const { discountAmount, discountPercent, discountLabel } =
-      getPricingBreakdown(domainName, price, durationSeconds)
-
-    const discountText =
-      discountPercent > 0 && discountAmount > 0 && discountLabel
-        ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(discountAmount)}`
-        : undefined
-
     return (
-      <section className="flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-2">
-          <CheckCircle2 className="size-8" />
-          <h3 className="text-3xl font-medium" title={domainName}>
-            Congratulations!
-          </h3>
-          <p className="text-base text-muted-foreground">
-            You're now the owner of <b>{domainName}</b>
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
-          <div className="rounded-xl border border-border bg-card p-4 text-center">
-            <p className="text-sm">Registration</p>
-            <p className="text-foreground text-base font-medium mt-1">
-              {registrationPeriod}
-            </p>
-            <p className="text-muted-foreground text-xs mt-0.5">
-              {registrationDays} days
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4 text-center">
-            <p className="text-sm">Expires</p>
-            <p className="text-foreground text-base font-medium mt-1">
-              {expiresFormatted}
-            </p>
-            <p className="text-muted-foreground text-xs mt-0.5">
-              in {expiresInDays} days
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4 text-center">
-            <p className="text-sm">Total cost</p>
-            <p className="text-foreground text-base font-medium mt-1">
-              {totalCost}
-            </p>
-            {discountText ? (
-              <p className="text-success text-xs mt-0.5">{discountText}</p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Button variant="ghost" onClick={onRegisterAnother}>
-            Register another
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={onViewProfile}
-            disabled={isViewProfileLoading}
-          >
-            {isViewProfileLoading ? 'Loading...' : 'View name'}
-          </Button>
-        </div>
-      </section>
+      <RegistrationSuccess
+        domainName={domainName}
+        durationSeconds={durationSeconds}
+        price={price}
+        tokenPrice={tokenPrice}
+        selectedToken={selectedToken}
+      />
     )
   }
 
@@ -379,16 +280,7 @@ export const RegistrationProgress = ({
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row">
-            {match({ isComplete, isError })
-              .with({ isComplete: true }, () => (
-                <Button
-                  onClick={onViewProfile}
-                  className="min-w-32"
-                  disabled={isViewProfileLoading}
-                >
-                  {isViewProfileLoading ? 'Loading...' : 'View profile'}
-                </Button>
-              ))
+            {match({ isError })
               .with({ isError: true }, () => (
                 <>
                   <Button
