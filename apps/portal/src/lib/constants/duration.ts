@@ -1,7 +1,4 @@
 export const SECONDS_PER_DAY = 24 * 60 * 60
-/** Gregorian calendar average (~365.2425 days) for leap-year accuracy */
-export const SECONDS_PER_YEAR = 365.2425 * SECONDS_PER_DAY
-
 /**
  * Seconds per year used by StandardRentPriceOracle. Must match contract deploy.
  * @see contracts-v2/contracts/deploy/02_StandardRentPriceOracle.ts

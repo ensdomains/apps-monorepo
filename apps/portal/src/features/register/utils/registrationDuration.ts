@@ -9,9 +9,9 @@ import {
   startOfDay,
 } from 'date-fns'
 import {
+  CONTRACT_SECONDS_PER_YEAR,
   MAX_REGISTRATION_YEARS,
   MIN_REGISTRATION_DURATION,
-  SECONDS_PER_YEAR,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 
@@ -71,7 +71,7 @@ export const calculateDurationFromDate = (
     return 1
   }
 
-  const diffYears = diffMs / (SECONDS_PER_YEAR * 1000)
+  const diffYears = diffMs / (CONTRACT_SECONDS_PER_YEAR * 1000)
   return Math.round(diffYears * 100) / 100
 }
 

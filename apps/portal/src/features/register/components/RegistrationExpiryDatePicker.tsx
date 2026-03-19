@@ -32,7 +32,7 @@ export const RegistrationExpiryDatePicker = ({
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
 
-  const displayValue = formatDateTime(date) ?? ''
+  const displayValue = formatDateTime(date)
 
   const handleSelect = (d: Date | undefined) => {
     if (d) {

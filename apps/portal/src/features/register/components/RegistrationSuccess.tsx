@@ -76,7 +76,6 @@ export const RegistrationSuccess = ({
 
   const handleRegisterAnother = () => {
     navigate({ to: '/register' })
-    window.dispatchEvent(new CustomEvent('open-search-modal'))
   }
 
   return (

@@ -9,9 +9,7 @@
  * formatDateTime(new Date('2025-01-15')) // "January 15, 2025"
  * formatDateTime(undefined) // undefined
  */
-export const formatDateTime = (date?: Date): string | undefined => {
-  if (!date) return undefined
-
+export const formatDateTime = (date: Date): string => {
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'long',
