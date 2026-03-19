@@ -11,30 +11,19 @@ import { formatDiscountPercentForDisplay } from '@/features/register/utils/regis
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
-import {
-  DAI_DECIMALS,
-  type SupportedTokenSymbol,
-  USDC_DECIMALS,
-} from '@/lib/constants/tokens'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-
-const TOKEN_DECIMALS = { USDC: USDC_DECIMALS, DAI: DAI_DECIMALS } as const
 
 type RegistrationSuccessProps = {
   readonly domainName: string
   readonly durationSeconds: number
   readonly price: RegistrationPriceResult
-  readonly tokenPrice: bigint | null
-  readonly selectedToken: SupportedTokenSymbol
 }
 
 export const RegistrationSuccess = ({
   domainName,
   durationSeconds,
   price,
-  tokenPrice,
-  selectedToken,
 }: RegistrationSuccessProps) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -74,12 +63,12 @@ export const RegistrationSuccess = ({
 
   const { registrationPeriod, registrationDays, expiresFormatted } =
     getRegistrationDisplayDates(durationSeconds)
-  const decimals = selectedToken ? TOKEN_DECIMALS[selectedToken] : USDC_DECIMALS
-  const totalCost =
-    tokenPrice !== null ? formatPriceDisplay(tokenPrice, decimals) : '—'
+
+  const totalCost = formatPriceDisplay(price.total, price.decimals)
 
   const { discountAmount, discountPercent, discountLabel } =
     getPricingBreakdown(domainName, price, durationSeconds)
+
   const discountText =
     discountPercent > 0 && discountAmount > 0 && discountLabel
       ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(discountAmount)}`

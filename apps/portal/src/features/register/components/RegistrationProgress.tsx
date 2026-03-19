@@ -5,11 +5,10 @@ import type {
 import { useQuery } from '@tanstack/react-query'
 import { useBlocker } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { CheckCircle2 } from 'lucide-react'
 import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
@@ -17,6 +16,7 @@ import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { RegistrationSuccess } from './RegistrationSuccess'
 
 type RegistrationProgressProps = {
@@ -158,9 +158,8 @@ export const RegistrationProgress = ({
     actor,
     (state) => state.context.selectedToken,
   )
-  const tokenPrice = useSelector(actor, (state) => state.context.tokenPrice)
 
-  const durationSeconds = duration ? Number(duration) : 365 * 24 * 60 * 60
+  const durationSeconds = Number(duration)
   const isComplete = stateValue === 'success'
 
   const { data: price } = useQuery({
@@ -168,6 +167,7 @@ export const RegistrationProgress = ({
       name: domainName,
       duration: durationSeconds,
       owner: address,
+      token: SUPPORTED_TOKENS[selectedToken],
     }),
     enabled:
       isComplete &&
@@ -200,14 +200,12 @@ export const RegistrationProgress = ({
 
   const errorInfo = error ? getTransactionErrorInfo(error) : null
 
-  if (progress === 100 && isComplete && isPriceResult(price)) {
+  if (isComplete && isPriceResult(price)) {
     return (
       <RegistrationSuccess
         domainName={domainName}
         durationSeconds={durationSeconds}
         price={price}
-        tokenPrice={tokenPrice}
-        selectedToken={selectedToken}
       />
     )
   }
@@ -228,17 +226,7 @@ export const RegistrationProgress = ({
 
       <div className="flex flex-col gap-6 rounded-lg border border-border bg-card p-6">
         <div className="flex flex-col items-center gap-6">
-          {match({ isComplete, isError })
-            .with({ isComplete: true }, () => (
-              <Alert variant="success" className="w-full">
-                <CheckCircle2 aria-hidden />
-                <AlertTitle>Registration complete!</AlertTitle>
-                <AlertDescription>
-                  Your ENS domain has been successfully registered and is now
-                  active.
-                </AlertDescription>
-              </Alert>
-            ))
+          {match({ isError })
             .with({ isError: true }, () => (
               <div className="w-full">
                 <TransactionErrorAlert
