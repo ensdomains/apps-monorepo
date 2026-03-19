@@ -17,7 +17,6 @@ export const DurationPresetRow = ({
   isSelected,
   price,
   onSelect,
-  isLoading,
   discount,
 }: {
   duration: number
@@ -27,18 +26,6 @@ export const DurationPresetRow = ({
   onSelect: () => void
   discount: number
 }) => {
-  // if (isLoading) {
-  //   return (
-  //     <div className="flex h-[58px] w-full items-center justify-between md:h-[100px]">
-  //       <div className="flex items-center gap-3 md:gap-5">
-  //         <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
-  //           Loading...
-  //         </span>
-  //       </div>
-  //     </div>
-  //   )
-  // }
-
   return (
     <button
       aria-pressed={isSelected}
