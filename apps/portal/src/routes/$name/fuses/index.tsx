@@ -21,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 
 export const Route = createFileRoute('/$name/fuses/')({
@@ -171,7 +172,7 @@ function RouteComponent() {
         </div>
       </div>
 
-      <div className="flex gap-2 items-start max-w-[800px]">
+      <div className="flex gap-2 items-start max-w-3xl">
         <Info className="w-8 h-8 text-quartz-500 shrink-0" />
         <p className="text-quartz-500 text-sm">
           A fuse is a permission or perk that can be granted/revoked on a name.
@@ -315,17 +316,3 @@ const V2NameMessage = () => (
     }
   />
 )
-
-function isFuseBurnt(
-  fuseKey: FuseKey,
-  scope: FuseScope,
-  fuses?: DecodedFuses,
-): boolean {
-  if (!fuses) return false
-  if (scope === 'Parent') {
-    const parentFuses = fuses.parent as Record<string, unknown>
-    return parentFuses?.[fuseKey] === true
-  }
-  const childFuses = fuses.child as Record<string, unknown>
-  return childFuses?.[fuseKey] === true
-}

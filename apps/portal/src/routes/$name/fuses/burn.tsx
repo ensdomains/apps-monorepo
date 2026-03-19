@@ -169,7 +169,7 @@ function RouteComponent() {
   return (
     <>
       <div className="flex flex-col items-center px-8 py-6 w-full">
-        <div className="flex flex-col gap-6 max-w-[640px] w-full">
+        <div className="flex flex-col gap-6 max-w-2xl w-full">
           <Link
             to="/$name/fuses"
             params={{ name }}
@@ -179,9 +179,9 @@ function RouteComponent() {
             Back
           </Link>
 
-          <h1 className="text-[34px] font-medium leading-tight">Burn fuses</h1>
+          <h1 className="text-4xl font-medium leading-tight">Burn fuses</h1>
 
-          <div className="bg-[#f2f2f2] rounded-2xl p-6 flex gap-4 items-start">
+          <div className="bg-quartz-50 rounded-2xl p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />
             <p className="text-black">
               Burning fuses will make permanent changes to your name.
@@ -193,7 +193,7 @@ function RouteComponent() {
 
           <div className="flex flex-col gap-1">
             <span className="font-medium">Fuse expiry</span>
-            <div className="flex items-center h-[38px] px-2 border border-quartz-100 rounded bg-white">
+            <div className="flex items-center h-10 px-2 border border-quartz-100 rounded bg-white">
               <span className="flex-1 text-sm">
                 {expiry
                   ? new Date(Number(expiry) * 1000).toLocaleString('en-US', {
@@ -242,8 +242,8 @@ function RouteComponent() {
           <Button
             variant="secondary"
             onClick={handleBurn}
-            disabled={!hasChanges || isPending || !address || !walletClient}
-            className="flex items-center justify-center gap-2 h-[38px] w-fit"
+            disabled={!hasChanges || !address || !walletClient}
+            className="flex items-center justify-center gap-2 h-10 w-fit"
           >
             <CheckCircle className="w-5 h-5" />
             {isPending ? 'Burning fuses...' : 'Save changes'}
@@ -262,7 +262,7 @@ function RouteComponent() {
           {
             id: BURN_FUSES_TX_ID,
             title: 'Burn Fuses',
-            transactionName: 'Burn fuses',
+            transactionName: `Permanently burn selected fuses on ${name}`,
             estimatedGasCost: 0.0001,
             onStart: handleStartTransaction,
             onDone: () => {
