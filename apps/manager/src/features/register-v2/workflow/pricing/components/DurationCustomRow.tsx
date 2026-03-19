@@ -39,7 +39,6 @@ export const DurationCustomRow = ({
         <input
           aria-label="Custom duration in years"
           className={cn(
-            // 'w-10 md:w-12',
             'field-sizing-content',
             'border-none bg-transparent outline-none',
             'font-medium font-mono text-ens-blue-dark text-sm leading-none tracking-tighter md:text-xl',
