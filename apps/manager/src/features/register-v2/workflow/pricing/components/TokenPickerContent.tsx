@@ -65,7 +65,7 @@ export const TokenPickerContent = () => {
     !hasSufficientBalanceForSelectedCoin
 
   return (
-    <div className="flex h-full flex-col justify-between gap-4 px-4">
+    <div className="flex h-full flex-1 flex-col justify-between gap-4 px-4">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col items-center gap-4">
           <div className="flex flex-col items-center gap-2">

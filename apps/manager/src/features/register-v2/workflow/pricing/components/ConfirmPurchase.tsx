@@ -48,7 +48,7 @@ export const ConfirmPurchase = () => {
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
   return (
-    <div className="flex h-full flex-col justify-between gap-4 px-4">
+    <div className="flex h-full flex-1 flex-col justify-between gap-4 px-4">
       <div className="flex flex-col items-center gap-6">
         <h2 className="text-center font-medium text-2xl text-ens-lapis-dense tracking-wide">
           Registering
