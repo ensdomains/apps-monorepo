@@ -106,7 +106,7 @@ msgid "60-second wait prevents attacks"
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:26
-#: src/routes/index.tsx:36
+#: src/routes/index.tsx:37
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
 
@@ -213,7 +213,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:128
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:129
 msgid "An error occurred"
 msgstr ""
 
@@ -265,7 +265,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:109
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:115
 msgid "Available"
 msgstr ""
 
@@ -411,7 +411,7 @@ msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
 #: src/features/register/pages/CheckDomainPage.tsx:18
-#: src/routes/index.tsx:28
+#: src/routes/index.tsx:29
 msgid "Claim your"
 msgstr ""
 
@@ -501,6 +501,10 @@ msgstr ""
 
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx:56
 msgid "Connect or sign in"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:73
+msgid "Connect or sign in to register"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:93
@@ -1301,6 +1305,10 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:63
+msgid "Pay with stable coins"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:233
 msgid "Pay with stablecoins"
 msgstr ""
@@ -1429,7 +1437,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:99
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:105
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1855,7 +1863,7 @@ msgstr "Sortera namn efter"
 msgid "Stables accepted"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:232
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:243
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
@@ -1963,6 +1971,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:39
+msgid "Total"
 msgstr ""
 
 #: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:22
@@ -2162,7 +2174,7 @@ msgid "We sent a verification code to your email address."
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:22
-#: src/routes/index.tsx:32
+#: src/routes/index.tsx:33
 msgid "web3 username"
 msgstr ""
 
