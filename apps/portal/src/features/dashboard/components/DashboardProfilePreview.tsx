@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import { disconnect } from '@wagmi/core'
 import { useConnection, useEnsName } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -46,11 +45,7 @@ export const DashboardProfilePreview = () => {
             Disconnect
           </Button>
         </div>
-        {name && (
-          <Link to="/$name" params={{ name }}>
-            <NameProfileCard name={name} />
-          </Link>
-        )}
+        {name && <NameProfileCard name={name} linked />}
       </section>
     )
   } else return null
