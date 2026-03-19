@@ -44,6 +44,7 @@ export function AvailableNameMessage({
 
   return (
     <MessageCard
+      variant="success"
       icon={<BadgeCheck size={30} strokeWidth={1.5} />}
       title={`${name} is available!`}
       description={description || defaultDescription}

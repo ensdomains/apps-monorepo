@@ -6,6 +6,8 @@ import {
 import { createConfig, mock, WagmiProvider } from 'wagmi'
 import '@testing-library/jest-dom'
 import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
+import { i18n } from '@lingui/core'
+import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -49,6 +51,8 @@ const queryClient = new QueryClient({
   },
 })
 
+i18n.loadAndActivate({ locale: 'en', messages: {} })
+
 beforeEach(() => queryClient.clear())
 
 interface AllTheProvidersProps {
@@ -56,11 +60,13 @@ interface AllTheProvidersProps {
 }
 
 const AllTheProviders = ({ children }: AllTheProvidersProps) => (
-  <WagmiProvider config={wagmiConfig}>
-    <QueryClientProvider client={queryClient}>
-      <RainbowKitProvider>{children}</RainbowKitProvider>
-    </QueryClientProvider>
-  </WagmiProvider>
+  <I18nProvider i18n={i18n}>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>{children}</RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  </I18nProvider>
 )
 
 export const render = (ui: React.ReactNode, options?: RenderOptions) =>

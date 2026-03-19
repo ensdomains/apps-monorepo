@@ -1,12 +1,14 @@
+import { useLingui } from '@lingui/react/macro'
 import { Search } from 'lucide-react'
 import type { ButtonHTMLAttributes } from 'react'
 
 export const SearchTriggerButton = (
   props: ButtonHTMLAttributes<HTMLButtonElement>,
 ) => {
+  const { t } = useLingui()
   return (
     <button
-      aria-label="Search"
+      aria-label={t`Search`}
       {...props}
       className="flex items-center justify-center rounded-md border border-none p-2 transition-colors hover:bg-[#F7F7F7]"
       type="button"

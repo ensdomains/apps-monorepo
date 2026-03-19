@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import { DomainResultCard } from '@/components/molecules'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -56,8 +57,10 @@ export const RegistrationPanel = ({
           {registrationSuccess && (
             <Alert className="border-brand-green/30 bg-brand-green-light text-brand-green-dark">
               <AlertDescription>
-                Registration successful! You&apos;ll receive a confirmation
-                shortly.
+                <Trans>
+                  Registration successful! You&apos;ll receive a confirmation
+                  shortly.
+                </Trans>
               </AlertDescription>
             </Alert>
           )}
@@ -71,8 +74,10 @@ export const RegistrationPanel = ({
           {!isAvailable && (
             <div className="py-4 text-center">
               <p className="text-brand-grey-text">
-                This name is already registered or not available for
-                registration.
+                <Trans>
+                  This name is already registered or not available for
+                  registration.
+                </Trans>
               </p>
             </div>
           )}

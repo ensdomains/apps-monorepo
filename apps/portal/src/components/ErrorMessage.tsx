@@ -15,6 +15,7 @@ export function ErrorMessage({
 
   return (
     <MessageCard
+      variant="danger"
       icon={<AlertCircle size={30} strokeWidth={1.5} />}
       title={title}
       description={defaultDescription}

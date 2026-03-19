@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useAtom } from '@xstate/store-react'
@@ -62,11 +63,12 @@ function EmailVerificationPage() {
   const { token } = Route.useLoaderDeps()
   const navigate = useNavigate()
   const isAuthed = useAtom(isBackendAuthed)
+  const { t } = useLingui()
 
   const verifyEmailMutation = useMutation(verifyEmailMutationOptions)
 
   const continueTo = isAuthed ? '/notifications/settings' : '/'
-  const continueLabel = isAuthed ? 'Continue to Settings' : 'Continue to Home'
+  const continueLabel = isAuthed ? t`Continue to Settings` : t`Continue to Home`
 
   const handleContinue = () => {
     navigate({ to: continueTo })
@@ -78,13 +80,13 @@ function EmailVerificationPage() {
 
     verifyEmailMutation.mutate(tokenToUse, {
       onSuccess: () => {
-        toast.success('Email verified successfully')
+        toast.success(t`Email verified successfully`)
         setTimeout(() => {
           navigate({ to: continueTo })
         }, 1200)
       },
       onError: () => {
-        toast.error('Failed to verify email')
+        toast.error(t`Failed to verify email`)
       },
     })
   }
@@ -94,14 +96,16 @@ function EmailVerificationPage() {
     return (
       <VerificationCard>
         <VerificationHeader
-          description="Open the verification link from your email to finish setup."
+          description={t`Open the verification link from your email to finish setup.`}
           icon={<Mail className="h-6 w-6 text-gray-400" />}
-          title="Check Your Email"
+          title={t`Check Your Email`}
         />
         <CardContent className="space-y-4">
           <p className="text-center text-muted-foreground text-sm">
-            This page can only verify your email when opened from the link in
-            the verification email.
+            <Trans>
+              This page can only verify your email when opened from the link in
+              the verification email.
+            </Trans>
           </p>
           <Button
             className="w-full text-sm leading-ens-none"
@@ -133,20 +137,20 @@ function EmailVerificationPage() {
   )
 
   const title = isPending
-    ? 'Verifying Email...'
+    ? t`Verifying Email...`
     : isSuccess
-      ? 'Email Verified!'
+      ? t`Email Verified!`
       : isError
-        ? 'Verification Failed'
-        : 'Verify Your Email'
+        ? t`Verification Failed`
+        : t`Verify Your Email`
 
   const description = isPending
-    ? 'Please wait while we verify your email address.'
+    ? t`Please wait while we verify your email address.`
     : isSuccess
-      ? 'You can now receive notifications at this email address.'
+      ? t`You can now receive notifications at this email address.`
       : isError
-        ? 'There was a problem verifying your email address.'
-        : 'Click the button below to verify your email address and start receiving notifications.'
+        ? t`There was a problem verifying your email address.`
+        : t`Click the button below to verify your email address and start receiving notifications.`
 
   return (
     <VerificationCard>
@@ -158,7 +162,7 @@ function EmailVerificationPage() {
             <XCircle className="h-4 w-4" />
             <AlertDescription>
               {verifyEmailMutation.error?.message ||
-                'An error occurred during verification'}
+                t`An error occurred during verification`}
             </AlertDescription>
           </Alert>
         )}
@@ -168,7 +172,7 @@ function EmailVerificationPage() {
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
-              Your email has been verified successfully!
+              <Trans>Your email has been verified successfully!</Trans>
             </AlertDescription>
           </Alert>
         )}
@@ -189,7 +193,7 @@ function EmailVerificationPage() {
               size="lg"
               variant="blue"
             >
-              Try Again
+              <Trans>Try Again</Trans>
             </Button>
             <Button
               className="w-full text-sm leading-ens-none"
@@ -217,7 +221,7 @@ function EmailVerificationPage() {
               size="lg"
               variant="blue"
             >
-              Verify Email Address
+              <Trans>Verify Email Address</Trans>
             </Button>
             <Button
               asChild
@@ -226,9 +230,13 @@ function EmailVerificationPage() {
               variant="outline"
             >
               {isAuthed ? (
-                <Link to="/notifications/settings">Back to Settings</Link>
+                <Link to="/notifications/settings">
+                  <Trans>Back to Settings</Trans>
+                </Link>
               ) : (
-                <Link to="/">Back to Home</Link>
+                <Link to="/">
+                  <Trans>Back to Home</Trans>
+                </Link>
               )}
             </Button>
           </div>

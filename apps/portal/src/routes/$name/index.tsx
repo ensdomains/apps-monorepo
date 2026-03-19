@@ -4,6 +4,7 @@ import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -102,17 +103,7 @@ const Profile = ({
   // IMPORTANT: Check TLD validity FIRST, before showing any profile data
   // Even if owner data exists, we shouldn't show profiles for invalid TLDs
   if (!isTldValid) {
-    return (
-      <NotFoundMessage
-        title="Invalid TLD"
-        description={
-          <>
-            <strong>.{tld}</strong> is not a valid ENS TLD. Only TLDs with
-            DNSSEC enabled are supported.
-          </>
-        }
-      />
-    )
+    return <InvalidNameMessage title="Invalid TLD" />
   }
 
   // If owner is null (not found), handle different cases
@@ -213,9 +204,12 @@ const Profile = ({
   const resolvedNetwork = ownerQuery.data.network || 'sepolia'
 
   return (
-    <>
+    <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
+      <div className="flex flex-row justify-between items-baseline">
+        <h1 className="text-heading font-medium leading-none">Overview</h1>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 xl:col-span-2">
+        <div className="lg:col-span-2 xl:col-span-2 *:h-full">
           <NameProfileCard name={name} />
         </div>
         <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
@@ -237,7 +231,7 @@ const Profile = ({
         <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
       </div>
       {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
-    </>
+    </div>
   )
 }
 
@@ -262,21 +256,23 @@ function App() {
 
   // Show 404 for invalid/malformed names
   if (!isValidName) {
-    return (
-      <NotFoundMessage
-        title="Invalid name"
-        description={
-          <>
-            <strong>{name}</strong> is not a valid ENS name.
-            <br />
-            Names must be normalized (lowercase, valid characters).
-          </>
-        }
-      />
-    )
+    return <InvalidNameMessage title="Invalid name" />
   }
 
   if (error) {
+    if (!is2LD(name) && !isTLD(name)) {
+      return (
+        <NotFoundMessage
+          title="Name not found"
+          description={
+            <>
+              <strong>{name}</strong> does not exist.
+            </>
+          }
+        />
+      )
+    }
+
     const message =
       (error?.cause as Error | undefined)?.message ||
       (error as Error | undefined)?.message ||
@@ -294,12 +290,5 @@ function App() {
 
   if (isLoading) return <LoadingMessage />
 
-  return (
-    <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
-      <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-heading font-medium leading-none">Overview</h1>
-      </div>
-      <Profile name={name} resolverAddress={resolverAddress} />
-    </div>
-  )
+  return <Profile name={name} resolverAddress={resolverAddress} />
 }
