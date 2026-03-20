@@ -297,7 +297,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     closeTransactionModal()
     clearTransaction()
     setNameInput('')
-    setActiveFlow(null)
   }
 
   const handleSetPrimaryName = () => {
@@ -315,7 +314,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const handleSetPrimaryNameDone = () => {
     closeTransactionModal()
     clearTransaction()
-    setActiveFlow(null)
   }
 
   return (
