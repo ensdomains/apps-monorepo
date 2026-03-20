@@ -11,10 +11,10 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
 import { useConnection } from 'wagmi'
-
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -286,11 +286,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
   const handleUpdateReverseStart = () => {
     if (!nameInput) return
-    const reverseRequest = getReverseResolutionRequest(nameInput)
-    submitReverseResolution({
-      name: nameInput,
-      request: reverseRequest.request,
-    })
+    try {
+      const reverseRequest = getReverseResolutionRequest(nameInput)
+      submitReverseResolution({
+        name: nameInput,
+        request: reverseRequest.request,
+      })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to set reverse name',
+      )
+      closeTransactionModal()
+      clearTransaction()
+    }
   }
 
   const handleUpdateReverseDone = () => {
@@ -307,8 +315,16 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
   const handleSetPrimaryNameStart = () => {
     if (!displayName) return
-    const request = getForwardResolutionRequest(address)
-    submitForwardResolution({ name: displayName, request })
+    try {
+      const request = getForwardResolutionRequest(address)
+      submitForwardResolution({ name: displayName, request })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to set primary name',
+      )
+      closeTransactionModal()
+      clearTransaction()
+    }
   }
 
   const handleSetPrimaryNameDone = () => {
