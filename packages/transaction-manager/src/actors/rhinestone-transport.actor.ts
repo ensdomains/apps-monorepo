@@ -67,21 +67,21 @@ export function submitRhinestoneTransaction(input: {
 
   return fromPromise(
     (async () => {
+      const sessionSigners = config.sessionConfig?.signers
+
       console.log('📤 Calling rhinestoneAccount transaction...', {
         chain: chain.name,
         chainId: chain.id,
         callCount: rhinestoneRequest.rhinestoneParams.calls.length,
         isSessionClient: !!config.isSessionClient,
+        hasSessionSigners: !!sessionSigners,
       })
 
-      // SDK v1.2.14: experimental_session signers are not supported in either
-      // sendUserOperation (getValidatorAccount returns null) or sendTransaction
-      // (throws SignerNotSupportedError). All transactions use owner-signed intents.
-      // TODO: Enable session signing when SDK adds proper session support.
       const transaction = await account.sendTransaction({
         chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
         sponsored: rhinestoneRequest.rhinestoneParams.sponsored ?? true,
+        ...(sessionSigners ? { signers: sessionSigners } : {}),
       })
       const receipt = await account.waitForExecution(transaction, false)
 

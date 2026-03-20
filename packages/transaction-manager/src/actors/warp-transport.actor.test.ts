@@ -139,7 +139,7 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
   })
 
-  it('uses sendTransaction (intents) even when session is active (SDK v1.2.14 limitation)', async () => {
+  it('passes experimental_session signers to sendTransaction when sessionConfig is set', async () => {
     const mockSigners = {
       type: 'experimental_session',
       session: {},
@@ -157,12 +157,11 @@ describe('submitWarpTransaction', () => {
 
     const result = await submitWarpTransaction({ request, signer })
 
-    // SDK v1.2.14: session signers not supported in sendUserOperation or sendTransaction.
-    // Falls back to owner-signed intents via sendTransaction.
     expect(signer.account.sendTransaction).toHaveBeenCalledWith({
       chain: sepolia,
       calls: MOCK_CALLS,
       sponsored: true,
+      signers: mockSigners,
     })
     expect(signer.account.sendUserOperation).not.toHaveBeenCalled()
     expect(result.isOk()).toBe(true)

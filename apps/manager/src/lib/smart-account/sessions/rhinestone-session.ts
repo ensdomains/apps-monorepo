@@ -9,10 +9,12 @@
  * 2. Define Session with sudo policy
  * 3. experimental_getSessionDetails() — get on-chain validation data
  * 4. experimental_signEnableSession() — owner signs enablement
- * 5. Store enableSignature + hashesAndChainIds for later use
+ * 5. experimental_enableSession() + sendTransaction — install session on-chain (doc flow)
+ * 6. Store enableSignature + hashesAndChainIds for later use
  */
 
 import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
+import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
@@ -36,7 +38,8 @@ export interface CreateRhinestoneSessionParams {
  * Performs the full SDK session enablement flow:
  * - Generates a session key pair
  * - Calls experimental_getSessionDetails + experimental_signEnableSession
- * - Stores enablement data (enableSignature, hashesAndChainIds) for sendTransaction
+ * - Submits on-chain enable via experimental_enableSession + sendTransaction (skips if already enabled)
+ * - Stores enablement data (enableSignature, hashesAndChainIds) for future session-signed txs
  */
 export function createRhinestoneSession(
   params: CreateRhinestoneSessionParams,
@@ -80,12 +83,36 @@ export function createRhinestoneSession(
       const enableSignature =
         await rhinestoneAccount.experimental_signEnableSession(sessionDetails)
 
-      // 5. Serialize hashesAndChainIds for localStorage (bigint → string)
+      // 5. Install session on-chain (Rhinestone Smart Sessions docs)
+      const sessionToEnableIndex = 0
+      const alreadyEnabled =
+        typeof rhinestoneAccount.experimental_isSessionEnabled === 'function'
+          ? await rhinestoneAccount.experimental_isSessionEnabled(sdkSession)
+          : false
+
+      if (!alreadyEnabled) {
+        const enableCall = experimental_enableSession(
+          sdkSession,
+          enableSignature,
+          sessionDetails.hashesAndChainIds,
+          sessionToEnableIndex,
+        )
+        const enableTransaction = await rhinestoneAccount.sendTransaction({
+          chain,
+          calls: [enableCall],
+          sponsored: true,
+        })
+        await rhinestoneAccount.waitForExecution(enableTransaction, false)
+      }
+
+      // 6. Serialize hashesAndChainIds for localStorage (bigint → string)
       const serializedHashes = JSON.stringify(
-        sessionDetails.hashesAndChainIds.map((h) => ({
-          chainId: h.chainId.toString(),
-          sessionDigest: h.sessionDigest,
-        })),
+        sessionDetails.hashesAndChainIds.map(
+          (h: { chainId: bigint; sessionDigest: Hex }) => ({
+            chainId: h.chainId.toString(),
+            sessionDigest: h.sessionDigest,
+          }),
+        ),
       )
 
       const session: RhinestoneStoredSession = {
@@ -106,7 +133,7 @@ export function createRhinestoneSession(
 
       return { session, sessionPrivateKey }
     })(),
-    (error) =>
+    (error: unknown) =>
       new SessionError(
         'Failed to create Rhinestone session',
         error instanceof Error ? error.message : String(error),
@@ -136,7 +163,7 @@ export function restoreRhinestoneSession(
         throw new Error('Session has expired')
       }
     })(),
-    (error) =>
+    (error: unknown) =>
       new SessionError(
         'Failed to restore Rhinestone session',
         error instanceof Error ? error.message : String(error),

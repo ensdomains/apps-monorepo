@@ -88,6 +88,26 @@ const STATE_MESSAGES: Record<string, { primary: string; fact?: string }[]> = {
       fact: 'Set reverse record to show your name',
     },
   ],
+  submittingRhinestoneBundle: [
+    {
+      primary: 'Submitting payment & registration',
+      fact: 'Approve and register are batched in one intent',
+    },
+    {
+      primary: 'Waiting for signature',
+      fact: 'ENS names are stored on-chain as NFTs',
+    },
+  ],
+  waitingForRhinestoneBundle: [
+    {
+      primary: 'Confirming registration',
+      fact: 'Your name will be active once the intent completes',
+    },
+    {
+      primary: 'Almost complete',
+      fact: 'Human-readable addresses for wallets',
+    },
+  ],
   registeringDomain: [
     {
       primary: 'Registering',

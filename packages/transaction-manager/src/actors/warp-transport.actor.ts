@@ -92,14 +92,18 @@ export function submitWarpTransaction(
       console.log('📤 [WARP] Chain:', chain.name, chain.id)
       console.log('📤 [WARP] Sponsored:', sponsored ?? true)
 
-      // SDK v1.2.14: experimental_session signers are not supported in either
-      // sendUserOperation (getValidatorAccount returns null) or sendTransaction
-      // (throws SignerNotSupportedError). All transactions use owner-signed intents.
-      // TODO: Enable session signing when SDK adds proper session support.
+      const sessionSigners = config.sessionConfig?.signers
+      if (sessionSigners) {
+        console.log(
+          '📤 [WARP] Using experimental_session signers from sessionConfig',
+        )
+      }
+
       const transaction = await account.sendTransaction({
         chain,
         calls,
         sponsored: sponsored ?? true,
+        ...(sessionSigners ? { signers: sessionSigners } : {}),
       })
       const sendLatencyMs = nowMs() - sendStart
 

@@ -5,8 +5,20 @@
  */
 
 import type { RhinestoneAccount } from '@rhinestone/sdk'
+import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
+  experimental_enableSession: vi.fn(() => ({
+    resolve: async () => ({
+      to: '0x0000000000000000000000000000000000000002' as Address,
+      data: '0x' as Hex,
+      value: 0n,
+    }),
+  })),
+}))
+
 import {
   createRhinestoneSession,
   restoreRhinestoneSession,
@@ -50,6 +62,9 @@ function createMockRhinestoneAccount(): RhinestoneAccount {
     experimental_signEnableSession: vi
       .fn()
       .mockResolvedValue(MOCK_ENABLE_SIGNATURE),
+    experimental_isSessionEnabled: vi.fn().mockResolvedValue(false),
+    sendTransaction: vi.fn().mockResolvedValue('mock-enable-tx'),
+    waitForExecution: vi.fn().mockResolvedValue({ fill: { hash: '0x01' } }),
   } as unknown as RhinestoneAccount
 }
 
@@ -152,6 +167,62 @@ describe('rhinestone-session', () => {
       expect(mockAccount.experimental_signEnableSession).toHaveBeenCalledWith(
         mockDetails,
       )
+    })
+
+    it('submits on-chain enable via experimental_enableSession + sendTransaction', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+
+      await createRhinestoneSession({
+        ownerAddress: OWNER_ADDRESS,
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
+      })
+
+      expect(experimental_enableSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owners: {
+            type: 'ecdsa',
+            accounts: [{ address: MOCK_SESSION_ADDRESS }],
+          },
+          chain: MOCK_CHAIN,
+        }),
+        MOCK_ENABLE_SIGNATURE,
+        MOCK_HASHES_AND_CHAIN_IDS,
+        0,
+      )
+      expect(mockAccount.sendTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chain: MOCK_CHAIN,
+          sponsored: true,
+          calls: expect.any(Array),
+        }),
+      )
+      expect(mockAccount.waitForExecution).toHaveBeenCalledWith(
+        'mock-enable-tx',
+        false,
+      )
+    })
+
+    it('skips sendTransaction when experimental_isSessionEnabled is true', async () => {
+      vi.mocked(experimental_enableSession).mockClear()
+      const mockAccount = createMockRhinestoneAccount()
+      ;(
+        mockAccount.experimental_isSessionEnabled as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(true)
+
+      await createRhinestoneSession({
+        ownerAddress: OWNER_ADDRESS,
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
+      })
+
+      expect(mockAccount.sendTransaction).not.toHaveBeenCalled()
+      expect(mockAccount.waitForExecution).not.toHaveBeenCalled()
+      expect(experimental_enableSession).not.toHaveBeenCalled()
     })
 
     it('serializes hashesAndChainIds with string chainId for JSON storage', async () => {

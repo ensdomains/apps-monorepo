@@ -61,6 +61,9 @@ function mapMachineStateToStep(
     case 'approvingToken':
     case 'waitingForApproval':
       return RegistrationStep.APPROVING
+    // Rhinestone: single batched intent (approve + register) after commitment cooldown
+    case 'submittingRhinestoneBundle':
+    case 'waitingForRhinestoneBundle':
     case 'registeringDomain':
     case 'waitingForRegistration':
       return RegistrationStep.REGISTERING
@@ -121,8 +124,22 @@ export const Registration = ({ initialName }: RegistrationProps) => {
   )
 
   const step = useSelector(actor, (state) => {
-    if (!isAccountReady) return RegistrationStep.PRICING
-    return mapMachineStateToStep(state.value)
+    const mapped = mapMachineStateToStep(state.value)
+    if (isAccountReady) {
+      return mapped
+    }
+    // During long Rhinestone intents, smart-account context can briefly report
+    // not ready; don't snap back to Pricing once registration has started or finished.
+    if (
+      mapped === RegistrationStep.COMMITTING ||
+      mapped === RegistrationStep.APPROVING ||
+      mapped === RegistrationStep.REGISTERING ||
+      mapped === RegistrationStep.SUCCESS ||
+      mapped === RegistrationStep.ERROR
+    ) {
+      return mapped
+    }
+    return RegistrationStep.PRICING
   })
 
   const domainName = useSelector(

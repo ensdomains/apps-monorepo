@@ -8,6 +8,7 @@ import {
   pollTransactionStatusActor,
   resolveResolverDeploymentActor,
   submitApprovalActor,
+  submitApprovalAndRegistrationActor,
   submitCommitmentActor,
   submitRegistrationActor,
   submitResolverDeploymentActor,
@@ -183,6 +184,23 @@ export const registrationMachine = setup({
         return submitRegistrationActor(input)
       },
     ),
+    submitApprovalAndRegistration: fromResultAsync(
+      (input: {
+        tokenPrice: bigint
+        selectedToken: 'USDC' | 'DAI'
+        name: string
+        commitment: CommitmentData
+        signer: Signer
+        duration: bigint
+        owner: Address
+        publicClient: PublicClient
+        useFastRegistrar: boolean
+        sponsored?: boolean
+        resolverAddress: Address
+      }) => {
+        return submitApprovalAndRegistrationActor(input)
+      },
+    ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
@@ -201,6 +219,10 @@ export const registrationMachine = setup({
         return validateCommitmentActor(input)
       },
     ),
+  },
+
+  guards: {
+    isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
   },
 
   actions: {
@@ -564,7 +586,13 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
         }),
-        onDone: 'approvingToken',
+        onDone: [
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'submittingRhinestoneBundle',
+          },
+          { target: 'approvingToken' },
+        ],
         onError: {
           target: 'error',
           actions: [
@@ -596,12 +624,91 @@ export const registrationMachine = setup({
           const delayMs = Math.max(0, targetTimestamp - Date.now())
           return { delayMs }
         },
-        onDone: 'approvingToken',
+        onDone: [
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'submittingRhinestoneBundle',
+          },
+          { target: 'approvingToken' },
+        ],
         onError: {
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
           }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    submittingRhinestoneBundle: {
+      entry: [
+        'logTransition',
+        'recordTransition',
+        'clearRegisterReadyTimestamp',
+      ],
+      invoke: {
+        src: 'submitApprovalAndRegistration',
+        input: ({ context }) => ({
+          tokenPrice: context.tokenPrice,
+          selectedToken: context.selectedToken,
+          name: context.name,
+          commitment: context.commitment!,
+          signer: context.signer!,
+          duration: context.duration,
+          owner: context.ownerAddress ?? context.accountAddress!,
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+          sponsored: context.sponsored,
+          resolverAddress: context.resolverAddress!,
+        }),
+        onDone: {
+          target: 'waitingForRhinestoneBundle',
+          actions: assign({
+            registrationTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Approve+register bundle submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForRhinestoneBundle: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'pollTransactionStatus',
+        input: ({ context }) => ({ txId: context.registrationTxId! }),
+        onDone: 'success',
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Approve+register bundle failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {

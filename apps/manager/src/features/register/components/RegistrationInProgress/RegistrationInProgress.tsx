@@ -53,6 +53,8 @@ function mapMachineStateToProgressStage(
     case 'approvingToken':
     case 'waitingForApproval':
       return 'approving'
+    case 'submittingRhinestoneBundle':
+    case 'waitingForRhinestoneBundle':
     case 'registeringDomain':
     case 'waitingForRegistration':
       return 'registering'
