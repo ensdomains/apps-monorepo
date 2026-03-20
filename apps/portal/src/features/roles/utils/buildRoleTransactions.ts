@@ -22,12 +22,14 @@ export type RoleTransactionHandlers = {
     readonly account: Address
     readonly roles: readonly Role[]
     readonly id: string
+    readonly registryAddress?: Address
   }) => void
   readonly revokeRoles: (params: {
     readonly name: string
     readonly account: Address
     readonly roles: readonly Role[]
     readonly id: string
+    readonly registryAddress?: Address
   }) => void
   readonly handleDone: () => void
 }
@@ -44,6 +46,7 @@ export function buildRoleTransactions(
   pendingRemove: PendingRemove | null,
   name: string,
   handlers: RoleTransactionHandlers,
+  registryAddress?: Address,
 ): readonly Transaction[] {
   const descriptors = buildRoleTransactionDescriptors(
     pendingSave,
@@ -55,8 +58,20 @@ export function buildRoleTransactions(
 
   const runDescriptor = (d: RoleTransactionDescriptor) =>
     d.type === 'grant'
-      ? grantRoles({ name, account: d.account, roles: d.roles, id: d.id })
-      : revokeRoles({ name, account: d.account, roles: d.roles, id: d.id })
+      ? grantRoles({
+          name,
+          account: d.account,
+          roles: d.roles,
+          id: d.id,
+          registryAddress,
+        })
+      : revokeRoles({
+          name,
+          account: d.account,
+          roles: d.roles,
+          id: d.id,
+          registryAddress,
+        })
 
   return descriptors.map((descriptor, index) => {
     const nextDescriptor = descriptors[index + 1]

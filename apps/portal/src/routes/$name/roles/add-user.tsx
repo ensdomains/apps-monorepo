@@ -1,4 +1,5 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
@@ -10,6 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -37,6 +41,23 @@ function RouteComponent() {
 
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
+
+  const labels = name.split('.')
+  const is3LD = labels.length === 3
+
+  const { data: ownerData } = useQuery({
+    ...getEnsOwnerQueryOptions({ name }),
+    enabled: name.endsWith('.eth'),
+  })
+
+  const { data: registriesData } = useQuery({
+    ...getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
+    enabled: is3LD && ownerData?.network === 'namechainSepolia',
+  })
+
+  const registryAddress = is3LD
+    ? getSubnameRegistryAddress(registriesData ?? null)
+    : ownerData?.registryAddress
 
   const {
     data: address,
@@ -105,6 +126,7 @@ function RouteComponent() {
       account: pendingGrant.account,
       roles: pendingGrant.roles,
       id: GRANT_ROLES_TRANSACTION_ID,
+      registryAddress,
     })
   }
 
