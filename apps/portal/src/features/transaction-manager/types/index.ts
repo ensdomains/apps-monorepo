@@ -18,6 +18,5 @@ export type Transaction = {
   readonly estimatedGasCost: number
   readonly onDone: () => void
   readonly onStart: () => void
-  /** Sub-steps bundled with this transaction, shown as a list after the wallet signature */
   readonly steps?: readonly string[]
 }
