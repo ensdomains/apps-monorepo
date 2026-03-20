@@ -360,6 +360,10 @@ msgstr "Cancel"
 msgid "Cannot save profile - ENS owner is not available."
 msgstr "Cannot save profile - ENS owner is not available."
 
+#: src/features/profile/components/ProfileEdit.tsx:104
+msgid "Cannot save profile - resolver address is not available."
+msgstr "Cannot save profile - resolver address is not available."
+
 #: src/features/payment/components/add.tsx:38
 msgid "Card expiry date"
 msgstr "Card expiry date"
@@ -1547,7 +1551,7 @@ msgstr "Resending email verification"
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
 
-#: src/features/profile/components/ProfileEdit.tsx:174
+#: src/features/profile/components/ProfileEdit.tsx:180
 msgid "Reset Changes"
 msgstr "Reset Changes"
 
