@@ -9,14 +9,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { setReverseResolution } from '../helpers/setReverseResolution'
+import {
+  type SetReverseResolutionParameters,
+  setReverseResolution,
+} from '../helpers/setReverseResolution'
 
-interface WriteRequest {
-  readonly address: `0x${string}`
-  readonly abi: readonly unknown[]
-  readonly functionName: string
-  readonly args: readonly unknown[]
-}
+type WriteRequest = SetReverseResolutionParameters['request']
 
 interface UseSetReverseResolutionParams {
   readonly chainId: number

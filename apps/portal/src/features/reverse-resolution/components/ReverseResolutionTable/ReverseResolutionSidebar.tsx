@@ -496,7 +496,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: UPDATE_REVERSE_NAME_TX_ID,
                   title: 'Update reverse name',
                   transactionName: `Set reverse name to ${nameInput}`,
-                  estimatedGasCost: 0.0002,
+                  estimatedGasCost: 0.0001,
                   onStart: handleUpdateReverseStart,
                   onDone: handleUpdateReverseDone,
                 },
