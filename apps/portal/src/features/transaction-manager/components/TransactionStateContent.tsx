@@ -100,7 +100,7 @@ export const TransactionStateContent = ({
                     <XCircle className="size-4 text-garnet-600" />
                   ))
                   .otherwise(() => (
-                    <Hourglass className="size-4 text-quartz-600 animate-pulse" />
+                    <Hourglass className="size-4 text-quartz-600 animate-spin" />
                   ))}
               </div>
               <div className="space-y-2 flex-1 min-w-0">

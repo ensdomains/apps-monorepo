@@ -26,6 +26,7 @@ type PaymentTokenSectionProps = {
   readonly onConfirm: (selectedToken: Address, tokenPrice: bigint) => void
   readonly onConnectWallet?: () => void
   readonly isConnected: boolean
+  readonly isRegistering?: boolean
 }
 
 const PAYMENT_TOKENS = [
@@ -49,6 +50,7 @@ export const PaymentTokenSection = ({
   onConfirm,
   onConnectWallet,
   isConnected,
+  isRegistering = false,
 }: PaymentTokenSectionProps) => {
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
@@ -202,7 +204,7 @@ export const PaymentTokenSection = ({
         disabled={isRegisterDisabled}
         variant={'secondary'}
       >
-        Register
+        {isRegistering ? 'Registering...' : 'Register'}
       </Button>
     </section>
   )

@@ -181,6 +181,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             onConfirm={handleConfirm}
             onConnectWallet={openConnectModal}
             isConnected={isConnected}
+            isRegistering={isRegistering}
           />
           <TransactionModal transactions={transactions} />
         </>
