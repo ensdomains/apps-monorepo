@@ -69,6 +69,12 @@ export const useRegistrationTransactions = ({
       )
     }
 
+    // Reset machine to idle if it's not already (e.g. after modal was closed on error)
+    const currentState = actor.getSnapshot().value
+    if (currentState !== 'idle') {
+      actor.send({ type: 'CANCEL' })
+    }
+
     const walletClient = await getWalletClient(config, {
       connector: connection.connector,
       account: connection.address,
