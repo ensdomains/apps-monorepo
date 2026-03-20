@@ -94,6 +94,7 @@ export type RegistrationEvent =
       useFastRegistrar?: boolean
       sponsored?: boolean
     }
+  | { type: 'PROCEED' }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
 
@@ -425,7 +426,7 @@ export const registrationMachine = setup({
           }
         },
         onDone: {
-          target: 'committingTransaction',
+          target: 'readyToCommit',
           actions: assign({
             commitment: ({ event }) => event.output,
           }),
@@ -446,6 +447,14 @@ export const registrationMachine = setup({
         },
       },
       on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    readyToCommit: {
+      entry: ['logTransition', 'recordTransition'],
+      on: {
+        PROCEED: 'committingTransaction',
         CANCEL: 'idle',
       },
     },
@@ -537,7 +546,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
         }),
-        onDone: 'approvingToken',
+        onDone: 'readyToApprove',
         onError: {
           target: 'error',
           actions: [
@@ -569,7 +578,7 @@ export const registrationMachine = setup({
           const delayMs = Math.max(0, targetTimestamp - Date.now())
           return { delayMs }
         },
-        onDone: 'approvingToken',
+        onDone: 'readyToApprove',
         onError: {
           target: 'error',
           actions: assign({
@@ -578,6 +587,14 @@ export const registrationMachine = setup({
         },
       },
       on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    readyToApprove: {
+      entry: ['logTransition', 'recordTransition'],
+      on: {
+        PROCEED: 'approvingToken',
         CANCEL: 'idle',
       },
     },
@@ -630,7 +647,7 @@ export const registrationMachine = setup({
       invoke: {
         src: 'pollTransactionStatus',
         input: ({ context }) => ({ txId: context.approvalTxId! }),
-        onDone: 'registeringDomain',
+        onDone: 'readyToRegister',
         onError: {
           target: 'error',
           actions: [
@@ -647,6 +664,14 @@ export const registrationMachine = setup({
         },
       },
       on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    readyToRegister: {
+      entry: ['logTransition', 'recordTransition'],
+      on: {
+        PROCEED: 'registeringDomain',
         CANCEL: 'idle',
       },
     },

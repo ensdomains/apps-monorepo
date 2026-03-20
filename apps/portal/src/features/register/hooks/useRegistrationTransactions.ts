@@ -6,7 +6,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
@@ -29,7 +29,8 @@ type SavedRegistrationParams = {
 function isInProgressState(
   stateValue: string | Record<string, unknown>,
 ): boolean {
-  if (typeof stateValue === 'object') return false // error state
+  if (typeof stateValue === 'object') return false
+
   return (
     stateValue !== 'idle' && stateValue !== 'success' && stateValue !== 'error'
   )
@@ -61,15 +62,21 @@ export const useRegistrationTransactions = ({
   const isSuccess = machineState === 'success'
   const isRegistering = isInProgressState(machineState)
 
-  // Called by first transaction's onStart — sends START_REGISTRATION to the machine
-  const handleStart = useCallback(async () => {
-    if (!publicClient || !connection.address || !savedParams) return
+  const handleStart = async () => {
+    if (!publicClient || !connection.address || !savedParams) {
+      throw new Error(
+        'Missing required parameters - publicClient, connection.address, or savedParams',
+      )
+    }
 
     const walletClient = await getWalletClient(config, {
       connector: connection.connector,
       account: connection.address,
     })
-    if (!walletClient) return
+
+    if (!walletClient) {
+      throw new Error('Failed to get wallet client')
+    }
 
     transactionManager.clear()
 
@@ -87,15 +94,16 @@ export const useRegistrationTransactions = ({
       useFastRegistrar: true,
       sponsored: false,
     })
-  }, [actor, name, duration, publicClient, connection, config, savedParams])
+  }
 
-  const handleDone = useCallback(() => {
+  const handleProceed = () => {
+    actor.send({ type: 'PROCEED' })
+  }
+
+  const handleDone = () => {
     closeModal()
     clearTransaction()
-  }, [closeModal, clearTransaction])
-
-  // No-op for auto-advancing steps — machine handles transitions
-  const noop = useCallback(() => {}, [])
+  }
 
   const transactions: Transaction[] = [
     {
@@ -104,45 +112,41 @@ export const useRegistrationTransactions = ({
       transactionName: `Deploy resolver for ${name}`,
       estimatedGasCost: 0.001,
       onStart: handleStart,
-      onDone: noop,
+      onDone: handleProceed,
     },
     {
       id: REGISTRATION_TX_IDS.commit,
       title: 'Submit commitment',
       transactionName: `Commit to register ${name}`,
       estimatedGasCost: 0.0005,
-      onStart: noop,
-      onDone: noop,
+      onStart: handleProceed,
+      onDone: handleProceed,
     },
     {
       id: REGISTRATION_TX_IDS.approve,
       title: 'Approve payment',
       transactionName: `Approve ${savedParams?.tokenSymbol ?? 'token'} for registration`,
       estimatedGasCost: 0.0003,
-      onStart: noop,
-      onDone: noop,
+      onStart: handleProceed,
+      onDone: handleProceed,
     },
     {
       id: REGISTRATION_TX_IDS.register,
       title: 'Register name',
       transactionName: `Register ${name}`,
       estimatedGasCost: 0.001,
-      onStart: noop,
+      onStart: handleProceed,
       onDone: handleDone,
     },
   ]
 
-  // Called when user clicks Register — saves params for handleStart, opens modal
-  const startFlow = useCallback(
-    (selectedTokenAddress: Address, tokenPrice: bigint) => {
-      const tokenInfo = getTokenMetadataWithAddress(selectedTokenAddress)
-      setSavedParams({
-        tokenSymbol: tokenInfo.symbol,
-        tokenPrice,
-      })
-    },
-    [],
-  )
+  const startFlow = (selectedTokenAddress: Address, tokenPrice: bigint) => {
+    const tokenInfo = getTokenMetadataWithAddress(selectedTokenAddress)
+    setSavedParams({
+      tokenSymbol: tokenInfo.symbol,
+      tokenPrice,
+    })
+  }
 
   return {
     transactions,
