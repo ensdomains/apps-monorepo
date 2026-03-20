@@ -29,9 +29,6 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const navigate = useNavigate()
 
-  const labels = name.split('.')
-  const is3LD = labels.length === 3
-
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
   const [pendingGrant, setPendingGrant] = useState<{
     account: Address

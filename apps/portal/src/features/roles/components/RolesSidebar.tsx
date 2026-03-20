@@ -65,7 +65,7 @@ export const RolesSidebar = <
   setOpen,
   name,
   canManageRoles,
-  registryAddress,
+  registryAddress: _registryAddress,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
   const chainId = namechainSepolia.id
