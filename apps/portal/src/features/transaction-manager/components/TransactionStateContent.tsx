@@ -119,6 +119,16 @@ export const TransactionStateContent = ({
                     </a>
                   )}
                 </div>
+                {transaction.steps && transaction.steps.length > 0 && (
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {transaction.steps.map((step) => (
+                      <li key={step} className="flex items-center gap-1.5">
+                        <ArrowRight className="size-3 shrink-0" />
+                        {step}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {txError && (
                   <TransactionErrorAlert
                     title="Transaction Error"
