@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
+import { cn } from '@/lib/utils'
 import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
@@ -18,6 +19,7 @@ type RegisterNameFormProps = {
   readonly name: string
   readonly duration: number
   readonly setDuration: (seconds: number) => void
+  readonly disabled?: boolean
 }
 
 type RegistrationSpanType = 'years' | 'date'
@@ -26,6 +28,7 @@ export const RegisterNameForm = ({
   name,
   duration,
   setDuration,
+  disabled = false,
 }: RegisterNameFormProps) => {
   const [registrationSpanType, setRegistrationSpanType] =
     useState<RegistrationSpanType>('years')
@@ -51,7 +54,12 @@ export const RegisterNameForm = ({
           textClassName="text-3xl sm:text-4xl font-medium"
         />
       </div>
-      <div className="flex flex-col gap-4 border border-border rounded-lg px-6 pb-6 pt-4">
+      <div
+        className={cn(
+          'flex flex-col gap-4 border border-border rounded-lg px-6 pb-6 pt-4',
+          disabled && 'opacity-50 pointer-events-none',
+        )}
+      >
         <div className="flex items-center justify-between">
           <span className="text-base font-medium">
             Register {registrationSpanType === 'years' ? 'for' : 'until'}
@@ -61,6 +69,7 @@ export const RegisterNameForm = ({
             size="sm"
             onClick={handleRegistrationSpanTypeChange}
             className="gap-1 text-primary"
+            disabled={disabled}
           >
             <span className="text-xs font-normal">
               Choose by {registrationSpanType === 'years' ? 'date' : 'years'}

@@ -173,6 +173,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             name={name}
             duration={duration}
             setDuration={setDuration}
+            disabled={isRegistering}
           />
           <RegisterNameCheckoutSummary name={name} duration={duration} />
           <PaymentTokenSection

@@ -6,7 +6,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
@@ -62,7 +62,7 @@ export const useRegistrationTransactions = ({
   const isSuccess = machineState === 'success'
   const isRegistering = isInProgressState(machineState)
 
-  const handleStart = async () => {
+  const handleStart = useCallback(async () => {
     if (!publicClient || !connection.address || !savedParams) {
       throw new Error(
         'Missing required parameters - publicClient, connection.address, or savedParams',
@@ -94,70 +94,79 @@ export const useRegistrationTransactions = ({
       useFastRegistrar: true,
       sponsored: false,
     })
-  }
+  }, [actor, name, duration, publicClient, connection, config, savedParams])
 
-  const handleProceed = () => {
+  const handleProceed = useCallback(() => {
+    const currentState = actor.getSnapshot().value
+    if (currentState === 'error') {
+      transactionManager.clear()
+      actor.send({ type: 'RETRY' })
+      return
+    }
     actor.send({ type: 'PROCEED' })
-  }
+  }, [actor])
 
-  const handleDone = () => {
+  const handleDone = useCallback(() => {
     closeModal()
     clearTransaction()
-  }
+  }, [closeModal, clearTransaction])
 
-  const transactions: Transaction[] = [
-    {
-      id: REGISTRATION_TX_IDS.deployResolver,
-      title: 'Deploy resolver',
-      transactionName: `Deploy resolver for ${name}`,
-      estimatedGasCost: 0.001,
-      onStart: handleStart,
-      onDone: handleProceed,
-      steps: [
-        'Deploy dedicated resolver contract',
-        'Wait for on-chain confirmation',
-        'Extract resolver address',
-      ],
-    },
-    {
-      id: REGISTRATION_TX_IDS.commit,
-      title: 'Submit commitment',
-      transactionName: `Commit to register ${name}`,
-      estimatedGasCost: 0.0005,
-      onStart: handleProceed,
-      onDone: handleProceed,
-      steps: [
-        'Generate commitment hash',
-        'Submit commitment transaction',
-        'Wait for on-chain confirmation',
-        'Validate commitment on-chain',
-      ],
-    },
-    {
-      id: REGISTRATION_TX_IDS.approve,
-      title: 'Approve payment',
-      transactionName: `Approve ${savedParams?.tokenSymbol ?? 'token'} for registration`,
-      estimatedGasCost: 0.0003,
-      onStart: handleProceed,
-      onDone: handleProceed,
-      steps: [
-        'Approve token spending allowance',
-        'Wait for on-chain confirmation',
-      ],
-    },
-    {
-      id: REGISTRATION_TX_IDS.register,
-      title: 'Register name',
-      transactionName: `Register ${name}`,
-      estimatedGasCost: 0.001,
-      onStart: handleProceed,
-      onDone: handleDone,
-      steps: [
-        'Submit registration transaction',
-        'Wait for on-chain confirmation',
-      ],
-    },
-  ]
+  const transactions: Transaction[] = useMemo(
+    () => [
+      {
+        id: REGISTRATION_TX_IDS.deployResolver,
+        title: 'Deploy resolver',
+        transactionName: `Deploy resolver for ${name}`,
+        estimatedGasCost: 0.001,
+        onStart: handleStart,
+        onDone: handleProceed,
+        steps: [
+          'Deploy dedicated resolver contract',
+          'Wait for on-chain confirmation',
+          'Extract resolver address',
+        ],
+      },
+      {
+        id: REGISTRATION_TX_IDS.commit,
+        title: 'Submit commitment',
+        transactionName: `Commit to register ${name}`,
+        estimatedGasCost: 0.0005,
+        onStart: handleProceed,
+        onDone: handleProceed,
+        steps: [
+          'Generate commitment hash',
+          'Submit commitment transaction',
+          'Wait for on-chain confirmation',
+          'Validate commitment on-chain',
+        ],
+      },
+      {
+        id: REGISTRATION_TX_IDS.approve,
+        title: 'Approve payment',
+        transactionName: `Approve ${savedParams?.tokenSymbol ?? 'token'} for registration`,
+        estimatedGasCost: 0.0003,
+        onStart: handleProceed,
+        onDone: handleProceed,
+        steps: [
+          'Approve token spending allowance',
+          'Wait for on-chain confirmation',
+        ],
+      },
+      {
+        id: REGISTRATION_TX_IDS.register,
+        title: 'Register name',
+        transactionName: `Register ${name}`,
+        estimatedGasCost: 0.001,
+        onStart: handleProceed,
+        onDone: handleDone,
+        steps: [
+          'Submit registration transaction',
+          'Wait for on-chain confirmation',
+        ],
+      },
+    ],
+    [name, savedParams?.tokenSymbol, handleStart, handleProceed, handleDone],
+  )
 
   const startFlow = (selectedTokenAddress: Address, tokenPrice: bigint) => {
     const tokenInfo = getTokenMetadataWithAddress(selectedTokenAddress)

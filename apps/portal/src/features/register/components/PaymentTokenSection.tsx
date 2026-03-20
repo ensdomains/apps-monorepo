@@ -154,7 +154,7 @@ export const PaymentTokenSection = ({
                 key={token.symbol}
                 type="button"
                 onClick={() => setSelectedToken(token.address)}
-                disabled={!hasSufficientBalance}
+                disabled={!hasSufficientBalance || isRegistering}
                 className={cn(
                   'flex w-full cursor-pointer items-center justify-between rounded-lg border-border border p-4 text-left transition-colors',
                   selectedToken === token.address

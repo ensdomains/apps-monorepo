@@ -78,6 +78,12 @@ export type RegistrationContext = {
 
   // Error state
   error?: Error
+  /** The state to return to on RETRY — set when entering error state */
+  retryTarget?:
+    | 'deployingResolver'
+    | 'committingTransaction'
+    | 'approvingToken'
+    | 'registeringDomain'
 }
 
 export type RegistrationEvent =
@@ -358,6 +364,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'deployingResolver' as const,
             }),
             ({ event }) => {
               console.error(
@@ -389,6 +396,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'deployingResolver' as const,
             }),
             ({ event }) => {
               console.error(
@@ -436,6 +444,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -484,6 +493,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -522,6 +532,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -552,6 +563,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -583,6 +595,7 @@ export const registrationMachine = setup({
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
+            retryTarget: () => 'committingTransaction' as const,
           }),
         },
       },
@@ -627,6 +640,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'approvingToken' as const,
             }),
             ({ event }) => {
               console.error(
@@ -653,6 +667,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'approvingToken' as const,
             }),
             ({ event }) => {
               console.error(
@@ -704,6 +719,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {
               console.error(
@@ -730,6 +746,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {
               console.error(
@@ -766,20 +783,59 @@ export const registrationMachine = setup({
         },
       ],
       on: {
-        RETRY: {
-          target: 'deployingResolver',
-          actions: assign({
-            error: undefined,
-            resolverAddress: undefined,
-            resolverTxId: undefined,
-            resolverSalt: undefined,
-            commitment: undefined,
-            commitmentTxId: undefined,
-            approvalTxId: undefined,
-            registrationTxId: undefined,
-            registerReadyTimestamp: undefined,
-          }),
-        },
+        RETRY: [
+          {
+            guard: ({ context }) => context.retryTarget === 'registeringDomain',
+            target: 'registeringDomain',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              registrationTxId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) => context.retryTarget === 'approvingToken',
+            target: 'approvingToken',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              approvalTxId: undefined,
+              registrationTxId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'committingTransaction',
+            target: 'committingTransaction',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              commitmentTxId: undefined,
+              approvalTxId: undefined,
+              registrationTxId: undefined,
+              registerReadyTimestamp: undefined,
+            })),
+          },
+          {
+            target: 'deployingResolver',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              resolverAddress: undefined,
+              resolverTxId: undefined,
+              resolverSalt: undefined,
+              commitment: undefined,
+              commitmentTxId: undefined,
+              approvalTxId: undefined,
+              registrationTxId: undefined,
+              registerReadyTimestamp: undefined,
+            })),
+          },
+        ],
         CANCEL: 'idle',
       },
     },
