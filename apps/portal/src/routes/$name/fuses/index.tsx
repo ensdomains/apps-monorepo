@@ -308,9 +308,9 @@ const V2NameMessage = () => (
     title="Fuses not available"
     description={
       <>
-        <p>Fuses are not available for ENSv2 names.</p>
+        <p>Fuses are only available for wrapped ENSv1 names.</p>
         <p className="text-quartz-500 text-sm mt-2">
-          Only ENSv1 names have fuses.
+          This name is not wrapped or is not an ENSv1 name.
         </p>
       </>
     }
