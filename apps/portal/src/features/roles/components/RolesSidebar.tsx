@@ -53,6 +53,7 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
     name: string
     canManageRoles: boolean
+    registryAddress?: Address
   }>
 
 export const RolesSidebar = <
@@ -64,6 +65,7 @@ export const RolesSidebar = <
   setOpen,
   name,
   canManageRoles,
+  registryAddress,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
   const chainId = namechainSepolia.id
@@ -152,19 +154,25 @@ export const RolesSidebar = <
 
   const isWalletConnected = Boolean(walletClient?.account)
 
-  const transactions = buildRoleTransactions(pendingSave, pendingRemove, name, {
-    grantRoles: (params) =>
-      grantRoles({
-        ...params,
-        roles: [...params.roles],
-      }),
-    revokeRoles: (params) =>
-      revokeRoles({
-        ...params,
-        roles: [...params.roles],
-      }),
-    handleDone,
-  })
+  const transactions = buildRoleTransactions(
+    pendingSave,
+    pendingRemove,
+    name,
+    {
+      grantRoles: (params) =>
+        grantRoles({
+          ...params,
+          roles: [...params.roles],
+        }),
+      revokeRoles: (params) =>
+        revokeRoles({
+          ...params,
+          roles: [...params.roles],
+        }),
+      handleDone,
+    },
+    registryAddress,
+  )
 
   return (
     <>

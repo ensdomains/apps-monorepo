@@ -51,6 +51,7 @@ describe('buildRoleTransactions', () => {
       account: TEST_ACCOUNT,
       roles: ['ROLE_RENEW'],
       id: 'tx-grant-roles',
+      registryAddress: undefined,
     })
 
     result[0].onDone()
@@ -77,6 +78,7 @@ describe('buildRoleTransactions', () => {
       account: TEST_ACCOUNT,
       roles: ['ROLE_BURN'],
       id: 'tx-revoke-roles',
+      registryAddress: undefined,
     })
     expect(mockHandlers.handleDone).not.toHaveBeenCalled()
 
@@ -105,6 +107,7 @@ describe('buildRoleTransactions', () => {
       account: TEST_ACCOUNT_2,
       roles: ['ROLE_BURN'],
       id: 'tx-revoke-roles',
+      registryAddress: undefined,
     })
   })
 })
