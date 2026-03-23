@@ -5,6 +5,7 @@ import {
   CoinsIcon,
   FileCodeIcon,
   FileSpreadsheetIcon,
+  FlameIcon,
   ListTreeIcon,
   Network,
   PersonStandingIcon,
@@ -78,6 +79,14 @@ const getItemGroups = (name: string) => [
       icon: UserRoundCog,
       link: {
         to: '/$name/roles',
+        params: { name },
+      },
+    }),
+    defineProfileSidebarItem({
+      title: 'Fuses',
+      icon: FlameIcon,
+      link: {
+        to: '/$name/fuses',
         params: { name },
       },
     }),
