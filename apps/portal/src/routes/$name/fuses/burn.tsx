@@ -104,9 +104,11 @@ function RouteComponent() {
 
   const isPCCBurnt = isParentFuseBurnt('PARENT_CANNOT_CONTROL')
   const isCannotUnwrapBurnt = isChildFuseBurnt('CANNOT_UNWRAP')
+  const isCannotBurnFusesBurnt = isChildFuseBurnt('CANNOT_BURN_FUSES')
   const isCannotUnwrapSelected = selectedChildFuses.has('CANNOT_UNWRAP')
 
   const canSelectChildFuse = (fuseKey: ChildFuseKey): boolean => {
+    if (isCannotBurnFusesBurnt) return false
     if (isChildFuseBurnt(fuseKey)) return false
     if (fuseKey === 'CANNOT_UNWRAP') {
       return isPCCBurnt
@@ -239,7 +241,9 @@ function RouteComponent() {
           <Button
             variant="secondary"
             onClick={handleBurn}
-            disabled={!hasChanges || !address || !walletClient}
+            disabled={
+              !hasChanges || !address || !walletClient || isCannotBurnFusesBurnt
+            }
             className="flex items-center justify-center gap-2 h-10 w-fit"
           >
             <CheckCircle className="w-5 h-5" />
