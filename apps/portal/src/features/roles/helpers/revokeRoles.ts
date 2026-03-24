@@ -35,6 +35,7 @@ export type RevokeRolesParameters = {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly chainId: number
+  readonly registryAddress?: Address
   readonly id: string
 }
 
@@ -58,6 +59,7 @@ export async function revokeRoles(
     publicClient,
     signer,
     chainId,
+    registryAddress = namechainEthRegistryAddress,
     id,
   } = params
 
@@ -73,7 +75,7 @@ export async function revokeRoles(
 
   const [, entry] = await getRegistryNameData(publicClient, {
     label,
-    registryAddress: namechainEthRegistryAddress,
+    registryAddress,
   })
 
   const resource = labelToCanonicalId(label) | BigInt(entry.eacVersionId)
@@ -81,7 +83,7 @@ export async function revokeRoles(
   const writeParams = revokeRolesWriteParameters(
     walletClient as Parameters<typeof revokeRolesWriteParameters>[0],
     {
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress,
       account,
       resource,
       roles,
@@ -100,7 +102,7 @@ export async function revokeRoles(
       request: {
         type: 'eoa',
         from: walletClient.account.address,
-        to: namechainEthRegistryAddress,
+        to: registryAddress,
         data,
         value: 0n,
         chainId,
