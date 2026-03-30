@@ -756,6 +756,90 @@ export function submitRegistrationActor(input: {
 }
 
 /**
+ * Submit approve + register as a single batched Rhinestone intent.
+ * Only valid for rhinestone signers — the two calls execute atomically in order,
+ * so the allowance set by approve is visible to register in the same tx.
+ */
+export function submitApprovalAndRegistrationActor(input: {
+  tokenPrice: bigint
+  selectedToken: 'USDC' | 'DAI'
+  name: string
+  commitment: CommitmentData
+  signer: import('../..').Signer
+  duration: bigint
+  owner: Address
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+  sponsored?: boolean
+  resolverAddress: Address
+}): ResultAsync<string, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+
+  return fromPromise(
+    (async () => {
+      const accountAddress = getSignerAddress(input.signer)
+
+      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
+
+      const isSupported = await readContract(input.publicClient, {
+        address: registrarAddress,
+        abi: FAST_TEST_ETH_REGISTRAR_ABI,
+        functionName: 'isPaymentToken',
+        args: [normalizedPaymentToken],
+      })
+
+      if (!isSupported) {
+        throw new Error(
+          `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
+        )
+      }
+
+      const approvalData = encodeTokenApprovalData(
+        input.tokenPrice,
+        registrarAddress,
+      )
+
+      const registrationData = encodeRegistrationData(
+        input.name,
+        input.owner,
+        input.commitment.secret,
+        input.duration,
+        normalizedPaymentToken,
+        input.resolverAddress,
+      )
+
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: accountAddress,
+        to: registrarAddress,
+        data: registrationData,
+        value: 0n,
+        chainId: sepolia.id,
+        calls: [
+          { to: normalizedPaymentToken, data: approvalData, value: 0n },
+          { to: registrarAddress, data: registrationData, value: 0n },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request },
+        input.signer,
+        {
+          description: `Approve ${input.selectedToken} and register ${input.name}.eth`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+        },
+      )
+
+      return txId
+    })(),
+    (error: unknown) => error instanceof Error ? error : new Error(String(error)),
+  )
+}
+
+/**
  * Poll transaction status by subscribing to transaction machine
  */
 export function pollTransactionStatusActor(input: {
