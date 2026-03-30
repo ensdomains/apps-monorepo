@@ -208,7 +208,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:128
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:121
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -1237,6 +1237,10 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:148
+msgid "Not supported"
+msgstr "Not supported"
+
 #: src/features/notifications/dropdown/notification-dropdown.tsx:83
 msgid "Nothing here yet!"
 msgstr "Nothing here yet!"
@@ -1854,7 +1858,7 @@ msgstr "Sort names by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:232
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:240
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 

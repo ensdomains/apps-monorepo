@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ChangeEvent, useState } from 'react'
+import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import {
   AddressSuggestionCard,
   DomainProfileCard,
@@ -15,7 +16,6 @@ import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
-import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
@@ -39,7 +39,6 @@ export const CheckAvailability = ({
   const { debouncedValue } = useDebounce(inputValue, { delay: 500 })
 
   const {
-    validation,
     displayState,
     pricing,
     premiumLabel,
@@ -89,7 +88,7 @@ export const CheckAvailability = ({
     enabled: !!profileName,
   })
 
-  const showResults = displayState.type !== 'idle' && !validation && !error
+  const showResults = displayState.type !== 'idle' && !error
 
   const blurBackdropEnabled = useFeatureFlag('SEARCH_RESULTS_BLUR_BACKDROP')
 
@@ -112,13 +111,7 @@ export const CheckAvailability = ({
 
         <div className="absolute top-full z-10 mt-2 w-full space-y-4 drop-shadow-lg">
           <AnimatePresence mode="wait">
-            {validation && (
-              <motion.div key="validation-error" {...dropdownAnimation}>
-                <ValidationError error={validation} />
-              </motion.div>
-            )}
-
-            {error && !validation && (
+            {error && (
               <motion.div key="error" {...dropdownAnimation}>
                 <Alert variant="destructive">
                   <AlertDescription>
@@ -132,7 +125,7 @@ export const CheckAvailability = ({
               </motion.div>
             )}
 
-            {displayState.type !== 'idle' && !validation && !error && (
+            {displayState.type !== 'idle' && !error && (
               <motion.div
                 key={
                   displayState.type === 'address'
@@ -141,6 +134,21 @@ export const CheckAvailability = ({
                 }
                 {...dropdownAnimation}
               >
+                {displayState.type === 'not-supported' && (
+                  <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
+                    <img
+                      alt={displayState.domainName}
+                      className="size-[46px] rounded-[4px] object-cover"
+                      src={placeholderAvatar}
+                    />
+                    <span className="font-medium text-ens-blue text-lg leading-tight tracking-[-0.36px]">
+                      {displayState.domainName}
+                    </span>
+                    <span className="ml-auto font-medium text-red-500 text-sm italic">
+                      <Trans>Not supported</Trans>
+                    </span>
+                  </div>
+                )}
                 {displayState.type === 'address' && (
                   <div className="flex flex-col gap-3">
                     <AddressSuggestionCard
