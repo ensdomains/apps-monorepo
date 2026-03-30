@@ -788,7 +788,7 @@ msgstr "Går ut om {daysUntilExpiry} dagar"
 msgid "Expires:"
 msgstr ""
 
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:144
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
 msgid "expiring on"
 msgstr ""
 
@@ -1451,7 +1451,7 @@ msgstr ""
 msgid "Registering"
 msgstr ""
 
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:124
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
 msgid "Registering for"
 msgstr ""
 
@@ -2191,7 +2191,7 @@ msgid "Wrong wallet connected"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:138
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
 msgstr ""
 
