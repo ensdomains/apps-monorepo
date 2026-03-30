@@ -11,8 +11,6 @@
  *   - Offset: ensures curve reaches exactly 0 at the end of the premium period
  */
 
-import { Temporal } from '@js-temporal/polyfill'
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /** Total premium window duration (21 days). */
@@ -71,7 +69,7 @@ export function getPremiumDatesFromPrice(
 
   const elapsedMs = days * MS_PER_DAY
 
-  const nowMs = Temporal.Now.instant().epochMilliseconds
+  const nowMs = Date.now()
   const premiumStartMs = nowMs - elapsedMs
   const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
 
@@ -92,11 +90,7 @@ export function getPremiumPriceAtDate(
   premiumStartDate: Date,
   targetDate: Date,
 ): number {
-  const elapsedMs =
-    Temporal.Instant.fromEpochMilliseconds(targetDate.getTime())
-      .epochMilliseconds -
-    Temporal.Instant.fromEpochMilliseconds(premiumStartDate.getTime())
-      .epochMilliseconds
+  const elapsedMs = targetDate.getTime() - premiumStartDate.getTime()
   if (elapsedMs < 0) return START_PRICE - OFFSET
   if (elapsedMs >= PREMIUM_PERIOD_MS) return 0
 
@@ -120,9 +114,7 @@ export function getDateForPremiumPrice(
 ): Date {
   if (targetPrice >= START_PRICE - OFFSET) return premiumStartDate
 
-  const premiumStartMs = Temporal.Instant.fromEpochMilliseconds(
-    premiumStartDate.getTime(),
-  ).epochMilliseconds
+  const premiumStartMs = premiumStartDate.getTime()
   const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
   const premiumEndDate = new Date(premiumEndMs)
 
