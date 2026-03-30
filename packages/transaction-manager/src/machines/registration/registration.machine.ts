@@ -39,6 +39,17 @@ type CommitmentData = {
 // This is only used as fallback for non-fast registrar
 const COMMITMENT_WAIT_DURATION_MS = 60_000
 
+/**
+ * Fixed transaction IDs used by the registration machine.
+ * These allow the TransactionModal to track each step by a predictable ID.
+ */
+export const REGISTRATION_TX_IDS = {
+  deployResolver: 'tx-reg-deploy-resolver',
+  commit: 'tx-reg-commit',
+  approve: 'tx-reg-approve',
+  register: 'tx-reg-register',
+} as const
+
 export type RegistrationContext = {
   // Account & client
   signer?: Signer
@@ -67,6 +78,12 @@ export type RegistrationContext = {
 
   // Error state
   error?: Error
+  /** The state to return to on RETRY — set when entering error state */
+  retryTarget?:
+    | 'deployingResolver'
+    | 'committingTransaction'
+    | 'approvingToken'
+    | 'registeringDomain'
 }
 
 export type RegistrationEvent =
@@ -83,6 +100,7 @@ export type RegistrationEvent =
       useFastRegistrar?: boolean
       sponsored?: boolean
     }
+  | { type: 'PROCEED' }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
 
@@ -105,6 +123,7 @@ export const registrationMachine = setup({
         signer: Signer
         publicClient: PublicClient
         sponsored?: boolean
+        id?: string
       }) => {
         return submitResolverDeploymentActor(input)
       },
@@ -150,6 +169,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         useFastRegistrar: boolean
         sponsored?: boolean
+        id?: string
       }) => {
         return submitCommitmentActor(input)
       },
@@ -162,6 +182,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         useFastRegistrar: boolean
         sponsored?: boolean
+        id?: string
       }) => {
         return submitApprovalActor(input)
       },
@@ -178,6 +199,7 @@ export const registrationMachine = setup({
         useFastRegistrar: boolean
         sponsored?: boolean
         resolverAddress: Address
+        id?: string
       }) => {
         return submitRegistrationActor(input)
       },
@@ -328,6 +350,7 @@ export const registrationMachine = setup({
           signer: context.signer!,
           publicClient: context.publicClient!,
           sponsored: context.sponsored,
+          id: REGISTRATION_TX_IDS.deployResolver,
         }),
         onDone: {
           target: 'waitingForResolverDeployment',
@@ -341,6 +364,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'deployingResolver' as const,
             }),
             ({ event }) => {
               console.error(
@@ -372,6 +396,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'deployingResolver' as const,
             }),
             ({ event }) => {
               console.error(
@@ -409,7 +434,7 @@ export const registrationMachine = setup({
           }
         },
         onDone: {
-          target: 'committingTransaction',
+          target: 'readyToCommit',
           actions: assign({
             commitment: ({ event }) => event.output,
           }),
@@ -419,6 +444,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -430,6 +456,14 @@ export const registrationMachine = setup({
         },
       },
       on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    readyToCommit: {
+      entry: ['logTransition', 'recordTransition'],
+      on: {
+        PROCEED: 'committingTransaction',
         CANCEL: 'idle',
       },
     },
@@ -446,6 +480,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          id: REGISTRATION_TX_IDS.commit,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -458,6 +493,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -496,6 +532,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -520,12 +557,13 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
         }),
-        onDone: 'approvingToken',
+        onDone: 'readyToApprove',
         onError: {
           target: 'error',
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
               console.error(
@@ -552,15 +590,24 @@ export const registrationMachine = setup({
           const delayMs = Math.max(0, targetTimestamp - Date.now())
           return { delayMs }
         },
-        onDone: 'approvingToken',
+        onDone: 'readyToApprove',
         onError: {
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
+            retryTarget: () => 'committingTransaction' as const,
           }),
         },
       },
       on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    readyToApprove: {
+      entry: ['logTransition', 'recordTransition'],
+      on: {
+        PROCEED: 'approvingToken',
         CANCEL: 'idle',
       },
     },
@@ -580,6 +627,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          id: REGISTRATION_TX_IDS.approve,
         }),
         onDone: {
           target: 'waitingForApproval',
@@ -592,6 +640,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'approvingToken' as const,
             }),
             ({ event }) => {
               console.error(
@@ -612,12 +661,13 @@ export const registrationMachine = setup({
       invoke: {
         src: 'pollTransactionStatus',
         input: ({ context }) => ({ txId: context.approvalTxId! }),
-        onDone: 'registeringDomain',
+        onDone: 'readyToRegister',
         onError: {
           target: 'error',
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'approvingToken' as const,
             }),
             ({ event }) => {
               console.error(
@@ -629,6 +679,14 @@ export const registrationMachine = setup({
         },
       },
       on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    readyToRegister: {
+      entry: ['logTransition', 'recordTransition'],
+      on: {
+        PROCEED: 'registeringDomain',
         CANCEL: 'idle',
       },
     },
@@ -648,6 +706,7 @@ export const registrationMachine = setup({
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
           resolverAddress: context.resolverAddress!,
+          id: REGISTRATION_TX_IDS.register,
         }),
         onDone: {
           target: 'waitingForRegistration',
@@ -660,6 +719,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {
               console.error(
@@ -686,6 +746,7 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
+              retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {
               console.error(
@@ -722,20 +783,59 @@ export const registrationMachine = setup({
         },
       ],
       on: {
-        RETRY: {
-          target: 'deployingResolver',
-          actions: assign({
-            error: undefined,
-            resolverAddress: undefined,
-            resolverTxId: undefined,
-            resolverSalt: undefined,
-            commitment: undefined,
-            commitmentTxId: undefined,
-            approvalTxId: undefined,
-            registrationTxId: undefined,
-            registerReadyTimestamp: undefined,
-          }),
-        },
+        RETRY: [
+          {
+            guard: ({ context }) => context.retryTarget === 'registeringDomain',
+            target: 'registeringDomain',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              registrationTxId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) => context.retryTarget === 'approvingToken',
+            target: 'approvingToken',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              approvalTxId: undefined,
+              registrationTxId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'committingTransaction',
+            target: 'committingTransaction',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              commitmentTxId: undefined,
+              approvalTxId: undefined,
+              registrationTxId: undefined,
+              registerReadyTimestamp: undefined,
+            })),
+          },
+          {
+            target: 'deployingResolver',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              resolverAddress: undefined,
+              resolverTxId: undefined,
+              resolverSalt: undefined,
+              commitment: undefined,
+              commitmentTxId: undefined,
+              approvalTxId: undefined,
+              registrationTxId: undefined,
+              registerReadyTimestamp: undefined,
+            })),
+          },
+        ],
         CANCEL: 'idle',
       },
     },

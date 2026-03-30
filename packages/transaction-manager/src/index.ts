@@ -79,7 +79,10 @@ export type {
   RegistrationEvent,
   RegistrationInput,
 } from './machines/registration/registration.machine'
-export { registrationMachine } from './machines/registration/registration.machine'
+export {
+  REGISTRATION_TX_IDS,
+  registrationMachine,
+} from './machines/registration/registration.machine'
 export type {
   RegistrationMachineActor,
   RegistrationMachineEvent,
