@@ -52,15 +52,7 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
 // ============================================================================
 
 function generateResolverSalt(name: string): bigint {
-  const temporal = (
-    globalThis as unknown as {
-      Temporal?: { Now: { instant: () => { toString: () => string } } }
-    }
-  ).Temporal
-
-  const timestamp = temporal
-    ? temporal.Now.instant().toString()
-    : new Date().toISOString()
+  const timestamp = new Date().toISOString()
   return BigInt(keccak256(stringToBytes(`${name}:${timestamp}`)))
 }
 
