@@ -8,12 +8,10 @@ export const getRegistration = ResultFn(async function* (name: string) {
   const domain = yield* getIndexerDomain(name)
 
   if (!domain) {
-    return ok({ registrationDate: undefined as unknown as number })
+    return ok({ registrationDate: null })
   }
 
-  return ok({
-    registrationDate: domain.createdAt,
-  } as { registrationDate: number })
+  return ok({ registrationDate: domain.createdAt })
 })
 
 export const profileRegistrationQuery = (name: string) =>

@@ -9,7 +9,7 @@ export const getExpiry = ResultFn(async function* (name: string) {
   const expiryDate = domain?.expiryDate
 
   if (!expiryDate) {
-    return ok({ expiry: undefined as unknown as bigint })
+    return ok({ expiry: null })
   }
 
   return ok({ expiry: BigInt(expiryDate) })

@@ -7,7 +7,7 @@ import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok, ResultAsync } from 'neverthrow'
+import { fromPromise, ok } from 'neverthrow'
 
 class GetIndexerDomainError extends TaggedError('GetIndexerDomainError')<{
   cause: unknown
@@ -40,7 +40,7 @@ function fetchDomain(name: string): Promise<DomainQuery> {
 }
 
 export const getIndexerDomain = ResultFn(async function* (name: string) {
-  const data = yield* await ResultAsync.fromPromise(
+  const data = yield* fromPromise(
     fetchDomain(name),
     (error) => new GetIndexerDomainError({ cause: error }),
   )

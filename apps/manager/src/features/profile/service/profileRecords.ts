@@ -1,14 +1,18 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinTypeToNameMap } from '@ensdomains/address-encoder'
 import { getRecords } from '@ensdomains/ensjs/public'
-import { ok } from 'neverthrow'
+import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { alwaysProbeAddressRecords, forceFetchRecords } from '../data/records'
+import { forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
 import { getIndexerRecords } from './getIndexerRecords'
+
+class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
+  cause: unknown
+}> {}
 
 const COIN_TYPE_NAME_MAP = coinTypeToNameMap as Record<
   string,
@@ -43,13 +47,6 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   }
 
   // Coins: use indexer data directly
-  const indexerCoinTypes = new Set(
-    indexerRecords.coinAddresses.map((c) => c.coinType),
-  )
-  for (const probe of alwaysProbeAddressRecords) {
-    indexerCoinTypes.add(Number.parseInt(probe, 10))
-  }
-
   for (const coin of indexerRecords.coinAddresses) {
     if (!coin.address || coin.address === '0x') continue
     const symbolEntry = COIN_TYPE_NAME_MAP[String(coin.coinType)]
@@ -75,13 +72,16 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       : forceFetchRecords.whenNotIndexed),
   ]
 
-  const records = await getRecords(client, {
-    name,
-    texts,
-    contentHash: false,
-    abi: true,
-    resolver: { address: resolverAddress },
-  })
+  const records = yield* fromPromise(
+    getRecords(client, {
+      name,
+      texts,
+      contentHash: false,
+      abi: true,
+      resolver: { address: resolverAddress },
+    }),
+    (error) => new GetProfileRecordsError({ cause: error }),
+  )
 
   result.texts = records.texts
 
