@@ -4,7 +4,8 @@ import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
-import { useConnection, useReadContracts } from 'wagmi'
+import { useConfig, useConnection } from 'wagmi'
+import { readContractsQueryOptions } from 'wagmi/query'
 import { DAIcon } from '@/assets/dai-icon'
 import { USDCIcon } from '@/assets/usdc-icon'
 import { Button } from '@/components/ui/button'
@@ -52,31 +53,40 @@ export const PaymentTokenSection = ({
   isConnected,
   isRegistering = false,
 }: PaymentTokenSectionProps) => {
+  const config = useConfig()
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
 
-  const { data: balances = [], isLoading: isLoadingBalances } =
-    useReadContracts({
-      contracts: PAYMENT_TOKENS.map((token) => ({
-        address: token.address,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: address ? [address] : undefined,
-        chainId: sepoliaWithEns.id,
-      })),
-      query: { enabled: Boolean(address) },
-    })
-
-  const priceQueries = useQueries({
-    queries: PAYMENT_TOKENS.map((token) =>
+  const [balancesQuery, ...priceQueries] = useQueries({
+    queries: [
+      {
+        ...readContractsQueryOptions(config, {
+          contracts: PAYMENT_TOKENS.map((token) => ({
+            address: token.address,
+            abi: ERC20_ABI,
+            functionName: 'balanceOf',
+            args: address ? [address] : undefined,
+            chainId: sepoliaWithEns.id,
+          })),
+        }),
+        enabled: Boolean(address),
+      },
       getRegistrationPriceQueryOptions({
         name,
         duration,
-        token: token.address,
+        token: PAYMENT_TOKENS[0].address,
         owner: address,
       }),
-    ),
+      getRegistrationPriceQueryOptions({
+        name,
+        duration,
+        token: PAYMENT_TOKENS[1].address,
+        owner: address,
+      }),
+    ],
   })
+
+  const balances = balancesQuery.data ?? []
 
   const [usdcBalance, daiBalance] = balances.map((balance) => {
     if (balance.status === 'success' && balance.result !== undefined) {
@@ -96,7 +106,9 @@ export const PaymentTokenSection = ({
     : null
 
   const isPriceLoading =
-    priceQueries[0].isLoading || priceQueries[1].isLoading || isLoadingBalances
+    priceQueries[0].isLoading ||
+    priceQueries[1].isLoading ||
+    balancesQuery.isLoading
 
   const noSupportedTokenHasSufficientBalance =
     !isPriceLoading &&
