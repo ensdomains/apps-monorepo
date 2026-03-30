@@ -11,17 +11,13 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
-import {
-  useConnection,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from 'wagmi'
+import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,12 +31,21 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
+import { useSetForwardResolution } from '../../hooks/useSetForwardResolution'
+import { useSetReverseResolution } from '../../hooks/useSetReverseResolution'
 import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
 import { useSwitchToRequiredNetwork } from './hooks/useSwitchToRequiredNetwork'
+
+const UPDATE_REVERSE_NAME_TX_ID = 'tx-update-reverse-name'
+const SET_PRIMARY_NAME_TX_ID = 'tx-set-primary-name'
+
+type ActiveFlow = 'reverse' | 'primary'
 
 interface AddressHistoryProps {
   history: ReturnResolverEvent[]
@@ -189,11 +194,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
   const [nameInput, setNameInput] = useState('')
 
-  // Reset input and error state when sidebar closes or row changes
+  // Reset input state when sidebar closes or row changes
   useEffect(() => {
     if (!open || !row) {
       setNameInput('')
-      setForwardError(null)
     }
   }, [open, row])
 
@@ -211,42 +215,35 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     reverseRegistrarChainId,
   })
 
+  const { getReverseResolutionRequest, getForwardResolutionRequest } =
+    useReverseResolutionMutations({
+      reverseRegistrarChainId,
+      displayName,
+    })
+
   const {
-    getReverseResolutionRequest,
-    getForwardResolutionRequest,
-    invalidateReverseResolutionQuery,
-  } = useReverseResolutionMutations({
-    reverseRegistrarChainId,
-    displayName,
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
+  const [activeFlow, setActiveFlow] = useState<ActiveFlow | null>(null)
+
+  const {
+    setReverseResolution: submitReverseResolution,
+    isPending: isReverseResolutionPending,
+  } = useSetReverseResolution({
+    chainId: requiredChainId,
+    id: UPDATE_REVERSE_NAME_TX_ID,
   })
 
-  const writeContract = useWriteContract()
-
-  const [reverseHash, setReverseHash] = useState<Hash | undefined>(undefined)
-  const [forwardHash, setForwardHash] = useState<Hash | undefined>(undefined)
-  const [isWritingReverse, setIsWritingReverse] = useState(false)
-  const [isWritingForward, setIsWritingForward] = useState(false)
-  const [forwardError, setForwardError] = useState<string | null>(null)
-
-  const { isLoading: isConfirmingReverse, isSuccess: isReverseSuccess } =
-    useWaitForTransactionReceipt({
-      hash: reverseHash,
-      chainId: requiredChainId,
-    })
-  const { isLoading: isConfirmingForward, isSuccess: isForwardSuccess } =
-    useWaitForTransactionReceipt({
-      hash: forwardHash,
-      chainId: requiredChainId,
-    })
-
-  useEffect(() => {
-    if (isReverseSuccess || isForwardSuccess) {
-      invalidateReverseResolutionQuery()
-    }
-  }, [invalidateReverseResolutionQuery, isForwardSuccess, isReverseSuccess])
-
-  const isPendingReverse = isWritingReverse || isConfirmingReverse
-  const isPendingForward = isWritingForward || isConfirmingForward
+  const {
+    setForwardResolution: submitForwardResolution,
+    isPending: isForwardResolutionPending,
+  } = useSetForwardResolution({
+    chainId: requiredChainId,
+    id: SET_PRIMARY_NAME_TX_ID,
+  })
 
   if (!row) {
     return (
@@ -266,71 +263,73 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     )
   }
 
-  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+  const switchChainIfNeeded = () => {
+    if (!isWrongChain) return false
+    try {
+      switchChain(getSwitchToRequiredNetworkRequest())
+    } catch (error) {
+      console.error('Failed to switch network', error)
+    }
+    return true
+  }
+
+  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
     const input = form.querySelector<HTMLInputElement>('input[name="name"]')
-    if (!input?.reportValidity()) {
-      return
-    }
+    if (!input?.reportValidity()) return
+    if (switchChainIfNeeded()) return
+    if (!nameInput) return
+    setActiveFlow('reverse')
+    openTransactionModal()
+  }
 
-    if (isWrongChain) {
-      try {
-        switchChain(getSwitchToRequiredNetworkRequest())
-      } catch (error) {
-        console.error('Failed to switch network', error)
-      }
-      return
-    }
-
-    if (nameInput) {
-      try {
-        const reverseRequest = getReverseResolutionRequest(nameInput)
-        setIsWritingReverse(true)
-        const hash = await writeContract.mutateAsync(
-          reverseRequest.request as Parameters<
-            typeof writeContract.mutateAsync
-          >[0],
-        )
-        setReverseHash(hash)
-      } catch (error) {
-        console.error('Failed to set reverse resolution', error)
-      } finally {
-        setIsWritingReverse(false)
-        setNameInput('')
-      }
+  const handleUpdateReverseStart = () => {
+    if (!nameInput) return
+    try {
+      const reverseRequest = getReverseResolutionRequest(nameInput)
+      submitReverseResolution({
+        name: nameInput,
+        request: reverseRequest.request,
+      })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to set reverse name',
+      )
+      closeTransactionModal()
+      clearTransaction()
     }
   }
 
-  const handleSetPrimaryName = async () => {
-    if (isWrongChain) {
-      try {
-        switchChain(getSwitchToRequiredNetworkRequest())
-      } catch (error) {
-        console.error('Failed to switch network', error)
-      }
-      return
+  const handleUpdateReverseDone = () => {
+    closeTransactionModal()
+    clearTransaction()
+    setNameInput('')
+  }
+
+  const handleSetPrimaryName = () => {
+    if (switchChainIfNeeded()) return
+    setActiveFlow('primary')
+    openTransactionModal()
+  }
+
+  const handleSetPrimaryNameStart = () => {
+    if (!displayName) return
+    try {
+      const request = getForwardResolutionRequest(address)
+      submitForwardResolution({ name: displayName, request })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to set primary name',
+      )
+      closeTransactionModal()
+      clearTransaction()
     }
-    if (displayName) {
-      try {
-        setForwardError(null)
-        const request = getForwardResolutionRequest(address)
-        setIsWritingForward(true)
-        const hash = await writeContract.mutateAsync(
-          request as Parameters<typeof writeContract.mutateAsync>[0],
-        )
-        setForwardHash(hash)
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Failed to set forward resolution'
-        setForwardError(message)
-        console.error('Failed to set forward resolution', error)
-      } finally {
-        setIsWritingForward(false)
-      }
-    }
+  }
+
+  const handleSetPrimaryNameDone = () => {
+    closeTransactionModal()
+    clearTransaction()
   }
 
   return (
@@ -351,18 +350,18 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   onClick={handleSetPrimaryName}
                   variant="default"
                   disabled={
-                    !isConnected || isPendingForward || isSwitchingChain
+                    !isConnected ||
+                    isForwardResolutionPending ||
+                    isSwitchingChain
                   }
                 >
                   {match({
                     isConnected,
                     isSwitchingChain,
-                    isPendingForward,
                     isWrongChain,
                   })
                     .with({ isConnected: false }, () => 'Connect Wallet')
                     .with({ isSwitchingChain: true }, () => 'Switching...')
-                    .with({ isPendingForward: true }, () => 'Setting...')
                     .with({ isWrongChain: true }, () => 'Switch Network')
                     .otherwise(() => 'Set primary name')}
                 </Button>
@@ -387,13 +386,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                 The set address does not resolve back to this name on {label}
               </span>
             </div>
-          )}
-
-          {forwardError && (
-            <Alert variant="destructive">
-              <XCircle />
-              <AlertDescription>{forwardError}</AlertDescription>
-            </Alert>
           )}
 
           <div className="flex flex-col gap-6">
@@ -425,7 +417,9 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     value={nameInput}
                     onChange={handleNameChange}
                     disabled={
-                      !isConnected || isPendingReverse || isSwitchingChain
+                      !isConnected ||
+                      isReverseResolutionPending ||
+                      isSwitchingChain
                     }
                     placeholder={match(isConnected)
                       .with(false, () => 'Connect wallet to update')
@@ -440,7 +434,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       !nameInput ||
-                      isPendingReverse ||
+                      isReverseResolutionPending ||
                       isSwitchingChain
                     }
                     className="h-9"
@@ -448,12 +442,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     {match({
                       isConnected,
                       isSwitchingChain,
-                      isPendingReverse,
                       isWrongChain,
                     })
                       .with({ isConnected: false }, () => 'Connect Wallet')
                       .with({ isSwitchingChain: true }, () => 'Switching...')
-                      .with({ isPendingReverse: true }, () => 'Setting...')
                       .with({ isWrongChain: true }, () => 'Switch Network')
                       .otherwise(() => 'Update')}
                   </Button>
@@ -510,6 +502,31 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
           </div>
         </div>
       </SheetContent>
+      <TransactionModal
+        transactions={
+          activeFlow === 'reverse'
+            ? [
+                {
+                  id: UPDATE_REVERSE_NAME_TX_ID,
+                  title: 'Update reverse name',
+                  transactionName: `Set reverse name to ${nameInput}`,
+                  estimatedGasCost: 0.0001,
+                  onStart: handleUpdateReverseStart,
+                  onDone: handleUpdateReverseDone,
+                },
+              ]
+            : [
+                {
+                  id: SET_PRIMARY_NAME_TX_ID,
+                  title: 'Set primary name',
+                  transactionName: `Set primary name to ${displayName}`,
+                  estimatedGasCost: 0.0002,
+                  onStart: handleSetPrimaryNameStart,
+                  onDone: handleSetPrimaryNameDone,
+                },
+              ]
+        }
+      />
     </Sheet>
   )
 }

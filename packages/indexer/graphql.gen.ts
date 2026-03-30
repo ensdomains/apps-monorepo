@@ -28,6 +28,12 @@ export type AccountRegistrationsArgs = {
   skip?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type Alias = {
+  __typename?: 'Alias';
+  fromName: Scalars['String']['output'];
+  toName: Scalars['String']['output'];
+};
+
 export type CoinAddress = {
   __typename?: 'CoinAddress';
   address: Scalars['String']['output'];
@@ -51,6 +57,7 @@ export type Domain = {
   owner: Account;
   parent?: Maybe<Domain>;
   registrant?: Maybe<Account>;
+  registrationDate?: Maybe<Scalars['Int']['output']>;
   resolvedAddress?: Maybe<Account>;
   resolver?: Maybe<Resolver>;
   subdomains: Array<Domain>;
@@ -93,6 +100,7 @@ export type DomainFilter = {
   owner?: InputMaybe<Scalars['String']['input']>;
   owner_in?: InputMaybe<Array<Scalars['String']['input']>>;
   resolvedAddress?: InputMaybe<Scalars['String']['input']>;
+  resolver?: InputMaybe<Scalars['String']['input']>;
   subdomainCount_gt?: InputMaybe<Scalars['Int']['input']>;
   subdomainCount_lt?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -170,6 +178,18 @@ export type EventFilter = {
   type_in?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
+export enum Event_OrderBy {
+  BlockNumber = 'blockNumber',
+  Name = 'name',
+  Timestamp = 'timestamp'
+}
+
+export type InterfaceRecord = {
+  __typename?: 'InterfaceRecord';
+  implementer: Scalars['String']['output'];
+  interfaceId: Scalars['String']['output'];
+};
+
 export enum OrderDirection {
   Asc = 'asc',
   Desc = 'desc'
@@ -181,6 +201,12 @@ export type PageInfo = {
   hasNextPage: Scalars['Boolean']['output'];
   hasPreviousPage: Scalars['Boolean']['output'];
   startCursor?: Maybe<Scalars['String']['output']>;
+};
+
+export type Pubkey = {
+  __typename?: 'Pubkey';
+  x: Scalars['String']['output'];
+  y: Scalars['String']['output'];
 };
 
 export type Query = {
@@ -196,7 +222,8 @@ export type Query = {
   registrationConnection: RegistrationConnection;
   registrations: Array<Registration>;
   registries: Array<RegistryInfo>;
-  resolvers: Array<ResolverInfo>;
+  resolver?: Maybe<ResolverDetail>;
+  resolvers: Array<ResolverDetail>;
   roleConnection: EacRoleAssignmentConnection;
   roles: Array<EacRoleAssignment>;
 };
@@ -243,12 +270,16 @@ export type QueryEventConnectionArgs = {
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
   where?: InputMaybe<EventFilter>;
 };
 
 
 export type QueryEventsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
   skip?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<EventFilter>;
 };
@@ -281,6 +312,11 @@ export type QueryRegistrationsArgs = {
 
 export type QueryRegistriesArgs = {
   owner: Scalars['String']['input'];
+};
+
+
+export type QueryResolverArgs = {
+  id: Scalars['String']['input'];
 };
 
 
@@ -357,13 +393,19 @@ export type RegistryInfo = {
 
 export type Resolver = {
   __typename?: 'Resolver';
+  abis?: Maybe<Array<Scalars['Int']['output']>>;
   addr?: Maybe<Scalars['String']['output']>;
   address: Scalars['String']['output'];
   addresses?: Maybe<Array<CoinAddress>>;
+  aliases?: Maybe<Array<Alias>>;
   contentHash?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
+  interfaces?: Maybe<Array<InterfaceRecord>>;
+  pubkey?: Maybe<Pubkey>;
+  reverseName?: Maybe<Scalars['String']['output']>;
   text?: Maybe<Scalars['String']['output']>;
   texts?: Maybe<Array<Scalars['String']['output']>>;
+  version?: Maybe<Scalars['Int']['output']>;
 };
 
 
@@ -390,13 +432,27 @@ export type ResolverApproval = {
   transactionHash: Scalars['String']['output'];
 };
 
-export type ResolverInfo = {
-  __typename?: 'ResolverInfo';
+export type ResolverDetail = {
+  __typename?: 'ResolverDetail';
   address: Scalars['String']['output'];
-  name: Scalars['String']['output'];
-  namehash: Scalars['String']['output'];
-  setAt: Scalars['Int']['output'];
-  setBlock: Scalars['Int']['output'];
+  aliasCount: Scalars['Int']['output'];
+  aliases: Array<Alias>;
+  events: Array<Event>;
+  id: Scalars['String']['output'];
+  nodeCount: Scalars['Int']['output'];
+  nodes: Array<Domain>;
+  roleHolderCount: Scalars['Int']['output'];
+  roles: Array<EacRoleAssignment>;
+};
+
+
+export type ResolverDetailEventsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type ResolverDetailNodesArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type ResolverMetadata = {
@@ -419,7 +475,7 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
     & AccountFragment
   ) };
 
-export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, avatar?: string | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number }> | null };
+export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, contentHash?: string | null, avatar?: string | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number, address: string }> | null };
 
 export type DomainQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -458,8 +514,10 @@ export const Resolver = gql`
   address
   texts
   avatar: text(key: "avatar")
+  contentHash
   addresses {
     coinType
+    address
   }
 }
     `;

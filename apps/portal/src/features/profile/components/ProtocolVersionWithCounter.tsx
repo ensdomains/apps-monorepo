@@ -52,7 +52,7 @@ const FuseCount = ({ name }: { name: string }) => {
   return (
     <CounterCardRow
       icon={ListIcon}
-      action={<CounterCardLink to="/$name/ownership" params={{ name }} />}
+      action={<CounterCardLink to="/$name/fuses" params={{ name }} />}
     >
       <span className="font-medium">{data || 0}</span> fuses burned
     </CounterCardRow>

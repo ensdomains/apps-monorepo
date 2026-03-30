@@ -261,7 +261,7 @@ msgstr ""
 msgid "Autorenews on"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:377
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:379
 msgid "available"
 msgstr ""
 
@@ -334,7 +334,7 @@ msgstr ""
 msgid "Bug bounty"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:469
+#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:94
 msgid "Buy Name"
 msgstr ""
 
@@ -363,6 +363,10 @@ msgstr "Avbryt"
 
 #: src/features/profile/components/ProfileEdit.tsx:86
 msgid "Cannot save profile - ENS owner is not available."
+msgstr ""
+
+#: src/features/profile/components/ProfileEdit.tsx:104
+msgid "Cannot save profile - resolver address is not available."
 msgstr ""
 
 #: src/features/payment/components/add.tsx:38
@@ -441,7 +445,7 @@ msgstr ""
 msgid "Close dialog"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:102
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:104
 msgid "Coming Soon"
 msgstr ""
 
@@ -470,12 +474,12 @@ msgstr ""
 msgid "Confirm NFT Selection"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:405
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:407
 msgid "Confirm Payment"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:443
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:459
 msgid "Confirm purchase"
 msgstr ""
 
@@ -576,13 +580,13 @@ msgstr ""
 msgid "Create unlimited subdomains for free"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:99
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:122
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:138
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:101
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:124
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:140
 msgid "Credit Card Payment"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:105
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:107
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr ""
 
@@ -898,7 +902,7 @@ msgstr ""
 msgid "Finalizing registration"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:451
+#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr ""
 
@@ -1052,7 +1056,7 @@ msgstr "Laddar översikten..."
 msgid "Loading prices..."
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:278
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:280
 msgid "Loading your stablecoin balances..."
 msgstr ""
 
@@ -1157,7 +1161,7 @@ msgid "Names are permanent, only expire if not renewed"
 msgstr ""
 
 #. placeholder {0}: formatAmount(priceUSD)
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:382
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:384
 msgid "Need ${0}"
 msgstr ""
 
@@ -1187,7 +1191,7 @@ msgstr ""
 msgid "No changes to save"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:305
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:307
 msgid "No coins found"
 msgstr ""
 
@@ -1289,7 +1293,7 @@ msgstr ""
 msgid "Pay with Apple"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:74
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:76
 msgid "Pay with credit card"
 msgstr ""
 
@@ -1301,7 +1305,7 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:233
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr ""
 
@@ -1327,7 +1331,7 @@ msgstr ""
 msgid "Personal Site"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:286
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:288
 msgid "Please connect your wallet first"
 msgstr ""
 
@@ -1442,7 +1446,7 @@ msgstr "Registrerad {0}"
 msgid "Registered ENS names"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:425
+#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:51
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
 msgid "Registering"
 msgstr ""
@@ -1552,7 +1556,7 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:174
+#: src/features/profile/components/ProfileEdit.tsx:180
 msgid "Reset Changes"
 msgstr ""
 
@@ -1602,8 +1606,8 @@ msgstr ""
 msgid "Search"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:262
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:265
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:264
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:267
 msgid "Search coins"
 msgstr ""
 
@@ -1649,13 +1653,13 @@ msgstr ""
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:244
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:484
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:500
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:246
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:443
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:459
 msgid "Select coin"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:522
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:481
 msgid "Select payment method"
 msgstr ""
 
@@ -1851,7 +1855,7 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:248
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
 msgstr ""
 
@@ -1991,7 +1995,7 @@ msgstr ""
 msgid "Try Again"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:308
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:310
 msgid "Try searching for a different coin or chain"
 msgstr ""
 
@@ -2219,7 +2223,7 @@ msgstr ""
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:289
+#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:291
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr ""
 

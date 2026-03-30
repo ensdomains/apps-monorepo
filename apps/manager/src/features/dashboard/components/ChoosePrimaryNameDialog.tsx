@@ -149,7 +149,7 @@ export const ChoosePrimaryNameDialog = ({
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
         chainId: customSepolia.id,
-        resolverAddress: selectedNameRecords?.resolverAddress,
+        resolverAddress: selectedNameRecords?.resolverAddress as Address,
       })
     },
     onError: (error) => {

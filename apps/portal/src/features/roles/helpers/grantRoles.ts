@@ -35,6 +35,7 @@ export type GrantRolesParameters = {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly chainId: number
+  readonly registryAddress?: Address
   readonly id: string
 }
 
@@ -47,16 +48,21 @@ export interface GrantRolesResult {
 // Public API
 // ============================================================================
 
-export async function grantRoles({
-  name,
-  account,
-  roles,
-  walletClient,
-  publicClient,
-  signer,
-  chainId,
-  id,
-}: GrantRolesParameters): Promise<GrantRolesResult> {
+export async function grantRoles(
+  params: GrantRolesParameters,
+): Promise<GrantRolesResult> {
+  const {
+    name,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    registryAddress = namechainEthRegistryAddress,
+    id,
+  } = params
+
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -69,7 +75,7 @@ export async function grantRoles({
 
   const [, entry] = await getRegistryNameData(publicClient, {
     label,
-    registryAddress: namechainEthRegistryAddress,
+    registryAddress,
   })
 
   const resource = labelToCanonicalId(label) | BigInt(entry.eacVersionId)
@@ -77,7 +83,7 @@ export async function grantRoles({
   const writeParams = grantRolesWriteParameters(
     walletClient as Parameters<typeof grantRolesWriteParameters>[0],
     {
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress,
       account,
       resource,
       roles,
@@ -96,7 +102,7 @@ export async function grantRoles({
       request: {
         type: 'eoa',
         from: walletClient.account.address,
-        to: namechainEthRegistryAddress,
+        to: registryAddress,
         data,
         value: 0n,
         chainId,

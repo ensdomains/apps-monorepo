@@ -100,6 +100,13 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       return
     }
 
+    if (!resolverAddress) {
+      const message = t`Cannot save profile - resolver address is not available.`
+      console.warn(message)
+      alert(message)
+      return
+    }
+
     const before = transformToServiceFormat(defaultValues)
     const after = transformToServiceFormat(form.state.values)
     const accountAddress = (account.ownerAddress ??
@@ -148,8 +155,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ThemeSection form={form} />
           <WalletAddressesSection form={form} />
-          {/* Hidden for alpha - users don't need to change the resolver
-          <UpdateResolverDialog
+          {/* <UpdateResolverDialog
             currentResolver={resolverAddress}
             name={name}
             onUpdated={refetchRecords}

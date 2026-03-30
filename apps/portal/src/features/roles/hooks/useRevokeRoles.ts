@@ -20,6 +20,7 @@ type UseRevokeRolesParameters = {
   readonly account: Address
   readonly roles: Role[]
   readonly id: string
+  readonly registryAddress?: Address
 }
 
 export function useRevokeRoles() {
@@ -40,6 +41,7 @@ export function useRevokeRoles() {
         publicClient,
         signer: createEOASigner(walletClient),
         chainId,
+        registryAddress: params.registryAddress,
       })
     },
     onSuccess: () => {
