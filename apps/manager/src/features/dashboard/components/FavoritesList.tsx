@@ -286,7 +286,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           <div className="flex items-center justify-center gap-[12px]">
             <button
               aria-label={t`Previous page`}
-              className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
+              className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
               disabled={isLoading || !hasPrevPage}
               onClick={handlePrev}
               type="button"
