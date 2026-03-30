@@ -75,15 +75,14 @@ export const NameSuggestionItem = ({
   })
 
   const activeQuery = isSubname ? indexerQuery : registrarQuery
-  const isRegistered = needsSelfCheck
-    ? isSubname
-      ? indexerQuery.data
-        ? indexerQuery.data.domains.length > 0
-        : undefined
-      : registrarQuery.data
-        ? !registrarQuery.data.isAvailable
-        : undefined
-    : isRegisteredProp
+  const isRegistered = match({ needsSelfCheck, isSubname, indexerQuery, registrarQuery })
+    .with({ needsSelfCheck: false }, () => isRegisteredProp)
+    .with({ isSubname: true }, ({ indexerQuery: q }) =>
+      q.data ? q.data.domains.length > 0 : undefined,
+    )
+    .otherwise(({ registrarQuery: q }) =>
+      q.data ? !q.data.isAvailable : undefined,
+    )
   const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
   const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
   const isAvailable = isSupported && !isSubname && isRegistered === false
