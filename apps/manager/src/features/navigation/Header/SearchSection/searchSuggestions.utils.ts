@@ -53,9 +53,6 @@ type BuildSuggestionsParams = {
   readonly parsedInput: ParsedInput
   readonly primaryName?: string | null
   readonly indexerDomains: readonly IndexerDomain[]
-  readonly indexerFetched: boolean
-  readonly indexerLoading: boolean
-  readonly indexerError: boolean
   readonly history: readonly SearchHistoryItem[]
 }
 
@@ -65,9 +62,6 @@ export const buildSuggestions = ({
   parsedInput,
   primaryName,
   indexerDomains,
-  indexerFetched,
-  indexerLoading,
-  indexerError,
   history,
 }: BuildSuggestionsParams): SuggestionItem[] => {
   const suggestions: SuggestionItem[] = []
@@ -91,24 +85,11 @@ export const buildSuggestions = ({
     const validation = validateENSName(parsedInput.value)
     const isSupported = validation === null
 
-    const exactMatch = indexerDomains.find(
-      (d) =>
-        d.name?.toLowerCase() === parsedInput.value.toLowerCase() ||
-        d.normalizedName?.toLowerCase() === parsedInput.value.toLowerCase(),
-    )
-
     addedNames.add(parsedInput.value.toLowerCase())
     suggestions.push({
       type: 'name',
       value: parsedInput.value,
       isSupported,
-      isRegistered: isSupported
-        ? indexerFetched
-          ? !!exactMatch
-          : undefined
-        : undefined,
-      isLoading: isSupported ? indexerLoading : false,
-      isError: isSupported ? indexerError : false,
     })
 
     for (const domain of indexerDomains) {

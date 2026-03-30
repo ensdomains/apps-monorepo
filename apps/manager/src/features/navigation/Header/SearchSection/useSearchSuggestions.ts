@@ -45,20 +45,9 @@ export const useSearchSuggestions = (searchValue: string) => {
         parsedInput,
         primaryName: primaryNameQuery.data,
         indexerDomains: indexerQuery.data?.domains ?? [],
-        indexerFetched: indexerQuery.isFetched,
-        indexerLoading: indexerQuery.isLoading,
-        indexerError: indexerQuery.isError,
         history,
       }),
-    [
-      parsedInput,
-      primaryNameQuery.data,
-      indexerQuery.data,
-      indexerQuery.isFetched,
-      indexerQuery.isLoading,
-      indexerQuery.isError,
-      history,
-    ],
+    [parsedInput, primaryNameQuery.data, indexerQuery.data, history],
   )
 
   return suggestions
