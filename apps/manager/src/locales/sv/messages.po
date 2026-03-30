@@ -97,7 +97,7 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #. placeholder {0}: filtered.length
-#: src/features/migration/components/SelectNamesStep.tsx:113
+#: src/features/migration/components/SelectNamesStep.tsx:133
 msgid "<0>{selectedCount}</0> out of {0} eligible names selected"
 msgstr ""
 
@@ -302,7 +302,7 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:124
+#: src/features/migration/components/SelectNamesStep.tsx:144
 msgid "Begin Upgrade"
 msgstr ""
 
@@ -1237,6 +1237,10 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:84
+msgid "No eligible names found for this wallet"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:345
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:208
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
@@ -1249,6 +1253,10 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:272
 msgid "No names found"
 msgstr "Inga namn hittades"
+
+#: src/features/migration/components/SelectNamesStep.tsx:81
+msgid "No names match your search"
+msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:234
 #: src/features/dashboard/components/FavoritesList.tsx:245
@@ -1675,7 +1683,7 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:64
+#: src/features/migration/components/SelectNamesStep.tsx:66
 msgid "Search names"
 msgstr ""
 
@@ -2345,7 +2353,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:56
+#: src/features/migration/components/SelectNamesStep.tsx:57
 msgid "Your names are ready to upgrade"
 msgstr ""
 

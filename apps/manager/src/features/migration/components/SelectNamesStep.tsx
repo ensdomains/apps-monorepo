@@ -1,8 +1,10 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { cn } from '@/lib/utils'
+import { NameListSkeleton } from './NameListSkeleton'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
@@ -14,11 +16,10 @@ export const SelectNamesStep = ({
   onNext,
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
-  const { data: v1Names = [] } = useV1Names()
+  const { data: v1Names = [], isPending } = useV1Names()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  // Initialize selection when v1 names load
   useEffect(() => {
     if (v1Names.length > 0 && selected.size === 0) {
       const allNames = new Set(v1Names.map((n) => n.name))
@@ -60,6 +61,7 @@ export const SelectNamesStep = ({
         <Search className="size-5 text-ens-garnet-900/30" />
         <input
           className="flex-1 bg-transparent text-ens-garnet-900 text-sm leading-[0.96] tracking-[-0.28px] placeholder:text-ens-garnet-900/20 focus:outline-none"
+          disabled={isPending}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t`Search names`}
           type="text"
@@ -68,44 +70,62 @@ export const SelectNamesStep = ({
       </div>
 
       <div className="flex max-h-[320px] flex-col gap-4 overflow-y-auto pr-2 md:max-h-[400px]">
-        {filtered.map((item) => {
-          const isSelected = selected.has(item.name)
-          return (
-            <button
-              className="flex cursor-pointer items-center gap-3"
-              key={item.id}
-              onClick={() => toggleName(item.name)}
-              type="button"
-            >
-              <div
-                className={cn(
-                  'flex shrink-0 items-center justify-center rounded-sm p-1 transition-colors',
-                  isSelected
-                    ? 'bg-ens-garnet-900'
-                    : 'border border-ens-garnet-900/30 bg-transparent',
-                )}
-              >
-                <Check
-                  className={cn(
-                    'size-5 transition-opacity',
-                    isSelected
-                      ? 'text-white opacity-100'
-                      : 'text-transparent opacity-0',
-                  )}
-                  strokeWidth={2.5}
-                />
-              </div>
-              <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                  {item.labelName?.[0]?.toUpperCase() ?? '?'}
-                </span>
-              </div>
-              <div className="rounded-xs border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
-                {item.name}
-              </div>
-            </button>
-          )
-        })}
+        {match({ isPending, hasResults: filtered.length > 0 })
+          .with({ isPending: true }, () => <NameListSkeleton />)
+          .with({ hasResults: false }, () => (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <p className="text-ens-garnet-900/40 text-sm">
+                {match(search)
+                  .when(
+                    (s) => s.length > 0,
+                    () => <Trans>No names match your search</Trans>,
+                  )
+                  .otherwise(() => (
+                    <Trans>No eligible names found for this wallet</Trans>
+                  ))}
+              </p>
+            </div>
+          ))
+          .otherwise(() =>
+            filtered.map((item) => {
+              const isSelected = selected.has(item.name)
+              return (
+                <button
+                  className="flex cursor-pointer items-center gap-3"
+                  key={item.id}
+                  onClick={() => toggleName(item.name)}
+                  type="button"
+                >
+                  <div
+                    className={cn(
+                      'flex shrink-0 items-center justify-center rounded-sm p-1 transition-colors',
+                      isSelected
+                        ? 'bg-ens-garnet-900'
+                        : 'border border-ens-garnet-900/30 bg-transparent',
+                    )}
+                  >
+                    <Check
+                      className={cn(
+                        'size-5 transition-opacity',
+                        isSelected
+                          ? 'text-white opacity-100'
+                          : 'text-transparent opacity-0',
+                      )}
+                      strokeWidth={2.5}
+                    />
+                  </div>
+                  <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+                    <span className="font-semi-mono text-ens-garnet-900 text-xs">
+                      {item.labelName?.[0]?.toUpperCase() ?? '?'}
+                    </span>
+                  </div>
+                  <div className="rounded-xs border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
+                    {item.name}
+                  </div>
+                </button>
+              )
+            }),
+          )}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -116,8 +136,8 @@ export const SelectNamesStep = ({
           </Trans>
         </p>
         <button
-          className="relative w-full overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
-          disabled={selectedCount === 0}
+          className="relative w-full overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50"
+          disabled={selectedCount === 0 || isPending}
           onClick={onNext}
           type="button"
         >
