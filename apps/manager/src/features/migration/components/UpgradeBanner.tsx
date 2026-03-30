@@ -31,7 +31,7 @@ export const UpgradeBanner = () => {
       <div className="relative z-10 flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-4">
-            <h2 className="font-serif text-[#5a0024] text-xl leading-[1.1] tracking-[-0.4px]">
+            <h2 className="font-[419] text-ens-garnet-900 text-xl leading-[1.1] tracking-[-0.4px]">
               <Trans>Welcome to the new ENS app</Trans>
             </h2>
             <p className="text-[#e72a96] text-sm leading-[1.2] tracking-[0.14px] md:max-w-[70%]">

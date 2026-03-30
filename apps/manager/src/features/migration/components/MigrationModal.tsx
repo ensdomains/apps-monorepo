@@ -153,7 +153,7 @@ export const MigrationModal = () => {
 
         {/* Content */}
         <div className="relative z-10 flex flex-col items-center gap-4 px-5 pt-7 pb-7">
-          <DialogTitle className="w-full pt-4 font-normal font-sans text-[#5a0024] text-[32px] leading-[1.1] tracking-[-0.64px]">
+          <DialogTitle className="w-full pt-4 font-normal text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Welcome to the new ENS app!</Trans>
           </DialogTitle>
           <DialogDescription className="w-full text-[#e72a96] text-sm leading-[1.2] tracking-[-0.21px]">

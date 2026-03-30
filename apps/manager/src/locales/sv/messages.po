@@ -437,7 +437,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:146
+#: src/features/migration/components/MigrationModal.tsx:150
 msgid "Close"
 msgstr ""
 
@@ -1145,6 +1145,10 @@ msgstr "Namn (Ö-A)"
 #: src/features/notifications/settings/preferences.tsx:113
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:97
 msgid "Name Expiry"
+msgstr ""
+
+#: src/routes/migration.tsx:36
+msgid "Name Migration"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:41
@@ -2022,11 +2026,11 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/UpgradeNamesButton.tsx:17
+#: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:156
+#: src/features/migration/components/MigrationModal.tsx:160
 #: src/features/migration/components/UpgradeBanner.tsx:38
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
@@ -2192,8 +2196,12 @@ msgstr ""
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:153
+#: src/features/migration/components/MigrationModal.tsx:157
 msgid "Welcome to the new ENS app!"
+msgstr ""
+
+#: src/routes/migration.tsx:39
+msgid "Work in progress"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
