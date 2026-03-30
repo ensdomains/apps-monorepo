@@ -66,7 +66,7 @@ export const UpdateStatusPanel = ({
     return (
       <div className="mb-3">
         <Alert
-          description={errorMessage}
+          description={<span className="line-clamp-3">{errorMessage}</span>}
           title={t`Update failed`}
           variant="destructive"
         >

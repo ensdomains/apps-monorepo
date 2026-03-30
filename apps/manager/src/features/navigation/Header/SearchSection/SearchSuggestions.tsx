@@ -50,6 +50,7 @@ export const SearchSuggestions = ({
               isError={name.isError}
               isLoading={name.isLoading}
               isRegistered={name.isRegistered}
+              isSupported={name.isSupported}
               key={name.value}
               name={name.value}
               onNavigate={onNavigate}
