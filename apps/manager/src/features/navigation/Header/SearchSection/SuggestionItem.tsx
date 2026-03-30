@@ -1,3 +1,4 @@
+import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
@@ -6,6 +7,7 @@ import { match } from 'ts-pattern'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
+import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
 import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
@@ -52,32 +54,63 @@ export const NameSuggestionItem = ({
 }: NameSuggestionItemProps) => {
   const avatarUrl = getAvatarUrl(name)
 
+  const isSubname = name.split('.').length > 2
+
   // Self-check availability when no status is provided (e.g. history items)
   const needsSelfCheck =
     isSupported &&
     isRegisteredProp === undefined &&
     !isLoadingProp &&
     !isErrorProp
-  const selfCheckQuery = useQuery({
+
+  // 2LDs (e.g. "name.eth") use the registrar contract
+  const registrarQuery = useQuery({
     ...getSearchNameQueryOptions(name),
-    enabled: needsSelfCheck,
+    enabled: needsSelfCheck && !isSubname,
   })
 
-  const isRegistered = needsSelfCheck
-    ? selfCheckQuery.data
-      ? !selfCheckQuery.data.isAvailable
-      : undefined
-    : isRegisteredProp
-  const isLoading = needsSelfCheck ? selfCheckQuery.isLoading : isLoadingProp
-  const isError = needsSelfCheck ? selfCheckQuery.isError : isErrorProp
+  // Subnames (e.g. "sub.name.eth") use the indexer since the registrar
+  // contract only handles 2LDs
+  const indexerQuery = useQuery({
+    ...getDomainsQuery(
+      needsSelfCheck && isSubname
+        ? {
+            where: { name },
+            first: 1,
+            orderBy: Domain_OrderBy.Name,
+            orderDirection: OrderDirection.Asc,
+          }
+        : undefined,
+    ),
+    enabled: needsSelfCheck && isSubname,
+  })
 
-  const isAvailable = isSupported && isRegistered === false
+  const activeQuery = isSubname ? indexerQuery : registrarQuery
+
+  const isRegistered = needsSelfCheck
+    ? isSubname
+      ? indexerQuery.data
+        ? indexerQuery.data.domains.length > 0
+        : undefined
+      : registrarQuery.data
+        ? !registrarQuery.data.isAvailable
+        : undefined
+    : isRegisteredProp
+  const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
+  const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
+
+  const isAvailable = isSupported && !isSubname && isRegistered === false
 
   return (
     <Link
-      className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-slate-50"
+      className={tw(
+        'flex w-full items-center gap-3 px-3 py-2 text-left transition-colors',
+        isSubname && !isRegistered
+          ? 'cursor-default opacity-50'
+          : 'hover:bg-slate-50',
+      )}
       onClick={(e) => {
-        if (!isSupported) {
+        if (!isSupported || (isSubname && !isRegistered)) {
           e.preventDefault()
           return
         }
@@ -110,7 +143,7 @@ export const NameSuggestionItem = ({
             </span>
           </div>
         </div>
-        {match({ isSupported, isLoading, isError, isRegistered })
+        {match({ isSupported, isSubname, isLoading, isError, isRegistered })
           .with({ isSupported: false }, () => (
             <div
               className={tw(
@@ -137,6 +170,7 @@ export const NameSuggestionItem = ({
               <Trans>Registered</Trans>
             </div>
           ))
+          .with({ isSubname: true }, () => null)
           .with({ isRegistered: false }, () => (
             <div
               className={tw(
