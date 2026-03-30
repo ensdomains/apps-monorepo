@@ -36,6 +36,8 @@ type NameSuggestionItemProps = {
   readonly isLoading?: boolean
   /** Whether the indexer query errored */
   readonly isError?: boolean
+  /** Whether the name is a valid/supported ENS name */
+  readonly isSupported?: boolean
 }
 
 export const NameSuggestionItem = ({
@@ -44,15 +46,20 @@ export const NameSuggestionItem = ({
   isRegistered,
   isLoading,
   isError,
+  isSupported = true,
 }: NameSuggestionItemProps) => {
   const avatarUrl = getAvatarUrl(name)
 
-  const isAvailable = isRegistered === false
+  const isAvailable = isSupported && isRegistered === false
 
   return (
     <Link
       className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-slate-50"
-      onClick={() => {
+      onClick={(e) => {
+        if (!isSupported) {
+          e.preventDefault()
+          return
+        }
         searchHistoryStore.trigger.addToHistory({ kind: 'name', value: name })
         onNavigate?.()
       }}
@@ -82,34 +89,45 @@ export const NameSuggestionItem = ({
             </span>
           </div>
         </div>
-        {match({ isLoading, isError, isRegistered })
-          .with({ isLoading: true }, () => (
-            <Loader2Icon className="size-4 animate-spin text-slate-500" />
-          ))
-          .with({ isError: true }, () => (
-            <XIcon className="size-4 text-slate-500" />
-          ))
-          .with({ isRegistered: true }, () => (
-            <div
-              className={tw(
-                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                'bg-ens-white text-ens-lapis-core',
-              )}
-            >
-              <Trans>Registered</Trans>
-            </div>
-          ))
-          .with({ isRegistered: false }, () => (
-            <div
-              className={tw(
-                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                'bg-ens-peridot-bg text-ens-peridot-core',
-              )}
-            >
-              <Trans>Available</Trans>
-            </div>
-          ))
-          .otherwise(() => null)}
+        {isSupported ? (
+          match({ isLoading, isError, isRegistered })
+            .with({ isLoading: true }, () => (
+              <Loader2Icon className="size-4 animate-spin text-slate-500" />
+            ))
+            .with({ isError: true }, () => (
+              <XIcon className="size-4 text-slate-500" />
+            ))
+            .with({ isRegistered: true }, () => (
+              <div
+                className={tw(
+                  'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                  'bg-ens-white text-ens-lapis-core',
+                )}
+              >
+                <Trans>Registered</Trans>
+              </div>
+            ))
+            .with({ isRegistered: false }, () => (
+              <div
+                className={tw(
+                  'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                  'bg-ens-peridot-bg text-ens-peridot-core',
+                )}
+              >
+                <Trans>Available</Trans>
+              </div>
+            ))
+            .otherwise(() => null)
+        ) : (
+          <div
+            className={tw(
+              'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+              'bg-red-50 text-red-500',
+            )}
+          >
+            <Trans>Not supported</Trans>
+          </div>
+        )}
       </div>
     </Link>
   )

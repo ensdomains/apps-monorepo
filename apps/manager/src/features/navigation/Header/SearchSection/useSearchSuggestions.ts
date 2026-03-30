@@ -18,11 +18,14 @@ export const useSearchSuggestions = (searchValue: string) => {
   })
 
   const rawInput = searchValue.trim().toLowerCase()
+  const searchLabel = rawInput.endsWith('.eth')
+    ? rawInput.slice(0, -4)
+    : rawInput
   const indexerQuery = useQuery(
     getDomainsQuery(
-      rawInput && parsedInput.type === 'name'
+      searchLabel && [...searchLabel].length >= 3 && parsedInput.type === 'name'
         ? {
-            where: { name_contains_nocase: rawInput },
+            where: { name_starts_with: `${searchLabel}.eth` },
             first: 5,
             orderBy: Domain_OrderBy.Name,
             orderDirection: OrderDirection.Asc,

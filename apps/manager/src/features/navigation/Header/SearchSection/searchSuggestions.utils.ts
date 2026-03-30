@@ -1,5 +1,6 @@
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
+import { validateENSName } from '@/features/register/utils'
 import type { SearchHistoryItem } from './useSearchHistory'
 
 type NameSuggestion = {
@@ -8,6 +9,7 @@ type NameSuggestion = {
   readonly isRegistered?: boolean
   readonly isLoading?: boolean
   readonly isError?: boolean
+  readonly isSupported?: boolean
 }
 
 type AddressSuggestion = {
@@ -86,6 +88,9 @@ export const buildSuggestions = ({
   }
 
   if (parsedInput.type === 'name') {
+    const validation = validateENSName(parsedInput.value)
+    const isSupported = validation === null
+
     const exactMatch = indexerDomains.find(
       (d) =>
         d.name?.toLowerCase() === parsedInput.value.toLowerCase() ||
@@ -96,9 +101,14 @@ export const buildSuggestions = ({
     suggestions.push({
       type: 'name',
       value: parsedInput.value,
-      isRegistered: indexerFetched ? !!exactMatch : undefined,
-      isLoading: indexerLoading,
-      isError: indexerError,
+      isSupported,
+      isRegistered: isSupported
+        ? indexerFetched
+          ? !!exactMatch
+          : undefined
+        : undefined,
+      isLoading: isSupported ? indexerLoading : false,
+      isError: isSupported ? indexerError : false,
     })
 
     for (const domain of indexerDomains) {

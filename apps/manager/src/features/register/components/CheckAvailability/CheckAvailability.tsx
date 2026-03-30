@@ -144,9 +144,9 @@ export const CheckAvailability = ({
                     <span className="font-medium text-ens-blue text-lg leading-tight tracking-[-0.36px]">
                       {displayState.domainName}
                     </span>
-                    <span className="ml-auto font-medium text-red-500 text-sm italic">
+                    <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
                       <Trans>Not supported</Trans>
-                    </span>
+                    </div>
                   </div>
                 )}
                 {displayState.type === 'address' && (
