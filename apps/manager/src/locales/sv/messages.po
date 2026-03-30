@@ -265,7 +265,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:181
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:163
 msgid "Available"
 msgstr ""
 
@@ -1242,7 +1242,7 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:154
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:136
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:144
 msgid "Not supported"
 msgstr ""
@@ -1438,7 +1438,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:170
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:152
 msgid "Registered"
 msgstr "Registrerad"
 

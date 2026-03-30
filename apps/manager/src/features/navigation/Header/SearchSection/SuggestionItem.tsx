@@ -22,9 +22,7 @@ const LINK_OPTIONS = {
   register: (name: string) =>
     linkOptions({
       to: '/register',
-      search: {
-        name,
-      },
+      search: { name },
       // Hacky solution to force reset state on register page
       // TODO: Update register state logic to properly handle name input changes
       reloadDocument: location.pathname === '/register',
@@ -34,13 +32,9 @@ const LINK_OPTIONS = {
 type NameSuggestionItemProps = {
   readonly name: string
   readonly onNavigate?: () => void
-  /** Whether the name is registered (from indexer). undefined = still loading */
   readonly isRegistered?: boolean
-  /** Whether the indexer query is loading */
   readonly isLoading?: boolean
-  /** Whether the indexer query errored */
   readonly isError?: boolean
-  /** Whether the name is a valid/supported ENS name */
   readonly isSupported?: boolean
 }
 
@@ -53,24 +47,19 @@ export const NameSuggestionItem = ({
   isSupported = true,
 }: NameSuggestionItemProps) => {
   const avatarUrl = getAvatarUrl(name)
-
   const isSubname = name.split('.').length > 2
 
-  // Self-check availability when no status is provided (e.g. history items)
   const needsSelfCheck =
     isSupported &&
     isRegisteredProp === undefined &&
     !isLoadingProp &&
     !isErrorProp
 
-  // 2LDs (e.g. "name.eth") use the registrar contract
+  // 2LDs use the registrar contract, subnames use the indexer
   const registrarQuery = useQuery({
     ...getSearchNameQueryOptions(name),
     enabled: needsSelfCheck && !isSubname,
   })
-
-  // Subnames (e.g. "sub.name.eth") use the indexer since the registrar
-  // contract only handles 2LDs
   const indexerQuery = useQuery({
     ...getDomainsQuery(
       needsSelfCheck && isSubname
@@ -86,7 +75,6 @@ export const NameSuggestionItem = ({
   })
 
   const activeQuery = isSubname ? indexerQuery : registrarQuery
-
   const isRegistered = needsSelfCheck
     ? isSubname
       ? indexerQuery.data
@@ -98,19 +86,17 @@ export const NameSuggestionItem = ({
     : isRegisteredProp
   const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
   const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
-
   const isAvailable = isSupported && !isSubname && isRegistered === false
+  const isDisabled = !isSupported || (isSubname && !isRegistered)
 
   return (
     <Link
       className={tw(
         'flex w-full items-center gap-3 px-3 py-2 text-left transition-colors',
-        isSubname && !isRegistered
-          ? 'cursor-default opacity-50'
-          : 'hover:bg-slate-50',
+        isDisabled ? 'cursor-default opacity-50' : 'hover:bg-slate-50',
       )}
       onClick={(e) => {
-        if (!isSupported || (isSubname && !isRegistered)) {
+        if (isDisabled) {
           e.preventDefault()
           return
         }
@@ -136,13 +122,9 @@ export const NameSuggestionItem = ({
         </ImageFallback.Root>
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className={'truncate font-medium text-foreground text-sm'}>
-              {name}
-            </span>
-          </div>
-        </div>
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
+          {name}
+        </span>
         {match({ isSupported, isSubname, isLoading, isError, isRegistered })
           .with({ isSupported: false }, () => (
             <div

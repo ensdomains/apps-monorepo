@@ -4,24 +4,19 @@ import { validateENSName } from '@/features/register/utils'
 import type { SearchHistoryItem } from './useSearchHistory'
 
 /**
- * Validates a name for search context. Unlike `validateENSName` (which is for
- * registration), this allows subnames (e.g. "sub.name.eth") since they can be
- * viewed even though they can't be registered through the app.
+ * Validates a name for search context. Unlike `validateENSName` (registration),
+ * this allows subnames (e.g. "sub.name.eth") since they can be viewed.
  */
 const isSearchNameSupported = (name: string): boolean => {
   const trimmed = name.trim()
   if (!trimmed) return false
 
-  const hasEthSuffix = trimmed.toLowerCase().endsWith('.eth')
-  if (!hasEthSuffix) return validateENSName(name) === null
+  if (!trimmed.toLowerCase().endsWith('.eth')) {
+    return validateENSName(name) === null
+  }
 
-  // For .eth names, validate each label individually
-  const withoutEth = trimmed.slice(0, -4)
-  const labels = withoutEth.split('.')
-  return labels.every((label) => {
-    const asEth = `${label}.eth`
-    return validateENSName(asEth) === null
-  })
+  const labels = trimmed.slice(0, -4).split('.')
+  return labels.every((label) => validateENSName(`${label}.eth`) === null)
 }
 
 type NameSuggestion = {
@@ -60,7 +55,6 @@ export const parseSearchInput = (input: string): ParsedInput => {
   }
 
   const value = trimmed.endsWith('.eth') ? trimmed : `${trimmed}.eth`
-
   return { type: 'name', value }
 }
 
@@ -88,10 +82,7 @@ export const buildSuggestions = ({
   const addedNames = new Set<string>()
 
   if (parsedInput.type === 'address') {
-    suggestions.push({
-      type: 'address',
-      value: parsedInput.value,
-    })
+    suggestions.push({ type: 'address', value: parsedInput.value })
     if (primaryName) {
       addedNames.add(primaryName.toLowerCase())
       suggestions.push(
@@ -102,13 +93,11 @@ export const buildSuggestions = ({
   }
 
   if (parsedInput.type === 'name') {
-    const isSupported = isSearchNameSupported(parsedInput.value)
-
     addedNames.add(parsedInput.value.toLowerCase())
     suggestions.push({
       type: 'name',
       value: parsedInput.value,
-      isSupported,
+      isSupported: isSearchNameSupported(parsedInput.value),
     })
 
     for (const domain of indexerDomains) {
@@ -116,22 +105,17 @@ export const buildSuggestions = ({
       if (!name) continue
       const lowered = name.toLowerCase()
       if (addedNames.has(lowered)) {
-        // Enrich existing suggestion with indexer data
-        const existing = suggestions.find(
+        const idx = suggestions.findIndex(
           (s) => s.type === 'name' && s.value.toLowerCase() === lowered,
         )
-        if (existing && existing.type === 'name') {
-          const idx = suggestions.indexOf(existing)
+        if (idx !== -1) {
+          const existing = suggestions[idx] as NameSuggestion
           suggestions[idx] = { ...existing, isRegistered: true }
         }
         continue
       }
       addedNames.add(lowered)
-      suggestions.push({
-        type: 'name',
-        value: name,
-        isRegistered: true,
-      })
+      suggestions.push({ type: 'name', value: name, isRegistered: true })
     }
   }
 
