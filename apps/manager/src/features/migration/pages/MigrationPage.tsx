@@ -76,7 +76,7 @@ export const MigrationPage = () => {
   const selectedCount = filtered.filter((n) => selected.has(n.name)).length
 
   return (
-    <div className="relative min-h-[calc(100dvh-56px)] overflow-hidden bg-linear-to-b from-[#feeaf0] to-[#ffc5df]">
+    <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-[#feeaf0] to-[#ffc5df]">
       {/* Grain texture */}
       <svg
         aria-hidden="true"
@@ -101,7 +101,7 @@ export const MigrationPage = () => {
         <rect filter="url(#migration-page-grain)" height="100%" width="100%" />
       </svg>
 
-      <div className="relative z-10 mx-auto flex max-w-2xl flex-col gap-8 px-5 py-4">
+      <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col justify-center gap-8 px-5 py-4">
         {/* Title */}
         <h1 className="text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
           <Trans>Your names are ready to upgrade</Trans>
