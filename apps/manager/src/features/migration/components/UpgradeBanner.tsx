@@ -3,9 +3,13 @@ import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
+import { useV1Names } from '@/features/migration/hooks/useV1Names'
 
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
+  const { data: v1Names } = useV1Names()
+
+  if (!v1Names?.length) return null
 
   return (
     <div className="relative overflow-hidden rounded-none bg-gradient-to-b from-[#feeaf0] to-[rgba(255,150,202,0.5)] p-5 md:rounded-lg">

@@ -10,6 +10,7 @@ import {
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useAutoScrollCarousel } from '@/features/migration/hooks/useAutoScrollCarousel'
+import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const STORAGE_KEY = 'migration-modal-dismissed'
@@ -37,6 +38,8 @@ const SLIDE_DATA = [
 export const MigrationModal = () => {
   const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
+  const { data: v1Names } = useV1Names()
+  const hasV1Names = (v1Names?.length ?? 0) > 0
   const [open, setOpen] = useState(false)
   const [activeSlide, setActiveSlide] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -49,10 +52,14 @@ export const MigrationModal = () => {
   }
 
   useEffect(() => {
-    if (isConnected && localStorage.getItem(STORAGE_KEY) !== 'true') {
+    if (
+      isConnected &&
+      hasV1Names &&
+      localStorage.getItem(STORAGE_KEY) !== 'true'
+    ) {
       setOpen(true)
     }
-  }, [isConnected])
+  }, [isConnected, hasV1Names])
 
   const scrollToSlide = useCallback((index: number) => {
     setActiveSlide(index)

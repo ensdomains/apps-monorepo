@@ -1,8 +1,8 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { cn } from '@/lib/utils'
-import { MOCK_NAMES } from './SelectNamesStep.mock'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
@@ -14,19 +14,25 @@ export const SelectNamesStep = ({
   onNext,
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
+  const { data: v1Names = [] } = useV1Names()
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(() => {
-    const initial = new Set(MOCK_NAMES.map((n) => n.name))
-    onNamesChange([...initial])
-    return initial
-  })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  // Initialize selection when v1 names load
+  useEffect(() => {
+    if (v1Names.length > 0 && selected.size === 0) {
+      const allNames = new Set(v1Names.map((n) => n.name))
+      setSelected(allNames)
+      onNamesChange([...allNames])
+    }
+  }, [v1Names, selected.size, onNamesChange])
 
   const filtered = useMemo(
     () =>
-      MOCK_NAMES.filter((n) =>
+      v1Names.filter((n) =>
         n.name.toLowerCase().includes(search.toLowerCase()),
       ),
-    [search],
+    [search, v1Names],
   )
 
   const toggleName = (name: string) => {
@@ -67,7 +73,7 @@ export const SelectNamesStep = ({
           return (
             <button
               className="flex cursor-pointer items-center gap-3"
-              key={item.name}
+              key={item.id}
               onClick={() => toggleName(item.name)}
               type="button"
             >
@@ -89,19 +95,12 @@ export const SelectNamesStep = ({
                   strokeWidth={2.5}
                 />
               </div>
-              <img
-                alt={item.name}
-                className="size-9 shrink-0 rounded-full object-cover"
-                src={item.avatar}
-              />
-              <div
-                className={cn(
-                  'rounded-xs border px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px]',
-                  item.isPrimary
-                    ? 'border-ens-lapis-core bg-white text-ens-lapis-core'
-                    : 'border-[#595755]/40 bg-white text-[#595755]',
-                )}
-              >
+              <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+                <span className="font-semi-mono text-ens-garnet-900 text-xs">
+                  {item.labelName?.[0]?.toUpperCase() ?? '?'}
+                </span>
+              </div>
+              <div className="rounded-xs border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
                 {item.name}
               </div>
             </button>
