@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -9,23 +8,21 @@ import {
 
 type SuccessModalProps = {
   readonly open: boolean
+  readonly revealed: boolean
+  readonly onReveal: () => void
   readonly onClose: () => void
 }
 
-type ModalState = 'reveal-nft' | 'revealed'
-
-export const SuccessModal = ({ open, onClose }: SuccessModalProps) => {
-  const [state, setState] = useState<ModalState>('reveal-nft')
-
-  const handleClose = () => {
-    setState('reveal-nft')
-    onClose()
-  }
-
+export const SuccessModal = ({
+  open,
+  revealed,
+  onReveal,
+  onClose,
+}: SuccessModalProps) => {
   return (
     <Dialog
       onOpenChange={(value) => {
-        if (!value) handleClose()
+        if (!value) onClose()
       }}
       open={open}
     >
@@ -40,7 +37,7 @@ export const SuccessModal = ({ open, onClose }: SuccessModalProps) => {
           <Trans>Your names have been upgraded</Trans>
         </DialogDescription>
 
-        {state === 'reveal-nft' && (
+        {!revealed && (
           <div className="flex flex-col items-center gap-6 py-8">
             <p className="text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Migration Complete!</Trans>
@@ -55,7 +52,7 @@ export const SuccessModal = ({ open, onClose }: SuccessModalProps) => {
             </p>
             <button
               className="w-full rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
-              onClick={() => setState('revealed')}
+              onClick={onReveal}
               type="button"
             >
               <Trans>Reveal NFT</Trans>
@@ -63,7 +60,7 @@ export const SuccessModal = ({ open, onClose }: SuccessModalProps) => {
           </div>
         )}
 
-        {state === 'revealed' && (
+        {revealed && (
           <div className="flex flex-col items-center gap-6 py-8">
             <p className="text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Your NFT is here!</Trans>
@@ -76,7 +73,7 @@ export const SuccessModal = ({ open, onClose }: SuccessModalProps) => {
             </p>
             <button
               className="w-full rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
-              onClick={handleClose}
+              onClick={onClose}
               type="button"
             >
               <Trans>Done</Trans>

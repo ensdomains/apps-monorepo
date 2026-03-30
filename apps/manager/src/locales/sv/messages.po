@@ -265,7 +265,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:163
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:167
 msgid "Available"
 msgstr ""
 
@@ -297,7 +297,7 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:162
+#: src/features/migration/components/SelectNamesStep.tsx:169
 msgid "Begin Upgrade"
 msgstr ""
 
@@ -672,7 +672,7 @@ msgstr ""
 msgid "Domain transfer & expiry notifications"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:82
+#: src/features/migration/components/SuccessModal.tsx:79
 msgid "Done"
 msgstr ""
 
@@ -1122,11 +1122,11 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:37
+#: src/features/migration/components/SuccessModal.tsx:34
 msgid "Migration Complete"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:46
+#: src/features/migration/components/SuccessModal.tsx:43
 msgid "Migration Complete!"
 msgstr ""
 
@@ -1263,7 +1263,7 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:136
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:140
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:144
 msgid "Not supported"
 msgstr ""
@@ -1459,7 +1459,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:152
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:156
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1590,7 +1590,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:61
+#: src/features/migration/components/SuccessModal.tsx:58
 msgid "Reveal NFT"
 msgstr ""
 
@@ -1765,7 +1765,7 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:72
+#: src/features/migration/components/SuccessModal.tsx:69
 msgid "Share your commemorative NFT with the world."
 msgstr ""
 
@@ -2327,19 +2327,19 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:85
+#: src/features/migration/components/SelectNamesStep.tsx:92
 msgid "Your names are ready to upgrade"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:40
+#: src/features/migration/components/SuccessModal.tsx:37
 msgid "Your names have been upgraded"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:49
+#: src/features/migration/components/SuccessModal.tsx:46
 msgid "Your names have been upgraded. Reveal your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:69
+#: src/features/migration/components/SuccessModal.tsx:66
 msgid "Your NFT is here!"
 msgstr ""
 

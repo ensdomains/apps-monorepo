@@ -48,14 +48,20 @@ const MOCK_NAMES: MockName[] = [
 ]
 
 type SelectNamesStepProps = {
+  readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => void
 }
 
-export const SelectNamesStep = ({ onNext }: SelectNamesStepProps) => {
+export const SelectNamesStep = ({
+  onNamesChange,
+  onNext,
+}: SelectNamesStepProps) => {
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(MOCK_NAMES.map((n) => n.name)),
-  )
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const initial = new Set(MOCK_NAMES.map((n) => n.name))
+    onNamesChange([...initial])
+    return initial
+  })
 
   const filtered = useMemo(
     () =>
@@ -73,6 +79,7 @@ export const SelectNamesStep = ({ onNext }: SelectNamesStepProps) => {
       } else {
         next.add(name)
       }
+      onNamesChange([...next])
       return next
     })
   }
