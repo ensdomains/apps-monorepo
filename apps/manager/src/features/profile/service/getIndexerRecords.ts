@@ -1,6 +1,4 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
-import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
-import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok } from 'neverthrow'
 import { getIndexerDomain } from './getIndexerDomain'
 
@@ -23,14 +21,3 @@ export const getIndexerRecords = ResultFn(async function* (name: string) {
 
   return ok(indexerRecords)
 })
-
-export const indexerRecordsQueryKey = createQueryKey<
-  'indexer-records',
-  { name: string }
->('indexer-records')
-
-export const getIndexerRecordsQueryOptions = (name: string) =>
-  resultQueryOptions({
-    queryKey: indexerRecordsQueryKey({ name }),
-    queryFn: ({ queryKey: [, { name }] }) => getIndexerRecords(name),
-  })
