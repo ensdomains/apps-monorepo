@@ -8,6 +8,7 @@ import { EducationCarousel } from '@/features/dashboard/components/EducationCaro
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
+import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -59,6 +60,7 @@ export const DashboardPage = () => {
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-10">
+      <MigrationModal />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <motion.div
           className="md:max-w-[50%]"
