@@ -1,7 +1,4 @@
-import {
-  extendChainWithL1Ens,
-  extendChainWithL2Ens,
-} from '@ensdomains/ensjs/chain'
+import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
 import { injected } from '@wagmi/core'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -22,7 +19,6 @@ export const customSepolia = {
 }
 
 export const sepoliaWithEns = extendChainWithL1Ens(customSepolia)
-export const namechainSepolia = extendChainWithL2Ens(sepolia)
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
@@ -33,7 +29,7 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns, namechainSepolia],
+  chains: [sepoliaWithEns],
   transports: {
     [customSepolia.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
   },
