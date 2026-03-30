@@ -297,6 +297,10 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx:190
+msgid "Begin Upgrade"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:44
 msgid "Billing country"
 msgstr ""
@@ -1145,10 +1149,6 @@ msgstr "Namn (Ö-A)"
 #: src/features/notifications/settings/preferences.tsx:113
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:97
 msgid "Name Expiry"
-msgstr ""
-
-#: src/routes/migration.tsx:36
-msgid "Name Migration"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:41
@@ -2200,10 +2200,6 @@ msgstr ""
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
-#: src/routes/migration.tsx:39
-msgid "Work in progress"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
 msgid "Works across all EVM-compatible chains"
 msgstr ""
@@ -2296,6 +2292,10 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:33
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
+msgstr ""
+
+#: src/features/migration/pages/MigrationPage.tsx:107
+msgid "Your names are ready to upgrade"
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83

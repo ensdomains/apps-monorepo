@@ -292,6 +292,10 @@ msgstr "Back to Settings"
 msgid "Backup Card"
 msgstr "Backup Card"
 
+#: src/features/migration/pages/MigrationPage.tsx:190
+msgid "Begin Upgrade"
+msgstr "Begin Upgrade"
+
 #: src/features/payment/components/add.tsx:44
 msgid "Billing country"
 msgstr "Billing country"
@@ -1141,10 +1145,6 @@ msgstr "Name (Z-A)"
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:97
 msgid "Name Expiry"
 msgstr "Name Expiry"
-
-#: src/routes/migration.tsx:36
-msgid "Name Migration"
-msgstr "Name Migration"
 
 #: src/features/payment/components/add.tsx:41
 #: src/features/payment/components/add.tsx:41
@@ -2195,10 +2195,6 @@ msgstr "Welcome to the new ENS app"
 msgid "Welcome to the new ENS app!"
 msgstr "Welcome to the new ENS app!"
 
-#: src/routes/migration.tsx:39
-msgid "Work in progress"
-msgstr "Work in progress"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
 msgid "Works across all EVM-compatible chains"
 msgstr "Works across all EVM-compatible chains"
@@ -2292,6 +2288,10 @@ msgstr "Your ENS name works across web3"
 #: src/features/landing/FeaturesCarousel.tsx:33
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
+
+#: src/features/migration/pages/MigrationPage.tsx:107
+msgid "Your names are ready to upgrade"
+msgstr "Your names are ready to upgrade"
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."
