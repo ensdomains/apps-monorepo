@@ -110,45 +110,44 @@ export const NameSuggestionItem = ({
             </span>
           </div>
         </div>
-        {isSupported ? (
-          match({ isLoading, isError, isRegistered })
-            .with({ isLoading: true }, () => (
-              <Loader2Icon className="size-4 animate-spin text-slate-500" />
-            ))
-            .with({ isError: true }, () => (
-              <XIcon className="size-4 text-slate-500" />
-            ))
-            .with({ isRegistered: true }, () => (
-              <div
-                className={tw(
-                  'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                  'bg-ens-white text-ens-lapis-core',
-                )}
-              >
-                <Trans>Registered</Trans>
-              </div>
-            ))
-            .with({ isRegistered: false }, () => (
-              <div
-                className={tw(
-                  'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                  'bg-ens-peridot-bg text-ens-peridot-core',
-                )}
-              >
-                <Trans>Available</Trans>
-              </div>
-            ))
-            .otherwise(() => null)
-        ) : (
-          <div
-            className={tw(
-              'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-              'bg-red-50 text-red-500',
-            )}
-          >
-            <Trans>Not supported</Trans>
-          </div>
-        )}
+        {match({ isSupported, isLoading, isError, isRegistered })
+          .with({ isSupported: false }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-red-50 text-red-500',
+              )}
+            >
+              <Trans>Not supported</Trans>
+            </div>
+          ))
+          .with({ isLoading: true }, () => (
+            <Loader2Icon className="size-4 animate-spin text-slate-500" />
+          ))
+          .with({ isError: true }, () => (
+            <XIcon className="size-4 text-slate-500" />
+          ))
+          .with({ isRegistered: true }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-ens-white text-ens-lapis-core',
+              )}
+            >
+              <Trans>Registered</Trans>
+            </div>
+          ))
+          .with({ isRegistered: false }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-ens-peridot-bg text-ens-peridot-core',
+              )}
+            >
+              <Trans>Available</Trans>
+            </div>
+          ))
+          .otherwise(() => null)}
       </div>
     </Link>
   )

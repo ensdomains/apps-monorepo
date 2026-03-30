@@ -213,7 +213,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:121
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:120
 msgid "An error occurred"
 msgstr ""
 
@@ -265,7 +265,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:138
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:147
 msgid "Available"
 msgstr ""
 
@@ -1242,8 +1242,8 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:149
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:148
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:121
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:147
 msgid "Not supported"
 msgstr ""
 
@@ -1438,7 +1438,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:128
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:137
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1864,7 +1864,7 @@ msgstr "Sortera namn efter"
 msgid "Stables accepted"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:240
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:239
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
