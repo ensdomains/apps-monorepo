@@ -25,6 +25,7 @@ import {
   getPremiumPriceAtDate,
   PREMIUM_PERIOD_MS,
 } from '@/features/register/utils/premiumDecay'
+import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 
@@ -138,28 +139,7 @@ export const TemporaryPremiumDrawer = ({
 
   function isDateDisabled(d: Date) {
     if (!premiumEndDate) return true
-
-    const toPlainDate = (date: Date) =>
-      Temporal.PlainDate.from({
-        year: date.getFullYear(),
-        month: date.getMonth() + 1,
-        day: date.getDate(),
-      })
-
-    const compare = (a: Temporal.PlainDate, b: Temporal.PlainDate) => {
-      if (a.year !== b.year) return a.year - b.year
-      if (a.month !== b.month) return a.month - b.month
-      return a.day - b.day
-    }
-
-    const selectedPlain = toPlainDate(d)
-    const nowPlain = toPlainDate(new Date())
-    const premiumEndPlain = toPlainDate(premiumEndDate)
-
-    return (
-      compare(selectedPlain, nowPlain) < 0 ||
-      compare(selectedPlain, premiumEndPlain) > 0
-    )
+    return !isDateWithinCalendarRange(d, new Date(), premiumEndDate)
   }
 
   return (

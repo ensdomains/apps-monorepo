@@ -96,21 +96,19 @@ function differenceInYears(endDate: Date, startDate: Date): number {
   const startPlain = toPlainDate(startDate)
   const endPlain = toPlainDate(endDate)
 
-  let years = endPlain.year - startPlain.year
+  const years = endPlain.year - startPlain.year
   const candidate = startPlain.add({ years })
-  if (comparePlainDate(candidate, endPlain) > 0) years -= 1
-  return years
+  return comparePlainDate(candidate, endPlain) > 0 ? years - 1 : years
 }
 
 function differenceInMonths(endDate: Date, startDate: Date): number {
   const startPlain = toPlainDate(startDate)
   const endPlain = toPlainDate(endDate)
 
-  let months =
+  const months =
     (endPlain.year - startPlain.year) * 12 + (endPlain.month - startPlain.month)
   const candidate = startPlain.add({ months })
-  if (comparePlainDate(candidate, endPlain) > 0) months -= 1
-  return months
+  return comparePlainDate(candidate, endPlain) > 0 ? months - 1 : months
 }
 
 function differenceInDays(endDate: Date, startDate: Date): number {

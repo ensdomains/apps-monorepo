@@ -8,14 +8,7 @@ import { Temporal } from '@js-temporal/polyfill'
 export function dateToTimeValue(date: Date): string {
   const hour = date.getHours()
   const minute = date.getMinutes()
-  const raw = `${String(hour).padStart(2, '0')}:${String(minute).padStart(
-    2,
-    '0',
-  )}`
-
-  // Parsing through Temporal ensures we behave like a wall-clock time.
-  const parsed = Temporal.PlainTime.from(raw)
-  return `${String(parsed.hour).padStart(2, '0')}:${String(parsed.minute).padStart(2, '0')}`
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
 /** Merge a time string (HH:mm) into a date's date part. */
