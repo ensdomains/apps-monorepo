@@ -1,9 +1,12 @@
 import { Trans } from '@lingui/react/macro'
+import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 
 export const UpgradeBanner = () => {
+  const navigate = useNavigate()
+
   return (
     <div className="relative overflow-hidden rounded-none bg-gradient-to-b from-[#feeaf0] to-[rgba(255,150,202,0.5)] p-5 md:rounded-lg">
       <GrainOverlay />
@@ -22,6 +25,7 @@ export const UpgradeBanner = () => {
           </div>
           <button
             className="inline-flex cursor-pointer items-center gap-1 font-semi-mono text-[#e72a96] text-xs uppercase leading-[1.2] tracking-[0.12px]"
+            onClick={() => navigate({ to: '/migration' })}
             type="button"
           >
             <Trans>See what&apos;s new</Trans>

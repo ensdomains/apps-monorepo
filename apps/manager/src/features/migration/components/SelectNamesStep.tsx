@@ -110,13 +110,11 @@ export const SelectNamesStep = ({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-ens-garnet-900">
-          <span className="font-medium font-semi-mono text-[10px] leading-[1.2] tracking-[0.1px]">
-            {selectedCount}{' '}
-          </span>
-          <span className="font-semi-mono text-[10px] leading-[1.2] tracking-[0.1px]">
-            OUT OF {filtered.length} ELIGIBLE NAMES SELECTED
-          </span>
+        <p className="font-semi-mono text-[10px] text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.1px]">
+          <Trans>
+            <span className="font-medium">{selectedCount}</span> out of{' '}
+            {filtered.length} eligible names selected
+          </Trans>
         </p>
         <button
           className="relative w-full overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"

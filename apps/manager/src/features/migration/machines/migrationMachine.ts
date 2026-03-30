@@ -3,7 +3,6 @@ import { assign, setup } from 'xstate'
 export type MigrationContext = {
   selectedNames: string[]
   transactionHash?: string
-  nftRevealed: boolean
 }
 
 export const migrationMachine = setup({
@@ -13,7 +12,6 @@ export const migrationMachine = setup({
       | { type: 'SELECT_NAMES'; names: string[] }
       | { type: 'BEGIN_UPGRADE' }
       | { type: 'GAME_COMPLETE' }
-      | { type: 'REVEAL_NFT' }
       | { type: 'DONE' }
       | { type: 'RESET' },
   },
@@ -22,7 +20,6 @@ export const migrationMachine = setup({
   initial: 'selectNames',
   context: {
     selectedNames: [],
-    nftRevealed: false,
   },
   states: {
     selectNames: {
@@ -46,27 +43,13 @@ export const migrationMachine = setup({
       },
     },
     success: {
-      initial: 'revealNft',
-      states: {
-        revealNft: {
-          on: {
-            REVEAL_NFT: {
-              target: 'revealed',
-              actions: assign({ nftRevealed: true }),
-            },
-          },
-        },
-        revealed: {
-          on: {
-            DONE: {
-              target: '#migration.selectNames',
-              actions: assign({
-                selectedNames: [],
-                transactionHash: undefined,
-                nftRevealed: false,
-              }),
-            },
-          },
+      on: {
+        DONE: {
+          target: 'selectNames',
+          actions: assign({
+            selectedNames: [],
+            transactionHash: undefined,
+          }),
         },
       },
     },

@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -15,34 +15,38 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 const STORAGE_KEY = 'migration-modal-dismissed'
 const AUTO_SCROLL_INTERVAL = 5000
 
-const SLIDES = [
+const SLIDE_DATA = [
   {
     id: 'profiles',
     image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-    label: 'Custom Profiles',
   },
   {
     id: 'nft',
     image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-    label: 'Commemorative NFT',
   },
   {
     id: 'v2',
     image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-    label: 'ENS v2 Names',
   },
   {
     id: 'experience',
     image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-    label: 'New Experience',
   },
 ]
 
 export const MigrationModal = () => {
+  const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
   const [open, setOpen] = useState(false)
   const [activeSlide, setActiveSlide] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const slideLabels: Record<string, string> = {
+    profiles: t`Custom Profiles`,
+    nft: t`Commemorative NFT`,
+    v2: t`ENS v2 Names`,
+    experience: t`New Experience`,
+  }
 
   useEffect(() => {
     if (isConnected && localStorage.getItem(STORAGE_KEY) !== 'true') {
@@ -72,7 +76,7 @@ export const MigrationModal = () => {
   const { reset: resetAutoScroll } = useAutoScrollCarousel({
     enabled: open,
     intervalMs: AUTO_SCROLL_INTERVAL,
-    totalSlides: SLIDES.length,
+    totalSlides: SLIDE_DATA.length,
     onSlideChange: scrollToSlide,
   })
 
@@ -123,7 +127,7 @@ export const MigrationModal = () => {
 
           {/* Pagination dots */}
           <div className="flex items-center gap-0.5">
-            {SLIDES.map((slide, i) => (
+            {SLIDE_DATA.map((slide, i) => (
               <button
                 className={`h-1.5 rounded-full transition-all ${
                   i === activeSlide
@@ -148,7 +152,7 @@ export const MigrationModal = () => {
               onScroll={handleScroll}
               ref={scrollRef}
             >
-              {SLIDES.map((slide) => (
+              {SLIDE_DATA.map((slide) => (
                 <div
                   className="flex w-full shrink-0 snap-center flex-col items-center gap-4 px-5"
                   key={slide.id}
@@ -161,7 +165,7 @@ export const MigrationModal = () => {
                     />
                   </div>
                   <p className="font-semi-mono text-[#e72a96] text-xs uppercase leading-[1.2] tracking-[0.12px]">
-                    {slide.label}
+                    {slideLabels[slide.id]}
                   </p>
                 </div>
               ))}

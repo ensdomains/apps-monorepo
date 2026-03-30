@@ -24,9 +24,7 @@ export const MigrationPage = () => {
 
       <SuccessModal
         onClose={() => send({ type: 'DONE' })}
-        onReveal={() => send({ type: 'REVEAL_NFT' })}
         open={state.matches('success')}
-        revealed={state.matches({ success: 'revealed' })}
       />
     </div>
   )

@@ -91,6 +91,11 @@ msgstr "{label} theme"
 msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
+#. placeholder {0}: filtered.length
+#: src/features/migration/components/SelectNamesStep.tsx:114
+msgid "<0>{selectedCount}</0> out of {0} eligible names selected"
+msgstr "<0>{selectedCount}</0> out of {0} eligible names selected"
+
 #. placeholder {0}: getErrorMessage(error)
 #: src/routes/wallet.tsx:192
 msgid "<0>Connection failed:</0> {0}"
@@ -292,7 +297,7 @@ msgstr "Back to Settings"
 msgid "Backup Card"
 msgstr "Backup Card"
 
-#: src/features/migration/components/SelectNamesStep.tsx:127
+#: src/features/migration/components/SelectNamesStep.tsx:125
 msgid "Begin Upgrade"
 msgstr "Begin Upgrade"
 
@@ -436,7 +441,7 @@ msgid "Click to copy"
 msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:108
+#: src/features/migration/components/MigrationModal.tsx:112
 msgid "Close"
 msgstr "Close"
 
@@ -448,6 +453,10 @@ msgstr "Close dialog"
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:104
 msgid "Coming Soon"
 msgstr "Coming Soon"
+
+#: src/features/migration/components/MigrationModal.tsx:46
+msgid "Commemorative NFT"
+msgstr "Commemorative NFT"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:46
 msgid "Commit-reveal prevents front-running"
@@ -618,6 +627,10 @@ msgstr "Current"
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
+#: src/features/migration/components/MigrationModal.tsx:45
+msgid "Custom Profiles"
+msgstr "Custom Profiles"
+
 #: src/features/landing/ProfilesShowcase.tsx:13
 msgid "Customize your profile to share what matters"
 msgstr "Customize your profile to share what matters"
@@ -667,7 +680,7 @@ msgstr "Disconnect Wallet"
 msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
-#: src/features/migration/components/SuccessModal.tsx:79
+#: src/features/migration/components/SuccessModal.tsx:41
 msgid "Done"
 msgstr "Done"
 
@@ -740,6 +753,10 @@ msgstr "ENS names are stored on-chain as NFTs"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:56
 msgid "ENS names can be up to 255 characters"
 msgstr "ENS names can be up to 255 characters"
+
+#: src/features/migration/components/MigrationModal.tsx:47
+msgid "ENS v2 Names"
+msgstr "ENS v2 Names"
 
 #: src/features/notifications/settings/email-verify-step.tsx:99
 msgid "Enter 6-digit code"
@@ -1117,11 +1134,7 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#: src/features/migration/components/SuccessModal.tsx:34
-msgid "Migration Complete"
-msgstr "Migration Complete"
-
-#: src/features/migration/components/SuccessModal.tsx:43
+#: src/features/migration/components/SuccessModal.tsx:28
 msgid "Migration Complete!"
 msgstr "Migration Complete!"
 
@@ -1184,6 +1197,10 @@ msgstr "Need ${0}"
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:53
 msgid "Need help?"
 msgstr "Need help?"
+
+#: src/features/migration/components/MigrationModal.tsx:48
+msgid "New Experience"
+msgstr "New Experience"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:179
 msgid "New value:"
@@ -1585,10 +1602,6 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/components/SuccessModal.tsx:58
-msgid "Reveal NFT"
-msgstr "Reveal NFT"
-
 #: src/features/profile/components/dialogs/DiffDialog.tsx:281
 #: src/features/profile/components/dialogs/DiffDialog.tsx:297
 msgid "Review Changes"
@@ -1678,7 +1691,7 @@ msgstr "Search your NFTs..."
 msgid "See all"
 msgstr "See all"
 
-#: src/features/migration/components/UpgradeBanner.tsx:27
+#: src/features/migration/components/UpgradeBanner.tsx:31
 msgid "See what's new"
 msgstr "See what's new"
 
@@ -1764,10 +1777,6 @@ msgstr "Setting…"
 msgid "Share"
 msgstr "Share"
 
-#: src/features/migration/components/SuccessModal.tsx:69
-msgid "Share your commemorative NFT with the world."
-msgstr "Share your commemorative NFT with the world."
-
 #: src/features/profile/components/sections/BioSection.tsx:81
 msgid "Short Description"
 msgstr "Short Description"
@@ -1833,7 +1842,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:138
+#: src/features/migration/components/MigrationModal.tsx:142
 msgid "Slide {0}"
 msgstr "Slide {0}"
 
@@ -2063,8 +2072,8 @@ msgstr "Updating profile"
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
 
-#: src/features/migration/components/MigrationModal.tsx:118
-#: src/features/migration/components/UpgradeBanner.tsx:17
+#: src/features/migration/components/MigrationModal.tsx:122
+#: src/features/migration/components/UpgradeBanner.tsx:20
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 
@@ -2229,11 +2238,11 @@ msgstr "web3 username"
 msgid "Website"
 msgstr "Website"
 
-#: src/features/migration/components/UpgradeBanner.tsx:14
+#: src/features/migration/components/UpgradeBanner.tsx:17
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
 
-#: src/features/migration/components/MigrationModal.tsx:115
+#: src/features/migration/components/MigrationModal.tsx:119
 msgid "Welcome to the new ENS app!"
 msgstr "Welcome to the new ENS app!"
 
@@ -2335,17 +2344,9 @@ msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 ap
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 
-#: src/features/migration/components/SuccessModal.tsx:37
-msgid "Your names have been upgraded"
-msgstr "Your names have been upgraded"
-
-#: src/features/migration/components/SuccessModal.tsx:46
-msgid "Your names have been upgraded. Reveal your commemorative NFT."
-msgstr "Your names have been upgraded. Reveal your commemorative NFT."
-
-#: src/features/migration/components/SuccessModal.tsx:66
-msgid "Your NFT is here!"
-msgstr "Your NFT is here!"
+#: src/features/migration/components/SuccessModal.tsx:31
+msgid "Your names have been successfully upgraded."
+msgstr "Your names have been successfully upgraded."
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."
