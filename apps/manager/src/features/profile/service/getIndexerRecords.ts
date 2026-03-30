@@ -23,16 +23,19 @@ export const getIndexerRecords = ResultFn(async function* (name: string) {
   )
 
   const domain = data.domain
+  const resolver = domain?.resolver
 
-  const texts = domain?.resolver?.texts ?? []
-  const coins =
-    domain?.resolver?.addresses?.map((address) => address.coinType) ?? []
+  const texts = resolver?.texts ?? []
+  const coins = resolver?.addresses?.map((address) => address.coinType) ?? []
 
   const indexerRecords = {
     isMigrated: true,
     createdAt: { date: new Date(), value: Date.now() },
     texts,
     coins,
+    resolverAddress: resolver?.address,
+    coinAddresses: resolver?.addresses ?? [],
+    contentHash: resolver?.contentHash ?? null,
   }
 
   return ok(indexerRecords)

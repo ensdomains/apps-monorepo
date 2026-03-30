@@ -1,37 +1,34 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
+import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
+import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { fromPromise, ok } from 'neverthrow'
-import { readContract } from 'viem/actions'
-import { ETH_REGISTRY_ABI } from '@/lib/eth-registry.abi'
-import { safeGetClient } from '@/lib/wagmi/helpers'
+import { ok, ResultAsync } from 'neverthrow'
 
 class GetExpiryError extends TaggedError('GetExpiryError')<{
   cause: unknown
 }> {}
 
 export const getExpiry = ResultFn(async function* (name: string) {
-  const client = yield* safeGetClient()
-  const cleanName = name.replace('.eth', '')
+  const data = yield* await ResultAsync.fromPromise(
+    indexerClient
+      .query<DomainQuery>(DomainDocument, { id: name })
+      .toPromise()
+      .then((result) => {
+        if (result.error) throw result.error
+        if (!result.data) throw new Error('Indexer query returned no data')
+        return result.data
+      }),
+    (error) => new GetExpiryError({ cause: error }),
+  )
 
-  const [, entry] = (yield* await fromPromise(
-    readContract(client, {
-      address: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      abi: ETH_REGISTRY_ABI,
-      functionName: 'getNameData',
-      args: [cleanName],
-    }),
-    (e) => new GetExpiryError({ cause: e }),
-  )) as unknown as [bigint, { expiry: bigint }]
+  const expiryDate = data.domain?.expiryDate
 
-  if (!entry || entry.expiry === 0n) {
+  if (!expiryDate) {
     return ok({ expiry: undefined as unknown as bigint })
   }
 
-  return ok({
-    expiry: entry.expiry,
-  } as { expiry: bigint })
+  return ok({ expiry: BigInt(expiryDate) })
 })
 
 export const profileExpiryQuery = (name: string) =>
