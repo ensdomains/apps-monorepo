@@ -246,7 +246,7 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
 
         <SummaryRow
           label="Subtotal:"
-          value={formatUsd(standardSubtotal)}
+          value={formatUsd(Math.round(standardSubtotal))}
           valueClassName="flex items-center gap-1 m-0"
         />
 
