@@ -128,7 +128,12 @@ export const buildSuggestions = ({
   if (parsedInput.type === 'error') {
     for (const item of history) {
       if (item.kind === 'name') {
-        suggestions.push({ type: 'name', value: item.value })
+        const validation = validateENSName(item.value)
+        suggestions.push({
+          type: 'name',
+          value: item.value,
+          isSupported: validation === null,
+        })
       } else if (item.kind === 'address') {
         suggestions.push({ type: 'address', value: item.value })
       }

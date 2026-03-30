@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
 import { Loader2Icon, XIcon } from 'lucide-react'
 import { match } from 'ts-pattern'
@@ -6,6 +7,7 @@ import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
 import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
+import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
 
@@ -43,12 +45,31 @@ type NameSuggestionItemProps = {
 export const NameSuggestionItem = ({
   name,
   onNavigate,
-  isRegistered,
-  isLoading,
-  isError,
+  isRegistered: isRegisteredProp,
+  isLoading: isLoadingProp,
+  isError: isErrorProp,
   isSupported = true,
 }: NameSuggestionItemProps) => {
   const avatarUrl = getAvatarUrl(name)
+
+  // Self-check availability when no status is provided (e.g. history items)
+  const needsSelfCheck =
+    isSupported &&
+    isRegisteredProp === undefined &&
+    !isLoadingProp &&
+    !isErrorProp
+  const selfCheckQuery = useQuery({
+    ...getSearchNameQueryOptions(name),
+    enabled: needsSelfCheck,
+  })
+
+  const isRegistered = needsSelfCheck
+    ? selfCheckQuery.data
+      ? !selfCheckQuery.data.isAvailable
+      : undefined
+    : isRegisteredProp
+  const isLoading = needsSelfCheck ? selfCheckQuery.isLoading : isLoadingProp
+  const isError = needsSelfCheck ? selfCheckQuery.isError : isErrorProp
 
   const isAvailable = isSupported && isRegistered === false
 
