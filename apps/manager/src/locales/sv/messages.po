@@ -297,7 +297,7 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:126
+#: src/features/migration/components/SelectNamesStep.tsx:127
 msgid "Begin Upgrade"
 msgstr ""
 
@@ -1662,6 +1662,10 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
+#: src/features/migration/components/SelectNamesStep.tsx:58
+msgid "Search names"
+msgstr ""
+
 #: src/routes/notifications/_authenticated/index.tsx:120
 #: src/routes/notifications/_authenticated/index.tsx:121
 msgid "Search notifications"
@@ -2332,7 +2336,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:49
+#: src/features/migration/components/SelectNamesStep.tsx:50
 msgid "Your names are ready to upgrade"
 msgstr ""
 

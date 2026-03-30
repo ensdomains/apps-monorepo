@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,7 @@ export const SelectNamesStep = ({
   onNamesChange,
   onNext,
 }: SelectNamesStepProps) => {
+  const { t } = useLingui()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(() => {
     const initial = new Set(MOCK_NAMES.map((n) => n.name))
@@ -54,7 +55,7 @@ export const SelectNamesStep = ({
         <input
           className="flex-1 bg-transparent text-ens-garnet-900 text-sm leading-[0.96] tracking-[-0.28px] placeholder:text-ens-garnet-900/20 focus:outline-none"
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search names"
+          placeholder={t`Search names`}
           type="text"
           value={search}
         />
