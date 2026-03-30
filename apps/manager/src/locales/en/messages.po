@@ -436,7 +436,7 @@ msgid "Click to copy"
 msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:125
+#: src/features/migration/components/MigrationModal.tsx:108
 msgid "Close"
 msgstr "Close"
 
@@ -1828,6 +1828,11 @@ msgstr "Skip for now"
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 
+#. placeholder {0}: i + 1
+#: src/features/migration/components/MigrationModal.tsx:138
+msgid "Slide {0}"
+msgstr "Slide {0}"
+
 #: src/features/wallet/components/EnableSessionModal.tsx:128
 msgid "Smart Account"
 msgstr "Smart Account"
@@ -2054,7 +2059,7 @@ msgstr "Updating profile"
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
 
-#: src/features/migration/components/MigrationModal.tsx:135
+#: src/features/migration/components/MigrationModal.tsx:118
 #: src/features/migration/components/UpgradeBanner.tsx:17
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
@@ -2224,7 +2229,7 @@ msgstr "Website"
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
 
-#: src/features/migration/components/MigrationModal.tsx:132
+#: src/features/migration/components/MigrationModal.tsx:115
 msgid "Welcome to the new ENS app!"
 msgstr "Welcome to the new ENS app!"
 

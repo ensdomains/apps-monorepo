@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
+import { useAutoScrollCarousel } from '@/features/migration/hooks/useAutoScrollCarousel'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const STORAGE_KEY = 'migration-modal-dismissed'
@@ -42,7 +43,6 @@ export const MigrationModal = () => {
   const [open, setOpen] = useState(false)
   const [activeSlide, setActiveSlide] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const autoScrollRef = useRef<ReturnType<typeof setInterval>>(null)
 
   useEffect(() => {
     if (isConnected && localStorage.getItem(STORAGE_KEY) !== 'true') {
@@ -51,6 +51,7 @@ export const MigrationModal = () => {
   }, [isConnected])
 
   const scrollToSlide = useCallback((index: number) => {
+    setActiveSlide(index)
     const el = scrollRef.current
     if (!el) return
     el.scrollTo({ left: index * el.offsetWidth, behavior: 'smooth' })
@@ -68,37 +69,19 @@ export const MigrationModal = () => {
     setActiveSlide(index)
   }, [])
 
-  // Auto-scroll every 5 seconds
-  useEffect(() => {
-    if (!open) return
+  const { reset: resetAutoScroll } = useAutoScrollCarousel({
+    enabled: open,
+    intervalMs: AUTO_SCROLL_INTERVAL,
+    totalSlides: SLIDES.length,
+    onSlideChange: scrollToSlide,
+  })
 
-    autoScrollRef.current = setInterval(() => {
-      setActiveSlide((prev) => {
-        const next = (prev + 1) % SLIDES.length
-        scrollToSlide(next)
-        return next
-      })
-    }, AUTO_SCROLL_INTERVAL)
-
-    return () => {
-      if (autoScrollRef.current) clearInterval(autoScrollRef.current)
-    }
-  }, [open, scrollToSlide])
-
-  // Reset auto-scroll timer on manual interaction
   const handleManualNav = useCallback(
     (index: number) => {
-      if (autoScrollRef.current) clearInterval(autoScrollRef.current)
       scrollToSlide(index)
-      autoScrollRef.current = setInterval(() => {
-        setActiveSlide((prev) => {
-          const next = (prev + 1) % SLIDES.length
-          scrollToSlide(next)
-          return next
-        })
-      }, AUTO_SCROLL_INTERVAL)
+      resetAutoScroll()
     },
-    [scrollToSlide],
+    [scrollToSlide, resetAutoScroll],
   )
 
   return (
@@ -151,13 +134,15 @@ export const MigrationModal = () => {
                 onClick={() => handleManualNav(i)}
                 type="button"
               >
-                <span className="sr-only">Slide {i + 1}</span>
+                <span className="sr-only">
+                  <Trans>Slide {i + 1}</Trans>
+                </span>
               </button>
             ))}
           </div>
 
           {/* Carousel */}
-          <div className="w-full" style={{ overflow: 'hidden' }}>
+          <div className="w-full overflow-hidden">
             <div
               className="flex snap-x snap-mandatory overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               onScroll={handleScroll}
