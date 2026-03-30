@@ -2,6 +2,8 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay, secondsInYear } from 'date-fns/constants'
+import { zeroAddress } from 'viem'
+import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
   type GetPricingError,
@@ -28,14 +30,17 @@ type PresetPricingQuery = {
 
 export const DurationSelector = () => {
   const { uiActor, label } = useRegistrationV2Context()
+  const account = useSmartAccountContext()
   const selectedDuration = useSelector(
     uiActor,
     (state) => state.context.duration,
   )
 
+  const ownerAddress = account.ownerAddress ?? zeroAddress
+
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map((duration) =>
-      getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+      getPricingQueryOptions(label, ownerAddress, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {

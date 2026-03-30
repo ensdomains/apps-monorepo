@@ -3,6 +3,7 @@ import { useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { zeroAddress } from 'viem'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -13,7 +14,7 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
-  const { isConnected } = useSmartAccountContext()
+  const { isConnected, ownerAddress } = useSmartAccountContext()
   const { openModal, isOpen } = useModal()
 
   const [duration, canNext] = useSelector(uiActor, (state) => [
@@ -22,7 +23,12 @@ export const PaymentCard = () => {
   ])
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+    ...getPricingQueryOptions(
+      label,
+      ownerAddress ?? zeroAddress,
+      duration,
+      TOKENS.USDC.symbol,
+    ),
     select: (data) =>
       decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
   })

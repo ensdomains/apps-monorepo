@@ -7,7 +7,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { err, fromPromise, ok } from 'neverthrow'
-import { type ReadContractErrorType, zeroAddress } from 'viem'
+import type { Address, ReadContractErrorType } from 'viem'
 import { readContract } from 'viem/actions'
 import { FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
 import { publicClient } from '@/lib/wagmi'
@@ -22,6 +22,7 @@ export class MissingTokenError extends TaggedError('MissingTokenError')<
 
 export const getPricing = ResultFn(async function* (
   name: string,
+  ownerAddress: Address,
   durationInSeconds: number,
   token: SUPPORTED_TOKEN | undefined,
 ) {
@@ -36,7 +37,7 @@ export const getPricing = ResultFn(async function* (
       functionName: 'rentPrice',
       args: [
         name,
-        zeroAddress,
+        ownerAddress,
         BigInt(Math.ceil(durationInSeconds)),
         tokenInfo.address,
       ],
@@ -55,6 +56,7 @@ export const getPricing = ResultFn(async function* (
 
 export const getPricingQueryOptions = (
   name: string,
+  ownerAddress: Address,
   durationInSeconds: number,
   token: SUPPORTED_TOKEN | undefined,
 ) => {
@@ -62,9 +64,10 @@ export const getPricingQueryOptions = (
     queryKey: $qk({
       $action: 'get-pricing',
       name,
+      ownerAddress,
       durationInSeconds,
       token,
     }),
-    queryFn: () => getPricing(name, durationInSeconds, token),
+    queryFn: () => getPricing(name, ownerAddress, durationInSeconds, token),
   })
 }

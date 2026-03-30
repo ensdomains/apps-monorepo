@@ -1,6 +1,7 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { zeroAddress } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
@@ -22,8 +23,10 @@ export const ConfirmPurchase = () => {
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
 
+  const ownerAddress = account.ownerAddress ?? zeroAddress
+
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, duration, selectedToken),
+    ...getPricingQueryOptions(label, ownerAddress, duration, selectedToken),
     select: (data) => ({
       basePriceNumber: decimalBigintToNumber(
         data.basePrice,

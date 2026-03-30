@@ -7,6 +7,7 @@ import { useSelector } from '@xstate/react'
 import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import { zeroAddress } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +22,7 @@ import { TokenListItem } from './TokenListItem'
 export const TokenPickerContent = () => {
   const { label, uiActor } = useRegistrationV2Context()
   const [searchQuery, setSearchQuery] = useState('')
-  const { stablecoinBalances, isLoadingBalances, isConnected } =
+  const { stablecoinBalances, isLoadingBalances, isConnected, ownerAddress } =
     useSmartAccountContext()
   const [duration, selectedToken] = useSelector(
     uiActor,
@@ -31,7 +32,12 @@ export const TokenPickerContent = () => {
   const hasBalances = (stablecoinBalances?.length || 0) > 0
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+    ...getPricingQueryOptions(
+      label,
+      ownerAddress ?? zeroAddress,
+      duration,
+      TOKENS.USDC.symbol,
+    ),
     select: (data) =>
       decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
   })
