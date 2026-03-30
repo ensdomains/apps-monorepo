@@ -138,10 +138,10 @@ export const CheckAvailability = ({
                   <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
                     <img
                       alt={displayState.domainName}
-                      className="size-[46px] rounded-[4px] object-cover"
+                      className="size-12 rounded-sm object-cover"
                       src={placeholderAvatar}
                     />
-                    <span className="font-medium text-ens-blue text-lg leading-tight tracking-[-0.36px]">
+                    <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
                       {displayState.domainName}
                     </span>
                     <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
