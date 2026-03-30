@@ -968,7 +968,7 @@ msgstr "Go to Profile"
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:87
+#: src/features/dashboard/pages/DashboardPage.tsx:74
 msgid "Hello"
 msgstr "Hello"
 
@@ -1644,6 +1644,10 @@ msgstr "Search your NFTs..."
 msgid "See all"
 msgstr "See all"
 
+#: src/features/migration/components/UpgradeBanner.tsx:48
+msgid "See what's new"
+msgstr "See what's new"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:286
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
@@ -1683,7 +1687,7 @@ msgstr "Set it as your primary name. You can do this from your profile page in t
 msgid "Set multiple records: ETH, BTC, email"
 msgstr "Set multiple records: ETH, BTC, email"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:108
+#: src/features/dashboard/pages/DashboardPage.tsx:95
 msgid "Set primary name"
 msgstr "Set primary name"
 
@@ -2012,6 +2016,14 @@ msgstr "Update Resolver"
 msgid "Updating profile"
 msgstr "Updating profile"
 
+#: src/features/migration/components/UpgradeNamesButton.tsx:17
+msgid "Upgrade Names"
+msgstr "Upgrade Names"
+
+#: src/features/migration/components/UpgradeBanner.tsx:38
+msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
+msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:460
 msgid "Upload & Use Image"
 msgstr "Upload & Use Image"
@@ -2169,13 +2181,9 @@ msgstr "web3 username"
 msgid "Website"
 msgstr "Website"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:70
-msgid "Welcome to the public alpha of the ENS app"
-msgstr "Welcome to the public alpha of the ENS app"
-
-#: src/features/dashboard/pages/DashboardPage.tsx:73
-msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
-msgstr "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
+#: src/features/migration/components/UpgradeBanner.tsx:35
+msgid "Welcome to the new ENS app"
+msgstr "Welcome to the new ENS app"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
 msgid "Works across all EVM-compatible chains"
