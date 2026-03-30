@@ -77,7 +77,12 @@ export const PaymentTokenModal = ({
         args: address ? [address] : undefined,
         chainId: sepoliaWithEns.id,
       })),
-      query: { enabled: Boolean(address) },
+      query: {
+        enabled: Boolean(address),
+        // App default staleTime is 1h; token balances must reflect chain state after funding.
+        staleTime: 0,
+        refetchOnMount: 'always',
+      },
     })
 
   const priceQueries = useQueries({
