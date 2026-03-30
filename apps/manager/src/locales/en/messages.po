@@ -208,7 +208,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:128
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:121
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -260,7 +260,7 @@ msgstr "Autorenews on"
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:109
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:163
 msgid "Available"
 msgstr "Available"
 
@@ -1237,6 +1237,11 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:136
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:144
+msgid "Not supported"
+msgstr "Not supported"
+
 #: src/features/notifications/dropdown/notification-dropdown.tsx:83
 msgid "Nothing here yet!"
 msgstr "Nothing here yet!"
@@ -1428,7 +1433,7 @@ msgstr "Reconnect Wallet"
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:99
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:152
 msgid "Registered"
 msgstr "Registered"
 
@@ -1854,7 +1859,7 @@ msgstr "Sort names by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:232
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:263
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 

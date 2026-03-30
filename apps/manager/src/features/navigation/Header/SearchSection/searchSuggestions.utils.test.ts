@@ -59,25 +59,19 @@ describe('buildSuggestions', () => {
     const result = buildSuggestions({
       parsedInput: { type: 'error' },
       indexerDomains: [],
-      indexerFetched: false,
-      indexerLoading: false,
-      indexerError: false,
       history,
     })
 
     expect(result).toEqual([
-      { type: 'name', value: 'alice.eth' },
+      { type: 'name', value: 'alice.eth', isSupported: true },
       { type: 'address', value: '0x1234567890abcdef1234567890abcdef12345678' },
     ])
   })
 
-  it('returns primary name suggestion for name input', () => {
+  it('returns primary suggestion for name input (self-checks availability)', () => {
     const result = buildSuggestions({
       parsedInput: { type: 'name', value: 'bigint.eth' },
       indexerDomains: [],
-      indexerFetched: true,
-      indexerLoading: false,
-      indexerError: false,
       history: emptyHistory,
     })
 
@@ -85,44 +79,22 @@ describe('buildSuggestions', () => {
       {
         type: 'name',
         value: 'bigint.eth',
-        isRegistered: false,
-        isLoading: false,
-        isError: false,
+        isSupported: true,
       },
     ])
   })
 
-  it('shows loading state while indexer is fetching', () => {
+  it('marks short names as not supported', () => {
     const result = buildSuggestions({
-      parsedInput: { type: 'name', value: 'bigint.eth' },
+      parsedInput: { type: 'name', value: 'ab.eth' },
       indexerDomains: [],
-      indexerFetched: false,
-      indexerLoading: true,
-      indexerError: false,
       history: emptyHistory,
     })
 
     expect(result[0]).toMatchObject({
       type: 'name',
-      isRegistered: undefined,
-      isLoading: true,
-    })
-  })
-
-  it('marks name as registered when indexer has exact match', () => {
-    const result = buildSuggestions({
-      parsedInput: { type: 'name', value: 'bigint.eth' },
-      indexerDomains: [{ name: 'bigint.eth', normalizedName: 'bigint.eth' }],
-      indexerFetched: true,
-      indexerLoading: false,
-      indexerError: false,
-      history: emptyHistory,
-    })
-
-    expect(result[0]).toMatchObject({
-      type: 'name',
-      value: 'bigint.eth',
-      isRegistered: true,
+      value: 'ab.eth',
+      isSupported: false,
     })
   })
 
@@ -133,14 +105,11 @@ describe('buildSuggestions', () => {
         { name: 'bigint.eth', normalizedName: 'bigint.eth' },
         { name: 'bigboss.eth', normalizedName: 'bigboss.eth' },
       ],
-      indexerFetched: true,
-      indexerLoading: false,
-      indexerError: false,
       history: emptyHistory,
     })
 
     expect(result).toHaveLength(3)
-    expect(result[0]).toMatchObject({ value: 'big.eth', isRegistered: false })
+    expect(result[0]).toMatchObject({ value: 'big.eth', isSupported: true })
     expect(result[1]).toMatchObject({ value: 'bigint.eth', isRegistered: true })
     expect(result[2]).toMatchObject({
       value: 'bigboss.eth',
@@ -155,14 +124,11 @@ describe('buildSuggestions', () => {
         { name: 'bigint.eth', normalizedName: 'bigint.eth' },
         { name: 'bigboss.eth', normalizedName: 'bigboss.eth' },
       ],
-      indexerFetched: true,
-      indexerLoading: false,
-      indexerError: false,
       history: emptyHistory,
     })
 
     expect(result).toHaveLength(2)
-    expect(result[0]).toMatchObject({ value: 'bigint.eth', isRegistered: true })
+    expect(result[0]).toMatchObject({ value: 'bigint.eth', isSupported: true })
     expect(result[1]).toMatchObject({
       value: 'bigboss.eth',
       isRegistered: true,
@@ -175,9 +141,6 @@ describe('buildSuggestions', () => {
       parsedInput: { type: 'address', value: address },
       primaryName: 'vitalik.eth',
       indexerDomains: [],
-      indexerFetched: false,
-      indexerLoading: false,
-      indexerError: false,
       history: emptyHistory,
     })
 
@@ -198,9 +161,6 @@ describe('buildSuggestions', () => {
     const result = buildSuggestions({
       parsedInput: { type: 'error' },
       indexerDomains: [],
-      indexerFetched: false,
-      indexerLoading: false,
-      indexerError: false,
       history,
     })
 
@@ -215,9 +175,6 @@ describe('buildSuggestions', () => {
     const result = buildSuggestions({
       parsedInput: { type: 'name', value: 'new.eth' },
       indexerDomains: [],
-      indexerFetched: true,
-      indexerLoading: false,
-      indexerError: false,
       history,
     })
 
@@ -225,19 +182,19 @@ describe('buildSuggestions', () => {
     expect(result[0]).toMatchObject({ value: 'new.eth' })
   })
 
-  it('shows error state when indexer fails', () => {
+  it('marks history items with short names as not supported', () => {
+    const history: SearchHistoryItem[] = [
+      { kind: 'name', value: 'ab.eth', timestamp: 1 },
+      { kind: 'name', value: 'alice.eth', timestamp: 2 },
+    ]
+
     const result = buildSuggestions({
-      parsedInput: { type: 'name', value: 'test.eth' },
+      parsedInput: { type: 'error' },
       indexerDomains: [],
-      indexerFetched: false,
-      indexerLoading: false,
-      indexerError: true,
-      history: emptyHistory,
+      history,
     })
 
-    expect(result[0]).toMatchObject({
-      isError: true,
-      isRegistered: undefined,
-    })
+    expect(result[0]).toMatchObject({ value: 'ab.eth', isSupported: false })
+    expect(result[1]).toMatchObject({ value: 'alice.eth', isSupported: true })
   })
 })
