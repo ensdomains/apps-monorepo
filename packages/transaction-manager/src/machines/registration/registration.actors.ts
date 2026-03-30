@@ -835,7 +835,7 @@ export function submitApprovalAndRegistrationActor(input: {
 
       return txId
     })(),
-    (error) => error as Error,
+    (error: unknown) => error instanceof Error ? error : new Error(String(error)),
   )
 }
 
