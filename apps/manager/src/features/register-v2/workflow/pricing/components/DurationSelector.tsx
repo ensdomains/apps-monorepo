@@ -25,7 +25,10 @@ const PRESET_DURATIONS: number[] = [
 type PresetPricingQuery = {
   isPending: boolean
   error: GetPricingError | MissingTokenError | null
-  data?: number
+  data?: {
+    totalPrice: number
+    basePrice: number
+  }
 }
 
 export const DurationSelector = () => {
@@ -53,10 +56,16 @@ export const DurationSelector = () => {
           isPending: result.isPending,
           error: result.error,
           data: result.data
-            ? decimalBigintToNumber(
-                result.data.totalPrice,
-                TOKENS.USDC.decimals,
-              )
+            ? {
+                totalPrice: decimalBigintToNumber(
+                  result.data.totalPrice,
+                  TOKENS.USDC.decimals,
+                ),
+                basePrice: decimalBigintToNumber(
+                  result.data.basePrice,
+                  TOKENS.USDC.decimals,
+                ),
+              }
             : undefined,
         }
       }),
@@ -78,8 +87,8 @@ export const DurationSelector = () => {
 
         const years = duration / secondsInYear
         const discount = getDurationDiscount(
-          query.data,
-          baseCostQuery?.data,
+          query.data?.basePrice,
+          baseCostQuery?.data?.basePrice,
           years,
         )
 
@@ -93,7 +102,7 @@ export const DurationSelector = () => {
             onSelect={() =>
               uiActor.send({ type: 'pricing.duration.set', duration })
             }
-            price={query.data}
+            price={query.data?.totalPrice}
           />
         )
       })}
