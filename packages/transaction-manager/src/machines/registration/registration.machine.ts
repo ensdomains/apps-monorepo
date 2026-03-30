@@ -39,6 +39,16 @@ type CommitmentData = {
 // This is only used as fallback for non-fast registrar
 const COMMITMENT_WAIT_DURATION_MS = 60_000
 
+function getNowEpochMs(): number {
+  const temporal = (
+    globalThis as unknown as {
+      Temporal?: { Now: { instant: () => { epochMilliseconds: number } } }
+    }
+  ).Temporal
+
+  return temporal ? temporal.Now.instant().epochMilliseconds : Date.now()
+}
+
 /**
  * Fixed transaction IDs used by the registration machine.
  * These allow the TransactionModal to track each step by a predictable ID.
@@ -523,7 +533,7 @@ export const registrationMachine = setup({
             target: 'commitmentCooldown',
             actions: assign({
               registerReadyTimestamp: () =>
-                Date.now() + COMMITMENT_WAIT_DURATION_MS,
+                getNowEpochMs() + COMMITMENT_WAIT_DURATION_MS,
             }),
           },
         ],
@@ -584,10 +594,11 @@ export const registrationMachine = setup({
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
+          const nowEpochMs = getNowEpochMs()
           const targetTimestamp =
             context.registerReadyTimestamp ??
-            Date.now() + COMMITMENT_WAIT_DURATION_MS
-          const delayMs = Math.max(0, targetTimestamp - Date.now())
+            nowEpochMs + COMMITMENT_WAIT_DURATION_MS
+          const delayMs = Math.max(0, targetTimestamp - nowEpochMs)
           return { delayMs }
         },
         onDone: 'readyToApprove',

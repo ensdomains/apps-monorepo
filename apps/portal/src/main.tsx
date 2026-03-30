@@ -1,3 +1,4 @@
+import { Temporal } from '@js-temporal/polyfill'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
@@ -42,6 +43,9 @@ declare module '@tanstack/react-router' {
 
 // Render the app
 const rootElement = document.getElementById('app')
+
+// Ensure Temporal exists globally for shared packages (e.g. transaction-manager).
+;(globalThis as unknown as { Temporal: typeof Temporal }).Temporal = Temporal
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(

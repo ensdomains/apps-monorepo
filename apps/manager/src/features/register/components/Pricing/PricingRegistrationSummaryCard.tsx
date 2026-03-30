@@ -1,5 +1,5 @@
+import { Temporal } from '@js-temporal/polyfill'
 import { Trans } from '@lingui/react/macro'
-import { addDays, addMonths } from 'date-fns'
 import { Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -37,7 +37,32 @@ export const PricingRegistrationSummaryCard = ({
   onInputChange,
 }: PricingRegistrationSummaryCardProps) => {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
-  const minSelectableDate = addDays(new Date(), MIN_DURATION_DAYS)
+
+  const toPlainDate = (date: Date) =>
+    Temporal.PlainDate.from({
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate(),
+    })
+
+  const fromPlainDate = (plain: Temporal.PlainDate, timeSource: Date): Date =>
+    new Date(
+      plain.year,
+      plain.month - 1,
+      plain.day,
+      timeSource.getHours(),
+      timeSource.getMinutes(),
+      timeSource.getSeconds(),
+      timeSource.getMilliseconds(),
+    )
+
+  const now = new Date()
+  const minSelectableDatePlain = toPlainDate(now).add({
+    days: MIN_DURATION_DAYS,
+  })
+  const minSelectableDate = fromPlainDate(minSelectableDatePlain, now)
+  const endMonthPlain = toPlainDate(now).add({ months: 1200 })
+  const endMonth = fromPlainDate(endMonthPlain, now)
 
   const handleDurationInputChange = (value: string) => {
     const normalized = value.replace(',', '.')
@@ -143,13 +168,16 @@ export const PricingRegistrationSummaryCard = ({
                   captionLayout="dropdown"
                   defaultMonth={expirationDate}
                   disabled={(date) => {
-                    const minDate = new Date(minSelectableDate)
-                    minDate.setHours(0, 0, 0, 0)
-                    const dateToCheck = new Date(date)
-                    dateToCheck.setHours(0, 0, 0, 0)
-                    return dateToCheck.getTime() < minDate.getTime()
+                    const minPlain = toPlainDate(minSelectableDate)
+                    const datePlain = toPlainDate(date)
+
+                    if (datePlain.year !== minPlain.year)
+                      return datePlain.year < minPlain.year
+                    if (datePlain.month !== minPlain.month)
+                      return datePlain.month < minPlain.month
+                    return datePlain.day < minPlain.day
                   }}
-                  endMonth={addMonths(new Date(), 1200)}
+                  endMonth={endMonth}
                   onSelect={handleDateSelect}
                   selected={expirationDate}
                   showClearButton

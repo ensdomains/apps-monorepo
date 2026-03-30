@@ -11,6 +11,8 @@
  *   - Offset: ensures curve reaches exactly 0 at the end of the premium period
  */
 
+import { Temporal } from '@js-temporal/polyfill'
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /** Total premium window duration (21 days). */
@@ -69,11 +71,12 @@ export function getPremiumDatesFromPrice(
 
   const elapsedMs = days * MS_PER_DAY
 
-  const premiumStartDate = new Date(Date.now() - elapsedMs)
+  const nowMs = Temporal.Now.instant().epochMilliseconds
+  const premiumStartMs = nowMs - elapsedMs
+  const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
 
-  const premiumEndDate = new Date(
-    premiumStartDate.getTime() + PREMIUM_PERIOD_MS,
-  )
+  const premiumStartDate = new Date(premiumStartMs)
+  const premiumEndDate = new Date(premiumEndMs)
 
   return { premiumStartDate, premiumEndDate }
 }
@@ -89,7 +92,11 @@ export function getPremiumPriceAtDate(
   premiumStartDate: Date,
   targetDate: Date,
 ): number {
-  const elapsedMs = targetDate.getTime() - premiumStartDate.getTime()
+  const elapsedMs =
+    Temporal.Instant.fromEpochMilliseconds(targetDate.getTime())
+      .epochMilliseconds -
+    Temporal.Instant.fromEpochMilliseconds(premiumStartDate.getTime())
+      .epochMilliseconds
   if (elapsedMs < 0) return START_PRICE - OFFSET
   if (elapsedMs >= PREMIUM_PERIOD_MS) return 0
 
@@ -113,16 +120,19 @@ export function getDateForPremiumPrice(
 ): Date {
   if (targetPrice >= START_PRICE - OFFSET) return premiumStartDate
 
-  const premiumEndDate = new Date(
-    premiumStartDate.getTime() + PREMIUM_PERIOD_MS,
-  )
+  const premiumStartMs = Temporal.Instant.fromEpochMilliseconds(
+    premiumStartDate.getTime(),
+  ).epochMilliseconds
+  const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
+  const premiumEndDate = new Date(premiumEndMs)
+
   if (targetPrice <= 0) return premiumEndDate
 
   const days = Math.log((targetPrice + OFFSET) / START_PRICE) / Math.log(FACTOR)
-  const dateMs = premiumStartDate.getTime() + days * MS_PER_DAY
+  const dateMs = premiumStartMs + days * MS_PER_DAY
 
   const clamped = Math.max(
-    premiumStartDate.getTime(),
+    premiumStartMs,
     Math.min(dateMs, premiumEndDate.getTime()),
   )
   return new Date(clamped)

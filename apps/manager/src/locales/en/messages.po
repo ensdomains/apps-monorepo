@@ -783,7 +783,7 @@ msgstr "Expires in {daysUntilExpiry} days"
 msgid "Expires:"
 msgstr "Expires:"
 
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:144
 msgid "expiring on"
 msgstr "expiring on"
 
@@ -1446,7 +1446,7 @@ msgstr "Registered ENS names"
 msgid "Registering"
 msgstr "Registering"
 
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:124
 msgid "Registering for"
 msgstr "Registering for"
 
@@ -2186,7 +2186,7 @@ msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
+#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:138
 msgid "years"
 msgstr "years"
 

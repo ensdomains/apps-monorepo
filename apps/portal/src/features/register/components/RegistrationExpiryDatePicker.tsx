@@ -1,4 +1,3 @@
-// import { addYears } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -9,13 +8,7 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-
-// import {
-//   getDurationFromPickerDate,
-//   getStartOfToday,
-//   getYearsFromDuration,
-// } from '../utils/registrationDuration'
-// import { RegistrationDurationPresets } from './RegistrationDurationPresets'
+import { isDateWithinCalendarRange } from '../utils/registrationDuration'
 
 type RegistrationExpiryDatePickerProps = {
   readonly date: Date
@@ -41,25 +34,8 @@ export const RegistrationExpiryDatePicker = ({
     }
   }
 
-  // const handlePresetSelect = (spanValue: number) => {
-  //   const startOfToday = getStartOfToday()
-  //   const expiryDate = addYears(startOfToday, spanValue)
-  //   const cappedDate =
-  //     expiryDate.getTime() > maxDate.getTime() ? maxDate : expiryDate
-  //   onDateChange(cappedDate)
-  // }
-
   const disabled = (d: Date) => {
-    const dateToCheck = new Date(d)
-    dateToCheck.setHours(0, 0, 0, 0)
-    const min = new Date(minDate)
-    min.setHours(0, 0, 0, 0)
-    const max = new Date(maxDate)
-    max.setHours(23, 59, 59, 999)
-    return (
-      dateToCheck.getTime() < min.getTime() ||
-      dateToCheck.getTime() > max.getTime()
-    )
+    return !isDateWithinCalendarRange(d, minDate, maxDate)
   }
 
   return (
@@ -103,13 +79,6 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      {/* Note : Currently we disabled discounts on contracts - Commenting this section out for now until we re-enable discounts */}
-      {/* <RegistrationDurationPresets
-        value={Math.round(
-          getYearsFromDuration(getDurationFromPickerDate(date)),
-        )}
-        onSelect={handlePresetSelect}
-      /> */}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { Temporal } from '@js-temporal/polyfill'
 import { CalendarIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -85,11 +86,9 @@ export const TemporaryPremiumDrawer = ({
   function applyDateSelection(newDate: Date) {
     if (!premiumStartDate || !premiumEndDate) return
 
+    const nowMs = Temporal.Now.instant().epochMilliseconds
     const clamped = new Date(
-      Math.max(
-        Date.now(),
-        Math.min(newDate.getTime(), premiumEndDate.getTime()),
-      ),
+      Math.max(nowMs, Math.min(newDate.getTime(), premiumEndDate.getTime())),
     )
 
     const price = getPremiumPriceAtDate(premiumStartDate, clamped)
@@ -139,15 +138,27 @@ export const TemporaryPremiumDrawer = ({
 
   function isDateDisabled(d: Date) {
     if (!premiumEndDate) return true
-    const dayStart = new Date(d)
-    dayStart.setHours(0, 0, 0, 0)
-    const nowStart = new Date()
-    nowStart.setHours(0, 0, 0, 0)
-    const endDay = new Date(premiumEndDate)
-    endDay.setHours(23, 59, 59, 999)
+
+    const toPlainDate = (date: Date) =>
+      Temporal.PlainDate.from({
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        day: date.getDate(),
+      })
+
+    const compare = (a: Temporal.PlainDate, b: Temporal.PlainDate) => {
+      if (a.year !== b.year) return a.year - b.year
+      if (a.month !== b.month) return a.month - b.month
+      return a.day - b.day
+    }
+
+    const selectedPlain = toPlainDate(d)
+    const nowPlain = toPlainDate(new Date())
+    const premiumEndPlain = toPlainDate(premiumEndDate)
+
     return (
-      dayStart.getTime() < nowStart.getTime() ||
-      dayStart.getTime() > endDay.getTime()
+      compare(selectedPlain, nowPlain) < 0 ||
+      compare(selectedPlain, premiumEndPlain) > 0
     )
   }
 
