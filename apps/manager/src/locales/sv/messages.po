@@ -297,7 +297,7 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:190
+#: src/features/migration/components/SelectNamesStep.tsx:162
 msgid "Begin Upgrade"
 msgstr ""
 
@@ -441,7 +441,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:150
+#: src/features/migration/components/MigrationModal.tsx:125
 msgid "Close"
 msgstr ""
 
@@ -468,6 +468,10 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:69
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:21
+msgid "Complete"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:187
@@ -666,6 +670,10 @@ msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx:142
 msgid "Domain transfer & expiry notifications"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:82
+msgid "Done"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:242
@@ -1112,6 +1120,14 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx:112
 msgid "Marking..."
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:37
+msgid "Migration Complete"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:46
+msgid "Migration Complete!"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:38
@@ -1569,6 +1585,10 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:61
+msgid "Reveal NFT"
+msgstr ""
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:281
 #: src/features/profile/components/dialogs/DiffDialog.tsx:297
 msgid "Review Changes"
@@ -1654,7 +1674,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:48
+#: src/features/migration/components/UpgradeBanner.tsx:27
 msgid "See what's new"
 msgstr ""
 
@@ -1738,6 +1758,10 @@ msgstr ""
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:92
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:123
 msgid "Share"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:72
+msgid "Share your commemorative NFT with the world."
 msgstr ""
 
 #: src/features/profile/components/sections/BioSection.tsx:81
@@ -2030,9 +2054,13 @@ msgstr ""
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:160
-#: src/features/migration/components/UpgradeBanner.tsx:38
+#: src/features/migration/components/MigrationModal.tsx:135
+#: src/features/migration/components/UpgradeBanner.tsx:17
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:11
+msgid "Upgrading your names..."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:460
@@ -2192,11 +2220,11 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:35
+#: src/features/migration/components/UpgradeBanner.tsx:14
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:157
+#: src/features/migration/components/MigrationModal.tsx:132
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
@@ -2294,8 +2322,20 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:107
+#: src/features/migration/components/SelectNamesStep.tsx:85
 msgid "Your names are ready to upgrade"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:40
+msgid "Your names have been upgraded"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:49
+msgid "Your names have been upgraded. Reveal your commemorative NFT."
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:69
+msgid "Your NFT is here!"
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83

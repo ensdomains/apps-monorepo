@@ -292,7 +292,7 @@ msgstr "Back to Settings"
 msgid "Backup Card"
 msgstr "Backup Card"
 
-#: src/features/migration/pages/MigrationPage.tsx:190
+#: src/features/migration/components/SelectNamesStep.tsx:162
 msgid "Begin Upgrade"
 msgstr "Begin Upgrade"
 
@@ -436,7 +436,7 @@ msgid "Click to copy"
 msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:150
+#: src/features/migration/components/MigrationModal.tsx:125
 msgid "Close"
 msgstr "Close"
 
@@ -464,6 +464,10 @@ msgstr "Committing"
 #: src/features/landing/FeaturesCarousel.tsx:69
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+
+#: src/features/migration/components/GameStep.tsx:21
+msgid "Complete"
+msgstr "Complete"
 
 #: src/features/payment/components/add.tsx:187
 #: src/routes/auto-renewal/index.tsx:33
@@ -662,6 +666,10 @@ msgstr "Disconnect Wallet"
 #: src/features/wallet/components/BackendAuthModal.tsx:142
 msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
+
+#: src/features/migration/components/SuccessModal.tsx:82
+msgid "Done"
+msgstr "Done"
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:242
 msgid "Drag and drop an image here, or"
@@ -1108,6 +1116,14 @@ msgstr "Mark all as read"
 #: src/routes/notifications/_authenticated/index.tsx:112
 msgid "Marking..."
 msgstr "Marking..."
+
+#: src/features/migration/components/SuccessModal.tsx:37
+msgid "Migration Complete"
+msgstr "Migration Complete"
+
+#: src/features/migration/components/SuccessModal.tsx:46
+msgid "Migration Complete!"
+msgstr "Migration Complete!"
 
 #: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
@@ -1564,6 +1580,10 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
+#: src/features/migration/components/SuccessModal.tsx:61
+msgid "Reveal NFT"
+msgstr "Reveal NFT"
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:281
 #: src/features/profile/components/dialogs/DiffDialog.tsx:297
 msgid "Review Changes"
@@ -1649,7 +1669,7 @@ msgstr "Search your NFTs..."
 msgid "See all"
 msgstr "See all"
 
-#: src/features/migration/components/UpgradeBanner.tsx:48
+#: src/features/migration/components/UpgradeBanner.tsx:27
 msgid "See what's new"
 msgstr "See what's new"
 
@@ -1734,6 +1754,10 @@ msgstr "Setting…"
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:123
 msgid "Share"
 msgstr "Share"
+
+#: src/features/migration/components/SuccessModal.tsx:72
+msgid "Share your commemorative NFT with the world."
+msgstr "Share your commemorative NFT with the world."
 
 #: src/features/profile/components/sections/BioSection.tsx:81
 msgid "Short Description"
@@ -2025,10 +2049,14 @@ msgstr "Updating profile"
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
 
-#: src/features/migration/components/MigrationModal.tsx:160
-#: src/features/migration/components/UpgradeBanner.tsx:38
+#: src/features/migration/components/MigrationModal.tsx:135
+#: src/features/migration/components/UpgradeBanner.tsx:17
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
+
+#: src/features/migration/components/GameStep.tsx:11
+msgid "Upgrading your names..."
+msgstr "Upgrading your names..."
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:460
 msgid "Upload & Use Image"
@@ -2187,11 +2215,11 @@ msgstr "web3 username"
 msgid "Website"
 msgstr "Website"
 
-#: src/features/migration/components/UpgradeBanner.tsx:35
+#: src/features/migration/components/UpgradeBanner.tsx:14
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
 
-#: src/features/migration/components/MigrationModal.tsx:157
+#: src/features/migration/components/MigrationModal.tsx:132
 msgid "Welcome to the new ENS app!"
 msgstr "Welcome to the new ENS app!"
 
@@ -2289,9 +2317,21 @@ msgstr "Your ENS name works across web3"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/migration/pages/MigrationPage.tsx:107
+#: src/features/migration/components/SelectNamesStep.tsx:85
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
+
+#: src/features/migration/components/SuccessModal.tsx:40
+msgid "Your names have been upgraded"
+msgstr "Your names have been upgraded"
+
+#: src/features/migration/components/SuccessModal.tsx:49
+msgid "Your names have been upgraded. Reveal your commemorative NFT."
+msgstr "Your names have been upgraded. Reveal your commemorative NFT."
+
+#: src/features/migration/components/SuccessModal.tsx:69
+msgid "Your NFT is here!"
+msgstr "Your NFT is here!"
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."

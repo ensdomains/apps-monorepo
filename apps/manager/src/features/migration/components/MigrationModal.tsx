@@ -7,6 +7,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
@@ -111,33 +112,7 @@ export const MigrationModal = () => {
         className="overflow-hidden border-0 bg-linear-to-b from-[#feeaf0] to-[#ffc6e0] p-0 sm:max-w-[420px]"
         showCloseButton={false}
       >
-        {/* Grain texture */}
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 size-full opacity-40"
-        >
-          <filter id="migration-modal-grain">
-            <feTurbulence
-              baseFrequency="0.7"
-              numOctaves="4"
-              seed="2"
-              stitchTiles="stitch"
-              type="fractalNoise"
-            />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 0.96
-                      0 0 0 0 0.196
-                      0 0 0 0 0.576
-                      0 0 0 0.5 0"
-            />
-          </filter>
-          <rect
-            filter="url(#migration-modal-grain)"
-            height="100%"
-            width="100%"
-          />
-        </svg>
+        <GrainOverlay />
 
         {/* Close button */}
         <button
