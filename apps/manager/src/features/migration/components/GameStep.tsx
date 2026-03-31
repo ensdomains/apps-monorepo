@@ -86,135 +86,123 @@ export const GameStep = ({ onNext }: GameStepProps) => {
         </div>
 
         <div className="relative mt-2 h-[280px] w-full shrink-0">
-          <AnimatePresence mode="wait">
-            {allComplete ? (
+          <motion.div
+            animate={{ opacity: allComplete ? 0 : 1 }}
+            className="absolute inset-0"
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
+            <div
+              className="absolute right-[90px] bottom-[42px] left-0 z-10"
+              ref={trackRef}
+            >
               <motion.div
-                animate={{ opacity: 1, scale: 1 }}
-                className="absolute inset-0 flex items-center justify-center"
-                initial={{ opacity: 0, scale: 0.8 }}
-                key="together"
-                transition={{ type: 'spring', bounce: 0.4, duration: 0.8 }}
+                animate={{ x: frensX }}
+                className="-translate-x-1/2 absolute bottom-0 left-0"
+                transition={{ type: 'spring', stiffness: 80, damping: 18 }}
               >
-                <img alt="" className="h-[180px]" src="/frens/together.svg" />
-              </motion.div>
-            ) : (
-              <motion.div
-                className="absolute inset-0"
-                exit={{ opacity: 0 }}
-                key="bridge"
-                transition={{ duration: 0.3 }}
-              >
-                <div
-                  className="absolute right-[90px] bottom-[42px] left-0 z-10"
-                  ref={trackRef}
-                >
-                  <motion.div
-                    animate={{ x: frensX }}
-                    className="-translate-x-1/2 absolute bottom-0 left-0"
-                    transition={{
-                      type: 'spring',
-                      stiffness: 80,
-                      damping: 18,
-                    }}
-                  >
-                    <div className="flex items-end gap-1">
-                      <img
-                        alt=""
-                        className="shrink-0"
-                        src="/frens/peanut.svg"
-                        style={{ height: 44 }}
-                      />
-                      <img
-                        alt=""
-                        className="shrink-0"
-                        src="/frens/lili.svg"
-                        style={{ height: 60 }}
-                      />
-                      <div className="relative shrink-0">
-                        <motion.img
-                          alt=""
-                          animate={{ y: [0, -6, -3, 0] }}
-                          className="-translate-x-1/2 absolute left-1/2"
-                          src="/frens/bittu.svg"
-                          style={{ height: 24, top: -30 }}
-                          transition={{
-                            duration: 4,
-                            ease: 'easeInOut',
-                            repeat: Number.POSITIVE_INFINITY,
-                          }}
-                        />
-                        <img
-                          alt=""
-                          className="shrink-0"
-                          src="/frens/kuzco.svg"
-                          style={{ height: 50 }}
-                        />
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-
-                <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  className="absolute right-0 bottom-[10px]"
-                  transition={{
-                    duration: 4,
-                    ease: 'easeInOut',
-                    repeat: Number.POSITIVE_INFINITY,
-                  }}
-                >
-                  <img alt="" className="h-[93px]" src="/frens/giant.svg" />
-                </motion.div>
-
-                <div className="absolute right-[90px] bottom-[10px] left-0">
-                  <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
-
-                  <div className="flex items-stretch gap-1.5">
-                    <div className="w-1 rounded-sm bg-ens-garnet-900/40" />
-                    {STEP_IDS.map((id, i) => {
-                      const done = i < completedSteps
-                      return (
-                        <div className="flex flex-1 items-stretch" key={id}>
-                          <motion.div
-                            animate={
-                              done
-                                ? { scaleX: 1, opacity: 1 }
-                                : { scaleX: 1, opacity: 1 }
-                            }
-                            className={cn(
-                              'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
-                              done
-                                ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
-                                : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
-                            )}
-                            initial={
-                              done ? { scaleX: 0, opacity: 0 } : undefined
-                            }
-                            transition={{
-                              duration: 0.5,
-                              ease: [0.4, 0, 0.2, 1],
-                            }}
-                          />
-                          <div
-                            className={cn(
-                              'ml-1.5 w-1 rounded-sm transition-colors duration-500',
-                              done
-                                ? 'bg-ens-garnet-900/40'
-                                : 'bg-ens-garnet-900/10',
-                            )}
-                          />
-                        </div>
-                      )
-                    })}
+                <div className="flex items-end gap-1">
+                  <img
+                    alt=""
+                    className="shrink-0"
+                    src="/frens/peanut.svg"
+                    style={{ height: 44 }}
+                  />
+                  <img
+                    alt=""
+                    className="shrink-0"
+                    src="/frens/lili.svg"
+                    style={{ height: 60 }}
+                  />
+                  <div className="relative shrink-0">
+                    <motion.img
+                      alt=""
+                      animate={{ y: [0, -6, -3, 0] }}
+                      className="-translate-x-1/2 absolute left-1/2"
+                      src="/frens/bittu.svg"
+                      style={{ height: 24, top: -30 }}
+                      transition={{
+                        duration: 4,
+                        ease: 'easeInOut',
+                        repeat: Number.POSITIVE_INFINITY,
+                      }}
+                    />
+                    <img
+                      alt=""
+                      className="shrink-0"
+                      src="/frens/kuzco.svg"
+                      style={{ height: 50 }}
+                    />
                   </div>
-
-                  <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
                 </div>
-
-                <div className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5" />
               </motion.div>
-            )}
-          </AnimatePresence>
+            </div>
+
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              className="absolute right-0 bottom-[10px]"
+              transition={{
+                duration: 4,
+                ease: 'easeInOut',
+                repeat: Number.POSITIVE_INFINITY,
+              }}
+            >
+              <img alt="" className="h-[93px]" src="/frens/giant.svg" />
+            </motion.div>
+
+            <div className="absolute right-[90px] bottom-[10px] left-0">
+              <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
+
+              <div className="flex items-stretch gap-1.5">
+                <div className="w-1 rounded-sm bg-ens-garnet-900/40" />
+                {STEP_IDS.map((id, i) => {
+                  const done = i < completedSteps
+                  return (
+                    <div className="flex flex-1 items-stretch" key={id}>
+                      <motion.div
+                        animate={done ? { scaleX: 1, opacity: 1 } : undefined}
+                        className={cn(
+                          'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
+                          done
+                            ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
+                            : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
+                        )}
+                        initial={done ? { scaleX: 0, opacity: 0 } : undefined}
+                        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                      />
+                      <div
+                        className={cn(
+                          'ml-1.5 w-1 rounded-sm',
+                          done
+                            ? 'bg-ens-garnet-900/40'
+                            : 'bg-ens-garnet-900/10',
+                        )}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
+            </div>
+
+            <div className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5" />
+          </motion.div>
+
+          <motion.div
+            animate={
+              allComplete
+                ? { opacity: 1, scale: 1 }
+                : { opacity: 0, scale: 0.5 }
+            }
+            className="absolute inset-0 flex items-center justify-center"
+            transition={
+              allComplete
+                ? { type: 'spring', bounce: 0.4, duration: 0.8, delay: 0.3 }
+                : { duration: 0 }
+            }
+          >
+            <img alt="" className="h-[180px]" src="/frens/together.svg" />
+          </motion.div>
         </div>
 
         <div className="flex h-5 shrink-0 items-center gap-2">
