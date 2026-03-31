@@ -260,7 +260,7 @@ msgstr "Autorenews on"
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:163
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:167
 msgid "Available"
 msgstr "Available"
 
@@ -1237,7 +1237,7 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:136
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:140
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:144
 msgid "Not supported"
 msgstr "Not supported"
@@ -1433,7 +1433,7 @@ msgstr "Reconnect Wallet"
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:152
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:156
 msgid "Registered"
 msgstr "Registered"
 
