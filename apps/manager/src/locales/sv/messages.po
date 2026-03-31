@@ -218,6 +218,10 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:121
+msgid "Almost there..."
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:121
 msgid "An error occurred"
 msgstr ""
@@ -240,6 +244,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:24
+msgid "Approving migration"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:283
@@ -553,7 +561,7 @@ msgstr ""
 msgid "Content Hash"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:94
+#: src/features/migration/components/GameStep.tsx:92
 msgid "Continue"
 msgstr ""
 
@@ -932,6 +940,10 @@ msgstr ""
 msgid "Finalizing registration"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:27
+msgid "Finalizing upgrade"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr ""
@@ -1003,7 +1015,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:86
+#: src/features/migration/components/GameStep.tsx:84
 msgid "Good job! You've reunited the frens!"
 msgstr ""
 
@@ -1781,6 +1793,10 @@ msgstr "Anger ETH-adress..."
 msgid "Setting ETH address…"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:26
+msgid "Setting resolver"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:378
 msgid "Setting..."
 msgstr "Anger..."
@@ -2057,6 +2073,10 @@ msgstr ""
 msgid "Transfer your name to any wallet"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:25
+msgid "Transferring ownership"
+msgstr ""
+
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/wallet/components/EnableSessionModal.tsx:183
 #: src/routes/notifications/channels/email/verify.tsx:196
@@ -2094,7 +2114,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:74
+#: src/features/migration/components/GameStep.tsx:112
 msgid "Upgrading your names..."
 msgstr ""
 
@@ -2321,7 +2341,7 @@ msgstr ""
 msgid "You're all caught up!"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:72
+#: src/features/migration/components/GameStep.tsx:66
 msgid "You've reunited the frENS!"
 msgstr ""
 

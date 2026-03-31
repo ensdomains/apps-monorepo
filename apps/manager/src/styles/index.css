@@ -78,6 +78,26 @@
   .animate-shimmer {
     animation: shimmer 2s infinite;
   }
+
+  /* Bridge game — GPU-composited animations (transform/opacity only) */
+  @keyframes gentle-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes bittu-float {
+    0%, 100% { transform: translate(-50%, 0); }
+    33% { transform: translate(-50%, -6px); }
+    66% { transform: translate(-50%, -3px); }
+  }
+  @keyframes plank-extend {
+    0% { transform: scaleX(0); opacity: 0; }
+    70% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 1; }
+  }
+  @keyframes hug-entrance {
+    0% { transform: scale(0.7); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
 }
 
 @utility w-full-* {
