@@ -4,8 +4,8 @@ import type { SkippedName } from '@/features/migration/service/migrationService'
 
 export type MigrationContext = {
   selectedNames: string[]
-  txHashes: Hex[]
-  skippedNames: SkippedName[]
+  txHashes: readonly Hex[]
+  skippedNames: readonly SkippedName[]
   error?: string
 }
 
@@ -17,8 +17,8 @@ export const migrationMachine = setup({
       | { type: 'BEGIN_UPGRADE' }
       | {
           type: 'MIGRATION_COMPLETE'
-          txHashes: Hex[]
-          skipped: SkippedName[]
+          txHashes: readonly Hex[]
+          skipped: readonly SkippedName[]
         }
       | { type: 'MIGRATION_ERROR'; error: string }
       | { type: 'RETRY' }

@@ -40,21 +40,21 @@ export class MigrationUserRejectedError extends TaggedError(
 }> {}
 
 export type MigrationProgress = {
-  currentStep: number
-  totalSteps: number
-  description: string
-  txHash?: Hex
+  readonly currentStep: number
+  readonly totalSteps: number
+  readonly description: string
+  readonly txHash?: Hex
 }
 
 export type SkippedName = {
-  name: string
-  reason: 'not-premigrated' | 'frozen-approval'
+  readonly name: string
+  readonly reason: 'not-premigrated' | 'frozen-approval'
 }
 
 export type MigrationResult = {
-  completed: number
-  txHashes: Hex[]
-  skipped: SkippedName[]
+  readonly completed: number
+  readonly txHashes: readonly Hex[]
+  readonly skipped: readonly SkippedName[]
 }
 
 type PreFlightResult = {

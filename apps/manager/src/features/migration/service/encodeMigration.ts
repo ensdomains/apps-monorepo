@@ -1,10 +1,10 @@
 import { type Address, encodeAbiParameters, type Hex, zeroAddress } from 'viem'
 
 export type MigrationData = {
-  label: string
-  owner: Address
-  subregistry: Address
-  resolver: Address
+  readonly label: string
+  readonly owner: Address
+  readonly subregistry: Address
+  readonly resolver: Address
 }
 
 const MIGRATION_DATA_COMPONENTS = [
