@@ -52,7 +52,10 @@ export const Route = createFileRoute('/register-v2/$name')({
 })
 
 function RouteComponent() {
-  const { label } = Route.useLoaderData()
+  const label = Route.useLoaderData({
+    select: (data) => data.label,
+  })
+
   return (
     <RegistrationV2UiProvider label={label}>
       <PageContent />
