@@ -1,14 +1,9 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useMigrateNames } from '@/features/migration/hooks/useMigrateNames'
-import {
-  getMigrationStepCount,
-  getMigrationStepDescriptions,
-  type MigrationResult,
-} from '@/features/migration/service/migrationService'
+import { useEffect, useRef, useState } from 'react'
+import { useMigrationExecution } from '@/features/migration/hooks/useMigrationExecution'
+import type { MigrationResult } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
-import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 
 type GameStepProps = {
@@ -19,76 +14,21 @@ type GameStepProps = {
 
 const HUG_DELAY = 3000
 
-/** Extract a readable error message from wagmi/viem nested errors */
-function extractErrorMessage(err: unknown): string {
-  if (!(err instanceof Error)) return String(err)
-
-  // Walk the cause chain for the deepest message
-  let deepest = err
-  while ('cause' in deepest && deepest.cause instanceof Error) {
-    deepest = deepest.cause
-  }
-
-  // viem ContractFunctionRevertedError has shortMessage
-  const short =
-    (err as unknown as Record<string, unknown>).shortMessage ??
-    (deepest as unknown as Record<string, unknown>).shortMessage
-
-  if (typeof short === 'string') return short
-
-  // Use the deepest cause message if different from top-level
-  if (deepest !== err && deepest.message) return deepest.message
-
-  return err.message || 'Migration failed'
-}
-
 export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const { t } = useLingui()
   const trackRef = useRef<HTMLDivElement>(null)
   const [trackWidth, setTrackWidth] = useState(0)
-  const startedRef = useRef(false)
-  const [done, setDone] = useState(false)
 
-  const { migrateAsync, progress } = useMigrateNames()
-  const { ownerAddress } = useSmartAccountContext()
-
-  const { stepCount, stepDescriptions } = useMemo(() => {
-    if (!ownerAddress || domains.length === 0) {
-      return { stepCount: 0, stepDescriptions: [] }
-    }
-    return {
-      stepCount: getMigrationStepCount(domains, ownerAddress),
-      stepDescriptions: getMigrationStepDescriptions(domains, ownerAddress),
-    }
-  }, [domains, ownerAddress])
-
-  // Stable refs for callbacks so the effect doesn't depend on them
-  const onCompleteRef = useRef(onComplete)
-  onCompleteRef.current = onComplete
-  const onErrorRef = useRef(onError)
-  onErrorRef.current = onError
+  const { done, progress, stepCount, stepDescriptions } = useMigrationExecution(
+    domains,
+    onComplete,
+    onError,
+    HUG_DELAY,
+  )
 
   const totalSteps = Math.max(stepCount, 1)
   const completedSteps = progress?.currentStep ?? 0
 
-  // Start migration on mount (once)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
-  useEffect(() => {
-    if (startedRef.current || domains.length === 0) return
-    startedRef.current = true
-
-    migrateAsync(domains)
-      .then((result) => {
-        setDone(true)
-        setTimeout(() => onCompleteRef.current(result), HUG_DELAY)
-      })
-      .catch((err: unknown) => {
-        const message = extractErrorMessage(err)
-        onErrorRef.current(message)
-      })
-  }, [])
-
-  // Track width for animation
   useEffect(() => {
     const el = trackRef.current
     if (!el) return

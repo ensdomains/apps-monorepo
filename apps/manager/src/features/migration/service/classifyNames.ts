@@ -21,13 +21,13 @@ export type MigrationTokenType =
   | 'locked-child'
 
 export type ClassifiedName = {
-  domain: V1Domain
-  tokenType: MigrationTokenType
-  label: string
-  parentName: string | null
-  fuses: number
-  tokenHolder: Address
-  v1ResolverAddress: string | null
+  readonly domain: V1Domain
+  readonly tokenType: MigrationTokenType
+  readonly label: string
+  readonly parentName: string | null
+  readonly fuses: number
+  readonly tokenHolder: Address
+  readonly v1ResolverAddress: string | null
 }
 
 export function hasFuse(fuses: number, fuse: number): boolean {
@@ -115,10 +115,10 @@ export function classifyNames(
 }
 
 export type GroupedNames = {
-  unwrapped: ClassifiedName[]
-  unlocked: ClassifiedName[]
-  locked2ld: ClassifiedName[]
-  lockedChildren: Map<string, ClassifiedName[]>
+  readonly unwrapped: ClassifiedName[]
+  readonly unlocked: ClassifiedName[]
+  readonly locked2ld: ClassifiedName[]
+  readonly lockedChildren: Map<string, ClassifiedName[]>
 }
 
 export function groupClassifiedNames(names: ClassifiedName[]): GroupedNames {
