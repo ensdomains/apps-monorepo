@@ -1,8 +1,7 @@
 import { secondsInYear } from 'date-fns/constants'
-import {
-  MIN_REGISTER_DURATION_SECONDS,
-  MIN_REGISTER_DURATION_YEARS,
-} from '@/features/register/components/Pricing/utils'
+import { useState } from 'react'
+import { MIN_REGISTER_DURATION_YEARS } from '@/features/register/components/Pricing/utils'
+import { parseLocalizedNumber } from '@/features/register-v2/utils/parse-localized-number'
 import { cn } from '@/lib/utils'
 
 export const DurationCustomRow = ({
@@ -14,8 +13,14 @@ export const DurationCustomRow = ({
   onDurationSet: (duration: number) => void
   isSelected: boolean
 }) => {
-  const customValue = selectedDuration / secondsInYear
-  const isDurationValid = selectedDuration >= MIN_REGISTER_DURATION_SECONDS
+  const [inputDraft, setInputDraft] = useState<string | null>(null)
+  const customValue = (selectedDuration / secondsInYear).toLocaleString(
+    'en-US',
+    {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 3,
+    },
+  )
 
   return (
     <label
@@ -26,14 +31,14 @@ export const DurationCustomRow = ({
       )}
       htmlFor="custom-duration-input"
     >
-      <div className="whitespace-nowrap font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
+      <div className="whitespace-nowrap font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-lg">
         Enter custom duration
       </div>
 
       <div
         className={cn(
-          'flex items-center gap-1.5 rounded border bg-white px-2 py-1.5 group-focus-within:border-ens-blue md:gap-2 md:px-3 md:py-2.5',
-          isSelected ? 'border-ens-blue' : 'border-ens-gray-three',
+          'flex w-full max-w-1/2 items-center gap-1.5 rounded border bg-white px-2 py-1.5 group-focus-within:border-ens-blue md:gap-2 md:px-3 md:py-2.5',
+          'border-ens-gray-three',
         )}
       >
         <input
@@ -49,28 +54,58 @@ export const DurationCustomRow = ({
           id="custom-duration-input"
           max={1000}
           min={1}
-          onChange={(e) => {
-            const duration = Number(e.target.value) * secondsInYear
-            if (duration === selectedDuration) return
+          onBlur={() => {
+            if (inputDraft === null) {
+              return
+            }
 
-            onDurationSet(duration)
+            const parsed = parseLocalizedNumber(inputDraft)
+            if (parsed === undefined) {
+              setInputDraft(null)
+              return
+            }
+
+            const clamped = Math.max(
+              MIN_REGISTER_DURATION_YEARS,
+              Math.min(1000, parsed),
+            )
+
+            onDurationSet(clamped * secondsInYear)
+            setInputDraft(null)
+          }}
+          onChange={(e) => {
+            const nextDraft = e.target.value
+            setInputDraft(nextDraft)
+
+            const parsed = parseLocalizedNumber(nextDraft)
+            if (parsed === undefined) {
+              return
+            }
+
+            const clamped = Math.max(
+              MIN_REGISTER_DURATION_YEARS,
+              Math.min(1000, parsed),
+            )
+
+            onDurationSet(clamped * secondsInYear)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setInputDraft(null)
+              return
+            }
+            if (e.key === 'Enter') {
+              e.currentTarget.blur()
+            }
           }}
           step={1}
           type="number"
-          value={customValue.toString()}
+          value={inputDraft ?? customValue}
         />
         <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
           years
         </span>
       </div>
-
-      {/* Error message if duration is less than minimum */}
-      {isSelected && !isDurationValid && (
-        <p className="text-ens-error text-xs">
-          Duration must be at least 28 days (
-          {MIN_REGISTER_DURATION_YEARS.toFixed(2)} years)
-        </p>
-      )}
     </label>
   )
 }

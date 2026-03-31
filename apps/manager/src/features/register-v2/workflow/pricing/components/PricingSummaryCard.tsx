@@ -18,7 +18,10 @@ export const PricingSummaryCard = () => {
     uiActor,
     (state) =>
       [
-        Math.round(state.context.duration / secondsInYear),
+        (state.context.duration / secondsInYear).toLocaleString('en-US', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 3,
+        }),
         new Date(Date.now() + state.context.duration * 1000),
       ] as const,
     (a, b) => a[0] === b[0] && a[1].getTime() === b[1].getTime(),

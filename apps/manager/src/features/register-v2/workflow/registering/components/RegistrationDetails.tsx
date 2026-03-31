@@ -57,7 +57,12 @@ export const RegistrationDetails = () => {
     details.duration,
   )
 
-  const durationYears = Math.round(Number(details.duration) / secondsInYear)
+  const durationYears = (
+    Number(details.duration) / secondsInYear
+  ).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  })
   const totalPrice =
     details.basePriceNumber + details.premiumPriceNumber - discountAmount
 
