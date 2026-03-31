@@ -507,7 +507,7 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:73
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:79
 msgid "Connect or sign in to register"
 msgstr ""
 
@@ -1309,6 +1309,10 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:69
+msgid "Pay with stable coins"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr ""
@@ -1973,7 +1977,7 @@ msgstr ""
 msgid "total"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:39
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:45
 msgid "Total"
 msgstr ""
 

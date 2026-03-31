@@ -502,7 +502,7 @@ msgstr "Connect a wallet to continue to notification settings and activity."
 msgid "Connect or sign in"
 msgstr "Connect or sign in"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:73
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:79
 msgid "Connect or sign in to register"
 msgstr "Connect or sign in to register"
 
@@ -1304,6 +1304,10 @@ msgstr "Pay with Google"
 msgid "Pay with PayPal"
 msgstr "Pay with PayPal"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:69
+msgid "Pay with stable coins"
+msgstr "Pay with stable coins"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr "Pay with stablecoins"
@@ -1968,7 +1972,7 @@ msgstr "Too short"
 msgid "total"
 msgstr "total"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:39
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:45
 msgid "Total"
 msgstr "Total"
 
