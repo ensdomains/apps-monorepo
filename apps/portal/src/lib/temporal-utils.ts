@@ -1,6 +1,12 @@
 import type { Temporal as TemporalType } from '@js-temporal/polyfill'
+import { ensureTemporal } from '@/lib/temporal-shim'
+
+export { Temporal } from '@js-temporal/polyfill'
 
 type TemporalLike = typeof TemporalType
+
+// Keep Temporal lazy-loading behavior active for all utils consumers.
+void ensureTemporal()
 
 const getTemporalIfAvailable = (): TemporalLike | null =>
   (globalThis as typeof globalThis & { Temporal?: TemporalLike }).Temporal ??

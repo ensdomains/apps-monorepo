@@ -1,9 +1,9 @@
-import { Temporal } from '@js-temporal/polyfill'
 import {
   CONTRACT_SECONDS_PER_YEAR,
   MAX_REGISTRATION_YEARS,
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
+import { Temporal } from '@/lib/temporal-utils'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 
 function toPlainDate(date: Date): Temporal.PlainDate {

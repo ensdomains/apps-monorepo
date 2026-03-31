@@ -1,6 +1,6 @@
-import { Temporal } from '@js-temporal/polyfill'
 import { describe, expect, it } from 'vitest'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
+import { Temporal } from '@/lib/temporal-utils'
 import {
   calculateDurationFromDate,
   formatRegistrationDuration,
