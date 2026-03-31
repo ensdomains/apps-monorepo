@@ -1,4 +1,3 @@
-import { Temporal } from '@js-temporal/polyfill'
 import { CalendarIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -26,6 +25,7 @@ import {
   PREMIUM_PERIOD_MS,
 } from '@/features/register/utils/premiumDecay'
 import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
+import { getNowEpochMilliseconds } from '@/lib/temporal-shim'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 
@@ -87,7 +87,7 @@ export const TemporaryPremiumDrawer = ({
   function applyDateSelection(newDate: Date) {
     if (!premiumStartDate || !premiumEndDate) return
 
-    const nowMs = Temporal.Now.instant().epochMilliseconds
+    const nowMs = getNowEpochMilliseconds()
     const clamped = new Date(
       Math.max(nowMs, Math.min(newDate.getTime(), premiumEndDate.getTime())),
     )
