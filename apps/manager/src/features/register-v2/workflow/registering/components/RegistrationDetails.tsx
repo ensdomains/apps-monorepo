@@ -1,4 +1,4 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { secondsInYear } from 'date-fns/constants'
 import { useMemo } from 'react'
@@ -38,7 +38,6 @@ const getDiscount = (
 }
 
 export const RegistrationDetails = () => {
-  const { t } = useLingui()
   const { uiActor, label } = RegisterV2Context.use()
   const details = useDetails(uiActor)
   const isCompleted = useIsCompleted(uiActor)
@@ -149,7 +148,7 @@ export const RegistrationDetails = () => {
               to="/p/$name"
               variant="blue"
             >
-              {t`Create Profile`}
+              <Trans>Complete your profile</Trans>
             </LinkButton>
           )}
         </div>

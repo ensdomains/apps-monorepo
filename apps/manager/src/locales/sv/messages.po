@@ -82,7 +82,7 @@ msgstr ""
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:90
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:89
 msgid "{durationYears} years"
 msgstr ""
 
@@ -496,6 +496,10 @@ msgstr ""
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:151
+msgid "Complete your profile"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:187
 #: src/routes/auto-renewal/index.tsx:33
 msgid "Confirm"
@@ -609,7 +613,6 @@ msgstr ""
 msgid "Create profile"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:152
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:135
 msgid "Create Profile"
 msgstr ""
@@ -816,7 +819,7 @@ msgstr "Fel vid laddning av namn"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:136
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:135
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
 msgid "Expires"
 msgstr "Går ut"
@@ -1184,7 +1187,7 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:117
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:116
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:102
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
@@ -1440,7 +1443,7 @@ msgstr ""
 msgid "Preferences updated"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:106
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:105
 msgid "Premium Fee"
 msgstr ""
 
@@ -1563,7 +1566,7 @@ msgstr ""
 msgid "Registration Complete!"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:81
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:80
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:73
 msgid "Registration Details"
 msgstr ""
@@ -1578,7 +1581,7 @@ msgstr ""
 msgid "Registration Failed"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:96
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:95
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:92
 msgid "Registration Fee"
 msgstr ""
@@ -1588,7 +1591,7 @@ msgstr ""
 msgid "Registration in progress"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:87
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:86
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
 msgid "Registration Period"
 msgstr ""
@@ -2136,7 +2139,7 @@ msgstr ""
 msgid "TOTAL"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:127
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:126
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:112
 msgid "Total Paid"
 msgstr ""
