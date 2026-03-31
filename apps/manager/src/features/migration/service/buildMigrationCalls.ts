@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern'
 import type { Address, Hex } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
@@ -57,39 +58,39 @@ function getMigrationTarget(
   tokenType: ClassifiedName['tokenType'],
   parentWrapperRegistry?: Address,
 ): Address {
-  switch (tokenType) {
-    case 'unwrapped':
-    case 'unlocked':
-      return V2_CONTRACTS.UnlockedMigrationController
-    case 'locked-2ld':
-      return V2_CONTRACTS.LockedMigrationController
-    case 'locked-child':
+  return match(tokenType)
+    .with(
+      'unwrapped',
+      'unlocked',
+      () => V2_CONTRACTS.UnlockedMigrationController,
+    )
+    .with('locked-2ld', () => V2_CONTRACTS.LockedMigrationController)
+    .with('locked-child', () => {
       if (!parentWrapperRegistry) {
         throw new Error(
           'Parent WrapperRegistry address required for locked child migration',
         )
       }
       return parentWrapperRegistry
-  }
+    })
+    .exhaustive()
 }
 
-// Locked names with CANNOT_SET_RESOLVER use their v1 resolver
 function getResolverForName(
   name: ClassifiedName,
   defaultResolver: Address,
 ): Address {
-  const isLocked =
-    name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
-
-  if (
-    isLocked &&
-    hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
-    name.v1ResolverAddress
-  ) {
-    return name.v1ResolverAddress as Address
-  }
-
-  return defaultResolver
+  return match(name.tokenType)
+    .with('locked-2ld', 'locked-child', () => {
+      if (
+        hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
+        name.v1ResolverAddress
+      ) {
+        return name.v1ResolverAddress as Address
+      }
+      return defaultResolver
+    })
+    .otherwise(() => defaultResolver)
 }
 
 export function buildUnwrappedCall(params: {
