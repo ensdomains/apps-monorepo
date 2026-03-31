@@ -4,7 +4,7 @@ export const truncateName = (
   maxLength: number = 10,
 ) => {
   if (label.length <= maxLength) {
-    return label
+    return `${label}.${tld}`
   }
 
   const middleIndex = Math.floor(maxLength / 2)
