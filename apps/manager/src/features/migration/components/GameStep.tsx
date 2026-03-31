@@ -172,7 +172,7 @@ export const GameStep = ({ onNext }: GameStepProps) => {
           <div className="absolute right-[90px] bottom-[10px] left-0">
             <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
 
-            <div className="flex items-stretch gap-[10px]">
+            <div className="flex items-stretch gap-1.5">
               <div className="w-1 rounded-sm bg-ens-garnet-900/40" />
               {STEP_IDS.map((id, i) => {
                 const done = i < completedSteps
@@ -197,7 +197,7 @@ export const GameStep = ({ onNext }: GameStepProps) => {
                     />
                     <div
                       className={cn(
-                        'ml-[10px] w-1 rounded-sm transition-colors duration-500',
+                        'ml-1.5 w-1 rounded-sm transition-colors duration-500',
                         done ? 'bg-ens-garnet-900/40' : 'bg-ens-garnet-900/10',
                       )}
                     />
