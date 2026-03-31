@@ -12,6 +12,7 @@ export type V1Domain = {
   isMigrated: boolean
   createdAt: string
   resolvedAddress: { id: string } | null
+  resolver: { id: string; address: string } | null
   owner: { id: string }
   registrant: { id: string } | null
   wrappedOwner: { id: string } | null
@@ -52,6 +53,7 @@ query getNamesForAddress($orderBy: Domain_orderBy, $orderDirection: OrderDirecti
     isMigrated
     createdAt
     resolvedAddress { id }
+    resolver { id address }
     owner { id }
     registrant { id }
     wrappedOwner { id }

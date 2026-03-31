@@ -1,37 +1,94 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMigrateNames } from '@/features/migration/hooks/useMigrateNames'
+import {
+  getMigrationStepCount,
+  getMigrationStepDescriptions,
+  type MigrationResult,
+} from '@/features/migration/service/migrationService'
+import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 
 type GameStepProps = {
-  readonly onNext: () => void
+  readonly domains: V1Domain[]
+  readonly onComplete: (result: MigrationResult) => void
+  readonly onError: (error: string) => void
 }
 
-const STEP_IDS = ['tx-1', 'tx-2', 'tx-3', 'tx-4'] as const
-const TOTAL_STEPS = STEP_IDS.length
 const HUG_DELAY = 3000
 
-export const GameStep = ({ onNext }: GameStepProps) => {
-  const { t } = useLingui()
-  const [completedSteps, setCompletedSteps] = useState(0)
-  const trackRef = useRef<HTMLDivElement>(null)
-  const [trackWidth, setTrackWidth] = useState(0)
+/** Extract a readable error message from wagmi/viem nested errors */
+function extractErrorMessage(err: unknown): string {
+  if (!(err instanceof Error)) return String(err)
 
-  const allComplete = completedSteps >= TOTAL_STEPS
-
-  const stepDescriptions = [
-    t`Approving migration`,
-    t`Transferring ownership`,
-    t`Setting resolver`,
-    t`Finalizing upgrade`,
-  ]
-
-  const advanceStep = () => {
-    if (completedSteps < TOTAL_STEPS) {
-      setCompletedSteps((prev) => prev + 1)
-    }
+  // Walk the cause chain for the deepest message
+  let deepest = err
+  while ('cause' in deepest && deepest.cause instanceof Error) {
+    deepest = deepest.cause
   }
 
+  // viem ContractFunctionRevertedError has shortMessage
+  const short =
+    (err as unknown as Record<string, unknown>).shortMessage ??
+    (deepest as unknown as Record<string, unknown>).shortMessage
+
+  if (typeof short === 'string') return short
+
+  // Use the deepest cause message if different from top-level
+  if (deepest !== err && deepest.message) return deepest.message
+
+  return err.message || 'Migration failed'
+}
+
+export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
+  const { t } = useLingui()
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [trackWidth, setTrackWidth] = useState(0)
+  const startedRef = useRef(false)
+  const [done, setDone] = useState(false)
+
+  const { migrateAsync, progress } = useMigrateNames()
+  const { ownerAddress } = useSmartAccountContext()
+
+  const { stepCount, stepDescriptions } = useMemo(() => {
+    if (!ownerAddress || domains.length === 0) {
+      return { stepCount: 0, stepDescriptions: [] }
+    }
+    return {
+      stepCount: getMigrationStepCount(domains, ownerAddress),
+      stepDescriptions: getMigrationStepDescriptions(domains, ownerAddress),
+    }
+  }, [domains, ownerAddress])
+
+  // Stable refs for callbacks so the effect doesn't depend on them
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
+
+  const totalSteps = Math.max(stepCount, 1)
+  const completedSteps = progress?.currentStep ?? 0
+
+  // Start migration on mount (once)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  useEffect(() => {
+    if (startedRef.current || domains.length === 0) return
+    startedRef.current = true
+
+    migrateAsync(domains)
+      .then((result) => {
+        setDone(true)
+        setTimeout(() => onCompleteRef.current(result), HUG_DELAY)
+      })
+      .catch((err: unknown) => {
+        const message = extractErrorMessage(err)
+        onErrorRef.current(message)
+      })
+  }, [])
+
+  // Track width for animation
   useEffect(() => {
     const el = trackRef.current
     if (!el) return
@@ -43,20 +100,17 @@ export const GameStep = ({ onNext }: GameStepProps) => {
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => {
-    if (!allComplete) return
-    const timer = setTimeout(() => onNext(), HUG_DELAY)
-    return () => clearTimeout(timer)
-  }, [allComplete, onNext])
-
-  const plankIndex = Math.min(completedSteps, TOTAL_STEPS - 1)
+  const plankIndex = Math.min(completedSteps, totalSteps - 1)
   const frensX =
-    trackWidth > 0 ? ((plankIndex + 0.5) / TOTAL_STEPS) * trackWidth : 0
+    trackWidth > 0 ? ((plankIndex + 0.5) / totalSteps) * trackWidth : 0
 
-  const descriptionText =
-    completedSteps < TOTAL_STEPS
+  const descriptionText = done
+    ? t`Almost there...`
+    : completedSteps < stepDescriptions.length
       ? `${stepDescriptions[completedSteps]}...`
-      : t`Almost there...`
+      : t`Preparing migration...`
+
+  const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)
 
   return (
     <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
@@ -87,7 +141,7 @@ export const GameStep = ({ onNext }: GameStepProps) => {
 
         <div className="relative mt-2 h-[280px] w-full shrink-0">
           <motion.div
-            animate={{ opacity: allComplete ? 0 : 1 }}
+            animate={{ opacity: done ? 0 : 1 }}
             className="absolute inset-0"
             transition={{ duration: 0.5, ease: 'easeOut' }}
           >
@@ -154,25 +208,29 @@ export const GameStep = ({ onNext }: GameStepProps) => {
 
               <div className="flex items-stretch gap-1.5">
                 <div className="w-1 rounded-sm bg-ens-garnet-900/40" />
-                {STEP_IDS.map((id, i) => {
-                  const done = i < completedSteps
+                {stepIds.map((id, i) => {
+                  const stepDone = i < completedSteps
                   return (
                     <div className="flex flex-1 items-stretch" key={id}>
                       <motion.div
-                        animate={done ? { scaleX: 1, opacity: 1 } : undefined}
+                        animate={
+                          stepDone ? { scaleX: 1, opacity: 1 } : undefined
+                        }
                         className={cn(
                           'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
-                          done
+                          stepDone
                             ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
                             : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
                         )}
-                        initial={done ? { scaleX: 0, opacity: 0 } : undefined}
+                        initial={
+                          stepDone ? { scaleX: 0, opacity: 0 } : undefined
+                        }
                         transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
                       />
                       <div
                         className={cn(
                           'ml-1.5 w-1 rounded-sm',
-                          done
+                          stepDone
                             ? 'bg-ens-garnet-900/40'
                             : 'bg-ens-garnet-900/10',
                         )}
@@ -190,50 +248,17 @@ export const GameStep = ({ onNext }: GameStepProps) => {
 
           <motion.div
             animate={
-              allComplete
-                ? { opacity: 1, scale: 1 }
-                : { opacity: 0, scale: 0.5 }
+              done ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }
             }
             className="absolute inset-0 flex items-center justify-center"
             transition={
-              allComplete
+              done
                 ? { type: 'spring', bounce: 0.4, duration: 0.8, delay: 0.3 }
                 : { duration: 0 }
             }
           >
             <img alt="" className="h-[180px]" src="/frens/together.svg" />
           </motion.div>
-        </div>
-
-        <div className="flex h-5 shrink-0 items-center gap-2">
-          {STEP_IDS.map((id, i) => (
-            <motion.div
-              animate={{
-                scale: i === completedSteps ? 1.3 : 1,
-                backgroundColor:
-                  i < completedSteps
-                    ? 'var(--color-ens-garnet-900)'
-                    : i === completedSteps
-                      ? '#e72a96'
-                      : 'rgba(74, 3, 38, 0.2)',
-              }}
-              className="size-2 rounded-full"
-              key={id}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            />
-          ))}
-        </div>
-
-        <div className="flex h-5 shrink-0 items-center">
-          {completedSteps < TOTAL_STEPS && (
-            <button
-              className="text-ens-garnet-900/40 text-xs underline"
-              onClick={advanceStep}
-              type="button"
-            >
-              fake tx {completedSteps + 1}
-            </button>
-          )}
         </div>
       </div>
     </div>

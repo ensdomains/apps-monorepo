@@ -20,14 +20,6 @@ export const SelectNamesStep = ({
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (v1Names.length > 0 && selected.size === 0) {
-      const allNames = new Set(v1Names.map((n) => n.name))
-      setSelected(allNames)
-      onNamesChange([...allNames])
-    }
-  }, [v1Names, selected.size, onNamesChange])
-
   const filtered = useMemo(
     () =>
       v1Names.filter((n) =>
@@ -44,10 +36,15 @@ export const SelectNamesStep = ({
       } else {
         next.add(name)
       }
-      onNamesChange([...next])
       return next
     })
   }
+
+  // Sync selected names to parent after state settles (avoids setState-during-render)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: onNamesChange is stable from useCallback
+  useEffect(() => {
+    onNamesChange([...selected])
+  }, [selected])
 
   const selectedCount = filtered.filter((n) => selected.has(n.name)).length
 

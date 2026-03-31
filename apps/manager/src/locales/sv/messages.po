@@ -59,6 +59,11 @@ msgstr "{0} avatar-placeholder"
 msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 msgstr ""
 
+#. placeholder {0}: skippedNames.length
+#: src/features/migration/pages/MigrationPage.tsx:83
+msgid "{0} name(s) could not be migrated"
+msgstr ""
+
 #. placeholder {0}: currentPage + 1
 #: src/features/dashboard/components/EducationCarousel.tsx:40
 msgid "{0} of {totalPages}"
@@ -97,7 +102,7 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #. placeholder {0}: filtered.length
-#: src/features/migration/components/SelectNamesStep.tsx:133
+#: src/features/migration/components/SelectNamesStep.tsx:130
 msgid "<0>{selectedCount}</0> out of {0} eligible names selected"
 msgstr ""
 
@@ -218,7 +223,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:59
+#: src/features/migration/components/GameStep.tsx:111
 msgid "Almost there..."
 msgstr ""
 
@@ -244,10 +249,6 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx:23
-msgid "Approving migration"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:283
@@ -286,6 +287,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx:112
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -310,7 +312,7 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:144
+#: src/features/migration/components/SelectNamesStep.tsx:141
 msgid "Begin Upgrade"
 msgstr ""
 
@@ -689,7 +691,7 @@ msgstr ""
 msgid "Domain transfer & expiry notifications"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:41
+#: src/features/migration/components/SuccessModal.tsx:38
 msgid "Done"
 msgstr ""
 
@@ -936,10 +938,6 @@ msgstr ""
 msgid "Finalizing registration"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:26
-msgid "Finalizing upgrade"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr ""
@@ -1151,6 +1149,10 @@ msgstr ""
 msgid "Migration Complete!"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx:70
+msgid "Migration failed"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
 msgstr ""
@@ -1245,7 +1247,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:84
+#: src/features/migration/components/SelectNamesStep.tsx:81
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1262,7 +1264,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:81
+#: src/features/migration/components/SelectNamesStep.tsx:78
 msgid "No names match your search"
 msgstr ""
 
@@ -1418,6 +1420,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:45
 msgid "Preparing commitment"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:114
+msgid "Preparing migration..."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:510
@@ -1623,6 +1629,10 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx:119
+msgid "Retry"
+msgstr ""
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:281
 #: src/features/profile/components/dialogs/DiffDialog.tsx:297
 msgid "Review Changes"
@@ -1691,7 +1701,7 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:66
+#: src/features/migration/components/SelectNamesStep.tsx:63
 msgid "Search names"
 msgstr ""
 
@@ -1783,10 +1793,6 @@ msgstr "Anger ETH-adress..."
 
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:235
 msgid "Setting ETH address…"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx:25
-msgid "Setting resolver"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:378
@@ -2065,10 +2071,6 @@ msgstr ""
 msgid "Transfer your name to any wallet"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:24
-msgid "Transferring ownership"
-msgstr ""
-
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/wallet/components/EnableSessionModal.tsx:183
 #: src/routes/notifications/channels/email/verify.tsx:196
@@ -2106,7 +2108,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:69
+#: src/features/migration/components/GameStep.tsx:126
 msgid "Upgrading your names..."
 msgstr ""
 
@@ -2369,7 +2371,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:57
+#: src/features/migration/components/SelectNamesStep.tsx:54
 msgid "Your names are ready to upgrade"
 msgstr ""
 
