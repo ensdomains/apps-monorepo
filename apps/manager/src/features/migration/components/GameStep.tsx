@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -9,7 +10,6 @@ type GameStepProps = {
 const STEP_IDS = ['tx-1', 'tx-2', 'tx-3', 'tx-4'] as const
 const TOTAL_STEPS = STEP_IDS.length
 const HUG_DELAY = 1200
-const SLIDE_MS = 1000
 
 export const GameStep = ({ onNext }: GameStepProps) => {
   const { t } = useLingui()
@@ -54,6 +54,11 @@ export const GameStep = ({ onNext }: GameStepProps) => {
   const frensX =
     trackWidth > 0 ? ((plankIndex + 0.5) / TOTAL_STEPS) * trackWidth : 0
 
+  const descriptionText =
+    completedSteps < TOTAL_STEPS
+      ? `${stepDescriptions[completedSteps]}...`
+      : t`Almost there...`
+
   if (showHug) {
     return (
       <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
@@ -63,15 +68,13 @@ export const GameStep = ({ onNext }: GameStepProps) => {
 
         <div className="relative flex h-[240px] items-center justify-center">
           <div className="absolute h-48 w-48 rounded-full bg-[#e72a96]/8 blur-3xl" />
-          <img
+          <motion.img
             alt=""
+            animate={{ opacity: 1, scale: 1 }}
             className="relative h-[200px]"
+            initial={{ opacity: 0, scale: 0.7 }}
             src="/frens/together.svg"
-            style={{
-              willChange: 'transform, opacity',
-              animation:
-                'hug-entrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both',
-            }}
+            transition={{ type: 'spring', bounce: 0.4, duration: 0.8 }}
           />
         </div>
 
@@ -79,13 +82,16 @@ export const GameStep = ({ onNext }: GameStepProps) => {
           <Trans>Good job! You've reunited the frens!</Trans>
         </p>
 
-        <button
+        <motion.button
+          animate={{ opacity: 1, y: 0 }}
           className="mt-6 rounded-sm bg-ens-garnet-900 px-8 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
+          initial={{ opacity: 0, y: 10 }}
           onClick={onNext}
+          transition={{ delay: 0.4 }}
           type="button"
         >
           <Trans>Continue</Trans>
-        </button>
+        </motion.button>
       </div>
     )
   }
@@ -102,12 +108,19 @@ export const GameStep = ({ onNext }: GameStepProps) => {
           </p>
         </div>
 
-        <div className="flex h-6 shrink-0 items-center">
-          <p className="font-semi-mono text-[#e72a96] text-xs uppercase tracking-[0.12px]">
-            {completedSteps < TOTAL_STEPS
-              ? `${stepDescriptions[completedSteps]}...`
-              : t`Almost there...`}
-          </p>
+        <div className="flex h-6 shrink-0 items-center overflow-hidden">
+          <AnimatePresence mode="popLayout">
+            <motion.span
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              className="font-semi-mono text-[#e72a96] text-xs uppercase tracking-[0.12px]"
+              exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+              initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+              key={descriptionText}
+              transition={{ duration: 0.3 }}
+            >
+              {descriptionText}
+            </motion.span>
+          </AnimatePresence>
         </div>
 
         <div className="relative mt-2 h-[280px] w-full shrink-0">
@@ -115,13 +128,10 @@ export const GameStep = ({ onNext }: GameStepProps) => {
             className="absolute right-[90px] bottom-[42px] left-0 z-10"
             ref={trackRef}
           >
-            <div
-              className="absolute bottom-0 left-0"
-              style={{
-                willChange: 'transform',
-                transform: `translateX(${frensX}px) translateX(-50%)`,
-                transition: `transform ${SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-              }}
+            <motion.div
+              animate={{ x: frensX }}
+              className="-translate-x-1/2 absolute bottom-0 left-0"
+              transition={{ type: 'spring', stiffness: 80, damping: 18 }}
             >
               <div className="flex items-end gap-1">
                 <img
@@ -137,15 +147,16 @@ export const GameStep = ({ onNext }: GameStepProps) => {
                   style={{ height: 60 }}
                 />
                 <div className="relative shrink-0">
-                  <img
+                  <motion.img
                     alt=""
-                    className="absolute left-1/2"
+                    animate={{ y: [0, -6, -3, 0] }}
+                    className="-translate-x-1/2 absolute left-1/2"
                     src="/frens/bittu.svg"
-                    style={{
-                      height: 24,
-                      top: -30,
-                      willChange: 'transform',
-                      animation: 'bittu-float 4s ease-in-out infinite',
+                    style={{ height: 24, top: -30 }}
+                    transition={{
+                      duration: 4,
+                      ease: 'easeInOut',
+                      repeat: Number.POSITIVE_INFINITY,
                     }}
                   />
                   <img
@@ -156,18 +167,20 @@ export const GameStep = ({ onNext }: GameStepProps) => {
                   />
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          <div
+          <motion.div
+            animate={{ y: [0, -6, 0] }}
             className="absolute right-0 bottom-[10px]"
-            style={{
-              willChange: 'transform',
-              animation: 'gentle-bob 4s ease-in-out infinite',
+            transition={{
+              duration: 4,
+              ease: 'easeInOut',
+              repeat: Number.POSITIVE_INFINITY,
             }}
           >
             <img alt="" className="h-[93px]" src="/frens/giant.svg" />
-          </div>
+          </motion.div>
 
           <div className="absolute right-[90px] bottom-[10px] left-0">
             <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
@@ -178,22 +191,23 @@ export const GameStep = ({ onNext }: GameStepProps) => {
                 const done = i < completedSteps
                 return (
                   <div className="flex flex-1 items-stretch" key={id}>
-                    <div
+                    <motion.div
+                      animate={
+                        done
+                          ? { scaleX: 1, opacity: 1 }
+                          : { scaleX: 1, opacity: 1 }
+                      }
                       className={cn(
-                        'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px] transition-colors duration-500',
+                        'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
                         done
                           ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
                           : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
                       )}
-                      style={
-                        done
-                          ? {
-                              willChange: 'transform, opacity',
-                              animation:
-                                'plank-extend 0.6s cubic-bezier(0.4, 0, 0.2, 1) both',
-                            }
-                          : undefined
-                      }
+                      initial={done ? { scaleX: 0, opacity: 0 } : undefined}
+                      transition={{
+                        duration: 0.5,
+                        ease: [0.4, 0, 0.2, 1],
+                      }}
                     />
                     <div
                       className={cn(
@@ -209,21 +223,24 @@ export const GameStep = ({ onNext }: GameStepProps) => {
             <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
           </div>
 
-          <div className="absolute right-0 bottom-[9px] left-0 h-px bg-ens-garnet-900/5" />
+          <div className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5" />
         </div>
 
         <div className="flex h-5 shrink-0 items-center gap-2">
           {STEP_IDS.map((id, i) => (
-            <div
-              className={cn(
-                'rounded-full transition-all duration-500',
-                i < completedSteps
-                  ? 'size-2 bg-ens-garnet-900'
-                  : i === completedSteps
-                    ? 'size-2.5 bg-[#e72a96]'
-                    : 'size-1.5 bg-ens-garnet-900/20',
-              )}
+            <motion.div
+              animate={{
+                scale: i === completedSteps ? 1.3 : 1,
+                backgroundColor:
+                  i < completedSteps
+                    ? 'var(--color-ens-garnet-900)'
+                    : i === completedSteps
+                      ? '#e72a96'
+                      : 'rgba(74, 3, 38, 0.2)',
+              }}
+              className="size-2 rounded-full"
               key={id}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             />
           ))}
         </div>
