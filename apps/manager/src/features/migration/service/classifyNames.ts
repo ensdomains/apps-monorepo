@@ -72,7 +72,8 @@ export function classifyName(
 
   // Unwrapped: No wrapped domain data, has a registrant matching owner
   if (!domain.wrappedDomain) {
-    if (domain.registrant?.id.toLowerCase() !== addr) return null
+    const registrant = domain.registrant
+    if (registrant?.id.toLowerCase() !== addr) return null
     // Unwrapped names are only 2LD (.eth)
     if (parentName !== 'eth') return null
     return {
@@ -81,7 +82,7 @@ export function classifyName(
       label,
       parentName,
       fuses: 0,
-      tokenHolder: domain.registrant!.id as Address,
+      tokenHolder: registrant.id as Address,
       v1ResolverAddress,
     }
   }

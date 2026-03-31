@@ -55,7 +55,7 @@ msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
 #. placeholder {0}: skippedNames.length
-#: src/features/migration/pages/MigrationPage.tsx:83
+#: src/features/migration/pages/MigrationPage.tsx:82
 msgid "{0} name(s) could not be migrated"
 msgstr "{0} name(s) could not be migrated"
 
@@ -218,7 +218,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/migration/components/GameStep.tsx:111
+#: src/features/migration/components/GameStep.tsx:108
 msgid "Almost there..."
 msgstr "Almost there..."
 
@@ -282,7 +282,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:112
+#: src/features/migration/pages/MigrationPage.tsx:111
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1144,7 +1144,7 @@ msgstr "Marking..."
 msgid "Migration Complete!"
 msgstr "Migration Complete!"
 
-#: src/features/migration/pages/MigrationPage.tsx:70
+#: src/features/migration/pages/MigrationPage.tsx:69
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1417,7 +1417,7 @@ msgstr "Preferences updated"
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
 
-#: src/features/migration/components/GameStep.tsx:114
+#: src/features/migration/components/GameStep.tsx:111
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
 
@@ -1624,7 +1624,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:119
+#: src/features/migration/pages/MigrationPage.tsx:118
 msgid "Retry"
 msgstr "Retry"
 
@@ -2103,7 +2103,7 @@ msgstr "Upgrade Names"
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 
-#: src/features/migration/components/GameStep.tsx:126
+#: src/features/migration/components/GameStep.tsx:123
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

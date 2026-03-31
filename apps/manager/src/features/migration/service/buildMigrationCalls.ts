@@ -197,7 +197,9 @@ export function buildWrappedBatchCall(params: {
   const { names, migrationOwner, defaultResolver, target } = params
 
   // All names in a batch must have the same tokenHolder for the `from` param
-  const tokenHolder = names[0]!.tokenHolder
+  const first = names[0]
+  if (!first) throw new Error('Cannot build batch call with empty names array')
+  const tokenHolder = first.tokenHolder
 
   const tokenIds = names.map(getTokenId)
   const amounts = names.map(() => 1n)
