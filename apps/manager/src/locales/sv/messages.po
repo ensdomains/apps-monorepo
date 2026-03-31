@@ -218,7 +218,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:121
+#: src/features/migration/components/GameStep.tsx:109
 msgid "Almost there..."
 msgstr ""
 
@@ -561,7 +561,7 @@ msgstr ""
 msgid "Content Hash"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:92
+#: src/features/migration/components/GameStep.tsx:87
 msgid "Continue"
 msgstr ""
 
@@ -1015,7 +1015,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:84
+#: src/features/migration/components/GameStep.tsx:79
 msgid "Good job! You've reunited the frens!"
 msgstr ""
 
@@ -2114,7 +2114,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:112
+#: src/features/migration/components/GameStep.tsx:101
 msgid "Upgrading your names..."
 msgstr ""
 
@@ -2341,7 +2341,7 @@ msgstr ""
 msgid "You're all caught up!"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:66
+#: src/features/migration/components/GameStep.tsx:61
 msgid "You've reunited the frENS!"
 msgstr ""
 

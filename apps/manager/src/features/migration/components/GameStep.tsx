@@ -33,7 +33,6 @@ export const GameStep = ({ onNext }: GameStepProps) => {
     }
   }
 
-  // Measure bridge track width for pixel-perfect transform positioning
   useEffect(() => {
     const el = trackRef.current
     if (!el) return
@@ -45,20 +44,16 @@ export const GameStep = ({ onNext }: GameStepProps) => {
     return () => ro.disconnect()
   }, [])
 
-  // Show hug scene after all steps complete
   useEffect(() => {
     if (!allComplete) return
     const timer = setTimeout(() => setShowHug(true), HUG_DELAY)
     return () => clearTimeout(timer)
   }, [allComplete])
 
-  // Frens X position in pixels — center of current plank
-  // Using transform: translateX (GPU-composited, no layout thrashing)
   const plankIndex = Math.min(completedSteps, TOTAL_STEPS - 1)
   const frensX =
     trackWidth > 0 ? ((plankIndex + 0.5) / TOTAL_STEPS) * trackWidth : 0
 
-  // ── Hug scene (separate render path — no shared layout with game) ──
   if (showHug) {
     return (
       <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
@@ -95,25 +90,18 @@ export const GameStep = ({ onNext }: GameStepProps) => {
     )
   }
 
-  // ── Game scene ──
   return (
     <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
-      {/*
-       * Fixed-height shell: every child has explicit height so
-       * justify-center never recalculates when content swaps.
-       */}
       <div
         className="flex w-full flex-col items-center"
         style={{ height: 400 }}
       >
-        {/* Title */}
         <div className="flex h-11 shrink-0 items-center">
           <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Upgrading your names...</Trans>
           </p>
         </div>
 
-        {/* Step description */}
         <div className="flex h-6 shrink-0 items-center">
           <p className="font-semi-mono text-[#e72a96] text-xs uppercase tracking-[0.12px]">
             {completedSteps < TOTAL_STEPS
@@ -122,9 +110,7 @@ export const GameStep = ({ onNext }: GameStepProps) => {
           </p>
         </div>
 
-        {/* Game scene — all children absolutely positioned */}
         <div className="relative mt-2 h-[280px] w-full shrink-0">
-          {/* Frens track — same width as bridge, used for positioning */}
           <div
             className="absolute right-[90px] bottom-[42px] left-0 z-10"
             ref={trackRef}
@@ -150,7 +136,6 @@ export const GameStep = ({ onNext }: GameStepProps) => {
                   src="/frens/lili.svg"
                   style={{ height: 60 }}
                 />
-                {/* Bittu floats above Kuzco */}
                 <div className="relative shrink-0">
                   <img
                     alt=""
@@ -174,7 +159,6 @@ export const GameStep = ({ onNext }: GameStepProps) => {
             </div>
           </div>
 
-          {/* Giant (Earl) */}
           <div
             className="absolute right-0 bottom-[10px]"
             style={{
@@ -185,12 +169,9 @@ export const GameStep = ({ onNext }: GameStepProps) => {
             <img alt="" className="h-[93px]" src="/frens/giant.svg" />
           </div>
 
-          {/* Rope Bridge */}
           <div className="absolute right-[90px] bottom-[10px] left-0">
-            {/* Top rope */}
             <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
 
-            {/* Planks with posts */}
             <div className="flex items-stretch gap-[10px]">
               <div className="w-1 rounded-sm bg-ens-garnet-900/40" />
               {STEP_IDS.map((id, i) => {
@@ -225,15 +206,12 @@ export const GameStep = ({ onNext }: GameStepProps) => {
               })}
             </div>
 
-            {/* Bottom rope */}
             <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
           </div>
 
-          {/* Ground line */}
           <div className="absolute right-0 bottom-[9px] left-0 h-px bg-ens-garnet-900/5" />
         </div>
 
-        {/* Progress dots */}
         <div className="flex h-5 shrink-0 items-center gap-2">
           {STEP_IDS.map((id, i) => (
             <div
@@ -250,7 +228,6 @@ export const GameStep = ({ onNext }: GameStepProps) => {
           ))}
         </div>
 
-        {/* Fake test button */}
         <div className="flex h-5 shrink-0 items-center">
           {completedSteps < TOTAL_STEPS && (
             <button
