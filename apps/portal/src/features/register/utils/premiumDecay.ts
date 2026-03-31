@@ -2,7 +2,7 @@ import {
   dateFromEpochMilliseconds,
   epochMillisecondsFromDate,
   getNowEpochMilliseconds,
-} from '@/lib/temporal-utils'
+} from '@/utils/temporal'
 
 /**
  * Premium decay calculation utilities for the v2 StandardRentPriceOracle.

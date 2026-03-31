@@ -35,7 +35,7 @@ export interface ITaggedError {
  * })
  * ```
  */
-export class YieldableError extends globalThis.Error {
+export class YieldableError extends Error {
   /**
    * Iterator implementation that yields an error Result.
    * This allows the error to be yielded directly in generator functions.

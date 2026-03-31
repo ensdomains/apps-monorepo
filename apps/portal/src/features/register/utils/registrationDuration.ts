@@ -3,10 +3,9 @@ import {
   MAX_REGISTRATION_YEARS,
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
-import { Temporal, type TemporalPlainDate } from '@/lib/temporal-utils'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 
-function toPlainDate(date: Date): TemporalPlainDate {
+function toPlainDate(date: Date): Temporal.PlainDate {
   // Use the local calendar date (local wall-clock), not UTC.
   return Temporal.PlainDate.from({
     year: date.getFullYear(),
@@ -15,7 +14,10 @@ function toPlainDate(date: Date): TemporalPlainDate {
   })
 }
 
-function comparePlainDate(a: TemporalPlainDate, b: TemporalPlainDate): number {
+function comparePlainDate(
+  a: Temporal.PlainDate,
+  b: Temporal.PlainDate,
+): number {
   if (a.year !== b.year) return a.year - b.year
   if (a.month !== b.month) return a.month - b.month
   return a.day - b.day
@@ -36,7 +38,7 @@ export function isDateWithinCalendarRange(
 }
 
 function fromPlainDate(
-  plain: TemporalPlainDate,
+  plain: Temporal.PlainDate,
   timeSource: Date,
   options?: { endOfDay?: boolean },
 ): Date {

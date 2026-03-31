@@ -95,7 +95,7 @@ describe('push notification service', () => {
     })
 
     it('returns error when Notification is unavailable', () => {
-      const originalNotification = globalThis.Notification
+      const originalNotification = Notification
       Object.defineProperty(globalThis, 'Notification', {
         value: undefined,
         writable: true,
@@ -105,7 +105,7 @@ describe('push notification service', () => {
       const result = getPermissionStateResult()
       expect(result.isErr()).toBe(true)
 
-      globalThis.Notification = originalNotification
+      Notification = originalNotification
     })
 
     it('requests notification permission', async () => {
