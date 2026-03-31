@@ -218,7 +218,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:60
+#: src/features/migration/components/GameStep.tsx:59
 msgid "Almost there..."
 msgstr ""
 
@@ -246,7 +246,7 @@ msgstr ""
 msgid "Approving"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:24
+#: src/features/migration/components/GameStep.tsx:23
 msgid "Approving migration"
 msgstr ""
 
@@ -559,10 +559,6 @@ msgstr ""
 
 #: src/features/profile/components/sections/OtherSection.tsx:92
 msgid "Content Hash"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx:93
-msgid "Continue"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx:71
@@ -940,7 +936,7 @@ msgstr ""
 msgid "Finalizing registration"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:27
+#: src/features/migration/components/GameStep.tsx:26
 msgid "Finalizing upgrade"
 msgstr ""
 
@@ -1013,10 +1009,6 @@ msgstr ""
 #. placeholder {0}: index + 1
 #: src/features/landing/FeaturesCarousel.tsx:301
 msgid "Go to slide {0}"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx:82
-msgid "Good job! You've reunited the frens!"
 msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx:76
@@ -1793,7 +1785,7 @@ msgstr "Anger ETH-adress..."
 msgid "Setting ETH address…"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:26
+#: src/features/migration/components/GameStep.tsx:25
 msgid "Setting resolver"
 msgstr ""
 
@@ -2073,7 +2065,7 @@ msgstr ""
 msgid "Transfer your name to any wallet"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:25
+#: src/features/migration/components/GameStep.tsx:24
 msgid "Transferring ownership"
 msgstr ""
 
@@ -2114,7 +2106,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:107
+#: src/features/migration/components/GameStep.tsx:69
 msgid "Upgrading your names..."
 msgstr ""
 
@@ -2339,10 +2331,6 @@ msgstr ""
 
 #: src/features/notifications/inbox/list.tsx:108
 msgid "You're all caught up!"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx:66
-msgid "You've reunited the frENS!"
 msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx:91

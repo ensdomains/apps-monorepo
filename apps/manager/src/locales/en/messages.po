@@ -213,7 +213,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/migration/components/GameStep.tsx:60
+#: src/features/migration/components/GameStep.tsx:59
 msgid "Almost there..."
 msgstr "Almost there..."
 
@@ -241,7 +241,7 @@ msgstr "Approval allows registrar to charge"
 msgid "Approving"
 msgstr "Approving"
 
-#: src/features/migration/components/GameStep.tsx:24
+#: src/features/migration/components/GameStep.tsx:23
 msgid "Approving migration"
 msgstr "Approving migration"
 
@@ -555,10 +555,6 @@ msgstr "Contact"
 #: src/features/profile/components/sections/OtherSection.tsx:92
 msgid "Content Hash"
 msgstr "Content Hash"
-
-#: src/features/migration/components/GameStep.tsx:93
-msgid "Continue"
-msgstr "Continue"
 
 #: src/routes/notifications/channels/email/verify.tsx:71
 msgid "Continue to Home"
@@ -935,7 +931,7 @@ msgstr "Favourited Name Expiry"
 msgid "Finalizing registration"
 msgstr "Finalizing registration"
 
-#: src/features/migration/components/GameStep.tsx:27
+#: src/features/migration/components/GameStep.tsx:26
 msgid "Finalizing upgrade"
 msgstr "Finalizing upgrade"
 
@@ -1009,10 +1005,6 @@ msgstr "Go to Profile"
 #: src/features/landing/FeaturesCarousel.tsx:301
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
-
-#: src/features/migration/components/GameStep.tsx:82
-msgid "Good job! You've reunited the frens!"
-msgstr "Good job! You've reunited the frens!"
 
 #: src/features/dashboard/pages/DashboardPage.tsx:76
 msgid "Hello"
@@ -1788,7 +1780,7 @@ msgstr "Setting ETH address..."
 msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
-#: src/features/migration/components/GameStep.tsx:26
+#: src/features/migration/components/GameStep.tsx:25
 msgid "Setting resolver"
 msgstr "Setting resolver"
 
@@ -2068,7 +2060,7 @@ msgstr "Transaction:"
 msgid "Transfer your name to any wallet"
 msgstr "Transfer your name to any wallet"
 
-#: src/features/migration/components/GameStep.tsx:25
+#: src/features/migration/components/GameStep.tsx:24
 msgid "Transferring ownership"
 msgstr "Transferring ownership"
 
@@ -2109,7 +2101,7 @@ msgstr "Upgrade Names"
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 
-#: src/features/migration/components/GameStep.tsx:107
+#: src/features/migration/components/GameStep.tsx:69
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 
@@ -2335,10 +2327,6 @@ msgstr "You'll miss:"
 #: src/features/notifications/inbox/list.tsx:108
 msgid "You're all caught up!"
 msgstr "You're all caught up!"
-
-#: src/features/migration/components/GameStep.tsx:66
-msgid "You've reunited the frENS!"
-msgstr "You've reunited the frENS!"
 
 #: src/features/register/components/Autorenewal.tsx:91
 msgid "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
