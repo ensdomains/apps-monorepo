@@ -1,6 +1,5 @@
 import type { Address } from 'viem'
 
-/** ENS v1 contract addresses */
 export const V1_CONTRACTS = {
   BaseRegistrar: '0x6409609247722761b8ba96371485de92a6d7b83b' as Address,
   NameWrapper: '0xc7e033b8836e4bd55d069d113f018b98478cb091' as Address,
@@ -8,7 +7,6 @@ export const V1_CONTRACTS = {
   PublicResolver: '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address,
 } as const
 
-/** ENS v2 contract addresses */
 export const V2_CONTRACTS = {
   ETHRegistry: '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address,
   ETHRegistrar: '0x68586418353b771cf2425ed14a07512aa880c532' as Address,

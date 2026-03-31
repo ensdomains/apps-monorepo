@@ -8,8 +8,6 @@ import {
   encodeMigrationDataBatch,
 } from './encodeMigration'
 
-// --- Types ---
-
 export type UnwrappedMigrationCall = {
   type: 'unwrapped'
   name: ClassifiedName
@@ -48,14 +46,6 @@ export type MigrationCall =
   | WrappedSingleMigrationCall
   | WrappedBatchMigrationCall
 
-// --- Token ID helpers ---
-
-/**
- * Get the token ID for a classified name.
- *
- * Unwrapped (BaseRegistrar ERC-721): tokenId = labelhash
- * Wrapped (NameWrapper ERC-1155): tokenId = namehash (domain.id from subgraph)
- */
 function getTokenId(name: ClassifiedName): bigint {
   if (name.tokenType === 'unwrapped') {
     return BigInt(name.domain.labelhash)
@@ -63,9 +53,6 @@ function getTokenId(name: ClassifiedName): bigint {
   return BigInt(name.domain.id)
 }
 
-/**
- * Get the migration controller address for a given token type.
- */
 function getMigrationTarget(
   tokenType: ClassifiedName['tokenType'],
   parentWrapperRegistry?: Address,
@@ -86,14 +73,7 @@ function getMigrationTarget(
   }
 }
 
-/**
- * Determine the resolver address for a name in the v2 migration data.
- *
- * Per the migration spec:
- * - Locked names with CANNOT_SET_RESOLVER burned: use the current v1 resolver
- *   (the contract preserves it and ignores Data.resolver)
- * - All other names: use the ENSV2Resolver
- */
+// Locked names with CANNOT_SET_RESOLVER use their v1 resolver
 function getResolverForName(
   name: ClassifiedName,
   defaultResolver: Address,
@@ -112,15 +92,6 @@ function getResolverForName(
   return defaultResolver
 }
 
-// --- Call builders ---
-
-/**
- * Build a single ERC-721 safeTransferFrom call for an unwrapped name.
- * BaseRegistrar.safeTransferFrom(from, to, tokenId, data)
- *
- * `from` = ClassifiedName.tokenHolder (the BaseRegistrar ERC-721 owner)
- * `owner` in MigrationData = migrationOwner (the v2 destination address)
- */
 export function buildUnwrappedCall(params: {
   name: ClassifiedName
   migrationOwner: Address
@@ -146,13 +117,6 @@ export function buildUnwrappedCall(params: {
   }
 }
 
-/**
- * Build a single ERC-1155 safeTransferFrom call for a wrapped name.
- * NameWrapper.safeTransferFrom(from, to, id, amount, data)
- *
- * `from` = ClassifiedName.tokenHolder (the NameWrapper ERC-1155 owner)
- * `owner` in MigrationData = migrationOwner (the v2 destination address)
- */
 export function buildWrappedSingleCall(params: {
   name: ClassifiedName
   migrationOwner: Address
@@ -180,14 +144,6 @@ export function buildWrappedSingleCall(params: {
   }
 }
 
-/**
- * Build a batch ERC-1155 safeBatchTransferFrom call for multiple wrapped names.
- * NameWrapper.safeBatchTransferFrom(from, to, ids[], amounts[], data)
- *
- * All names in the batch must have the same tokenHolder (the `from` address)
- * and go to the same target controller.
- * Each name gets its own resolver based on CANNOT_SET_RESOLVER fuse.
- */
 export function buildWrappedBatchCall(params: {
   names: ClassifiedName[]
   migrationOwner: Address
@@ -196,7 +152,6 @@ export function buildWrappedBatchCall(params: {
 }): WrappedBatchMigrationCall {
   const { names, migrationOwner, defaultResolver, target } = params
 
-  // All names in a batch must have the same tokenHolder for the `from` param
   const first = names[0]
   if (!first) throw new Error('Cannot build batch call with empty names array')
   const tokenHolder = first.tokenHolder
@@ -225,10 +180,6 @@ export function buildWrappedBatchCall(params: {
   }
 }
 
-/**
- * Build the optimal call(s) for a group of wrapped names going to the same target.
- * Uses batch transfer for 2+ names, single transfer for 1 name.
- */
 export function buildWrappedCalls(params: {
   names: ClassifiedName[]
   migrationOwner: Address
