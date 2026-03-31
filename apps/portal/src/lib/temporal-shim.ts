@@ -30,14 +30,5 @@ export const ensureTemporal = async (): Promise<TemporalLike> => {
   return temporalLoadPromise
 }
 
-/**
- * Returns epoch milliseconds using Temporal when available.
- * Falls back to Date.now while the polyfill is still loading.
- */
-export const getNowEpochMilliseconds = (): number =>
-  globalWithTemporal.Temporal
-    ? globalWithTemporal.Temporal.Now.instant().epochMilliseconds
-    : Date.now()
-
 // Trigger lazy loading in environments where Temporal is missing.
 void ensureTemporal()

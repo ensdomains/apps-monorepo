@@ -1,3 +1,9 @@
+import {
+  dateFromEpochMilliseconds,
+  epochMillisecondsFromDate,
+  getNowEpochMilliseconds,
+} from '@/lib/temporal-utils'
+
 /**
  * Premium decay calculation utilities for the v2 StandardRentPriceOracle.
  *
@@ -69,12 +75,12 @@ export function getPremiumDatesFromPrice(
 
   const elapsedMs = days * MS_PER_DAY
 
-  const nowMs = Date.now()
+  const nowMs = getNowEpochMilliseconds()
   const premiumStartMs = nowMs - elapsedMs
   const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
 
-  const premiumStartDate = new Date(premiumStartMs)
-  const premiumEndDate = new Date(premiumEndMs)
+  const premiumStartDate = dateFromEpochMilliseconds(premiumStartMs)
+  const premiumEndDate = dateFromEpochMilliseconds(premiumEndMs)
 
   return { premiumStartDate, premiumEndDate }
 }
@@ -90,7 +96,9 @@ export function getPremiumPriceAtDate(
   premiumStartDate: Date,
   targetDate: Date,
 ): number {
-  const elapsedMs = targetDate.getTime() - premiumStartDate.getTime()
+  const elapsedMs =
+    epochMillisecondsFromDate(targetDate) -
+    epochMillisecondsFromDate(premiumStartDate)
   if (elapsedMs < 0) return START_PRICE - OFFSET
   if (elapsedMs >= PREMIUM_PERIOD_MS) return 0
 
@@ -114,9 +122,9 @@ export function getDateForPremiumPrice(
 ): Date {
   if (targetPrice >= START_PRICE - OFFSET) return premiumStartDate
 
-  const premiumStartMs = premiumStartDate.getTime()
+  const premiumStartMs = epochMillisecondsFromDate(premiumStartDate)
   const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
-  const premiumEndDate = new Date(premiumEndMs)
+  const premiumEndDate = dateFromEpochMilliseconds(premiumEndMs)
 
   if (targetPrice <= 0) return premiumEndDate
 
@@ -125,7 +133,7 @@ export function getDateForPremiumPrice(
 
   const clamped = Math.max(
     premiumStartMs,
-    Math.min(dateMs, premiumEndDate.getTime()),
+    Math.min(dateMs, epochMillisecondsFromDate(premiumEndDate)),
   )
-  return new Date(clamped)
+  return dateFromEpochMilliseconds(clamped)
 }

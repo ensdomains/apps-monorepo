@@ -25,7 +25,7 @@ import {
   PREMIUM_PERIOD_MS,
 } from '@/features/register/utils/premiumDecay'
 import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
-import { getNowEpochMilliseconds } from '@/lib/temporal-shim'
+import { getNowEpochMilliseconds } from '@/lib/temporal-utils'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 
