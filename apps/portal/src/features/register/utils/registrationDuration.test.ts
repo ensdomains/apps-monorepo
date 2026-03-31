@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
-import { Temporal } from '@/lib/temporal-utils'
+import { Temporal, type TemporalPlainDate } from '@/lib/temporal-utils'
 import {
   calculateDurationFromDate,
   formatRegistrationDuration,
@@ -14,7 +14,7 @@ import {
   getYearsFromDuration,
 } from './registrationDuration'
 
-function toPlainDate(date: Date): Temporal.PlainDate {
+function toPlainDate(date: Date): TemporalPlainDate {
   return Temporal.PlainDate.from({
     year: date.getFullYear(),
     month: date.getMonth() + 1,
@@ -22,7 +22,7 @@ function toPlainDate(date: Date): Temporal.PlainDate {
   })
 }
 
-function fromPlainDate(plain: Temporal.PlainDate, timeSource: Date): Date {
+function fromPlainDate(plain: TemporalPlainDate, timeSource: Date): Date {
   return new Date(
     plain.year,
     plain.month - 1,

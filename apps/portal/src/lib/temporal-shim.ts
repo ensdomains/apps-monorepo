@@ -2,33 +2,20 @@ import type { Temporal as TemporalType } from '@js-temporal/polyfill'
 
 type TemporalLike = typeof TemporalType
 
-type GlobalWithOptionalTemporal = typeof globalThis & {
+type GlobalWithTemporal = typeof globalThis & {
   Temporal?: TemporalLike
 }
 
-let temporalLoadPromise: Promise<TemporalLike> | null = null
-const globalWithTemporal = globalThis as GlobalWithOptionalTemporal
+const globalWithTemporal = globalThis as GlobalWithTemporal
 
-/**
- * Starts loading Temporal polyfill only when global Temporal is unavailable.
- * Safe to call multiple times.
- */
-export const ensureTemporal = async (): Promise<TemporalLike> => {
-  if (globalWithTemporal.Temporal) return globalWithTemporal.Temporal
-
-  if (!temporalLoadPromise) {
-    temporalLoadPromise = import('@js-temporal/polyfill').then(
-      ({ Temporal }) => {
-        if (!globalWithTemporal.Temporal) {
-          globalWithTemporal.Temporal = Temporal
-        }
-        return globalWithTemporal.Temporal
-      },
-    )
-  }
-
-  return temporalLoadPromise
+if (!globalWithTemporal.Temporal) {
+  const { Temporal } = await import('@js-temporal/polyfill')
+  globalWithTemporal.Temporal = Temporal
 }
 
-// Trigger lazy loading in environments where Temporal is missing.
-void ensureTemporal()
+export const getTemporal = (): TemporalLike => {
+  if (!globalWithTemporal.Temporal) {
+    throw new Error('Temporal is unavailable')
+  }
+  return globalWithTemporal.Temporal
+}
