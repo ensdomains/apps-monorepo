@@ -1,6 +1,6 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
-import { createContext, use, useEffect } from 'react'
+import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import {
   getRegistrationV2ChildActor,
@@ -33,6 +33,7 @@ export const RegistrationV2UiProvider = ({
     registrationV2UiActor,
     getRegistrationV2ChildActor,
   )
+  const previousLabel = useRef<string | undefined>(label)
 
   useEffect(() => {
     const subscription = registrationV2UiActor.subscribe({
@@ -43,6 +44,16 @@ export const RegistrationV2UiProvider = ({
 
     return subscription.unsubscribe
   }, [registrationV2UiActor])
+
+  // Inform the UI actor that the label has changed and to cancel any ongoing transactions
+  useEffect(() => {
+    if (previousLabel.current === label) {
+      return
+    }
+
+    previousLabel.current = label
+    registrationV2UiActor.send({ type: 'label.changed' })
+  }, [label, registrationV2UiActor])
 
   return (
     <RegistrationV2UiContext2.Provider

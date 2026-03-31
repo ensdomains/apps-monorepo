@@ -78,6 +78,7 @@ type Events =
   | { type: 'transaction.failed'; message?: string }
   | { type: 'retry' }
   | { type: 'cancel' }
+  | { type: 'label.changed' }
   | { type: '$error'; error: Error }
 
 const machineSetup = setup({
@@ -317,7 +318,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       on: {
         retry: {
           target: 'registering',
-          actions: ['clearConfirmedData', 'clearError', 'forwardRetry'],
+          actions: ['clearError', 'forwardRetry'],
         },
         cancel: {
           target: 'pricing',
@@ -330,6 +331,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     $error: {
       target: '.failure',
       actions: ['setError'],
+    },
+    'label.changed': {
+      target: '.pricing',
+      actions: ['clearConfirmedData', 'clearError', 'forwardCancel'],
     },
   },
 })
