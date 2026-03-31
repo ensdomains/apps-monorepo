@@ -1,3 +1,5 @@
+import { msg } from '@lingui/core/macro'
+import { useLingui } from '@lingui/react'
 import { useBlocker } from '@tanstack/react-router'
 import { match, P } from 'ts-pattern'
 import { RegisterV2Context } from '../../state/registrationUi.context'
@@ -18,6 +20,7 @@ const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
 }))
 
 export const RegisteringStep = () => {
+  const { _ } = useLingui()
   const { registrationActor, uiActor } = RegisterV2Context.use()
   const registeringTx = useRegisteringTx(registrationActor)
   const uiStage = useRegisteringStage(uiActor)
@@ -31,7 +34,9 @@ export const RegisteringStep = () => {
       }
 
       const shouldLeave = confirm(
-        'Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?',
+        _(
+          msg`Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?`,
+        ),
       )
 
       return !shouldLeave
@@ -44,14 +49,18 @@ export const RegisteringStep = () => {
         {match(uiStage?.transaction)
           .with('pending', () => (
             <RegistrationProgressBar
-              description={stageMessages.stageDescription}
-              label={stageMessages.stageLabel}
+              description={
+                stageMessages.stageDescription
+                  ? _(stageMessages.stageDescription)
+                  : undefined
+              }
+              label={_(stageMessages.stageLabel)}
               progress={stageMessages.progress}
             />
           ))
           .with('success', () => <RegistrationCompletionBanner />)
           .with(undefined, () => (
-            <RegistrationProgressBar label="Loading..." progress={0} />
+            <RegistrationProgressBar label={_(msg`Loading...`)} progress={0} />
           ))
           .exhaustive()}
       </div>

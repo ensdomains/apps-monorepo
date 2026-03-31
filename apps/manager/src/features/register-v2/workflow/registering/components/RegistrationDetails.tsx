@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { secondsInYear } from 'date-fns/constants'
 import { useMemo } from 'react'
@@ -37,6 +38,7 @@ const getDiscount = (
 }
 
 export const RegistrationDetails = () => {
+  const { t } = useLingui()
   const { uiActor, label } = RegisterV2Context.use()
   const details = useDetails(uiActor)
   const isCompleted = useIsCompleted(uiActor)
@@ -76,19 +78,23 @@ export const RegistrationDetails = () => {
         <div className="flex w-full flex-col gap-6 lg:w-1/2">
           <div className="flex flex-col gap-5">
             <h3 className="font-medium text-ens-blue-dark text-xl tracking-tight">
-              Registration Details
+              <Trans>Registration Details</Trans>
             </h3>
 
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <p className="text-base text-ens-gray">Registration Period</p>
+                <p className="text-base text-ens-gray">
+                  <Trans>Registration Period</Trans>
+                </p>
                 <p className="text-base text-ens-blue-dark">
-                  {durationYears} years
+                  <Trans>{durationYears} years</Trans>
                 </p>
               </div>
 
               <div className="flex items-center justify-between">
-                <p className="text-base text-ens-gray">Registration Fee</p>
+                <p className="text-base text-ens-gray">
+                  <Trans>Registration Fee</Trans>
+                </p>
                 <p className="text-base text-ens-blue-dark">
                   {formatUsd(details.basePriceNumber)}
                 </p>
@@ -96,7 +102,9 @@ export const RegistrationDetails = () => {
 
               {details.premiumPriceNumber > 0 && (
                 <div className="flex items-center justify-between">
-                  <p className="text-base text-ens-gray">Premium Fee</p>
+                  <p className="text-base text-ens-gray">
+                    <Trans>Premium Fee</Trans>
+                  </p>
                   <p className="text-base text-ens-blue-dark">
                     {formatUsd(details.premiumPriceNumber)}
                   </p>
@@ -106,7 +114,7 @@ export const RegistrationDetails = () => {
               {discountAmount > 0 && (
                 <div className="flex items-center justify-between">
                   <p className="text-base text-ens-peridot-core">
-                    Multi-year Discount ({discountPercentage}%)
+                    <Trans>Multi-year Discount ({discountPercentage}%)</Trans>
                   </p>
                   <p className="text-base text-ens-peridot-core">
                     -{formatUsd(discountAmount)}
@@ -115,14 +123,18 @@ export const RegistrationDetails = () => {
               )}
 
               <div className="flex items-center justify-between border-ens-gray-two border-t pt-4">
-                <p className="text-base text-ens-blue-dark">Total Paid</p>
+                <p className="text-base text-ens-blue-dark">
+                  <Trans>Total Paid</Trans>
+                </p>
                 <p className="text-base text-ens-blue-dark">
                   {formatUsd(totalPrice)}
                 </p>
               </div>
 
               <div className="flex items-center justify-between">
-                <p className="text-base text-ens-gray">Expires</p>
+                <p className="text-base text-ens-gray">
+                  <Trans>Expires</Trans>
+                </p>
                 <p className="text-base text-ens-blue">
                   {format(expirationDate, 'MMMM d, yyyy')}
                 </p>
@@ -137,7 +149,7 @@ export const RegistrationDetails = () => {
               to="/p/$name"
               variant="blue"
             >
-              Create Profile
+              {t`Create Profile`}
             </LinkButton>
           )}
         </div>

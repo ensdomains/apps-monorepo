@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { CheckCircle2 } from 'lucide-react'
 
 export const RegistrationCompletionBanner = () => {
@@ -9,10 +10,12 @@ export const RegistrationCompletionBanner = () => {
       />
       <div className="flex flex-col gap-1">
         <p className="font-medium text-ens-peridot-text-dark text-sm leading-5">
-          Registration Complete!
+          <Trans>Registration Complete!</Trans>
         </p>
         <p className="text-ens-peridot-text-medium text-sm leading-5">
-          Your ENS domain has been successfully registered and is now active.
+          <Trans>
+            Your ENS domain has been successfully registered and is now active.
+          </Trans>
         </p>
       </div>
     </div>

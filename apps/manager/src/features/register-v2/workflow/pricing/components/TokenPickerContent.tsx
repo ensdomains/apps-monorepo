@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
@@ -20,6 +21,7 @@ import { filterStablecoinBalances } from '../lib/tokenFilter'
 import { TokenListItem } from './TokenListItem'
 
 export const TokenPickerContent = () => {
+  const { t } = useLingui()
   const { label, uiActor } = useRegistrationV2Context()
   const [searchQuery, setSearchQuery] = useState('')
   const { stablecoinBalances, isLoadingBalances, isConnected, ownerAddress } =
@@ -76,11 +78,11 @@ export const TokenPickerContent = () => {
         <div className="flex flex-col items-center gap-4">
           <div className="flex flex-col items-center gap-2">
             <h2 className="text-center font-medium text-2xl text-ens-peridot-dense tracking-wide">
-              Select coin
+              <Trans>Select coin</Trans>
             </h2>
             <div className="flex flex-col items-center gap-1.5">
               <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-                Stables accepted
+                <Trans>Stables accepted</Trans>
               </p>
               <div className="flex items-center gap-1">
                 <USDTIcon className="h-7 w-7" />
@@ -92,10 +94,10 @@ export const TokenPickerContent = () => {
 
           <div className="w-full">
             <Input
-              aria-label="Search coins"
+              aria-label={t`Search coins`}
               className="h-9 rounded border-ens-gray-two"
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search coins"
+              placeholder={t`Search coins`}
               startIcon={<Search className="h-4 w-4 text-ens-gray" />}
               type="text"
               value={searchQuery}
@@ -114,24 +116,26 @@ export const TokenPickerContent = () => {
             .with({ isConnected: false }, () => (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <div className="mb-2 text-ens-gray text-sm">
-                  Please connect your wallet first
+                  <Trans>Please connect your wallet first</Trans>
                 </div>
                 <div className="text-ens-gray-three text-xs">
-                  You need to connect a wallet to see your stablecoin balances
+                  <Trans>
+                    You need to connect a wallet to see your stablecoin balances
+                  </Trans>
                 </div>
               </div>
             ))
             .with({ isLoadingBalances: true }, () => (
               <div className="flex items-center justify-center py-8">
                 <div className="text-ens-gray-two text-sm">
-                  Loading your stablecoin balances...
+                  <Trans>Loading your stablecoin balances...</Trans>
                 </div>
               </div>
             ))
             .with({ pricingLoading: true }, () => (
               <div className="flex items-center justify-center py-8">
                 <div className="text-ens-gray-two text-sm">
-                  Loading pricing...
+                  <Trans>Loading pricing...</Trans>
                 </div>
               </div>
             ))
@@ -141,10 +145,10 @@ export const TokenPickerContent = () => {
                   <Search className="h-8 w-8 text-ens-gray" />
                 </div>
                 <h3 className="mb-2 font-normal text-base text-ens-blue-dark">
-                  No coins found
+                  <Trans>No coins found</Trans>
                 </h3>
                 <p className="max-w-56 text-center text-base text-ens-gray">
-                  Try searching for a different coin or chain
+                  <Trans>Try searching for a different coin or chain</Trans>
                 </p>
               </div>
             ))
@@ -175,7 +179,7 @@ export const TokenPickerContent = () => {
         disabled={actionDisabled}
         onClick={() => uiActor.send({ type: 'pricing.step.next' })}
       >
-        Confirm Payment
+        <Trans>Confirm Payment</Trans>
       </Button>
     </div>
   )

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/react'
 import { addMonths, addSeconds, format } from 'date-fns'
 import { secondsInYear } from 'date-fns/constants'
@@ -38,10 +39,14 @@ export const PricingSummaryCard = () => {
   return (
     <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#DDDDDE] bg-white px-6 py-8 font-[350] text-neutral-800 text-xl leading-ens-none md:py-12 md:text-2xl">
       <div>
-        Registering for <span className="text-[#024A70]">{durationYears}</span>{' '}
-        years
+        <Trans>
+          Registering for <span className="text-[#024A70]">{durationYears}</span>{' '}
+          years
+        </Trans>
       </div>
-      <div>expiring on</div>
+      <div>
+        <Trans>expiring on</Trans>
+      </div>
       <Popover onOpenChange={setIsDatePopoverOpen} open={isDatePopoverOpen}>
         <PopoverTrigger asChild>
           <button

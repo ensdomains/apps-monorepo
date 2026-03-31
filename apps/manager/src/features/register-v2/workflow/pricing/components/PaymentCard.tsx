@@ -53,7 +53,7 @@ export const PaymentCard = () => {
             )}
           </span>
           <span className="font-normal text-base text-ens-blue-midnight leading-7">
-            USD
+            <Trans>USD</Trans>
           </span>
         </div>
       </div>

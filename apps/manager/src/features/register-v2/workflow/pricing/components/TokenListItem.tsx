@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { STABLECOINS } from '@/features/register/utils'
@@ -18,6 +19,7 @@ export const TokenListItem = ({
   priceUSD: number
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
 }) => {
+  const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
   const coinConfig = STABLECOINS[stablecoin.symbol as keyof typeof STABLECOINS]
   const IconComponent = coinConfig?.icon || USDCIcon
@@ -31,6 +33,7 @@ export const TokenListItem = ({
 
   return (
     <button
+      aria-label={t`Select ${stablecoin.symbol}`}
       className={cn(
         'flex h-11 items-center justify-between rounded px-2.5 py-4 transition-colors',
         isSelected ? 'bg-ens-blue-light' : 'hover:bg-ens-gray-two/50',
@@ -63,10 +66,14 @@ export const TokenListItem = ({
           >
             {formatUsd(coinBalanceUSD)}
           </p>
-          <span className="text-[#A0A4A6] text-sm">available</span>
+          <span className="text-[#A0A4A6] text-sm">
+            <Trans>available</Trans>
+          </span>
         </div>
         {hasInsufficientBalanceForCoin && priceUSD > 0 && (
-          <p className="text-ens-error text-xs">Need {formatUsd(priceUSD)}</p>
+          <p className="text-ens-error text-xs">
+            <Trans>Need {formatUsd(priceUSD)}</Trans>
+          </p>
         )}
       </div>
     </button>

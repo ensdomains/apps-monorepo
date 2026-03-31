@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { formatDuration } from 'date-fns'
 import { match, P } from 'ts-pattern'
 import { cn } from '@/lib/utils'
@@ -50,7 +51,7 @@ export const DurationPresetRow = ({
             )}
           >
             <span className="font-medium text-white text-xs leading-none tracking-tight md:text-base">
-              {discount}% off
+              <Trans>{discount}% off</Trans>
             </span>
           </div>
         )}
@@ -64,7 +65,7 @@ export const DurationPresetRow = ({
             )}
           </span>
           <span className="font-normal text-[#A0A4A6] text-xs leading-none tracking-tight md:text-base">
-            total
+            <Trans>total</Trans>
           </span>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { DurationSelector } from './components/DurationSelector'
@@ -14,7 +15,7 @@ const BackButton = () => {
     >
       <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
       <span className="font-medium text-sm leading-ens-none max-xl:hidden">
-        Back
+        <Trans>Back</Trans>
       </span>
     </Link>
   )

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { useSelector as useStoreSelector } from '@xstate/store-react'
 import { Button } from '@/components/ui/button'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
@@ -17,18 +18,22 @@ export const NotificationSettingsStep = ({
     <div className="mx-auto w-full max-w-5xl space-y-12 rounded-lg border-[#dededf] md:bg-white md:px-6 md:py-8 lg:my-5 lg:border">
       <div className="flex flex-col gap-4">
         <h1 className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
-          Notification Settings
+          <Trans>Notification Settings</Trans>
         </h1>
 
         <p className="text-[#717182] text-base">
-          Manage your notification preferences for your name(s) and ENS-related
-          updates.
+          <Trans>
+            Manage your notification preferences for your name(s) and ENS-related
+            updates.
+          </Trans>
         </p>
         {!isAuthed && (
           <>
             <p>
-              You need to verify your wallet ownership to manage your
-              notification preferences.
+              <Trans>
+                You need to verify your wallet ownership to manage your
+                notification preferences.
+              </Trans>
             </p>
             <div className="flex w-full gap-2 max-md:flex-col md:justify-end">
               <Button
@@ -37,7 +42,7 @@ export const NotificationSettingsStep = ({
                 size="xl"
                 variant="outline"
               >
-                Skip
+                <Trans>Skip</Trans>
               </Button>
               <Button
                 className="flex-1 uppercase"
@@ -47,7 +52,7 @@ export const NotificationSettingsStep = ({
                 size="xl"
                 variant="lightBlue"
               >
-                Verify Wallet
+                <Trans>Verify Wallet</Trans>
               </Button>
             </div>
           </>

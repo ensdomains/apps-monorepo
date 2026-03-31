@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
 import { match } from 'ts-pattern'
 
 export type RegisteringTxSnapshot = {
@@ -16,95 +18,95 @@ export const getRegistrationStageMessages = (
 ) =>
   match({ stage: tx.value, txState })
     .returnType<{
-      stageLabel: string
-      stageDescription?: string
+      stageLabel: MessageDescriptor
+      stageDescription?: MessageDescriptor
       progress: number
     }>()
     .with({ stage: 'idle' }, () => ({
-      stageLabel: 'Idle',
-      stageDescription: 'The registration flow is idle',
+      stageLabel: msg`Idle`,
+      stageDescription: msg`The registration flow is idle`,
       progress: 0,
     }))
     .with({ stage: 'deployingResolver' }, () => ({
-      stageLabel: 'Deploying resolver',
-      stageDescription: 'Deploying the resolver',
+      stageLabel: msg`Deploying resolver`,
+      stageDescription: msg`Deploying the resolver`,
       progress: 8,
     }))
     .with(
       { stage: 'waitingForResolverDeployment', txState: 'submitting' },
       () => ({
-        stageLabel: 'Waiting for resolver submission',
+        stageLabel: msg`Waiting for resolver submission`,
         progress: 10,
       }),
     )
     .with(
       { stage: 'waitingForResolverDeployment', txState: 'pending' },
       () => ({
-        stageLabel: 'Waiting for resolver deployment',
-        stageDescription: 'Waiting for the resolver deployment',
+        stageLabel: msg`Waiting for resolver deployment`,
+        stageDescription: msg`Waiting for the resolver deployment`,
         progress: 15,
       }),
     )
     .with({ stage: 'preparingCommitment' }, () => ({
-      stageLabel: 'Preparing commitment',
-      stageDescription: 'Preparing the commitment',
+      stageLabel: msg`Preparing commitment`,
+      stageDescription: msg`Preparing the commitment`,
       progress: 23,
     }))
     .with({ stage: 'committingTransaction' }, () => ({
-      stageLabel: 'Submitting commitment transaction',
-      stageDescription: 'Submitting the commitment transaction',
+      stageLabel: msg`Submitting commitment transaction`,
+      stageDescription: msg`Submitting the commitment transaction`,
       progress: 31,
     }))
     .with({ stage: 'waitingForCommitment', txState: 'submitting' }, () => ({
-      stageLabel: 'Waiting for commitment submission',
+      stageLabel: msg`Waiting for commitment submission`,
       progress: 31,
     }))
     .with({ stage: 'waitingForCommitment', txState: 'pending' }, () => ({
-      stageLabel: 'Waiting for commitment receipt',
+      stageLabel: msg`Waiting for commitment receipt`,
       progress: 35,
     }))
     .with({ stage: 'waitingForCommitment' }, () => ({
-      stageLabel: 'Waiting for commitment confirmation',
-      stageDescription: 'Waiting for the commitment confirmation',
+      stageLabel: msg`Waiting for commitment confirmation`,
+      stageDescription: msg`Waiting for the commitment confirmation`,
       progress: 38,
     }))
     .with({ stage: 'validatingCommitment' }, () => ({
-      stageLabel: 'Validating commitment',
-      stageDescription: 'Validating the commitment',
+      stageLabel: msg`Validating commitment`,
+      stageDescription: msg`Validating the commitment`,
       progress: 46,
     }))
     .with({ stage: 'approvingToken' }, () => ({
-      stageLabel: 'Approving payment token',
-      stageDescription: 'Approving the payment token',
+      stageLabel: msg`Approving payment token`,
+      stageDescription: msg`Approving the payment token`,
       progress: 54,
     }))
     .with({ stage: 'waitingForApproval' }, () => ({
-      stageLabel: 'Waiting for approval confirmation',
-      stageDescription: 'Waiting for the approval confirmation',
+      stageLabel: msg`Waiting for approval confirmation`,
+      stageDescription: msg`Waiting for the approval confirmation`,
       progress: 62,
     }))
     .with({ stage: 'registeringDomain' }, () => ({
-      stageLabel: 'Submitting registration transaction',
-      stageDescription: 'Submitting the registration transaction',
+      stageLabel: msg`Submitting registration transaction`,
+      stageDescription: msg`Submitting the registration transaction`,
       progress: 77,
     }))
     .with({ stage: 'waitingForRegistration' }, () => ({
-      stageLabel: 'Waiting for registration confirmation',
-      stageDescription: 'Waiting for the registration confirmation',
+      stageLabel: msg`Waiting for registration confirmation`,
+      stageDescription: msg`Waiting for the registration confirmation`,
       progress: 90,
     }))
     .with({ stage: 'success' }, () => ({
-      stageLabel: 'Registration complete',
-      stageDescription: 'Registration complete',
+      stageLabel: msg`Registration complete`,
+      stageDescription: msg`Registration complete`,
       progress: 100,
     }))
     .with({ stage: 'error' }, () => ({
-      stageLabel: 'Registration failed',
-      stageDescription: 'Registration failed',
+      stageLabel: msg`Registration failed`,
+      stageDescription: msg`Registration failed`,
       progress: 0,
     }))
     .otherwise(() => ({
-      stageLabel: 'Registration in progress',
-      stageDescription: 'Registration in progress',
+      stageLabel: msg`Registration in progress`,
+      stageDescription: msg`Registration in progress`,
       progress: 0,
     }))

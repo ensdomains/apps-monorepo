@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { getByteLength, getDomainHeaderSizeClasses } from '@/utils/domain'
 import { twm } from '@/utils/tailwind'
@@ -5,6 +6,7 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { getPremiumLabel } from '../lib/premiumLabel'
 
 export const PricingDomainHeader = () => {
+  const { _ } = useLingui()
   const { label } = useRegistrationV2Context()
 
   const name = `${label}.eth`
@@ -15,7 +17,7 @@ export const PricingDomainHeader = () => {
     <div className="flex flex-col items-center gap-3 text-center md:items-start md:text-left">
       {premiumLabel && (
         <DomainAttributePill
-          label={premiumLabel.label}
+          label={_(premiumLabel.label)}
           variant={premiumLabel.variant}
         />
       )}

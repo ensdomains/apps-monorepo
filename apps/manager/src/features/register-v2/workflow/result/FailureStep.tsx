@@ -1,9 +1,11 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { XCircle } from 'lucide-react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Button } from '@/components/ui/button'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
+  const { t } = useLingui()
   const { uiActor, label } = RegisterV2Context.use()
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
@@ -18,11 +20,11 @@ export const FailureStep = () => {
         />
         <div className="flex flex-col gap-1">
           <p className="font-medium text-ens-garnet-dense text-sm leading-5">
-            Registration Failed
+            <Trans>Registration Failed</Trans>
           </p>
           <p className="text-ens-garnet-dense/70 text-sm leading-5">
             {message ??
-              `The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
+              t`The registration for ${label}.eth could not be completed. You can retry or go back to adjust your settings.`}
           </p>
         </div>
       </div>
@@ -35,11 +37,13 @@ export const FailureStep = () => {
         <div className="flex w-full flex-col gap-6 lg:w-1/2">
           <div className="flex flex-col gap-1.5">
             <h3 className="font-medium text-ens-blue-dark text-xl tracking-tight">
-              What would you like to do?
+              <Trans>What would you like to do?</Trans>
             </h3>
             <p className="text-ens-gray text-sm">
-              Retrying will attempt the registration again from where it left
-              off.
+              <Trans>
+                Retrying will attempt the registration again from where it left
+                off.
+              </Trans>
             </p>
           </div>
 
@@ -51,7 +55,7 @@ export const FailureStep = () => {
               type="button"
               variant="blue"
             >
-              Try Again
+              <Trans>Try Again</Trans>
             </Button>
             <Button
               className="flex-1"
@@ -60,7 +64,7 @@ export const FailureStep = () => {
               type="button"
               variant="lightBlue"
             >
-              Back to Quote
+              <Trans>Back to Quote</Trans>
             </Button>
           </div>
         </div>

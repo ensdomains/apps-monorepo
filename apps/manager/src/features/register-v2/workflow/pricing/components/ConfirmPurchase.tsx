@@ -1,4 +1,6 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { Trans } from '@lingui/react/macro'
+import { useLingui } from '@lingui/react'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { zeroAddress } from 'viem'
@@ -16,6 +18,7 @@ import { truncateName } from '../../../utils/truncate-name'
 import { getPremiumLabel } from '../lib/premiumLabel'
 
 export const ConfirmPurchase = () => {
+  const { _ } = useLingui()
   const { label, uiActor } = useRegistrationV2Context()
   const account = useSmartAccountContext()
   const [duration, selectedToken] = useSelector(
@@ -54,13 +57,13 @@ export const ConfirmPurchase = () => {
     <div className="flex h-full flex-1 flex-col justify-between gap-4 px-4">
       <div className="flex flex-col items-center gap-6">
         <h2 className="text-center font-medium text-2xl text-ens-lapis-dense tracking-wide">
-          Registering
+          <Trans>Registering</Trans>
         </h2>
 
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
           {premiumLabel && (
             <DomainAttributePill
-              label={premiumLabel.label}
+              label={_(premiumLabel.label)}
               variant={premiumLabel.variant}
             />
           )}
@@ -77,7 +80,9 @@ export const ConfirmPurchase = () => {
         </div>
 
         <div className="flex flex-col items-center">
-          <span className="text-base text-ens-gray">for</span>
+          <span className="text-base text-ens-gray">
+            <Trans>for</Trans>
+          </span>
           <div className="flex items-baseline gap-1">
             <SelectedCoinIcon className="h-6 w-6 self-center" />
             <span className="font-medium text-2xl text-ens-gray tracking-tight">
@@ -110,7 +115,7 @@ export const ConfirmPurchase = () => {
           })
         }}
       >
-        Buy Name
+        <Trans>Buy Name</Trans>
       </Button>
     </div>
   )

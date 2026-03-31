@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
 import {
   Dialog,
@@ -18,6 +19,7 @@ import { ConfirmPurchase } from './ConfirmPurchase'
 import { TokenPickerContent } from './TokenPickerContent'
 
 export const TokenPickerDialog = () => {
+  const { t } = useLingui()
   const { uiActor } = useRegistrationV2Context()
   const isDesktop = useMediaQuery('(min-width: 1024px)')
 
@@ -36,8 +38,8 @@ export const TokenPickerDialog = () => {
   }
 
   const header = match(pricingStep)
-    .with('tokens', () => 'Select coin')
-    .with('confirm', () => 'Confirm purchase')
+    .with('tokens', () => t`Select coin`)
+    .with('confirm', () => t`Confirm purchase`)
     .otherwise(() => undefined)
 
   const content = match(pricingStep)

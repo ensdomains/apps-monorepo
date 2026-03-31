@@ -1,5 +1,11 @@
+import type { MessageDescriptor } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
 import { match } from 'ts-pattern'
-import type { PremiumLabel } from '@/features/register/utils'
+
+export type PremiumLabel = {
+  label: MessageDescriptor
+  variant: 'premium-3' | 'premium-4'
+}
 
 export const getPremiumLabel = (
   labelLength: number,
@@ -8,11 +14,11 @@ export const getPremiumLabel = (
     .with(
       3,
       () =>
-        ({ label: '3 character premium name', variant: 'premium-3' }) as const,
+        ({ label: msg`3 character premium name`, variant: 'premium-3' }) as const,
     )
     .with(
       4,
       () =>
-        ({ label: '4 character premium name', variant: 'premium-4' }) as const,
+        ({ label: msg`4 character premium name`, variant: 'premium-4' }) as const,
     )
     .otherwise(() => undefined)

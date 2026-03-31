@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { secondsInYear } from 'date-fns/constants'
 import { useState } from 'react'
 import { MIN_REGISTER_DURATION_YEARS } from '@/features/register/components/Pricing/utils'
@@ -13,6 +14,7 @@ export const DurationCustomRow = ({
   onDurationSet: (duration: number) => void
   isSelected: boolean
 }) => {
+  const { t } = useLingui()
   const [inputDraft, setInputDraft] = useState<string | null>(null)
   const customValue = (selectedDuration / secondsInYear).toLocaleString(
     'en-US',
@@ -32,7 +34,7 @@ export const DurationCustomRow = ({
       htmlFor="custom-duration-input"
     >
       <div className="whitespace-nowrap font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-lg">
-        Enter custom duration
+        <Trans>Enter custom duration</Trans>
       </div>
 
       <div
@@ -42,7 +44,7 @@ export const DurationCustomRow = ({
         )}
       >
         <input
-          aria-label="Custom duration in years"
+          aria-label={t`Custom duration in years`}
           className={cn(
             'field-sizing-content',
             'border-none bg-transparent outline-none',
@@ -103,7 +105,7 @@ export const DurationCustomRow = ({
           value={inputDraft ?? customValue}
         />
         <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
-          years
+          <Trans>years</Trans>
         </span>
       </div>
     </label>
