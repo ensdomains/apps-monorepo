@@ -28,8 +28,6 @@ import {
 } from './classifyNames'
 import type { V1Domain } from './v1SubgraphClient'
 
-// --- Error types ---
-
 export class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
   step?: string
@@ -40,8 +38,6 @@ export class MigrationUserRejectedError extends TaggedError(
 )<{
   step: string
 }> {}
-
-// --- Progress tracking ---
 
 export type MigrationProgress = {
   currentStep: number
@@ -61,15 +57,12 @@ export type MigrationResult = {
   skipped: SkippedName[]
 }
 
-// --- Pre-flight checks ---
-
-export type PreFlightResult = {
+type PreFlightResult = {
   valid: ClassifiedName[]
   notReserved: ClassifiedName[]
   frozen: ClassifiedName[]
 }
 
-/** Race a promise against a timeout. Returns fallback on timeout or error. */
 async function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
@@ -87,15 +80,8 @@ async function withTimeout<T>(
 
 const PREFLIGHT_TIMEOUT = 8000
 
-/**
- * Verify names are RESERVED (premigrated) in the v2 ETHRegistry.
- *
- * Per the spec, premigration sets every ENSv1 name as RESERVED in ETHRegistry
- * with a resolver pointing to ENSV1Resolver. If the resolver is zero, the name
- * hasn't been premigrated and migration will fail with an authorization error.
- *
- * If the check fails or times out, names pass through (let the contract validate).
- */
+// Checks if 2LD names are RESERVED in v2 ETHRegistry (resolver != zeroAddress).
+// On timeout/error, names pass through and the contract validates instead.
 async function filterNotReserved(
   publicClient: PublicClient,
   names: ClassifiedName[],
@@ -114,7 +100,6 @@ async function filterNotReserved(
   const notReserved: ClassifiedName[] = []
 
   for (const name of twoLDs) {
-    // Use a sentinel value to detect timeout/error — null means "skip check"
     const resolver = await withTimeout(
       readContract(publicClient, {
         address: V2_CONTRACTS.ETHRegistry,
@@ -126,12 +111,8 @@ async function filterNotReserved(
       null,
     )
 
-    // null = check failed/timed out, let the contract validate instead
     if (resolver === null) continue
-
-    if (resolver === zeroAddress) {
-      notReserved.push(name)
-    }
+    if (resolver === zeroAddress) notReserved.push(name)
   }
 
   if (notReserved.length === 0) {
@@ -143,14 +124,8 @@ async function filterNotReserved(
   return { valid, notReserved }
 }
 
-/**
- * Check locked names for FrozenTokenApproval condition.
- *
- * Per the spec: if CANNOT_APPROVE is burned AND getApproved() is non-null,
- * the migration will revert with FrozenTokenApproval. We check this upfront.
- *
- * If the check fails or times out, names pass through (let the contract validate).
- */
+// Checks locked names with CANNOT_APPROVE for non-null getApproved() (FrozenTokenApproval).
+// On timeout/error, names pass through and the contract validates instead.
 async function filterFrozenApprovals(
   publicClient: PublicClient,
   names: ClassifiedName[],
@@ -180,12 +155,8 @@ async function filterFrozenApprovals(
       null,
     )
 
-    // null = check failed/timed out, let the contract validate
     if (approved === null) continue
-
-    if (approved !== zeroAddress) {
-      frozen.push(name)
-    }
+    if (approved !== zeroAddress) frozen.push(name)
   }
 
   if (frozen.length === 0) {
@@ -197,10 +168,6 @@ async function filterFrozenApprovals(
   return { valid, frozen }
 }
 
-/**
- * Run all pre-flight checks on classified names.
- * Defensive: if any check fails or times out, affected names pass through.
- */
 async function runPreFlightChecks(
   publicClient: PublicClient,
   names: ClassifiedName[],
@@ -218,18 +185,10 @@ async function runPreFlightChecks(
       frozen: frozenResult.frozen,
     }
   } catch {
-    // If pre-flight checks fail entirely, skip them and let contracts validate
     return { valid: names, notReserved: [], frozen: [] }
   }
 }
 
-// --- Subregistry lookup ---
-
-/**
- * Look up the WrapperRegistry address for a locked parent name.
- * Traverses the v2 registry chain from ETHRegistry downward.
- * Returns zeroAddress if any parent in the chain hasn't been migrated yet.
- */
 async function getParentWrapperRegistry(
   publicClient: PublicClient,
   parentLabels: string[],
@@ -247,32 +206,19 @@ async function getParentWrapperRegistry(
       args: [label],
     })
 
-    if (subregistry === zeroAddress) {
-      return zeroAddress
-    }
-
+    if (subregistry === zeroAddress) return zeroAddress
     currentRegistry = subregistry as Address
   }
 
   return currentRegistry
 }
 
-/**
- * Parse parent labels from a classified name for registry traversal.
- * Returns labels from .eth downward to the immediate parent.
- *
- * e.g. "sub.nick.eth" → ["nick"]
- *      "deep.sub.nick.eth" → ["nick", "sub"]
- */
+// Returns labels from .eth downward: "sub.nick.eth" → ["nick"], "deep.sub.nick.eth" → ["nick", "sub"]
 function getParentLabels(name: ClassifiedName): string[] {
   const fullParts = name.domain.name.split('.')
-  // Remove the name's own label (first) and "eth" suffix (last)
   const parentParts = fullParts.slice(1, -1)
-  // Reverse to traverse from .eth downward
   return parentParts.reverse()
 }
-
-// --- Step count calculation ---
 
 function countSteps(groups: GroupedNames): number {
   let count = 0
@@ -283,14 +229,10 @@ function countSteps(groups: GroupedNames): number {
   return count
 }
 
-// --- Transaction execution helpers ---
-
 async function executeCall(
   wagmiConfig: WagmiConfig,
   call: MigrationCall,
 ): Promise<Hex> {
-  // writeContract's generic signature makes direct union typing difficult,
-  // so we narrow by call type to preserve ABI-level type safety
   let hash: Hex
   switch (call.type) {
     case 'unwrapped':
@@ -320,26 +262,8 @@ function isUserRejection(error: unknown): boolean {
   return false
 }
 
-// --- Main execution ---
-
-/**
- * Execute the full migration for a set of V1 domains.
- *
- * Flow:
- * 1. Classify and group names by migration type
- * 2. Pre-flight: filter out names with FrozenTokenApproval (CANNOT_APPROVE + non-null approval)
- * 3. Execute sequentially:
- *    a. Unwrapped names → individual BaseRegistrar.safeTransferFrom (ERC-721)
- *    b. Unlocked names → batch NameWrapper.safeBatchTransferFrom → UnlockedMigrationController
- *    c. Locked 2LD names → batch NameWrapper.safeBatchTransferFrom → LockedMigrationController
- *    d. Locked children → per-parent batch → parent's WrapperRegistry
- * 4. Report progress via callback
- *
- * All transactions are sent from the connected EOA wallet which owns the V1 tokens.
- */
 export async function executeMigration(params: {
   domains: V1Domain[]
-  /** The address to receive names in v2 (and used for subgraph ownership check) */
   migrationOwner: Address
   defaultResolver: Address
   wagmiConfig: WagmiConfig
@@ -355,13 +279,11 @@ export async function executeMigration(params: {
     onProgress,
   } = params
 
-  // Classify and filter (uses migrationOwner for ownership matching)
   const classified = classifyNames(domains, migrationOwner)
   if (classified.length === 0) {
     return { completed: 0, txHashes: [], skipped: [] }
   }
 
-  // Pre-flight checks: verify premigration status and approval state
   const preflight = await runPreFlightChecks(publicClient, classified)
 
   const skipped: SkippedName[] = [
@@ -375,7 +297,6 @@ export async function executeMigration(params: {
     })),
   ]
 
-  // Throw descriptive error if ALL names failed pre-flight
   if (preflight.valid.length === 0) {
     const reasons: string[] = []
     if (preflight.notReserved.length > 0) {
@@ -403,7 +324,6 @@ export async function executeMigration(params: {
   const txHashes: Hex[] = []
   let stepIndex = 0
 
-  // Step: Migrate unwrapped names (individual ERC-721 transfers)
   if (groups.unwrapped.length > 0) {
     onProgress({
       currentStep: stepIndex,
@@ -439,7 +359,6 @@ export async function executeMigration(params: {
     })
   }
 
-  // Step: Migrate unlocked names (batch ERC-1155 transfer)
   if (groups.unlocked.length > 0) {
     onProgress({
       currentStep: stepIndex,
@@ -473,7 +392,6 @@ export async function executeMigration(params: {
     })
   }
 
-  // Step: Migrate locked 2LD names (batch ERC-1155 transfer)
   if (groups.locked2ld.length > 0) {
     onProgress({
       currentStep: stepIndex,
@@ -507,7 +425,6 @@ export async function executeMigration(params: {
     })
   }
 
-  // Step: Migrate locked children (per-parent batch)
   for (const [parentName, children] of groups.lockedChildren) {
     onProgress({
       currentStep: stepIndex,
@@ -515,7 +432,6 @@ export async function executeMigration(params: {
       description: `Migrating subnames under ${parentName}`,
     })
 
-    // Resolve parent WrapperRegistry by traversing the v2 registry chain
     const firstChild = children[0]
     if (!firstChild) continue
 
@@ -577,10 +493,6 @@ export async function executeMigration(params: {
   return { completed: validNames.length, txHashes, skipped }
 }
 
-/**
- * Pre-compute the number of migration steps for a set of domains.
- * Useful for setting up progress UI before starting migration.
- */
 export function getMigrationStepCount(
   domains: V1Domain[],
   ownerAddress: Address,
@@ -590,9 +502,6 @@ export function getMigrationStepCount(
   return countSteps(groups)
 }
 
-/**
- * Get step descriptions for migration progress UI.
- */
 export function getMigrationStepDescriptions(
   domains: V1Domain[],
   ownerAddress: Address,
