@@ -115,40 +115,38 @@ export function classifyNames(
 }
 
 export type GroupedNames = {
-  readonly unwrapped: ClassifiedName[]
-  readonly unlocked: ClassifiedName[]
-  readonly locked2ld: ClassifiedName[]
-  readonly lockedChildren: Map<string, ClassifiedName[]>
+  readonly unwrapped: readonly ClassifiedName[]
+  readonly unlocked: readonly ClassifiedName[]
+  readonly locked2ld: readonly ClassifiedName[]
+  readonly lockedChildren: ReadonlyMap<string, readonly ClassifiedName[]>
 }
 
 export function groupClassifiedNames(names: ClassifiedName[]): GroupedNames {
-  const groups: GroupedNames = {
-    unwrapped: [],
-    unlocked: [],
-    locked2ld: [],
-    lockedChildren: new Map(),
-  }
+  const unwrapped: ClassifiedName[] = []
+  const unlocked: ClassifiedName[] = []
+  const locked2ld: ClassifiedName[] = []
+  const lockedChildren = new Map<string, ClassifiedName[]>()
 
   for (const name of names) {
     switch (name.tokenType) {
       case 'unwrapped':
-        groups.unwrapped.push(name)
+        unwrapped.push(name)
         break
       case 'unlocked':
-        groups.unlocked.push(name)
+        unlocked.push(name)
         break
       case 'locked-2ld':
-        groups.locked2ld.push(name)
+        locked2ld.push(name)
         break
       case 'locked-child': {
         const parent = name.parentName ?? 'unknown'
-        const existing = groups.lockedChildren.get(parent) ?? []
+        const existing = lockedChildren.get(parent) ?? []
         existing.push(name)
-        groups.lockedChildren.set(parent, existing)
+        lockedChildren.set(parent, existing)
         break
       }
     }
   }
 
-  return groups
+  return { unwrapped, unlocked, locked2ld, lockedChildren }
 }

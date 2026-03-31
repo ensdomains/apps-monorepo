@@ -10,35 +10,35 @@ import {
 } from './encodeMigration'
 
 export type UnwrappedMigrationCall = {
-  type: 'unwrapped'
-  name: ClassifiedName
-  request: {
-    address: Address
-    abi: typeof BASE_REGISTRAR_ABI
-    functionName: 'safeTransferFrom'
-    args: readonly [Address, Address, bigint, Hex]
+  readonly type: 'unwrapped'
+  readonly name: ClassifiedName
+  readonly request: {
+    readonly address: Address
+    readonly abi: typeof BASE_REGISTRAR_ABI
+    readonly functionName: 'safeTransferFrom'
+    readonly args: readonly [Address, Address, bigint, Hex]
   }
 }
 
 export type WrappedSingleMigrationCall = {
-  type: 'wrapped-single'
-  name: ClassifiedName
-  request: {
-    address: Address
-    abi: typeof NAME_WRAPPER_ABI
-    functionName: 'safeTransferFrom'
-    args: readonly [Address, Address, bigint, bigint, Hex]
+  readonly type: 'wrapped-single'
+  readonly name: ClassifiedName
+  readonly request: {
+    readonly address: Address
+    readonly abi: typeof NAME_WRAPPER_ABI
+    readonly functionName: 'safeTransferFrom'
+    readonly args: readonly [Address, Address, bigint, bigint, Hex]
   }
 }
 
 export type WrappedBatchMigrationCall = {
-  type: 'wrapped-batch'
-  names: ClassifiedName[]
-  request: {
-    address: Address
-    abi: typeof NAME_WRAPPER_ABI
-    functionName: 'safeBatchTransferFrom'
-    args: readonly [Address, Address, bigint[], bigint[], Hex]
+  readonly type: 'wrapped-batch'
+  readonly names: readonly ClassifiedName[]
+  readonly request: {
+    readonly address: Address
+    readonly abi: typeof NAME_WRAPPER_ABI
+    readonly functionName: 'safeBatchTransferFrom'
+    readonly args: readonly [Address, Address, bigint[], bigint[], Hex]
   }
 }
 
@@ -146,7 +146,7 @@ export function buildWrappedSingleCall(params: {
 }
 
 export function buildWrappedBatchCall(params: {
-  names: ClassifiedName[]
+  names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
   target: Address
@@ -182,7 +182,7 @@ export function buildWrappedBatchCall(params: {
 }
 
 export function buildWrappedCalls(params: {
-  names: ClassifiedName[]
+  names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
   target: Address
