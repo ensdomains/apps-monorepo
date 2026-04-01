@@ -1,7 +1,4 @@
-import {
-  extendChainWithL1Ens,
-  extendChainWithL2Ens,
-} from '@ensdomains/ensjs/chain'
+import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
 import { injected } from '@wagmi/core'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -22,42 +19,10 @@ export const customSepolia = {
 }
 
 export const sepoliaWithEns = extendChainWithL1Ens(customSepolia)
-export const namechainSepolia = extendChainWithL2Ens(sepolia)
-
-const ccipReadConfig = {
-  async request({
-    data,
-    sender,
-  }: {
-    data: `0x${string}`
-    sender: `0x${string}`
-  }) {
-    const response = await fetch('https://raffy.box/urg/', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ data, sender }),
-    })
-    const json = (await response.json()) as { data?: unknown }
-    const result = json?.data
-
-    if (typeof result !== 'string' || !result.startsWith('0x')) {
-      throw new Error(
-        `Invalid CCIP read response, expected { data: '0x...' }, got: ${JSON.stringify(
-          json,
-        )}`,
-      )
-    }
-
-    return result as `0x${string}`
-  },
-}
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
   transport: http(SEPOLIA_RPC_URL),
-  ccipRead: ccipReadConfig,
   batch: {
     multicall: true,
   },
@@ -67,11 +32,10 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns, namechainSepolia],
+  chains: [sepoliaWithEns],
   transports: {
     [customSepolia.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
   },
-  ccipRead: ccipReadConfig,
   connectors: [
     injected(),
     walletConnect({
