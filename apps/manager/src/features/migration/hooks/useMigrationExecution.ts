@@ -34,6 +34,7 @@ export function useMigrationExecution(
 ) {
   const startedRef = useRef(false)
   const [done, setDone] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const { migrateAsync, progress } = useMigrateNames()
   const { ownerAddress } = useSmartAccountContext()
@@ -64,12 +65,15 @@ export function useMigrationExecution(
         setTimeout(() => onCompleteRef.current(result), hugDelay)
       })
       .catch((err: unknown) => {
-        onErrorRef.current(extractErrorMessage(err))
+        const msg = extractErrorMessage(err)
+        setErrorMessage(msg)
+        setTimeout(() => onErrorRef.current(msg), 1500)
       })
   }, [])
 
   return {
     done,
+    errorMessage,
     progress,
     stepCount,
     stepDescriptions,

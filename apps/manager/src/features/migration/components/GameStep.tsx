@@ -19,15 +19,12 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const trackRef = useRef<HTMLDivElement>(null)
   const [trackWidth, setTrackWidth] = useState(0)
 
-  const { done, progress, stepCount, stepDescriptions } = useMigrationExecution(
-    domains,
-    onComplete,
-    onError,
-    HUG_DELAY,
-  )
+  const { done, errorMessage, progress, stepCount, stepDescriptions } =
+    useMigrationExecution(domains, onComplete, onError, HUG_DELAY)
 
   const totalSteps = Math.max(stepCount, 1)
   const completedSteps = progress?.currentStep ?? 0
+  const hasCollapsed = !!errorMessage
 
   useEffect(() => {
     const el = trackRef.current
@@ -45,7 +42,7 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
     trackWidth > 0 ? ((plankIndex + 0.5) / totalSteps) * trackWidth : 0
 
   // Excited when tx is signed but step hasn't completed yet
-  const isExcited = !!progress?.txHash && !done
+  const isExcited = !!progress?.txHash && !done && !hasCollapsed
 
   const descriptionText = done
     ? t`Almost there...`
@@ -55,19 +52,32 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)
 
+  const collapseTransition = {
+    duration: 0.8,
+    ease: [0.55, 0, 1, 0.45] as const,
+  }
+
   return (
     <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
       <div
         className="flex w-full flex-col items-center"
         style={{ height: 400 }}
       >
-        <div className="flex h-11 shrink-0 items-center">
+        <motion.div
+          animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+          className="flex h-11 shrink-0 items-center"
+          transition={{ duration: 0.3 }}
+        >
           <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Upgrading your names...</Trans>
           </p>
-        </div>
+        </motion.div>
 
-        <div className="flex h-6 shrink-0 items-center overflow-hidden">
+        <motion.div
+          animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+          className="flex h-6 shrink-0 items-center overflow-hidden"
+          transition={{ duration: 0.3 }}
+        >
           <AnimatePresence mode="popLayout">
             <motion.span
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -80,7 +90,7 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
               {descriptionText}
             </motion.span>
           </AnimatePresence>
-        </div>
+        </motion.div>
 
         <div className="relative mt-2 h-[280px] w-full shrink-0">
           <motion.div
@@ -88,14 +98,23 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
             className="absolute inset-0"
             transition={{ duration: 0.5, ease: 'easeOut' }}
           >
+            {/* Characters */}
             <div
               className="absolute right-[90px] bottom-[42px] left-0 z-10"
               ref={trackRef}
             >
               <motion.div
-                animate={{ x: frensX }}
+                animate={
+                  hasCollapsed
+                    ? { x: frensX, y: 300, rotate: 15, opacity: 0 }
+                    : { x: frensX }
+                }
                 className="-translate-x-1/2 absolute bottom-0 left-0"
-                transition={{ type: 'spring', stiffness: 80, damping: 18 }}
+                transition={
+                  hasCollapsed
+                    ? { duration: 1, ease: [0.36, 0, 0.66, -0.56] }
+                    : { type: 'spring', stiffness: 80, damping: 18 }
+                }
               >
                 <div className="flex items-end gap-1">
                   <motion.img
@@ -190,39 +209,86 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
               </motion.div>
             </div>
 
+            {/* Giant */}
             <motion.div
               animate={
-                isExcited
-                  ? { y: [0, -14, 0], scale: [1, 1.05, 1] }
-                  : { y: [0, -6, 0] }
+                hasCollapsed
+                  ? { y: 300, rotate: -10, opacity: 0 }
+                  : isExcited
+                    ? { y: [0, -14, 0], scale: [1, 1.05, 1] }
+                    : { y: [0, -6, 0] }
               }
               className="absolute right-0 bottom-[10px]"
               transition={
-                isExcited
-                  ? {
-                      duration: 0.7,
-                      ease: 'easeInOut',
-                      repeat: Number.POSITIVE_INFINITY,
-                    }
-                  : {
-                      duration: 4,
-                      ease: 'easeInOut',
-                      repeat: Number.POSITIVE_INFINITY,
-                    }
+                hasCollapsed
+                  ? { duration: 0.9, ease: [0.36, 0, 0.66, -0.56], delay: 0.1 }
+                  : isExcited
+                    ? {
+                        duration: 0.7,
+                        ease: 'easeInOut',
+                        repeat: Number.POSITIVE_INFINITY,
+                      }
+                    : {
+                        duration: 4,
+                        ease: 'easeInOut',
+                        repeat: Number.POSITIVE_INFINITY,
+                      }
               }
             >
               <img alt="" className="h-[93px]" src="/frens/giant.svg" />
             </motion.div>
 
-            <div className="absolute right-[90px] bottom-[10px] left-0">
+            {/* Bridge */}
+            <motion.div
+              animate={
+                hasCollapsed
+                  ? { y: 300, opacity: 0, rotate: 3 }
+                  : { y: 0, opacity: 1, rotate: 0 }
+              }
+              className="absolute right-[90px] bottom-[10px] left-0"
+              style={{ transformOrigin: 'center bottom' }}
+              transition={hasCollapsed ? collapseTransition : { duration: 0 }}
+            >
               <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
 
               <div className="flex items-stretch gap-1.5">
-                <div className="w-1 rounded-sm bg-ens-garnet-900/40" />
+                <motion.div
+                  animate={
+                    hasCollapsed
+                      ? { y: 20, rotate: -8, opacity: 0 }
+                      : { y: 0, rotate: 0, opacity: 1 }
+                  }
+                  className="w-1 rounded-sm bg-ens-garnet-900/40"
+                  transition={
+                    hasCollapsed
+                      ? { ...collapseTransition, delay: 0 }
+                      : { duration: 0 }
+                  }
+                />
                 {stepIds.map((id, i) => {
                   const stepDone = i < completedSteps
                   return (
-                    <div className="flex flex-1 items-stretch" key={id}>
+                    <motion.div
+                      animate={
+                        hasCollapsed
+                          ? {
+                              y: 40 + i * 15,
+                              rotate: i % 2 === 0 ? 12 : -10,
+                              opacity: 0,
+                            }
+                          : { y: 0, rotate: 0, opacity: 1 }
+                      }
+                      className="flex flex-1 items-stretch"
+                      key={id}
+                      transition={
+                        hasCollapsed
+                          ? {
+                              ...collapseTransition,
+                              delay: 0.05 + i * 0.06,
+                            }
+                          : { duration: 0 }
+                      }
+                    >
                       <motion.div
                         animate={
                           stepDone ? { scaleX: 1, opacity: 1 } : undefined
@@ -238,23 +304,44 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
                         }
                         transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
                       />
-                      <div
+                      <motion.div
+                        animate={
+                          hasCollapsed
+                            ? {
+                                y: 30 + i * 10,
+                                rotate: i % 2 === 0 ? -15 : 8,
+                                opacity: 0,
+                              }
+                            : { y: 0, rotate: 0, opacity: 1 }
+                        }
                         className={cn(
                           'ml-1.5 w-1 rounded-sm',
                           stepDone
                             ? 'bg-ens-garnet-900/40'
                             : 'bg-ens-garnet-900/10',
                         )}
+                        transition={
+                          hasCollapsed
+                            ? {
+                                ...collapseTransition,
+                                delay: 0.08 + i * 0.06,
+                              }
+                            : { duration: 0 }
+                        }
                       />
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
 
               <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
-            </div>
+            </motion.div>
 
-            <div className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5" />
+            <motion.div
+              animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+              className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5"
+              transition={hasCollapsed ? { duration: 0.3 } : { duration: 0 }}
+            />
           </motion.div>
 
           <motion.div

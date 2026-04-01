@@ -17,7 +17,6 @@ import {
   buildUnwrappedCall,
   buildUnwrappedMulticall,
   buildWrappedCalls,
-  type MigrationCall,
 } from './buildMigrationCalls'
 import {
   buildPreMigrateCall,
@@ -226,100 +225,20 @@ function getParentLabels(name: ClassifiedName): string[] {
   return parentParts.reverse()
 }
 
+function has2LDNames(groups: GroupedNames): boolean {
+  return (
+    groups.unwrapped.length > 0 ||
+    groups.unlocked.length > 0 ||
+    groups.locked2ld.length > 0
+  )
+}
+
 function countSteps(groups: GroupedNames, includePreMigrate: boolean): number {
   let count = 0
   if (includePreMigrate) count++
-  if (groups.unwrapped.length > 0) count++
-  if (groups.unlocked.length > 0) count++
-  if (groups.locked2ld.length > 0) count++
+  if (has2LDNames(groups)) count++
   count += groups.lockedChildren.size
   return count
-}
-
-async function executeCall(
-  wagmiConfig: WagmiConfig,
-  call: MigrationCall,
-  onSigned?: (hash: Hex) => void,
-): Promise<Hex> {
-  let hash: Hex
-  switch (call.type) {
-    case 'unwrapped':
-      hash = await writeContract(wagmiConfig, call.request)
-      break
-    case 'wrapped-single':
-      hash = await writeContract(wagmiConfig, call.request)
-      break
-    case 'wrapped-batch':
-      hash = await writeContract(wagmiConfig, call.request)
-      break
-  }
-
-  onSigned?.(hash)
-  await waitForTransactionReceipt(wagmiConfig, { hash })
-  return hash
-}
-
-async function executeWrappedWithFallback(params: {
-  wagmiConfig: WagmiConfig
-  names: readonly ClassifiedName[]
-  migrationOwner: Address
-  defaultResolver: Address
-  target: Address
-  skipped: SkippedName[]
-  onSigned?: (hash: Hex) => void
-}): Promise<Hex[]> {
-  const {
-    wagmiConfig,
-    names,
-    migrationOwner,
-    defaultResolver,
-    target,
-    skipped,
-    onSigned,
-  } = params
-  const hashes: Hex[] = []
-
-  const call = buildWrappedCalls({
-    names,
-    migrationOwner,
-    defaultResolver,
-    target,
-  })
-
-  try {
-    const hash = await executeCall(wagmiConfig, call, onSigned)
-    hashes.push(hash)
-    return hashes
-  } catch (error) {
-    if (isUserRejection(error)) throw error
-    // Batch failed — fall back to individual calls
-    if (names.length <= 1) {
-      skipped.push({
-        name: names[0]?.domain.name ?? 'unknown',
-        reason: 'transfer-failed',
-      })
-      return hashes
-    }
-  }
-
-  for (const name of names) {
-    const singleCall = buildWrappedCalls({
-      names: [name],
-      migrationOwner,
-      defaultResolver,
-      target,
-    })
-
-    try {
-      const hash = await executeCall(wagmiConfig, singleCall, onSigned)
-      hashes.push(hash)
-    } catch (error) {
-      if (isUserRejection(error)) throw error
-      skipped.push({ name: name.domain.name, reason: 'transfer-failed' })
-    }
-  }
-
-  return hashes
 }
 
 function isUserRejection(error: unknown): boolean {
@@ -332,6 +251,114 @@ function isUserRejection(error: unknown): boolean {
     )
   }
   return false
+}
+
+// Signs an unwrapped migration tx (Multicall3 for batch, direct for single).
+// Returns the tx hash without waiting for receipt.
+async function signUnwrappedTx(params: {
+  wagmiConfig: WagmiConfig
+  names: readonly ClassifiedName[]
+  migrationOwner: Address
+  defaultResolver: Address
+}): Promise<Hex> {
+  const { wagmiConfig, names, migrationOwner, defaultResolver } = params
+
+  if (names.length === 1 && names[0]) {
+    const call = buildUnwrappedCall({
+      name: names[0],
+      migrationOwner,
+      defaultResolver,
+    })
+    return writeContract(wagmiConfig, call.request)
+  }
+
+  return writeContract(
+    wagmiConfig,
+    buildUnwrappedMulticall({ names, migrationOwner, defaultResolver }),
+  )
+}
+
+// Signs a wrapped migration tx (batch or single, with fallback to individual on revert).
+// Returns tx hashes without waiting for receipts.
+async function signWrappedTxs(params: {
+  wagmiConfig: WagmiConfig
+  names: readonly ClassifiedName[]
+  migrationOwner: Address
+  defaultResolver: Address
+  target: Address
+  skipped: SkippedName[]
+}): Promise<Hex[]> {
+  const {
+    wagmiConfig,
+    names,
+    migrationOwner,
+    defaultResolver,
+    target,
+    skipped,
+  } = params
+  const hashes: Hex[] = []
+
+  const call = buildWrappedCalls({
+    names,
+    migrationOwner,
+    defaultResolver,
+    target,
+  })
+
+  try {
+    let hash: Hex
+    switch (call.type) {
+      case 'wrapped-single':
+        hash = await writeContract(wagmiConfig, call.request)
+        break
+      case 'wrapped-batch':
+        hash = await writeContract(wagmiConfig, call.request)
+        break
+      default:
+        throw new Error(`Unexpected call type: ${call.type}`)
+    }
+    hashes.push(hash)
+    return hashes
+  } catch (error) {
+    if (isUserRejection(error)) throw error
+    if (names.length <= 1) {
+      skipped.push({
+        name: names[0]?.domain.name ?? 'unknown',
+        reason: 'transfer-failed',
+      })
+      return hashes
+    }
+  }
+
+  // Batch signing failed — fall back to individual
+  for (const name of names) {
+    const singleCall = buildWrappedCalls({
+      names: [name],
+      migrationOwner,
+      defaultResolver,
+      target,
+    })
+
+    try {
+      let hash: Hex
+      switch (singleCall.type) {
+        case 'wrapped-single':
+          hash = await writeContract(wagmiConfig, singleCall.request)
+          break
+        case 'wrapped-batch':
+          hash = await writeContract(wagmiConfig, singleCall.request)
+          break
+        default:
+          throw new Error(`Unexpected call type: ${singleCall.type}`)
+      }
+      hashes.push(hash)
+    } catch (error) {
+      if (isUserRejection(error)) throw error
+      skipped.push({ name: name.domain.name, reason: 'transfer-failed' })
+    }
+  }
+
+  return hashes
 }
 
 export async function executeMigration(params: {
@@ -407,6 +434,7 @@ export async function executeMigration(params: {
   const txHashes: Hex[] = []
   let stepIndex = 0
 
+  // ── Step: Pre-migrate (sequential, must complete before transfers) ──
   if (ENABLE_PRE_MIGRATE) {
     const twoLDs = validNames.filter(
       (n) =>
@@ -467,143 +495,105 @@ export async function executeMigration(params: {
     }
   }
 
-  if (groups.unwrapped.length > 0) {
+  // ── Step: 2LD migrations (sign sequentially, wait in parallel) ──
+  if (has2LDNames(groups)) {
+    const twoLDCount =
+      groups.unwrapped.length + groups.unlocked.length + groups.locked2ld.length
+
     onProgress({
       currentStep: stepIndex,
       totalSteps,
-      description: `Migrating ${groups.unwrapped.length} unwrapped name(s)`,
+      description: `Migrating ${twoLDCount} name(s)`,
     })
 
-    try {
-      let hash: Hex
-      if (groups.unwrapped.length === 1 && groups.unwrapped[0]) {
-        const call = buildUnwrappedCall({
-          name: groups.unwrapped[0],
+    // Phase 1: Sign all 2LD txs sequentially (user approves each in wallet)
+    const pendingHashes: Hex[] = []
+    let signingError: { error: unknown; step: string } | null = null
+
+    if (groups.unwrapped.length > 0 && !signingError) {
+      try {
+        const hash = await signUnwrappedTx({
+          wagmiConfig,
+          names: groups.unwrapped,
           migrationOwner,
           defaultResolver,
         })
-        hash = await executeCall(wagmiConfig, call, (h) =>
-          onProgress({
-            currentStep: stepIndex,
-            totalSteps,
-            description: 'Your name is on its way to v2!',
-            txHash: h,
-          }),
-        )
-      } else {
-        hash = await writeContract(
+        pendingHashes.push(hash)
+      } catch (error) {
+        signingError = { error, step: 'Unwrapped names' }
+      }
+    }
+
+    if (groups.unlocked.length > 0 && !signingError) {
+      try {
+        const hashes = await signWrappedTxs({
           wagmiConfig,
-          buildUnwrappedMulticall({
-            names: groups.unwrapped,
-            migrationOwner,
-            defaultResolver,
-          }),
-        )
-        onProgress({
-          currentStep: stepIndex,
-          totalSteps,
-          description: 'Your names are on their way to v2!',
-          txHash: hash,
+          names: groups.unlocked,
+          migrationOwner,
+          defaultResolver,
+          target: V2_CONTRACTS.UnlockedMigrationController,
+          skipped,
         })
-        await waitForTransactionReceipt(wagmiConfig, { hash })
+        pendingHashes.push(...hashes)
+      } catch (error) {
+        signingError = { error, step: 'Unlocked names' }
       }
-      txHashes.push(hash)
-    } catch (error) {
-      if (isUserRejection(error)) {
-        throw new MigrationUserRejectedError({ step: 'Unwrapped names' })
-      }
-      throw new MigrationError({ cause: error, step: 'Unwrapped names' })
     }
 
-    stepIndex++
-    onProgress({
-      currentStep: stepIndex,
-      totalSteps,
-      description: 'Unwrapped names migrated',
-      txHash: txHashes[txHashes.length - 1],
-    })
-  }
+    if (groups.locked2ld.length > 0 && !signingError) {
+      try {
+        const hashes = await signWrappedTxs({
+          wagmiConfig,
+          names: groups.locked2ld,
+          migrationOwner,
+          defaultResolver,
+          target: V2_CONTRACTS.LockedMigrationController,
+          skipped,
+        })
+        pendingHashes.push(...hashes)
+      } catch (error) {
+        signingError = { error, step: 'Locked names' }
+      }
+    }
 
-  if (groups.unlocked.length > 0) {
-    onProgress({
-      currentStep: stepIndex,
-      totalSteps,
-      description: `Migrating ${groups.unlocked.length} unlocked name(s)`,
-    })
-
-    try {
-      const hashes = await executeWrappedWithFallback({
-        wagmiConfig,
-        names: groups.unlocked,
-        migrationOwner,
-        defaultResolver,
-        target: V2_CONTRACTS.UnlockedMigrationController,
-        skipped,
-        onSigned: (hash) =>
-          onProgress({
-            currentStep: stepIndex,
-            totalSteps,
-            description: 'Unwrapping and upgrading to v2!',
-            txHash: hash,
-          }),
+    // Phase 2: Wait for all already-submitted receipts (even if signing was interrupted)
+    if (pendingHashes.length > 0) {
+      onProgress({
+        currentStep: stepIndex,
+        totalSteps,
+        description: 'Your names are on their way to v2!',
+        txHash: pendingHashes[0],
       })
-      txHashes.push(...hashes)
-    } catch (error) {
-      if (isUserRejection(error)) {
-        throw new MigrationUserRejectedError({ step: 'Unlocked names' })
-      }
-      throw new MigrationError({ cause: error, step: 'Unlocked names' })
+
+      await Promise.all(
+        pendingHashes.map((hash) =>
+          waitForTransactionReceipt(wagmiConfig, { hash }),
+        ),
+      )
+      txHashes.push(...pendingHashes)
     }
 
-    stepIndex++
-    onProgress({
-      currentStep: stepIndex,
-      totalSteps,
-      description: 'Unlocked names migrated',
-      txHash: txHashes[txHashes.length - 1],
-    })
-  }
-
-  if (groups.locked2ld.length > 0) {
-    onProgress({
-      currentStep: stepIndex,
-      totalSteps,
-      description: `Migrating ${groups.locked2ld.length} locked name(s)`,
-    })
-
-    try {
-      const hashes = await executeWrappedWithFallback({
-        wagmiConfig,
-        names: groups.locked2ld,
-        migrationOwner,
-        defaultResolver,
-        target: V2_CONTRACTS.LockedMigrationController,
-        skipped,
-        onSigned: (hash) =>
-          onProgress({
-            currentStep: stepIndex,
-            totalSteps,
-            description: 'Locked names heading to their new home!',
-            txHash: hash,
-          }),
+    // Re-throw after waiting for submitted txs
+    if (signingError) {
+      if (isUserRejection(signingError.error)) {
+        throw new MigrationUserRejectedError({ step: signingError.step })
+      }
+      throw new MigrationError({
+        cause: signingError.error,
+        step: signingError.step,
       })
-      txHashes.push(...hashes)
-    } catch (error) {
-      if (isUserRejection(error)) {
-        throw new MigrationUserRejectedError({ step: 'Locked names' })
-      }
-      throw new MigrationError({ cause: error, step: 'Locked names' })
     }
 
     stepIndex++
     onProgress({
       currentStep: stepIndex,
       totalSteps,
-      description: 'Locked names migrated',
+      description: '2LD names migrated',
       txHash: txHashes[txHashes.length - 1],
     })
   }
 
+  // ── Steps: Locked children (sequential per parent, parent must be migrated first) ──
   for (const [parentName, children] of groups.lockedChildren) {
     onProgress({
       currentStep: stepIndex,
@@ -639,22 +629,30 @@ export async function executeMigration(params: {
     }
 
     try {
-      const hashes = await executeWrappedWithFallback({
+      const hashes = await signWrappedTxs({
         wagmiConfig,
         names: children,
         migrationOwner,
         defaultResolver,
         target: wrapperRegistry,
         skipped,
-        onSigned: (hash) =>
-          onProgress({
-            currentStep: stepIndex,
-            totalSteps,
-            description: `Subnames joining ${parentName} in v2!`,
-            txHash: hash,
-          }),
       })
-      txHashes.push(...hashes)
+
+      if (hashes.length > 0) {
+        onProgress({
+          currentStep: stepIndex,
+          totalSteps,
+          description: `Subnames joining ${parentName} in v2!`,
+          txHash: hashes[0],
+        })
+
+        await Promise.all(
+          hashes.map((hash) =>
+            waitForTransactionReceipt(wagmiConfig, { hash }),
+          ),
+        )
+        txHashes.push(...hashes)
+      }
     } catch (error) {
       if (isUserRejection(error)) {
         throw new MigrationUserRejectedError({
@@ -708,15 +706,12 @@ export function getMigrationStepDescriptions(
     }
   }
 
-  if (groups.unwrapped.length > 0) {
-    descriptions.push(`Migrating ${groups.unwrapped.length} unwrapped name(s)`)
+  if (has2LDNames(groups)) {
+    const count =
+      groups.unwrapped.length + groups.unlocked.length + groups.locked2ld.length
+    descriptions.push(`Migrating ${count} name(s)`)
   }
-  if (groups.unlocked.length > 0) {
-    descriptions.push(`Migrating ${groups.unlocked.length} unlocked name(s)`)
-  }
-  if (groups.locked2ld.length > 0) {
-    descriptions.push(`Migrating ${groups.locked2ld.length} locked name(s)`)
-  }
+
   for (const [parentName, children] of groups.lockedChildren) {
     descriptions.push(
       `Migrating ${children.length} subname(s) under ${parentName}`,

@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useMachine } from '@xstate/react'
 import { AlertTriangle } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useCallback, useMemo } from 'react'
 import { match } from 'ts-pattern'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -65,18 +66,33 @@ export const MigrationPage = () => {
           />
         ))
         .with('error', () => (
-          <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 px-5">
+          <motion.div
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 px-5"
+            initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Migration failed</Trans>
             </p>
-            <div className="max-h-[200px] w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3">
+            <motion.div
+              animate={{ opacity: 1, y: 0 }}
+              className="max-h-[200px] w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
+              initial={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+            >
               <p className="whitespace-pre-wrap break-all font-mono text-ens-garnet-900/70 text-xs leading-[1.5]">
                 {state.context.error}
               </p>
-            </div>
+            </motion.div>
 
             {skippedNames.length > 0 && (
-              <div className="w-full max-w-md rounded-sm bg-ens-garnet-900/5 p-4">
+              <motion.div
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-md rounded-sm bg-ens-garnet-900/5 p-4"
+                initial={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.4, delay: 0.25 }}
+              >
                 <div className="mb-2 flex items-center gap-2">
                   <AlertTriangle className="size-4 shrink-0 text-ens-garnet-900/60" />
                   <p className="font-semi-mono text-ens-garnet-900/80 text-xs uppercase tracking-[0.12px]">
@@ -100,10 +116,15 @@ export const MigrationPage = () => {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </motion.div>
             )}
 
-            <div className="flex gap-3">
+            <motion.div
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-3"
+              initial={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.4, delay: 0.35 }}
+            >
               <button
                 className="rounded-sm bg-ens-garnet-900/10 px-4 py-3 font-semi-mono text-ens-garnet-900 text-sm uppercase tracking-[1.68px]"
                 onClick={() => send({ type: 'RESET' })}
@@ -118,8 +139,8 @@ export const MigrationPage = () => {
               >
                 <Trans>Retry</Trans>
               </button>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         ))
         .with('success', () => (
           <SuccessModal onClose={() => send({ type: 'DONE' })} open />
