@@ -1,24 +1,29 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { Trans } from '@lingui/react/macro'
-import { useLingui } from '@lingui/react'
-import { useQuery } from '@tanstack/react-query'
+import { Trans, useLingui } from '@lingui/react/macro'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
+import { AlertCircle } from 'lucide-react'
 import { zeroAddress } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { STABLECOINS } from '@/features/register/utils'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { truncateName } from '../../../utils/truncate-name'
 import { getPremiumLabel } from '../lib/premiumLabel'
 
 export const ConfirmPurchase = () => {
-  const { _ } = useLingui()
+  const { t } = useLingui()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { label, uiActor } = useRegistrationV2Context()
   const account = useSmartAccountContext()
   const [duration, selectedToken] = useSelector(
@@ -50,6 +55,44 @@ export const ConfirmPurchase = () => {
   const premiumLabel = getPremiumLabel(label.length)
   const domainName = `${label}.eth`
 
+  const availabilityMutation = useMutation({
+    mutationFn: async () => {
+      return queryClient.fetchQuery({
+        ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
+        staleTime: 0,
+      })
+    },
+    onSuccess: (availability) => {
+      if (!pricingQuery.data || !selectedToken) {
+        return
+      }
+
+      if (!availability.isAvailable) {
+        navigate({
+          replace: true,
+          to: '/p/$name',
+          params: { name: `${label}.eth` },
+        })
+        return
+      }
+
+      uiActor.send({
+        type: 'registration.start',
+        label,
+        duration: BigInt(Math.ceil(duration)),
+        token: selectedToken,
+        totalPrice: pricingQuery.data.rawPrice,
+        account,
+        basePriceNumber: pricingQuery.data.basePriceNumber,
+        premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
+      })
+    },
+  })
+
+  const errorMessage = availabilityMutation.isError
+    ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
+    : null
+
   const selectedCoinConfig = selectedToken && STABLECOINS[selectedToken]
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
@@ -63,7 +106,7 @@ export const ConfirmPurchase = () => {
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
           {premiumLabel && (
             <DomainAttributePill
-              label={_(premiumLabel.label)}
+              label={t(premiumLabel.label)}
               variant={premiumLabel.variant}
             />
           )}
@@ -93,26 +136,26 @@ export const ConfirmPurchase = () => {
             </span>
           </div>
         </div>
+
+        {errorMessage && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
       </div>
 
       <Button
         className="h-20 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
-        disabled={!pricingQuery.data || !selectedToken}
+        disabled={
+          !pricingQuery.data || !selectedToken || availabilityMutation.isPending
+        }
         onClick={() => {
           if (!pricingQuery.data || !selectedToken) {
             return
           }
 
-          uiActor.send({
-            type: 'registration.start',
-            label,
-            duration: BigInt(Math.ceil(duration)),
-            token: selectedToken,
-            totalPrice: pricingQuery.data.rawPrice,
-            account,
-            basePriceNumber: pricingQuery.data.basePriceNumber,
-            premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
-          })
+          availabilityMutation.mutate()
         }}
       >
         <Trans>Buy Name</Trans>
