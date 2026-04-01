@@ -17,6 +17,7 @@ import {
   buildUnwrappedCall,
   buildUnwrappedMulticall,
   buildWrappedCalls,
+  type WrappedMigrationCall,
 } from './buildMigrationCalls'
 import {
   buildPreMigrateCall,
@@ -278,6 +279,15 @@ async function signUnwrappedTx(params: {
   )
 }
 
+function writeWrappedCall(
+  wagmiConfig: WagmiConfig,
+  call: WrappedMigrationCall,
+): Promise<Hex> {
+  return call.type === 'wrapped-single'
+    ? writeContract(wagmiConfig, call.request)
+    : writeContract(wagmiConfig, call.request)
+}
+
 // Signs a wrapped migration tx (batch or single, with fallback to individual on revert).
 // Returns tx hashes without waiting for receipts.
 async function signWrappedTxs(params: {
@@ -296,7 +306,6 @@ async function signWrappedTxs(params: {
     target,
     skipped,
   } = params
-  const hashes: Hex[] = []
 
   const call = buildWrappedCalls({
     names,
@@ -306,19 +315,8 @@ async function signWrappedTxs(params: {
   })
 
   try {
-    let hash: Hex
-    switch (call.type) {
-      case 'wrapped-single':
-        hash = await writeContract(wagmiConfig, call.request)
-        break
-      case 'wrapped-batch':
-        hash = await writeContract(wagmiConfig, call.request)
-        break
-      default:
-        throw new Error(`Unexpected call type: ${call.type}`)
-    }
-    hashes.push(hash)
-    return hashes
+    const hash = await writeWrappedCall(wagmiConfig, call)
+    return [hash]
   } catch (error) {
     if (isUserRejection(error)) throw error
     if (names.length <= 1) {
@@ -326,11 +324,12 @@ async function signWrappedTxs(params: {
         name: names[0]?.domain.name ?? 'unknown',
         reason: 'transfer-failed',
       })
-      return hashes
+      return []
     }
   }
 
   // Batch signing failed — fall back to individual
+  const hashes: Hex[] = []
   for (const name of names) {
     const singleCall = buildWrappedCalls({
       names: [name],
@@ -340,17 +339,7 @@ async function signWrappedTxs(params: {
     })
 
     try {
-      let hash: Hex
-      switch (singleCall.type) {
-        case 'wrapped-single':
-          hash = await writeContract(wagmiConfig, singleCall.request)
-          break
-        case 'wrapped-batch':
-          hash = await writeContract(wagmiConfig, singleCall.request)
-          break
-        default:
-          throw new Error(`Unexpected call type: ${singleCall.type}`)
-      }
+      const hash = await writeWrappedCall(wagmiConfig, singleCall)
       hashes.push(hash)
     } catch (error) {
       if (isUserRejection(error)) throw error

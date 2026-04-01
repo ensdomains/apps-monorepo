@@ -10,7 +10,7 @@ import {
   encodeMigrationDataBatch,
 } from './encodeMigration'
 
-export type UnwrappedMigrationCall = {
+type UnwrappedMigrationCall = {
   readonly type: 'unwrapped'
   readonly name: ClassifiedName
   readonly request: {
@@ -21,7 +21,7 @@ export type UnwrappedMigrationCall = {
   }
 }
 
-export type WrappedSingleMigrationCall = {
+type WrappedSingleMigrationCall = {
   readonly type: 'wrapped-single'
   readonly name: ClassifiedName
   readonly request: {
@@ -32,7 +32,7 @@ export type WrappedSingleMigrationCall = {
   }
 }
 
-export type WrappedBatchMigrationCall = {
+type WrappedBatchMigrationCall = {
   readonly type: 'wrapped-batch'
   readonly names: readonly ClassifiedName[]
   readonly request: {
@@ -43,8 +43,7 @@ export type WrappedBatchMigrationCall = {
   }
 }
 
-export type MigrationCall =
-  | UnwrappedMigrationCall
+export type WrappedMigrationCall =
   | WrappedSingleMigrationCall
   | WrappedBatchMigrationCall
 
@@ -119,7 +118,7 @@ export function buildUnwrappedCall(params: {
   }
 }
 
-export function buildWrappedSingleCall(params: {
+function buildWrappedSingleCall(params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
@@ -146,7 +145,7 @@ export function buildWrappedSingleCall(params: {
   }
 }
 
-export function buildWrappedBatchCall(params: {
+function buildWrappedBatchCall(params: {
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
@@ -187,7 +186,7 @@ export function buildWrappedCalls(params: {
   migrationOwner: Address
   defaultResolver: Address
   target: Address
-}): MigrationCall {
+}): WrappedMigrationCall {
   const { names, migrationOwner, defaultResolver, target } = params
 
   if (names.length === 1 && names[0]) {
