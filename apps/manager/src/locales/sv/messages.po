@@ -302,7 +302,7 @@ msgstr ""
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:548
-#: src/features/register-v2/workflow/pricing/PricingStep.tsx:18
+#: src/features/register-v2/workflow/pricing/PricingStep.tsx:22
 msgid "Back"
 msgstr ""
 
@@ -364,7 +364,7 @@ msgstr ""
 msgid "Bug bounty"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:118
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:161
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:94
 msgid "Buy Name"
 msgstr ""
@@ -958,7 +958,7 @@ msgstr ""
 msgid "Finalizing registration"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:84
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:127
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr ""
@@ -1546,7 +1546,7 @@ msgstr "Registrerad {0}"
 msgid "Registered ENS names"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:60
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:103
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:51
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
 msgid "Registering"
@@ -2392,6 +2392,10 @@ msgstr ""
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:149
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
+
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:93
+msgid "We couldn't confirm that {domainName} is still available. Please try again."
+msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:68
 msgid "We sent a verification code to your email address."
