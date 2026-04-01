@@ -17,4 +17,6 @@ export const V2_CONTRACTS = {
   WrapperRegistryImpl: '0x8266dc167c10a03a5a22aa706a08d8422f40559c' as Address,
   VerifiableFactory: '0x9240c5f31d747d60b3d9aed2f57995094342b1ed' as Address,
   ENSV2Resolver: '0x18cb116a1c88531a4bb2996e4fef136a31e11a80' as Address,
+  PreMigrationController:
+    '0xee63749b063c08dedee9478504177c27bf9193d7' as Address,
 } as const

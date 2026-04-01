@@ -19,6 +19,11 @@ import {
   type MigrationCall,
 } from './buildMigrationCalls'
 import {
+  buildPreMigrateCall,
+  buildPreMigrateMulticall,
+  ENABLE_PRE_MIGRATE,
+} from './buildPreMigrateCalls'
+import {
   type ClassifiedName,
   classifyNames,
   FUSES,
@@ -48,7 +53,7 @@ export type MigrationProgress = {
 
 export type SkippedName = {
   readonly name: string
-  readonly reason: 'not-premigrated' | 'frozen-approval'
+  readonly reason: 'not-premigrated' | 'frozen-approval' | 'transfer-failed'
 }
 
 export type MigrationResult = {
@@ -220,8 +225,9 @@ function getParentLabels(name: ClassifiedName): string[] {
   return parentParts.reverse()
 }
 
-function countSteps(groups: GroupedNames): number {
+function countSteps(groups: GroupedNames, includePreMigrate: boolean): number {
   let count = 0
+  if (includePreMigrate) count++
   if (groups.unwrapped.length > 0) count++
   if (groups.unlocked.length > 0) count++
   if (groups.locked2ld.length > 0) count++
@@ -248,6 +254,67 @@ async function executeCall(
 
   await waitForTransactionReceipt(wagmiConfig, { hash })
   return hash
+}
+
+async function executeWrappedWithFallback(params: {
+  wagmiConfig: WagmiConfig
+  names: readonly ClassifiedName[]
+  migrationOwner: Address
+  defaultResolver: Address
+  target: Address
+  skipped: SkippedName[]
+}): Promise<Hex[]> {
+  const {
+    wagmiConfig,
+    names,
+    migrationOwner,
+    defaultResolver,
+    target,
+    skipped,
+  } = params
+  const hashes: Hex[] = []
+
+  const call = buildWrappedCalls({
+    names,
+    migrationOwner,
+    defaultResolver,
+    target,
+  })
+
+  try {
+    const hash = await executeCall(wagmiConfig, call)
+    hashes.push(hash)
+    return hashes
+  } catch (error) {
+    if (isUserRejection(error)) throw error
+    // Batch failed — fall back to individual calls
+    if (names.length <= 1) {
+      skipped.push({
+        name: names[0]?.domain.name ?? 'unknown',
+        reason: 'transfer-failed',
+      })
+      return hashes
+    }
+  }
+
+  for (const name of names) {
+    const singleCall = buildWrappedCalls({
+      names: [name],
+      migrationOwner,
+      defaultResolver,
+      target,
+    })
+
+    try {
+      const hash = await executeCall(wagmiConfig, singleCall)
+      hashes.push(hash)
+    } catch (error) {
+      if (isUserRejection(error)) throw error
+      skipped.push({ name: name.domain.name, reason: 'transfer-failed' })
+    }
+  }
+
+  return hashes
 }
 
 function isUserRejection(error: unknown): boolean {
@@ -284,7 +351,18 @@ export async function executeMigration(params: {
     return { completed: 0, txHashes: [], skipped: [] }
   }
 
-  const preflight = await runPreFlightChecks(publicClient, classified)
+  const preflight = ENABLE_PRE_MIGRATE
+    ? { valid: classified, notReserved: [], frozen: [] }
+    : await runPreFlightChecks(publicClient, classified)
+
+  if (ENABLE_PRE_MIGRATE) {
+    const frozenResult = await filterFrozenApprovals(
+      publicClient,
+      preflight.valid,
+    )
+    preflight.valid = frozenResult.valid
+    preflight.frozen = frozenResult.frozen
+  }
 
   const skipped: SkippedName[] = [
     ...preflight.notReserved.map((n) => ({
@@ -320,9 +398,63 @@ export async function executeMigration(params: {
   const validNames = preflight.valid
 
   const groups = groupClassifiedNames(validNames)
-  const totalSteps = countSteps(groups)
+  const totalSteps = countSteps(groups, ENABLE_PRE_MIGRATE)
   const txHashes: Hex[] = []
   let stepIndex = 0
+
+  if (ENABLE_PRE_MIGRATE) {
+    const twoLDs = validNames.filter(
+      (n) =>
+        n.tokenType === 'unwrapped' ||
+        n.tokenType === 'unlocked' ||
+        n.tokenType === 'locked-2ld',
+    )
+
+    const { notReserved: needsPreMigrate } = await filterNotReserved(
+      publicClient,
+      twoLDs,
+    )
+
+    if (needsPreMigrate.length > 0) {
+      onProgress({
+        currentStep: stepIndex,
+        totalSteps,
+        description: `Pre-migrating ${needsPreMigrate.length} name(s)`,
+      })
+
+      try {
+        let hash: Hex
+        if (needsPreMigrate.length === 1 && needsPreMigrate[0]) {
+          hash = await writeContract(
+            wagmiConfig,
+            buildPreMigrateCall(needsPreMigrate[0]),
+          )
+        } else {
+          hash = await writeContract(
+            wagmiConfig,
+            buildPreMigrateMulticall(needsPreMigrate),
+          )
+        }
+        await waitForTransactionReceipt(wagmiConfig, { hash })
+        txHashes.push(hash)
+      } catch (error) {
+        if (isUserRejection(error)) {
+          throw new MigrationUserRejectedError({ step: 'Pre-migrate' })
+        }
+        throw new MigrationError({ cause: error, step: 'Pre-migrate' })
+      }
+
+      stepIndex++
+      onProgress({
+        currentStep: stepIndex,
+        totalSteps,
+        description: 'Pre-migration complete',
+        txHash: txHashes[txHashes.length - 1],
+      })
+    } else {
+      stepIndex++
+    }
+  }
 
   if (groups.unwrapped.length > 0) {
     onProgress({
@@ -366,16 +498,16 @@ export async function executeMigration(params: {
       description: `Migrating ${groups.unlocked.length} unlocked name(s)`,
     })
 
-    const call = buildWrappedCalls({
-      names: groups.unlocked,
-      migrationOwner,
-      defaultResolver,
-      target: V2_CONTRACTS.UnlockedMigrationController,
-    })
-
     try {
-      const hash = await executeCall(wagmiConfig, call)
-      txHashes.push(hash)
+      const hashes = await executeWrappedWithFallback({
+        wagmiConfig,
+        names: groups.unlocked,
+        migrationOwner,
+        defaultResolver,
+        target: V2_CONTRACTS.UnlockedMigrationController,
+        skipped,
+      })
+      txHashes.push(...hashes)
     } catch (error) {
       if (isUserRejection(error)) {
         throw new MigrationUserRejectedError({ step: 'Unlocked names' })
@@ -399,16 +531,16 @@ export async function executeMigration(params: {
       description: `Migrating ${groups.locked2ld.length} locked name(s)`,
     })
 
-    const call = buildWrappedCalls({
-      names: groups.locked2ld,
-      migrationOwner,
-      defaultResolver,
-      target: V2_CONTRACTS.LockedMigrationController,
-    })
-
     try {
-      const hash = await executeCall(wagmiConfig, call)
-      txHashes.push(hash)
+      const hashes = await executeWrappedWithFallback({
+        wagmiConfig,
+        names: groups.locked2ld,
+        migrationOwner,
+        defaultResolver,
+        target: V2_CONTRACTS.LockedMigrationController,
+        skipped,
+      })
+      txHashes.push(...hashes)
     } catch (error) {
       if (isUserRejection(error)) {
         throw new MigrationUserRejectedError({ step: 'Locked names' })
@@ -459,16 +591,16 @@ export async function executeMigration(params: {
       })
     }
 
-    const call = buildWrappedCalls({
-      names: children,
-      migrationOwner,
-      defaultResolver,
-      target: wrapperRegistry,
-    })
-
     try {
-      const hash = await executeCall(wagmiConfig, call)
-      txHashes.push(hash)
+      const hashes = await executeWrappedWithFallback({
+        wagmiConfig,
+        names: children,
+        migrationOwner,
+        defaultResolver,
+        target: wrapperRegistry,
+        skipped,
+      })
+      txHashes.push(...hashes)
     } catch (error) {
       if (isUserRejection(error)) {
         throw new MigrationUserRejectedError({
@@ -499,7 +631,7 @@ export function getMigrationStepCount(
 ): number {
   const classified = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
-  return countSteps(groups)
+  return countSteps(groups, ENABLE_PRE_MIGRATE)
 }
 
 export function getMigrationStepDescriptions(
@@ -509,6 +641,18 @@ export function getMigrationStepDescriptions(
   const classified = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
   const descriptions: string[] = []
+
+  if (ENABLE_PRE_MIGRATE) {
+    const twoLDCount = classified.filter(
+      (n) =>
+        n.tokenType === 'unwrapped' ||
+        n.tokenType === 'unlocked' ||
+        n.tokenType === 'locked-2ld',
+    ).length
+    if (twoLDCount > 0) {
+      descriptions.push(`Pre-migrating ${twoLDCount} name(s)`)
+    }
+  }
 
   if (groups.unwrapped.length > 0) {
     descriptions.push(`Migrating ${groups.unwrapped.length} unwrapped name(s)`)

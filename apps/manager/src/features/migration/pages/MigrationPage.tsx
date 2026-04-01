@@ -14,6 +14,7 @@ import type { MigrationResult } from '@/features/migration/service/migrationServ
 const SKIP_REASON_LABELS = {
   'not-premigrated': 'Not yet premigrated in ENS v2',
   'frozen-approval': 'Has a frozen approval that prevents migration',
+  'transfer-failed': 'Transfer reverted on-chain',
 } as const
 
 export const MigrationPage = () => {
