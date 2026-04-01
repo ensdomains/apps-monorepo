@@ -223,7 +223,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:48
+#: src/features/migration/components/GameStep.tsx:51
 msgid "Almost there..."
 msgstr ""
 
@@ -1422,7 +1422,7 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:51
+#: src/features/migration/components/GameStep.tsx:54
 msgid "Preparing migration..."
 msgstr ""
 
@@ -2108,7 +2108,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:63
+#: src/features/migration/components/GameStep.tsx:66
 msgid "Upgrading your names..."
 msgstr ""
 

@@ -239,6 +239,7 @@ function countSteps(groups: GroupedNames, includePreMigrate: boolean): number {
 async function executeCall(
   wagmiConfig: WagmiConfig,
   call: MigrationCall,
+  onSigned?: (hash: Hex) => void,
 ): Promise<Hex> {
   let hash: Hex
   switch (call.type) {
@@ -253,6 +254,7 @@ async function executeCall(
       break
   }
 
+  onSigned?.(hash)
   await waitForTransactionReceipt(wagmiConfig, { hash })
   return hash
 }
@@ -264,6 +266,7 @@ async function executeWrappedWithFallback(params: {
   defaultResolver: Address
   target: Address
   skipped: SkippedName[]
+  onSigned?: (hash: Hex) => void
 }): Promise<Hex[]> {
   const {
     wagmiConfig,
@@ -272,6 +275,7 @@ async function executeWrappedWithFallback(params: {
     defaultResolver,
     target,
     skipped,
+    onSigned,
   } = params
   const hashes: Hex[] = []
 
@@ -283,7 +287,7 @@ async function executeWrappedWithFallback(params: {
   })
 
   try {
-    const hash = await executeCall(wagmiConfig, call)
+    const hash = await executeCall(wagmiConfig, call, onSigned)
     hashes.push(hash)
     return hashes
   } catch (error) {
@@ -307,7 +311,7 @@ async function executeWrappedWithFallback(params: {
     })
 
     try {
-      const hash = await executeCall(wagmiConfig, singleCall)
+      const hash = await executeCall(wagmiConfig, singleCall, onSigned)
       hashes.push(hash)
     } catch (error) {
       if (isUserRejection(error)) throw error
@@ -436,6 +440,12 @@ export async function executeMigration(params: {
             buildPreMigrateMulticall(needsPreMigrate),
           )
         }
+        onProgress({
+          currentStep: stepIndex,
+          totalSteps,
+          description: 'Reserving your names on ENS v2!',
+          txHash: hash,
+        })
         await waitForTransactionReceipt(wagmiConfig, { hash })
         txHashes.push(hash)
       } catch (error) {
@@ -472,7 +482,14 @@ export async function executeMigration(params: {
           migrationOwner,
           defaultResolver,
         })
-        hash = await executeCall(wagmiConfig, call)
+        hash = await executeCall(wagmiConfig, call, (h) =>
+          onProgress({
+            currentStep: stepIndex,
+            totalSteps,
+            description: 'Your name is on its way to v2!',
+            txHash: h,
+          }),
+        )
       } else {
         hash = await writeContract(
           wagmiConfig,
@@ -482,6 +499,12 @@ export async function executeMigration(params: {
             defaultResolver,
           }),
         )
+        onProgress({
+          currentStep: stepIndex,
+          totalSteps,
+          description: 'Your names are on their way to v2!',
+          txHash: hash,
+        })
         await waitForTransactionReceipt(wagmiConfig, { hash })
       }
       txHashes.push(hash)
@@ -516,6 +539,13 @@ export async function executeMigration(params: {
         defaultResolver,
         target: V2_CONTRACTS.UnlockedMigrationController,
         skipped,
+        onSigned: (hash) =>
+          onProgress({
+            currentStep: stepIndex,
+            totalSteps,
+            description: 'Unwrapping and upgrading to v2!',
+            txHash: hash,
+          }),
       })
       txHashes.push(...hashes)
     } catch (error) {
@@ -549,6 +579,13 @@ export async function executeMigration(params: {
         defaultResolver,
         target: V2_CONTRACTS.LockedMigrationController,
         skipped,
+        onSigned: (hash) =>
+          onProgress({
+            currentStep: stepIndex,
+            totalSteps,
+            description: 'Locked names heading to their new home!',
+            txHash: hash,
+          }),
       })
       txHashes.push(...hashes)
     } catch (error) {
@@ -609,6 +646,13 @@ export async function executeMigration(params: {
         defaultResolver,
         target: wrapperRegistry,
         skipped,
+        onSigned: (hash) =>
+          onProgress({
+            currentStep: stepIndex,
+            totalSteps,
+            description: `Subnames joining ${parentName} in v2!`,
+            txHash: hash,
+          }),
       })
       txHashes.push(...hashes)
     } catch (error) {

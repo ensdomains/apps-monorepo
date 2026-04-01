@@ -44,6 +44,9 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const frensX =
     trackWidth > 0 ? ((plankIndex + 0.5) / totalSteps) * trackWidth : 0
 
+  // Excited when tx is signed but step hasn't completed yet
+  const isExcited = !!progress?.txHash && !done
+
   const descriptionText = done
     ? t`Almost there...`
     : completedSteps < stepDescriptions.length
@@ -95,36 +98,92 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
                 transition={{ type: 'spring', stiffness: 80, damping: 18 }}
               >
                 <div className="flex items-end gap-1">
-                  <img
+                  <motion.img
                     alt=""
+                    animate={
+                      isExcited
+                        ? { y: [0, -12, 0], rotate: [0, -5, 5, 0] }
+                        : { y: 0, rotate: 0 }
+                    }
                     className="shrink-0"
                     src="/frens/peanut.svg"
                     style={{ height: 44 }}
+                    transition={
+                      isExcited
+                        ? {
+                            duration: 0.5,
+                            repeat: Number.POSITIVE_INFINITY,
+                            repeatDelay: 0.1,
+                          }
+                        : { duration: 0.3 }
+                    }
                   />
-                  <img
+                  <motion.img
                     alt=""
+                    animate={
+                      isExcited
+                        ? { y: [0, -16, 0], rotate: [0, 4, -4, 0] }
+                        : { y: 0, rotate: 0 }
+                    }
                     className="shrink-0"
                     src="/frens/lili.svg"
                     style={{ height: 60 }}
+                    transition={
+                      isExcited
+                        ? {
+                            duration: 0.6,
+                            repeat: Number.POSITIVE_INFINITY,
+                            repeatDelay: 0.05,
+                            delay: 0.1,
+                          }
+                        : { duration: 0.3 }
+                    }
                   />
                   <div className="relative shrink-0">
                     <motion.img
                       alt=""
-                      animate={{ y: [0, -6, -3, 0] }}
+                      animate={
+                        isExcited
+                          ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
+                          : { y: [0, -6, -3, 0] }
+                      }
                       className="-translate-x-1/2 absolute left-1/2"
                       src="/frens/bittu.svg"
                       style={{ height: 24, top: -30 }}
-                      transition={{
-                        duration: 4,
-                        ease: 'easeInOut',
-                        repeat: Number.POSITIVE_INFINITY,
-                      }}
+                      transition={
+                        isExcited
+                          ? {
+                              duration: 0.8,
+                              ease: 'easeInOut',
+                              repeat: Number.POSITIVE_INFINITY,
+                            }
+                          : {
+                              duration: 4,
+                              ease: 'easeInOut',
+                              repeat: Number.POSITIVE_INFINITY,
+                            }
+                      }
                     />
-                    <img
+                    <motion.img
                       alt=""
+                      animate={
+                        isExcited
+                          ? { y: [0, -10, 0], rotate: [0, -3, 3, 0] }
+                          : { y: 0, rotate: 0 }
+                      }
                       className="shrink-0"
                       src="/frens/kuzco.svg"
                       style={{ height: 50 }}
+                      transition={
+                        isExcited
+                          ? {
+                              duration: 0.55,
+                              repeat: Number.POSITIVE_INFINITY,
+                              repeatDelay: 0.15,
+                              delay: 0.2,
+                            }
+                          : { duration: 0.3 }
+                      }
                     />
                   </div>
                 </div>
@@ -132,13 +191,25 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
             </div>
 
             <motion.div
-              animate={{ y: [0, -6, 0] }}
+              animate={
+                isExcited
+                  ? { y: [0, -14, 0], scale: [1, 1.05, 1] }
+                  : { y: [0, -6, 0] }
+              }
               className="absolute right-0 bottom-[10px]"
-              transition={{
-                duration: 4,
-                ease: 'easeInOut',
-                repeat: Number.POSITIVE_INFINITY,
-              }}
+              transition={
+                isExcited
+                  ? {
+                      duration: 0.7,
+                      ease: 'easeInOut',
+                      repeat: Number.POSITIVE_INFINITY,
+                    }
+                  : {
+                      duration: 4,
+                      ease: 'easeInOut',
+                      repeat: Number.POSITIVE_INFINITY,
+                    }
+              }
             >
               <img alt="" className="h-[93px]" src="/frens/giant.svg" />
             </motion.div>
