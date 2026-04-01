@@ -251,6 +251,22 @@ export const registrationMachine = setup({
     clearRegisterReadyTimestamp: assign({
       registerReadyTimestamp: () => undefined,
     }),
+
+    resetRegistration: assign({
+      signer: undefined,
+      accountAddress: undefined,
+      ownerAddress: undefined,
+      publicClient: undefined,
+      name: '',
+      duration: 0n,
+      selectedToken: 'USDC',
+      tokenPrice: 0n,
+      registerReadyTimestamp: undefined,
+      useFastRegistrar: false,
+      resolverAddress: undefined,
+      resolverTxId: undefined,
+      resolverSalt: undefined,
+    }),
   },
 
   // Note: Persistence will be handled via inspect option (see export at bottom)
@@ -703,8 +719,13 @@ export const registrationMachine = setup({
     },
 
     success: {
-      type: 'final',
       entry: ['logTransition', 'recordTransition', 'clearSnapshot'],
+      on: {
+        CANCEL: {
+          target: 'idle',
+          actions: 'resetRegistration',
+        },
+      },
     },
 
     error: {

@@ -192,22 +192,25 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     input: ({ context }) => ({
       chainId: context.chainId,
     }),
-    onDone: {
-      actions: [
-        raise({
-          type: 'transaction.success',
-        }),
-      ],
-    },
-    onSnapshot: {
-      guard: ({ event: { snapshot } }) => snapshot.matches('error'),
-      actions: [
-        raise(({ event: { snapshot } }) => ({
-          type: 'transaction.failed',
-          message: snapshot.context.error?.message,
-        })),
-      ],
-    },
+    onSnapshot: [
+      {
+        guard: ({ event: { snapshot } }) => snapshot.matches('success'),
+        actions: [
+          raise({
+            type: 'transaction.success',
+          }),
+        ],
+      },
+      {
+        guard: ({ event: { snapshot } }) => snapshot.matches('error'),
+        actions: [
+          raise(({ event: { snapshot } }) => ({
+            type: 'transaction.failed',
+            message: snapshot.context.error?.message,
+          })),
+        ],
+      },
+    ],
   },
   initial: 'pricing',
   context: () => ({
