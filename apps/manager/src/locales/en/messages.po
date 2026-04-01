@@ -97,9 +97,9 @@ msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
 #. placeholder {0}: filtered.length
-#: src/features/migration/components/SelectNamesStep.tsx:130
-msgid "<0>{selectedCount}</0> out of {0} eligible names selected"
-msgstr "<0>{selectedCount}</0> out of {0} eligible names selected"
+#: src/features/migration/components/SelectNamesStep.tsx:141
+msgid "<0>{selectedCount}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
+msgstr "<0>{selectedCount}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 
 #. placeholder {0}: getErrorMessage(error)
 #: src/routes/wallet.tsx:192
@@ -306,10 +306,6 @@ msgstr "Back to Settings"
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
 msgstr "Backup Card"
-
-#: src/features/migration/components/SelectNamesStep.tsx:141
-msgid "Begin Upgrade"
-msgstr "Begin Upgrade"
 
 #: src/features/payment/components/add.tsx:44
 msgid "Billing country"
@@ -1242,7 +1238,7 @@ msgstr "No coins found"
 msgid "No default payment method set."
 msgstr "No default payment method set."
 
-#: src/features/migration/components/SelectNamesStep.tsx:81
+#: src/features/migration/components/SelectNamesStep.tsx:85
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
@@ -1259,7 +1255,7 @@ msgstr "No more records to add"
 msgid "No names found"
 msgstr "No names found"
 
-#: src/features/migration/components/SelectNamesStep.tsx:78
+#: src/features/migration/components/SelectNamesStep.tsx:82
 msgid "No names match your search"
 msgstr "No names match your search"
 
@@ -1696,7 +1692,7 @@ msgstr "Search name, address..."
 msgid "Search name..."
 msgstr "Search name..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:63
+#: src/features/migration/components/SelectNamesStep.tsx:65
 msgid "Search names"
 msgstr "Search names"
 
@@ -2094,6 +2090,10 @@ msgstr "Update Resolver"
 msgid "Updating profile"
 msgstr "Updating profile"
 
+#: src/features/migration/components/SelectNamesStep.tsx:154
+msgid "Upgrade names"
+msgstr "Upgrade names"
+
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
@@ -2366,7 +2366,7 @@ msgstr "Your ENS name works across web3"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/migration/components/SelectNamesStep.tsx:54
+#: src/features/migration/components/SelectNamesStep.tsx:55
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 

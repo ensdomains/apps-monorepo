@@ -102,8 +102,8 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #. placeholder {0}: filtered.length
-#: src/features/migration/components/SelectNamesStep.tsx:130
-msgid "<0>{selectedCount}</0> out of {0} eligible names selected"
+#: src/features/migration/components/SelectNamesStep.tsx:141
+msgid "<0>{selectedCount}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr ""
 
 #. placeholder {0}: getErrorMessage(error)
@@ -310,10 +310,6 @@ msgstr ""
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx:141
-msgid "Begin Upgrade"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:44
@@ -1247,7 +1243,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:81
+#: src/features/migration/components/SelectNamesStep.tsx:85
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1264,7 +1260,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:78
+#: src/features/migration/components/SelectNamesStep.tsx:82
 msgid "No names match your search"
 msgstr ""
 
@@ -1701,7 +1697,7 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:63
+#: src/features/migration/components/SelectNamesStep.tsx:65
 msgid "Search names"
 msgstr ""
 
@@ -2099,6 +2095,10 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:154
+msgid "Upgrade names"
+msgstr ""
+
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2371,7 +2371,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:54
+#: src/features/migration/components/SelectNamesStep.tsx:55
 msgid "Your names are ready to upgrade"
 msgstr ""
 
