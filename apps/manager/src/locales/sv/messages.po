@@ -1005,7 +1005,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:76
+#: src/features/dashboard/pages/DashboardPage.tsx:73
 msgid "Hello"
 msgstr "Hej"
 
@@ -1718,7 +1718,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:35
+#: src/features/migration/components/UpgradeBanner.tsx:34
 msgid "See what's new"
 msgstr ""
 
@@ -1761,7 +1761,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:97
+#: src/features/dashboard/pages/DashboardPage.tsx:94
 msgid "Set primary name"
 msgstr ""
 
@@ -2104,8 +2104,11 @@ msgid "Upgrade Names"
 msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx:129
-#: src/features/migration/components/UpgradeBanner.tsx:24
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx:24
+msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx:72
@@ -2269,7 +2272,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:21
+#: src/features/migration/components/UpgradeBanner.tsx:20
 msgid "Welcome to the new ENS app"
 msgstr ""
 

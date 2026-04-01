@@ -62,10 +62,7 @@ export const DashboardPage = () => {
     <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-10">
       <MigrationModal />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
-        <motion.div
-          className="md:max-w-[50%]"
-          {...stagger(0, shouldReduceMotion)}
-        >
+        <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
           <UpgradeBanner />
         </motion.div>
         <motion.div
