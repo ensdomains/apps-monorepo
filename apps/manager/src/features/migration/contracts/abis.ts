@@ -22,7 +22,6 @@ export const ETH_REGISTRY_V2_ABI = parseAbi([
 
 export const PRE_MIGRATION_ABI = parseAbi([
   'function preMigrate(string label, uint64 expiry, address registry, address resolver)',
-  'function multicall(bytes[] data) returns (bytes[])',
 ])
 
 export const WRAPPER_REGISTRY_ABI = parseAbi([
