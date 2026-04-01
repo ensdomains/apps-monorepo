@@ -1,6 +1,5 @@
 /**
  * Returns epoch milliseconds using Temporal when available.
- * Falls back to Date.now while the polyfill is still loading.
  */
 export const getNowEpochMilliseconds = (): number =>
   Temporal.Now.instant().epochMilliseconds
@@ -11,7 +10,8 @@ export const getNowEpochMilliseconds = (): number =>
  */
 export const dateFromEpochMilliseconds = (epochMilliseconds: number): Date =>
   new Date(
-    Temporal.Instant.fromEpochMilliseconds(epochMilliseconds).epochMilliseconds,
+    Temporal.Instant.fromEpochMilliseconds(Math.round(epochMilliseconds))
+      .epochMilliseconds,
   )
 
 /**

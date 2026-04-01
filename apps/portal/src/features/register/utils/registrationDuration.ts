@@ -4,6 +4,11 @@ import {
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
+import {
+  dateFromEpochMilliseconds,
+  epochMillisecondsFromDate,
+  getNowEpochMilliseconds,
+} from '@/utils/temporal'
 
 function toPlainDate(date: Date): Temporal.PlainDate {
   // Use the local calendar date (local wall-clock), not UTC.
@@ -126,7 +131,10 @@ export const formatRegistrationDuration = (
   startDate: Date,
   expiryDate: Date,
 ): string => {
-  if (expiryDate.getTime() <= startDate.getTime()) {
+  if (
+    epochMillisecondsFromDate(expiryDate) <=
+    epochMillisecondsFromDate(startDate)
+  ) {
     throw new Error('Expiry date must be after start date')
   }
 
@@ -168,7 +176,8 @@ export const calculateDurationFromDate = (
   startDate: Date,
   expiryDate: Date,
 ): number => {
-  const diffMs = expiryDate.getTime() - startDate.getTime()
+  const diffMs =
+    epochMillisecondsFromDate(expiryDate) - epochMillisecondsFromDate(startDate)
 
   if (diffMs <= 0) {
     return 1
@@ -187,7 +196,8 @@ export const getRegistrationDurationInSeconds = (
   startDate: Date,
   expiryDate: Date,
 ): number => {
-  const diffMs = expiryDate.getTime() - startDate.getTime()
+  const diffMs =
+    epochMillisecondsFromDate(expiryDate) - epochMillisecondsFromDate(startDate)
   if (diffMs <= 0) {
     return MIN_REGISTRATION_DURATION
   }
@@ -209,7 +219,11 @@ export const getDurationInSecondsFromYears = (
     MAX_REGISTRATION_YEARS,
   )
   const expiry = addCalendarYears(startOfToday, cappedYears)
-  return Math.floor((expiry.getTime() - startOfToday.getTime()) / 1000)
+  return Math.floor(
+    (epochMillisecondsFromDate(expiry) -
+      epochMillisecondsFromDate(startOfToday)) /
+      1000,
+  )
 }
 
 /**
@@ -234,9 +248,14 @@ export const getRegistrationExpiryDateFromSeconds = (
   startDate: Date,
   durationInSeconds: number,
 ): Date => {
-  const expiryDate = new Date(startDate.getTime() + durationInSeconds * 1000)
+  const expiryDate = dateFromEpochMilliseconds(
+    epochMillisecondsFromDate(startDate) + durationInSeconds * 1000,
+  )
 
-  if (expiryDate.getTime() <= startDate.getTime()) {
+  if (
+    epochMillisecondsFromDate(expiryDate) <=
+    epochMillisecondsFromDate(startDate)
+  ) {
     throw new Error('Expiry date must be after start date')
   }
 
@@ -265,8 +284,8 @@ export function getRegistrationDisplayDates(durationSeconds: number) {
  * Use as the canonical reference date for registration duration calculations.
  * Pass `now` for deterministic testing.
  */
-export const getStartOfToday = (now: Date = new Date()): Date =>
-  startOfDayLocal(now)
+export const getStartOfToday = (now?: Date): Date =>
+  startOfDayLocal(now ?? dateFromEpochMilliseconds(getNowEpochMilliseconds()))
 
 /**
  * Returns the minimum expiry date for the date picker (28 days from today).
@@ -307,7 +326,8 @@ export const getDurationFromPickerDate = (
 ): number => {
   const maxExpiry = getMaxExpiryDateForPicker(startOfToday)
   const cappedDate =
-    endOfDayLocal(date).getTime() > maxExpiry.getTime()
+    epochMillisecondsFromDate(endOfDayLocal(date)) >
+    epochMillisecondsFromDate(maxExpiry)
       ? maxExpiry
       : endOfDayLocal(date)
   return getRegistrationDurationInSeconds(startOfToday, cappedDate)

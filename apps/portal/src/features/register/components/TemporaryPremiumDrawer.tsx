@@ -27,7 +27,11 @@ import {
 import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
-import { getNowEpochMilliseconds } from '@/utils/temporal'
+import {
+  dateFromEpochMilliseconds,
+  epochMillisecondsFromDate,
+  getNowEpochMilliseconds,
+} from '@/utils/temporal'
 
 function useSyncPremiumCalculatorOnOpen(
   open: boolean,
@@ -64,7 +68,9 @@ export const TemporaryPremiumDrawer = ({
   premiumStartDate,
 }: TemporaryPremiumDrawerProps) => {
   const premiumEndDate = premiumStartDate
-    ? new Date(premiumStartDate.getTime() + PREMIUM_PERIOD_MS)
+    ? dateFromEpochMilliseconds(
+        epochMillisecondsFromDate(premiumStartDate) + PREMIUM_PERIOD_MS,
+      )
     : null
 
   const currentCalculatedPrice = premiumStartDate
@@ -88,8 +94,14 @@ export const TemporaryPremiumDrawer = ({
     if (!premiumStartDate || !premiumEndDate) return
 
     const nowMs = getNowEpochMilliseconds()
-    const clamped = new Date(
-      Math.max(nowMs, Math.min(newDate.getTime(), premiumEndDate.getTime())),
+    const clamped = dateFromEpochMilliseconds(
+      Math.max(
+        nowMs,
+        Math.min(
+          epochMillisecondsFromDate(newDate),
+          epochMillisecondsFromDate(premiumEndDate),
+        ),
+      ),
     )
 
     const price = getPremiumPriceAtDate(premiumStartDate, clamped)
