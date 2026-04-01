@@ -6,31 +6,20 @@ import type { ClassifiedName } from './classifyNames'
 
 export const ENABLE_PRE_MIGRATE = true
 
-type PreMigrateParams = {
-  readonly label: string
-  readonly expiry: bigint
-  readonly registry: Address
-  readonly resolver: Address
-}
-
-function getPreMigrateParams(name: ClassifiedName): PreMigrateParams {
-  const expiry =
+const getPreMigrateParams = (name: ClassifiedName) => ({
+  label: name.label,
+  expiry: BigInt(
     name.domain.wrappedDomain?.expiryDate ??
-    name.domain.registration?.expiryDate
-  if (!expiry) {
-    throw new Error(`No expiry found for ${name.domain.name}`)
-  }
+      name.domain.registration?.expiryDate ??
+      (() => {
+        throw new Error(`No expiry found for ${name.domain.name}`)
+      })(),
+  ),
+  registry: V1_CONTRACTS.ENSRegistry,
+  resolver: (name.v1ResolverAddress as Address) ?? V1_CONTRACTS.PublicResolver,
+})
 
-  return {
-    label: name.label,
-    expiry: BigInt(expiry),
-    registry: V1_CONTRACTS.ENSRegistry,
-    resolver:
-      (name.v1ResolverAddress as Address) ?? V1_CONTRACTS.PublicResolver,
-  }
-}
-
-export function buildPreMigrateCall(name: ClassifiedName) {
+export const buildPreMigrateCall = (name: ClassifiedName) => {
   const params = getPreMigrateParams(name)
   return {
     address: V2_CONTRACTS.PreMigrationController,
@@ -45,7 +34,7 @@ export function buildPreMigrateCall(name: ClassifiedName) {
   }
 }
 
-export function buildPreMigrateMulticall(names: readonly ClassifiedName[]) {
+export const buildPreMigrateMulticall = (names: readonly ClassifiedName[]) => {
   const calls = names.map((name) => {
     const params = getPreMigrateParams(name)
     return {

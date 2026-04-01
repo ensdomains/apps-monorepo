@@ -69,11 +69,13 @@ type PreFlightResult = {
   frozen: ClassifiedName[]
 }
 
-async function withTimeout<T>(
+const PREFLIGHT_TIMEOUT = 8000
+
+const withTimeout = async <T>(
   promise: Promise<T>,
   ms: number,
   fallback: T,
-): Promise<T> {
+): Promise<T> => {
   try {
     return await Promise.race([
       promise,
@@ -84,14 +86,10 @@ async function withTimeout<T>(
   }
 }
 
-const PREFLIGHT_TIMEOUT = 8000
-
-// Checks if 2LD names are RESERVED in v2 ETHRegistry (resolver != zeroAddress).
-// On timeout/error, names pass through and the contract validates instead.
-async function filterNotReserved(
+const filterNotReserved = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
-): Promise<{ valid: ClassifiedName[]; notReserved: ClassifiedName[] }> {
+): Promise<{ valid: ClassifiedName[]; notReserved: ClassifiedName[] }> => {
   const twoLDs = names.filter(
     (n) =>
       n.tokenType === 'unwrapped' ||
@@ -130,12 +128,10 @@ async function filterNotReserved(
   return { valid, notReserved }
 }
 
-// Checks locked names with CANNOT_APPROVE for non-null getApproved() (FrozenTokenApproval).
-// On timeout/error, names pass through and the contract validates instead.
-async function filterFrozenApprovals(
+const filterFrozenApprovals = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
-): Promise<{ valid: ClassifiedName[]; frozen: ClassifiedName[] }> {
+): Promise<{ valid: ClassifiedName[]; frozen: ClassifiedName[] }> => {
   const locked = names.filter(
     (n) =>
       (n.tokenType === 'locked-2ld' || n.tokenType === 'locked-child') &&
@@ -174,10 +170,10 @@ async function filterFrozenApprovals(
   return { valid, frozen }
 }
 
-async function runPreFlightChecks(
+const runPreFlightChecks = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
-): Promise<PreFlightResult> {
+): Promise<PreFlightResult> => {
   try {
     const reservedResult = await filterNotReserved(publicClient, names)
     const frozenResult = await filterFrozenApprovals(
@@ -195,10 +191,10 @@ async function runPreFlightChecks(
   }
 }
 
-async function getParentWrapperRegistry(
+const getParentWrapperRegistry = async (
   publicClient: PublicClient,
   parentLabels: string[],
-): Promise<Address> {
+): Promise<Address> => {
   let currentRegistry: Address = V2_CONTRACTS.ETHRegistry
 
   for (const label of parentLabels) {
@@ -219,22 +215,19 @@ async function getParentWrapperRegistry(
   return currentRegistry
 }
 
-// Returns labels from .eth downward: "sub.nick.eth" → ["nick"], "deep.sub.nick.eth" → ["nick", "sub"]
-function getParentLabels(name: ClassifiedName): string[] {
-  const fullParts = name.domain.name.split('.')
-  const parentParts = fullParts.slice(1, -1)
-  return parentParts.reverse()
-}
+// "sub.nick.eth" → ["nick"], "deep.sub.nick.eth" → ["nick", "sub"]
+const getParentLabels = (name: ClassifiedName): string[] =>
+  name.domain.name.split('.').slice(1, -1).reverse()
 
-function has2LDNames(groups: GroupedNames): boolean {
-  return (
-    groups.unwrapped.length > 0 ||
-    groups.unlocked.length > 0 ||
-    groups.locked2ld.length > 0
-  )
-}
+const has2LDNames = (groups: GroupedNames): boolean =>
+  groups.unwrapped.length > 0 ||
+  groups.unlocked.length > 0 ||
+  groups.locked2ld.length > 0
 
-function countSteps(groups: GroupedNames, includePreMigrate: boolean): number {
+const countSteps = (
+  groups: GroupedNames,
+  includePreMigrate: boolean,
+): number => {
   let count = 0
   if (includePreMigrate) count++
   if (has2LDNames(groups)) count++
@@ -242,7 +235,7 @@ function countSteps(groups: GroupedNames, includePreMigrate: boolean): number {
   return count
 }
 
-function isUserRejection(error: unknown): boolean {
+const isUserRejection = (error: unknown): boolean => {
   if (error instanceof Error) {
     const msg = error.message.toLowerCase()
     return (
@@ -254,14 +247,12 @@ function isUserRejection(error: unknown): boolean {
   return false
 }
 
-// Signs an unwrapped migration tx (Multicall3 for batch, direct for single).
-// Returns the tx hash without waiting for receipt.
-async function signUnwrappedTx(params: {
+const signUnwrappedTx = async (params: {
   wagmiConfig: WagmiConfig
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
-}): Promise<Hex> {
+}): Promise<Hex> => {
   const { wagmiConfig, names, migrationOwner, defaultResolver } = params
 
   if (names.length === 1 && names[0]) {
@@ -279,25 +270,22 @@ async function signUnwrappedTx(params: {
   )
 }
 
-function writeWrappedCall(
+const writeWrappedCall = (
   wagmiConfig: WagmiConfig,
   call: WrappedMigrationCall,
-): Promise<Hex> {
-  return call.type === 'wrapped-single'
+): Promise<Hex> =>
+  call.type === 'wrapped-single'
     ? writeContract(wagmiConfig, call.request)
     : writeContract(wagmiConfig, call.request)
-}
 
-// Signs a wrapped migration tx (batch or single, with fallback to individual on revert).
-// Returns tx hashes without waiting for receipts.
-async function signWrappedTxs(params: {
+const signWrappedTxs = async (params: {
   wagmiConfig: WagmiConfig
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
   target: Address
   skipped: SkippedName[]
-}): Promise<Hex[]> {
+}): Promise<Hex[]> => {
   const {
     wagmiConfig,
     names,
@@ -328,7 +316,6 @@ async function signWrappedTxs(params: {
     }
   }
 
-  // Batch signing failed — fall back to individual
   const hashes: Hex[] = []
   for (const name of names) {
     const singleCall = buildWrappedCalls({
@@ -350,14 +337,14 @@ async function signWrappedTxs(params: {
   return hashes
 }
 
-export async function executeMigration(params: {
+export const executeMigration = async (params: {
   domains: V1Domain[]
   migrationOwner: Address
   defaultResolver: Address
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   onProgress: (progress: MigrationProgress) => void
-}): Promise<MigrationResult> {
+}): Promise<MigrationResult> => {
   const {
     domains,
     migrationOwner,
@@ -495,7 +482,6 @@ export async function executeMigration(params: {
       description: `Migrating ${twoLDCount} name(s)`,
     })
 
-    // Phase 1: Sign all 2LD txs sequentially (user approves each in wallet)
     const pendingHashes: Hex[] = []
     let signingError: { error: unknown; step: string } | null = null
 
@@ -545,7 +531,6 @@ export async function executeMigration(params: {
       }
     }
 
-    // Phase 2: Wait for all already-submitted receipts (even if signing was interrupted)
     if (pendingHashes.length > 0) {
       onProgress({
         currentStep: stepIndex,
@@ -562,7 +547,6 @@ export async function executeMigration(params: {
       txHashes.push(...pendingHashes)
     }
 
-    // Re-throw after waiting for submitted txs
     if (signingError) {
       if (isUserRejection(signingError.error)) {
         throw new MigrationUserRejectedError({ step: signingError.step })
@@ -666,19 +650,19 @@ export async function executeMigration(params: {
   return { completed: validNames.length, txHashes, skipped }
 }
 
-export function getMigrationStepCount(
+export const getMigrationStepCount = (
   domains: V1Domain[],
   ownerAddress: Address,
-): number {
+): number => {
   const classified = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
   return countSteps(groups, ENABLE_PRE_MIGRATE)
 }
 
-export function getMigrationStepDescriptions(
+export const getMigrationStepDescriptions = (
   domains: V1Domain[],
   ownerAddress: Address,
-): string[] {
+): string[] => {
   const classified = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
   const descriptions: string[] = []

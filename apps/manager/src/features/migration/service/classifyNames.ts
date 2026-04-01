@@ -30,14 +30,13 @@ export type ClassifiedName = {
   readonly v1ResolverAddress: string | null
 }
 
-export function hasFuse(fuses: number, fuse: number): boolean {
-  return (fuses & fuse) !== 0
-}
+export const hasFuse = (fuses: number, fuse: number): boolean =>
+  (fuses & fuse) !== 0
 
-export function classifyName(
+export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
-): ClassifiedName | null {
+): ClassifiedName | null => {
   const label = domain.labelName
   if (!label) return null
 
@@ -66,7 +65,6 @@ export function classifyName(
   const wrappedHolder = domain.wrappedOwner.id as Address
 
   if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
-    // Unlocked 3LD+ cannot be migrated
     if (parentName !== 'eth') return null
     return {
       domain,
@@ -104,15 +102,14 @@ export function classifyName(
   }
 }
 
-export function classifyNames(
+export const classifyNames = (
   domains: V1Domain[],
   ownerAddress: Address,
-): ClassifiedName[] {
-  return domains.flatMap((domain) => {
+): ClassifiedName[] =>
+  domains.flatMap((domain) => {
     const classified = classifyName(domain, ownerAddress)
     return classified ? [classified] : []
   })
-}
 
 export type GroupedNames = {
   readonly unwrapped: readonly ClassifiedName[]
@@ -121,7 +118,7 @@ export type GroupedNames = {
   readonly lockedChildren: ReadonlyMap<string, readonly ClassifiedName[]>
 }
 
-export function groupClassifiedNames(names: ClassifiedName[]): GroupedNames {
+export const groupClassifiedNames = (names: ClassifiedName[]): GroupedNames => {
   const unwrapped: ClassifiedName[] = []
   const unlocked: ClassifiedName[] = []
   const locked2ld: ClassifiedName[] = []

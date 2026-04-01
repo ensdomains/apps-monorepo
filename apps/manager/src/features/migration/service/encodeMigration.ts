@@ -14,30 +14,26 @@ const MIGRATION_DATA_COMPONENTS = [
   { name: 'resolver', type: 'address' },
 ] as const
 
-export function encodeMigrationData(data: MigrationData): Hex {
-  return encodeAbiParameters(
+export const encodeMigrationData = (data: MigrationData): Hex =>
+  encodeAbiParameters(
     [{ type: 'tuple', components: MIGRATION_DATA_COMPONENTS }],
     [data],
   )
-}
 
-export function encodeMigrationDataBatch(data: readonly MigrationData[]): Hex {
-  return encodeAbiParameters(
+export const encodeMigrationDataBatch = (data: readonly MigrationData[]): Hex =>
+  encodeAbiParameters(
     [{ type: 'tuple[]', components: MIGRATION_DATA_COMPONENTS }],
     [data],
   )
-}
 
-export function createMigrationData(params: {
+export const createMigrationData = (params: {
   label: string
   owner: Address
   resolver: Address
   subregistry?: Address
-}): MigrationData {
-  return {
-    label: params.label,
-    owner: params.owner,
-    subregistry: params.subregistry ?? zeroAddress,
-    resolver: params.resolver,
-  }
-}
+}): MigrationData => ({
+  label: params.label,
+  owner: params.owner,
+  subregistry: params.subregistry ?? zeroAddress,
+  resolver: params.resolver,
+})

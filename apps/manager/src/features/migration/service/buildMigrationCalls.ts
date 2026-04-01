@@ -47,18 +47,16 @@ export type WrappedMigrationCall =
   | WrappedSingleMigrationCall
   | WrappedBatchMigrationCall
 
-function getTokenId(name: ClassifiedName): bigint {
-  if (name.tokenType === 'unwrapped') {
-    return BigInt(name.domain.labelhash)
-  }
-  return BigInt(name.domain.id)
-}
+const getTokenId = (name: ClassifiedName): bigint =>
+  name.tokenType === 'unwrapped'
+    ? BigInt(name.domain.labelhash)
+    : BigInt(name.domain.id)
 
-function getMigrationTarget(
+const getMigrationTarget = (
   tokenType: ClassifiedName['tokenType'],
   parentWrapperRegistry?: Address,
-): Address {
-  return match(tokenType)
+): Address =>
+  match(tokenType)
     .with(
       'unwrapped',
       'unlocked',
@@ -74,13 +72,12 @@ function getMigrationTarget(
       return parentWrapperRegistry
     })
     .exhaustive()
-}
 
-function getResolverForName(
+const getResolverForName = (
   name: ClassifiedName,
   defaultResolver: Address,
-): Address {
-  return match(name.tokenType)
+): Address =>
+  match(name.tokenType)
     .with('locked-2ld', 'locked-child', () => {
       if (
         hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
@@ -91,13 +88,12 @@ function getResolverForName(
       return defaultResolver
     })
     .otherwise(() => defaultResolver)
-}
 
-export function buildUnwrappedCall(params: {
+export const buildUnwrappedCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
-}): UnwrappedMigrationCall {
+}): UnwrappedMigrationCall => {
   const { name, migrationOwner, defaultResolver } = params
   const tokenId = getTokenId(name)
   const target = getMigrationTarget(name.tokenType)
@@ -118,12 +114,12 @@ export function buildUnwrappedCall(params: {
   }
 }
 
-function buildWrappedSingleCall(params: {
+const buildWrappedSingleCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
   parentWrapperRegistry?: Address
-}): WrappedSingleMigrationCall {
+}): WrappedSingleMigrationCall => {
   const { name, migrationOwner, defaultResolver, parentWrapperRegistry } =
     params
   const tokenId = getTokenId(name)
@@ -145,17 +141,16 @@ function buildWrappedSingleCall(params: {
   }
 }
 
-function buildWrappedBatchCall(params: {
+const buildWrappedBatchCall = (params: {
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
   target: Address
-}): WrappedBatchMigrationCall {
+}): WrappedBatchMigrationCall => {
   const { names, migrationOwner, defaultResolver, target } = params
 
   const first = names[0]
   if (!first) throw new Error('Cannot build batch call with empty names array')
-  const tokenHolder = first.tokenHolder
 
   const tokenIds = names.map(getTokenId)
   const amounts = names.map(() => 1n)
@@ -176,17 +171,17 @@ function buildWrappedBatchCall(params: {
       address: V1_CONTRACTS.NameWrapper,
       abi: NAME_WRAPPER_ABI,
       functionName: 'safeBatchTransferFrom',
-      args: [tokenHolder, target, tokenIds, amounts, data] as const,
+      args: [first.tokenHolder, target, tokenIds, amounts, data] as const,
     },
   }
 }
 
-export function buildWrappedCalls(params: {
+export const buildWrappedCalls = (params: {
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
   target: Address
-}): WrappedMigrationCall {
+}): WrappedMigrationCall => {
   const { names, migrationOwner, defaultResolver, target } = params
 
   if (names.length === 1 && names[0]) {
@@ -207,11 +202,11 @@ export function buildWrappedCalls(params: {
   })
 }
 
-export function buildUnwrappedMulticall(params: {
+export const buildUnwrappedMulticall = (params: {
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
-}) {
+}) => {
   const { names, migrationOwner, defaultResolver } = params
 
   const calls = names.map((name) => {
