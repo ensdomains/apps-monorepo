@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
 import { useMigrationExecution } from '@/features/migration/hooks/useMigrationExecution'
 import type { MigrationResult } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
@@ -16,8 +16,7 @@ const HUG_DELAY = 3000
 
 export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const { t } = useLingui()
-  const trackRef = useRef<HTMLDivElement>(null)
-  const [trackWidth, setTrackWidth] = useState(0)
+  const { ref: trackRef, width: trackWidth } = useElementWidth()
 
   const { done, errorMessage, progress, stepCount, stepDescriptions } =
     useMigrationExecution(domains, onComplete, onError, HUG_DELAY)
@@ -25,17 +24,6 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const totalSteps = Math.max(stepCount, 1)
   const completedSteps = progress?.currentStep ?? 0
   const hasCollapsed = !!errorMessage
-
-  useEffect(() => {
-    const el = trackRef.current
-    if (!el) return
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (entry) setTrackWidth(entry.contentRect.width)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   const plankIndex = Math.min(completedSteps, totalSteps - 1)
   const frensX =
@@ -59,10 +47,7 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
 
   return (
     <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
-      <div
-        className="flex w-full flex-col items-center"
-        style={{ height: 400 }}
-      >
+      <div className="flex h-[400px] w-full flex-col items-center">
         <motion.div
           animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
           className="flex h-11 shrink-0 items-center"
@@ -124,9 +109,8 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
                         ? { y: [0, -12, 0], rotate: [0, -5, 5, 0] }
                         : { y: 0, rotate: 0 }
                     }
-                    className="shrink-0"
+                    className="h-[44px] shrink-0"
                     src="/frens/peanut.svg"
-                    style={{ height: 44 }}
                     transition={
                       isExcited
                         ? {
@@ -144,9 +128,8 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
                         ? { y: [0, -16, 0], rotate: [0, 4, -4, 0] }
                         : { y: 0, rotate: 0 }
                     }
-                    className="shrink-0"
+                    className="h-[60px] shrink-0"
                     src="/frens/lili.svg"
-                    style={{ height: 60 }}
                     transition={
                       isExcited
                         ? {
@@ -166,9 +149,8 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
                           ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
                           : { y: [0, -6, -3, 0] }
                       }
-                      className="-translate-x-1/2 absolute left-1/2"
+                      className="-translate-x-1/2 absolute top-[-30px] left-1/2 h-[24px]"
                       src="/frens/bittu.svg"
-                      style={{ height: 24, top: -30 }}
                       transition={
                         isExcited
                           ? {
@@ -190,9 +172,8 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
                           ? { y: [0, -10, 0], rotate: [0, -3, 3, 0] }
                           : { y: 0, rotate: 0 }
                       }
-                      className="shrink-0"
+                      className="h-[50px] shrink-0"
                       src="/frens/kuzco.svg"
-                      style={{ height: 50 }}
                       transition={
                         isExcited
                           ? {
@@ -245,8 +226,7 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
                   ? { y: 300, opacity: 0, rotate: 3 }
                   : { y: 0, opacity: 1, rotate: 0 }
               }
-              className="absolute right-[90px] bottom-[10px] left-0"
-              style={{ transformOrigin: 'center bottom' }}
+              className="absolute right-[90px] bottom-[10px] left-0 origin-bottom"
               transition={hasCollapsed ? collapseTransition : { duration: 0 }}
             >
               <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />

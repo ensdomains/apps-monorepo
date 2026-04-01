@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -10,10 +10,10 @@ import {
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useAutoScrollCarousel } from '@/features/migration/hooks/useAutoScrollCarousel'
+import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
-const STORAGE_KEY = 'migration-modal-dismissed'
 const AUTO_SCROLL_INTERVAL = 5000
 
 const SLIDE_DATA = [
@@ -40,7 +40,7 @@ export const MigrationModal = () => {
   const { isConnected } = useSmartAccountContext()
   const { data: v1Names } = useV1Names()
   const hasV1Names = (v1Names?.length ?? 0) > 0
-  const [open, setOpen] = useState(false)
+  const { open, dismiss } = useOpenModalOnFirstVisit(isConnected, hasV1Names)
   const [activeSlide, setActiveSlide] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -51,16 +51,6 @@ export const MigrationModal = () => {
     experience: t`New Experience`,
   }
 
-  useEffect(() => {
-    if (
-      isConnected &&
-      hasV1Names &&
-      localStorage.getItem(STORAGE_KEY) !== 'true'
-    ) {
-      setOpen(true)
-    }
-  }, [isConnected, hasV1Names])
-
   const scrollToSlide = useCallback((index: number) => {
     setActiveSlide(index)
     const el = scrollRef.current
@@ -69,9 +59,8 @@ export const MigrationModal = () => {
   }, [])
 
   const handleDismiss = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, 'true')
-    setOpen(false)
-  }, [])
+    dismiss()
+  }, [dismiss])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current

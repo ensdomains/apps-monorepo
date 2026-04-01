@@ -223,7 +223,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:48
+#: src/features/migration/components/GameStep.tsx:36
 msgid "Almost there..."
 msgstr ""
 
@@ -452,7 +452,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:119
+#: src/features/migration/components/MigrationModal.tsx:108
 msgid "Close"
 msgstr ""
 
@@ -1418,7 +1418,7 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:51
+#: src/features/migration/components/GameStep.tsx:39
 msgid "Preparing migration..."
 msgstr ""
 
@@ -1869,7 +1869,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr ""
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:149
+#: src/features/migration/components/MigrationModal.tsx:138
 msgid "Slide {0}"
 msgstr ""
 
@@ -2103,7 +2103,7 @@ msgstr ""
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:129
+#: src/features/migration/components/MigrationModal.tsx:118
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
@@ -2111,7 +2111,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:72
+#: src/features/migration/components/GameStep.tsx:57
 msgid "Upgrading your names..."
 msgstr ""
 
@@ -2276,7 +2276,7 @@ msgstr ""
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:126
+#: src/features/migration/components/MigrationModal.tsx:115
 msgid "Welcome to the new ENS app!"
 msgstr ""
 

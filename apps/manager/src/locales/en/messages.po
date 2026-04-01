@@ -218,7 +218,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/migration/components/GameStep.tsx:48
+#: src/features/migration/components/GameStep.tsx:36
 msgid "Almost there..."
 msgstr "Almost there..."
 
@@ -447,7 +447,7 @@ msgid "Click to copy"
 msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:119
+#: src/features/migration/components/MigrationModal.tsx:108
 msgid "Close"
 msgstr "Close"
 
@@ -1413,7 +1413,7 @@ msgstr "Preferences updated"
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
 
-#: src/features/migration/components/GameStep.tsx:51
+#: src/features/migration/components/GameStep.tsx:39
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
 
@@ -1864,7 +1864,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:149
+#: src/features/migration/components/MigrationModal.tsx:138
 msgid "Slide {0}"
 msgstr "Slide {0}"
 
@@ -2098,7 +2098,7 @@ msgstr "Upgrade names"
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
 
-#: src/features/migration/components/MigrationModal.tsx:129
+#: src/features/migration/components/MigrationModal.tsx:118
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 
@@ -2106,7 +2106,7 @@ msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your comme
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:72
+#: src/features/migration/components/GameStep.tsx:57
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 
@@ -2271,7 +2271,7 @@ msgstr "Website"
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
 
-#: src/features/migration/components/MigrationModal.tsx:126
+#: src/features/migration/components/MigrationModal.tsx:115
 msgid "Welcome to the new ENS app!"
 msgstr "Welcome to the new ENS app!"
 
