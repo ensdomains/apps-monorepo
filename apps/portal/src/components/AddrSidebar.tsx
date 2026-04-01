@@ -58,7 +58,6 @@ const getItemGroups = (addr: string) => [
     defineAddrSidebarItem({
       title: 'Address Resolution',
       icon: CopyIcon,
-      upcoming: true,
       link: {
         to: '/addr/$addr/resolution',
         params: { addr },
@@ -68,7 +67,6 @@ const getItemGroups = (addr: string) => [
     defineAddrSidebarItem({
       title: 'Reverse Resolution',
       icon: CopySlashIcon,
-      upcoming: true,
       link: {
         to: '/addr/$addr/reverse-resolution',
         params: { addr },
