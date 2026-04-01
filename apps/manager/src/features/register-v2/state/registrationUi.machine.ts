@@ -3,6 +3,7 @@ import {
   registrationMachine,
 } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { secondsInYear } from 'date-fns/constants'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -19,6 +20,7 @@ import {
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import type { SmartAccountState } from '@/lib/smart-account/types'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import { getQueryClient } from '@/utils/router/root-context'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
@@ -129,6 +131,22 @@ const machineSetup = setup({
     clearConfirmedData: assign({
       confirmedData: () => undefined,
     }),
+
+    invalidateNameQueries: ({ context }) => {
+      const name = context.confirmedData?.label
+      const queryClient = getQueryClient()
+      if (!name || !queryClient) {
+        return
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: $qk({
+          $scope: 'profile',
+          $action: 'reverse_name',
+          name: `${name}.eth`,
+        }),
+      })
+    },
   },
 })
 
@@ -314,6 +332,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
       },
       onDone: {
         target: 'success',
+        actions: ['invalidateNameQueries'],
       },
     },
     success: {},
