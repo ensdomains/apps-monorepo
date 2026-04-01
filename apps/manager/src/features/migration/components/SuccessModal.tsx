@@ -30,9 +30,6 @@ export const SuccessModal = ({ open, onClose }: SuccessModalProps) => {
           <DialogDescription className="text-center text-[#e72a96] text-sm">
             <Trans>Your names have been successfully upgraded.</Trans>
           </DialogDescription>
-          <p className="font-semi-mono text-[#e72a96] text-xs uppercase tracking-[0.12px]">
-            WIP — Success
-          </p>
           <button
             className="w-full rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
             onClick={onClose}

@@ -1,8 +1,12 @@
+import type { Hex } from 'viem'
 import { assign, setup } from 'xstate'
+import type { SkippedName } from '@/features/migration/service/migrationService'
 
 export type MigrationContext = {
   selectedNames: string[]
-  transactionHash?: string
+  txHashes: readonly Hex[]
+  skippedNames: readonly SkippedName[]
+  error?: string
 }
 
 export const migrationMachine = setup({
@@ -11,7 +15,13 @@ export const migrationMachine = setup({
     events: {} as
       | { type: 'SELECT_NAMES'; names: string[] }
       | { type: 'BEGIN_UPGRADE' }
-      | { type: 'GAME_COMPLETE' }
+      | {
+          type: 'MIGRATION_COMPLETE'
+          txHashes: readonly Hex[]
+          skipped: readonly SkippedName[]
+        }
+      | { type: 'MIGRATION_ERROR'; error: string }
+      | { type: 'RETRY' }
       | { type: 'DONE' }
       | { type: 'RESET' },
   },
@@ -20,6 +30,8 @@ export const migrationMachine = setup({
   initial: 'selectNames',
   context: {
     selectedNames: [],
+    txHashes: [],
+    skippedNames: [],
   },
   states: {
     selectNames: {
@@ -30,15 +42,39 @@ export const migrationMachine = setup({
           }),
         },
         BEGIN_UPGRADE: {
-          target: 'game',
+          target: 'migrating',
           guard: ({ context }) => context.selectedNames.length > 0,
         },
       },
     },
-    game: {
+    migrating: {
       on: {
-        GAME_COMPLETE: {
-          target: 'success',
+        MIGRATION_COMPLETE: [
+          {
+            target: 'error',
+            guard: ({ event }) => event.skipped.length > 0,
+            actions: assign({
+              txHashes: ({ event }) => event.txHashes,
+              skippedNames: ({ event }) => event.skipped,
+              error: ({ event }) => {
+                const count = event.skipped.length
+                return `${count} name(s) could not be migrated due to pre-flight check failures.`
+              },
+            }),
+          },
+          {
+            target: 'success',
+            actions: assign({
+              txHashes: ({ event }) => event.txHashes,
+              skippedNames: () => [],
+            }),
+          },
+        ],
+        MIGRATION_ERROR: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error,
+          }),
         },
       },
     },
@@ -47,8 +83,29 @@ export const migrationMachine = setup({
         DONE: {
           target: 'selectNames',
           actions: assign({
-            selectedNames: [],
-            transactionHash: undefined,
+            selectedNames: () => [],
+            txHashes: () => [],
+            skippedNames: () => [],
+            error: () => undefined,
+          }),
+        },
+      },
+    },
+    error: {
+      on: {
+        RETRY: {
+          target: 'migrating',
+          actions: assign({
+            error: () => undefined,
+          }),
+        },
+        RESET: {
+          target: 'selectNames',
+          actions: assign({
+            selectedNames: () => [],
+            txHashes: () => [],
+            skippedNames: () => [],
+            error: () => undefined,
           }),
         },
       },

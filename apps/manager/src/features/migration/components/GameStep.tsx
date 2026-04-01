@@ -1,36 +1,30 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
+import { useMigrationExecution } from '@/features/migration/hooks/useMigrationExecution'
+import type { MigrationResult } from '@/features/migration/service/migrationService'
+import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { cn } from '@/lib/utils'
 
 type GameStepProps = {
-  readonly onNext: () => void
+  readonly domains: V1Domain[]
+  readonly onComplete: (result: MigrationResult) => void
+  readonly onError: (error: string) => void
 }
 
-const STEP_IDS = ['tx-1', 'tx-2', 'tx-3', 'tx-4'] as const
-const TOTAL_STEPS = STEP_IDS.length
 const HUG_DELAY = 3000
 
-export const GameStep = ({ onNext }: GameStepProps) => {
+export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const { t } = useLingui()
-  const [completedSteps, setCompletedSteps] = useState(0)
   const trackRef = useRef<HTMLDivElement>(null)
   const [trackWidth, setTrackWidth] = useState(0)
 
-  const allComplete = completedSteps >= TOTAL_STEPS
+  const { done, errorMessage, progress, stepCount, stepDescriptions } =
+    useMigrationExecution(domains, onComplete, onError, HUG_DELAY)
 
-  const stepDescriptions = [
-    t`Approving migration`,
-    t`Transferring ownership`,
-    t`Setting resolver`,
-    t`Finalizing upgrade`,
-  ]
-
-  const advanceStep = () => {
-    if (completedSteps < TOTAL_STEPS) {
-      setCompletedSteps((prev) => prev + 1)
-    }
-  }
+  const totalSteps = Math.max(stepCount, 1)
+  const completedSteps = progress?.currentStep ?? 0
+  const hasCollapsed = !!errorMessage
 
   useEffect(() => {
     const el = trackRef.current
@@ -43,20 +37,25 @@ export const GameStep = ({ onNext }: GameStepProps) => {
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => {
-    if (!allComplete) return
-    const timer = setTimeout(() => onNext(), HUG_DELAY)
-    return () => clearTimeout(timer)
-  }, [allComplete, onNext])
-
-  const plankIndex = Math.min(completedSteps, TOTAL_STEPS - 1)
+  const plankIndex = Math.min(completedSteps, totalSteps - 1)
   const frensX =
-    trackWidth > 0 ? ((plankIndex + 0.5) / TOTAL_STEPS) * trackWidth : 0
+    trackWidth > 0 ? ((plankIndex + 0.5) / totalSteps) * trackWidth : 0
 
-  const descriptionText =
-    completedSteps < TOTAL_STEPS
+  // Excited when tx is signed but step hasn't completed yet
+  const isExcited = !!progress?.txHash && !done && !hasCollapsed
+
+  const descriptionText = done
+    ? t`Almost there...`
+    : completedSteps < stepDescriptions.length
       ? `${stepDescriptions[completedSteps]}...`
-      : t`Almost there...`
+      : t`Preparing migration...`
+
+  const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)
+
+  const collapseTransition = {
+    duration: 0.8,
+    ease: [0.55, 0, 1, 0.45] as const,
+  }
 
   return (
     <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
@@ -64,13 +63,21 @@ export const GameStep = ({ onNext }: GameStepProps) => {
         className="flex w-full flex-col items-center"
         style={{ height: 400 }}
       >
-        <div className="flex h-11 shrink-0 items-center">
+        <motion.div
+          animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+          className="flex h-11 shrink-0 items-center"
+          transition={{ duration: 0.3 }}
+        >
           <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Upgrading your names...</Trans>
           </p>
-        </div>
+        </motion.div>
 
-        <div className="flex h-6 shrink-0 items-center overflow-hidden">
+        <motion.div
+          animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+          className="flex h-6 shrink-0 items-center overflow-hidden"
+          transition={{ duration: 0.3 }}
+        >
           <AnimatePresence mode="popLayout">
             <motion.span
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -83,157 +90,273 @@ export const GameStep = ({ onNext }: GameStepProps) => {
               {descriptionText}
             </motion.span>
           </AnimatePresence>
-        </div>
+        </motion.div>
 
         <div className="relative mt-2 h-[280px] w-full shrink-0">
           <motion.div
-            animate={{ opacity: allComplete ? 0 : 1 }}
+            animate={{ opacity: done ? 0 : 1 }}
             className="absolute inset-0"
             transition={{ duration: 0.5, ease: 'easeOut' }}
           >
+            {/* Characters */}
             <div
               className="absolute right-[90px] bottom-[42px] left-0 z-10"
               ref={trackRef}
             >
               <motion.div
-                animate={{ x: frensX }}
+                animate={
+                  hasCollapsed
+                    ? { x: frensX, y: 300, rotate: 15, opacity: 0 }
+                    : { x: frensX }
+                }
                 className="-translate-x-1/2 absolute bottom-0 left-0"
-                transition={{ type: 'spring', stiffness: 80, damping: 18 }}
+                transition={
+                  hasCollapsed
+                    ? { duration: 1, ease: [0.36, 0, 0.66, -0.56] }
+                    : { type: 'spring', stiffness: 80, damping: 18 }
+                }
               >
                 <div className="flex items-end gap-1">
-                  <img
+                  <motion.img
                     alt=""
+                    animate={
+                      isExcited
+                        ? { y: [0, -12, 0], rotate: [0, -5, 5, 0] }
+                        : { y: 0, rotate: 0 }
+                    }
                     className="shrink-0"
                     src="/frens/peanut.svg"
                     style={{ height: 44 }}
+                    transition={
+                      isExcited
+                        ? {
+                            duration: 0.5,
+                            repeat: Number.POSITIVE_INFINITY,
+                            repeatDelay: 0.1,
+                          }
+                        : { duration: 0.3 }
+                    }
                   />
-                  <img
+                  <motion.img
                     alt=""
+                    animate={
+                      isExcited
+                        ? { y: [0, -16, 0], rotate: [0, 4, -4, 0] }
+                        : { y: 0, rotate: 0 }
+                    }
                     className="shrink-0"
                     src="/frens/lili.svg"
                     style={{ height: 60 }}
+                    transition={
+                      isExcited
+                        ? {
+                            duration: 0.6,
+                            repeat: Number.POSITIVE_INFINITY,
+                            repeatDelay: 0.05,
+                            delay: 0.1,
+                          }
+                        : { duration: 0.3 }
+                    }
                   />
                   <div className="relative shrink-0">
                     <motion.img
                       alt=""
-                      animate={{ y: [0, -6, -3, 0] }}
+                      animate={
+                        isExcited
+                          ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
+                          : { y: [0, -6, -3, 0] }
+                      }
                       className="-translate-x-1/2 absolute left-1/2"
                       src="/frens/bittu.svg"
                       style={{ height: 24, top: -30 }}
-                      transition={{
-                        duration: 4,
-                        ease: 'easeInOut',
-                        repeat: Number.POSITIVE_INFINITY,
-                      }}
+                      transition={
+                        isExcited
+                          ? {
+                              duration: 0.8,
+                              ease: 'easeInOut',
+                              repeat: Number.POSITIVE_INFINITY,
+                            }
+                          : {
+                              duration: 4,
+                              ease: 'easeInOut',
+                              repeat: Number.POSITIVE_INFINITY,
+                            }
+                      }
                     />
-                    <img
+                    <motion.img
                       alt=""
+                      animate={
+                        isExcited
+                          ? { y: [0, -10, 0], rotate: [0, -3, 3, 0] }
+                          : { y: 0, rotate: 0 }
+                      }
                       className="shrink-0"
                       src="/frens/kuzco.svg"
                       style={{ height: 50 }}
+                      transition={
+                        isExcited
+                          ? {
+                              duration: 0.55,
+                              repeat: Number.POSITIVE_INFINITY,
+                              repeatDelay: 0.15,
+                              delay: 0.2,
+                            }
+                          : { duration: 0.3 }
+                      }
                     />
                   </div>
                 </div>
               </motion.div>
             </div>
 
+            {/* Giant */}
             <motion.div
-              animate={{ y: [0, -6, 0] }}
+              animate={
+                hasCollapsed
+                  ? { y: 300, rotate: -10, opacity: 0 }
+                  : isExcited
+                    ? { y: [0, -14, 0], scale: [1, 1.05, 1] }
+                    : { y: [0, -6, 0] }
+              }
               className="absolute right-0 bottom-[10px]"
-              transition={{
-                duration: 4,
-                ease: 'easeInOut',
-                repeat: Number.POSITIVE_INFINITY,
-              }}
+              transition={
+                hasCollapsed
+                  ? { duration: 0.9, ease: [0.36, 0, 0.66, -0.56], delay: 0.1 }
+                  : isExcited
+                    ? {
+                        duration: 0.7,
+                        ease: 'easeInOut',
+                        repeat: Number.POSITIVE_INFINITY,
+                      }
+                    : {
+                        duration: 4,
+                        ease: 'easeInOut',
+                        repeat: Number.POSITIVE_INFINITY,
+                      }
+              }
             >
               <img alt="" className="h-[93px]" src="/frens/giant.svg" />
             </motion.div>
 
-            <div className="absolute right-[90px] bottom-[10px] left-0">
+            {/* Bridge */}
+            <motion.div
+              animate={
+                hasCollapsed
+                  ? { y: 300, opacity: 0, rotate: 3 }
+                  : { y: 0, opacity: 1, rotate: 0 }
+              }
+              className="absolute right-[90px] bottom-[10px] left-0"
+              style={{ transformOrigin: 'center bottom' }}
+              transition={hasCollapsed ? collapseTransition : { duration: 0 }}
+            >
               <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
 
               <div className="flex items-stretch gap-1.5">
-                <div className="w-1 rounded-sm bg-ens-garnet-900/40" />
-                {STEP_IDS.map((id, i) => {
-                  const done = i < completedSteps
+                <motion.div
+                  animate={
+                    hasCollapsed
+                      ? { y: 20, rotate: -8, opacity: 0 }
+                      : { y: 0, rotate: 0, opacity: 1 }
+                  }
+                  className="w-1 rounded-sm bg-ens-garnet-900/40"
+                  transition={
+                    hasCollapsed
+                      ? { ...collapseTransition, delay: 0 }
+                      : { duration: 0 }
+                  }
+                />
+                {stepIds.map((id, i) => {
+                  const stepDone = i < completedSteps
                   return (
-                    <div className="flex flex-1 items-stretch" key={id}>
+                    <motion.div
+                      animate={
+                        hasCollapsed
+                          ? {
+                              y: 40 + i * 15,
+                              rotate: i % 2 === 0 ? 12 : -10,
+                              opacity: 0,
+                            }
+                          : { y: 0, rotate: 0, opacity: 1 }
+                      }
+                      className="flex flex-1 items-stretch"
+                      key={id}
+                      transition={
+                        hasCollapsed
+                          ? {
+                              ...collapseTransition,
+                              delay: 0.05 + i * 0.06,
+                            }
+                          : { duration: 0 }
+                      }
+                    >
                       <motion.div
-                        animate={done ? { scaleX: 1, opacity: 1 } : undefined}
+                        animate={
+                          stepDone ? { scaleX: 1, opacity: 1 } : undefined
+                        }
                         className={cn(
                           'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
-                          done
+                          stepDone
                             ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
                             : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
                         )}
-                        initial={done ? { scaleX: 0, opacity: 0 } : undefined}
+                        initial={
+                          stepDone ? { scaleX: 0, opacity: 0 } : undefined
+                        }
                         transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
                       />
-                      <div
+                      <motion.div
+                        animate={
+                          hasCollapsed
+                            ? {
+                                y: 30 + i * 10,
+                                rotate: i % 2 === 0 ? -15 : 8,
+                                opacity: 0,
+                              }
+                            : { y: 0, rotate: 0, opacity: 1 }
+                        }
                         className={cn(
                           'ml-1.5 w-1 rounded-sm',
-                          done
+                          stepDone
                             ? 'bg-ens-garnet-900/40'
                             : 'bg-ens-garnet-900/10',
                         )}
+                        transition={
+                          hasCollapsed
+                            ? {
+                                ...collapseTransition,
+                                delay: 0.08 + i * 0.06,
+                              }
+                            : { duration: 0 }
+                        }
                       />
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
 
               <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
-            </div>
+            </motion.div>
 
-            <div className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5" />
+            <motion.div
+              animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+              className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5"
+              transition={hasCollapsed ? { duration: 0.3 } : { duration: 0 }}
+            />
           </motion.div>
 
           <motion.div
             animate={
-              allComplete
-                ? { opacity: 1, scale: 1 }
-                : { opacity: 0, scale: 0.5 }
+              done ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }
             }
             className="absolute inset-0 flex items-center justify-center"
             transition={
-              allComplete
+              done
                 ? { type: 'spring', bounce: 0.4, duration: 0.8, delay: 0.3 }
                 : { duration: 0 }
             }
           >
             <img alt="" className="h-[180px]" src="/frens/together.svg" />
           </motion.div>
-        </div>
-
-        <div className="flex h-5 shrink-0 items-center gap-2">
-          {STEP_IDS.map((id, i) => (
-            <motion.div
-              animate={{
-                scale: i === completedSteps ? 1.3 : 1,
-                backgroundColor:
-                  i < completedSteps
-                    ? 'var(--color-ens-garnet-900)'
-                    : i === completedSteps
-                      ? '#e72a96'
-                      : 'rgba(74, 3, 38, 0.2)',
-              }}
-              className="size-2 rounded-full"
-              key={id}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            />
-          ))}
-        </div>
-
-        <div className="flex h-5 shrink-0 items-center">
-          {completedSteps < TOTAL_STEPS && (
-            <button
-              className="text-ens-garnet-900/40 text-xs underline"
-              onClick={advanceStep}
-              type="button"
-            >
-              fake tx {completedSteps + 1}
-            </button>
-          )}
         </div>
       </div>
     </div>

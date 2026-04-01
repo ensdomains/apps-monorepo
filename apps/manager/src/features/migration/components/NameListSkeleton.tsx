@@ -1,4 +1,4 @@
-const SKELETON_WIDTHS = [120, 140, 180, 100, 160]
+const SKELETON_WIDTHS = [120, 140, 180, 100, 160, 120, 140, 180, 100]
 
 export const NameListSkeleton = () => (
   <>
