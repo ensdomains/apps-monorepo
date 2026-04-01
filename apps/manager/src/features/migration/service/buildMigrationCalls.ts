@@ -1,7 +1,8 @@
 import { match } from 'ts-pattern'
-import type { Address, Hex } from 'viem'
+import { type Address, encodeFunctionData, type Hex } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import { MULTICALL3_ABI, MULTICALL3_ADDRESS } from '../contracts/multicall3'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import {
   createMigrationData,
@@ -205,4 +206,42 @@ export function buildWrappedCalls(params: {
     defaultResolver,
     target,
   })
+}
+
+export function buildUnwrappedMulticall(params: {
+  names: readonly ClassifiedName[]
+  migrationOwner: Address
+  defaultResolver: Address
+}) {
+  const { names, migrationOwner, defaultResolver } = params
+
+  const calls = names.map((name) => {
+    const tokenId = getTokenId(name)
+    const target = getMigrationTarget(name.tokenType)
+    const resolver = getResolverForName(name, defaultResolver)
+    const data = encodeMigrationData(
+      createMigrationData({
+        label: name.label,
+        owner: migrationOwner,
+        resolver,
+      }),
+    )
+
+    return {
+      target: V1_CONTRACTS.BaseRegistrar,
+      allowFailure: false,
+      callData: encodeFunctionData({
+        abi: BASE_REGISTRAR_ABI,
+        functionName: 'safeTransferFrom',
+        args: [name.tokenHolder, target, tokenId, data],
+      }),
+    }
+  })
+
+  return {
+    address: MULTICALL3_ADDRESS,
+    abi: MULTICALL3_ABI,
+    functionName: 'aggregate3' as const,
+    args: [calls] as const,
+  }
 }

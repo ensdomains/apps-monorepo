@@ -15,6 +15,7 @@ import {
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
   buildUnwrappedCall,
+  buildUnwrappedMulticall,
   buildWrappedCalls,
   type MigrationCall,
 } from './buildMigrationCalls'
@@ -463,23 +464,32 @@ export async function executeMigration(params: {
       description: `Migrating ${groups.unwrapped.length} unwrapped name(s)`,
     })
 
-    for (const name of groups.unwrapped) {
-      const call = buildUnwrappedCall({ name, migrationOwner, defaultResolver })
-
-      try {
-        const hash = await executeCall(wagmiConfig, call)
-        txHashes.push(hash)
-      } catch (error) {
-        if (isUserRejection(error)) {
-          throw new MigrationUserRejectedError({
-            step: `Unwrapped: ${name.label}.eth`,
-          })
-        }
-        throw new MigrationError({
-          cause: error,
-          step: `Unwrapped: ${name.label}.eth`,
+    try {
+      let hash: Hex
+      if (groups.unwrapped.length === 1 && groups.unwrapped[0]) {
+        const call = buildUnwrappedCall({
+          name: groups.unwrapped[0],
+          migrationOwner,
+          defaultResolver,
         })
+        hash = await executeCall(wagmiConfig, call)
+      } else {
+        hash = await writeContract(
+          wagmiConfig,
+          buildUnwrappedMulticall({
+            names: groups.unwrapped,
+            migrationOwner,
+            defaultResolver,
+          }),
+        )
+        await waitForTransactionReceipt(wagmiConfig, { hash })
       }
+      txHashes.push(hash)
+    } catch (error) {
+      if (isUserRejection(error)) {
+        throw new MigrationUserRejectedError({ step: 'Unwrapped names' })
+      }
+      throw new MigrationError({ cause: error, step: 'Unwrapped names' })
     }
 
     stepIndex++
