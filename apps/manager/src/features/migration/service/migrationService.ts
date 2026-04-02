@@ -6,7 +6,7 @@ import {
 } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
-import { readContract } from 'viem/actions'
+import { multicall, readContract } from 'viem/actions'
 import {
   ETH_REGISTRY_V2_ABI,
   NAME_WRAPPER_ABI,
@@ -70,6 +70,47 @@ type PreFlightResult = {
 }
 
 const PREFLIGHT_TIMEOUT = 8000
+const MULTICALL_BATCH_SIZE = 100
+
+type MulticallFailure = {
+  status: 'failure'
+  error: Error
+  result: undefined
+}
+
+const MULTICALL_FAILURE: MulticallFailure = {
+  status: 'failure',
+  error: new Error('timeout'),
+  result: undefined,
+}
+
+const batchedMulticall = async <T>(
+  publicClient: PublicClient,
+  contracts: Parameters<typeof multicall>[1]['contracts'],
+): Promise<({ status: 'success'; result: T } | MulticallFailure)[]> => {
+  const chunks: (typeof contracts)[] = []
+  for (let i = 0; i < contracts.length; i += MULTICALL_BATCH_SIZE) {
+    chunks.push(contracts.slice(i, i + MULTICALL_BATCH_SIZE))
+  }
+
+  const chunkResults = await Promise.all(
+    chunks.map((chunk) =>
+      withTimeout(
+        multicall(publicClient, { contracts: chunk, allowFailure: true }),
+        PREFLIGHT_TIMEOUT,
+        chunk.map(() => MULTICALL_FAILURE),
+      ),
+    ),
+  )
+
+  return chunkResults.flat() as (
+    | {
+        status: 'success'
+        result: T
+      }
+    | MulticallFailure
+  )[]
+}
 
 const withTimeout = async <T>(
   promise: Promise<T>,
@@ -101,24 +142,20 @@ const filterNotReserved = async (
     return { valid: names, notReserved: [] }
   }
 
-  const results = await Promise.all(
-    twoLDs.map((name) =>
-      withTimeout(
-        readContract(publicClient, {
-          address: V2_CONTRACTS.ETHRegistry,
-          abi: ETH_REGISTRY_V2_ABI,
-          functionName: 'getResolver',
-          args: [name.label],
-        }),
-        PREFLIGHT_TIMEOUT,
-        null,
-      ),
-    ),
+  const results = await batchedMulticall<Address>(
+    publicClient,
+    twoLDs.map((name) => ({
+      address: V2_CONTRACTS.ETHRegistry,
+      abi: ETH_REGISTRY_V2_ABI,
+      functionName: 'getResolver' as const,
+      args: [name.label] as const,
+    })),
   )
 
   const notReserved = twoLDs.filter((_, i) => {
-    const resolver = results[i]
-    return resolver !== null && resolver === zeroAddress
+    const r = results[i]
+    if (!r || r.status === 'failure') return false
+    return r.result === zeroAddress
   })
 
   if (notReserved.length === 0) {
@@ -144,24 +181,20 @@ const filterFrozenApprovals = async (
     return { valid: names, frozen: [] }
   }
 
-  const approvedResults = await Promise.all(
-    locked.map((name) =>
-      withTimeout(
-        readContract(publicClient, {
-          address: V1_CONTRACTS.NameWrapper,
-          abi: NAME_WRAPPER_ABI,
-          functionName: 'getApproved',
-          args: [BigInt(name.domain.id)],
-        }),
-        PREFLIGHT_TIMEOUT,
-        null,
-      ),
-    ),
+  const approvedResults = await batchedMulticall<Address>(
+    publicClient,
+    locked.map((name) => ({
+      address: V1_CONTRACTS.NameWrapper,
+      abi: NAME_WRAPPER_ABI,
+      functionName: 'getApproved' as const,
+      args: [BigInt(name.domain.id)] as const,
+    })),
   )
 
   const frozen = locked.filter((_, i) => {
-    const approved = approvedResults[i]
-    return approved !== null && approved !== zeroAddress
+    const r = approvedResults[i]
+    if (!r || r.status === 'failure') return false
+    return r.result !== zeroAddress
   })
 
   if (frozen.length === 0) {
