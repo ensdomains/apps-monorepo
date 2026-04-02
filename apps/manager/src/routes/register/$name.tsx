@@ -16,7 +16,7 @@ import {
   useRegistrationV2Context,
 } from '@/features/register-v2'
 
-export const Route = createFileRoute('/register-v2/$name')({
+export const Route = createFileRoute('/register/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
     const availability = await queryClient.ensureQueryData(
       getRegistrationV2AvailabilityQueryOptions(name),

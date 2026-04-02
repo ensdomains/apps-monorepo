@@ -40,7 +40,7 @@ const LandingPage = () => {
           <CheckAvailability
             onRegistrationComplete={(name) => {
               isFeatureEnabled('REGISTRATION_V2')
-                ? navigate({ to: '/register-v2/$name', params: { name } })
+                ? navigate({ to: '/register/$name', params: { name } })
                 : navigate({ to: '/register', search: { name } })
             }}
           />

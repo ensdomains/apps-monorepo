@@ -214,7 +214,7 @@ export const CheckAvailability = ({
                       {...(isFeatureEnabled('REGISTRATION_V2')
                         ? {
                             params: { name: state.domainName },
-                            to: '/register-v2/$name',
+                            to: '/register/$name',
                           }
                         : {
                             search: {

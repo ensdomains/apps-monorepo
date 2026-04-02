@@ -23,7 +23,7 @@ const LINK_OPTIONS = {
   register: (name: string) =>
     isFeatureEnabled('REGISTRATION_V2')
       ? linkOptions({
-          to: '/register-v2/$name',
+          to: '/register/$name',
           params: { name },
         })
       : linkOptions({
