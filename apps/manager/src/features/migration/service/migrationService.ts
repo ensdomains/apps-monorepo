@@ -101,23 +101,25 @@ const filterNotReserved = async (
     return { valid: names, notReserved: [] }
   }
 
-  const notReserved: ClassifiedName[] = []
+  const results = await Promise.all(
+    twoLDs.map((name) =>
+      withTimeout(
+        readContract(publicClient, {
+          address: V2_CONTRACTS.ETHRegistry,
+          abi: ETH_REGISTRY_V2_ABI,
+          functionName: 'getResolver',
+          args: [name.label],
+        }),
+        PREFLIGHT_TIMEOUT,
+        null,
+      ),
+    ),
+  )
 
-  for (const name of twoLDs) {
-    const resolver = await withTimeout(
-      readContract(publicClient, {
-        address: V2_CONTRACTS.ETHRegistry,
-        abi: ETH_REGISTRY_V2_ABI,
-        functionName: 'getResolver',
-        args: [name.label],
-      }),
-      PREFLIGHT_TIMEOUT,
-      null,
-    )
-
-    if (resolver === null) continue
-    if (resolver === zeroAddress) notReserved.push(name)
-  }
+  const notReserved = twoLDs.filter((_, i) => {
+    const resolver = results[i]
+    return resolver !== null && resolver === zeroAddress
+  })
 
   if (notReserved.length === 0) {
     return { valid: names, notReserved: [] }
@@ -142,24 +144,25 @@ const filterFrozenApprovals = async (
     return { valid: names, frozen: [] }
   }
 
-  const frozen: ClassifiedName[] = []
+  const approvedResults = await Promise.all(
+    locked.map((name) =>
+      withTimeout(
+        readContract(publicClient, {
+          address: V1_CONTRACTS.NameWrapper,
+          abi: NAME_WRAPPER_ABI,
+          functionName: 'getApproved',
+          args: [BigInt(name.domain.id)],
+        }),
+        PREFLIGHT_TIMEOUT,
+        null,
+      ),
+    ),
+  )
 
-  for (const name of locked) {
-    const tokenId = BigInt(name.domain.id)
-    const approved = await withTimeout(
-      readContract(publicClient, {
-        address: V1_CONTRACTS.NameWrapper,
-        abi: NAME_WRAPPER_ABI,
-        functionName: 'getApproved',
-        args: [tokenId],
-      }),
-      PREFLIGHT_TIMEOUT,
-      null,
-    )
-
-    if (approved === null) continue
-    if (approved !== zeroAddress) frozen.push(name)
-  }
+  const frozen = locked.filter((_, i) => {
+    const approved = approvedResults[i]
+    return approved !== null && approved !== zeroAddress
+  })
 
   if (frozen.length === 0) {
     return { valid: names, frozen: [] }
@@ -651,19 +654,10 @@ export const executeMigration = async (params: {
   }
 }
 
-export const getMigrationStepCount = (
+export const getMigrationStepInfo = (
   domains: V1Domain[],
   ownerAddress: Address,
-): number => {
-  const classified = classifyNames(domains, ownerAddress)
-  const groups = groupClassifiedNames(classified)
-  return countSteps(groups, ENABLE_PRE_MIGRATE)
-}
-
-export const getMigrationStepDescriptions = (
-  domains: V1Domain[],
-  ownerAddress: Address,
-): string[] => {
+): { stepCount: number; stepDescriptions: string[] } => {
   const classified = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
   const descriptions: string[] = []
@@ -692,5 +686,8 @@ export const getMigrationStepDescriptions = (
     )
   }
 
-  return descriptions
+  return {
+    stepCount: countSteps(groups, ENABLE_PRE_MIGRATE),
+    stepDescriptions: descriptions,
+  }
 }

@@ -67,10 +67,10 @@ export const MigrationPage = () => {
   const [state, send] = useMachine(migrationMachine)
   const { data: v1Names = [] } = useV1Names()
 
-  const selectedDomains = useMemo(
-    () => v1Names.filter((n) => state.context.selectedNames.includes(n.name)),
-    [v1Names, state.context.selectedNames],
-  )
+  const selectedDomains = useMemo(() => {
+    const selectedSet = new Set(state.context.selectedNames)
+    return v1Names.filter((n) => selectedSet.has(n.name))
+  }, [v1Names, state.context.selectedNames])
 
   const handleNamesChange = useCallback(
     (names: string[]) => send({ type: 'SELECT_NAMES', names }),

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMigrateNames } from '@/features/migration/hooks/useMigrateNames'
 import {
-  getMigrationStepCount,
-  getMigrationStepDescriptions,
+  getMigrationStepInfo,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
@@ -50,10 +49,7 @@ export function useMigrationExecution(
     if (!ownerAddress || domains.length === 0) {
       return { stepCount: 0, stepDescriptions: [] }
     }
-    return {
-      stepCount: getMigrationStepCount(domains, ownerAddress),
-      stepDescriptions: getMigrationStepDescriptions(domains, ownerAddress),
-    }
+    return getMigrationStepInfo(domains, ownerAddress)
   }, [domains, ownerAddress])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
