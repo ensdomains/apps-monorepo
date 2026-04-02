@@ -9,9 +9,9 @@ export type PremiumPillProps = {
 
 const variantStyles: Record<PremiumLabelVariant, string> = {
   'premium-3':
-    'rounded-[14.182px] bg-[linear-gradient(94deg,#E9D4BC_2.94%,#8E6616_299.58%)] text-black font-medium',
+    'rounded-[14.182px] bg-[linear-gradient(94deg,#E9D4BC_2.94%,#8E6616_299.58%)] text-quartz-900 font-medium',
   'premium-4':
-    'rounded-[14.182px] bg-[linear-gradient(103deg,#E2E8F0_22.67%,#606262_287.71%)] text-black font-medium',
+    'rounded-[14.182px] bg-[linear-gradient(103deg,#E2E8F0_22.67%,#606262_287.71%)] text-quartz-900 font-medium',
 }
 
 export const PremiumPill = ({

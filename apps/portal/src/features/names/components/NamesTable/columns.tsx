@@ -1,5 +1,8 @@
+import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CheckIcon, CopyIcon } from 'lucide-react'
+import { useState } from 'react'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -49,18 +52,36 @@ export const columns: ColumnDef<NameRow>[] = [
     ),
     cell(cell) {
       const name = cell.getValue() as string
+      const [copied, setCopied] = useState(false)
 
       if (!name) return null
 
       return (
-        <div className="flex flex-row gap-1 items-center w-max">
+        <div className="flex flex-row gap-2 items-center">
           <NameAvatar
             name={name}
             height="20px"
             width="20px"
             rounded="rounded-sm"
           />
-          <CopyableRecord href={`/${name}`} value={name} />
+          <Link to="/$name" params={{ name }}>
+            <EntityBadge variant="name">{name}</EntityBadge>
+          </Link>
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              navigator.clipboard.writeText(name)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }}
+          >
+            {copied ? (
+              <CheckIcon className="size-3" />
+            ) : (
+              <CopyIcon className="size-3" />
+            )}
+          </button>
         </div>
       )
     },

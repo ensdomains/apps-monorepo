@@ -2,10 +2,11 @@ import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
 import { useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { GripHorizontal } from 'lucide-react'
+import { CheckIcon, CopyIcon, GripHorizontal } from 'lucide-react'
+import { useState } from 'react'
 import type { Address } from 'viem/accounts'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
@@ -30,18 +31,36 @@ const columns: ColumnDef<column>[] = [
     header: 'Name',
     cell(cell) {
       const name = cell.getValue() as NameWithRelation['name']
+      const [copied, setCopied] = useState(false)
 
       if (!name) return null
 
       return (
-        <div className="flex flex-row gap-1 items-center w-max">
+        <div className="flex flex-row gap-2 items-center">
           <NameAvatar
             name={name}
             height="20px"
             width="20px"
             rounded="rounded-sm"
           />
-          <CopyableRecord href={`/${name}`} value={name} />
+          <Link to="/$name" params={{ name }}>
+            <EntityBadge variant="name">{name}</EntityBadge>
+          </Link>
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              navigator.clipboard.writeText(name)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }}
+          >
+            {copied ? (
+              <CheckIcon className="size-3" />
+            ) : (
+              <CopyIcon className="size-3" />
+            )}
+          </button>
         </div>
       )
     },

@@ -65,6 +65,14 @@
   --quartz-500: #5d5751;
   --quartz-900: #191919;
 
+  /* Syntax/entity colors — fixed regardless of theme, optimized for dark pill bg */
+  --syntax-name: #39b4ea;
+  --syntax-address: #1cbf46;
+  --syntax-contract: #f569ab;
+  --syntax-tx: #e7a259;
+  --entity-bg: #f8f8f8;
+  --entity-border: #d0d0d0;
+
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
     #ef7eb8 0%,
@@ -131,6 +139,12 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-syntax-name: var(--syntax-name);
+  --color-syntax-address: var(--syntax-address);
+  --color-syntax-contract: var(--syntax-contract);
+  --color-syntax-tx: var(--syntax-tx);
+  --color-entity-bg: var(--entity-bg);
+  --color-entity-border: var(--entity-border);
 }
 
 .dark {
@@ -163,6 +177,8 @@
   --sidebar-accent-foreground: #e1e1e0;
   --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: var(--lapis-400);
+  --entity-bg: #242424;
+  --entity-border: #383838;
 }
 
 @layer base {

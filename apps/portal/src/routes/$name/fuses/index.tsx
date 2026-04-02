@@ -309,7 +309,7 @@ const V2NameMessage = () => (
     description={
       <>
         <p>Fuses are only available for wrapped ENSv1 names.</p>
-        <p className="text-muted-foreground text-sm mt-2">
+        <p className="text-sm mt-2">
           This name is not wrapped or is not an ENSv1 name.
         </p>
       </>

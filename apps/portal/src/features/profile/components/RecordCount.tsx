@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { FileCodeIcon, ListIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import {
   CounterCard,
   CounterCardLink,
   CounterCardRow,
 } from '@/components/CounterCard'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -60,20 +60,16 @@ export const RecordCount = ({
           />
         }
       >
-        <span className="font-medium">Resolver</span>
-        {underlyingResolverAddress ? (
-          <CopyableRecord
-            displayValue={truncateAddress(
-              underlyingResolverAddress,
-              6,
-              4,
-              '...',
-            )}
-            value={underlyingResolverAddress}
-          />
-        ) : (
-          <div>No resolver set</div>
-        )}
+        <div className="flex flex-col gap-1">
+          <span className="font-medium">Resolver</span>
+          {underlyingResolverAddress ? (
+            <EntityBadge variant="contract">
+              {truncateAddress(underlyingResolverAddress, 6, 4, '...')}
+            </EntityBadge>
+          ) : (
+            <div>No resolver set</div>
+          )}
+        </div>
       </CounterCardRow>
     </CounterCard>
   )

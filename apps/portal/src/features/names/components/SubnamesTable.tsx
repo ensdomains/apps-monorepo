@@ -8,10 +8,10 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Plus, Search } from 'lucide-react'
+import { CheckIcon, CopyIcon, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import {
@@ -59,7 +59,9 @@ const columns: ColumnDef<SubnameRow>[] = [
             width="20px"
             rounded="rounded-sm"
           />
-          <CopyableRecord href={`/${name}`} value={name} />
+          <Link to="/$name" params={{ name }}>
+            <EntityBadge variant="name">{name}</EntityBadge>
+          </Link>
         </div>
       )
     },
@@ -76,6 +78,7 @@ const columns: ColumnDef<SubnameRow>[] = [
     ),
     cell: ({ row }) => {
       const owner = row.original.owner
+      const [copied, setCopied] = useState(false)
 
       return (
         <div className="flex flex-row gap-2 items-center">
@@ -85,7 +88,26 @@ const columns: ColumnDef<SubnameRow>[] = [
             width="20px"
             rounded="rounded-sm"
           />
-          <CopyableRecord href={`/addr/${owner}`} value={owner} />
+          <Link to="/addr/$addr" params={{ addr: owner }}>
+            <EntityBadge variant="address">
+              {truncateAddress(owner)}
+            </EntityBadge>
+          </Link>
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              navigator.clipboard.writeText(owner)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }}
+          >
+            {copied ? (
+              <CheckIcon className="size-3" />
+            ) : (
+              <CopyIcon className="size-3" />
+            )}
+          </button>
         </div>
       )
     },
@@ -168,24 +190,16 @@ export const SubnamesTable = ({
                   width="20px"
                   rounded="rounded-sm"
                 />
-                <div className="flex flex-col">
-                  <Link
-                    to="/$name"
-                    params={{ name: row.original.name }}
-                    className="font-mono text-sm underline decoration-dotted"
-                  >
-                    {row.original.name}
-                  </Link>
-                </div>
+                <Link to="/$name" params={{ name: row.original.name }}>
+                  <EntityBadge variant="name">{row.original.name}</EntityBadge>
+                </Link>
               </div>
-              <div className="flex flex-row gap-2 items-center text-sm text-muted-foreground">
-                <span>Owner:</span>
-                <Link
-                  to="/addr/$addr"
-                  params={{ addr: row.original.owner }}
-                  className="font-mono underline decoration-dotted"
-                >
-                  {truncateAddress(row.original.owner)}
+              <div className="flex flex-row gap-2 items-center">
+                <span className="text-sm text-muted-foreground">Owner:</span>
+                <Link to="/addr/$addr" params={{ addr: row.original.owner }}>
+                  <EntityBadge variant="address">
+                    {truncateAddress(row.original.owner)}
+                  </EntityBadge>
                 </Link>
               </div>
             </div>

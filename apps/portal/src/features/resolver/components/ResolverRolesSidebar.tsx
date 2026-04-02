@@ -328,7 +328,7 @@ export const ResolverRolesSidebar = ({
                             className={cn(
                               'font-medium cursor-pointer',
                               canManageRoles
-                                ? 'text-black'
+                                ? 'text-foreground'
                                 : 'text-muted-foreground',
                             )}
                           >
@@ -347,7 +347,7 @@ export const ResolverRolesSidebar = ({
                             className={cn(
                               'font-medium cursor-pointer',
                               canManageRoles
-                                ? 'text-black'
+                                ? 'text-foreground'
                                 : 'text-muted-foreground',
                             )}
                           >

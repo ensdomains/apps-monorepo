@@ -182,7 +182,7 @@ function RouteComponent() {
 
           <div className="bg-muted rounded-2xl p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />
-            <p className="text-black">
+            <p className="text-foreground">
               Burning fuses will make permanent changes to your name.
               <br />
               You will not be able to undo these changes, and they will only be
@@ -229,7 +229,7 @@ function RouteComponent() {
                       className={
                         !canSelect || burnt
                           ? 'text-muted-foreground'
-                          : 'text-black'
+                          : 'text-foreground'
                       }
                     >
                       {childFuseDisplayNames[fuseKey]}
@@ -290,7 +290,7 @@ const V2NameMessage = () => (
     description={
       <>
         <p>Fuses are not available for ENSv2 names.</p>
-        <p className="text-muted-foreground text-sm mt-2">
+        <p className="text-quartz-900/60 text-sm mt-2">
           Only ENSv1 names have fuses.
         </p>
       </>
@@ -305,7 +305,7 @@ const NotOwnerMessage = () => (
     description={
       <>
         <p>You are not the owner of this name.</p>
-        <p className="text-muted-foreground text-sm mt-2">
+        <p className="text-quartz-900/60 text-sm mt-2">
           Only the owner can burn fuses on this name.
         </p>
       </>

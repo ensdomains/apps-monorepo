@@ -75,7 +75,7 @@ export function MessageCard({
           {title}
         </h2>
 
-        <div className="text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere">
+        <div className="text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-quartz-900">
           {description}
         </div>
       </div>

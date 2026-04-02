@@ -219,7 +219,7 @@ export const TransactionEvents = ({
                       </Button>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
-                      <span className="text-base font-semibold text-black shrink-0 sm:min-w-[160px]">
+                      <span className="text-base font-semibold shrink-0 sm:min-w-40">
                         Transaction
                       </span>
                       <CopyableRecord
@@ -233,7 +233,7 @@ export const TransactionEvents = ({
                       />
                     </div>
                     <div className="flex flex-row gap-6 items-center">
-                      <span className="text-base font-semibold text-black sm:min-w-[160px]">
+                      <span className="text-base font-semibold sm:min-w-40">
                         Event
                       </span>
                       <CopyableRecord

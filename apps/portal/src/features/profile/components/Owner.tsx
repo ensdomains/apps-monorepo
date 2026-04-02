@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
+import { EntityBadge } from '@/components/EntityBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -52,9 +53,11 @@ export const Owner = ({
         height="40px"
         name={ownerName || shortenedAddress}
       />
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-1">
         <span className="font-medium">{label}</span>
-        <span>{ownerName || shortenedAddress}</span>
+        <EntityBadge variant={ownerName ? 'name' : 'address'}>
+          {ownerName || shortenedAddress}
+        </EntityBadge>
       </div>
     </Link>
   )

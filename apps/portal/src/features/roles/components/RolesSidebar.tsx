@@ -260,7 +260,7 @@ export const RolesSidebar = <
                               className={cn(
                                 'font-medium cursor-pointer',
                                 canManageRoles
-                                  ? 'text-black'
+                                  ? 'text-foreground'
                                   : 'text-muted-foreground',
                               )}
                             >
@@ -279,7 +279,7 @@ export const RolesSidebar = <
                               className={cn(
                                 'font-medium cursor-pointer',
                                 canManageRoles
-                                  ? 'text-black'
+                                  ? 'text-foreground'
                                   : 'text-muted-foreground',
                               )}
                             >
