@@ -218,7 +218,7 @@ export const ResolverRolesSidebar = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white overflow-y-auto p-8"
+        className="sm:max-w-[880px] bg-card overflow-y-auto p-8"
       >
         <div className="p-6 flex flex-col gap-6 h-screen">
           <SheetHeader className="p-0">
@@ -304,7 +304,7 @@ export const ResolverRolesSidebar = ({
                     >
                       <div className="flex flex-col gap-1 flex-1 min-w-64">
                         <div className="font-medium">{permission.title}</div>
-                        <div className="text-sm text-quartz-500">
+                        <div className="text-sm text-muted-foreground">
                           {permission.description}
                         </div>
                       </div>
@@ -327,7 +327,9 @@ export const ResolverRolesSidebar = ({
                             htmlFor={`${permission.key}-manager`}
                             className={cn(
                               'font-medium cursor-pointer',
-                              canManageRoles ? 'text-black' : 'text-quartz-400',
+                              canManageRoles
+                                ? 'text-black'
+                                : 'text-muted-foreground',
                             )}
                           >
                             Manager
@@ -344,7 +346,9 @@ export const ResolverRolesSidebar = ({
                             htmlFor={`${permission.key}-admin`}
                             className={cn(
                               'font-medium cursor-pointer',
-                              canManageRoles ? 'text-black' : 'text-quartz-400',
+                              canManageRoles
+                                ? 'text-black'
+                                : 'text-muted-foreground',
                             )}
                           >
                             Admin
@@ -357,7 +361,7 @@ export const ResolverRolesSidebar = ({
               </div>
             </div>
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No role selected
             </div>
           )}

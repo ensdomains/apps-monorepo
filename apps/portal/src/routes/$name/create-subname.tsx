@@ -48,7 +48,7 @@ const PageHeader = ({ name }: PageHeaderProps) => (
     <Link to="/$name/subnames" params={{ name }}>
       <Button
         variant="ghost"
-        className="flex items-center gap-1 -ml-2 text-quartz-500"
+        className="flex items-center gap-1 -ml-2 text-muted-foreground"
       >
         <ArrowLeftIcon className="size-6" />
         Back
@@ -204,7 +204,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-quartz-500">
+        <p className="text-muted-foreground">
           This name does not have a subregistry. You must deploy one first to
           create subnames.
         </p>
@@ -306,13 +306,13 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
             }}
           />
           {isResolving && (
-            <p className="text-sm text-quartz-500 flex items-center gap-1">
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Loader2 className="size-3 animate-spin" />
               Resolving...
             </p>
           )}
           {ownerAddress && !isAddress(ownerInput) && !isResolving && (
-            <p className="text-sm text-quartz-500">
+            <p className="text-sm text-muted-foreground">
               Resolved: {truncateAddress(ownerAddress)}
             </p>
           )}
@@ -322,7 +322,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
             !resolveError &&
             !ownerInput.includes('.') &&
             !isAddress(ownerInput) && (
-              <p className="text-sm text-quartz-500">
+              <p className="text-sm text-muted-foreground">
                 Enter a full ENS name (e.g. name.eth) or a HEX address
               </p>
             )}
@@ -394,7 +394,7 @@ const CreateSubnameContent = ({
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-quartz-500">
+        <p className="text-muted-foreground">
           This feature is only available for ENSv2 names.
         </p>
       </div>

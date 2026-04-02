@@ -126,7 +126,7 @@ export const SubnamesTable = ({
 
   return (
     <>
-      <header className="bg-quartz-50 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-muted border-b border-border px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row items-center gap-2">
           <h1 className="text-[30px] font-medium leading-tight flex-1">
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
@@ -140,7 +140,7 @@ export const SubnamesTable = ({
             </Button>
           )}
         </div>
-        <InputGroup className="bg-white rounded-sm">
+        <InputGroup className="bg-background rounded-sm">
           <InputGroupInput
             className="w-full"
             placeholder="Search..."
@@ -178,7 +178,7 @@ export const SubnamesTable = ({
                   </Link>
                 </div>
               </div>
-              <div className="flex flex-row gap-2 items-center text-sm text-quartz-500">
+              <div className="flex flex-row gap-2 items-center text-sm text-muted-foreground">
                 <span>Owner:</span>
                 <Link
                   to="/addr/$addr"
@@ -191,7 +191,7 @@ export const SubnamesTable = ({
             </div>
           ))
         ) : (
-          <div className="px-6 py-8 text-center text-quartz-500">
+          <div className="px-6 py-8 text-center text-muted-foreground">
             No subnames found.
           </div>
         )}
@@ -221,8 +221,8 @@ export const SubnamesTable = ({
               <TableRow
                 key={row.id}
                 className={cn(
-                  'hover:bg-quartz-50',
-                  tableView.strippedRows && 'odd:bg-quartz-50',
+                  'hover:bg-muted',
+                  tableView.strippedRows && 'odd:bg-muted',
                 )}
               >
                 {row.getVisibleCells().map((cell) => (

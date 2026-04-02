@@ -80,7 +80,7 @@ export const NodeDetailSheet = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[640px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-[640px] bg-card p-0 flex flex-col h-dvh"
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader className="p-0 flex flex-row items-center justify-between">
@@ -166,8 +166,8 @@ export const NodeDetailSheet = ({
                           <TableRow
                             key={`${role.account}-${role.roleBitmap}`}
                             className={cn(
-                              'hover:bg-quartz-50',
-                              tableView.strippedRows && 'odd:bg-quartz-50',
+                              'hover:bg-muted',
+                              tableView.strippedRows && 'odd:bg-muted',
                             )}
                           >
                             <TableCell
@@ -192,7 +192,7 @@ export const NodeDetailSheet = ({
               </section>
             </div>
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No node selected
             </div>
           )}

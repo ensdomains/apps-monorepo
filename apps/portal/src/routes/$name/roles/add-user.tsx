@@ -180,7 +180,7 @@ function RouteComponent() {
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
           />
           {nameOrAddressInput.length > 0 && (
-            <p className="text-sm mt-1.5 text-quartz-500">
+            <p className="text-sm mt-1.5 text-muted-foreground">
               {isResolvingAddress && 'Resolving address...'}
               {!isResolvingAddress &&
                 address &&
@@ -210,12 +210,12 @@ function RouteComponent() {
                   key={permission.key}
                   className={cn(
                     'flex items-center justify-between p-4 gap-4',
-                    isManagerRoleDisabled && 'text-quartz-500',
+                    isManagerRoleDisabled && 'text-muted-foreground',
                   )}
                 >
                   <div className="flex flex-col gap-1 flex-1">
                     <div className="font-medium">{permission.title}</div>
-                    <div className="text-sm text-quartz-500">
+                    <div className="text-sm text-muted-foreground">
                       {permission.description}
                     </div>
                   </div>
@@ -228,7 +228,7 @@ function RouteComponent() {
                       />
                       <Label
                         htmlFor={permission.key}
-                        className="font-normal cursor-pointer text-quartz-500"
+                        className="font-normal cursor-pointer text-muted-foreground"
                       >
                         Manager
                       </Label>
@@ -241,7 +241,7 @@ function RouteComponent() {
                       />
                       <Label
                         htmlFor={`${permission.key}_ADMIN`}
-                        className="font-normal cursor-pointer text-quartz-500"
+                        className="font-normal cursor-pointer text-muted-foreground"
                       >
                         Admin
                       </Label>
@@ -250,10 +250,10 @@ function RouteComponent() {
                 </div>
               )
             })}
-            <div className="flex items-center justify-between p-4 gap-4 text-quartz-500">
+            <div className="flex items-center justify-between p-4 gap-4 text-muted-foreground">
               <div className="flex flex-col gap-1 flex-1">
                 <div className="font-medium">Can transfer admin</div>
-                <div className="text-sm text-quartz-500">
+                <div className="text-sm text-muted-foreground">
                   Administrator role to transfer a name
                 </div>
               </div>
@@ -266,7 +266,7 @@ function RouteComponent() {
                   />
                   <Label
                     htmlFor="ROLE_CAN_TRANSFER_ADMIN"
-                    className="font-normal cursor-pointer text-quartz-500"
+                    className="font-normal cursor-pointer text-muted-foreground"
                   >
                     Admin
                   </Label>

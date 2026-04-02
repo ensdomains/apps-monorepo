@@ -295,8 +295,8 @@ export const ResolverRolesTable = ({
                   <Fragment key={row.id}>
                     <TableRow
                       className={cn(
-                        'hover:bg-quartz-50',
-                        tableView.strippedRows && 'odd:bg-quartz-50',
+                        'hover:bg-muted',
+                        tableView.strippedRows && 'odd:bg-muted',
                       )}
                     >
                       {row.getVisibleCells().map((cell) => (

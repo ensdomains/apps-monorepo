@@ -172,7 +172,7 @@ function RouteComponent() {
           <Link
             to="/$name/fuses"
             params={{ name }}
-            className="flex items-center gap-1 text-quartz-400 hover:text-quartz-600 text-sm font-medium"
+            className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-sm font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -180,7 +180,7 @@ function RouteComponent() {
 
           <h1 className="text-4xl font-medium leading-tight">Burn fuses</h1>
 
-          <div className="bg-quartz-50 rounded-2xl p-6 flex gap-4 items-start">
+          <div className="bg-muted rounded-2xl p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />
             <p className="text-black">
               Burning fuses will make permanent changes to your name.
@@ -192,7 +192,7 @@ function RouteComponent() {
 
           <div className="flex flex-col gap-1">
             <span className="font-medium">Fuse expiry</span>
-            <div className="flex items-center h-10 px-2 border border-quartz-100 rounded bg-white">
+            <div className="flex items-center h-10 px-2 border border-border rounded bg-background">
               <span className="flex-1 text-sm">
                 {expiry
                   ? new Date(Number(expiry) * 1000).toLocaleString('en-US', {
@@ -206,7 +206,7 @@ function RouteComponent() {
                     })
                   : 'N/A'}
               </span>
-              <Calendar className="w-4 h-4 text-quartz-400" />
+              <Calendar className="w-4 h-4 text-muted-foreground" />
             </div>
           </div>
 
@@ -227,7 +227,9 @@ function RouteComponent() {
                     />
                     <span
                       className={
-                        !canSelect || burnt ? 'text-quartz-400' : 'text-black'
+                        !canSelect || burnt
+                          ? 'text-muted-foreground'
+                          : 'text-black'
                       }
                     >
                       {childFuseDisplayNames[fuseKey]}
@@ -251,7 +253,7 @@ function RouteComponent() {
           </Button>
 
           {!address && (
-            <p className="text-quartz-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Connect your wallet to burn fuses
             </p>
           )}
@@ -288,7 +290,7 @@ const V2NameMessage = () => (
     description={
       <>
         <p>Fuses are not available for ENSv2 names.</p>
-        <p className="text-quartz-500 text-sm mt-2">
+        <p className="text-muted-foreground text-sm mt-2">
           Only ENSv1 names have fuses.
         </p>
       </>
@@ -303,7 +305,7 @@ const NotOwnerMessage = () => (
     description={
       <>
         <p>You are not the owner of this name.</p>
-        <p className="text-quartz-500 text-sm mt-2">
+        <p className="text-muted-foreground text-sm mt-2">
           Only the owner can burn fuses on this name.
         </p>
       </>

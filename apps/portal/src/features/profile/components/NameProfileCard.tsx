@@ -90,12 +90,16 @@ export const NameProfileCard = ({
             {linked ? (
               <Link to="/$name" params={{ name }} className="hover:underline">
                 {labels.join('.')}.
-                <span className="text-base text-quartz-500">{parent}</span>
+                <span className="text-base text-muted-foreground">
+                  {parent}
+                </span>
               </Link>
             ) : (
               <>
                 {labels.join('.')}.
-                <span className="text-base text-quartz-500">{parent}</span>
+                <span className="text-base text-muted-foreground">
+                  {parent}
+                </span>
               </>
             )}
           </h2>

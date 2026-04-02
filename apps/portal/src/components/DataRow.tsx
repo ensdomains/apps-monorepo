@@ -22,7 +22,7 @@ export const DataRow = ({
         {tooltip && (
           <Tooltip>
             <TooltipTrigger>
-              <InfoIcon className="size-4 text-quartz-400" />
+              <InfoIcon className="size-4 text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent>{tooltip}</TooltipContent>
           </Tooltip>

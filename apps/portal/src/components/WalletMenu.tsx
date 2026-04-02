@@ -4,6 +4,7 @@ import { ChevronRight, Power, Wallet } from 'lucide-react'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
@@ -92,6 +93,8 @@ export const WalletMenu = () => {
             onCheckedChange={setSmartSessionsEnabled}
           />
         </DropdownMenuItem> */}
+        <DropdownMenuSeparator />
+        <ThemeToggle />
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => disconnect()}>
           <Power className="size-4 text-foreground" />

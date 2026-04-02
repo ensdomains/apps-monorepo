@@ -21,13 +21,15 @@ export function RegistryCard({ registry, chainId }: RegistryCardProps) {
     <div className="border border-border rounded-lg p-4 sm:p-6 flex flex-col items-center gap-4 relative w-full">
       <div className="flex flex-col gap-3 w-full">
         <div className="flex items-center justify-start gap-3 ">
-          <span className="text-sm text-quartz-500 min-w-[60px]">Protocol</span>
+          <span className="text-sm text-muted-foreground min-w-[60px]">
+            Protocol
+          </span>
           <span className="text-sm font-medium">{registry.protocol}</span>
         </div>
 
         {registry.address && (
           <div className="flex items-center justify-start gap-3">
-            <span className="text-sm text-quartz-500 shrink-0 min-w-[60px]">
+            <span className="text-sm text-muted-foreground shrink-0 min-w-[60px]">
               Contract
             </span>
             <CopyableRecord
@@ -40,7 +42,7 @@ export function RegistryCard({ registry, chainId }: RegistryCardProps) {
 
         {registry.factory && (
           <div className="flex items-center justify-start gap-3">
-            <span className="text-sm text-quartz-500 shrink-0 min-w-[60px]">
+            <span className="text-sm text-muted-foreground shrink-0 min-w-[60px]">
               Factory
             </span>
             <CopyableRecord

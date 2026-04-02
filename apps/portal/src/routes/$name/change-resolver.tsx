@@ -129,7 +129,7 @@ function RouteComponent() {
           description={
             <>
               You don't have the required{' '}
-              <code className="font-mono text-sm bg-quartz-50 px-1 py-0.5 rounded">
+              <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
                 ROLE_SET_RESOLVER
               </code>{' '}
               permission to change the resolver for <strong>{name}</strong>.

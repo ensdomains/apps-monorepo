@@ -129,7 +129,7 @@ const TransactionDetails = ({
               {data.to ? (
                 <AddressDisplay address={data.to} />
               ) : (
-                <span className="text-quartz-500">Contract Creation</span>
+                <span className="text-muted-foreground">Contract Creation</span>
               )}
             </DataRow>
           </>
@@ -162,7 +162,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-[880px] bg-card p-0 flex flex-col h-dvh"
       >
         {/* Fixed header at the top */}
         <div className="p-6 shrink-0 border-b">
@@ -183,7 +183,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
               events={row.original.events}
             />
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No transaction selected
             </div>
           )}

@@ -172,7 +172,7 @@ const V1SubnamesMessage = () => (
     description={
       <>
         <p>This page is only for ENSv2 names.</p>
-        <p className="text-quartz-500 text-sm mt-2">
+        <p className="text-muted-foreground text-sm mt-2">
           ENSv1 subnames are managed differently.
         </p>
       </>

@@ -109,8 +109,8 @@ const TokenInfoCard = ({
                   </DataRow>
                 </div>
 
-                <div className="bg-quartz-50 rounded-lg p-3 flex gap-2 items-start">
-                  <InfoIcon className="size-6 text-quartz-500 shrink-0 mt-0.5" />
+                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
+                  <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-base">
                     The Token ID will change anytime the roles are updated.
                   </p>
@@ -132,7 +132,7 @@ const TokenInfoCard = ({
                         <TableRow>
                           <TableCell
                             colSpan={4}
-                            className="text-center py-8 text-quartz-500"
+                            className="text-center py-8 text-muted-foreground"
                           >
                             No history available
                           </TableCell>

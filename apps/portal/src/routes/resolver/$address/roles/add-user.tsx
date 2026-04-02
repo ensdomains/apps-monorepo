@@ -147,7 +147,7 @@ function RouteComponent() {
               >
                 <div className="flex flex-col gap-1 flex-1">
                   <div className="font-medium">{permission.title}</div>
-                  <div className="text-sm text-quartz-500">
+                  <div className="text-sm text-muted-foreground">
                     {permission.description}
                   </div>
                 </div>
@@ -156,7 +156,7 @@ function RouteComponent() {
                     <Checkbox name={permission.key} id={permission.key} />
                     <Label
                       htmlFor={permission.key}
-                      className="font-normal cursor-pointer text-quartz-500"
+                      className="font-normal cursor-pointer text-muted-foreground"
                     >
                       Manager
                     </Label>
@@ -169,7 +169,7 @@ function RouteComponent() {
                     />
                     <Label
                       htmlFor={`${permission.key}_ADMIN`}
-                      className="font-normal cursor-pointer text-quartz-500"
+                      className="font-normal cursor-pointer text-muted-foreground"
                     >
                       Admin
                     </Label>

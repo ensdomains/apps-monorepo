@@ -27,7 +27,7 @@ export const RecordSidebar: FC<
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-[880px] bg-card p-0 flex flex-col h-dvh"
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
@@ -45,7 +45,7 @@ export const RecordSidebar: FC<
               network={network}
             />
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No record selected
             </div>
           )}

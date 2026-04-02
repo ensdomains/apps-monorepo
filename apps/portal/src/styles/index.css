@@ -133,6 +133,38 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+.dark {
+  --background: #2b2b2b;
+  --foreground: #e1e1e0;
+  --card: #383838;
+  --card-foreground: #e1e1e0;
+  --popover: #383838;
+  --popover-foreground: #e1e1e0;
+  --primary: var(--lapis-400);
+  --primary-foreground: #191919;
+  --secondary: #4f4f4f;
+  --secondary-foreground: #e1e1e0;
+  --muted: #383838;
+  --muted-foreground: #a1a1a1;
+  --accent: #242424;
+  --accent-foreground: #e1e1e0;
+  --destructive: var(--garnet-400);
+  --danger: var(--garnet-400);
+  --success: var(--peridot-400);
+  --warning: var(--citrine-400);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: #242424;
+  --ring: var(--lapis-400);
+  --sidebar: #383838;
+  --sidebar-foreground: #e1e1e0;
+  --sidebar-primary: var(--lapis-400);
+  --sidebar-primary-foreground: #191919;
+  --sidebar-accent: #242424;
+  --sidebar-accent-foreground: #e1e1e0;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: var(--lapis-400);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
