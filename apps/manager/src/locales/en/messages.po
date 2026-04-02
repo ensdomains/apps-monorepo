@@ -55,7 +55,7 @@ msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
 #. placeholder {0}: skippedNames.length
-#: src/features/migration/pages/MigrationPage.tsx:99
+#: src/features/migration/pages/MigrationPage.tsx:94
 msgid "{0} name(s) could not be migrated"
 msgstr "{0} name(s) could not be migrated"
 
@@ -282,7 +282,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:133
+#: src/features/migration/pages/MigrationPage.tsx:135
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1000,6 +1000,10 @@ msgstr "Go to Profile"
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
+#: src/features/migration/pages/MigrationPage.tsx:113
+msgid "Has a frozen approval that prevents migration"
+msgstr "Has a frozen approval that prevents migration"
+
 #: src/features/dashboard/pages/DashboardPage.tsx:73
 msgid "Hello"
 msgstr "Hello"
@@ -1140,7 +1144,7 @@ msgstr "Marking..."
 msgid "Migration Complete!"
 msgstr "Migration Complete!"
 
-#: src/features/migration/pages/MigrationPage.tsx:76
+#: src/features/migration/pages/MigrationPage.tsx:71
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1293,6 +1297,10 @@ msgstr "Not set"
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:144
 msgid "Not supported"
 msgstr "Not supported"
+
+#: src/features/migration/pages/MigrationPage.tsx:112
+msgid "Not yet premigrated in ENS v2"
+msgstr "Not yet premigrated in ENS v2"
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:83
 msgid "Nothing here yet!"
@@ -1620,7 +1628,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:140
+#: src/features/migration/pages/MigrationPage.tsx:142
 msgid "Retry"
 msgstr "Retry"
 
@@ -2057,6 +2065,10 @@ msgstr "Trademark Guidelines"
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
 msgid "Transaction:"
 msgstr "Transaction:"
+
+#: src/features/migration/pages/MigrationPage.tsx:114
+msgid "Transfer reverted on-chain"
+msgstr "Transfer reverted on-chain"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"

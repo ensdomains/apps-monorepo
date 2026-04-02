@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMachine } from '@xstate/react'
 import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -12,13 +12,8 @@ import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { migrationMachine } from '@/features/migration/machines/migrationMachine'
 import type { MigrationResult } from '@/features/migration/service/migrationService'
 
-const SKIP_REASON_LABELS = {
-  'not-premigrated': 'Not yet premigrated in ENS v2',
-  'frozen-approval': 'Has a frozen approval that prevents migration',
-  'transfer-failed': 'Transfer reverted on-chain',
-} as const
-
 export const MigrationPage = () => {
+  const { t } = useLingui()
   const [state, send] = useMachine(migrationMachine)
   const { data: v1Names = [] } = useV1Names()
 
@@ -111,7 +106,16 @@ export const MigrationPage = () => {
                         {skipped.name}
                       </span>
                       <span className="text-ens-garnet-900/50">
-                        &mdash; {SKIP_REASON_LABELS[skipped.reason]}
+                        &mdash;{' '}
+                        {
+                          (
+                            {
+                              'not-premigrated': t`Not yet premigrated in ENS v2`,
+                              'frozen-approval': t`Has a frozen approval that prevents migration`,
+                              'transfer-failed': t`Transfer reverted on-chain`,
+                            } as Record<string, string>
+                          )[skipped.reason]
+                        }
                       </span>
                     </li>
                   ))}
