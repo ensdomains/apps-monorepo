@@ -1,6 +1,5 @@
-if (!globalThis.Temporal) {
-  const { Temporal } = await import('@js-temporal/polyfill')
-  globalThis.Temporal = Temporal
+if (typeof Temporal === 'undefined') {
+  await import('temporal-polyfill/global')
 }
 
 export {}
