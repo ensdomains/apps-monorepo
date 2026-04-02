@@ -8,6 +8,8 @@ import {
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
+const ERROR_DISPLAY_DELAY_MS = 1500
+
 function extractErrorMessage(err: unknown): string {
   if (!(err instanceof Error)) return String(err)
 
@@ -67,7 +69,7 @@ export function useMigrationExecution(
       .catch((err: unknown) => {
         const msg = extractErrorMessage(err)
         setErrorMessage(msg)
-        setTimeout(() => onErrorRef.current(msg), 1500)
+        setTimeout(() => onErrorRef.current(msg), ERROR_DISPLAY_DELAY_MS)
       })
   }, [])
 

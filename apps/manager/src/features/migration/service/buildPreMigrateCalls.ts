@@ -16,7 +16,7 @@ const getPreMigrateParams = (name: ClassifiedName) => ({
       })(),
   ),
   registry: V1_CONTRACTS.ENSRegistry,
-  resolver: (name.v1ResolverAddress as Address) ?? V1_CONTRACTS.PublicResolver,
+  resolver: (name.v1ResolverAddress || V1_CONTRACTS.PublicResolver) as Address,
 })
 
 export const buildPreMigrateCall = (name: ClassifiedName) => {

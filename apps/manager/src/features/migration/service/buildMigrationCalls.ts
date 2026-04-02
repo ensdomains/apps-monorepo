@@ -152,6 +152,13 @@ const buildWrappedBatchCall = (params: {
   const first = names[0]
   if (!first) throw new Error('Cannot build batch call with empty names array')
 
+  const holders = new Set(names.map((n) => n.tokenHolder))
+  if (holders.size > 1) {
+    throw new Error(
+      'Batch transfer requires all names to have the same token holder',
+    )
+  }
+
   const tokenIds = names.map(getTokenId)
   const amounts = names.map(() => 1n)
   const migrationDataArray = names.map((name) => {

@@ -359,18 +359,15 @@ export const executeMigration = async (params: {
     return { completed: 0, txHashes: [], skipped: [] }
   }
 
-  const preflight = ENABLE_PRE_MIGRATE
-    ? { valid: classified, notReserved: [], frozen: [] }
+  const preflight: PreFlightResult = ENABLE_PRE_MIGRATE
+    ? await filterFrozenApprovals(publicClient, classified).then(
+        (frozenResult) => ({
+          valid: frozenResult.valid,
+          notReserved: [] as ClassifiedName[],
+          frozen: frozenResult.frozen,
+        }),
+      )
     : await runPreFlightChecks(publicClient, classified)
-
-  if (ENABLE_PRE_MIGRATE) {
-    const frozenResult = await filterFrozenApprovals(
-      publicClient,
-      preflight.valid,
-    )
-    preflight.valid = frozenResult.valid
-    preflight.frozen = frozenResult.frozen
-  }
 
   const skipped: SkippedName[] = [
     ...preflight.notReserved.map((n) => ({
@@ -647,7 +644,11 @@ export const executeMigration = async (params: {
     })
   }
 
-  return { completed: validNames.length, txHashes, skipped }
+  return {
+    completed: validNames.length - skipped.length,
+    txHashes,
+    skipped,
+  }
 }
 
 export const getMigrationStepCount = (

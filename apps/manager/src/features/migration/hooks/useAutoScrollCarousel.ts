@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 type UseAutoScrollCarouselOptions = {
   enabled: boolean
@@ -15,27 +15,32 @@ export const useAutoScrollCarousel = ({
 }: UseAutoScrollCarouselOptions) => {
   const currentRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setInterval>>(null)
+  const intervalMsRef = useRef(intervalMs)
+  intervalMsRef.current = intervalMs
+  const totalSlidesRef = useRef(totalSlides)
+  totalSlidesRef.current = totalSlides
+  const onSlideChangeRef = useRef(onSlideChange)
+  onSlideChangeRef.current = onSlideChange
+
+  const startInterval = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      currentRef.current = (currentRef.current + 1) % totalSlidesRef.current
+      onSlideChangeRef.current(currentRef.current)
+    }, intervalMsRef.current)
+  }, [])
 
   useEffect(() => {
     if (!enabled) return
-
-    timerRef.current = setInterval(() => {
-      currentRef.current = (currentRef.current + 1) % totalSlides
-      onSlideChange(currentRef.current)
-    }, intervalMs)
-
+    startInterval()
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [enabled, intervalMs, totalSlides, onSlideChange])
+  }, [enabled, startInterval])
 
-  const reset = () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => {
-      currentRef.current = (currentRef.current + 1) % totalSlides
-      onSlideChange(currentRef.current)
-    }, intervalMs)
-  }
+  const reset = useCallback(() => {
+    startInterval()
+  }, [startInterval])
 
   return { reset }
 }

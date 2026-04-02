@@ -136,7 +136,8 @@ export const groupClassifiedNames = (names: ClassifiedName[]): GroupedNames => {
         locked2ld.push(name)
         break
       case 'locked-child': {
-        const parent = name.parentName ?? 'unknown'
+        const parent = name.parentName
+        if (!parent) break
         const existing = lockedChildren.get(parent) ?? []
         existing.push(name)
         lockedChildren.set(parent, existing)

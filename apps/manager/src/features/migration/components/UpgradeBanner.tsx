@@ -4,12 +4,14 @@ import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
+import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
+  const { isConnected } = useSmartAccountContext()
   const { data: v1Names } = useV1Names()
 
-  if (!v1Names?.length) return null
+  if (!isConnected || !v1Names?.length) return null
 
   return (
     <div className="relative overflow-hidden rounded-sm bg-gradient-to-b from-[#feeaf0] to-[rgba(255,188,219,1)] px-5 py-[22px]">
@@ -31,7 +33,7 @@ export const UpgradeBanner = () => {
               onClick={() => navigate({ to: '/migration' })}
               type="button"
             >
-              <Trans>See what&apos;s new</Trans>
+              <Trans>See what's new</Trans>
               <ArrowUpRight className="size-5" />
             </button>
           </div>

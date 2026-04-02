@@ -1,6 +1,6 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useMutation } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useConfig } from 'wagmi'
 import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
 import {
@@ -39,10 +39,13 @@ export function useMigrateNames() {
     },
   })
 
+  const mutationResetRef = useRef(mutation.reset)
+  mutationResetRef.current = mutation.reset
+
   const reset = useCallback(() => {
     setProgress(null)
-    mutation.reset()
-  }, [mutation])
+    mutationResetRef.current()
+  }, [])
 
   return {
     migrate: mutation.mutate,

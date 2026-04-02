@@ -58,10 +58,6 @@ export const MigrationModal = () => {
     el.scrollTo({ left: index * el.offsetWidth, behavior: 'smooth' })
   }, [])
 
-  const handleDismiss = useCallback(() => {
-    dismiss()
-  }, [dismiss])
-
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
     if (!el) return
@@ -87,7 +83,7 @@ export const MigrationModal = () => {
   return (
     <Dialog
       onOpenChange={(value) => {
-        if (!value) handleDismiss()
+        if (!value) dismiss()
       }}
       open={open}
     >
@@ -100,7 +96,7 @@ export const MigrationModal = () => {
         {/* Close button */}
         <button
           className="absolute top-5 right-5 z-20 cursor-pointer text-[#4a0326] opacity-70 transition-opacity hover:opacity-100"
-          onClick={handleDismiss}
+          onClick={dismiss}
           type="button"
         >
           <X className="size-5" />
@@ -155,7 +151,7 @@ export const MigrationModal = () => {
                 >
                   <div className="overflow-hidden rounded-2xl border-[0.1px] border-[rgba(25,87,128,0.2)] shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.3)]">
                     <img
-                      alt=""
+                      alt={slideLabels[slide.id] ?? ''}
                       className="h-[270px] w-[192px] object-cover"
                       src={slide.image}
                     />

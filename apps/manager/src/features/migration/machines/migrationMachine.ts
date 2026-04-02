@@ -4,6 +4,7 @@ import type { SkippedName } from '@/features/migration/service/migrationService'
 
 export type MigrationContext = {
   selectedNames: string[]
+  migratedNames: string[]
   txHashes: readonly Hex[]
   skippedNames: readonly SkippedName[]
   error?: string
@@ -19,6 +20,7 @@ export const migrationMachine = setup({
           type: 'MIGRATION_COMPLETE'
           txHashes: readonly Hex[]
           skipped: readonly SkippedName[]
+          migratedNames: string[]
         }
       | { type: 'MIGRATION_ERROR'; error: string }
       | { type: 'RETRY' }
@@ -30,6 +32,7 @@ export const migrationMachine = setup({
   initial: 'selectNames',
   context: {
     selectedNames: [],
+    migratedNames: [],
     txHashes: [],
     skippedNames: [],
   },
@@ -51,8 +54,22 @@ export const migrationMachine = setup({
       on: {
         MIGRATION_COMPLETE: [
           {
+            target: 'partialSuccess',
+            guard: ({ event }) =>
+              event.skipped.length > 0 && event.txHashes.length > 0,
+            actions: assign({
+              txHashes: ({ event }) => event.txHashes,
+              skippedNames: ({ event }) => event.skipped,
+              migratedNames: ({ context, event }) => [
+                ...context.migratedNames,
+                ...event.migratedNames,
+              ],
+            }),
+          },
+          {
             target: 'error',
-            guard: ({ event }) => event.skipped.length > 0,
+            guard: ({ event }) =>
+              event.skipped.length > 0 && event.txHashes.length === 0,
             actions: assign({
               txHashes: ({ event }) => event.txHashes,
               skippedNames: ({ event }) => event.skipped,
@@ -67,6 +84,10 @@ export const migrationMachine = setup({
             actions: assign({
               txHashes: ({ event }) => event.txHashes,
               skippedNames: () => [],
+              migratedNames: ({ context, event }) => [
+                ...context.migratedNames,
+                ...event.migratedNames,
+              ],
             }),
           },
         ],
@@ -78,12 +99,27 @@ export const migrationMachine = setup({
         },
       },
     },
+    partialSuccess: {
+      on: {
+        DONE: {
+          target: 'selectNames',
+          actions: assign({
+            selectedNames: () => [],
+            migratedNames: () => [],
+            txHashes: () => [],
+            skippedNames: () => [],
+            error: () => undefined,
+          }),
+        },
+      },
+    },
     success: {
       on: {
         DONE: {
           target: 'selectNames',
           actions: assign({
             selectedNames: () => [],
+            migratedNames: () => [],
             txHashes: () => [],
             skippedNames: () => [],
             error: () => undefined,
@@ -97,12 +133,19 @@ export const migrationMachine = setup({
           target: 'migrating',
           actions: assign({
             error: () => undefined,
+            skippedNames: () => [],
+            txHashes: () => [],
+            selectedNames: ({ context }) =>
+              context.selectedNames.filter(
+                (n) => !context.migratedNames.includes(n),
+              ),
           }),
         },
         RESET: {
           target: 'selectNames',
           actions: assign({
             selectedNames: () => [],
+            migratedNames: () => [],
             txHashes: () => [],
             skippedNames: () => [],
             error: () => undefined,

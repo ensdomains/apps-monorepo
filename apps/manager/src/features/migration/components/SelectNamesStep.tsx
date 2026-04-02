@@ -39,13 +39,11 @@ export const SelectNamesStep = ({
     })
   }
 
-  // Sync selected names to parent after state settles (avoids setState-during-render)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: onNamesChange is stable from useCallback
   useEffect(() => {
     onNamesChange([...selected])
-  }, [selected])
+  }, [selected, onNamesChange])
 
-  const selectedCount = filtered.filter((n) => selected.has(n.name)).length
+  const totalSelected = selected.size
 
   return (
     <div className="relative z-10 flex h-full flex-col">
@@ -59,6 +57,7 @@ export const SelectNamesStep = ({
             <div className="flex h-[42px] shrink-0 items-center gap-3 rounded-[20px] bg-white/40 px-4 py-1.5">
               <Search className="size-5 shrink-0 text-ens-garnet-900/40" />
               <input
+                aria-label={t`Search names`}
                 className="flex-1 bg-transparent text-base text-ens-garnet-900 leading-[0.96] tracking-[-0.32px] placeholder:text-ens-garnet-900/40 focus:outline-none"
                 disabled={isPending}
                 onChange={(e) => setSearch(e.target.value)}
@@ -94,6 +93,7 @@ export const SelectNamesStep = ({
                         const isSelected = selected.has(item.name)
                         return (
                           <button
+                            aria-pressed={isSelected}
                             className="flex cursor-pointer items-center gap-3"
                             key={item.id}
                             onClick={() => toggleName(item.name)}
@@ -139,15 +139,15 @@ export const SelectNamesStep = ({
       <div className="flex shrink-0 flex-col items-center justify-between gap-4 bg-[rgba(251,249,250,0.3)] px-8 py-8 sm:flex-row lg:px-[150px]">
         <p className="text-base text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.16px]">
           <Trans>
-            <span>{selectedCount}</span>
+            <span>{totalSelected}</span>
             <span className="font-semi-mono"> out of </span>
-            <span>{filtered.length}</span>
+            <span>{v1Names.length}</span>
             <span className="font-semi-mono"> eligible names selected</span>
           </Trans>
         </p>
         <button
           className="h-[46px] w-full min-w-[160px] rounded-[4px] bg-ens-garnet-900 px-[10px] text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
-          disabled={selectedCount === 0 || isPending}
+          disabled={totalSelected === 0 || isPending}
           onClick={onNext}
           type="button"
         >
