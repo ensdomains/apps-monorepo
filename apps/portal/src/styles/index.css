@@ -70,8 +70,8 @@
   --syntax-address: #1cbf46;
   --syntax-contract: #f569ab;
   --syntax-tx: #e7a259;
-  --entity-bg: #f8f8f8;
-  --entity-border: #d0d0d0;
+  --entity-bg: transparent;
+  --entity-border: transparent;
 
   --avatar-placeholder-gradient: linear-gradient(
     135deg,

@@ -38,16 +38,12 @@ export const Owner = ({
     )
 
   const shortenedAddress = truncateAddress(owner, 6, 4, '...')
-
-  return (
-    <Link
-      to="/addr/$addr"
-      params={{ addr: owner }}
-      className={cn(
-        'p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted',
-        className,
-      )}
-    >
+  const cardClassName = cn(
+    'p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted',
+    className,
+  )
+  const cardContent = (
+    <>
       <NameAvatar
         width="40px"
         height="40px"
@@ -59,6 +55,20 @@ export const Owner = ({
           {ownerName || shortenedAddress}
         </EntityBadge>
       </div>
+    </>
+  )
+
+  if (ownerName) {
+    return (
+      <Link to="/$name" params={{ name: ownerName }} className={cardClassName}>
+        {cardContent}
+      </Link>
+    )
+  }
+
+  return (
+    <Link to="/addr/$addr" params={{ addr: owner }} className={cardClassName}>
+      {cardContent}
     </Link>
   )
 }

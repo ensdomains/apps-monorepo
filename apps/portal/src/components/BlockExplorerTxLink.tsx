@@ -1,7 +1,5 @@
-import { CheckIcon, CopyIcon } from 'lucide-react'
-import { useState } from 'react'
-import { ExternalLink } from 'react-external-link'
 import type { Hash } from 'viem'
+import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { cn } from '@/lib/utils'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -14,7 +12,7 @@ interface BlockExplorerTxLinkProps {
 }
 
 /**
- * Renders an EntityBadge (citrine) with a block explorer link for a transaction.
+ * Renders an EntityBadge (tx) with a block explorer link and copy button for a transaction.
  * Use in table cells and other places where tx hash + explorer link is needed.
  */
 export const BlockExplorerTxLink = ({
@@ -23,34 +21,13 @@ export const BlockExplorerTxLink = ({
   className,
 }: BlockExplorerTxLinkProps) => {
   const href = useBlockExplorerTxUrl(txHash, chainId)
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(txHash)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      {href ? (
-        <ExternalLink href={href}>
-          <EntityBadge variant="tx">{truncateAddress(txHash)}</EntityBadge>
-        </ExternalLink>
-      ) : (
-        <EntityBadge variant="tx">{truncateAddress(txHash)}</EntityBadge>
-      )}
-      <button
-        type="button"
-        className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-        onClick={handleCopy}
-      >
-        {copied ? (
-          <CheckIcon className="size-3" />
-        ) : (
-          <CopyIcon className="size-3" />
-        )}
-      </button>
+    <div className={cn('inline-flex items-center gap-1', className)}>
+      <EntityBadge variant="tx" externalHref={href}>
+        {truncateAddress(txHash)}
+      </EntityBadge>
+      <CopyButton value={txHash} />
     </div>
   )
 }
