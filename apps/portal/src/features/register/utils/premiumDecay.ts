@@ -1,9 +1,3 @@
-import {
-  dateFromEpochMilliseconds,
-  epochMillisecondsFromDate,
-  getNowEpochMilliseconds,
-} from '@/utils/temporal'
-
 /**
  * Premium decay calculation utilities for the v2 StandardRentPriceOracle.
  *
@@ -34,30 +28,6 @@ const FACTOR = 0.5
 export type PremiumDatesResult = {
   premiumStartDate: Date
   premiumEndDate: Date
-}
-
-export type PremiumEpochRangeResult = {
-  premiumStartMs: number
-  premiumEndMs: number
-}
-
-/**
- * Domain-level helper that calculates premium window in epoch milliseconds.
- * Prefer this inside business logic; adapt to Date only at UI/library boundaries.
- */
-export function getPremiumEpochRangeFromPrice(
-  currentPremiumUsd: number,
-  nowMs: number = getNowEpochMilliseconds(),
-): PremiumEpochRangeResult | null {
-  if (currentPremiumUsd <= 0) return null
-
-  const days =
-    Math.log((currentPremiumUsd + OFFSET) / START_PRICE) / Math.log(FACTOR)
-  const elapsedMs = days * MS_PER_DAY
-
-  const premiumStartMs = nowMs - elapsedMs
-  const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
-  return { premiumStartMs, premiumEndMs }
 }
 
 /**
@@ -92,13 +62,18 @@ export function getPremiumDatesFromRegistrationPrice(price: {
 export function getPremiumDatesFromPrice(
   currentPremiumUsd: number,
 ): PremiumDatesResult | null {
-  const premiumRange = getPremiumEpochRangeFromPrice(currentPremiumUsd)
-  if (!premiumRange) return null
+  if (currentPremiumUsd <= 0) return null
 
-  const premiumStartDate = dateFromEpochMilliseconds(
-    premiumRange.premiumStartMs,
+  const days =
+    Math.log((currentPremiumUsd + OFFSET) / START_PRICE) / Math.log(FACTOR)
+
+  const elapsedMs = days * MS_PER_DAY
+
+  const premiumStartDate = new Date(Date.now() - elapsedMs)
+
+  const premiumEndDate = new Date(
+    premiumStartDate.getTime() + PREMIUM_PERIOD_MS,
   )
-  const premiumEndDate = dateFromEpochMilliseconds(premiumRange.premiumEndMs)
 
   return { premiumStartDate, premiumEndDate }
 }
@@ -114,20 +89,7 @@ export function getPremiumPriceAtDate(
   premiumStartDate: Date,
   targetDate: Date,
 ): number {
-  return getPremiumPriceAtEpochMs(
-    epochMillisecondsFromDate(premiumStartDate),
-    epochMillisecondsFromDate(targetDate),
-  )
-}
-
-/**
- * Domain-level helper that calculates premium at an epoch-millisecond target.
- */
-export function getPremiumPriceAtEpochMs(
-  premiumStartMs: number,
-  targetMs: number,
-): number {
-  const elapsedMs = targetMs - premiumStartMs
+  const elapsedMs = targetDate.getTime() - premiumStartDate.getTime()
   if (elapsedMs < 0) return START_PRICE - OFFSET
   if (elapsedMs >= PREMIUM_PERIOD_MS) return 0
 
@@ -149,28 +111,19 @@ export function getDateForPremiumPrice(
   premiumStartDate: Date,
   targetPrice: number,
 ): Date {
-  return dateFromEpochMilliseconds(
-    getEpochMsForPremiumPrice(
-      epochMillisecondsFromDate(premiumStartDate),
-      targetPrice,
-    ),
+  if (targetPrice >= START_PRICE - OFFSET) return premiumStartDate
+
+  const premiumEndDate = new Date(
+    premiumStartDate.getTime() + PREMIUM_PERIOD_MS,
   )
-}
-
-/**
- * Domain-level helper that inverts premium decay to epoch milliseconds.
- */
-export function getEpochMsForPremiumPrice(
-  premiumStartMs: number,
-  targetPrice: number,
-): number {
-  if (targetPrice >= START_PRICE - OFFSET) return premiumStartMs
-
-  const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
-  if (targetPrice <= 0) return premiumEndMs
+  if (targetPrice <= 0) return premiumEndDate
 
   const days = Math.log((targetPrice + OFFSET) / START_PRICE) / Math.log(FACTOR)
-  const dateMs = premiumStartMs + days * MS_PER_DAY
+  const dateMs = premiumStartDate.getTime() + days * MS_PER_DAY
 
-  return Math.max(premiumStartMs, Math.min(dateMs, premiumEndMs))
+  const clamped = Math.max(
+    premiumStartDate.getTime(),
+    Math.min(dateMs, premiumEndDate.getTime()),
+  )
+  return new Date(clamped)
 }

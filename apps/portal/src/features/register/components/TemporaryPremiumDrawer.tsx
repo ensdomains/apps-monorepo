@@ -24,14 +24,8 @@ import {
   getPremiumPriceAtDate,
   PREMIUM_PERIOD_MS,
 } from '@/features/register/utils/premiumDecay'
-import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
-import {
-  dateFromEpochMilliseconds,
-  epochMillisecondsFromDate,
-  getNowEpochMilliseconds,
-} from '@/utils/temporal'
 
 function useSyncPremiumCalculatorOnOpen(
   open: boolean,
@@ -68,9 +62,7 @@ export const TemporaryPremiumDrawer = ({
   premiumStartDate,
 }: TemporaryPremiumDrawerProps) => {
   const premiumEndDate = premiumStartDate
-    ? dateFromEpochMilliseconds(
-        epochMillisecondsFromDate(premiumStartDate) + PREMIUM_PERIOD_MS,
-      )
+    ? new Date(premiumStartDate.getTime() + PREMIUM_PERIOD_MS)
     : null
 
   const currentCalculatedPrice = premiumStartDate
@@ -93,14 +85,10 @@ export const TemporaryPremiumDrawer = ({
   function applyDateSelection(newDate: Date) {
     if (!premiumStartDate || !premiumEndDate) return
 
-    const nowMs = getNowEpochMilliseconds()
-    const clamped = dateFromEpochMilliseconds(
+    const clamped = new Date(
       Math.max(
-        nowMs,
-        Math.min(
-          epochMillisecondsFromDate(newDate),
-          epochMillisecondsFromDate(premiumEndDate),
-        ),
+        Date.now(),
+        Math.min(newDate.getTime(), premiumEndDate.getTime()),
       ),
     )
 
@@ -151,7 +139,16 @@ export const TemporaryPremiumDrawer = ({
 
   function isDateDisabled(d: Date) {
     if (!premiumEndDate) return true
-    return !isDateWithinCalendarRange(d, new Date(), premiumEndDate)
+    const dayStart = new Date(d)
+    dayStart.setHours(0, 0, 0, 0)
+    const nowStart = new Date()
+    nowStart.setHours(0, 0, 0, 0)
+    const endDay = new Date(premiumEndDate)
+    endDay.setHours(23, 59, 59, 999)
+    return (
+      dayStart.getTime() < nowStart.getTime() ||
+      dayStart.getTime() > endDay.getTime()
+    )
   }
 
   return (

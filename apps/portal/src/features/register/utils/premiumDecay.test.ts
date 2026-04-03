@@ -1,12 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getDateForPremiumPrice,
-  getEpochMsForPremiumPrice,
   getPremiumDatesFromPrice,
   getPremiumDatesFromRegistrationPrice,
-  getPremiumEpochRangeFromPrice,
   getPremiumPriceAtDate,
-  getPremiumPriceAtEpochMs,
   PREMIUM_PERIOD_MS,
 } from './premiumDecay'
 
@@ -56,37 +53,6 @@ describe('premiumDecay', () => {
       )
       expect(day1).toBeLessThan(startPrice)
       expect(day10).toBeLessThan(day1)
-    })
-  })
-
-  describe('epoch-based premium helpers', () => {
-    it('matches Date adapter results for price calculation', () => {
-      const premiumStart = new Date('2025-01-01T00:00:00')
-      const target = new Date('2025-01-03T00:00:00')
-
-      const fromDateAdapter = getPremiumPriceAtDate(premiumStart, target)
-      const fromEpochHelper = getPremiumPriceAtEpochMs(
-        premiumStart.getTime(),
-        target.getTime(),
-      )
-
-      expect(fromEpochHelper).toBe(fromDateAdapter)
-    })
-
-    it('clamps inverted price target within premium window', () => {
-      const premiumStartMs = new Date('2025-01-01T00:00:00').getTime()
-
-      expect(getEpochMsForPremiumPrice(premiumStartMs, -1)).toBe(
-        premiumStartMs + PREMIUM_PERIOD_MS,
-      )
-      expect(
-        getEpochMsForPremiumPrice(premiumStartMs, Number.MAX_SAFE_INTEGER),
-      ).toBe(premiumStartMs)
-    })
-
-    it('returns null range for non-positive premium', () => {
-      expect(getPremiumEpochRangeFromPrice(0)).toBeNull()
-      expect(getPremiumEpochRangeFromPrice(-1)).toBeNull()
     })
   })
 
