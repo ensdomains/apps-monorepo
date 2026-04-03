@@ -1,19 +1,127 @@
 import {
-  addDays,
-  addMonths,
-  addYears,
-  differenceInDays,
-  differenceInMonths,
-  differenceInYears,
-  endOfDay,
-  startOfDay,
-} from 'date-fns'
-import {
   CONTRACT_SECONDS_PER_YEAR,
   MAX_REGISTRATION_YEARS,
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
+import {
+  dateFromEpochMilliseconds,
+  epochMillisecondsFromDate,
+  getNowEpochMilliseconds,
+} from '@/utils/temporal'
+
+function toPlainDate(date: Date): Temporal.PlainDate {
+  // Use the local calendar date (local wall-clock), not UTC.
+  return Temporal.PlainDate.from({
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+  })
+}
+
+function comparePlainDate(
+  a: Temporal.PlainDate,
+  b: Temporal.PlainDate,
+): number {
+  if (a.year !== b.year) return a.year - b.year
+  if (a.month !== b.month) return a.month - b.month
+  return a.day - b.day
+}
+
+export function isDateWithinCalendarRange(
+  date: Date,
+  minDate: Date,
+  maxDate: Date,
+): boolean {
+  const plainToCheck = toPlainDate(date)
+  const plainMin = toPlainDate(minDate)
+  const plainMax = toPlainDate(maxDate)
+  return (
+    comparePlainDate(plainToCheck, plainMin) >= 0 &&
+    comparePlainDate(plainToCheck, plainMax) <= 0
+  )
+}
+
+function fromPlainDate(
+  plain: Temporal.PlainDate,
+  timeSource: Date,
+  options?: { endOfDay?: boolean },
+): Date {
+  if (options?.endOfDay) {
+    return new Date(plain.year, plain.month - 1, plain.day, 23, 59, 59, 999)
+  }
+
+  return new Date(
+    plain.year,
+    plain.month - 1,
+    plain.day,
+    timeSource.getHours(),
+    timeSource.getMinutes(),
+    timeSource.getSeconds(),
+    timeSource.getMilliseconds(),
+  )
+}
+
+function startOfDayLocal(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+}
+
+function endOfDayLocal(date: Date): Date {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  )
+}
+
+function addCalendarDays(date: Date, days: number): Date {
+  const plain = toPlainDate(date)
+  const next = plain.add({ days })
+  return fromPlainDate(next, date)
+}
+
+function addCalendarMonths(date: Date, months: number): Date {
+  const plain = toPlainDate(date)
+  const next = plain.add({ months })
+  return fromPlainDate(next, date)
+}
+
+function addCalendarYears(date: Date, years: number): Date {
+  const plain = toPlainDate(date)
+  const next = plain.add({ years })
+  return fromPlainDate(next, date)
+}
+
+function differenceInYears(endDate: Date, startDate: Date): number {
+  const startPlain = toPlainDate(startDate)
+  const endPlain = toPlainDate(endDate)
+
+  const years = endPlain.year - startPlain.year
+  const candidate = startPlain.add({ years })
+  return comparePlainDate(candidate, endPlain) > 0 ? years - 1 : years
+}
+
+function differenceInMonths(endDate: Date, startDate: Date): number {
+  const startPlain = toPlainDate(startDate)
+  const endPlain = toPlainDate(endDate)
+
+  const months =
+    (endPlain.year - startPlain.year) * 12 + (endPlain.month - startPlain.month)
+  const candidate = startPlain.add({ months })
+  return comparePlainDate(candidate, endPlain) > 0 ? months - 1 : months
+}
+
+function differenceInDays(endDate: Date, startDate: Date): number {
+  const startPlain = toPlainDate(startDate)
+  const endPlain = toPlainDate(endDate)
+  // After removing whole years+months, this should be an integer day difference.
+  const duration = startPlain.until(endPlain, { largestUnit: 'days' })
+  return duration.days
+}
 
 /**
  * Formats the duration from today to an expiry date as a human-readable string.
@@ -23,14 +131,17 @@ export const formatRegistrationDuration = (
   startDate: Date,
   expiryDate: Date,
 ): string => {
-  if (expiryDate.getTime() <= startDate.getTime()) {
+  if (
+    epochMillisecondsFromDate(expiryDate) <=
+    epochMillisecondsFromDate(startDate)
+  ) {
     throw new Error('Expiry date must be after start date')
   }
 
   const years = differenceInYears(expiryDate, startDate)
-  const afterYears = addYears(startDate, years)
+  const afterYears = addCalendarYears(startDate, years)
   const months = differenceInMonths(expiryDate, afterYears)
-  const afterMonths = addMonths(afterYears, months)
+  const afterMonths = addCalendarMonths(afterYears, months)
   const days = differenceInDays(expiryDate, afterMonths)
 
   const parts: string[] = []
@@ -65,7 +176,8 @@ export const calculateDurationFromDate = (
   startDate: Date,
   expiryDate: Date,
 ): number => {
-  const diffMs = expiryDate.getTime() - startDate.getTime()
+  const diffMs =
+    epochMillisecondsFromDate(expiryDate) - epochMillisecondsFromDate(startDate)
 
   if (diffMs <= 0) {
     return 1
@@ -84,7 +196,8 @@ export const getRegistrationDurationInSeconds = (
   startDate: Date,
   expiryDate: Date,
 ): number => {
-  const diffMs = expiryDate.getTime() - startDate.getTime()
+  const diffMs =
+    epochMillisecondsFromDate(expiryDate) - epochMillisecondsFromDate(startDate)
   if (diffMs <= 0) {
     return MIN_REGISTRATION_DURATION
   }
@@ -93,7 +206,8 @@ export const getRegistrationDurationInSeconds = (
 }
 
 /**
- * Converts duration in years to seconds using calendar math (addYears).
+ * Converts duration in years to seconds using calendar-year addition (same
+ * month/day, adjusted for leap years).
  * 3 years from Jan 1 2026 = Jan 1 2029 exactly, including leap years.
  */
 export const getDurationInSecondsFromYears = (
@@ -104,8 +218,12 @@ export const getDurationInSecondsFromYears = (
     Math.max(1, Math.floor(years)),
     MAX_REGISTRATION_YEARS,
   )
-  const expiry = addYears(startOfToday, cappedYears)
-  return Math.floor((expiry.getTime() - startOfToday.getTime()) / 1000)
+  const expiry = addCalendarYears(startOfToday, cappedYears)
+  return Math.floor(
+    (epochMillisecondsFromDate(expiry) -
+      epochMillisecondsFromDate(startOfToday)) /
+      1000,
+  )
 }
 
 /**
@@ -130,9 +248,14 @@ export const getRegistrationExpiryDateFromSeconds = (
   startDate: Date,
   durationInSeconds: number,
 ): Date => {
-  const expiryDate = new Date(startDate.getTime() + durationInSeconds * 1000)
+  const expiryDate = dateFromEpochMilliseconds(
+    epochMillisecondsFromDate(startDate) + durationInSeconds * 1000,
+  )
 
-  if (expiryDate.getTime() <= startDate.getTime()) {
+  if (
+    epochMillisecondsFromDate(expiryDate) <=
+    epochMillisecondsFromDate(startDate)
+  ) {
     throw new Error('Expiry date must be after start date')
   }
 
@@ -161,7 +284,8 @@ export function getRegistrationDisplayDates(durationSeconds: number) {
  * Use as the canonical reference date for registration duration calculations.
  * Pass `now` for deterministic testing.
  */
-export const getStartOfToday = (now: Date = new Date()): Date => startOfDay(now)
+export const getStartOfToday = (now?: Date): Date =>
+  startOfDayLocal(now ?? dateFromEpochMilliseconds(getNowEpochMilliseconds()))
 
 /**
  * Returns the minimum expiry date for the date picker (28 days from today).
@@ -169,14 +293,14 @@ export const getStartOfToday = (now: Date = new Date()): Date => startOfDay(now)
  */
 export const getMinExpiryDateForPicker = (
   startOfToday: Date = getStartOfToday(),
-): Date => addDays(startOfToday, 28)
+): Date => addCalendarDays(startOfToday, 28)
 
 /**
  * Returns the maximum expiry date for the date picker (MAX_REGISTRATION_YEARS from today).
  */
 export const getMaxExpiryDateForPicker = (
   startOfToday: Date = getStartOfToday(),
-): Date => addYears(startOfToday, MAX_REGISTRATION_YEARS)
+): Date => addCalendarYears(startOfToday, MAX_REGISTRATION_YEARS)
 
 /**
  * Converts duration (seconds) to expiry Date for the date picker.
@@ -187,7 +311,7 @@ export const getExpiryDateForPicker = (
   durationInSeconds: number,
   startOfToday: Date = getStartOfToday(),
 ): Date =>
-  endOfDay(
+  endOfDayLocal(
     getRegistrationExpiryDateFromSeconds(startOfToday, durationInSeconds),
   )
 
@@ -202,6 +326,9 @@ export const getDurationFromPickerDate = (
 ): number => {
   const maxExpiry = getMaxExpiryDateForPicker(startOfToday)
   const cappedDate =
-    endOfDay(date).getTime() > maxExpiry.getTime() ? maxExpiry : endOfDay(date)
+    epochMillisecondsFromDate(endOfDayLocal(date)) >
+    epochMillisecondsFromDate(maxExpiry)
+      ? maxExpiry
+      : endOfDayLocal(date)
   return getRegistrationDurationInSeconds(startOfToday, cappedDate)
 }
