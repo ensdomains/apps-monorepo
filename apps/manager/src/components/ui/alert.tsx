@@ -32,6 +32,8 @@ function Alert({
 }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
   return (
     <div
+      aria-atomic="true"
+      aria-live="assertive"
       className={cn(alertVariants({ variant }), className)}
       data-slot="alert"
       role="alert"

@@ -209,7 +209,9 @@ export const ProgressBar = ({
             <p className="font-medium text-red-600 text-sm leading-5">
               <Trans>Registration Failed</Trans>
             </p>
-            <p className="text-red-500 text-sm leading-5">{errorMessage}</p>
+            <p className="line-clamp-3 text-red-500 text-sm leading-5">
+              {errorMessage}
+            </p>
           </div>
         </div>
       ) : (

@@ -344,7 +344,7 @@ export const MyNamesList = ({
         <div className="flex items-center justify-center gap-[12px]">
           <button
             aria-label={t`Previous page`}
-            className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
+            className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
             disabled={isPending || page === 1}
             onClick={() => setPage((p) => p - 1)}
             type="button"
