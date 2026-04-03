@@ -77,7 +77,11 @@ export const PaymentTokenModal = ({
         args: address ? [address] : undefined,
         chainId: sepoliaWithEns.id,
       })),
-      query: { enabled: Boolean(address) },
+      query: {
+        enabled: Boolean(address),
+        staleTime: 0,
+        refetchOnMount: 'always',
+      },
     })
 
   const priceQueries = useQueries({

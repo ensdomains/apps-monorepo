@@ -24,6 +24,7 @@ export type DisplayState =
   | { type: 'searching'; domainName: string }
   | { type: 'available'; domainName: string }
   | { type: 'unavailable'; domainName: string }
+  | { type: 'not-supported'; domainName: string }
 
 interface UseCheckAvailabilityParams {
   /** Current input value (for instant validation) */
@@ -134,8 +135,13 @@ export const useCheckAvailability = ({
       return { type: 'address', address: trimmedInput as Address }
     }
 
-    // Validation error - show idle (error shown separately)
-    if (validation) return { type: 'idle' }
+    // Validation error - show as "not supported"
+    if (validation) {
+      return {
+        type: 'not-supported',
+        domainName: normalizeQuery(trimmedInput),
+      }
+    }
 
     // Loading
     if (availabilityQuery.isFetching && normalizedName) {
