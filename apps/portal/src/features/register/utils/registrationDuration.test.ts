@@ -1,3 +1,4 @@
+import { addDays, addMonths, addYears } from 'date-fns'
 import { describe, expect, it } from 'vitest'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import {
@@ -12,38 +13,6 @@ import {
   getRegistrationExpiryDateFromSeconds,
   getYearsFromDuration,
 } from './registrationDuration'
-
-function toPlainDate(date: Date): Temporal.PlainDate {
-  return Temporal.PlainDate.from({
-    year: date.getFullYear(),
-    month: date.getMonth() + 1,
-    day: date.getDate(),
-  })
-}
-
-function fromPlainDate(plain: Temporal.PlainDate, timeSource: Date): Date {
-  return new Date(
-    plain.year,
-    plain.month - 1,
-    plain.day,
-    timeSource.getHours(),
-    timeSource.getMinutes(),
-    timeSource.getSeconds(),
-    timeSource.getMilliseconds(),
-  )
-}
-
-function addYears(date: Date, years: number): Date {
-  return fromPlainDate(toPlainDate(date).add({ years }), date)
-}
-
-function addMonths(date: Date, months: number): Date {
-  return fromPlainDate(toPlainDate(date).add({ months }), date)
-}
-
-function addDays(date: Date, days: number): Date {
-  return fromPlainDate(toPlainDate(date).add({ days }), date)
-}
 
 describe('registrationDuration', () => {
   const startOfFixedToday = new Date('2025-01-15T00:00:00Z')
@@ -104,21 +73,24 @@ describe('registrationDuration', () => {
     })
 
     it('should return "1 day" for one day from today', () => {
-      const target = addDays(startOfFixedToday, 1)
+      const target = new Date(startOfFixedToday)
+      target.setDate(target.getDate() + 1)
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '1 day',
       )
     })
 
     it('should return "15 days" for 15 days from today (no months)', () => {
-      const target = addDays(startOfFixedToday, 15)
+      const target = new Date(startOfFixedToday)
+      target.setDate(target.getDate() + 15)
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '15 days',
       )
     })
 
     it('should include days when months and extra days are present', () => {
-      const target = addDays(addMonths(startOfFixedToday, 1), 5)
+      const target = addMonths(startOfFixedToday, 1)
+      target.setDate(target.getDate() + 5)
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '1 month 5 days',
       )
@@ -169,7 +141,8 @@ describe('registrationDuration', () => {
     })
 
     it('should round to 2 decimals for 1 year and 1 day', () => {
-      const justOverOneYear = addDays(addYears(startOfFixedToday, 1), 1)
+      const justOverOneYear = addYears(startOfFixedToday, 1)
+      justOverOneYear.setDate(justOverOneYear.getDate() + 1)
       const result = calculateDurationFromDate(
         startOfFixedToday,
         justOverOneYear,
@@ -223,7 +196,8 @@ describe('registrationDuration', () => {
     })
 
     it('should return 28 days minimum for tomorrow', () => {
-      const tomorrow = addDays(startOfFixedToday, 1)
+      const tomorrow = new Date(startOfFixedToday)
+      tomorrow.setDate(tomorrow.getDate() + 1)
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
         tomorrow,

@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { isDateWithinCalendarRange } from '../utils/registrationDuration'
 
 // import {
 //   getDurationFromPickerDate,
@@ -51,7 +50,16 @@ export const RegistrationExpiryDatePicker = ({
   // }
 
   const disabled = (d: Date) => {
-    return !isDateWithinCalendarRange(d, minDate, maxDate)
+    const dateToCheck = new Date(d)
+    dateToCheck.setHours(0, 0, 0, 0)
+    const min = new Date(minDate)
+    min.setHours(0, 0, 0, 0)
+    const max = new Date(maxDate)
+    max.setHours(23, 59, 59, 999)
+    return (
+      dateToCheck.getTime() < min.getTime() ||
+      dateToCheck.getTime() > max.getTime()
+    )
   }
 
   return (
