@@ -20,7 +20,7 @@ export function formatRegistrationTotal(
 ): string {
   const baseUsd = Number(base) / 10 ** decimals
   const premiumUsd = Number(premium) / 10 ** decimals
-  const totalUsd = baseUsd + premiumUsd
+  const totalUsd = Math.round(baseUsd + premiumUsd)
   return formatUsd(totalUsd)
 }
 
