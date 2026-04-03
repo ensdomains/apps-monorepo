@@ -22,7 +22,7 @@ function RegisterPage() {
   )
 }
 
-export const Route = createFileRoute('/register')({
+export const Route = createFileRoute('/register/')({
   component: RegisterPage,
   validateSearch: (search: Record<string, unknown>): RegisterSearch => {
     const rawName = typeof search.name === 'string' ? search.name : undefined
