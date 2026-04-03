@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
 import { AddressSuggestionItem, NameSuggestionItem } from './SuggestionItem'
 import { searchHistoryStore } from './useSearchHistory'
@@ -19,7 +20,7 @@ export const SearchSuggestions = ({
     if (isShowingHistory) {
       return (
         <div className="px-3 py-6 text-center text-slate-500 text-sm">
-          No recent searches
+          <Trans>No recent searches</Trans>
         </div>
       )
     }
@@ -30,13 +31,15 @@ export const SearchSuggestions = ({
     <div>
       {isShowingHistory && (
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="font-medium text-slate-500 text-xs">Recent</span>
+          <span className="font-medium text-slate-500 text-xs">
+            <Trans>Recent</Trans>
+          </span>
           <button
             className="font-medium text-ens-blue-primary text-xs hover:underline"
             onClick={() => searchHistoryStore.trigger.clearHistory()}
             type="button"
           >
-            Clear
+            <Trans>Clear</Trans>
           </button>
         </div>
       )}
@@ -47,6 +50,7 @@ export const SearchSuggestions = ({
               isError={name.isError}
               isLoading={name.isLoading}
               isRegistered={name.isRegistered}
+              isSupported={name.isSupported}
               key={name.value}
               name={name.value}
               onNavigate={onNavigate}

@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { addDays, addMonths } from 'date-fns'
 import { Pencil } from 'lucide-react'
 import { useState } from 'react'
@@ -95,7 +96,7 @@ export const PricingRegistrationSummaryCard = ({
         <div className="space-y-2 text-center">
           <div className="flex items-baseline justify-center gap-1.5">
             <span className="font-normal text-ens-blue-midnight text-xl leading-none tracking-tight md:text-2xl">
-              Registering for
+              <Trans>Registering for</Trans>
             </span>
             <input
               className="w-16 bg-transparent text-center font-medium text-ens-blue text-xl leading-none tracking-tight outline-none [appearance:textfield] md:text-2xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -109,13 +110,13 @@ export const PricingRegistrationSummaryCard = ({
               value={durationInputValue}
             />
             <span className="font-normal text-ens-blue-midnight text-xl leading-none tracking-tight md:text-2xl">
-              years
+              <Trans>years</Trans>
             </span>
           </div>
 
           <div className="space-y-2">
             <span className="mr-1 font-normal text-ens-blue-midnight text-xl leading-none tracking-[-0.2px] md:text-2xl md:tracking-[-0.24px]">
-              expiring on
+              <Trans>expiring on</Trans>
             </span>
             <Popover
               onOpenChange={setIsDatePopoverOpen}

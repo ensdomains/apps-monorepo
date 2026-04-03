@@ -44,6 +44,8 @@ function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
     const reverseRegistrarChainId = Number(
       reverseRegistrarChainIdKey,
     ) as ReverseRegistrarChainId
+    // Skip 60 - already added as "Default" (addr.reverse). 60 and "Ethereum" are the same record.
+    if (reverseRegistrarChainId === 60) continue
     networks.push({
       reverseRegistrarChainId,
       label: names[reverseRegistrarChainId],

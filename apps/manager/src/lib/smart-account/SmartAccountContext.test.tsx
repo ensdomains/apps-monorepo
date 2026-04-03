@@ -5,6 +5,8 @@
  */
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
+import { i18n } from '@lingui/core'
+import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -21,14 +23,18 @@ import {
 } from './SmartAccountContext'
 import { initializeZeroDevAccount } from './zerodev/kernel'
 
+i18n.loadAndActivate({ locale: 'en', messages: {} })
+
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <SmartAccountContextProvider>{children}</SmartAccountContextProvider>
-    </QueryClientProvider>
+    <I18nProvider i18n={i18n}>
+      <QueryClientProvider client={queryClient}>
+        <SmartAccountContextProvider>{children}</SmartAccountContextProvider>
+      </QueryClientProvider>
+    </I18nProvider>
   )
 }
 

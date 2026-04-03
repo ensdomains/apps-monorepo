@@ -1,3 +1,5 @@
+import { Trans } from '@lingui/react/macro'
+
 type PricingTotalPriceCardProps = {
   isPriceLoading: boolean
   finalPrice: number
@@ -17,7 +19,7 @@ export const PricingTotalPriceCard = ({
     <div className="pricing-total-price-card flex flex-col justify-center gap-4 text-center">
       <div className="space-y-1">
         <p className="font-normal text-ens-lapis-surface text-xs tracking-wide">
-          TOTAL
+          <Trans>TOTAL</Trans>
         </p>
         <div className="min-h-6">
           {!isPriceLoading &&
@@ -50,10 +52,12 @@ export const PricingTotalPriceCard = ({
         {!isPriceLoading && discountPercentage > 0 && discountAmount > 0 && (
           <div className="mx-auto w-fit rounded bg-ens-peridot-dust px-4 py-3 md:w-auto">
             <span className="font-normal text-2xl text-ens-peridot-core tracking-tight">
-              Save $
-              {discountAmount.toLocaleString('en-US', {
-                maximumFractionDigits: 0,
-              })}
+              <Trans>
+                Save $
+                {discountAmount.toLocaleString('en-US', {
+                  maximumFractionDigits: 0,
+                })}
+              </Trans>
             </span>
           </div>
         )}

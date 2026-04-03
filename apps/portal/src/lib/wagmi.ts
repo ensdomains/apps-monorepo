@@ -38,8 +38,20 @@ export const namechainSepolia = extendChainWithL2Ens(sepolia)
 export const getChainIdForNetwork = (network: EnsNetworkName): number =>
   network === 'sepolia' ? sepoliaWithEns.id : namechainSepolia.id
 
-const drpc = (chain: Chain) =>
-  `https://lb.drpc.live/${chain.name.toLowerCase()}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`
+const DRPC_CHAIN_SLUGS: Record<number, string> = {
+  11155111: 'sepolia',
+  11155420: 'optimism-sepolia',
+  421614: 'arbitrum-sepolia',
+  84532: 'base-sepolia',
+  59141: 'linea-sepolia',
+  534351: 'scroll-sepolia',
+}
+
+const drpc = (chain: Chain) => {
+  const slug =
+    DRPC_CHAIN_SLUGS[chain.id] ?? chain.name.toLowerCase().replace(/\s+/g, '-')
+  return `https://lb.drpc.live/${slug}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`
+}
 
 /** Returns the RPC URL for a chain — uses VITE_SEPOLIA_RPC_URL for Sepolia, drpc for others. */
 const rpcUrl = (chain: Chain): string =>

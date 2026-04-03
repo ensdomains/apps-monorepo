@@ -1,5 +1,6 @@
 'use client'
 
+import { Plural, Trans } from '@lingui/react/macro'
 import { DomainCard } from '@/components/atoms/DomainCard'
 import { Button } from '@/components/ui/button'
 import { formatYears } from '@/features/register/components/Pricing/utils'
@@ -69,20 +70,27 @@ export const RegistrationDetails = ({
         <div className="flex w-full flex-col gap-6 lg:w-1/2">
           <div className="flex flex-col gap-5">
             <h3 className="font-medium text-ens-blue-dark text-xl tracking-tight">
-              Registration Details
+              <Trans>Registration Details</Trans>
             </h3>
 
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <p className="text-base text-ens-gray">Registration Period</p>
+                <p className="text-base text-ens-gray">
+                  <Trans>Registration Period</Trans>
+                </p>
                 <p className="text-base text-ens-blue-dark">
-                  {formattedDurationYears}{' '}
-                  {Number(formattedDurationYears) === 1 ? 'Year' : 'Years'}
+                  <Plural
+                    one="# Year"
+                    other="# Years"
+                    value={Number(formattedDurationYears)}
+                  />
                 </p>
               </div>
 
               <div className="flex items-center justify-between">
-                <p className="text-base text-ens-gray">Registration Fee</p>
+                <p className="text-base text-ens-gray">
+                  <Trans>Registration Fee</Trans>
+                </p>
                 <p className="text-base text-ens-blue-dark">
                   ${formattedRegistrationFee}
                 </p>
@@ -91,7 +99,7 @@ export const RegistrationDetails = ({
               {discountAmount > 0 && (
                 <div className="flex items-center justify-between">
                   <p className="text-base text-ens-peridot-core">
-                    Multi-year Discount ({discountPercentage}%)
+                    <Trans>Multi-year Discount ({discountPercentage}%)</Trans>
                   </p>
                   <p className="text-base text-ens-peridot-core">
                     -${formattedDiscount}
@@ -100,14 +108,18 @@ export const RegistrationDetails = ({
               )}
 
               <div className="flex items-center justify-between border-ens-gray-two border-t pt-4">
-                <p className="text-base text-ens-blue-dark">Total Paid</p>
+                <p className="text-base text-ens-blue-dark">
+                  <Trans>Total Paid</Trans>
+                </p>
                 <p className="text-base text-ens-blue-dark">
                   ${formattedTotalPrice}
                 </p>
               </div>
 
               <div className="flex items-center justify-between">
-                <p className="text-base text-ens-gray">Expires</p>
+                <p className="text-base text-ens-gray">
+                  <Trans>Expires</Trans>
+                </p>
                 <p className="text-base text-ens-blue">
                   {formattedExpiresDate}
                 </p>
@@ -120,7 +132,7 @@ export const RegistrationDetails = ({
             disabled={!isRegistrationComplete}
             onClick={onProfileNavigate}
           >
-            Create Profile
+            <Trans>Create Profile</Trans>
           </Button>
         </div>
       </div>

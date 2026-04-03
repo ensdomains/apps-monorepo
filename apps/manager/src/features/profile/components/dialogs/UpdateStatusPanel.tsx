@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Loader2 } from 'lucide-react'
 import { Alert } from '@/components/molecules/Alert'
 
@@ -16,6 +17,7 @@ export const UpdateStatusPanel = ({
   txHash,
   hasValidationIssues,
 }: UpdateStatusPanelProps) => {
+  const { t } = useLingui()
   if (!isSaving && !isSuccess && !errorMessage) {
     return null
   }
@@ -25,7 +27,9 @@ export const UpdateStatusPanel = ({
 
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-gray-700">Transaction:</span>
+        <span className="font-medium text-gray-700">
+          <Trans>Transaction:</Trans>
+        </span>
         <a
           className="font-mono text-blue-600 underline-offset-2 hover:underline"
           href={`https://sepolia.etherscan.io/tx/${txHash}`}
@@ -42,13 +46,15 @@ export const UpdateStatusPanel = ({
     return (
       <div className="mb-3">
         <Alert
-          description="Submitting your ENS profile update. This may take a few moments."
-          title="Updating profile"
+          description={t`Submitting your ENS profile update. This may take a few moments.`}
+          title={t`Updating profile`}
           variant="info"
         >
           <div className="mt-2 flex items-center gap-2 text-blue-700 text-xs">
             <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Waiting for the transaction to be confirmed…</span>
+            <span>
+              <Trans>Waiting for the transaction to be confirmed…</Trans>
+            </span>
           </div>
           {renderTxLink()}
         </Alert>
@@ -60,8 +66,8 @@ export const UpdateStatusPanel = ({
     return (
       <div className="mb-3">
         <Alert
-          description={errorMessage}
-          title="Update failed"
+          description={<span className="line-clamp-3">{errorMessage}</span>}
+          title={t`Update failed`}
           variant="destructive"
         >
           {renderTxLink()}
@@ -74,8 +80,8 @@ export const UpdateStatusPanel = ({
     return (
       <div className="mb-3">
         <Alert
-          description="Your profile changes have been confirmed on-chain."
-          title="Profile updated"
+          description={t`Your profile changes have been confirmed on-chain.`}
+          title={t`Profile updated`}
           variant="success"
         >
           {renderTxLink()}

@@ -187,6 +187,7 @@ function RouteComponent() {
       <NodeDetailSheet
         node={selectedNode}
         roles={rolesForNode}
+        resolverAddress={address}
         open={sheetOpen}
         setOpen={setSheetOpen}
       >

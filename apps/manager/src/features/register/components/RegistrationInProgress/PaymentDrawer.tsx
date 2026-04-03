@@ -1,10 +1,10 @@
 'use client'
 
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
-import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -32,6 +32,9 @@ import {
   hasInsufficientBalance,
   parseBalance,
 } from '@/utils/payment'
+import { CryptoPaymentConfirmationContent } from './CryptoPaymentConfirmationContent'
+
+type PaymentMethod = 'crypto' | 'credit-card'
 
 interface PaymentDrawerProps {
   domainName?: string
@@ -39,7 +42,7 @@ interface PaymentDrawerProps {
   priceUSD?: number
   isLoading?: boolean
   disabled?: boolean
-  onPaymentSelect?: (method: 'crypto' | 'credit-card') => void
+  onPaymentSelect?: (method: PaymentMethod) => void
   onCryptoSelect?: (cryptoId: string) => void
   onConfirmPayment?: (
     tokenPrice: bigint,
@@ -70,7 +73,7 @@ export const CreditCardPaymentDrawer = ({
         setOpen(false)
       }}
     >
-      Pay with credit card
+      <Trans>Pay with credit card</Trans>
     </Button>
   )
 
@@ -95,12 +98,16 @@ export const CreditCardPaymentDrawer = ({
           <CreditCardIcon className="h-8 w-8 text-blue-600" />
         </div>
         <h3 className="mb-2 font-semibold text-gray-900 text-xl">
-          Credit Card Payment
+          <Trans>Credit Card Payment</Trans>
         </h3>
-        <p className="mb-4 font-medium text-gray-600 text-lg">Coming Soon</p>
+        <p className="mb-4 font-medium text-gray-600 text-lg">
+          <Trans>Coming Soon</Trans>
+        </p>
         <p className="max-w-sm text-gray-500 text-sm">
-          Credit card payments via MoonPay will be available soon. Please use
-          crypto payment for now.
+          <Trans>
+            Credit card payments via MoonPay will be available soon. Please use
+            crypto payment for now.
+          </Trans>
         </p>
       </div>
     </div>
@@ -113,7 +120,9 @@ export const CreditCardPaymentDrawer = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Credit Card Payment</DialogTitle>
+            <DialogTitle>
+              <Trans>Credit Card Payment</Trans>
+            </DialogTitle>
           </DialogHeader>
           {creditCardContent}
         </DialogContent>
@@ -127,7 +136,9 @@ export const CreditCardPaymentDrawer = ({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader className="text-left">
-          <DrawerTitle>Credit Card Payment</DrawerTitle>
+          <DrawerTitle>
+            <Trans>Credit Card Payment</Trans>
+          </DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pb-6">{creditCardContent}</div>
       </DrawerContent>
@@ -145,6 +156,7 @@ export const CryptoPaymentDrawer = ({
   onCryptoSelect,
   onConfirmPayment,
 }: PaymentDrawerProps) => {
+  const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [selectedCoin, setSelectedCoin] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -220,7 +232,7 @@ export const CryptoPaymentDrawer = ({
       className="h-16 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover disabled:cursor-not-allowed disabled:opacity-50"
       disabled={disabled}
     >
-      Pay with stablecoins
+      <Trans>Pay with stablecoins</Trans>
     </Button>
   )
 
@@ -231,11 +243,11 @@ export const CryptoPaymentDrawer = ({
         <div className="flex flex-col items-center gap-4">
           <div className="flex flex-col items-center gap-2">
             <h2 className="text-center font-medium text-2xl text-ens-peridot-dense tracking-wide">
-              Select coin
+              <Trans>Select coin</Trans>
             </h2>
             <div className="flex flex-col items-center gap-1.5">
               <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-                Stables accepted
+                <Trans>Stables accepted</Trans>
               </p>
               {/* Stablecoin icons */}
               <div className="flex items-center gap-1">
@@ -249,10 +261,10 @@ export const CryptoPaymentDrawer = ({
           {/* Search Input */}
           <div className="w-2/3">
             <Input
-              aria-label="Search coins"
+              aria-label={t`Search coins`}
               className="h-9 rounded border-ens-gray-two"
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search coins"
+              placeholder={t`Search coins`}
               startIcon={<Search className="h-4 w-4 text-ens-gray" />}
               type="text"
               value={searchQuery}
@@ -265,7 +277,7 @@ export const CryptoPaymentDrawer = ({
           {(isLoading || stablecoinLoading) && (
             <div className="flex items-center justify-center py-8">
               <div className="text-ens-gray-two text-sm">
-                Loading your stablecoin balances...
+                <Trans>Loading your stablecoin balances...</Trans>
               </div>
             </div>
           )}
@@ -273,10 +285,12 @@ export const CryptoPaymentDrawer = ({
           {!isLoading && !stablecoinLoading && !hasBalances && !isConnected && (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <div className="mb-2 text-ens-gray text-sm">
-                Please connect your wallet first
+                <Trans>Please connect your wallet first</Trans>
               </div>
               <div className="text-ens-gray-three text-xs">
-                You need to connect a wallet to see your stablecoin balances
+                <Trans>
+                  You need to connect a wallet to see your stablecoin balances
+                </Trans>
               </div>
             </div>
           )}
@@ -290,10 +304,10 @@ export const CryptoPaymentDrawer = ({
                   <Search className="h-8 w-8 text-ens-gray" />
                 </div>
                 <h3 className="mb-2 font-normal text-base text-ens-blue-dark">
-                  No coins found
+                  <Trans>No coins found</Trans>
                 </h3>
                 <p className="max-w-56 text-center text-base text-ens-gray">
-                  Try searching for a different coin or chain
+                  <Trans>Try searching for a different coin or chain</Trans>
                 </p>
               </div>
             )}
@@ -362,12 +376,12 @@ export const CryptoPaymentDrawer = ({
                             ${formatAmount(coinBalanceUSD, 2)}
                           </p>
                           <span className="text-[#A0A4A6] text-sm">
-                            available
+                            <Trans>available</Trans>
                           </span>
                         </div>
                         {hasInsufficientBalanceForCoin && priceUSD > 0 && (
                           <p className="text-ens-error text-xs">
-                            Need ${formatAmount(priceUSD)}
+                            <Trans>Need ${formatAmount(priceUSD)}</Trans>
                           </p>
                         )}
                       </div>
@@ -390,7 +404,7 @@ export const CryptoPaymentDrawer = ({
         disabled={actionDisabled}
         onClick={handleCoinConfirm}
       >
-        Confirm Payment
+        <Trans>Confirm Payment</Trans>
       </Button>
     </div>
   )
@@ -406,55 +420,14 @@ export const CryptoPaymentDrawer = ({
 
   // Step 2: Confirmation content
   const confirmationContent = (
-    <div className="flex min-h-[500px] flex-col justify-between gap-4 px-4">
-      <div className="flex flex-col items-center gap-6">
-        {/* Header */}
-        <h2 className="text-center font-medium text-2xl text-ens-blue tracking-wide">
-          Registering
-        </h2>
-
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
-          {premiumLabel && (
-            <DomainAttributePill
-              label={premiumLabel.label}
-              variant={premiumLabel.variant}
-            />
-          )}
-          <span
-            className={cn(
-              'w-full min-w-0 text-center font-medium font-semi-mono',
-              'text-[40px] leading-[96%] tracking-[-0.8px]',
-              'text-[var(--Primary-Grey,#4A5C63)]',
-            )}
-            title={domainName}
-          >
-            {domainName.length > 10
-              ? `${domainName.slice(0, 10)}…`
-              : domainName}
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center">
-          <span className="text-base text-ens-gray">for</span>
-          <div className="flex items-baseline gap-1">
-            <SelectedCoinIcon className="h-6 w-6 self-center" />
-            <span className="font-medium text-2xl text-ens-gray tracking-tight">
-              ${formatAmount(priceUSD, 0)}
-            </span>
-            <span className="text-ens-gray-three text-lg">
-              {selectedCoinBalance?.symbol || 'USDC'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <Button
-        className="h-20 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
-        onClick={() => handleCryptoContinue()}
-      >
-        Buy Name
-      </Button>
-    </div>
+    <CryptoPaymentConfirmationContent
+      domainName={domainName}
+      onConfirm={() => handleCryptoContinue()}
+      premiumLabel={premiumLabel}
+      priceUSD={priceUSD}
+      selectedCoinIcon={SelectedCoinIcon}
+      selectedCoinSymbol={selectedCoinBalance?.symbol || 'USDC'}
+    />
   )
 
   const currentContent = step === 1 ? cryptoContent : confirmationContent
@@ -467,7 +440,7 @@ export const CryptoPaymentDrawer = ({
         <DialogContent className="min-h-[500px]" showCloseButton={true}>
           <DialogHeader>
             <DialogTitle className="sr-only">
-              {step === 1 ? 'Select coin' : 'Confirm purchase'}
+              {step === 1 ? t`Select coin` : t`Confirm purchase`}
             </DialogTitle>
           </DialogHeader>
           {currentContent}
@@ -483,7 +456,7 @@ export const CryptoPaymentDrawer = ({
       <DrawerContent>
         <DrawerHeader className="px-4 pt-5 pb-5 text-left">
           <DrawerTitle className="sr-only">
-            {step === 1 ? 'Select coin' : 'Confirm purchase'}
+            {step === 1 ? t`Select coin` : t`Confirm purchase`}
           </DrawerTitle>
         </DrawerHeader>
         {currentContent}
@@ -504,20 +477,22 @@ export const PaymentDrawer = ({
 }: PaymentDrawerProps) => {
   return (
     <div className="space-y-3">
-      <h3 className="font-medium text-lg">Select payment method</h3>
+      <h3 className="font-medium text-lg">
+        <Trans>Select payment method</Trans>
+      </h3>
       <div className="flex flex-col gap-3">
-        <CreditCardPaymentDrawer
-          domainName={domainName}
-          duration={duration}
-          onPaymentSelect={onPaymentSelect}
-          priceUSD={priceUSD}
-        />
         <CryptoPaymentDrawer
           domainName={domainName}
           duration={duration}
           isUsingAA={isUsingAA}
           onConfirmPayment={onConfirmPayment}
           onCryptoSelect={onCryptoSelect}
+          onPaymentSelect={onPaymentSelect}
+          priceUSD={priceUSD}
+        />
+        <CreditCardPaymentDrawer
+          domainName={domainName}
+          duration={duration}
           onPaymentSelect={onPaymentSelect}
           priceUSD={priceUSD}
         />

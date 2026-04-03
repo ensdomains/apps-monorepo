@@ -22,7 +22,13 @@ const evmCoinTypes = Object.values(evmCoinNameToTypeMap)
 
 const nonEvmCoinTypes = Object.values(nonEvmCoinNameToTypeMap)
 
-export const NameProfileCard = ({ name }: { name: string }) => {
+export const NameProfileCard = ({
+  name,
+  linked,
+}: {
+  name: string
+  linked?: boolean
+}) => {
   const { labels, parent } = parseLabelsAndParent(name)
 
   const {
@@ -81,8 +87,17 @@ export const NameProfileCard = ({ name }: { name: string }) => {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-0.5 ">
           <h2 className="text-2xl font-medium w-max">
-            {labels.join('.')}.
-            <span className="text-base text-quartz-500">{parent}</span>
+            {linked ? (
+              <Link to="/$name" params={{ name }} className="hover:underline">
+                {labels.join('.')}.
+                <span className="text-base text-quartz-500">{parent}</span>
+              </Link>
+            ) : (
+              <>
+                {labels.join('.')}.
+                <span className="text-base text-quartz-500">{parent}</span>
+              </>
+            )}
           </h2>
           <span>
             {texts.name && <span className="font-medium">{texts.name}</span>}{' '}

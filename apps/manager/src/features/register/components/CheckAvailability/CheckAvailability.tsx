@@ -1,7 +1,10 @@
+import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ChangeEvent, useState } from 'react'
+import { match, P } from 'ts-pattern'
+import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import {
   AddressSuggestionCard,
   DomainProfileCard,
@@ -14,7 +17,6 @@ import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
-import { ValidationError } from '@/features/register/components/CheckAvailability/ValidationError'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
@@ -38,7 +40,6 @@ export const CheckAvailability = ({
   const { debouncedValue } = useDebounce(inputValue, { delay: 500 })
 
   const {
-    validation,
     displayState,
     pricing,
     premiumLabel,
@@ -53,12 +54,10 @@ export const CheckAvailability = ({
   }
 
   // Determine which name to fetch profile data for
-  const profileName =
-    displayState.type === 'unavailable'
-      ? selectedName
-      : displayState.type === 'address' && primaryName
-        ? primaryName
-        : null
+  const profileName = match(displayState)
+    .with({ type: 'unavailable' }, () => selectedName)
+    .with({ type: 'address' }, () => primaryName ?? null)
+    .otherwise(() => null)
 
   const { data: profileRecords } = useQuery({
     ...profileRecordsQuery(profileName ?? ''),
@@ -88,7 +87,7 @@ export const CheckAvailability = ({
     enabled: !!profileName,
   })
 
-  const showResults = displayState.type !== 'idle' && !validation && !error
+  const showResults = displayState.type !== 'idle' && !error
 
   const blurBackdropEnabled = useFeatureFlag('SEARCH_RESULTS_BLUR_BACKDROP')
 
@@ -111,122 +110,158 @@ export const CheckAvailability = ({
 
         <div className="absolute top-full z-10 mt-2 w-full space-y-4 drop-shadow-lg">
           <AnimatePresence mode="wait">
-            {validation && (
-              <motion.div key="validation-error" {...dropdownAnimation}>
-                <ValidationError error={validation} />
-              </motion.div>
-            )}
-
-            {error && !validation && (
-              <motion.div key="error" {...dropdownAnimation}>
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {error instanceof Error
-                      ? error.message
-                      : 'An error occurred'}
-                  </AlertDescription>
-                </Alert>
-              </motion.div>
-            )}
-
-            {displayState.type !== 'idle' && !validation && !error && (
-              <motion.div
-                key={
-                  displayState.type === 'address'
-                    ? `result-${displayState.address}`
-                    : `result-${displayState.domainName}`
-                }
-                {...dropdownAnimation}
-              >
-                {displayState.type === 'address' && (
-                  <div className="flex flex-col gap-3">
-                    <AddressSuggestionCard
-                      address={displayState.address}
-                      variant="card"
-                    />
-                    {primaryName && (
-                      <Link params={{ name: primaryName }} to="/p/$name">
-                        <DomainProfileCard
-                          avatarUrl={profileAvatar}
-                          clickable
-                          domainName={primaryName}
-                          expiryDate={
-                            profileExpiry?.expiry != null
-                              ? new Date(Number(profileExpiry.expiry) * 1000)
-                              : null
-                          }
-                          registeredDate={
-                            profileRegistration?.registrationDate != null
-                              ? new Date(
-                                  profileRegistration.registrationDate * 1000,
-                                )
-                              : null
-                          }
-                          themeColor={themeColor}
-                        />
-                      </Link>
-                    )}
-                  </div>
-                )}
-
-                {displayState.type === 'searching' && (
-                  <DomainResultCard
-                    domainName={displayState.domainName}
-                    isLoading={true}
-                    premiumLabel={premiumLabel}
-                    price={pricing[1]?.price}
-                    status="available"
-                  />
-                )}
-
-                {displayState.type === 'available' && (
-                  <Link
-                    search={{ name: displayState.domainName, duration: 1 }}
-                    to="/register"
+            {match({ error, displayState })
+              .with({ error: P.nonNullable }, ({ error: err }) => (
+                <motion.div key="error" {...dropdownAnimation}>
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      {err instanceof Error ? (
+                        err.message
+                      ) : (
+                        <Trans>An error occurred</Trans>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                </motion.div>
+              ))
+              .with(
+                { displayState: { type: 'not-supported' } },
+                ({ displayState: state }) => (
+                  <motion.div
+                    key={`result-${state.domainName}`}
+                    {...dropdownAnimation}
+                  >
+                    <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
+                      <img
+                        alt={state.domainName}
+                        className="size-12 rounded-sm object-cover"
+                        src={placeholderAvatar}
+                      />
+                      <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
+                        {state.domainName}
+                      </span>
+                      <div className="ml-auto shrink-0 rounded-full bg-red-50 px-2 py-1 font-normal text-red-500 text-xs">
+                        <Trans>Not supported</Trans>
+                      </div>
+                    </div>
+                  </motion.div>
+                ),
+              )
+              .with(
+                { displayState: { type: 'address' } },
+                ({ displayState: state }) => (
+                  <motion.div
+                    key={`result-${state.address}`}
+                    {...dropdownAnimation}
+                  >
+                    <div className="flex flex-col gap-3">
+                      <AddressSuggestionCard
+                        address={state.address}
+                        variant="card"
+                      />
+                      {primaryName && (
+                        <Link params={{ name: primaryName }} to="/p/$name">
+                          <DomainProfileCard
+                            avatarUrl={profileAvatar}
+                            clickable
+                            domainName={primaryName}
+                            expiryDate={
+                              profileExpiry?.expiry != null
+                                ? new Date(Number(profileExpiry.expiry) * 1000)
+                                : null
+                            }
+                            registeredDate={
+                              profileRegistration?.registrationDate != null
+                                ? new Date(
+                                    profileRegistration.registrationDate * 1000,
+                                  )
+                                : null
+                            }
+                            themeColor={themeColor}
+                          />
+                        </Link>
+                      )}
+                    </div>
+                  </motion.div>
+                ),
+              )
+              .with(
+                { displayState: { type: 'searching' } },
+                ({ displayState: state }) => (
+                  <motion.div
+                    key={`result-${state.domainName}`}
+                    {...dropdownAnimation}
                   >
                     <DomainResultCard
-                      clickable
-                      domainName={displayState.domainName}
-                      isLoading={false}
+                      domainName={state.domainName}
+                      isLoading={true}
                       premiumLabel={premiumLabel}
                       price={pricing[1]?.price}
                       status="available"
                     />
-                  </Link>
-                )}
-
-                {displayState.type === 'unavailable' && (
-                  <Link
-                    params={{ name: displayState.domainName }}
-                    to="/p/$name"
+                  </motion.div>
+                ),
+              )
+              .with(
+                { displayState: { type: 'available' } },
+                ({ displayState: state }) => (
+                  <motion.div
+                    key={`result-${state.domainName}`}
+                    {...dropdownAnimation}
                   >
-                    <DomainProfileCard
-                      avatarUrl={profileAvatar}
-                      clickable
-                      domainName={displayState.domainName}
-                      expiryDate={
-                        profileExpiry?.expiry != null
-                          ? new Date(Number(profileExpiry.expiry) * 1000)
-                          : null
-                      }
-                      registeredDate={
-                        profileRegistration?.registrationDate != null
-                          ? new Date(
-                              profileRegistration.registrationDate * 1000,
-                            )
-                          : null
-                      }
-                      themeColor={themeColor}
-                    />
-                  </Link>
-                )}
-              </motion.div>
-            )}
+                    <Link
+                      search={{ name: state.domainName, duration: 1 }}
+                      to="/register"
+                    >
+                      <DomainResultCard
+                        clickable
+                        domainName={state.domainName}
+                        isLoading={false}
+                        premiumLabel={premiumLabel}
+                        price={pricing[1]?.price}
+                        status="available"
+                      />
+                    </Link>
+                  </motion.div>
+                ),
+              )
+              .with(
+                { displayState: { type: 'unavailable' } },
+                ({ displayState: state }) => (
+                  <motion.div
+                    key={`result-${state.domainName}`}
+                    {...dropdownAnimation}
+                  >
+                    <Link params={{ name: state.domainName }} to="/p/$name">
+                      <DomainProfileCard
+                        avatarUrl={profileAvatar}
+                        clickable
+                        domainName={state.domainName}
+                        expiryDate={
+                          profileExpiry?.expiry != null
+                            ? new Date(Number(profileExpiry.expiry) * 1000)
+                            : null
+                        }
+                        registeredDate={
+                          profileRegistration?.registrationDate != null
+                            ? new Date(
+                                profileRegistration.registrationDate * 1000,
+                              )
+                            : null
+                        }
+                        themeColor={themeColor}
+                      />
+                    </Link>
+                  </motion.div>
+                ),
+              )
+              .otherwise(() => null)}
           </AnimatePresence>
         </div>
       </div>
       <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-sm leading-normal tracking-wide">
-        Start typing to check if your perfect name is available 🕵️‍♀️
+        <Trans>Start typing to check if your perfect name is available</Trans>{' '}
+        🕵️‍♀️
       </p>
     </div>
   )

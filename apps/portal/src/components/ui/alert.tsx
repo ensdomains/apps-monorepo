@@ -4,17 +4,17 @@ import type * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const alertVariants = cva(
-  'relative w-full rounded-lg border px-4 py-3 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
+  'relative w-full rounded-lg px-4 py-3 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
   {
     variants: {
       variant: {
         default: 'bg-card text-card-foreground',
         destructive:
-          'text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90',
+          'text-garnet-900 bg-garnet-100 [&>svg]:text-current *:data-[slot=alert-description]:text-garnet-900/90',
         warning:
-          'border-warning/50 bg-warning/10 text-warning [&>svg]:text-current *:data-[slot=alert-description]:text-warning/90',
+          'bg-citrine-100 text-citrine-900 [&>svg]:text-current *:data-[slot=alert-description]:text-citrine-900/90',
         success:
-          'border-peridot-400 bg-peridot-100 text-peridot-900 [&>svg]:text-success *:data-[slot=alert-description]:text-peridot-900/90',
+          'bg-peridot-100 text-peridot-900 [&>svg]:text-peridot-500 *:data-[slot=alert-description]:text-peridot-900/90',
       },
     },
     defaultVariants: {

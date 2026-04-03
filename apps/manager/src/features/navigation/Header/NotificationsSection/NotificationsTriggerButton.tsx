@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Bell } from 'lucide-react'
@@ -8,6 +9,7 @@ import { isBackendAuthed } from '@/utils/backend-client'
 export const NotificationsTriggerButton = (
   props: ButtonHTMLAttributes<HTMLButtonElement>,
 ) => {
+  const { t } = useLingui()
   const isAuthed = useAtom(isBackendAuthed)
   const hasUnreadQuery = useQuery({
     ...unreadCountQuery,
@@ -17,7 +19,7 @@ export const NotificationsTriggerButton = (
 
   return (
     <button
-      aria-label="Notifications"
+      aria-label={t`Notifications`}
       {...props}
       className="relative flex items-center justify-center rounded p-2 text-[#4B4B4B] transition-colors hover:bg-ens-white disabled:cursor-not-allowed"
       disabled={!isAuthed}

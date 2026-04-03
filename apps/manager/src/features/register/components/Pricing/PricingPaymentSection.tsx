@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -52,7 +53,7 @@ export const PricingPaymentSection = ({
         onClick={onConnect}
         variant="default"
       >
-        Connect or sign in
+        <Trans>Connect or sign in</Trans>
       </Button>
     )
   }
@@ -68,8 +69,10 @@ export const PricingPaymentSection = ({
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
           <div className="flex-1">
             <p className="text-red-800 text-sm">
-              Insufficient funds. You don't have enough Tether, USDC, or DAI in
-              your wallet for this purchase.
+              <Trans>
+                Insufficient funds. You don't have enough Tether, USDC, or DAI
+                in your wallet for this purchase.
+              </Trans>
             </p>
           </div>
         </div>

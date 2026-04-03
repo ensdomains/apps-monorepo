@@ -1,5 +1,5 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import {
   useMutation,
   useQuery,
@@ -42,6 +42,7 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ name }: ProfileEditProps) => {
+  const { t } = useLingui()
   const { data: recordsData, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
     select: transformProfileRecords,
@@ -82,19 +83,26 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
   const handleSave = () => {
     if (!ownerAddress) {
-      const message = 'Cannot save profile - ENS owner is not available.'
+      const message = t`Cannot save profile - ENS owner is not available.`
       console.warn(message)
       alert(message)
       return
     }
 
     if (!account.signer || !account.accountAddress) {
-      const message = 'Account not ready. Please wait for wallet to connect.'
+      const message = t`Account not ready. Please wait for wallet to connect.`
       console.error('❌ Smart account not connected or not initialized', {
         accountAddress: account.accountAddress,
         hasSigner: !!account.signer,
         type: account.type,
       })
+      alert(message)
+      return
+    }
+
+    if (!resolverAddress) {
+      const message = t`Cannot save profile - resolver address is not available.`
+      console.warn(message)
       alert(message)
       return
     }
@@ -147,8 +155,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ThemeSection form={form} />
           <WalletAddressesSection form={form} />
-          {/* Hidden for alpha - users don't need to change the resolver
-          <UpdateResolverDialog
+          {/* <UpdateResolverDialog
             currentResolver={resolverAddress}
             name={name}
             onUpdated={refetchRecords}
