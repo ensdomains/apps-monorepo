@@ -39,6 +39,9 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
   LANGUAGE_SELECTOR: {
     enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
   },
+  NAME_MIGRATION: {
+    enabled: import.meta.env.VITE_FF_NAME_MIGRATION === 'true',
+  },
 } as const
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS

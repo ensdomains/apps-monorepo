@@ -13,6 +13,7 @@ import { useAutoScrollCarousel } from '@/features/migration/hooks/useAutoScrollC
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const AUTO_SCROLL_INTERVAL = 5000
 
@@ -38,8 +39,9 @@ const SLIDE_DATA = [
 export const MigrationModal = () => {
   const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
+  const migrationEnabled = isFeatureEnabled('NAME_MIGRATION')
   const { data: v1Names } = useV1Names()
-  const hasV1Names = (v1Names?.length ?? 0) > 0
+  const hasV1Names = migrationEnabled && (v1Names?.length ?? 0) > 0
   const { open, dismiss } = useOpenModalOnFirstVisit(isConnected, hasV1Names)
   const [activeSlide, setActiveSlide] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)

@@ -452,7 +452,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:104
+#: src/features/migration/components/MigrationModal.tsx:106
 msgid "Close"
 msgstr ""
 
@@ -465,7 +465,7 @@ msgstr ""
 msgid "Coming Soon"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:49
+#: src/features/migration/components/MigrationModal.tsx:51
 msgid "Commemorative NFT"
 msgstr ""
 
@@ -634,7 +634,7 @@ msgstr ""
 msgid "Custom duration in years"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:48
+#: src/features/migration/components/MigrationModal.tsx:50
 msgid "Custom Profiles"
 msgstr ""
 
@@ -762,7 +762,7 @@ msgstr ""
 msgid "ENS names can be up to 255 characters"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:50
+#: src/features/migration/components/MigrationModal.tsx:52
 msgid "ENS v2 Names"
 msgstr ""
 
@@ -1214,7 +1214,7 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:51
+#: src/features/migration/components/MigrationModal.tsx:53
 msgid "New Experience"
 msgstr ""
 
@@ -1728,7 +1728,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:36
+#: src/features/migration/components/UpgradeBanner.tsx:38
 msgid "See what's new"
 msgstr ""
 
@@ -1879,7 +1879,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr ""
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:134
+#: src/features/migration/components/MigrationModal.tsx:136
 msgid "Slide {0}"
 msgstr ""
 
@@ -2121,11 +2121,11 @@ msgstr ""
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:114
+#: src/features/migration/components/MigrationModal.tsx:116
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:26
+#: src/features/migration/components/UpgradeBanner.tsx:28
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
@@ -2290,11 +2290,11 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:22
+#: src/features/migration/components/UpgradeBanner.tsx:24
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:111
+#: src/features/migration/components/MigrationModal.tsx:113
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
