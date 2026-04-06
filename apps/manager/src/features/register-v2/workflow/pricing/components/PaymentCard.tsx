@@ -66,7 +66,7 @@ export const PaymentCard = () => {
           size="xl"
           variant="blue"
         >
-          <Trans>Pay with stable coins</Trans>
+          <Trans>Pay with stablecoins</Trans>
         </Button>
       ) : (
         <Button

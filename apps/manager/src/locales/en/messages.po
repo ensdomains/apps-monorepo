@@ -116,7 +116,7 @@ msgstr "4 character premium name"
 msgid "60-second wait prevents attacks"
 msgstr "60-second wait prevents attacks"
 
-#: src/features/register/pages/CheckDomainPage.tsx:26
+#: src/features/register/pages/CheckDomainPage.tsx:36
 #: src/routes/index.tsx:37
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
@@ -440,7 +440,7 @@ msgstr "Choose how you'd like to pay for your subscription."
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
-#: src/features/register/pages/CheckDomainPage.tsx:18
+#: src/features/register/pages/CheckDomainPage.tsx:28
 #: src/routes/index.tsx:29
 msgid "Claim your"
 msgstr "Claim your"
@@ -1386,9 +1386,6 @@ msgid "Pay with PayPal"
 msgstr "Pay with PayPal"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:69
-msgid "Pay with stable coins"
-msgstr "Pay with stable coins"
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr "Pay with stablecoins"
@@ -2396,7 +2393,7 @@ msgstr "We couldn't confirm that {domainName} is still available. Please try aga
 msgid "We sent a verification code to your email address."
 msgstr "We sent a verification code to your email address."
 
-#: src/features/register/pages/CheckDomainPage.tsx:22
+#: src/features/register/pages/CheckDomainPage.tsx:32
 #: src/routes/index.tsx:33
 msgid "web3 username"
 msgstr "web3 username"
