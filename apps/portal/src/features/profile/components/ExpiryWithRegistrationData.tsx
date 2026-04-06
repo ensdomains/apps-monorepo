@@ -141,7 +141,7 @@ export const ExpiryWithRegistrationData = ({
   network,
 }: ExpiryWithRegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-col justify-between p-6 gap-4 lg:col-span-1">
+    <div className="w-full flex flex-col justify-between gap-4 lg:col-span-1">
       {network === 'sepolia' ? (
         <V1ExpiryWithRegistrationData name={name} />
       ) : (
