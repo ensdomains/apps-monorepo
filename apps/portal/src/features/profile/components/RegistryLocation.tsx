@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
+import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getNameRegistryQueryOptions } from '@/features/registry/hooks/useNameRegistry'
@@ -29,9 +30,12 @@ export const RegistryLocation = ({
       <span className="text-sm text-muted-foreground">Subregistry</span>
 
       {hasSubregistry ? (
-        <EntityBadge variant="contract">
-          {truncateAddress(data.registryAddress, 6, 4, '...')}
-        </EntityBadge>
+        <div className="flex items-center gap-1">
+          <EntityBadge variant="contract">
+            {truncateAddress(data.registryAddress, 6, 4, '...')}
+          </EntityBadge>
+          <CopyButton value={data.registryAddress} />
+        </div>
       ) : (
         <div className="text-muted-foreground">No subregistry</div>
       )}

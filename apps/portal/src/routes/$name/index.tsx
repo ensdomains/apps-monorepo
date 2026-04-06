@@ -15,8 +15,9 @@ import { ParentName } from '@/features/profile/components/ParentName'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
+import { RegistryCard } from '@/features/profile/components/RegistryCard'
+import { ResolverCard } from '@/features/profile/components/ResolverCard'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
-import { TokenLocation } from '@/features/profile/components/TokenLocation'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -204,18 +205,34 @@ const Profile = ({
   const resolvedNetwork = ownerQuery.data.network || 'sepolia'
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-4 p-6 w-full max-w-360 mx-auto">
       <div className="flex flex-row justify-between items-baseline">
         <h1 className="text-heading font-medium leading-none">Overview</h1>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 xl:col-span-2 *:h-full">
+
+      {/* Profile + Expiry */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
+        <div className="*:h-full">
           <NameProfileCard name={name} />
         </div>
         <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
+      </div>
+
+      {/* Owner / Parent / Resolver / Registry */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Owner owner={ownerQuery.data.owner} />
         <ParentName name={name} />
-        <TokenLocation name={name} network={resolvedNetwork} />
+        {resolverAddress && (
+          <ResolverCard name={name} resolverAddress={resolverAddress} />
+        )}
+        <RegistryCard
+          name={name}
+          registryAddress={ownerQuery.data.registryAddress}
+        />
+      </div>
+
+      {/* Counts */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {resolverAddress && (
           <RecordCount
             name={name}
@@ -223,13 +240,10 @@ const Profile = ({
             resolverAddress={resolverAddress}
           />
         )}
-        <SubnameCount
-          name={name}
-          registryAddress={ownerQuery.data.registryAddress}
-          network={resolvedNetwork}
-        />
+        <SubnameCount name={name} network={resolvedNetwork} />
         <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
       </div>
+
       {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
     </div>
   )

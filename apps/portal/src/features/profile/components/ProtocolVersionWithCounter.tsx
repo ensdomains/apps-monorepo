@@ -1,6 +1,6 @@
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
-import { HashIcon, ListIcon } from 'lucide-react'
+import { ListIcon } from 'lucide-react'
 import {
   CounterCard,
   CounterCardLink,
@@ -27,7 +27,7 @@ const RoleCount = ({ name }: { name: string }) => {
   )
 
   if (error)
-    return <div>Failed to fetch fuses count: {error.cause?.message}</div>
+    return <div>Failed to fetch roles count: {error.cause?.message}</div>
   if (isLoading) return <LoadingSpinner />
 
   return (
@@ -35,7 +35,7 @@ const RoleCount = ({ name }: { name: string }) => {
       icon={ListIcon}
       action={<CounterCardLink to="/$name/roles" params={{ name }} />}
     >
-      <span className="font-medium text-muted-foreground">
+      <span className="font-medium text-foreground">
         {(data || { size: 0 }).size}
       </span>{' '}
       <span className="text-muted-foreground">roles</span>
@@ -74,19 +74,6 @@ export const ProtocolVersionWithCounter = ({
       ) : (
         <RoleCount name={name} />
       )}
-      <CounterCardRow
-        icon={HashIcon}
-        action={
-          <CounterCardLink
-            to="/$name/records"
-            search={{ view: 'list' }}
-            params={{ name }}
-          />
-        }
-      >
-        <div className="text-sm text-muted-foreground">Protocol</div>
-        <div>{network === 'namechainSepolia' ? 'ENSv2' : 'ENSv1'}</div>
-      </CounterCardRow>
     </CounterCard>
   )
 }
