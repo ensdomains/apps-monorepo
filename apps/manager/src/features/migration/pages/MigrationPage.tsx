@@ -80,7 +80,10 @@ export const MigrationPage = () => {
 
   const selectedDomains = useMemo(() => {
     const selectedSet = new Set(state.context.selectedNames)
-    return v1Names.filter((n) => n.name != null && selectedSet.has(n.name))
+    return v1Names.filter(
+      (n): n is typeof n & { name: string } =>
+        n.name != null && selectedSet.has(n.name),
+    )
   }, [v1Names, state.context.selectedNames])
 
   const handleNamesChange = useCallback(
@@ -96,8 +99,7 @@ export const MigrationPage = () => {
         skipped: result.skipped,
         migratedNames: selectedDomains
           .filter((d) => !result.skipped.some((s) => s.name === d.name))
-          .map((d) => d.name!)
-          .filter(Boolean),
+          .map((d) => d.name),
       })
     },
     [send, selectedDomains],
