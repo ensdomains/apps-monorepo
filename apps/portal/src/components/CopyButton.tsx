@@ -6,7 +6,9 @@ import { Button } from './ui/button'
 export const CopyButton = ({ value }: { value: string }) => {
   const [copied, setCopied] = useState(false)
 
-  const handleCopy = async () => {
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     await navigator.clipboard.writeText(value)
     setCopied(true)
   }

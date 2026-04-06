@@ -36,10 +36,7 @@ export const ResolverCard = ({
         ) : error ? (
           <span className="text-muted-foreground">—</span>
         ) : underlyingResolverAddress ? (
-          <div
-            className="flex items-center gap-1"
-            onClick={(e) => e.preventDefault()}
-          >
+          <div className="flex items-center gap-1">
             <EntityBadge variant="contract">
               {truncateAddress(underlyingResolverAddress, 6, 4, '...')}
             </EntityBadge>
