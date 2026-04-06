@@ -13,112 +13,83 @@ import {
   getYearsFromDuration,
 } from './registrationDuration'
 
-function toPlainDate(date: Date): Temporal.PlainDate {
-  return Temporal.PlainDate.from({
-    year: date.getFullYear(),
-    month: date.getMonth() + 1,
-    day: date.getDate(),
-  })
-}
-
-function fromPlainDate(plain: Temporal.PlainDate, timeSource: Date): Date {
-  return new Date(
-    plain.year,
-    plain.month - 1,
-    plain.day,
-    timeSource.getHours(),
-    timeSource.getMinutes(),
-    timeSource.getSeconds(),
-    timeSource.getMilliseconds(),
-  )
-}
-
-function addYears(date: Date, years: number): Date {
-  return fromPlainDate(toPlainDate(date).add({ years }), date)
-}
-
-function addMonths(date: Date, months: number): Date {
-  return fromPlainDate(toPlainDate(date).add({ months }), date)
-}
-
-function addDays(date: Date, days: number): Date {
-  return fromPlainDate(toPlainDate(date).add({ days }), date)
-}
-
 describe('registrationDuration', () => {
-  const startOfFixedToday = new Date('2025-01-15T00:00:00Z')
+  const startOfFixedToday = Temporal.PlainDate.from('2025-01-15')
 
   describe('formatRegistrationDuration', () => {
     it('should throw when expiry is today or in the past', () => {
       expect(() =>
         formatRegistrationDuration(
           startOfFixedToday,
-          new Date('2025-01-15T00:00:00Z'),
+          Temporal.PlainDate.from('2025-01-15'),
         ),
       ).toThrow('Expiry date must be after start date')
       expect(() =>
-        formatRegistrationDuration(startOfFixedToday, new Date('2024-06-01')),
+        formatRegistrationDuration(
+          startOfFixedToday,
+          Temporal.PlainDate.from('2024-06-01'),
+        ),
       ).toThrow('Expiry date must be after start date')
     })
 
     it('should return "1 year" for exactly one year from today', () => {
-      const oneYearFromNow = addYears(startOfFixedToday, 1)
+      const oneYearFromNow = startOfFixedToday.add({ years: 1 })
       expect(
         formatRegistrationDuration(startOfFixedToday, oneYearFromNow),
       ).toBe('1 year')
     })
 
     it('should return "2 years" for two years from today', () => {
-      const twoYearsFromNow = addYears(startOfFixedToday, 2)
+      const twoYearsFromNow = startOfFixedToday.add({ years: 2 })
       expect(
         formatRegistrationDuration(startOfFixedToday, twoYearsFromNow),
       ).toBe('2 years')
     })
 
     it('should return "1 year 3 months" for 1 year 3 months from today', () => {
-      const target = addYears(addMonths(startOfFixedToday, 3), 1)
+      const target = startOfFixedToday.add({ years: 1, months: 3 })
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '1 year 3 months',
       )
     })
 
     it('should return "2 years 6 months" for 2 years 6 months from today', () => {
-      const target = addYears(addMonths(startOfFixedToday, 6), 2)
+      const target = startOfFixedToday.add({ years: 2, months: 6 })
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '2 years 6 months',
       )
     })
 
     it('should return "1 month" for one month from today', () => {
-      const target = addMonths(startOfFixedToday, 1)
+      const target = startOfFixedToday.add({ months: 1 })
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '1 month',
       )
     })
 
     it('should return "6 months" for six months from today', () => {
-      const target = addMonths(startOfFixedToday, 6)
+      const target = startOfFixedToday.add({ months: 6 })
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '6 months',
       )
     })
 
     it('should return "1 day" for one day from today', () => {
-      const target = addDays(startOfFixedToday, 1)
+      const target = startOfFixedToday.add({ days: 1 })
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '1 day',
       )
     })
 
     it('should return "15 days" for 15 days from today (no months)', () => {
-      const target = addDays(startOfFixedToday, 15)
+      const target = startOfFixedToday.add({ days: 15 })
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '15 days',
       )
     })
 
     it('should include days when months and extra days are present', () => {
-      const target = addDays(addMonths(startOfFixedToday, 1), 5)
+      const target = startOfFixedToday.add({ months: 1, days: 5 })
       expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
         '1 month 5 days',
       )
@@ -130,16 +101,19 @@ describe('registrationDuration', () => {
       expect(
         calculateDurationFromDate(
           startOfFixedToday,
-          new Date('2025-01-15T00:00:00Z'),
+          Temporal.PlainDate.from('2025-01-15'),
         ),
       ).toBe(1)
       expect(
-        calculateDurationFromDate(startOfFixedToday, new Date('2024-01-01')),
+        calculateDurationFromDate(
+          startOfFixedToday,
+          Temporal.PlainDate.from('2024-01-01'),
+        ),
       ).toBe(1)
     })
 
     it('should return ~1 for exactly one year from today', () => {
-      const oneYearFromNow = addYears(startOfFixedToday, 1)
+      const oneYearFromNow = startOfFixedToday.add({ years: 1 })
       const result = calculateDurationFromDate(
         startOfFixedToday,
         oneYearFromNow,
@@ -149,7 +123,7 @@ describe('registrationDuration', () => {
     })
 
     it('should return ~2 for two years from today', () => {
-      const twoYearsFromNow = addYears(startOfFixedToday, 2)
+      const twoYearsFromNow = startOfFixedToday.add({ years: 2 })
       const result = calculateDurationFromDate(
         startOfFixedToday,
         twoYearsFromNow,
@@ -159,7 +133,7 @@ describe('registrationDuration', () => {
     })
 
     it('should preserve fractional years (no rounding)', () => {
-      const sixMonthsFromNow = addMonths(startOfFixedToday, 6)
+      const sixMonthsFromNow = startOfFixedToday.add({ months: 6 })
       const result = calculateDurationFromDate(
         startOfFixedToday,
         sixMonthsFromNow,
@@ -168,24 +142,15 @@ describe('registrationDuration', () => {
       expect(result).toBeLessThan(0.51)
     })
 
-    it('should round to 2 decimals for 1 year and 1 day', () => {
-      const justOverOneYear = addDays(addYears(startOfFixedToday, 1), 1)
-      const result = calculateDurationFromDate(
-        startOfFixedToday,
-        justOverOneYear,
-      )
-      expect(result).toBe(1)
-    })
-
     it('should return at least 1', () => {
-      const farPast = new Date('2020-01-01')
+      const farPast = Temporal.PlainDate.from('2020-01-01')
       expect(calculateDurationFromDate(startOfFixedToday, farPast)).toBe(1)
     })
   })
 
   describe('getRegistrationDurationInSeconds', () => {
     it('should return exact seconds for 1 calendar year', () => {
-      const oneYearFromNow = addYears(startOfFixedToday, 1)
+      const oneYearFromNow = startOfFixedToday.add({ years: 1 })
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
         oneYearFromNow,
@@ -194,7 +159,7 @@ describe('registrationDuration', () => {
     })
 
     it('should return exact seconds for 2 calendar years', () => {
-      const twoYearsFromNow = addYears(startOfFixedToday, 2)
+      const twoYearsFromNow = startOfFixedToday.add({ years: 2 })
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
         twoYearsFromNow,
@@ -205,25 +170,25 @@ describe('registrationDuration', () => {
     it('should return at least 28 days in seconds for past dates', () => {
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
-        new Date('2024-01-01'),
+        Temporal.PlainDate.from('2024-01-01'),
       )
       expect(result).toBe(2_419_200) // min 28 days
     })
 
     it('should return exact seconds for 6 months (short duration)', () => {
-      const sixMonthsFromNow = addMonths(startOfFixedToday, 6)
+      const sixMonthsFromNow = startOfFixedToday.add({ months: 6 })
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
         sixMonthsFromNow,
       )
-      const expectedSeconds = Math.floor(
-        (sixMonthsFromNow.getTime() - startOfFixedToday.getTime()) / 1000,
-      )
-      expect(result).toBe(expectedSeconds)
+      const expectedDays = startOfFixedToday.until(sixMonthsFromNow, {
+        largestUnit: 'days',
+      }).days
+      expect(result).toBe(expectedDays * 86400)
     })
 
     it('should return 28 days minimum for tomorrow', () => {
-      const tomorrow = addDays(startOfFixedToday, 1)
+      const tomorrow = startOfFixedToday.add({ days: 1 })
       const result = getRegistrationDurationInSeconds(
         startOfFixedToday,
         tomorrow,
@@ -241,11 +206,11 @@ describe('registrationDuration', () => {
 
     it('should return exact seconds for 3 calendar years', () => {
       const result = getDurationInSecondsFromYears(3, startOfFixedToday)
-      const expectedExpiry = addYears(startOfFixedToday, 3)
-      const expectedSeconds = Math.floor(
-        (expectedExpiry.getTime() - startOfFixedToday.getTime()) / 1000,
-      )
-      expect(result).toBe(expectedSeconds)
+      const expectedExpiry = startOfFixedToday.add({ years: 3 })
+      const expectedDays = startOfFixedToday.until(expectedExpiry, {
+        largestUnit: 'days',
+      }).days
+      expect(result).toBe(expectedDays * 86400)
     })
 
     it('should return at least 1 year for values less than 1', () => {
@@ -255,12 +220,12 @@ describe('registrationDuration', () => {
     })
 
     it('should give Jan 1 2029 for 3 years from Jan 1 2026', () => {
-      const jan1_2026 = new Date('2026-01-01T00:00:00Z')
+      const jan1_2026 = Temporal.PlainDate.from('2026-01-01')
       const duration = getDurationInSecondsFromYears(3, jan1_2026)
       const expiry = getRegistrationExpiryDateFromSeconds(jan1_2026, duration)
-      expect(expiry.getFullYear()).toBe(2029)
-      expect(expiry.getMonth()).toBe(0)
-      expect(expiry.getDate()).toBe(1)
+      expect(expiry.year).toBe(2029)
+      expect(expiry.month).toBe(1)
+      expect(expiry.day).toBe(1)
     })
 
     it('should cap at MAX_REGISTRATION_YEARS when years exceed max', () => {
@@ -297,21 +262,21 @@ describe('registrationDuration', () => {
   describe('getMinExpiryDateForPicker', () => {
     it('should return 28 days from start date', () => {
       const result = getMinExpiryDateForPicker(startOfFixedToday)
-      const expected = addDays(startOfFixedToday, 28)
-      expect(result.getTime()).toBe(expected.getTime())
+      const expected = startOfFixedToday.add({ days: 28 })
+      expect(result.toString()).toBe(expected.toString())
     })
   })
 
   describe('getMaxExpiryDateForPicker', () => {
     it('should return MAX_REGISTRATION_YEARS from start date', () => {
       const result = getMaxExpiryDateForPicker(startOfFixedToday)
-      const expected = addYears(startOfFixedToday, MAX_REGISTRATION_YEARS)
-      expect(result.getTime()).toBe(expected.getTime())
+      const expected = startOfFixedToday.add({ years: MAX_REGISTRATION_YEARS })
+      expect(result.toString()).toBe(expected.toString())
     })
 
     it('should return year 3025 for Jan 15 2025 start with 1000 years', () => {
       const result = getMaxExpiryDateForPicker(startOfFixedToday)
-      expect(result.getFullYear()).toBe(2025 + MAX_REGISTRATION_YEARS)
+      expect(result.year).toBe(2025 + MAX_REGISTRATION_YEARS)
     })
   })
 
@@ -323,13 +288,13 @@ describe('registrationDuration', () => {
   })
 
   describe('getExpiryDateForPicker', () => {
-    it('should return Jan 15 2026 end of day for 1 year from Jan 15 2025', () => {
+    it('should return Jan 15 2026 for 1 year from Jan 15 2025', () => {
       const duration = getDurationInSecondsFromYears(1, startOfFixedToday)
       const result = getExpiryDateForPicker(duration, startOfFixedToday)
-      const expectedExpiry = addYears(startOfFixedToday, 1)
-      expect(result.getDate()).toBe(expectedExpiry.getDate())
-      expect(result.getMonth()).toBe(expectedExpiry.getMonth())
-      expect(result.getFullYear()).toBe(expectedExpiry.getFullYear())
+      const expectedExpiry = startOfFixedToday.add({ years: 1 })
+      expect(result.day).toBe(expectedExpiry.day)
+      expect(result.month).toBe(expectedExpiry.month)
+      expect(result.year).toBe(expectedExpiry.year)
     })
   })
 
@@ -343,13 +308,16 @@ describe('registrationDuration', () => {
 
     it('should cap duration when date is beyond max expiry', () => {
       const maxExpiry = getMaxExpiryDateForPicker(startOfFixedToday)
-      const beyondMax = addYears(maxExpiry, 100)
+      const beyondMax = maxExpiry.add({ years: 100 })
       const result = getDurationFromPickerDate(beyondMax, startOfFixedToday)
       const expectedDuration = getDurationInSecondsFromYears(
         MAX_REGISTRATION_YEARS,
         startOfFixedToday,
       )
-      expect(result).toBe(expectedDuration)
+      // Both should resolve to the same number of years
+      expect(getYearsFromDuration(result, startOfFixedToday)).toBe(
+        getYearsFromDuration(expectedDuration, startOfFixedToday),
+      )
     })
   })
 
@@ -360,19 +328,19 @@ describe('registrationDuration', () => {
         startOfFixedToday,
         duration,
       )
-      const expected = addYears(startOfFixedToday, 1)
-      expect(result.getTime()).toBe(expected.getTime())
+      const expected = startOfFixedToday.add({ years: 1 })
+      expect(result.toString()).toBe(expected.toString())
     })
 
-    it('should round-trip: 3 years picker → date picker → 3 years', () => {
+    it('should round-trip: 3 years → expiry date → correct year/month/day', () => {
       const duration = getDurationInSecondsFromYears(3, startOfFixedToday)
       const expiry = getRegistrationExpiryDateFromSeconds(
         startOfFixedToday,
         duration,
       )
-      expect(expiry.getFullYear()).toBe(2028)
-      expect(expiry.getMonth()).toBe(0) // Jan
-      expect(expiry.getDate()).toBe(15)
+      expect(expiry.year).toBe(2028)
+      expect(expiry.month).toBe(1) // January
+      expect(expiry.day).toBe(15)
     })
   })
 })

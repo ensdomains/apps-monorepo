@@ -1,4 +1,3 @@
-// import { addYears } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
@@ -7,22 +6,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  // getDurationFromPickerDate,
+  // getStartOfToday,
+  // getYearsFromDuration,
+  isDateWithinCalendarRange,
+} from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { isDateWithinCalendarRange } from '../utils/registrationDuration'
+import { dateToplainDate, plainDateToDate } from '@/utils/temporal'
 
-// import {
-//   getDurationFromPickerDate,
-//   getStartOfToday,
-//   getYearsFromDuration,
-// } from '../utils/registrationDuration'
-// import { RegistrationDurationPresets } from './RegistrationDurationPresets'
+// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 
 type RegistrationExpiryDatePickerProps = {
-  readonly date: Date
-  readonly onDateChange: (date: Date) => void
-  readonly minDate: Date
-  readonly maxDate: Date
+  readonly date: Temporal.PlainDate
+  readonly onDateChange: (date: Temporal.PlainDate) => void
+  readonly minDate: Temporal.PlainDate
+  readonly maxDate: Temporal.PlainDate
 }
 
 export const RegistrationExpiryDatePicker = ({
@@ -35,23 +35,27 @@ export const RegistrationExpiryDatePicker = ({
 
   const displayValue = formatDateTime(date)
 
+  const dateAsDate = plainDateToDate(date)
+  const minDateAsDate = plainDateToDate(minDate)
+  const maxDateAsDate = plainDateToDate(maxDate)
+
   const handleSelect = (d: Date | undefined) => {
     if (d) {
-      onDateChange(d)
+      onDateChange(dateToplainDate(d))
       setIsOpen(false)
     }
   }
 
   // const handlePresetSelect = (spanValue: number) => {
   //   const startOfToday = getStartOfToday()
-  //   const expiryDate = addYears(startOfToday, spanValue)
+  //   const expiryDate = startOfToday.add({ years: spanValue })
   //   const cappedDate =
-  //     expiryDate.getTime() > maxDate.getTime() ? maxDate : expiryDate
+  //     Temporal.PlainDate.compare(expiryDate, maxDate) > 0 ? maxDate : expiryDate
   //   onDateChange(cappedDate)
   // }
 
   const disabled = (d: Date) => {
-    return !isDateWithinCalendarRange(d, minDate, maxDate)
+    return !isDateWithinCalendarRange(d, minDateAsDate, maxDateAsDate)
   }
 
   return (
@@ -79,9 +83,9 @@ export const RegistrationExpiryDatePicker = ({
         >
           <Calendar
             captionLayout="dropdown"
-            defaultMonth={date}
+            defaultMonth={dateAsDate}
             disabled={disabled}
-            endMonth={maxDate}
+            endMonth={maxDateAsDate}
             formatters={{
               formatMonthDropdown: (d) =>
                 d.toLocaleString('default', { month: 'long' }),
@@ -90,8 +94,8 @@ export const RegistrationExpiryDatePicker = ({
             mode="single"
             onSelect={handleSelect}
             required
-            selected={date}
-            startMonth={minDate}
+            selected={dateAsDate}
+            startMonth={minDateAsDate}
           />
         </PopoverContent>
       </Popover>

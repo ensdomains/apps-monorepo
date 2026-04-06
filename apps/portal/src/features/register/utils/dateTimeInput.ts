@@ -1,15 +1,19 @@
 /**
- * Utilities for date/time input handling (e.g. datetime-local, time inputs).
+ * Utilities for date/time input handling (e.g. time inputs in the premium drawer).
+ * Works with Temporal.Instant, routing through ZonedDateTime for local time access.
  */
-/** Format a Date to HH:mm for the time input. */
-export function dateToTimeValue(date: Date): string {
-  const hour = date.getHours()
-  const minute = date.getMinutes()
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+
+/** Extract the local HH:mm string from a Temporal.Instant. */
+export function instantToTimeValue(instant: Temporal.Instant): string {
+  const zdt = instant.toZonedDateTimeISO(Temporal.Now.timeZoneId())
+  return `${String(zdt.hour).padStart(2, '0')}:${String(zdt.minute).padStart(2, '0')}`
 }
 
-/** Merge a time string (HH:mm) into a date's date part. */
-export function mergeTimeIntoDate(baseDate: Date, timeStr: string): Date {
+/** Merge a time string (HH:mm) into an instant, preserving its calendar date in local time. */
+export function mergeTimeIntoInstant(
+  base: Temporal.Instant,
+  timeStr: string,
+): Temporal.Instant {
   let hour = 0
   let minute = 0
 
@@ -18,16 +22,18 @@ export function mergeTimeIntoDate(baseDate: Date, timeStr: string): Date {
     hour = parsed.hour
     minute = parsed.minute
   } catch {
-    // Keep defaults to match existing behavior for invalid/empty input.
+    // Keep defaults for invalid/empty input.
   }
 
-  return new Date(
-    baseDate.getFullYear(),
-    baseDate.getMonth(),
-    baseDate.getDate(),
-    hour,
-    minute,
-    0,
-    0,
-  )
+  return base
+    .toZonedDateTimeISO(Temporal.Now.timeZoneId())
+    .with({
+      hour,
+      minute,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0,
+    })
+    .toInstant()
 }

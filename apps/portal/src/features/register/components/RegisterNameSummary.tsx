@@ -12,7 +12,7 @@ import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
-import { getPremiumDatesFromRegistrationPrice } from '@/features/register/utils/premiumDecay'
+import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
 import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
@@ -60,18 +60,18 @@ export const RegisterNameCheckoutSummary = ({
   })
 
   const hasPrice = price && isPriceResult(price)
-  const premiumDates =
-    hasPrice && price ? getPremiumDatesFromRegistrationPrice(price) : null
+  const premiumRange =
+    hasPrice && price ? getPremiumInstantRangeFromPrice(price) : null
 
   return (
     <Fragment>
-      {premiumDates && (
+      {premiumRange && (
         <Alert variant="default" className="flex p-5 items-center">
           <AlertDescription className="text-base flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
             <SirenIcon className="size-6 shrink-0" />
             <p className="text-center md:text-left">
               This name is in Temporary premium until{' '}
-              {formatExpiryDateTimeLocal(premiumDates.premiumEndDate)}.
+              {formatExpiryDateTimeLocal(premiumRange.end)}.
             </p>
             <Button
               variant="outline"
@@ -121,7 +121,7 @@ export const RegisterNameCheckoutSummary = ({
             open={premiumDrawerOpen}
             onOpenChange={setPremiumDrawerOpen}
             currentPremium={formatPriceDisplay(price.premium, price.decimals)}
-            premiumStartDate={premiumDates?.premiumStartDate ?? null}
+            premiumStart={premiumRange?.start ?? null}
           />
         )}
       </section>

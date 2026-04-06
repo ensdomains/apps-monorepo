@@ -1,9 +1,3 @@
-import {
-  dateFromEpochMilliseconds,
-  epochMillisecondsFromDate,
-  getNowEpochMilliseconds,
-} from '@/utils/temporal'
-
 /**
  * Premium decay calculation utilities for the v2 StandardRentPriceOracle.
  *
@@ -19,7 +13,7 @@ import {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
-/** Total premium window duration (21 days). */
+/** Total premium window duration (21 days) in milliseconds. */
 export const PREMIUM_PERIOD_MS = 21 * MS_PER_DAY
 
 /** Start price of the exponential decay (in display units, e.g. USD). */
@@ -31,103 +25,60 @@ const OFFSET = 47.6837158203125
 /** Decay factor per day — price halves daily. */
 const FACTOR = 0.5
 
-export type PremiumDatesResult = {
-  premiumStartDate: Date
-  premiumEndDate: Date
-}
-
-export type PremiumEpochRangeResult = {
-  premiumStartMs: number
-  premiumEndMs: number
+export type PremiumInstantRange = {
+  start: Temporal.Instant
+  end: Temporal.Instant
 }
 
 /**
- * Domain-level helper that calculates premium window in epoch milliseconds.
- * Prefer this inside business logic; adapt to Date only at UI/library boundaries.
+ * Calculates the premium window as a pair of Temporal.Instant values.
+ * Use this in all business logic; convert to Date only at UI/library boundaries.
  */
-export function getPremiumEpochRangeFromPrice(
+export function getPremiumInstantRange(
   currentPremiumUsd: number,
-  nowMs: number = getNowEpochMilliseconds(),
-): PremiumEpochRangeResult | null {
+  now: Temporal.Instant = Temporal.Now.instant(),
+): PremiumInstantRange | null {
   if (currentPremiumUsd <= 0) return null
 
   const days =
     Math.log((currentPremiumUsd + OFFSET) / START_PRICE) / Math.log(FACTOR)
   const elapsedMs = days * MS_PER_DAY
 
-  const premiumStartMs = nowMs - elapsedMs
-  const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
-  return { premiumStartMs, premiumEndMs }
+  const startMs = Math.round(now.epochMilliseconds - elapsedMs)
+  const endMs = startMs + PREMIUM_PERIOD_MS
+  return {
+    start: Temporal.Instant.fromEpochMilliseconds(startMs),
+    end: Temporal.Instant.fromEpochMilliseconds(endMs),
+  }
 }
 
 /**
- * Derives the premium start/end dates from a registration price result.
- *
- * Returns null if the price has no premium. Use this when you have a
- * RegistrationPriceResult from the price query.
+ * Derives the premium instant range from a registration price result.
+ * Returns null if the price has no premium.
  */
-export function getPremiumDatesFromRegistrationPrice(price: {
+export function getPremiumInstantRangeFromPrice(price: {
   premium: bigint
   decimals: number
   hasPremium: boolean
-}): PremiumDatesResult | null {
+}): PremiumInstantRange | null {
   if (!price.hasPremium) return null
 
   const premiumUsd = Number(price.premium) / 10 ** price.decimals
-  return getPremiumDatesFromPrice(premiumUsd)
+  return getPremiumInstantRange(premiumUsd)
 }
 
 /**
- * Derives the premium start/end dates from the current premium price.
+ * Calculates the premium price at a given instant.
  *
- * Since the contract's `getExpiry` returns 0 for available names, we can't rely
- * on it. Instead, we invert the decay formula to determine how far into the
- * premium window we are, based on the price the contract returned.
- *
- *   premium = START_PRICE * FACTOR^days - OFFSET
- *   days = log((premium + OFFSET) / START_PRICE) / log(FACTOR)
- *   premiumStartDate = now - days
- *   premiumEndDate = premiumStartDate + 21 days
- */
-export function getPremiumDatesFromPrice(
-  currentPremiumUsd: number,
-): PremiumDatesResult | null {
-  const premiumRange = getPremiumEpochRangeFromPrice(currentPremiumUsd)
-  if (!premiumRange) return null
-
-  const premiumStartDate = dateFromEpochMilliseconds(
-    premiumRange.premiumStartMs,
-  )
-  const premiumEndDate = dateFromEpochMilliseconds(premiumRange.premiumEndMs)
-
-  return { premiumStartDate, premiumEndDate }
-}
-
-/**
- * Calculates the premium price at a given date.
- *
- * @param premiumStartDate - When the premium period began (= name expiry date).
- * @param targetDate - The date to calculate the price for.
+ * @param start  - When the premium period began (= name expiry).
+ * @param target - The instant to calculate the price for.
  * @returns The premium price in USD, or 0 if outside the premium window.
  */
-export function getPremiumPriceAtDate(
-  premiumStartDate: Date,
-  targetDate: Date,
+export function getPremiumPriceAtInstant(
+  start: Temporal.Instant,
+  target: Temporal.Instant,
 ): number {
-  return getPremiumPriceAtEpochMs(
-    epochMillisecondsFromDate(premiumStartDate),
-    epochMillisecondsFromDate(targetDate),
-  )
-}
-
-/**
- * Domain-level helper that calculates premium at an epoch-millisecond target.
- */
-export function getPremiumPriceAtEpochMs(
-  premiumStartMs: number,
-  targetMs: number,
-): number {
-  const elapsedMs = targetMs - premiumStartMs
+  const elapsedMs = target.epochMilliseconds - start.epochMilliseconds
   if (elapsedMs < 0) return START_PRICE - OFFSET
   if (elapsedMs >= PREMIUM_PERIOD_MS) return 0
 
@@ -136,41 +87,31 @@ export function getPremiumPriceAtEpochMs(
 }
 
 /**
- * Calculates the date when the premium will reach a given target price.
+ * Calculates the instant when the premium will reach a given target price.
  *
  * Inverts the decay formula:
  *   days = log((price + OFFSET) / START_PRICE) / log(FACTOR)
  *
- * @param premiumStartDate - When the premium period began (= name expiry date).
+ * @param start       - When the premium period began (= name expiry).
  * @param targetPrice - The desired premium price in USD.
- * @returns The Date when premium reaches that price, clamped to the premium window.
+ * @returns The Temporal.Instant when premium reaches that price, clamped to the premium window.
  */
-export function getDateForPremiumPrice(
-  premiumStartDate: Date,
+export function getInstantForPremiumPrice(
+  start: Temporal.Instant,
   targetPrice: number,
-): Date {
-  return dateFromEpochMilliseconds(
-    getEpochMsForPremiumPrice(
-      epochMillisecondsFromDate(premiumStartDate),
-      targetPrice,
-    ),
-  )
-}
+): Temporal.Instant {
+  const startMs = start.epochMilliseconds
+  const endMs = startMs + PREMIUM_PERIOD_MS
 
-/**
- * Domain-level helper that inverts premium decay to epoch milliseconds.
- */
-export function getEpochMsForPremiumPrice(
-  premiumStartMs: number,
-  targetPrice: number,
-): number {
-  if (targetPrice >= START_PRICE - OFFSET) return premiumStartMs
-
-  const premiumEndMs = premiumStartMs + PREMIUM_PERIOD_MS
-  if (targetPrice <= 0) return premiumEndMs
+  if (targetPrice >= START_PRICE - OFFSET) {
+    return Temporal.Instant.fromEpochMilliseconds(startMs)
+  }
+  if (targetPrice <= 0) {
+    return Temporal.Instant.fromEpochMilliseconds(endMs)
+  }
 
   const days = Math.log((targetPrice + OFFSET) / START_PRICE) / Math.log(FACTOR)
-  const dateMs = premiumStartMs + days * MS_PER_DAY
-
-  return Math.max(premiumStartMs, Math.min(dateMs, premiumEndMs))
+  const dateMs = startMs + days * MS_PER_DAY
+  const clamped = Math.round(Math.max(startMs, Math.min(dateMs, endMs)))
+  return Temporal.Instant.fromEpochMilliseconds(clamped)
 }

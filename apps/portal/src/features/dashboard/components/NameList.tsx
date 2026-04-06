@@ -13,6 +13,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
+import { dateToplainDate } from '@/utils/temporal'
 import type { WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
@@ -58,7 +59,7 @@ const columns: ColumnDef<column>[] = [
           </Badge>
         )
       }
-      return formatDateTime(expiryDate)
+      return formatDateTime(dateToplainDate(expiryDate))
     },
   },
   {
