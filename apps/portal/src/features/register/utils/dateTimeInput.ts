@@ -5,8 +5,13 @@
 
 /** Extract the local HH:mm string from a Temporal.Instant. */
 export function instantToTimeValue(instant: Temporal.Instant): string {
-  const zdt = instant.toZonedDateTimeISO(Temporal.Now.timeZoneId())
-  return `${String(zdt.hour).padStart(2, '0')}:${String(zdt.minute).padStart(2, '0')}`
+  return instant
+    .toZonedDateTimeISO(Temporal.Now.timeZoneId())
+    .toLocaleString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
 }
 
 /** Merge a time string (HH:mm) into an instant, preserving its calendar date in local time. */
