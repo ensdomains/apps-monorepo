@@ -38,7 +38,7 @@ export type UseSearchResultsReturn = {
   suggestions: Suggestion[]
   ownerBySuggestionId: Map<
     string,
-    | { owner: string; registryAddress: string; network: string }
+    | { owner: string; registryAddress: string; protocolVersion: string }
     | null
     | undefined
   >
@@ -165,7 +165,7 @@ export const useSearchResults = ({
   const ownerBySuggestionId = useMemo(() => {
     const m = new Map<
       string,
-      | { owner: string; registryAddress: string; network: string }
+      | { owner: string; registryAddress: string; protocolVersion: string }
       | null
       | undefined
     >()

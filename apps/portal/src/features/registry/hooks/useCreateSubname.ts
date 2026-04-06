@@ -44,7 +44,7 @@ export function useCreateSubname() {
     onSuccess: (_data, variables) => {
       const subnamesQueryKey = getSubnamesQueryOptions({
         name: variables.parentName,
-        network: variables.network,
+        protocolVersion: variables.protocolVersion,
       }).queryKey
 
       queryClient.invalidateQueries({

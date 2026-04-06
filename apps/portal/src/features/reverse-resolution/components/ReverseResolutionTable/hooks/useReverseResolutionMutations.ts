@@ -51,21 +51,18 @@ export function useReverseResolutionMutations({
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
 
-  // Determine which network the name lives on (V1 sepolia vs V2 namechainSepolia)
-  const { data: ownerData } = useQuery({
+  // Determine which protocol version the name lives on (ENSv1 vs ENSv2)
+  const { data: _ownerData } = useQuery({
     ...getEnsOwnerQueryOptions({ name: displayName }),
     enabled: isL1 && Boolean(displayName),
   })
-
-  const nameNetwork = ownerData?.network
 
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress } = useQuery({
     ...getNameResolverAddressQueryOptions({
       name: displayName ?? '',
-      network: nameNetwork ?? 'sepolia',
     }),
-    enabled: isL1 && Boolean(displayName) && Boolean(nameNetwork),
+    enabled: isL1 && Boolean(displayName),
   })
 
   const { data: isDedicatedResolver = false } = useQuery({
