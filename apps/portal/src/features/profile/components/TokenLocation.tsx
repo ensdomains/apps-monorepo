@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router'
 import { NamechainSVG } from '@/assets/chains'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
 interface TokenLocationProps {
   name: string
-  network: EnsNetworkName
+  protocolVersion: ProtocolVersion
 }
 
 export const TokenLocation = ({ name }: TokenLocationProps) => {

@@ -91,7 +91,7 @@ type SearchResultsListData = {
   suggestions: Suggestion[]
   ownerBySuggestionId: Map<
     string,
-    | { owner: string; registryAddress: string; network: string }
+    | { owner: string; registryAddress: string; protocolVersion: string }
     | null
     | undefined
   >
