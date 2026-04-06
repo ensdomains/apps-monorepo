@@ -225,7 +225,7 @@ export function createZeroDevSession(
 }
 
 export interface RestoreZeroDevSessionParams {
-  session: ZeroDevStoredSession
+  readonly session: ZeroDevStoredSession
 }
 
 /**
