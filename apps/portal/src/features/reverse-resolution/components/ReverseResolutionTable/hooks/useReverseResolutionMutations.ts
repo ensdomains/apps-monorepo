@@ -9,6 +9,10 @@ import {
   type SetPrimaryNameWriteParametersReturnType,
   setPrimaryNameWriteParameters,
 } from '@ensdomains/ensjs/wallet'
+import {
+  type SetPrimaryNameV2WriteParametersReturnType,
+  setPrimaryNameWriteParameters as setPrimaryNameWriteParametersV2,
+} from '@ensdomains/ensjs/wallet/v2'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
@@ -19,7 +23,7 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getIsDedicatedResolverQueryOptions } from '@/features/resolver/hooks/useIsDedicatedResolver'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
 
 type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
@@ -28,8 +32,12 @@ type UseReverseResolutionMutationsParams = {
 
 type ReverseResolutionWriteRequest =
   | {
-      kind: 'l1'
+      kind: 'v1_l1'
       request: SetPrimaryNameWriteParametersReturnType
+    }
+  | {
+      kind: 'v2_l1'
+      request: SetPrimaryNameV2WriteParametersReturnType
     }
   | {
       kind: 'l2'
@@ -60,13 +68,15 @@ export function useReverseResolutionMutations({
   const nameNetwork = ownerData?.network
 
   // Get resolver address from the correct registry (V1 or V2)
-  const { data: resolverAddress } = useQuery({
+  const { data: resolverAddressRaw } = useQuery({
     ...getNameResolverAddressQueryOptions({
       name: displayName ?? '',
       network: nameNetwork ?? 'sepolia',
     }),
     enabled: isL1 && Boolean(displayName) && Boolean(nameNetwork),
   })
+
+  const resolverAddress = resolverAddressRaw as Address | null | undefined
 
   const { data: isDedicatedResolver = false } = useQuery({
     ...getIsDedicatedResolverQueryOptions({
@@ -84,15 +94,23 @@ export function useReverseResolutionMutations({
       if (isL1) {
         if (!l1WalletClient)
           throw new Error('Sepolia wallet client not available')
+
         if (!l1WalletClient.account) throw new Error('No connected account')
 
+        if (nameNetwork === 'namechainSepolia') {
+          const v2Client = { ...l1WalletClient, chain: namechainSepolia }
+
+          return {
+            kind: 'v2_l1',
+            request: setPrimaryNameWriteParametersV2(v2Client, { name }),
+          }
+        }
+
+        // V1 name: use legacy ReverseRegistrar on Sepolia
         return {
-          kind: 'l1',
+          kind: 'v1_l1',
           request: setPrimaryNameWriteParameters(
-            {
-              ...l1WalletClient,
-              chain: sepoliaWithEns,
-            },
+            { ...l1WalletClient, chain: sepoliaWithEns },
             { name },
           ),
         }
@@ -107,7 +125,7 @@ export function useReverseResolutionMutations({
         }),
       }
     },
-    [chain, isL1, l1WalletClient, reverseRegistrarChainId],
+    [chain, isL1, l1WalletClient, nameNetwork, reverseRegistrarChainId],
   )
 
   const getForwardResolutionRequest = useCallback(
