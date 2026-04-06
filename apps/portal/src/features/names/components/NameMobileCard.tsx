@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { CheckIcon, CopyIcon } from 'lucide-react'
-import { useState } from 'react'
+import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -32,7 +31,6 @@ export const NameMobileCard = ({
   onSelectChange,
   showCheckbox = true,
 }: NameMobileCardProps) => {
-  const [copied, setCopied] = useState(false)
   const v2Roles = roleBitmap ? decodeRoleBitmap(roleBitmap) : []
   const v1RoleLabels: string[] = []
   if (v1Roles?.owner) v1RoleLabels.push('Owner')
@@ -61,21 +59,7 @@ export const NameMobileCard = ({
         <Link to="/$name" params={{ name: name || '' }}>
           <EntityBadge variant="name">{name}</EntityBadge>
         </Link>
-        <button
-          type="button"
-          className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            navigator.clipboard.writeText(name || '')
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
-          }}
-        >
-          {copied ? (
-            <CheckIcon className="size-3" />
-          ) : (
-            <CopyIcon className="size-3" />
-          )}
-        </button>
+        <CopyButton value={name || ''} size="sm" />
       </div>
 
       {/* Expiry section */}
