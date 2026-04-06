@@ -35,9 +35,9 @@ export const RegistrationExpiryDatePicker = ({
 
   const displayValue = formatDateTime(date)
 
-  const dateAsDate = plainDateToDate(date)
-  const minDateAsDate = plainDateToDate(minDate)
-  const maxDateAsDate = plainDateToDate(maxDate)
+  const selectedDateForCalendar = plainDateToDate(date)
+  const minDateForCalendar = plainDateToDate(minDate)
+  const maxDateForCalendar = plainDateToDate(maxDate)
 
   const handleSelect = (d: Date | undefined) => {
     if (d) {
@@ -54,8 +54,8 @@ export const RegistrationExpiryDatePicker = ({
   //   onDateChange(cappedDate)
   // }
 
-  const disabled = (d: Date) => {
-    return !isDateWithinCalendarRange(d, minDateAsDate, maxDateAsDate)
+  const disabled = (date: Date) => {
+    return !isDateWithinCalendarRange(dateToPlainDate(date), minDate, maxDate)
   }
 
   return (
@@ -83,9 +83,9 @@ export const RegistrationExpiryDatePicker = ({
         >
           <Calendar
             captionLayout="dropdown"
-            defaultMonth={dateAsDate}
+            defaultMonth={selectedDateForCalendar}
             disabled={disabled}
-            endMonth={maxDateAsDate}
+            endMonth={maxDateForCalendar}
             formatters={{
               formatMonthDropdown: (d) =>
                 d.toLocaleString('default', { month: 'long' }),
@@ -94,8 +94,8 @@ export const RegistrationExpiryDatePicker = ({
             mode="single"
             onSelect={handleSelect}
             required
-            selected={dateAsDate}
-            startMonth={minDateAsDate}
+            selected={selectedDateForCalendar}
+            startMonth={minDateForCalendar}
           />
         </PopoverContent>
       </Popover>

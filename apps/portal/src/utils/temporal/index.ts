@@ -10,10 +10,6 @@
 export const instantToDate = (instant: Temporal.Instant): Date =>
   new Date(instant.epochMilliseconds)
 
-/** Convert a Date received from react-day-picker callbacks to Temporal.Instant. */
-export const dateToInstant = (date: Date): Temporal.Instant =>
-  Temporal.Instant.fromEpochMilliseconds(date.valueOf())
-
 /** Convert a Temporal.PlainDate to a Date for react-day-picker month/selection props. */
 export const plainDateToDate = (plain: Temporal.PlainDate): Date =>
   new Date(plain.year, plain.month - 1, plain.day)

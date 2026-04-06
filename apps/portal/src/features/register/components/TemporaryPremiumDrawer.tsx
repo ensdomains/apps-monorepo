@@ -27,7 +27,7 @@ import {
 import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
-import { instantToDate } from '@/utils/temporal'
+import { dateToPlainDate, instantToDate } from '@/utils/temporal'
 
 function useSyncPremiumCalculatorOnOpen(
   open: boolean,
@@ -153,9 +153,9 @@ export const TemporaryPremiumDrawer = ({
   function isDateDisabled(d: Date) {
     if (!premiumEnd) return true
     return !isDateWithinCalendarRange(
-      d,
-      instantToDate(Temporal.Now.instant()),
-      instantToDate(premiumEnd),
+      dateToPlainDate(d),
+      Temporal.Now.plainDateISO(),
+      premiumEnd.toZonedDateTimeISO(Temporal.Now.timeZoneId()).toPlainDate(),
     )
   }
 

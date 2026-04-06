@@ -4,26 +4,20 @@ import {
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
+import { plainDateToDate } from '@/utils/temporal'
 
 /**
  * Returns true when `date` falls on or between `minDate` and `maxDate` (inclusive),
  * comparing calendar dates only (no time component).
- *
- * Kept with a Date signature because react-day-picker's `disabled` callback
- * provides native Date objects.
  */
 export function isDateWithinCalendarRange(
-  date: Date,
-  minDate: Date,
-  maxDate: Date,
+  date: Temporal.PlainDate,
+  minDate: Temporal.PlainDate,
+  maxDate: Temporal.PlainDate,
 ): boolean {
-  const check = dateToPlainDate(date)
-  const min = dateToPlainDate(minDate)
-  const max = dateToPlainDate(maxDate)
   return (
-    Temporal.PlainDate.compare(check, min) >= 0 &&
-    Temporal.PlainDate.compare(check, max) <= 0
+    Temporal.PlainDate.compare(date, minDate) >= 0 &&
+    Temporal.PlainDate.compare(date, maxDate) <= 0
   )
 }
 
