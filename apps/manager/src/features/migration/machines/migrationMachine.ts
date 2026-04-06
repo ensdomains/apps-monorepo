@@ -10,6 +10,13 @@ export type MigrationContext = {
   error?: string
 }
 
+const initialContext: MigrationContext = {
+  selectedNames: [],
+  migratedNames: [],
+  txHashes: [],
+  skippedNames: [],
+}
+
 export const migrationMachine = setup({
   types: {
     context: {} as MigrationContext,
@@ -27,15 +34,13 @@ export const migrationMachine = setup({
       | { type: 'DONE' }
       | { type: 'RESET' },
   },
+  actions: {
+    resetContext: assign(() => initialContext),
+  },
 }).createMachine({
   id: 'migration',
   initial: 'selectNames',
-  context: {
-    selectedNames: [],
-    migratedNames: [],
-    txHashes: [],
-    skippedNames: [],
-  },
+  context: initialContext,
   states: {
     selectNames: {
       on: {
@@ -103,13 +108,7 @@ export const migrationMachine = setup({
       on: {
         DONE: {
           target: 'selectNames',
-          actions: assign({
-            selectedNames: () => [],
-            migratedNames: () => [],
-            txHashes: () => [],
-            skippedNames: () => [],
-            error: () => undefined,
-          }),
+          actions: 'resetContext',
         },
       },
     },
@@ -117,13 +116,7 @@ export const migrationMachine = setup({
       on: {
         DONE: {
           target: 'selectNames',
-          actions: assign({
-            selectedNames: () => [],
-            migratedNames: () => [],
-            txHashes: () => [],
-            skippedNames: () => [],
-            error: () => undefined,
-          }),
+          actions: 'resetContext',
         },
       },
     },
@@ -143,13 +136,7 @@ export const migrationMachine = setup({
         },
         RESET: {
           target: 'selectNames',
-          actions: assign({
-            selectedNames: () => [],
-            migratedNames: () => [],
-            txHashes: () => [],
-            skippedNames: () => [],
-            error: () => undefined,
-          }),
+          actions: 'resetContext',
         },
       },
     },

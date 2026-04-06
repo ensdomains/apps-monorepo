@@ -33,6 +33,11 @@ export type ClassifiedName = {
 export const hasFuse = (fuses: number, fuse: number): boolean =>
   (fuses & fuse) !== 0
 
+export const is2LD = (name: ClassifiedName): boolean =>
+  name.tokenType === 'unwrapped' ||
+  name.tokenType === 'unlocked' ||
+  name.tokenType === 'locked-2ld'
+
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
@@ -78,6 +83,7 @@ export const classifyName = (
   }
 
   if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) return null
+  if (!parentName) return null
 
   if (parentName === 'eth') {
     return {

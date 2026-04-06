@@ -44,6 +44,7 @@ export const signUnwrappedTx = async (params: {
   )
 }
 
+// Narrowing helper: writeContract requires a specific request type, not the WrappedMigrationCall union
 const writeWrappedCall = (
   wagmiConfig: WagmiConfig,
   call: WrappedMigrationCall,
@@ -58,16 +59,8 @@ export const signWrappedTxs = async (params: {
   migrationOwner: Address
   defaultResolver: Address
   target: Address
-  skipped: SkippedName[]
-}): Promise<Hex[]> => {
-  const {
-    wagmiConfig,
-    names,
-    migrationOwner,
-    defaultResolver,
-    target,
-    skipped,
-  } = params
+}): Promise<{ hashes: Hex[]; skipped: SkippedName[] }> => {
+  const { wagmiConfig, names, migrationOwner, defaultResolver, target } = params
 
   const call = buildWrappedCalls({
     names,
@@ -78,19 +71,24 @@ export const signWrappedTxs = async (params: {
 
   try {
     const hash = await writeWrappedCall(wagmiConfig, call)
-    return [hash]
+    return { hashes: [hash], skipped: [] }
   } catch (error) {
     if (isUserRejection(error)) throw error
     if (names.length <= 1) {
-      skipped.push({
-        name: names[0]?.domain.name ?? 'unknown',
-        reason: 'transfer-failed',
-      })
-      return []
+      return {
+        hashes: [],
+        skipped: [
+          {
+            name: names[0]?.domain.name ?? 'unknown',
+            reason: 'transfer-failed',
+          },
+        ],
+      }
     }
   }
 
   const hashes: Hex[] = []
+  const skipped: SkippedName[] = []
   for (const name of names) {
     const singleCall = buildWrappedCalls({
       names: [name],
@@ -108,5 +106,5 @@ export const signWrappedTxs = async (params: {
     }
   }
 
-  return hashes
+  return { hashes, skipped }
 }

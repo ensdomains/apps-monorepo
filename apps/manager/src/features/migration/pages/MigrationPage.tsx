@@ -63,6 +63,17 @@ const SkippedNamesList = ({
   )
 }
 
+const ResultLayout = ({ children }: { children: ReactNode }) => (
+  <motion.div
+    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+    className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 px-5"
+    initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
+    transition={{ duration: 0.5, ease: 'easeOut' }}
+  >
+    {children}
+  </motion.div>
+)
+
 export const MigrationPage = () => {
   const [state, send] = useMachine(migrationMachine)
   const { data: v1Names = [] } = useV1Names()
@@ -119,12 +130,7 @@ export const MigrationPage = () => {
           />
         ))
         .with('error', () => (
-          <motion.div
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 px-5"
-            initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          >
+          <ResultLayout>
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Migration failed</Trans>
             </p>
@@ -164,15 +170,10 @@ export const MigrationPage = () => {
                 <Trans>Retry</Trans>
               </button>
             </motion.div>
-          </motion.div>
+          </ResultLayout>
         ))
         .with('partialSuccess', () => (
-          <motion.div
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 px-5"
-            initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          >
+          <ResultLayout>
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Some names could not be migrated</Trans>
             </p>
@@ -193,7 +194,7 @@ export const MigrationPage = () => {
                 <Trans>Done</Trans>
               </button>
             </motion.div>
-          </motion.div>
+          </ResultLayout>
         ))
         .with('success', () => (
           <SuccessModal onClose={() => send({ type: 'DONE' })} open />

@@ -17,6 +17,7 @@ import {
   classifyNames,
   type GroupedNames,
   groupClassifiedNames,
+  is2LD,
 } from './classifyNames'
 import {
   filterFrozenApprovals,
@@ -149,12 +150,7 @@ export const executeMigration = async (params: {
 
   // ── Step: Pre-migrate (sequential, must complete before transfers) ──
   if (ENABLE_PRE_MIGRATE) {
-    const twoLDs = validNames.filter(
-      (n) =>
-        n.tokenType === 'unwrapped' ||
-        n.tokenType === 'unlocked' ||
-        n.tokenType === 'locked-2ld',
-    )
+    const twoLDs = validNames.filter(is2LD)
 
     const { notReserved: needsPreMigrate } = await filterNotReserved(
       publicClient,
@@ -222,49 +218,54 @@ export const executeMigration = async (params: {
     const pendingHashes: Hex[] = []
     let signingError: { error: unknown; step: string } | null = null
 
-    if (groups.unwrapped.length > 0 && !signingError) {
-      try {
-        const hash = await signUnwrappedTx({
-          wagmiConfig,
-          names: groups.unwrapped,
-          migrationOwner,
-          defaultResolver,
-        })
-        pendingHashes.push(hash)
-      } catch (error) {
-        signingError = { error, step: 'Unwrapped names' }
-      }
-    }
+    const signingSteps = [
+      {
+        names: groups.unwrapped,
+        step: 'Unwrapped names',
+        sign: async () => {
+          const hash = await signUnwrappedTx({
+            wagmiConfig,
+            names: groups.unwrapped,
+            migrationOwner,
+            defaultResolver,
+          })
+          return { hashes: [hash], skipped: [] as SkippedName[] }
+        },
+      },
+      {
+        names: groups.unlocked,
+        step: 'Unlocked names',
+        sign: () =>
+          signWrappedTxs({
+            wagmiConfig,
+            names: groups.unlocked,
+            migrationOwner,
+            defaultResolver,
+            target: V2_CONTRACTS.UnlockedMigrationController,
+          }),
+      },
+      {
+        names: groups.locked2ld,
+        step: 'Locked names',
+        sign: () =>
+          signWrappedTxs({
+            wagmiConfig,
+            names: groups.locked2ld,
+            migrationOwner,
+            defaultResolver,
+            target: V2_CONTRACTS.LockedMigrationController,
+          }),
+      },
+    ]
 
-    if (groups.unlocked.length > 0 && !signingError) {
+    for (const { names, step, sign } of signingSteps) {
+      if (names.length === 0 || signingError) continue
       try {
-        const hashes = await signWrappedTxs({
-          wagmiConfig,
-          names: groups.unlocked,
-          migrationOwner,
-          defaultResolver,
-          target: V2_CONTRACTS.UnlockedMigrationController,
-          skipped,
-        })
-        pendingHashes.push(...hashes)
+        const result = await sign()
+        pendingHashes.push(...result.hashes)
+        skipped.push(...result.skipped)
       } catch (error) {
-        signingError = { error, step: 'Unlocked names' }
-      }
-    }
-
-    if (groups.locked2ld.length > 0 && !signingError) {
-      try {
-        const hashes = await signWrappedTxs({
-          wagmiConfig,
-          names: groups.locked2ld,
-          migrationOwner,
-          defaultResolver,
-          target: V2_CONTRACTS.LockedMigrationController,
-          skipped,
-        })
-        pendingHashes.push(...hashes)
-      } catch (error) {
-        signingError = { error, step: 'Locked names' }
+        signingError = { error, step }
       }
     }
 
@@ -328,29 +329,29 @@ export const executeMigration = async (params: {
     }
 
     try {
-      const hashes = await signWrappedTxs({
+      const result = await signWrappedTxs({
         wagmiConfig,
         names: children,
         migrationOwner,
         defaultResolver,
         target: wrapperRegistry,
-        skipped,
       })
+      skipped.push(...result.skipped)
 
-      if (hashes.length > 0) {
+      if (result.hashes.length > 0) {
         onProgress({
           currentStep: stepIndex,
           totalSteps,
           description: `Subnames joining ${parentName} in v2!`,
-          txHash: hashes[0],
+          txHash: result.hashes[0],
         })
 
         await Promise.all(
-          hashes.map((hash) =>
+          result.hashes.map((hash) =>
             waitForTransactionReceipt(wagmiConfig, { hash }),
           ),
         )
-        txHashes.push(...hashes)
+        txHashes.push(...result.hashes)
       }
     } catch (error) {
       if (isUserRejection(error)) {
@@ -389,12 +390,7 @@ export const getMigrationStepInfo = (
   const descriptions: string[] = []
 
   if (ENABLE_PRE_MIGRATE) {
-    const twoLDCount = classified.filter(
-      (n) =>
-        n.tokenType === 'unwrapped' ||
-        n.tokenType === 'unlocked' ||
-        n.tokenType === 'locked-2ld',
-    ).length
+    const twoLDCount = classified.filter(is2LD).length
     if (twoLDCount > 0) {
       descriptions.push(`Pre-migrating ${twoLDCount} name(s)`)
     }

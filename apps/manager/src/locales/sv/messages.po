@@ -287,7 +287,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:157
+#: src/features/migration/pages/MigrationPage.tsx:163
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -688,7 +688,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx:38
-#: src/features/migration/pages/MigrationPage.tsx:193
+#: src/features/migration/pages/MigrationPage.tsx:194
 msgid "Done"
 msgstr ""
 
@@ -1150,7 +1150,7 @@ msgstr ""
 msgid "Migration Complete!"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:129
+#: src/features/migration/pages/MigrationPage.tsx:135
 msgid "Migration failed"
 msgstr ""
 
@@ -1634,7 +1634,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:164
+#: src/features/migration/pages/MigrationPage.tsx:170
 msgid "Retry"
 msgstr ""
 
@@ -1899,7 +1899,7 @@ msgstr ""
 msgid "Social Links"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:177
+#: src/features/migration/pages/MigrationPage.tsx:178
 msgid "Some names could not be migrated"
 msgstr ""
 

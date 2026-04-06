@@ -7,7 +7,7 @@ import {
   WRAPPER_REGISTRY_ABI,
 } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
 
 const PREFLIGHT_TIMEOUT = 8000
 const MULTICALL_BATCH_SIZE = 100
@@ -71,12 +71,7 @@ export const filterNotReserved = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
 ): Promise<{ valid: ClassifiedName[]; notReserved: ClassifiedName[] }> => {
-  const twoLDs = names.filter(
-    (n) =>
-      n.tokenType === 'unwrapped' ||
-      n.tokenType === 'unlocked' ||
-      n.tokenType === 'locked-2ld',
-  )
+  const twoLDs = names.filter(is2LD)
 
   if (twoLDs.length === 0) {
     return { valid: names, notReserved: [] }
@@ -168,7 +163,11 @@ export const runPreFlightChecks = async (
       notReserved: reservedResult.notReserved,
       frozen: frozenResult.frozen,
     }
-  } catch {
+  } catch (error) {
+    console.warn(
+      '[migration] Pre-flight checks failed, proceeding with all names:',
+      error,
+    )
     return { valid: names, notReserved: [], frozen: [] }
   }
 }
