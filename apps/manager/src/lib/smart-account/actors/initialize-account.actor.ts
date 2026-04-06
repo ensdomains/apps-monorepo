@@ -199,7 +199,7 @@ export function initializeAccountActor(
     )
   }
 
-  const ownerAddress = walletClient.account?.address as Address | undefined
+  const ownerAddress = walletClient.account?.address
   if (!ownerAddress) {
     return errAsync(
       new AccountInitializationError({
