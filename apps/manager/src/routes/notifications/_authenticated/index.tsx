@@ -1,4 +1,5 @@
 import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
@@ -23,6 +24,7 @@ export const Route = createFileRoute('/notifications/_authenticated/')({
 })
 
 function RouteComponent() {
+  const { t } = useLingui()
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [selectedTag, setSelectedTag] = useState<string>('all')
   const markAllAsRead = useMutation(markAllNotificationsReadMutationOptions)
@@ -71,7 +73,7 @@ function RouteComponent() {
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
             <div className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
-              All Notifications
+              <Trans>All Notifications</Trans>
             </div>
             <UnreadCount />
           </div>
@@ -81,7 +83,7 @@ function RouteComponent() {
           >
             <MSymbol className="ms-opsz-30 ms-wght-200" symbol="settings" />
             <div className="font-normal text-[#232222] text-base leading-ens-normal group-hover:underline max-sm:hidden">
-              Notification Settings
+              <Trans>Notification Settings</Trans>
             </div>
           </Link>
         </div>
@@ -96,7 +98,7 @@ function RouteComponent() {
               className="font-normal"
               htmlFor="switch-disabled-unchecked"
             >
-              Unread only
+              <Trans>Unread only</Trans>
             </FieldLabel>
           </Field>
 
@@ -106,11 +108,18 @@ function RouteComponent() {
             onClick={handleMarkAllAsRead}
             type="button"
           >
-            {markAllAsRead.isPending ? 'Marking...' : 'Mark all as read'}
+            {markAllAsRead.isPending ? (
+              <Trans>Marking...</Trans>
+            ) : (
+              <Trans>Mark all as read</Trans>
+            )}
           </button>
         </div>
         <InputGroup className="h-10 border-0 bg-[#FCFBFB]">
-          <InputGroupInput placeholder="Search notifications" />
+          <InputGroupInput
+            aria-label={t`Search notifications`}
+            placeholder={t`Search notifications`}
+          />
           <InputGroupAddon>
             <MSymbol className="ms-opsz-24 ms-wght-200" symbol="search" />
           </InputGroupAddon>

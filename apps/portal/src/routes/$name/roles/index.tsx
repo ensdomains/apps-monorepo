@@ -8,7 +8,10 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
+import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -36,9 +39,9 @@ const V2NameRoles = ({
         ...getNameRolesAccountsQueryOptions({
           label: currentLabel,
           registryAddress,
-          fromBlock: 9783977n, // to test with raffy.eth
+          fromBlock: 9783977n,
         }),
-        enabled: labels.length === 2,
+        enabled: labels.length >= 2,
       },
     ],
   })
@@ -56,11 +59,18 @@ const V2NameRoles = ({
   if (!nameRolesQuery.data) return 'No data'
 
   return (
-    <RolesTable
-      roles={nameRolesQuery.data}
-      name={name}
-      canManageRoles={canManageRoles}
-    />
+    <div className="flex flex-col gap-8">
+      <RolesTable
+        roles={nameRolesQuery.data}
+        name={name}
+        canManageRoles={canManageRoles}
+        registryAddress={registryAddress}
+      />
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-medium">Role History</h2>
+        <RoleHistoryTable name={name} label={currentLabel} />
+      </div>
+    </div>
   )
 }
 
@@ -87,31 +97,43 @@ function RouteComponent() {
   const { name } = Route.useParams()
 
   const { address } = useConnection()
-  const label = name.split('.')[0]
+  const labels = name.split('.')
+  const label = labels[0]
+  const is3LD = labels.length === 3
 
   const { data, isLoading, error } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
   })
 
+  const { data: registriesData } = useQuery({
+    ...getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
+    enabled: is3LD && data?.network === 'namechainSepolia',
+  })
+
+  const registryAddress = is3LD
+    ? getSubnameRegistryAddress(registriesData ?? null)
+    : data?.registryAddress
+
   const { data: currentAccountRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({
-      registryAddress: data?.registryAddress ?? namechainEthRegistryAddress,
+      registryAddress: registryAddress ?? namechainEthRegistryAddress,
       label,
       account: address ?? zeroAddress,
+      network: data?.network,
     }),
     enabled:
       Boolean(address) &&
-      Boolean(data?.registryAddress) &&
+      Boolean(registryAddress) &&
       data?.network === 'namechainSepolia',
   })
 
   const canManageRoles = Boolean(
-    currentAccountRoles?.decoded.find((role) => role.endsWith('_ADMIN')),
+    currentAccountRoles?.decoded?.find((role) => role.endsWith('_ADMIN')),
   )
 
-  if (!name.endsWith('.eth') || name.split('.').length !== 2)
-    return <ErrorMessage title="Only 2LD .eth is supported" />
+  if (!name.endsWith('.eth') || (labels.length !== 2 && labels.length !== 3))
+    return <ErrorMessage title="Only 2LD and 3LD .eth names are supported" />
   if (isLoading) return <LoadingSpinner title="Loading name owner" />
   if (error)
     return (
@@ -122,6 +144,15 @@ function RouteComponent() {
     )
 
   if (data?.network === 'namechainSepolia') {
+    if (!registryAddress) {
+      return (
+        <ErrorMessage
+          title="No registry"
+          description="Unable to determine the registry for this name."
+        />
+      )
+    }
+
     return (
       <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
         <div className="flex items-center justify-between">
@@ -132,7 +163,7 @@ function RouteComponent() {
         </div>
         <V2NameRoles
           name={name}
-          registryAddress={data.registryAddress}
+          registryAddress={registryAddress}
           canManageRoles={canManageRoles}
         />
       </div>

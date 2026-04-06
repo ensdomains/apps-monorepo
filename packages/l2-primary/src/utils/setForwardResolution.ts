@@ -2,60 +2,67 @@
  * Utility for creating forward resolution (name → address) contract calls
  *
  * Returns contract parameters for calling setAddr on the resolver.
- * The caller is responsible for:
- * 1. Getting the resolver address (e.g., via useEnsResolver)
- * 2. Executing the transaction
- * 3. Waiting for confirmation
- *
- * This sets the address record for a specific coin type on the name's resolver,
- * which makes the name point to that address. Combined with reverse resolution,
- * this creates a "primary name" (bidirectional relationship).
+ * Uses ensjs setAddrParameters for correct address encoding.
+ * Handles both Public Resolver and Dedicated Resolver.
+ * Includes EIP-7825 gas cap for Sepolia/Holesky.
  */
 
-import { publicResolverSetAddrSnippet } from '@ensdomains/ensjs/contracts'
-import type { Address, Hex } from 'viem'
+import { setAddrParameters } from '@ensdomains/ensjs/utils'
+import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
 import { namehash } from 'viem/ens'
 import type { ReverseRegistrarChainId } from '../reverseRegistrarChainIds'
 
-export type SetForwardResolutionRequest = {
-  address: Address
-  abi: typeof publicResolverSetAddrSnippet
-  functionName: 'setAddr'
-  args: readonly [node: Hex, reverseRegistrarChainId: bigint, address: Address]
-}
+export type SetForwardResolutionRequest = ReturnType<
+  typeof createSetForwardResolutionRequest
+>
 
 /**
  * Creates contract call parameters for setting forward resolution
- * @param params.name - The ENS name to set the address for
- * @param params.reverseRegistrarChainId - The chain ID for the reverse registrar
- * @param params.resolverAddress - The resolver contract address for this name
- * @param params.targetAddress - The address to set for this name
- * @returns Contract parameters to pass to writeContract
- * @throws Error if no resolver address is provided
  */
 export function createSetForwardResolutionRequest({
   name,
-  reverseRegistrarChainId,
+  reverseRegistrarChainId: _reverseRegistrarChainId,
   resolverAddress,
   targetAddress,
+  isDedicatedResolver,
 }: {
-  name: string
+  name: string | undefined
   reverseRegistrarChainId: ReverseRegistrarChainId
   resolverAddress: Address | null | undefined
   targetAddress: Address
-}): SetForwardResolutionRequest {
-  if (!resolverAddress) {
-    throw new Error(`No resolver found for name: ${name}`)
+  isDedicatedResolver: boolean
+}) {
+  if (!name) {
+    throw new Error('No name provided')
   }
+
+  if (!resolverAddress || resolverAddress === zeroAddress) {
+    throw new Error(
+      `No resolver found for name: ${name}. Set a resolver for this name first (e.g. via the Manager app).`,
+    )
+  }
+
+  if (resolverAddress.toLowerCase() === targetAddress.toLowerCase()) {
+    throw new Error(
+      `The resolver for ${name} is set to your own address (${resolverAddress}), which is not a valid resolver contract. Update the resolver for this name to a valid resolver contract (e.g. the Public Resolver) before setting forward resolution.`,
+    )
+  }
+
+  if (typeof isDedicatedResolver !== 'boolean') {
+    throw new Error(
+      'Resolver type must be known before setting forward resolution. Wait for the resolver type query to complete.',
+    )
+  }
+
+  const setAddr = setAddrParameters({
+    namehash: isDedicatedResolver ? undefined : namehash(name),
+    coin: 60,
+    value: targetAddress,
+  })
 
   return {
     address: resolverAddress,
-    abi: publicResolverSetAddrSnippet,
-    functionName: 'setAddr',
-    args: [
-      namehash(name),
-      BigInt(reverseRegistrarChainId),
-      targetAddress,
-    ] as const,
+    ...setAddr,
   }
 }

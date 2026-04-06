@@ -1,6 +1,7 @@
 import { type Address, isAddress } from 'viem'
 import { getEnsAddress } from 'viem/actions'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 
 type ResolveAddressOrNameParams = {
   client: Parameters<typeof getEnsAddress>[0]
@@ -18,7 +19,7 @@ export async function resolveAddressOrName({
   try {
     const resolved = await getEnsAddress(client, {
       name: nameOrAddress,
-      universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+      universalResolverAddress,
     })
 
     let resolvedAddress = resolved

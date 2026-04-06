@@ -11,6 +11,7 @@ import {
   type ProfileRecordsResult,
   profileRecordsQuery,
 } from '../../service/profileRecords'
+import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
@@ -70,6 +71,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
+  const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
   const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
 
   const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
@@ -79,7 +81,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   }
 
   return (
-    <div className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]">
+    <div
+      className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
+      style={themeVars}
+    >
       <ViewHeaderSection name={name} owner={owner} records={records} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}

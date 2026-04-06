@@ -1,9 +1,10 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -20,6 +21,7 @@ import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSec
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
   is2LD,
@@ -33,11 +35,12 @@ import { isValidEnsName } from '@/utils/token/isNormalized'
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
+  loader: ({ params, context: { network } }) => {
     const tld = getTLD(params.name)
     return Promise.all([
-      queryClient.prefetchQuery(getProfileQueryOptions(params.name)),
-      queryClient.prefetchQuery(getEnsOwnerQueryOptions({ name: params.name })),
+      queryClient.prefetchQuery(
+        getProfileQueryOptions({ name: params.name, network }),
+      ),
       ...(tld !== 'eth'
         ? [queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld }))]
         : []),
@@ -55,9 +58,9 @@ const Profile = ({
   const tld = getTLD(name)
   const isEthTld = tld === 'eth'
 
-  const [profileQuery, ownerQuery] = useQueries({
-    queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
-  })
+  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { network } = Route.useRouteContext()
+  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
@@ -100,17 +103,7 @@ const Profile = ({
   // IMPORTANT: Check TLD validity FIRST, before showing any profile data
   // Even if owner data exists, we shouldn't show profiles for invalid TLDs
   if (!isTldValid) {
-    return (
-      <NotFoundMessage
-        title="Invalid TLD"
-        description={
-          <>
-            <strong>.{tld}</strong> is not a valid ENS TLD. Only TLDs with
-            DNSSEC enabled are supported.
-          </>
-        }
-      />
-    )
+    return <InvalidNameMessage title="Invalid TLD" />
   }
 
   // If owner is null (not found), handle different cases
@@ -208,18 +201,21 @@ const Profile = ({
     console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
   }
 
-  const network = ownerQuery.data.network || 'sepolia'
+  const resolvedNetwork = ownerQuery.data.network || 'sepolia'
 
   return (
-    <>
+    <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
+      <div className="flex flex-row justify-between items-baseline">
+        <h1 className="text-heading font-medium leading-none">Overview</h1>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 xl:col-span-2">
+        <div className="lg:col-span-2 xl:col-span-2 *:h-full">
           <NameProfileCard name={name} />
         </div>
-        <ExpiryWithRegistrationData name={name} network={network} />
+        <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
         <Owner owner={ownerQuery.data.owner} />
         <ParentName name={name} />
-        <TokenLocation name={name} network={network} />
+        <TokenLocation name={name} network={resolvedNetwork} />
         {resolverAddress && (
           <RecordCount
             name={name}
@@ -230,12 +226,12 @@ const Profile = ({
         <SubnameCount
           name={name}
           registryAddress={ownerQuery.data.registryAddress}
-          network={network}
+          network={resolvedNetwork}
         />
-        <ProtocolVersionWithCounter name={name} network={network} />
+        <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
       </div>
-      {network === 'sepolia' && <RecentActivity name={name} />}
-    </>
+      {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
+    </div>
   )
 }
 
@@ -251,7 +247,7 @@ function App() {
     error,
   } = useEnsResolver({
     name,
-    universalResolverAddress: '0x50168842c0f5c9992a34085d9a6dc5b0a4f306ce',
+    universalResolverAddress,
     query: {
       // Don't fetch resolver for invalid names
       enabled: isValidName,
@@ -260,21 +256,23 @@ function App() {
 
   // Show 404 for invalid/malformed names
   if (!isValidName) {
-    return (
-      <NotFoundMessage
-        title="Invalid name"
-        description={
-          <>
-            <strong>{name}</strong> is not a valid ENS name.
-            <br />
-            Names must be normalized (lowercase, valid characters).
-          </>
-        }
-      />
-    )
+    return <InvalidNameMessage title="Invalid name" />
   }
 
   if (error) {
+    if (!is2LD(name) && !isTLD(name)) {
+      return (
+        <NotFoundMessage
+          title="Name not found"
+          description={
+            <>
+              <strong>{name}</strong> does not exist.
+            </>
+          }
+        />
+      )
+    }
+
     const message =
       (error?.cause as Error | undefined)?.message ||
       (error as Error | undefined)?.message ||
@@ -292,12 +290,5 @@ function App() {
 
   if (isLoading) return <LoadingMessage />
 
-  return (
-    <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
-      <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-heading font-medium leading-none">Overview</h1>
-      </div>
-      <Profile name={name} resolverAddress={resolverAddress} />
-    </div>
-  )
+  return <Profile name={name} resolverAddress={resolverAddress} />
 }

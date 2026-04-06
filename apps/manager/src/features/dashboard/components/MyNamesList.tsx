@@ -4,6 +4,7 @@ import {
   OrderDirection,
 } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
@@ -98,6 +99,7 @@ export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
+  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
@@ -160,7 +162,7 @@ export const MyNamesList = ({
   if (isError) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
-        Error loading names
+        <Trans>Error loading names</Trans>
       </div>
     )
   }
@@ -171,10 +173,10 @@ export const MyNamesList = ({
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
           <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            Sort by
+            <Trans>Sort by</Trans>
           </span>
           <select
-            aria-label="Sort names by"
+            aria-label={t`Sort names by`}
             className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
             onChange={(e) => {
               setSort(e.target.value as Sort)
@@ -182,10 +184,18 @@ export const MyNamesList = ({
             }}
             value={sort}
           >
-            <option value="name-asc">Name (A-Z)</option>
-            <option value="name-desc">Name (Z-A)</option>
-            <option value="expiry-asc">Expiry date (Earliest)</option>
-            <option value="expiry-desc">Expiry date (Latest)</option>
+            <option value="name-asc">
+              <Trans>Name (A-Z)</Trans>
+            </option>
+            <option value="name-desc">
+              <Trans>Name (Z-A)</Trans>
+            </option>
+            <option value="expiry-asc">
+              <Trans>Expiry date (Earliest)</Trans>
+            </option>
+            <option value="expiry-desc">
+              <Trans>Expiry date (Latest)</Trans>
+            </option>
           </select>
         </div>
       </div>
@@ -193,6 +203,13 @@ export const MyNamesList = ({
       {/* Desktop Sort Header */}
       <div className="hidden w-full md:flex md:items-center md:justify-between">
         <button
+          aria-label={
+            sortField === 'name'
+              ? sortDir === 'asc'
+                ? t`Sort by name, currently ascending`
+                : t`Sort by name, currently descending`
+              : t`Sort by name, currently unsorted`
+          }
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('name')}
           type="button"
@@ -200,11 +217,18 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Name
+            <Trans>Name</Trans>
           </span>
           <SortIndicator direction={sortDir} isActive={sortField === 'name'} />
         </button>
         <button
+          aria-label={
+            sortField === 'expiry'
+              ? sortDir === 'asc'
+                ? t`Sort by expiry, currently ascending`
+                : t`Sort by expiry, currently descending`
+              : t`Sort by expiry, currently unsorted`
+          }
           className="flex cursor-pointer items-center gap-[8px]"
           onClick={() => toggleSort('expiry')}
           type="button"
@@ -212,7 +236,7 @@ export const MyNamesList = ({
           <span
             className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            Expiry
+            <Trans>Expiry</Trans>
           </span>
           <SortIndicator
             direction={sortDir}
@@ -245,7 +269,7 @@ export const MyNamesList = ({
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                No names to display
+                <Trans>No names to display</Trans>
               </span>
             </div>
           ))
@@ -303,7 +327,7 @@ export const MyNamesList = ({
                               strokeWidth={2}
                             />
                             <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
-                              Expires in {daysUntilExpiry} days
+                              <Trans>Expires in {daysUntilExpiry} days</Trans>
                             </span>
                           </div>
                         )}
@@ -319,7 +343,8 @@ export const MyNamesList = ({
       <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
         <div className="flex items-center justify-center gap-[12px]">
           <button
-            className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
+            aria-label={t`Previous page`}
+            className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
             disabled={isPending || page === 1}
             onClick={() => setPage((p) => p - 1)}
             type="button"
@@ -327,6 +352,7 @@ export const MyNamesList = ({
             <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
           </button>
           <button
+            aria-label={t`Next page`}
             className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
             disabled={isPending || !hasNextPage}
             onClick={() => setPage((p) => p + 1)}
@@ -339,7 +365,7 @@ export const MyNamesList = ({
           {isPlaceholderData && (
             <Loader2 className="size-[12px] animate-spin" />
           )}
-          Showing your names
+          <Trans>Showing your names</Trans>
         </span>
       </div>
     </div>

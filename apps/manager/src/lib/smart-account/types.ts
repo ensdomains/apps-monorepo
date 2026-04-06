@@ -54,12 +54,10 @@ export interface BaseAccountState {
 
   autoFundingMutation: UseMutationResult<
     | {
-        usdcTxHash: null
-        daiTxHash: null
+        txHash: null
       }
     | {
-        usdcTxHash: `0x${string}`
-        daiTxHash: `0x${string}`
+        txHash: `0x${string}`
       },
     Error,
     `0x${string}`,

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, Heart } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -26,6 +27,8 @@ export const NameRow = ({
   isAuthenticated = true,
   showFavoriteButton = false,
 }: NameRowProps) => {
+  const { t } = useLingui()
+
   const heartButton = showFavoriteButton ? (
     <motion.button
       className="flex shrink-0 items-center justify-center disabled:cursor-not-allowed"
@@ -50,20 +53,22 @@ export const NameRow = ({
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
-            <TooltipContent>Login to favorite</TooltipContent>
+            <TooltipContent>
+              <Trans>Login to favorite</Trans>
+            </TooltipContent>
           </Tooltip>
         ))}
       <div className="flex items-center gap-2 md:gap-[12px]">
         <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
           <ImageFallback.Root className="contents">
             <ImageFallback.Image
-              alt={`${label} avatar`}
+              alt={t`${label} avatar`}
               className="size-full object-cover"
               src={avatarUrl}
             />
             <ImageFallback.Fallback>
               <img
-                alt={`${label} avatar placeholder`}
+                alt={t`${label} avatar placeholder`}
                 className="size-full object-cover"
                 src={placeholderAvatar}
               />

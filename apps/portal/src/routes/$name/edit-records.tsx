@@ -1,5 +1,5 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
@@ -24,17 +24,21 @@ import { PendingChangesBar } from '@/features/records/components/PendingChangesB
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { useIsDedicatedResolver } from '@/features/resolver/hooks/useIsDedicatedResolver'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 import { validateRecords } from '@/utils/records/validateRecord'
-import type { EnsNetworkName } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return queryClient.prefetchQuery(getProfileQueryOptions(params.name))
+  loader: ({ params, context: { network } }) => {
+    return queryClient.prefetchQuery(
+      getProfileQueryOptions({ name: params.name, network }),
+    )
   },
 })
 
@@ -48,14 +52,15 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 /** Record types that don't require a key input (single-value records) */
 const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
 
+const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
+
 function EditRecordsPage() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
 
-  // Fetch profile and owner data in parallel
-  const [profileQuery, ownerQuery] = useQueries({
-    queries: [getProfileQueryOptions(name), getEnsOwnerQueryOptions({ name })],
-  })
+  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { network } = Route.useRouteContext()
+  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
 
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =
@@ -155,7 +160,6 @@ function EditRecordsPage() {
       name={name}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
-      network={ownerQuery.data.network}
     />
   )
 }
@@ -164,14 +168,16 @@ const EditRecordsContent = ({
   name,
   records: rawRecords,
   resolverAddress,
-  network,
 }: {
   name: string
   records: GetRecordsReturnType
   resolverAddress: Address
-  network: EnsNetworkName
 }) => {
   const navigate = useNavigate()
+
+  const { data: isDedicatedResolver } = useIsDedicatedResolver({
+    resolverAddress,
+  })
 
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
@@ -206,6 +212,12 @@ const EditRecordsContent = ({
     discardAll,
   } = useEditRecordsState(originalRecords)
 
+  const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
   const hasValidationErrors = validationErrors.length > 0
@@ -230,12 +242,15 @@ const EditRecordsContent = ({
   })
 
   const handleSaveRecords = () => {
+    openTransactionModal()
+
     saveRecords({
       name,
       resolverAddress,
       originalRecords,
       pendingChanges,
-      resolverType: network === 'sepolia' ? 'public' : 'dedicated',
+      id: SAVE_RECORDS_TRANSACTION_ID,
+      resolverType: isDedicatedResolver ? 'dedicated' : 'public',
     })
   }
 
@@ -453,13 +468,28 @@ const EditRecordsContent = ({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={handleSaveRecords}
+        onSave={openTransactionModal}
         onDiscard={discardAll}
         onDismissError={resetSaveError}
         isSaving={isWriting || isConfirming}
         isSyncing={isSyncing}
         errorMessage={saveError?.message}
         hasValidationErrors={hasValidationErrors}
+      />
+      <TransactionModal
+        transactions={[
+          {
+            id: SAVE_RECORDS_TRANSACTION_ID,
+            title: 'Save records',
+            transactionName: 'Set resolver records',
+            estimatedGasCost: 0.0001,
+            onStart: handleSaveRecords,
+            onDone: () => {
+              closeTransactionModal()
+              clearTransaction()
+            },
+          },
+        ]}
       />
     </div>
   )

@@ -1,10 +1,9 @@
 /**
  * Pure async function to save profile records
  *
- * This function:
- * 1. Builds the transaction request from profile record params
- * 2. Calls transactionManager.startTransaction()
- * 3. Waits for completion via waitForTransaction()
+ * Uses ensjs's setRecordsWriteParameters which supports both:
+ * - Public Resolver (V1): multicall(calls)
+ * - Dedicated Resolver (V2): multicallWithNodeCheck(node, calls)
  */
 
 import {
@@ -16,77 +15,14 @@ import {
   waitForTransaction,
   type ZeroDevTransactionRequest,
 } from '@ens-apps/transaction-manager'
-import {
-  getCoderByCoinName,
-  getCoderByCoinType,
-} from '@ensdomains/address-encoder'
-import { encodeContentHash } from '@ensdomains/ensjs/utils'
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
 import * as v from 'valibot'
 import {
   type Address,
-  bytesToHex,
   encodeFunctionData,
   type Hex,
-  namehash,
   type PublicClient,
-  stringToHex,
 } from 'viem'
-
-// --- Constants ---
-
-const DEDICATED_RESOLVER_ABI = [
-  {
-    inputs: [
-      { internalType: 'uint256', name: 'coinType', type: 'uint256' },
-      { internalType: 'bytes', name: 'addressBytes', type: 'bytes' },
-    ],
-    name: 'setAddr',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'string', name: 'key', type: 'string' },
-      { internalType: 'string', name: 'value', type: 'string' },
-    ],
-    name: 'setText',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'bytes', name: 'hash', type: 'bytes' }],
-    name: 'setContenthash',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'uint256', name: 'contentType', type: 'uint256' },
-      { internalType: 'bytes', name: 'data', type: 'bytes' },
-    ],
-    name: 'setABI',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'bytes32', name: '', type: 'bytes32' },
-      { internalType: 'bytes[]', name: 'calls', type: 'bytes[]' },
-    ],
-    name: 'multicallWithNodeCheck',
-    outputs: [{ internalType: 'bytes[]', name: '', type: 'bytes[]' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
-
-const ENS_SEPOLIA_CONTRACTS = {
-  PublicResolver: '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address,
-}
 
 // --- Types ---
 
@@ -138,7 +74,8 @@ export interface SaveRecordsParams {
   accountAddress: Address
   publicClient: PublicClient
   chainId: number
-  resolverAddress?: Address
+  resolverAddress: Address
+  resolverType?: 'public' | 'dedicated'
 }
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
@@ -181,34 +118,6 @@ function getSmartAccountAddress(signer: Signer): Address {
   throw new Error(
     'Only Rhinestone or ZeroDev signer is supported for this operation',
   )
-}
-
-const normalizeCoinId = (
-  coinId: string | number,
-): { type: 'id'; value: number } | { type: 'name'; value: string } => {
-  const isString = typeof coinId === 'string'
-
-  if (isString && Number.isNaN(Number.parseInt(coinId, 10))) {
-    return {
-      type: 'name',
-      value: coinId.toLowerCase().replace(/legacy$/, 'Legacy'),
-    }
-  }
-
-  return {
-    type: 'id',
-    value: isString ? Number.parseInt(coinId, 10) : (coinId as number),
-  }
-}
-
-const getCoderFromCoin = (coinId: string | number) => {
-  const normalized = normalizeCoinId(coinId)
-
-  if (normalized.type === 'id') {
-    return getCoderByCoinType(normalized.value)
-  }
-
-  return getCoderByCoinName(normalized.value)
 }
 
 const computeRecordChanges = (
@@ -283,191 +192,28 @@ const computeRecordChanges = (
 
 const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
 
-const validateTextChange = ({ key, value }: TextChange): RecordIssue[] => {
-  const trimmed = value?.trim() ?? ''
-
-  if (trimmed === '') {
-    return []
-  }
-
-  if (key === 'url') {
-    const result = v.safeParse(bioUrlSchema, trimmed)
-
-    if (!result.success) {
-      return result.issues.map((issue: { message?: string }) => ({
-        sectionKey: 'bio',
-        fieldKey: 'url',
-        message: issue.message ?? 'Invalid Bio URL',
-      }))
-    }
-  }
-
-  return []
-}
-
-const encodeCoinValue = (
-  coder: ReturnType<typeof getCoderFromCoin>,
-  value: string | null,
-): Hex => {
-  try {
-    let encoded: Hex | Uint8Array =
-      value && value.trim() !== '' ? coder.decode(value) : '0x'
-
-    if (typeof encoded !== 'string') {
-      encoded = bytesToHex(encoded)
-    }
-
-    return encoded
-  } catch (_error) {
-    const coinName =
-      (coder as any)?.name ?? `coin type ${String((coder as any)?.coinType)}`
-    throw new Error(`Invalid ${coinName} address`)
-  }
-}
-
-const buildTextCalls = (options: {
-  abi: typeof DEDICATED_RESOLVER_ABI
-  texts: TextChange[]
-  buildArgs: (key: string, value: string | null) => readonly [string, string]
-}): { calls: Hex[]; issues: RecordIssue[] } => {
-  const calls: Hex[] = []
+const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
   const issues: RecordIssue[] = []
 
-  for (const change of options.texts) {
-    const changeIssues = validateTextChange(change)
+  for (const { key, value } of texts) {
+    const trimmed = value?.trim() ?? ''
+    if (trimmed === '') continue
 
-    if (changeIssues.length > 0) {
-      issues.push(...changeIssues)
-      continue
-    }
-
-    calls.push(
-      encodeFunctionData({
-        abi: options.abi,
-        functionName: 'setText',
-        args: options.buildArgs(change.key, change.value ?? ''),
-      }),
-    )
-  }
-
-  return { calls, issues }
-}
-
-const buildCoinCalls = (options: {
-  abi: typeof DEDICATED_RESOLVER_ABI
-  coins: CoinChange[]
-  buildArgs: (
-    coinType: number,
-    encoded: Hex,
-  ) => readonly [bigint, `0x${string}`]
-}): { calls: Hex[]; issues: RecordIssue[] } => {
-  const calls: Hex[] = []
-  const issues: RecordIssue[] = []
-
-  for (const { coin, value } of options.coins) {
-    const coder = getCoderFromCoin(coin)
-
-    try {
-      const encoded = encodeCoinValue(coder, value)
-
-      calls.push(
-        encodeFunctionData({
-          abi: options.abi,
-          functionName: 'setAddr',
-          args: options.buildArgs(coder.coinType, encoded),
-        }),
-      )
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Invalid coin address'
-
-      issues.push({
-        sectionKey: 'address',
-        fieldKey: String(coder.coinType),
-        message,
-      })
-    }
-  }
-
-  return { calls, issues }
-}
-
-const buildDedicatedResolverCalls = (changes: RecordChanges): Hex[] => {
-  const allIssues: RecordIssue[] = []
-
-  const { calls: textCalls, issues: textIssues } = buildTextCalls({
-    abi: DEDICATED_RESOLVER_ABI,
-    texts: changes.texts,
-    buildArgs: (key, value) => [key, value!],
-  })
-  allIssues.push(...textIssues)
-
-  const { calls: coinCalls, issues: coinIssues } = buildCoinCalls({
-    abi: DEDICATED_RESOLVER_ABI,
-    coins: changes.coins,
-    buildArgs: (coinType, encoded) => [BigInt(coinType), encoded],
-  })
-  allIssues.push(...coinIssues)
-
-  if (allIssues.length > 0) {
-    throw new RecordsValidationError(allIssues)
-  }
-
-  const extraCalls: Hex[] = []
-
-  if (changes.contentHash) {
-    const hash = changes.contentHash.after ?? ''
-    const encodedHash: Hex = hash
-      ? hash.startsWith('0x')
-        ? (hash as Hex)
-        : encodeContentHash(hash)
-      : '0x'
-    extraCalls.push(
-      encodeFunctionData({
-        abi: DEDICATED_RESOLVER_ABI,
-        functionName: 'setContenthash',
-        args: [encodedHash],
-      }),
-    )
-  }
-
-  if (changes.abi) {
-    const abiJson = changes.abi.after ?? ''
-    if (abiJson) {
-      try {
-        const parsed = JSON.parse(abiJson)
-        if (!Array.isArray(parsed)) {
-          allIssues.push({
-            sectionKey: 'other',
-            fieldKey: 'abi',
-            message: 'ABI must be a JSON array',
-          })
-        }
-      } catch {
-        allIssues.push({
-          sectionKey: 'other',
-          fieldKey: 'abi',
-          message: 'ABI must be valid JSON',
-        })
+    if (key === 'url') {
+      const result = v.safeParse(bioUrlSchema, trimmed)
+      if (!result.success) {
+        issues.push(
+          ...result.issues.map((issue: { message?: string }) => ({
+            sectionKey: 'bio',
+            fieldKey: 'url',
+            message: issue.message ?? 'Invalid Bio URL',
+          })),
+        )
       }
     }
-
-    if (allIssues.length > 0) {
-      throw new RecordsValidationError(allIssues)
-    }
-
-    const abiBytes = abiJson ? stringToHex(abiJson) : '0x'
-    const contentType = abiJson ? 1n : 0n
-    extraCalls.push(
-      encodeFunctionData({
-        abi: DEDICATED_RESOLVER_ABI,
-        functionName: 'setABI',
-        args: [contentType, abiBytes as Hex],
-      }),
-    )
   }
 
-  return [...textCalls, ...coinCalls, ...extraCalls]
+  return issues
 }
 
 function createTransactionRequest(params: {
@@ -527,16 +273,28 @@ function createTransactionRequest(params: {
   throw new Error('Unsupported signer type for transaction request')
 }
 
-function buildRecordsUpdateRequest(params: {
+async function buildRecordsUpdateRequest(params: {
   name: string
   before: ServiceRecordSnapshot
   after: ServiceRecordSnapshot
   signer: Signer
   accountAddress: Address
+  publicClient: PublicClient
   chainId: number
-  resolverAddress?: Address
-}): { request: TransactionRequest; description: string } {
-  const { name, before, after, signer, accountAddress, chainId } = params
+  resolverAddress: Address
+  resolverType?: 'public' | 'dedicated'
+}): Promise<{ request: TransactionRequest; description: string }> {
+  const {
+    name,
+    before,
+    after,
+    signer,
+    accountAddress,
+    publicClient,
+    chainId,
+    resolverAddress,
+    resolverType = 'dedicated',
+  } = params
 
   const changes = computeRecordChanges(before, after)
 
@@ -548,6 +306,12 @@ function buildRecordsUpdateRequest(params: {
 
   if (!hasChanges) {
     throw new Error('No profile record changes to apply')
+  }
+
+  // Validate text changes
+  const issues = validateTextChanges(changes.texts)
+  if (issues.length > 0) {
+    throw new RecordsValidationError(issues)
   }
 
   let fromAddress: Address
@@ -562,22 +326,78 @@ function buildRecordsUpdateRequest(params: {
     )
   }
 
-  const resolverAddress =
-    params.resolverAddress ?? ENS_SEPOLIA_CONTRACTS.PublicResolver
+  // Transform changes to ensjs format
+  const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
+    name,
+    resolverAddress,
+    resolverType,
+  }
 
-  const node = namehash(name) as Hex
-  const encodedCalls = buildDedicatedResolverCalls(changes)
+  if (changes.texts.length > 0) {
+    ensParams.texts = changes.texts.map(({ key, value }) => ({
+      key,
+      value: value ?? '',
+    }))
+  }
 
-  const multicallData = encodeFunctionData({
-    abi: DEDICATED_RESOLVER_ABI,
-    functionName: 'multicallWithNodeCheck',
-    args: [node, encodedCalls],
-  })
+  if (changes.coins.length > 0) {
+    ensParams.coins = changes.coins.map(({ coin, value }) => ({
+      coin: typeof coin === 'number' ? coin : Number.parseInt(String(coin), 10),
+      value: value ?? '',
+    }))
+  }
+
+  if (changes.contentHash) {
+    ensParams.contentHash = changes.contentHash.after || null
+  }
+
+  if (changes.abi) {
+    const abiJson = changes.abi.after ?? ''
+    if (abiJson) {
+      try {
+        const parsed = JSON.parse(abiJson)
+        if (!Array.isArray(parsed)) {
+          throw new RecordsValidationError([
+            {
+              sectionKey: 'other',
+              fieldKey: 'abi',
+              message: 'ABI must be a JSON array',
+            },
+          ])
+        }
+        ensParams.abi = { encodeAs: 'json', data: parsed }
+      } catch (e) {
+        if (e instanceof RecordsValidationError) throw e
+        throw new RecordsValidationError([
+          {
+            sectionKey: 'other',
+            fieldKey: 'abi',
+            message: 'ABI must be valid JSON',
+          },
+        ])
+      }
+    } else {
+      ensParams.abi = { encodeAs: 'json', data: null }
+    }
+  }
+
+  // Use ensjs to build the write parameters
+  // publicClient is used only for chain metadata — ensjs doesn't send transactions here
+  const client = publicClient as unknown as Parameters<
+    typeof setRecordsWriteParameters
+  >[0]
+  const writeParams = await setRecordsWriteParameters(client, ensParams)
+
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
 
   const calls = [
     {
       to: resolverAddress,
-      data: multicallData,
+      data,
       value: 0n,
     },
   ]
@@ -586,7 +406,7 @@ function buildRecordsUpdateRequest(params: {
     signer,
     from: fromAddress,
     to: resolverAddress,
-    data: multicallData,
+    data,
     value: 0n,
     chainId,
     calls,
@@ -603,10 +423,10 @@ function buildRecordsUpdateRequest(params: {
 /**
  * Save profile records to the blockchain
  *
- * Pure async function that builds the request, starts the transaction,
- * and waits for it to complete. Returns the transaction result.
+ * Uses ensjs's setRecordsWriteParameters to encode resolver calls,
+ * supporting both Public Resolver (V1) and Dedicated Resolver (V2).
  *
- * @throws RecordsValidationError if record validation fails (invalid addresses, URLs, etc.)
+ * @throws RecordsValidationError if record validation fails (invalid URLs, etc.)
  * @throws Error if no changes to apply, transaction not found, or transaction fails
  *
  * @example
@@ -634,8 +454,9 @@ export async function saveRecords(
   const { publicClient, chainId, ...requestParams } = params
 
   // Build the transaction request (validates and computes diff)
-  const { request, description } = buildRecordsUpdateRequest({
+  const { request, description } = await buildRecordsUpdateRequest({
     ...requestParams,
+    publicClient,
     chainId,
   })
 

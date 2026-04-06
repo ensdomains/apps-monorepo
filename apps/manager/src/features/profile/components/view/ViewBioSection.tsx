@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { copyToClipboard } from '@/lib/clipboard'
 import {
@@ -9,26 +10,27 @@ import type { ProfileRecords, TextRecordValue } from '../../types'
 import { IconRenderer } from '../IconRenderer'
 
 interface ContactItemProps {
-  record: TextRecordValue
+  readonly record: TextRecordValue
 }
 
 const ContactItem = ({ record }: ContactItemProps) => {
+  const { t } = useLingui()
   const recordDef = getRecordDef(record.key)
   const displayValue = getRecordDisplayValue(recordDef, record.value || '')
   const href = getRecordHref(recordDef, displayValue)
 
   const inner = (
     <>
-      <span className="text-gray-900 text-sm">
+      <span className="text-(--theme-color) text-sm">
         {recordDef?.icon ? (
           <IconRenderer className="size-4" icon={recordDef.icon} />
         ) : (
           recordDef?.name || record.key
         )}
       </span>
-      <span className="text-gray-600 text-sm">
+      <span className="text-(--theme-color) text-sm">
         {recordDef?.displayPrefix}
-        {displayValue || 'Not set'}
+        {displayValue || <Trans>Not set</Trans>}
       </span>
     </>
   )
@@ -50,7 +52,7 @@ const ContactItem = ({ record }: ContactItemProps) => {
     <button
       className="flex cursor-pointer items-center gap-1.5 transition-opacity hover:opacity-80"
       onClick={() => copyToClipboard(displayValue || record.value || '')}
-      title="Click to copy"
+      title={t`Click to copy`}
       type="button"
     >
       {inner}
@@ -59,7 +61,7 @@ const ContactItem = ({ record }: ContactItemProps) => {
 }
 
 interface ViewBioSectionProps {
-  records: ProfileRecords
+  readonly records: ProfileRecords
 }
 
 export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
@@ -76,7 +78,9 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
   return (
     <Card className="border-[0.25px] border-border bg-white shadow-none">
       <CardHeader>
-        <CardTitle className="text-base tracking-tight">Bio</CardTitle>
+        <CardTitle className="text-base tracking-tight">
+          <Trans>Bio</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {records.base.description && (

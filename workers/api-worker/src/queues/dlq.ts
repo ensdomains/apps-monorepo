@@ -24,7 +24,7 @@ export const handleDlqQueue = async (
     } catch (err) {
       logger.error('DLQ processing error', {
         deliveryId: job.id,
-        error: err instanceof Error ? err.message : String(err),
+        error: err,
       })
     }
 

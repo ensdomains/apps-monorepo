@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { CalendarIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
@@ -42,8 +43,8 @@ const COLOR_VARIANTS = {
     },
   },
   peridot: {
-    bg: 'bg-[#DEF3E4]',
-    border: 'border-[#DEF3E4]',
+    bg: 'bg-ens-peridot-bg',
+    border: 'border-ens-peridot-bg',
     bg2: 'bg-[#CAE6D3]',
     surface: {
       bg: 'bg-ens-peridot-surface',
@@ -118,7 +119,8 @@ export const ProfileCard = ({
           className={tw`mt-3 flex items-center gap-1.5 font-normal font-sans text-sm ${COLOR_VARIANTS[variant].surface.text}`}
         >
           <span>
-            <CalendarIcon className="inline-block size-4" /> Registered{' '}
+            <CalendarIcon className="inline-block size-4" />{' '}
+            <Trans>Registered</Trans>{' '}
           </span>
           <span
             className={tw`font-medium ${COLOR_VARIANTS[variant].core.text}`}
@@ -137,7 +139,7 @@ export const ProfileCard = ({
         <p
           className={tw`mb-3 font-medium text-lg ${COLOR_VARIANTS[variant].core.text}`}
         >
-          links
+          <Trans>links</Trans>
         </p>
         <div className="flex flex-wrap gap-2">
           {links.map(({ icon, href, title }) => (

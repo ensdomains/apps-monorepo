@@ -18,14 +18,30 @@ import {
   sepolia,
 } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import type { EnsNetworkName } from '@/utils/types'
 
 export const sepoliaWithEns = extendChainWithL1Ens(sepolia)
 
 // later to be replaced with actual namechain sepolia
 export const namechainSepolia = extendChainWithL2Ens(sepolia)
 
-const drpc = (chain: Chain) =>
-  `https://lb.drpc.live/${chain.name.toLowerCase()}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`
+export const getChainIdForNetwork = (network: EnsNetworkName): number =>
+  network === 'sepolia' ? sepoliaWithEns.id : namechainSepolia.id
+
+const DRPC_CHAIN_SLUGS: Record<number, string> = {
+  11155111: 'sepolia',
+  11155420: 'optimism-sepolia',
+  421614: 'arbitrum-sepolia',
+  84532: 'base-sepolia',
+  59141: 'linea-sepolia',
+  534351: 'scroll-sepolia',
+}
+
+const drpc = (chain: Chain) => {
+  const slug =
+    DRPC_CHAIN_SLUGS[chain.id] ?? chain.name.toLowerCase().replace(/\s+/g, '-')
+  return `https://lb.drpc.live/${slug}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`
+}
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,

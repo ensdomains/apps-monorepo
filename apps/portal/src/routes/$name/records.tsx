@@ -1,4 +1,4 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -13,8 +13,10 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/$name/records')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return queryClient.prefetchQuery(getProfileQueryOptions(params.name))
+  loader: ({ params, context: { network } }) => {
+    return queryClient.prefetchQuery(
+      getProfileQueryOptions({ name: params.name, network }),
+    )
   },
 })
 
@@ -22,15 +24,12 @@ function App() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
 
-  const [profileQuery, ownerQuery] = useQueries({
-    queries: [
-      {
-        ...getProfileQueryOptions(name),
-        // Always refetch on mount to ensure fresh data after edits
-        refetchOnMount: 'always' as const,
-      },
-      getEnsOwnerQueryOptions({ name }),
-    ],
+  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const { network } = Route.useRouteContext()
+  const profileQuery = useQuery({
+    ...getProfileQueryOptions({ name, network }),
+    // Always refetch on mount to ensure fresh data after edits
+    refetchOnMount: 'always' as const,
   })
 
   const isLoading = profileQuery.isLoading || ownerQuery.isLoading

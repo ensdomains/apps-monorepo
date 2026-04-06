@@ -21,7 +21,7 @@ export const getRecords = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const records = yield* await fromPromise(
+  const records = yield* fromPromise(
     ensjs_getRecords(client, params),
     (e) => new RecordsError({ cause: e as GetRecordsErrorType }),
   )

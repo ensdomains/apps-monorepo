@@ -1,5 +1,7 @@
+import { Trans } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
 import { AddressSuggestionItem, NameSuggestionItem } from './SuggestionItem'
+import { searchHistoryStore } from './useSearchHistory'
 import { useSearchSuggestions } from './useSearchSuggestions'
 
 interface SearchSuggestionsProps {
@@ -12,28 +14,43 @@ export const SearchSuggestions = ({
   onNavigate,
 }: SearchSuggestionsProps) => {
   const suggestions = useSearchSuggestions(searchValue)
+  const isShowingHistory = !searchValue.trim()
 
   if (suggestions.length === 0) {
-    // Only show message when search is empty (no input yet)
-    // If they're typing, don't show anything - results will appear as they type
-    if (!searchValue.trim()) {
+    if (isShowingHistory) {
       return (
         <div className="px-3 py-6 text-center text-slate-500 text-sm">
-          No recent searches
+          <Trans>No recent searches</Trans>
         </div>
       )
     }
-    // If they have typed something but no suggestions, return null
-    // (they're actively searching, results will appear)
     return null
   }
 
   return (
-    <div className="">
+    <div>
+      {isShowingHistory && (
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="font-medium text-slate-500 text-xs">
+            <Trans>Recent</Trans>
+          </span>
+          <button
+            className="font-medium text-ens-blue-primary text-xs hover:underline"
+            onClick={() => searchHistoryStore.trigger.clearHistory()}
+            type="button"
+          >
+            <Trans>Clear</Trans>
+          </button>
+        </div>
+      )}
       {suggestions.map((suggestion, index) =>
         match(suggestion)
           .with({ type: 'name' }, (name) => (
             <NameSuggestionItem
+              isError={name.isError}
+              isLoading={name.isLoading}
+              isRegistered={name.isRegistered}
+              isSupported={name.isSupported}
               key={name.value}
               name={name.value}
               onNavigate={onNavigate}

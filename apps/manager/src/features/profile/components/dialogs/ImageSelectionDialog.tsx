@@ -1,3 +1,4 @@
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import clsx from 'clsx'
@@ -30,6 +31,9 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
+
+const MAX_FILE_SIZE_MB = 3
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 interface ErrorDisplayProps {
   error: string | null
@@ -95,6 +99,7 @@ export const ImageSelectionDialog = ({
   type,
   name,
 }: ImageSelectionDialogProps) => {
+  const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
@@ -132,6 +137,25 @@ export const ImageSelectionDialog = ({
   })
 
   // File handling functions
+  const processSelectedFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      send({ type: 'SET_ERROR', error: t`Please select a valid image file` })
+      return
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      send({
+        type: 'SET_ERROR',
+        error: t`Image must be under ${MAX_FILE_SIZE_MB}MB`,
+      })
+      return
+    }
+    send({ type: 'CLEAR_ERROR' })
+    const imageUrl = URL.createObjectURL(file)
+    setUploadFile(file)
+    setUploadPreviewUrl(imageUrl)
+    send({ type: 'OPEN_UPLOAD', imageUrl })
+  }
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -141,35 +165,20 @@ export const ImageSelectionDialog = ({
     e.preventDefault()
     e.stopPropagation()
 
-    const files = e.dataTransfer.files
-    if (files.length === 0) return
-
-    const file = files[0]
-    if (file?.type.startsWith('image/')) {
-      const imageUrl = URL.createObjectURL(file)
-      setUploadFile(file)
-      setUploadPreviewUrl(imageUrl)
-      send({ type: 'OPEN_UPLOAD', imageUrl })
-    } else {
-      send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
-    }
+    const file = e.dataTransfer.files[0]
+    if (file) processSelectedFile(file)
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
-      if (file.type.startsWith('image/')) {
-        const imageUrl = URL.createObjectURL(file)
-        setUploadFile(file)
-        setUploadPreviewUrl(imageUrl)
-        send({ type: 'OPEN_UPLOAD', imageUrl })
-      } else {
-        send({ type: 'SET_ERROR', error: 'Please select a valid image file' })
-      }
-    }
+    if (file) processSelectedFile(file)
   }
 
-  const { mutate: uploadImage, isPending: isUploading } = useMutation(
+  const {
+    mutate: uploadImage,
+    isPending: isUploading,
+    error: uploadError,
+  } = useMutation(
     uploadImageMutationOptions({
       type,
       name,
@@ -181,7 +190,6 @@ export const ImageSelectionDialog = ({
       onImageChange,
       setOpen,
       setUploadFile,
-      setUploadPreviewUrl,
       send,
     }),
   )
@@ -217,7 +225,9 @@ export const ImageSelectionDialog = ({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Upload className="size-4" />
-            <span className="font-medium text-sm">Upload or drag & drop</span>
+            <span className="font-medium text-sm">
+              <Trans>Upload or drag & drop</Trans>
+            </span>
           </div>
           <button
             className="w-full rounded-lg border-2 border-gray-300 border-dashed p-6 text-center transition-colors hover:border-gray-400"
@@ -229,10 +239,10 @@ export const ImageSelectionDialog = ({
           >
             <Upload className="mx-auto mb-2 size-8 text-gray-400" />
             <p className="mb-2 text-gray-600 text-sm">
-              Drag and drop an image here, or
+              <Trans>Drag and drop an image here, or</Trans>
             </p>
             <div className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-              Browse Files
+              <Trans>Browse Files</Trans>
             </div>
           </button>
         </div>
@@ -243,7 +253,7 @@ export const ImageSelectionDialog = ({
           variant="outline"
         >
           <Keyboard className="size-4" />
-          Enter URL Manually
+          <Trans>Enter URL Manually</Trans>
         </Button>
 
         {hasImage && (
@@ -253,7 +263,11 @@ export const ImageSelectionDialog = ({
             variant="outline"
           >
             <Trash2 className="mr-2 size-4" />
-            Remove {type === 'avatar' ? 'Avatar' : 'Header'}
+            {type === 'avatar' ? (
+              <Trans>Remove Avatar</Trans>
+            ) : (
+              <Trans>Remove Header</Trans>
+            )}
           </Button>
         )}
       </div>
@@ -264,15 +278,21 @@ export const ImageSelectionDialog = ({
   const renderRemoveConfirmationStep = () => (
     <>
       <StepHeader
-        description={`Are you sure you want to remove your current ${type}? This will revert to the default image.`}
+        description={
+          type === 'avatar'
+            ? t`Are you sure you want to remove your current avatar? This will revert to the default image.`
+            : t`Are you sure you want to remove your current header? This will revert to the default image.`
+        }
         onBack={() => send({ type: 'BACK' })}
-        title={`Remove ${type === 'avatar' ? 'Avatar' : 'Header'}`}
+        title={type === 'avatar' ? t`Remove Avatar` : t`Remove Header`}
       />
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
-            <p className="mb-2 font-medium text-sm">Current</p>
+            <p className="mb-2 font-medium text-sm">
+              <Trans>Current</Trans>
+            </p>
             <ImageFallback.Root>
               <ImageFallback.Image
                 alt={`Current ${type}`}
@@ -292,7 +312,9 @@ export const ImageSelectionDialog = ({
             </ImageFallback.Root>
           </div>
           <div className="text-center">
-            <p className="mb-2 font-medium text-sm">Default</p>
+            <p className="mb-2 font-medium text-sm">
+              <Trans>Default</Trans>
+            </p>
             <img
               alt={`Default ${type}`}
               className={getImageStyles('small')}
@@ -304,13 +326,13 @@ export const ImageSelectionDialog = ({
 
       <StepFooter>
         <Button onClick={() => send({ type: 'CANCEL' })} variant="outline">
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button
           onClick={() => send({ type: 'CONFIRM_REMOVAL' })}
           variant="destructive"
         >
-          Remove
+          <Trans>Remove</Trans>
         </Button>
       </StepFooter>
     </>
@@ -319,7 +341,10 @@ export const ImageSelectionDialog = ({
   // NFT selection step
   const renderNFTSelectionStep = () => (
     <>
-      <StepHeader onBack={() => send({ type: 'BACK' })} title="Choose an NFT" />
+      <StepHeader
+        onBack={() => send({ type: 'BACK' })}
+        title={t`Choose an NFT`}
+      />
 
       <ErrorDisplay error={state.context.error} />
 
@@ -327,11 +352,12 @@ export const ImageSelectionDialog = ({
         <div className="relative">
           <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
           <Input
+            aria-label={t`Search your NFTs`}
             className="pl-10"
             onChange={(e) =>
               send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })
             }
-            placeholder="Search your NFTs..."
+            placeholder={t`Search your NFTs...`}
             value={state.context.searchQuery}
           />
         </div>
@@ -367,7 +393,7 @@ export const ImageSelectionDialog = ({
       <>
         <StepHeader
           onBack={() => send({ type: 'BACK' })}
-          title="Confirm NFT Selection"
+          title={t`Confirm NFT Selection`}
         />
 
         <div className="space-y-4">
@@ -384,10 +410,10 @@ export const ImageSelectionDialog = ({
 
         <StepFooter>
           <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-            Back
+            <Trans>Back</Trans>
           </Button>
           <Button onClick={() => send({ type: 'CONFIRM_NFT' })}>
-            Use This NFT
+            <Trans>Use This NFT</Trans>
           </Button>
         </StepFooter>
       </>
@@ -395,16 +421,20 @@ export const ImageSelectionDialog = ({
   }
 
   // Upload preview step
+  const uploadErrorMessage =
+    uploadError instanceof Error ? uploadError.message : null
   const renderUploadPreviewStep = () => (
     <>
       <StepHeader
-        description={`Crop your image to fit the ${type === 'avatar' ? 'avatar' : 'header'} dimensions.`}
+        description={
+          type === 'avatar'
+            ? t`Crop your image to fit the avatar dimensions.`
+            : t`Crop your image to fit the header dimensions.`
+        }
         onBack={() => send({ type: 'BACK' })}
-        title="Crop Image"
+        title={t`Crop Image`}
       />
-
-      <ErrorDisplay error={state.context.error} />
-
+      <ErrorDisplay error={uploadErrorMessage} />
       <div className="space-y-4">
         <div className="text-center">
           <img
@@ -414,17 +444,21 @@ export const ImageSelectionDialog = ({
           />
           <p className="mt-2 text-gray-500 text-sm">
             <Crop className="mr-1 inline size-4" />
-            Cropping functionality coming soon
+            <Trans>Cropping functionality coming soon</Trans>
           </p>
         </div>
       </div>
 
       <StepFooter>
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-          Back
+          <Trans>Back</Trans>
         </Button>
         <Button disabled={isUploading} onClick={() => uploadImage()}>
-          {isUploading ? 'Uploading…' : 'Upload & Use Image'}
+          {isUploading ? (
+            <Trans>Uploading…</Trans>
+          ) : (
+            <Trans>Upload & Use Image</Trans>
+          )}
         </Button>
       </StepFooter>
     </>
@@ -436,19 +470,21 @@ export const ImageSelectionDialog = ({
       <StepHeader
         description={
           <>
-            Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP.
+            <Trans>
+              Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP.
+            </Trans>
             <a
               className="ml-1 text-blue-600 hover:underline"
               href="https://docs.ens.domains/ens-app/profile/records/avatar"
               rel="noopener noreferrer"
               target="_blank"
             >
-              Learn more
+              <Trans>Learn more</Trans>
             </a>
           </>
         }
         onBack={() => send({ type: 'BACK' })}
-        title="Enter Image URL"
+        title={t`Enter Image URL`}
       />
 
       <ErrorDisplay error={state.context.error} />
@@ -471,7 +507,7 @@ export const ImageSelectionDialog = ({
           disabled={!state.context.manualUrl.trim()}
           onClick={() => send({ type: 'PREVIEW_MANUAL_URL' })}
         >
-          Preview Image
+          <Trans>Preview Image</Trans>
         </Button>
       </div>
     </>
@@ -480,10 +516,11 @@ export const ImageSelectionDialog = ({
   // Manual preview step
   const renderManualPreviewStep = () => (
     <>
-      <StepHeader onBack={() => send({ type: 'BACK' })} title="Preview Image" />
-
+      <StepHeader
+        onBack={() => send({ type: 'BACK' })}
+        title={t`Preview Image`}
+      />
       <ErrorDisplay error={state.context.error} />
-
       <div className="space-y-4">
         <div className="text-center">
           <img
@@ -501,17 +538,17 @@ export const ImageSelectionDialog = ({
           />
           <p className="mt-2 text-gray-500 text-sm">
             <Eye className="mr-1 inline size-4" />
-            Preview of your image
+            <Trans>Preview of your image</Trans>
           </p>
         </div>
       </div>
 
       <StepFooter>
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-          Back
+          <Trans>Back</Trans>
         </Button>
         <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
-          Use This Image
+          <Trans>Use This Image</Trans>
         </Button>
       </StepFooter>
     </>
@@ -537,6 +574,7 @@ export const ImageSelectionDialog = ({
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
       send({ type: 'RESET' })
+      setUploadPreviewUrl(null)
     }
     setOpen(isOpen)
   }
@@ -545,7 +583,7 @@ export const ImageSelectionDialog = ({
     <button
       className={clsx(
         'group relative block w-full cursor-pointer overflow-hidden',
-        type === 'avatar' && 'rounded-md',
+        type === 'avatar' && 'h-full rounded-md',
         type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
       )}
       title={`Change ${type}`}
@@ -566,7 +604,7 @@ export const ImageSelectionDialog = ({
         <ImageFallback.Image
           alt={`${name || 'Profile'} ${type}`}
           className="h-full w-full object-cover"
-          src={displayImage}
+          src={uploadPreviewUrl || displayImage}
         />
         <ImageFallback.Fallback>
           {defaultImage ? (

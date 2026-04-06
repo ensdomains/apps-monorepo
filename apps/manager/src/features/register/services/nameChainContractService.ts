@@ -18,6 +18,7 @@ import { ERC20_ABI, FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
 import type { RhinestoneTransactionResult } from '@/lib/smart-account/utils'
 import { customSepolia, SEPOLIA_RPC_URL } from '@/lib/wagmi'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
+import { validateENSName } from '../utils'
 
 // Create standalone public client
 
@@ -298,6 +299,12 @@ export const registerDomain = async (
 export const checkRealNameAvailability = ResultFn(async function* (
   name: string,
 ) {
+  const validation = validateENSName(name)
+
+  if (validation) {
+    return err(new NameChainContractError({ cause: validation.message }))
+  }
+
   const cleanName = name.replace('.eth', '')
 
   try {

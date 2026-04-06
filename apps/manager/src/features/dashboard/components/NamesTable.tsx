@@ -1,8 +1,10 @@
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useQueries } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { CountBadge } from '@/components/atoms/CountBadge'
@@ -13,6 +15,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
+import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { FavoritesList } from './FavoritesList'
@@ -21,7 +24,7 @@ import { MyNamesList } from './MyNamesList'
 type TabKey = 'myNames' | 'favorites'
 
 type TabButtonProps = {
-  readonly label: string
+  readonly label: ReactNode
   readonly isActive: boolean
   readonly onClick: () => void
   readonly badge?: number
@@ -39,13 +42,19 @@ const DashboardTabButton = ({
 }: TabButtonProps) => {
   const button = (
     <button
-      className={`flex shrink-0 items-center gap-[12px] ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      className={cn(
+        'flex shrink-0 items-center gap-[12px]',
+        disabled && 'cursor-not-allowed opacity-50',
+      )}
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
       type="button"
     >
       <span
-        className={`font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px] ${isActive ? 'text-foreground' : 'text-ens-gray-three'}`}
+        className={cn(
+          'font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]',
+          isActive ? 'text-foreground' : 'text-ens-quartz-400',
+        )}
       >
         {label}
       </span>
@@ -70,6 +79,7 @@ interface NamesTableProps {
 }
 
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
+  const { t } = useLingui()
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
   const shouldReduceMotion = useReducedMotion()
@@ -96,15 +106,15 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const tabs = [
     {
       key: 'myNames' as const,
-      label: 'My Names',
+      label: <Trans>My Names</Trans>,
       badge: ownedNamesCount,
     },
     {
       key: 'favorites' as const,
-      label: 'Favorites',
+      label: <Trans>Favorites</Trans>,
       badge: favoritesCount,
       disabled: !isAuthed,
-      disabledTooltip: 'Sign in to view favorites',
+      disabledTooltip: t`Sign in to view favorites`,
     },
   ]
 
@@ -139,7 +149,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[13.12px] text-muted-foreground placeholder:text-muted-foreground"
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={
-              activeTab === 'myNames' ? 'Search my name...' : 'Search name...'
+              activeTab === 'myNames' ? t`Search my name...` : t`Search name...`
             }
             size="sm"
             startIcon={<Search className="size-[18px] text-muted-foreground" />}

@@ -1,0 +1,182 @@
+import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Hourglass,
+  SquareArrowOutUpRight,
+  XCircle,
+} from 'lucide-react'
+import { match } from 'ts-pattern'
+import { useChainId } from 'wagmi'
+import { Button } from '@/components/ui/button'
+import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
+import { cn } from '@/lib/utils'
+import { wagmiConfig } from '@/lib/wagmi'
+import { getBlockExplorerTxUrl } from '@/utils/blockExplorer/getBlockExplorerTxUrl'
+import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
+import type { Transaction, TransactionModalContentState } from '../types'
+import { getActiveTransaction } from '../utils/getActiveTransaction'
+import { getStatus } from '../utils/getStatus'
+import { getTransactionById } from '../utils/getTransactionById'
+import { TransactionFlowProgressBar } from './TransactionFlowProgressBar'
+
+type TransactionStateContentProps = {
+  readonly transactions: readonly Transaction[]
+  readonly activeTransactionId: string
+  readonly txState: ActiveTransactionState | undefined
+  readonly activeTransactionsMap: Map<string, TransactionMachineActor>
+  readonly setTransactionModalContentState: (
+    state: TransactionModalContentState,
+  ) => void
+}
+
+export const TransactionStateContent = ({
+  transactions,
+  activeTransactionId,
+  txState,
+  activeTransactionsMap,
+  setTransactionModalContentState,
+}: TransactionStateContentProps) => {
+  const chainId = useChainId()
+
+  const activeTransaction = getActiveTransaction(transactions, txState)
+  const activeTxStatus = getStatus(activeTransaction.id, activeTransactionsMap)
+  const activeIndex = transactions.findIndex(
+    (t) => t.id === activeTransaction.id,
+  )
+  const hasNextTransaction =
+    activeIndex >= 0 && activeIndex < transactions.length - 1
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {transactions.length === 1
+            ? getTransactionById(transactions, activeTransactionId)?.title
+            : 'Transaction flow'}
+        </DialogTitle>
+      </DialogHeader>
+
+      <TransactionFlowProgressBar
+        transactions={transactions}
+        activeTransaction={activeTransaction}
+        activeTransactionsMap={activeTransactionsMap}
+      />
+
+      <div className="flex flex-col gap-2">
+        {transactions.map((transaction) => {
+          const status = getStatus(transaction.id, activeTransactionsMap)
+
+          const activeTxSnapshot = activeTransactionsMap
+            .get(transaction.id)
+            ?.getSnapshot()
+
+          const txHash = activeTxSnapshot?.context?.hash
+
+          const blockExplorerTxUrl = txHash
+            ? getBlockExplorerTxUrl(wagmiConfig.chains, chainId, txHash)
+            : undefined
+
+          const txError = activeTxSnapshot?.context?.error
+
+          return (
+            <div
+              key={transaction.id}
+              className={cn(
+                'flex flex-start gap-4 border border-border rounded-lg p-3.5',
+              )}
+            >
+              <div className="mt-1 shrink-0">
+                {match(status)
+                  .with(undefined, () => (
+                    <ArrowRight className="size-4 text-quartz-500" />
+                  ))
+                  .with('success', () => (
+                    <CheckCircle2 className="size-4 text-peridot-600" />
+                  ))
+                  .with('error', () => (
+                    <XCircle className="size-4 text-garnet-600" />
+                  ))
+                  .otherwise(() => (
+                    <Hourglass className="size-4 text-quartz-600 animate-pulse" />
+                  ))}
+              </div>
+              <div className="space-y-2 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-medium truncate text-wrap">
+                    {transaction.transactionName}
+                  </h3>
+                  {blockExplorerTxUrl && (
+                    <a
+                      href={blockExplorerTxUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="shrink-0"
+                    >
+                      <SquareArrowOutUpRight className="size-3" />
+                    </a>
+                  )}
+                </div>
+                {txError && (
+                  <TransactionErrorAlert
+                    title="Transaction Error"
+                    summary={txError?.message || 'An unknown error occurred.'}
+                    details={txError?.stack || 'No stack trace available.'}
+                    txHash={txHash}
+                    txHashLabel="Transaction hash:"
+                    showIcon={false}
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setTransactionModalContentState({ type: 'overview' })}
+        >
+          <ArrowLeft className="size-4" />
+        </Button>
+        {match(activeTxStatus)
+          .with(undefined, () => (
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={activeTransaction.onStart}
+            >
+              Open wallet
+            </Button>
+          ))
+          .with('success', () => (
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={activeTransaction.onDone}
+            >
+              {hasNextTransaction ? 'Next' : 'Done'}
+            </Button>
+          ))
+          .with('error', () => (
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={activeTransaction.onStart}
+            >
+              Try again
+            </Button>
+          ))
+          .otherwise(() => (
+            <Button variant="ghost" className="flex-1 bg-quartz-100" disabled>
+              Waiting...
+            </Button>
+          ))}
+      </div>
+    </>
+  )
+}

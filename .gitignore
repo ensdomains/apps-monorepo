@@ -9,3 +9,4 @@ package-lock.json
 .mcp.json
 .dev.vars
 .pnpm-store/
+opencode.json

@@ -32,6 +32,7 @@ export const staticTextRecords = [
   'header',
   'description',
   'url',
+  'theme',
 ] as const
 
 export const textRecords: TextRecordDef[] = [

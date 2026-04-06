@@ -7,16 +7,19 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { type ReactNode, useEffect } from 'react'
+import { Toaster } from 'sonner'
 import { sepolia } from 'viem/chains'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-
+import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { PHProvider } from '@/lib/posthog/provider'
 import { wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
 function TransactionManagerSetup({ children }: { children: ReactNode }) {
   const publicClient = usePublicClient({ chainId: sepolia.id })
+
+  useAutoFundOnLowBalance()
 
   useEffect(() => {
     if (publicClient) {
@@ -52,6 +55,7 @@ export const Route = createRootRoute({
           </QueryClientProvider>
         </WagmiProvider>
 
+        <Toaster position="top-right" richColors duration={4000} />
         <TanStackRouterDevtools />
       </>
     )

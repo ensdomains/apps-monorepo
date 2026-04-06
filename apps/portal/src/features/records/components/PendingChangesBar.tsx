@@ -1,3 +1,4 @@
+import { useHotkey } from '@tanstack/react-hotkeys'
 import { AlertCircle, Loader2, RefreshCw, Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -22,7 +23,9 @@ export const PendingChangesBar = ({
   errorMessage?: string
   hasValidationErrors?: boolean
 }) => {
-  // Show bar when there are changes, syncing, or error
+  const canSave = changesCount > 0 && !hasValidationErrors && !isSaving
+  useHotkey('Mod+S', onSave, { enabled: canSave })
+
   if (changesCount === 0 && !isSyncing && !errorMessage) return null
 
   // Syncing state (after transaction, waiting for indexer)
@@ -87,9 +90,9 @@ export const PendingChangesBar = ({
           <X className="size-4 ml-1" />
         </Button>
         <Button
+          disabled={hasValidationErrors}
           onClick={onSave}
           className="rounded-lg"
-          disabled={isSaving || hasValidationErrors}
         >
           {isSaving ? (
             <>

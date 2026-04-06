@@ -76,7 +76,10 @@ function mapMachineStateToStep(
   }
 }
 
-export const Registration = ({ initialName }: RegistrationProps) => {
+export const Registration = ({
+  initialName,
+  initialDuration,
+}: RegistrationProps) => {
   const navigate = useNavigate()
 
   const actor = useActorRef(registrationMachine, {
@@ -95,7 +98,7 @@ export const Registration = ({ initialName }: RegistrationProps) => {
 
   const [ui, dispatch] = useReducer(
     registrationUIReducer,
-    createInitialUIState(initialName),
+    createInitialUIState(initialName, initialDuration),
   )
 
   const [pricingData, setPricingData] = useState<{
@@ -177,6 +180,12 @@ export const Registration = ({ initialName }: RegistrationProps) => {
 
   const handleSetDuration = (newDuration: number) => {
     dispatch({ type: 'SET_DURATION', duration: newDuration })
+    const urlDuration = Math.round(newDuration * 100) / 100
+    navigate({
+      to: '/register',
+      search: (prev) => ({ ...prev, duration: urlDuration }),
+      replace: true,
+    })
   }
 
   const handleSelectPayment = (_method: 'crypto' | 'credit-card') => {

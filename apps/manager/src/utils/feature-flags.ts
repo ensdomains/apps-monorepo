@@ -44,6 +44,9 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
     enabled: import.meta.env.VITE_FF_USE_WARP_INFRA === 'true',
     allowedUsers: [...BASE_USER_LISTS.TEAM],
   },
+  LANGUAGE_SELECTOR: {
+    enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
+  },
 } as const
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS

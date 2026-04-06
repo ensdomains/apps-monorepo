@@ -1,78 +1,86 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import { usePublicClient, useWalletClient } from 'wagmi'
-import { ErrorMessage } from '@/components/ErrorMessage'
+import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { grantRoles } from '@/features/roles/helpers/grantRoles'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
+import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+
+const GRANT_ROLES_TRANSACTION_ID = 'tx-grant-roles'
+const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
 })
 
-const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
-
 function RouteComponent() {
   const { name } = Route.useParams()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
+  const [pendingGrant, setPendingGrant] = useState<{
+    account: Address
+    roles: Role[]
+  } | null>(null)
 
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
-  const { data: address } = useResolvedRoleAccountAddress({
+
+  const labels = name.split('.')
+  const is3LD = labels.length === 3
+
+  const { data: ownerData } = useQuery({
+    ...getEnsOwnerQueryOptions({ name }),
+    enabled: name.endsWith('.eth'),
+  })
+
+  const { data: registriesData } = useQuery({
+    ...getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
+    enabled: is3LD && ownerData?.network === 'namechainSepolia',
+  })
+
+  const registryAddress = is3LD
+    ? getSubnameRegistryAddress(registriesData ?? null)
+    : ownerData?.registryAddress
+
+  const {
+    data: address,
+    isLoading: isResolvingAddress,
+    isError: isResolveError,
+    error: resolveError,
+  } = useResolvedRoleAccountAddress({
     client,
     nameOrAddress: nameOrAddressInput,
   })
 
-  const mutation = useMutation({
-    mutationFn: (params: { account: Address; roles: Role[] }) => {
-      if (!walletClient?.account || !publicClient) {
-        throw new Error('Wallet not connected')
-      }
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { grantRoles, isPending, isSuccess } = useGrantRoles()
 
-      return grantRoles({
-        name,
-        account: params.account,
-        roles: params.roles,
-        walletClient,
-        publicClient,
-        signer: createEOASigner(walletClient),
-        chainId,
-      })
-    },
-    onSuccess: async () => {
-      await pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            predicate: (query) =>
-              query.queryKey[0] === 'get-name-roles-accounts',
-            refetchType: 'all',
-          }),
-      })
-      navigate({ to: '/$name/roles', params: { name } })
-    },
-  })
+  const [submitFeedback, setSubmitFeedback] = useState<string | null>(null)
+  const [invalidField, setInvalidField] = useState<'roles' | 'address' | null>(
+    null,
+  )
 
-  if (!walletClient?.account) return <div>Not connected.</div>
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setSubmitFeedback(null)
+    setInvalidField(null)
     if (!e.currentTarget.reportValidity()) return
 
     const fd = new FormData(e.currentTarget)
@@ -84,11 +92,52 @@ function RouteComponent() {
       }
     }
 
-    if (address && roles.length > 0) {
-      mutation.reset()
-      mutation.mutate({ account: address, roles })
+    if (roles.length === 0) {
+      setSubmitFeedback('Please select at least one role')
+      setInvalidField('roles')
+      return
     }
+
+    if (isResolvingAddress) {
+      setSubmitFeedback(
+        'Resolving address... Please wait a moment and try again.',
+      )
+      setInvalidField('address')
+      return
+    }
+
+    if (isResolveError || !address) {
+      setSubmitFeedback(
+        `Could not resolve an address for "${nameOrAddressInput}". ${resolveError ? `Error: ${resolveError instanceof Error ? resolveError.message : String(resolveError)}` : 'Check the name exists and try again.'}`,
+      )
+      setInvalidField('address')
+      return
+    }
+
+    setPendingGrant({ account: address, roles })
+    openModal()
   }
+
+  const handleStartTransaction = () => {
+    if (!pendingGrant || !walletClient?.account) return
+
+    grantRoles({
+      name,
+      account: pendingGrant.account,
+      roles: pendingGrant.roles,
+      id: GRANT_ROLES_TRANSACTION_ID,
+      registryAddress,
+    })
+  }
+
+  const handleDone = () => {
+    closeModal()
+    clearTransaction()
+    setPendingGrant(null)
+    navigate({ to: '/$name/roles', params: { name } })
+  }
+
+  if (!walletClient?.account) return <div>Not connected.</div>
 
   return (
     <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
@@ -101,14 +150,23 @@ function RouteComponent() {
 
       <h1 className="text-heading font-medium leading-none">Add user</h1>
 
-      <h2 className="text-lg font-medium">User</h2>
-      <div className="flex flex-col gap-6">
-        <Field data-invalid={!address}>
+      <form
+        onSubmit={handleSubmit}
+        onChange={() => {
+          setSubmitFeedback(null)
+          setInvalidField(null)
+        }}
+        className="flex flex-col gap-6"
+      >
+        <Field data-invalid={invalidField === 'address'}>
+          <FieldLabel htmlFor="user">User</FieldLabel>
           <Input
             id="user"
             name="user"
             placeholder="ens.eth"
             required
+            disabled={isPending || isSuccess}
+            aria-invalid={invalidField === 'address'}
             onChange={(e) => {
               const nameOrAddress = e.currentTarget.value.trim()
 
@@ -121,11 +179,27 @@ function RouteComponent() {
             }}
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
           />
+          {nameOrAddressInput.length > 0 && (
+            <p className="text-sm mt-1.5 text-quartz-500">
+              {isResolvingAddress && 'Resolving address...'}
+              {!isResolvingAddress &&
+                address &&
+                `Resolved: ${address.slice(0, 6)}...${address.slice(-4)}`}
+              {!isResolvingAddress &&
+                !address &&
+                'Could not resolve address. Check the name exists.'}
+            </p>
+          )}
         </Field>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <h2 className="text-lg font-medium">Roles</h2>
-          <div className="border rounded-lg divide-y">
+        <Field data-invalid={invalidField === 'roles'}>
+          <FieldLabel>Roles</FieldLabel>
+          <div
+            className={cn('border rounded-lg divide-y transition-colors', {
+              'opacity-50 pointer-events-none': isPending || isSuccess,
+            })}
+            aria-invalid={invalidField === 'roles'}
+          >
             {permissions.map((permission) => {
               const isManagerRoleDisabled = !isManagerRoleSettable(
                 permission.key,
@@ -200,22 +274,30 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-          <Button
-            type="submit"
-            variant="secondary"
-            className="w-fit"
-            disabled={!address || mutation.isPending}
-          >
-            {mutation.isPending ? 'Saving...' : 'Save roles'}
-          </Button>
-          {mutation.error && (
-            <ErrorMessage
-              description={mutation.error.message}
-              title={mutation.error.name}
-            />
+          {submitFeedback && (
+            <FieldError className="mt-1.5">{submitFeedback}</FieldError>
           )}
-        </form>
-      </div>
+        </Field>
+        <Button type="submit" variant="secondary" className="w-fit">
+          {match({ isPending, isSuccess })
+            .with({ isSuccess: true }, () => 'Transaction Complete')
+            .with({ isPending: true }, () => 'Saving...')
+            .otherwise(() => 'Save roles')}
+        </Button>
+      </form>
+
+      <TransactionModal
+        transactions={[
+          {
+            id: GRANT_ROLES_TRANSACTION_ID,
+            title: 'Grant roles',
+            transactionName: `Grant roles for ${name}`,
+            estimatedGasCost: 0.0001,
+            onStart: handleStartTransaction,
+            onDone: handleDone,
+          },
+        ]}
+      />
     </div>
   )
 }

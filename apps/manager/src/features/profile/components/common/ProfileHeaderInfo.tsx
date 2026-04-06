@@ -39,7 +39,9 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
 
   return (
     <div className="flex w-full flex-col items-start gap-3 bg-white px-4 pt-16 pb-4 md:px-6 md:pt-16 md:pb-6">
-      <Highlight className="text-lg md:text-2xl">{name}</Highlight>
+      <Highlight className="bg-(--theme-color) text-lg md:text-2xl">
+        {name}
+      </Highlight>
       {isPrimaryName && <PrimaryBadge />}
       {owner && (
         <button
@@ -79,7 +81,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
           <Clock className="size-4" />
           Expires{' '}
           <span className="font-medium">
-            {formatDate(new Date(Number(expiry.data?.expiry) * 1000))}
+            {formatDate(new Date(Number(expiry.data.expiry) * 1000))}
           </span>
         </div>
       )}

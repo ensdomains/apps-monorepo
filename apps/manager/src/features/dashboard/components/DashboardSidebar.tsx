@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { LayoutGrid, User } from 'lucide-react'
 import { useCallback } from 'react'
@@ -32,7 +33,7 @@ export const DashboardSidebar = ({
           <DashboardSidebarSearch onSelect={handleSuggestionSelect} />
           <div className="space-y-2">
             <div className="font-sans text-[#8b8b8b] text-xs uppercase leading-[16px]">
-              MAIN MENU
+              <Trans>MAIN MENU</Trans>
             </div>
             <nav className="space-y-[2px]">
               <Button
@@ -43,7 +44,7 @@ export const DashboardSidebar = ({
                 <Link className="flex items-center gap-[10px]" to="/dashboard">
                   <LayoutGrid className="size-6" />
                   <span className="font-medium font-sans text-sm">
-                    Dashboard
+                    <Trans>Dashboard</Trans>
                   </span>
                 </Link>
               </Button>
@@ -57,7 +58,9 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-sm">Profile</span>
+                    <span className="font-sans text-sm">
+                      <Trans>Profile</Trans>
+                    </span>
                   </LinkButton>
                 ))
                 .with(false, () => (
@@ -67,7 +70,9 @@ export const DashboardSidebar = ({
                     variant="ghost"
                   >
                     <User className="size-6" />
-                    <span className="font-sans text-sm">Profile</span>
+                    <span className="font-sans text-sm">
+                      <Trans>Profile</Trans>
+                    </span>
                   </Button>
                 ))
                 .exhaustive()}

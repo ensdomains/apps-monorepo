@@ -51,6 +51,14 @@
   a[aria-disabled="true"] {
     @apply cursor-default;
   }
+
+  /* Lower third-party widget z-index so they don't overlay drawers/dialogs */
+  .intercom-lightweight-app,
+  .intercom-namespace,
+  [class^="PostHogSurvey"] {
+    position: relative !important;
+    z-index: 40 !important;
+  }
 }
 
 @layer utilities {

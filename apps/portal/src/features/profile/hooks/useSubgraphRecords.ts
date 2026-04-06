@@ -13,7 +13,7 @@ class GetSubgraphRecordsError extends TaggedError('GetSubgraphRecordsError')<{
 export const getSubgraphRecords = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
-  const subgraphRecords = yield* await fromPromise(
+  const subgraphRecords = yield* fromPromise(
     ensjs_getSubgraphRecords(client, { name }),
     (e) =>
       new GetSubgraphRecordsError({ cause: e as GetSubgraphRecordsErrorType }),

@@ -3,7 +3,9 @@ fragment Resolver on Resolver {
   address
   texts
   avatar: text(key: "avatar")
+  contentHash
   addresses {
     coinType
+    address
   }
 }

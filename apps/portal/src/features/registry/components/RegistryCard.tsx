@@ -1,18 +1,22 @@
 import type { Address } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import type { ProtocolVersion } from '@/utils/types'
 
 type RegistryInfo = {
   address?: Address
   protocol: ProtocolVersion
-  factory?: Address | null
+  factory?: Address
 }
 
 type RegistryCardProps = {
   registry: RegistryInfo
+  chainId?: number
 }
 
-export function RegistryCard({ registry }: RegistryCardProps) {
+export function RegistryCard({ registry, chainId }: RegistryCardProps) {
+  const addressUrl = useBlockExplorerAddressUrl(registry.address, chainId)
+  const factoryUrl = useBlockExplorerAddressUrl(registry.factory, chainId)
   return (
     <div className="border border-border rounded-lg p-4 sm:p-6 flex flex-col items-center gap-4 relative w-full">
       <div className="flex flex-col gap-3 w-full">
@@ -27,7 +31,7 @@ export function RegistryCard({ registry }: RegistryCardProps) {
               Contract
             </span>
             <CopyableRecord
-              href={`https://sepolia.etherscan.io/address/${registry.address}`}
+              href={addressUrl}
               value={registry.address}
               className="min-w-0 flex-1"
             />
@@ -40,7 +44,7 @@ export function RegistryCard({ registry }: RegistryCardProps) {
               Factory
             </span>
             <CopyableRecord
-              href={`https://sepolia.etherscan.io/address/${registry.factory}`}
+              href={factoryUrl}
               value={registry.factory}
               className="min-w-0 flex-1"
             />

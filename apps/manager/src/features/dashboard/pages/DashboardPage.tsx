@@ -1,8 +1,10 @@
+import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
@@ -42,6 +44,10 @@ export const DashboardPage = () => {
     (text) => text.key === 'avatar',
   )?.value
 
+  const themeColor = reverseRecords?.texts.find(
+    (text) => text.key === 'theme',
+  )?.value
+
   const { data: parsedAvatar } = useQuery({
     ...parseAvatarQuery(avatarRecord),
     enabled: !!avatarRecord,
@@ -61,33 +67,57 @@ export const DashboardPage = () => {
               symbol="waving_hand"
             />
             <AlertTitle className="mb-2 text-[16px] text-ens-blue tracking-[0.28px]">
-              Welcome to the public alpha of the ENS app
+              <Trans>Welcome to the public alpha of the ENS app</Trans>
             </AlertTitle>
             <AlertDescription className="max-w-5xl text-muted-foreground text-sm">
-              Welcome to the public alpha of the ENS App. You're seeing the
-              earliest version of our app. There will be things that break,
-              change, or disappear as we iterate. We'd love to hear what you
-              think—share feedback anytime!
+              <Trans>
+                Welcome to the public alpha of the ENS App. You're seeing the
+                earliest version of our app. There will be things that break,
+                change, or disappear as we iterate. We'd love to hear what you
+                think-share feedback anytime!
+              </Trans>
             </AlertDescription>
           </Alert>
         </motion.div>
-        <motion.h1
-          className="px-4 font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:px-0 md:text-[40px] md:tracking-[0.4px]"
+        <motion.div
+          className="flex items-center gap-3 px-4 md:px-0"
           {...stagger(1, shouldReduceMotion)}
         >
-          Hello{' '}
-          {defaultName ??
-            (ownerAddress && (
-              <CopyableAddress
-                address={ownerAddress}
-                textClassName="font-serif text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
-                truncate={true}
-              />
-            ))}
-        </motion.h1>
+          <h1 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
+            <Trans>Hello</Trans>{' '}
+            {defaultName ??
+              (ownerAddress && (
+                <CopyableAddress
+                  address={ownerAddress}
+                  textClassName="font-serif text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
+                  truncate={true}
+                />
+              ))}
+          </h1>
+          {!hasProfile && (
+            <ChoosePrimaryNameDialog>
+              <button
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10"
+                type="button"
+              >
+                <MSymbol
+                  className="ms-opsz-20 ms-wght-500 text-sm"
+                  symbol="badge"
+                />
+                <span className="whitespace-nowrap font-medium font-sans text-xs">
+                  <Trans>Set primary name</Trans>
+                </span>
+              </button>
+            </ChoosePrimaryNameDialog>
+          )}
+        </motion.div>
         {hasProfile && (
           <motion.div {...stagger(2, shouldReduceMotion)}>
-            <PrimaryNameCard avatarUrl={avatarUrl} primaryName={defaultName} />
+            <PrimaryNameCard
+              avatarUrl={avatarUrl}
+              primaryName={defaultName}
+              themeColor={themeColor}
+            />
           </motion.div>
         )}
         <motion.div

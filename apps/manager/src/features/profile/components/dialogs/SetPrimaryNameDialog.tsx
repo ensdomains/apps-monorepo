@@ -1,5 +1,6 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
@@ -51,6 +52,7 @@ function usePrimaryNameSuccessRedirect(params: {
   setOpen: (open: boolean) => void
   queryClient: ReturnType<typeof useQueryClient>
 }) {
+  const { t } = useLingui()
   const { isSuccess, name, navigate, onUpdated, setOpen, queryClient } = params
 
   useEffect(() => {
@@ -61,9 +63,9 @@ function usePrimaryNameSuccessRedirect(params: {
     })
     onUpdated?.()
     setOpen(false)
-    toast.success('Primary name set successfully')
+    toast.success(t`Primary name set successfully`)
     navigate({ to: '/p/$name', params: { name } })
-  }, [isSuccess, name, navigate, onUpdated, setOpen, queryClient])
+  }, [isSuccess, name, navigate, onUpdated, setOpen, queryClient, t])
 }
 
 export const SetPrimaryNameDialog = ({
@@ -71,6 +73,7 @@ export const SetPrimaryNameDialog = ({
   owner,
   onUpdated,
 }: SetPrimaryNameDialogProps) => {
+  const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -93,7 +96,7 @@ export const SetPrimaryNameDialog = ({
     (isError &&
       primaryNameState.context.error &&
       primaryNameState.context.error.message) ||
-    (isError && 'Failed to set primary name') ||
+    (isError && t`Failed to set primary name`) ||
     undefined
 
   const { data: records, isLoading: isLoadingRecords } = useQuery({
@@ -131,19 +134,19 @@ export const SetPrimaryNameDialog = ({
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
         chainId: customSepolia.id,
-        resolverAddress: records?.resolverAddress,
+        resolverAddress: records?.resolverAddress as Address,
       })
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error('Failed to set ETH address record')
+      toast.error(t`Failed to set ETH address record`)
     },
   })
 
   const handleSave = async () => {
     if (needsEthAddressUpdate && walletAddress) {
       if (!account.signer || !account.accountAddress) {
-        toast.error('Wallet signer not available')
+        toast.error(t`Wallet signer not available`)
         return
       }
 
@@ -171,7 +174,7 @@ export const SetPrimaryNameDialog = ({
 
   const triggerButton = (
     <Button className="w-full" variant="outline">
-      Set Primary Name
+      <Trans>Set Primary Name</Trans>
     </Button>
   )
 
@@ -184,18 +187,30 @@ export const SetPrimaryNameDialog = ({
         txHash={txHash}
       />
       <p className="text-muted-foreground text-sm">
-        This will set <span className="font-mono">{name}</span> as your primary
-        ENS name for this account, so compatible apps and wallets can display it
-        as your default identity.
+        <Trans>
+          This will set <span className="font-mono">{name}</span> as your
+          primary ENS name for this account, so compatible apps and wallets can
+          display it as your default identity.
+        </Trans>
       </p>
       {needsEthAddressUpdate && walletAddress && (
         <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
           <div className="text-amber-800 text-sm">
             <p>
-              {existingEthAddress
-                ? 'The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.'
-                : 'No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.'}
+              {existingEthAddress ? (
+                <Trans>
+                  The ETH address record does not match your wallet. If you
+                  proceed, it will be updated to your current wallet address and
+                  this name will be set as your primary name.
+                </Trans>
+              ) : (
+                <Trans>
+                  No ETH address record set. If you proceed, your current wallet
+                  address will be set as the ETH address and this name will be
+                  set as your primary name.
+                </Trans>
+              )}
             </p>
             <div className="mt-2 rounded-md bg-amber-100/60 px-2.5 py-1.5">
               <p className="break-all font-mono text-amber-900 text-xs">
@@ -213,14 +228,16 @@ export const SetPrimaryNameDialog = ({
   const footer = (
     <>
       <Button disabled={isBusy} onClick={handleCancel} variant="outline">
-        Cancel
+        <Trans>Cancel</Trans>
       </Button>
       <Button disabled={isBusy} onClick={handleSave}>
-        {updateEthAddressMutation.isPending
-          ? 'Setting ETH address…'
-          : isSubmitting
-            ? 'Setting…'
-            : 'Set as Primary'}
+        {updateEthAddressMutation.isPending ? (
+          <Trans>Setting ETH address…</Trans>
+        ) : isSubmitting ? (
+          <Trans>Setting…</Trans>
+        ) : (
+          <Trans>Set as Primary</Trans>
+        )}
       </Button>
     </>
   )
@@ -231,7 +248,9 @@ export const SetPrimaryNameDialog = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Set Primary Name</DialogTitle>
+            <DialogTitle>
+              <Trans>Set Primary Name</Trans>
+            </DialogTitle>
           </DialogHeader>
           {content}
           <DialogFooter>{footer}</DialogFooter>
@@ -245,7 +264,9 @@ export const SetPrimaryNameDialog = ({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Set Primary Name</DrawerTitle>
+          <DrawerTitle>
+            <Trans>Set Primary Name</Trans>
+          </DrawerTitle>
         </DrawerHeader>
         <div className="px-4">{content}</div>
         <DrawerFooter>{footer}</DrawerFooter>

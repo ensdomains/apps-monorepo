@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { Clock } from 'lucide-react'
 import type { Address } from 'viem'
 import { useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -57,29 +58,45 @@ interface AddressHistoryProps {
   address: Address
 }
 
-const AddressHistory = ({ address }: AddressHistoryProps) => {
+const RECENT_EVENT_LIMIT = 5
+
+const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
   const { data: v2Events } = useQuery(
     getV2HistoryForAddressQueryOptions({ address }),
   )
 
-  const transformedEvents = v2Events
-    ? transformV2EventsToSubgraphFormat(v2Events)
+  const recentEvents = v2Events
+    ? transformV2EventsToSubgraphFormat(
+        v2Events
+          .toSorted((a, b) => b.timestamp - a.timestamp)
+          .slice(0, RECENT_EVENT_LIMIT),
+      )
     : undefined
 
   return (
-    <NameSubgraphHistory
-      name={address}
-      category="domain"
-      v2Events={transformedEvents}
-      enableHeader={false}
-    />
+    <div className="flex flex-col gap-4 w-full">
+      <div className="flex flex-row justify-between items-center">
+        <h2 className="text-2xl font-medium">History</h2>
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/addr/$addr/history" params={{ addr: address }}>
+            <Clock className="size-4" />
+            Full history
+          </Link>
+        </Button>
+      </div>
+      <NameSubgraphHistory
+        name={address}
+        category="domain"
+        v2Events={recentEvents}
+        enableHeader={false}
+      />
+    </div>
   )
 }
 
 function RouteComponent() {
   const { disconnect } = useDisconnect()
   const { isConnected } = useAccount()
-
   const { addr } = Route.useParams() as { addr: Address }
 
   return (
@@ -97,8 +114,7 @@ function RouteComponent() {
       <PrimaryName address={addr} />
       <h2 className="font-medium text-2xl">Names</h2>
       <NameList address={addr} limit={3} />
-      <h2 className="font-medium text-2xl">History</h2>
-      <AddressHistory address={addr} />
+      <AddressRecentHistory address={addr} />
     </div>
   )
 }

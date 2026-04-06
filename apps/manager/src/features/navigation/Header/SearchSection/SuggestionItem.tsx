@@ -1,11 +1,14 @@
+import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
+import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
 import { Loader2Icon, XIcon } from 'lucide-react'
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
-import { useAvatarFromName } from '@/features/profile/service/profileAvatar'
+import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
+import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
 import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
@@ -19,9 +22,7 @@ const LINK_OPTIONS = {
   register: (name: string) =>
     linkOptions({
       to: '/register',
-      search: {
-        name,
-      },
+      search: { name },
       // Hacky solution to force reset state on register page
       // TODO: Update register state logic to properly handle name input changes
       reloadDocument: location.pathname === '/register',
@@ -29,30 +30,80 @@ const LINK_OPTIONS = {
 } as const
 
 type NameSuggestionItemProps = {
-  name: string
-  onNavigate?: () => void
+  readonly name: string
+  readonly onNavigate?: () => void
+  readonly isRegistered?: boolean
+  readonly isLoading?: boolean
+  readonly isError?: boolean
+  readonly isSupported?: boolean
 }
 
 export const NameSuggestionItem = ({
   name,
   onNavigate,
+  isRegistered: isRegisteredProp,
+  isLoading: isLoadingProp,
+  isError: isErrorProp,
+  isSupported = true,
 }: NameSuggestionItemProps) => {
-  const { data: avatarUrl } = useAvatarFromName({
-    name,
-  })
+  const avatarUrl = getAvatarUrl(name)
+  const isSubname = name.split('.').length > 2
 
-  // Query for name availability (only for name inputs, not addresses)
-  const nameAvailabilityQuery = useQuery({
+  const needsSelfCheck =
+    isSupported &&
+    isRegisteredProp === undefined &&
+    !isLoadingProp &&
+    !isErrorProp
+
+  // 2LDs use the registrar contract, subnames use the indexer
+  const registrarQuery = useQuery({
     ...getSearchNameQueryOptions(name),
-    enabled: name.length >= 3,
+    enabled: needsSelfCheck && !isSubname,
+  })
+  const indexerQuery = useQuery({
+    ...getDomainsQuery(
+      needsSelfCheck && isSubname
+        ? {
+            where: { name },
+            first: 1,
+            orderBy: Domain_OrderBy.Name,
+            orderDirection: OrderDirection.Asc,
+          }
+        : undefined,
+    ),
+    enabled: needsSelfCheck && isSubname,
   })
 
-  const isAvailable = nameAvailabilityQuery.data?.isAvailable ?? false
+  const activeQuery = isSubname ? indexerQuery : registrarQuery
+  const isRegistered = match({
+    needsSelfCheck,
+    isSubname,
+    indexerQuery,
+    registrarQuery,
+  })
+    .with({ needsSelfCheck: false }, () => isRegisteredProp)
+    .with({ isSubname: true }, ({ indexerQuery: q }) =>
+      q.data ? q.data.domains.length > 0 : undefined,
+    )
+    .otherwise(({ registrarQuery: q }) =>
+      q.data ? !q.data.isAvailable : undefined,
+    )
+  const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
+  const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
+  const isAvailable = isSupported && !isSubname && isRegistered === false
+  const isDisabled = !isSupported || (isSubname && !isRegistered)
 
   return (
     <Link
-      className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-slate-50"
-      onClick={() => {
+      className={tw(
+        'flex w-full items-center gap-3 px-3 py-2 text-left transition-colors',
+        isDisabled ? 'cursor-default opacity-50' : 'hover:bg-slate-50',
+      )}
+      onClick={(e) => {
+        if (isDisabled) {
+          e.preventDefault()
+          return
+        }
         searchHistoryStore.trigger.addToHistory({ kind: 'name', value: name })
         onNavigate?.()
       }}
@@ -75,52 +126,47 @@ export const NameSuggestionItem = ({
         </ImageFallback.Root>
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className={'truncate font-medium text-[#1D1B20] text-sm'}>
-              {name}
-            </span>
-          </div>
-        </div>
-        {match({
-          isLoading: nameAvailabilityQuery.isLoading,
-          isError: nameAvailabilityQuery.isError,
-          data: nameAvailabilityQuery.data,
-        })
-          .with(
-            {
-              isLoading: true,
-            },
-            () => (
-              <Loader2Icon className="size-4 animate-spin text-slate-500" />
-            ),
-          )
-          .with(
-            {
-              isLoading: false,
-              isError: true,
-            },
-            () => <XIcon className="size-4 text-slate-500" />,
-          )
-          .with(
-            {
-              data: {
-                isAvailable: P.boolean,
-              },
-            },
-            ({ data }) => (
-              <div
-                className={tw(
-                  'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                  data.isAvailable
-                    ? 'bg-[#DEF3E4] text-ens-peridot-core'
-                    : 'bg-ens-white text-ens-lapis-core',
-                )}
-              >
-                {data.isAvailable ? 'Available' : 'Registered'}
-              </div>
-            ),
-          )
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
+          {name}
+        </span>
+        {match({ isSupported, isSubname, isLoading, isError, isRegistered })
+          .with({ isSupported: false }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-red-50 text-red-500',
+              )}
+            >
+              <Trans>Not supported</Trans>
+            </div>
+          ))
+          .with({ isLoading: true }, () => (
+            <Loader2Icon className="size-4 animate-spin text-slate-500" />
+          ))
+          .with({ isError: true }, () => (
+            <XIcon className="size-4 text-slate-500" />
+          ))
+          .with({ isRegistered: true }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-ens-white text-ens-lapis-core',
+              )}
+            >
+              <Trans>Registered</Trans>
+            </div>
+          ))
+          .with({ isSubname: true }, () => null)
+          .with({ isRegistered: false }, () => (
+            <div
+              className={tw(
+                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
+                'bg-ens-peridot-bg text-ens-peridot-core',
+              )}
+            >
+              <Trans>Available</Trans>
+            </div>
+          ))
           .otherwise(() => null)}
       </div>
     </Link>
@@ -128,8 +174,8 @@ export const NameSuggestionItem = ({
 }
 
 type AddressSuggestionItemProps = {
-  address: string
-  onNavigate?: () => void
+  readonly address: string
+  readonly onNavigate?: () => void
 }
 
 export const AddressSuggestionItem = ({
