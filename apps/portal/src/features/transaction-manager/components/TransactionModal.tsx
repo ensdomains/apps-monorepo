@@ -36,9 +36,9 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
       onOpenChange={(open) => {
         if (!open) {
           handleClose()
-          // Clear terminal states so finished transaction ids don't leak into
-          // subsequent independent flows. Keep pending transactions.
-          if (txState?.error || txState?.machineState === 'success') {
+          // Only clear when transaction has failed - don't clear pending (tx may still be in wallet)
+          // or success (user might want to reopen and see the result)
+          if (txState?.error) {
             clearTransaction()
           }
         }
