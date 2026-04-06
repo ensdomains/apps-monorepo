@@ -3,6 +3,7 @@ import {
   BookIcon,
   CircleQuestionMarkIcon,
   FlameIcon,
+  IdCardIcon,
   SettingsIcon,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -19,6 +20,7 @@ import {
   TollIcon,
 } from '@/assets/icons'
 import { LogoWithTextSVG } from '@/assets/logo'
+import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -172,15 +174,21 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
       <SidebarContent>
         {/* Name section — hidden when collapsed */}
         <div className="group-data-[collapsible=icon]:hidden px-3 py-3 flex flex-col gap-2">
-          <div className="flex items-center gap-1 w-fit bg-lapis-100 dark:bg-lapis-900/30 rounded px-1.5 py-0.5">
-            <span className="text-xs text-lapis-500 font-medium">Name</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <div className="flex items-center justify-center bg-lapis-100 dark:bg-lapis-900/30 rounded-xs size-4 shrink-0">
+                <IdCardIcon className="size-2.5 text-lapis-500" />
+              </div>
+              <span className="text-xs text-lapis-500 font-medium">Name</span>
+            </div>
+            <CopyButton value={name} />
           </div>
           <div className="flex items-center gap-2">
             <NameAvatar
               name={name}
               height="36px"
               width="36px"
-              rounded="rounded"
+              rounded="rounded-xs"
             />
             <span className="text-base font-medium text-foreground break-all leading-tight">
               {name}
@@ -227,9 +235,11 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
 
       <SidebarSeparator />
 
-      <SidebarFooter className="p-3 gap-2">
-        {/* Help / Settings / Docs row */}
+      <SidebarFooter className="p-3">
         <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+          <div className="flex-1 group-data-[collapsible=icon]:flex-none">
+            <WalletMenu />
+          </div>
           <Popover open={helpOpen} onOpenChange={setHelpOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -274,8 +284,6 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
             </ExternalLink>
           </Button>
         </div>
-
-        <WalletMenu />
       </SidebarFooter>
     </Sidebar>
   )

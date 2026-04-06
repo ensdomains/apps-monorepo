@@ -38,7 +38,7 @@ export const WalletMenu = () => {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xs"
           aria-label={`Wallet menu for ${displayName}`}
         >
           {name ? (
@@ -46,12 +46,12 @@ export const WalletMenu = () => {
               name={name}
               height="32px"
               width="32px"
-              rounded="rounded-full"
+              rounded="rounded-xs"
             />
           ) : (
-            <div className="size-8 rounded-full [background:var(--avatar-placeholder-gradient)]" />
+            <div className="size-8 rounded-xs [background:var(--avatar-placeholder-gradient)]" />
           )}
-          <span className="font-medium text-sm hidden md:inline">
+          <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">
             {displayName}
           </span>
         </button>
