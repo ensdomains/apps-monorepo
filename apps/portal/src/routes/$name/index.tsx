@@ -3,6 +3,7 @@ import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
+import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -205,9 +206,10 @@ const Profile = ({
   const resolvedNetwork = ownerQuery.data.network || 'sepolia'
 
   return (
-    <div className="flex flex-col gap-4 p-6 w-full max-w-360 mx-auto">
-      <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-heading font-medium leading-none">Overview</h1>
+    <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+      <div className="flex flex-row justify-between items-center">
+        <h1 className="text-heading font-medium leading-none">{name}</h1>
+        <CopyButton value={name} />
       </div>
 
       {/* Profile + Expiry */}

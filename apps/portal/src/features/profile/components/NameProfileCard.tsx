@@ -82,7 +82,7 @@ export const NameProfileCard = ({
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-6">
+    <div className="flex flex-col sm:flex-row gap-6">
       <NameAvatar name={name} />
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-0.5 ">
