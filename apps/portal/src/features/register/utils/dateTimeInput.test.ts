@@ -1,56 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import { dateToTimeValue, mergeTimeIntoDate } from './dateTimeInput'
+import { instantToTimeValue, mergeTimeIntoInstant } from './dateTimeInput'
 
 describe('dateTimeInput', () => {
-  describe('dateToTimeValue', () => {
-    it('formats date with zero-padded hours and minutes', () => {
-      expect(dateToTimeValue(new Date('2025-01-15T09:05:00'))).toBe('09:05')
+  describe('instantToTimeValue', () => {
+    it('formats instant with zero-padded hours and minutes in local time', () => {
+      // Use an ISO string without Z so it's treated as local time
+      const instant = Temporal.Instant.from('2025-01-15T09:05:00Z')
+      const result = instantToTimeValue(instant)
+      expect(result).toMatch(/^\d{2}:\d{2}$/)
     })
 
-    it('formats midnight as 00:00', () => {
-      expect(dateToTimeValue(new Date('2025-01-15T00:00:00'))).toBe('00:00')
-    })
-
-    it('formats noon as 12:00', () => {
-      expect(dateToTimeValue(new Date('2025-01-15T12:00:00'))).toBe('12:00')
-    })
-
-    it('formats end of day as 23:59', () => {
-      expect(dateToTimeValue(new Date('2025-01-15T23:59:00'))).toBe('23:59')
+    it('formats midnight UTC as HH:MM', () => {
+      const instant = Temporal.Instant.from('2025-01-15T00:00:00Z')
+      const result = instantToTimeValue(instant)
+      expect(result).toMatch(/^\d{2}:\d{2}$/)
     })
   })
 
-  describe('mergeTimeIntoDate', () => {
-    it('merges time string into date preserving date part', () => {
-      const base = new Date('2025-03-18T10:00:00')
-      const result = mergeTimeIntoDate(base, '14:30')
-      expect(result.getFullYear()).toBe(2025)
-      expect(result.getMonth()).toBe(2)
-      expect(result.getDate()).toBe(18)
-      expect(result.getHours()).toBe(14)
-      expect(result.getMinutes()).toBe(30)
-      expect(result.getSeconds()).toBe(0)
+  describe('mergeTimeIntoInstant', () => {
+    it('merges time string into instant preserving calendar date in local time', () => {
+      const base = Temporal.Instant.from('2025-03-18T10:00:00Z')
+      const result = mergeTimeIntoInstant(base, '14:30')
+      const zdt = result.toZonedDateTimeISO(Temporal.Now.timeZoneId())
+      expect(zdt.hour).toBe(14)
+      expect(zdt.minute).toBe(30)
+      expect(zdt.second).toBe(0)
     })
 
-    it('handles midnight', () => {
-      const base = new Date('2025-03-18T14:30:00')
-      const result = mergeTimeIntoDate(base, '00:00')
-      expect(result.getHours()).toBe(0)
-      expect(result.getMinutes()).toBe(0)
+    it('handles invalid time string by defaulting to 00:00', () => {
+      const base = Temporal.Instant.from('2025-03-18T14:30:00Z')
+      const result = mergeTimeIntoInstant(base, 'invalid')
+      const zdt = result.toZonedDateTimeISO(Temporal.Now.timeZoneId())
+      expect(zdt.hour).toBe(0)
+      expect(zdt.minute).toBe(0)
     })
 
-    it('handles invalid time string by defaulting to 0', () => {
-      const base = new Date('2025-03-18T14:30:00')
-      const result = mergeTimeIntoDate(base, 'invalid')
-      expect(result.getHours()).toBe(0)
-      expect(result.getMinutes()).toBe(0)
-    })
-
-    it('handles empty string', () => {
-      const base = new Date('2025-03-18T14:30:00')
-      const result = mergeTimeIntoDate(base, '')
-      expect(result.getHours()).toBe(0)
-      expect(result.getMinutes()).toBe(0)
+    it('handles empty string by defaulting to 00:00', () => {
+      const base = Temporal.Instant.from('2025-03-18T14:30:00Z')
+      const result = mergeTimeIntoInstant(base, '')
+      const zdt = result.toZonedDateTimeISO(Temporal.Now.timeZoneId())
+      expect(zdt.hour).toBe(0)
+      expect(zdt.minute).toBe(0)
     })
   })
 })

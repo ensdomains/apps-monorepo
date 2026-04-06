@@ -1,56 +1,48 @@
 import {
-  addDays,
-  addMonths,
-  addYears,
-  differenceInDays,
-  differenceInMonths,
-  differenceInYears,
-  endOfDay,
-  startOfDay,
-} from 'date-fns'
-import {
   CONTRACT_SECONDS_PER_YEAR,
   MAX_REGISTRATION_YEARS,
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
+import { plainDateToDate } from '@/utils/temporal'
+
+/**
+ * Returns true when `date` falls on or between `minDate` and `maxDate` (inclusive),
+ * comparing calendar dates only (no time component).
+ */
+export function isDateWithinCalendarRange(
+  date: Temporal.PlainDate,
+  minDate: Temporal.PlainDate,
+  maxDate: Temporal.PlainDate,
+): boolean {
+  return (
+    Temporal.PlainDate.compare(date, minDate) >= 0 &&
+    Temporal.PlainDate.compare(date, maxDate) <= 0
+  )
+}
 
 /**
  * Formats the duration from today to an expiry date as a human-readable string.
  * e.g. "1 year", "2 years 3 months", "6 months 15 days"
  */
 export const formatRegistrationDuration = (
-  startDate: Date,
-  expiryDate: Date,
+  startDate: Temporal.PlainDate,
+  expiryDate: Temporal.PlainDate,
 ): string => {
-  if (expiryDate.getTime() <= startDate.getTime()) {
+  if (Temporal.PlainDate.compare(expiryDate, startDate) <= 0) {
     throw new Error('Expiry date must be after start date')
   }
 
-  const years = differenceInYears(expiryDate, startDate)
-  const afterYears = addYears(startDate, years)
-  const months = differenceInMonths(expiryDate, afterYears)
-  const afterMonths = addMonths(afterYears, months)
-  const days = differenceInDays(expiryDate, afterMonths)
+  const { years, months, days } = startDate.until(expiryDate, {
+    largestUnit: 'years',
+  })
 
   const parts: string[] = []
-  if (years > 0) {
-    parts.push(years === 1 ? '1 year' : `${years} years`)
-  }
-
-  if (months > 0) {
-    parts.push(months === 1 ? '1 month' : `${months} months`)
-  }
-
-  if (days > 0) {
-    parts.push(days === 1 ? '1 day' : `${days} days`)
-  }
+  if (years > 0) parts.push(years === 1 ? '1 year' : `${years} years`)
+  if (months > 0) parts.push(months === 1 ? '1 month' : `${months} months`)
+  if (days > 0) parts.push(days === 1 ? '1 day' : `${days} days`)
 
   if (parts.length === 0) {
-    const yearsOnly = differenceInYears(expiryDate, startDate)
-    if (Number.isFinite(yearsOnly) && yearsOnly > 0) {
-      return yearsOnly === 1 ? '1 year' : `${yearsOnly} years`
-    }
     throw new Error('Duration is less than 1 day')
   }
 
@@ -58,54 +50,55 @@ export const formatRegistrationDuration = (
 }
 
 /**
- * Calculates the duration in years from today to a target date.
+ * Calculates the duration in years from start to expiry.
  * Returns years rounded to two decimal places (e.g. 1.00, 3.00, 2.50).
  */
 export const calculateDurationFromDate = (
-  startDate: Date,
-  expiryDate: Date,
+  startDate: Temporal.PlainDate,
+  expiryDate: Temporal.PlainDate,
 ): number => {
-  const diffMs = expiryDate.getTime() - startDate.getTime()
+  const diffDays = startDate.until(expiryDate, { largestUnit: 'days' }).days
 
-  if (diffMs <= 0) {
+  if (diffDays <= 0) {
     return 1
   }
 
-  const diffYears = diffMs / (CONTRACT_SECONDS_PER_YEAR * 1000)
+  const diffYears = diffDays / (CONTRACT_SECONDS_PER_YEAR / 86400)
   return Math.round(diffYears * 100) / 100
 }
 
 /**
  * Converts an expiry date to duration in seconds for ENS price/registration.
- * Uses actual calendar difference (includes leap years).
+ * Uses actual calendar difference (whole days × 86400).
  * Minimum 28 days (matches v3 app Pricing.tsx minSeconds).
  */
 export const getRegistrationDurationInSeconds = (
-  startDate: Date,
-  expiryDate: Date,
+  startDate: Temporal.PlainDate,
+  expiryDate: Temporal.PlainDate,
 ): number => {
-  const diffMs = expiryDate.getTime() - startDate.getTime()
-  if (diffMs <= 0) {
+  const diffDays = startDate.until(expiryDate, { largestUnit: 'days' }).days
+  if (diffDays <= 0) {
     return MIN_REGISTRATION_DURATION
   }
-  const seconds = Math.floor(diffMs / 1000)
+  const seconds = diffDays * 86400
   return Math.max(seconds, MIN_REGISTRATION_DURATION)
 }
 
 /**
- * Converts duration in years to seconds using calendar math (addYears).
+ * Converts duration in years to seconds using calendar-year addition (same
+ * month/day, adjusted for leap years).
  * 3 years from Jan 1 2026 = Jan 1 2029 exactly, including leap years.
  */
 export const getDurationInSecondsFromYears = (
   years: number,
-  startOfToday: Date = getStartOfToday(),
+  startOfToday: Temporal.PlainDate = getStartOfToday(),
 ): number => {
   const cappedYears = Math.min(
     Math.max(1, Math.floor(years)),
     MAX_REGISTRATION_YEARS,
   )
-  const expiry = addYears(startOfToday, cappedYears)
-  return Math.floor((expiry.getTime() - startOfToday.getTime()) / 1000)
+  const expiry = startOfToday.add({ years: cappedYears })
+  return startOfToday.until(expiry, { largestUnit: 'days' }).days * 86400
 }
 
 /**
@@ -113,30 +106,31 @@ export const getDurationInSecondsFromYears = (
  */
 export const getYearsFromDuration = (
   durationInSeconds: number,
-  startOfToday: Date = getStartOfToday(),
+  startOfToday: Temporal.PlainDate = getStartOfToday(),
 ): number => {
   const expiry = getRegistrationExpiryDateFromSeconds(
     startOfToday,
     durationInSeconds,
   )
-  return differenceInYears(expiry, startOfToday)
+  return startOfToday.until(expiry, { largestUnit: 'years' }).years
 }
 
 /**
- * Converts duration in seconds to an expiry Date for display.
- * Use when storing duration in state and need a Date for formatting.
+ * Converts duration in seconds to an expiry PlainDate for display.
+ * Use when storing duration in state and need a PlainDate for formatting.
  */
 export const getRegistrationExpiryDateFromSeconds = (
-  startDate: Date,
+  startDate: Temporal.PlainDate,
   durationInSeconds: number,
-): Date => {
-  const expiryDate = new Date(startDate.getTime() + durationInSeconds * 1000)
+): Temporal.PlainDate => {
+  const days = Math.floor(durationInSeconds / 86400)
+  const expiry = startDate.add({ days })
 
-  if (expiryDate.getTime() <= startDate.getTime()) {
+  if (Temporal.PlainDate.compare(expiry, startDate) <= 0) {
     throw new Error('Expiry date must be after start date')
   }
 
-  return expiryDate
+  return expiry
 }
 
 /**
@@ -157,51 +151,56 @@ export function getRegistrationDisplayDates(durationSeconds: number) {
 }
 
 /**
- * Returns the start of today (00:00:00.000) as a Date.
- * Use as the canonical reference date for registration duration calculations.
- * Pass `now` for deterministic testing.
+ * Returns today's date as a Temporal.PlainDate in the system's local calendar.
+ * Use as the canonical reference for registration duration calculations.
  */
-export const getStartOfToday = (now: Date = new Date()): Date => startOfDay(now)
+export const getStartOfToday = (): Temporal.PlainDate =>
+  Temporal.Now.plainDateISO()
 
 /**
  * Returns the minimum expiry date for the date picker (28 days from today).
  * Matches v3 app minSeconds = 28 * ONE_DAY; dates before this should be disabled.
  */
 export const getMinExpiryDateForPicker = (
-  startOfToday: Date = getStartOfToday(),
-): Date => addDays(startOfToday, 28)
+  startOfToday: Temporal.PlainDate = getStartOfToday(),
+): Temporal.PlainDate => startOfToday.add({ days: 28 })
 
 /**
  * Returns the maximum expiry date for the date picker (MAX_REGISTRATION_YEARS from today).
  */
 export const getMaxExpiryDateForPicker = (
-  startOfToday: Date = getStartOfToday(),
-): Date => addYears(startOfToday, MAX_REGISTRATION_YEARS)
+  startOfToday: Temporal.PlainDate = getStartOfToday(),
+): Temporal.PlainDate => startOfToday.add({ years: MAX_REGISTRATION_YEARS })
 
 /**
- * Converts duration (seconds) to expiry Date for the date picker.
- * Returns end of the expiry day for consistent picker behavior.
+ * Converts duration (seconds) to expiry PlainDate for the date picker.
  * Pass `startOfToday` for deterministic testing.
  */
 export const getExpiryDateForPicker = (
   durationInSeconds: number,
-  startOfToday: Date = getStartOfToday(),
-): Date =>
-  endOfDay(
-    getRegistrationExpiryDateFromSeconds(startOfToday, durationInSeconds),
-  )
+  startOfToday: Temporal.PlainDate = getStartOfToday(),
+): Temporal.PlainDate =>
+  getRegistrationExpiryDateFromSeconds(startOfToday, durationInSeconds)
 
 /**
- * Converts a date picker selection to duration (seconds).
- * Treats the selected date as end of that day.
+ * Converts a date picker selection (PlainDate) to duration in seconds.
+ * Treats the selected date as end of that day (adds 86399 s for 23:59:59).
  * Pass `startOfToday` for deterministic testing.
  */
 export const getDurationFromPickerDate = (
-  date: Date,
-  startOfToday: Date = getStartOfToday(),
+  date: Temporal.PlainDate,
+  startOfToday: Temporal.PlainDate = getStartOfToday(),
 ): number => {
   const maxExpiry = getMaxExpiryDateForPicker(startOfToday)
-  const cappedDate =
-    endOfDay(date).getTime() > maxExpiry.getTime() ? maxExpiry : endOfDay(date)
-  return getRegistrationDurationInSeconds(startOfToday, cappedDate)
+  const capped =
+    Temporal.PlainDate.compare(date, maxExpiry) > 0 ? maxExpiry : date
+  const days = startOfToday.until(capped, { largestUnit: 'days' }).days
+  // Include end-of-day offset (23:59:59) so the picker date round-trips correctly.
+  return Math.max(days * 86400 + 86399, MIN_REGISTRATION_DURATION)
 }
+
+/**
+ * Converts a Temporal.PlainDate to a native Date for react-day-picker props.
+ * Re-exported here for convenience in the date picker component.
+ */
+export { plainDateToDate }

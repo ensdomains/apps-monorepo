@@ -15,40 +15,43 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import {
-  dateToTimeValue,
-  mergeTimeIntoDate,
+  instantToTimeValue,
+  mergeTimeIntoInstant,
 } from '@/features/register/utils/dateTimeInput'
 import { formatPriceForInput } from '@/features/register/utils/formatPriceForInput'
 import {
-  getDateForPremiumPrice,
-  getPremiumPriceAtDate,
+  getInstantForPremiumPrice,
+  getPremiumPriceAtInstant,
   PREMIUM_PERIOD_MS,
 } from '@/features/register/utils/premiumDecay'
+import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
+import { dateToPlainDate, instantToDate } from '@/utils/temporal'
 
 function useSyncPremiumCalculatorOnOpen(
   open: boolean,
-  premiumStartDate: Date | null,
+  premiumStart: Temporal.Instant | null,
   setSelectedPrice: (price: number) => void,
-  setSelectedDate: (date: Date) => void,
+  setSelectedInstant: (instant: Temporal.Instant) => void,
   setPriceInput: (value: string) => void,
 ) {
   useEffect(() => {
-    if (open && premiumStartDate) {
-      const price = getPremiumPriceAtDate(premiumStartDate, new Date())
+    if (open && premiumStart) {
+      const now = Temporal.Now.instant()
+      const price = getPremiumPriceAtInstant(premiumStart, now)
       setSelectedPrice(price)
-      setSelectedDate(new Date())
+      setSelectedInstant(now)
       setPriceInput(formatPriceForInput(price))
     }
-  }, [open, premiumStartDate, setSelectedPrice, setSelectedDate, setPriceInput])
+  }, [open, premiumStart, setSelectedPrice, setSelectedInstant, setPriceInput])
 }
 
 type TemporaryPremiumDrawerProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly currentPremium: string
-  readonly premiumStartDate: Date | null
+  readonly premiumStart: Temporal.Instant | null
 }
 
 /**
@@ -59,42 +62,46 @@ export const TemporaryPremiumDrawer = ({
   open,
   onOpenChange,
   currentPremium,
-  premiumStartDate,
+  premiumStart,
 }: TemporaryPremiumDrawerProps) => {
-  const premiumEndDate = premiumStartDate
-    ? new Date(premiumStartDate.getTime() + PREMIUM_PERIOD_MS)
+  const premiumEnd = premiumStart
+    ? Temporal.Instant.fromEpochMilliseconds(
+        premiumStart.epochMilliseconds + PREMIUM_PERIOD_MS,
+      )
     : null
 
-  const currentCalculatedPrice = premiumStartDate
-    ? getPremiumPriceAtDate(premiumStartDate, new Date())
+  const currentCalculatedPrice = premiumStart
+    ? getPremiumPriceAtInstant(premiumStart, Temporal.Now.instant())
     : 0
 
   const [selectedPrice, setSelectedPrice] = useState(0)
-  const [selectedDate, setSelectedDate] = useState(() => new Date())
+  const [selectedInstant, setSelectedInstant] = useState<Temporal.Instant>(() =>
+    Temporal.Now.instant(),
+  )
   const [priceInput, setPriceInput] = useState('')
   const [datePickerOpen, setDatePickerOpen] = useState(false)
 
   useSyncPremiumCalculatorOnOpen(
     open,
-    premiumStartDate,
+    premiumStart,
     setSelectedPrice,
-    setSelectedDate,
+    setSelectedInstant,
     setPriceInput,
   )
 
-  function applyDateSelection(newDate: Date) {
-    if (!premiumStartDate || !premiumEndDate) return
+  function applyDateSelection(newInstant: Temporal.Instant) {
+    if (!premiumStart || !premiumEnd) return
 
-    const clamped = new Date(
-      Math.max(
-        Date.now(),
-        Math.min(newDate.getTime(), premiumEndDate.getTime()),
-      ),
+    const nowMs = Temporal.Now.instant().epochMilliseconds
+    const clampedMs = Math.max(
+      nowMs,
+      Math.min(newInstant.epochMilliseconds, premiumEnd.epochMilliseconds),
     )
+    const clamped = Temporal.Instant.fromEpochMilliseconds(clampedMs)
 
-    const price = getPremiumPriceAtDate(premiumStartDate, clamped)
+    const price = getPremiumPriceAtInstant(premiumStart, clamped)
     setSelectedPrice(price)
-    setSelectedDate(clamped)
+    setSelectedInstant(clamped)
     setPriceInput(formatPriceForInput(price))
   }
 
@@ -102,15 +109,15 @@ export const TemporaryPremiumDrawer = ({
     const raw = e.target.value.replace(/[^0-9.]/g, '')
     setPriceInput(raw)
 
-    if (!premiumStartDate) return
+    if (!premiumStart) return
 
     let parsed = Number.parseFloat(raw)
     if (Number.isNaN(parsed) || parsed < 0) parsed = 0
     if (parsed > currentCalculatedPrice) parsed = currentCalculatedPrice
 
-    const date = getDateForPremiumPrice(premiumStartDate, parsed)
+    const instant = getInstantForPremiumPrice(premiumStart, parsed)
     setSelectedPrice(parsed)
-    setSelectedDate(date)
+    setSelectedInstant(instant)
   }
 
   function handlePriceFocus(e: React.FocusEvent<HTMLInputElement>) {
@@ -128,26 +135,27 @@ export const TemporaryPremiumDrawer = ({
 
   function handleCalendarSelect(d: Date | undefined) {
     if (!d) return
-    const merged = mergeTimeIntoDate(d, dateToTimeValue(selectedDate))
+    // Use the selected calendar date from the picker, but keep the current time-of-day
+    const baseInstant = Temporal.Instant.fromEpochMilliseconds(d.valueOf())
+    const merged = mergeTimeIntoInstant(
+      baseInstant,
+      instantToTimeValue(selectedInstant),
+    )
     applyDateSelection(merged)
   }
 
   function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const merged = mergeTimeIntoDate(selectedDate, e.target.value)
+    const merged = mergeTimeIntoInstant(selectedInstant, e.target.value)
     applyDateSelection(merged)
   }
 
+  // react-day-picker disabled callback receives native Date objects
   function isDateDisabled(d: Date) {
-    if (!premiumEndDate) return true
-    const dayStart = new Date(d)
-    dayStart.setHours(0, 0, 0, 0)
-    const nowStart = new Date()
-    nowStart.setHours(0, 0, 0, 0)
-    const endDay = new Date(premiumEndDate)
-    endDay.setHours(23, 59, 59, 999)
-    return (
-      dayStart.getTime() < nowStart.getTime() ||
-      dayStart.getTime() > endDay.getTime()
+    if (!premiumEnd) return true
+    return !isDateWithinCalendarRange(
+      dateToPlainDate(d),
+      Temporal.Now.plainDateISO(),
+      premiumEnd.toZonedDateTimeISO(Temporal.Now.timeZoneId()).toPlainDate(),
     )
   }
 
@@ -184,14 +192,12 @@ export const TemporaryPremiumDrawer = ({
             <div className="space-y-1">
               <h3 className="text-base font-medium">Temporary premium ends</h3>
               <p className="text-base font-normal">
-                {premiumEndDate
-                  ? formatExpiryDateTimeLocal(premiumEndDate)
-                  : 'N/A'}
+                {premiumEnd ? formatExpiryDateTimeLocal(premiumEnd) : 'N/A'}
               </p>
             </div>
           </div>
 
-          {premiumStartDate && premiumEndDate && (
+          {premiumStart && premiumEnd && (
             <div className="space-y-4">
               <h3 className="text-base font-medium">
                 Calculate premium at a specific date
@@ -244,7 +250,7 @@ export const TemporaryPremiumDrawer = ({
                         )}
                       >
                         <span className="flex-1 truncate">
-                          {formatExpiryDateTimeLocal(selectedDate)}
+                          {formatExpiryDateTimeLocal(selectedInstant)}
                         </span>
                         <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
                       </button>
@@ -254,13 +260,13 @@ export const TemporaryPremiumDrawer = ({
                       align="start"
                     >
                       <Calendar
-                        defaultMonth={selectedDate}
+                        defaultMonth={instantToDate(selectedInstant)}
                         disabled={isDateDisabled}
-                        endMonth={premiumEndDate}
+                        endMonth={instantToDate(premiumEnd)}
                         mode="single"
                         onSelect={handleCalendarSelect}
-                        selected={selectedDate}
-                        startMonth={new Date()}
+                        selected={instantToDate(selectedInstant)}
+                        startMonth={instantToDate(Temporal.Now.instant())}
                       />
                       <div className="border-t border-border p-3">
                         <Label
@@ -272,7 +278,7 @@ export const TemporaryPremiumDrawer = ({
                         <Input
                           id="premium-time-input"
                           type="time"
-                          value={dateToTimeValue(selectedDate)}
+                          value={instantToTimeValue(selectedInstant)}
                           onChange={handleTimeChange}
                           className="mt-1"
                         />
