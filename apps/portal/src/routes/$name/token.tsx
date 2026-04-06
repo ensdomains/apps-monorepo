@@ -33,7 +33,6 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getRegistryNameDataQueryOptions } from '@/features/registry/hooks/useRegistryNameData'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
 import { cn } from '@/lib/utils'
@@ -184,31 +183,24 @@ const TokenV1Name = ({ name }: { name: string }) => {
   return <TokenInfoCard {...{ contractAddress, tokenId, hex, tokenStandard }} />
 }
 
-const TokenV2Name = ({ name }: { name: string }) => {
+const TokenV2Name = ({
+  name,
+  registryAddress,
+}: {
+  name: string
+  registryAddress: Address
+}) => {
   const label = name.split('.')[0]
 
   const hex = labelhash(label)
-
-  const { data, error, isLoading } = useQuery(
-    getRegistryNameDataQueryOptions({
-      label,
-      registryAddress: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c',
-    }),
-  )
-
-  if (error)
-    return <div>Error loading registry data: {error.cause?.message}</div>
-
-  if (isLoading) return <LoadingSpinner title="Loading owner data" />
-
-  if (!data) return null
+  const tokenId = BigInt(hex).toString(10)
 
   return (
     <TokenInfoCard
       tokenStandard="ERC-1155"
-      tokenId={data[0].toString(10)}
+      tokenId={tokenId}
       hex={hex}
-      contractAddress="0x5fb63bbd34de21688c8aa8131be1c3b4a477109c"
+      contractAddress={registryAddress}
     />
   )
 }
@@ -244,10 +236,16 @@ function RouteComponent() {
         <h1 className="text-[30px] font-medium leading-tight">Token Info</h1>
       </header>
 
-      {data?.network === 'sepolia' ? (
+      {data?.protocolVersion === 'ENSv1' ? (
         <TokenV1Name name={name} />
       ) : (
-        <TokenV2Name name={name} />
+        <TokenV2Name
+          name={name}
+          registryAddress={
+            data?.registryAddress ??
+            ('0x0000000000000000000000000000000000000000' as Address)
+          }
+        />
       )}
 
       {/* Normalization Section */}

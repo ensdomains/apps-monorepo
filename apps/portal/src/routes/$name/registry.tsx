@@ -1,3 +1,4 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { EditIcon } from 'lucide-react'
@@ -17,9 +18,15 @@ import { RegistryCardsGrid } from '@/features/registry/components/RegistryCardsG
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
-import { getChainIdForNetwork } from '@/lib/wagmi'
-import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
+import { sepoliaWithEns } from '@/lib/wagmi'
+import type { ProtocolVersion } from '@/utils/types'
+
+const namechainVerifiableFactory = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+
+const chainId = sepoliaWithEns.id
 
 export const Route = createFileRoute('/$name/registry')({
   component: RouteComponent,
@@ -30,13 +37,11 @@ const DeploySubregistryButton = ({
   label,
   name,
   account,
-  network,
 }: {
   registryAddress: Address
   label: string
   name: string
   account: Address
-  network: EnsNetworkName
 }) => {
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
@@ -44,7 +49,6 @@ const DeploySubregistryButton = ({
       label,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account,
-      network,
     }),
   })
 
@@ -78,16 +82,27 @@ const V1ETHRegistry = ({ tld }: { tld: string }) => {
   if (!data) return <div>No V1 ETH Registry data</div>
 
   return (
-    <RegistryCardsGrid label={tld} owner={data.owner} network={data.network} />
+    <RegistryCardsGrid
+      label={tld}
+      owner={data.owner}
+      protocolVersion={data.protocolVersion}
+    />
   )
 }
 
-const ETHRegistry = ({ name, network }: WithEnsNetwork<{ name: string }>) => {
+const ETHRegistry = ({
+  name,
+  protocolVersion,
+}: {
+  name: string
+  protocolVersion: ProtocolVersion
+}) => {
   // biome-ignore lint/style/noNonNullAssertion: tld is always defined for 2ld
   const tld = name.split('.').at(-1)!
 
-  if (network === 'sepolia') return <V1ETHRegistry tld={tld} />
-  else return <RegistryCardsGrid label={tld} network={network} />
+  if (protocolVersion === 'ENSv1') return <V1ETHRegistry tld={tld} />
+  else
+    return <RegistryCardsGrid label={tld} protocolVersion={protocolVersion} />
 }
 
 const RegistryInfo = ({
@@ -101,7 +116,7 @@ const RegistryInfo = ({
   const firstLabel = labels[0]
 
   const { data, isLoading, error } = useQuery(
-    getNameRegistriesQueryOptions({ name, network: ownerData.network }),
+    getNameRegistriesQueryOptions({ name }),
   )
 
   const { address: account } = useConnection()
@@ -134,7 +149,6 @@ const RegistryInfo = ({
               registryAddress={ethRegistryAddress}
               label={firstLabel}
               account={account}
-              network={data.network}
             />
           )}
       </div>
@@ -145,7 +159,9 @@ const RegistryInfo = ({
       })
         .with({ registries: [P.string, P.string] }, () => {
           // ["eth"]
-          return <ETHRegistry name={name} network={data.network} />
+          return (
+            <ETHRegistry name={name} protocolVersion={data.protocolVersion} />
+          )
         })
         .with(
           { registries: [P.string, P.string, P.string], protocol: 'ENSv2' },
@@ -156,7 +172,7 @@ const RegistryInfo = ({
                 {subregistryAddress !== zeroAddress && <VerifiedRegistryCard />}
                 <RegistryCardsGrid
                   label={firstLabel}
-                  network={data.network}
+                  protocolVersion={data.protocolVersion}
                   owner={ownerData.owner}
                 />
                 {subregistryAddress === zeroAddress ? (
@@ -164,7 +180,7 @@ const RegistryInfo = ({
                     registry={{
                       protocol: data.protocolVersion,
                     }}
-                    chainId={getChainIdForNetwork(data.network)}
+                    chainId={chainId}
                   />
                 ) : (
                   <RegistryCard
@@ -173,19 +189,22 @@ const RegistryInfo = ({
                       protocol: data.protocolVersion,
                       factory: namechainVerifiableFactory,
                     }}
-                    chainId={getChainIdForNetwork(data.network)}
+                    chainId={chainId}
                   />
                 )}
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid label={labels[1]} network={data.network} />
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocolVersion={data.protocolVersion}
+                />
                 <RegistryCard
                   registry={{
                     address: data.registries.at(-2) as Address,
                     protocol: data.protocolVersion,
                   }}
-                  chainId={getChainIdForNetwork(data.network)}
+                  chainId={chainId}
                 />
               </>
             )
@@ -198,19 +217,22 @@ const RegistryInfo = ({
               <>
                 <RegistryCardsGrid
                   label={firstLabel}
-                  network={data.network}
+                  protocolVersion={data.protocolVersion}
                   owner={ownerData.owner}
                 />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid label={labels[1]} network={data.network} />
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocolVersion={data.protocolVersion}
+                />
                 <RegistryCard
                   registry={{
                     address: data.registries.at(-2) as Address,
                     protocol: data.protocolVersion,
                   }}
-                  chainId={getChainIdForNetwork(data.network)}
+                  chainId={chainId}
                 />
               </>
             )
@@ -228,7 +250,7 @@ const RegistryInfo = ({
               <>
                 <RegistryCardsGrid
                   label={firstLabel}
-                  network={data.network}
+                  protocolVersion={data.protocolVersion}
                   owner={ownerData.owner}
                 />
                 {subsubRegistryAddress === zeroAddress ? null : (
@@ -238,20 +260,23 @@ const RegistryInfo = ({
                       protocol: data.protocolVersion,
                       factory: namechainVerifiableFactory,
                     }}
-                    chainId={getChainIdForNetwork(data.network)}
+                    chainId={chainId}
                   />
                 )}
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
 
-                <RegistryCardsGrid label={labels[1]} network={data.network} />
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocolVersion={data.protocolVersion}
+                />
                 <RegistryCard
                   registry={{
                     address: data.registries.at(-3) as Address,
                     protocol: data.protocolVersion,
                   }}
-                  chainId={getChainIdForNetwork(data.network)}
+                  chainId={chainId}
                 />
               </>
             )
@@ -268,13 +293,16 @@ const RegistryInfo = ({
               <>
                 <RegistryCardsGrid
                   label={firstLabel}
-                  network={data.network}
+                  protocolVersion={data.protocolVersion}
                   owner={ownerData.owner}
                 />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid label={labels[1]} network={data.network} />
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocolVersion={data.protocolVersion}
+                />
               </>
             )
           },

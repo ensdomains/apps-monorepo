@@ -24,7 +24,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/resolver/$address/roles/add-user')({
   component: RouteComponent,
@@ -34,7 +34,7 @@ export const Route = createFileRoute('/resolver/$address/roles/add-user')({
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const { data: walletClient } = useWalletClient({ chainId })
 
   const [selectedName, setSelectedName] = useState<string | null>(null)

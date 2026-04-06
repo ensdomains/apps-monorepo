@@ -35,12 +35,10 @@ import { isValidEnsName } from '@/utils/token/isNormalized'
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params, context: { network } }) => {
+  loader: ({ params }) => {
     const tld = getTLD(params.name)
     return Promise.all([
-      queryClient.prefetchQuery(
-        getProfileQueryOptions({ name: params.name, network }),
-      ),
+      queryClient.prefetchQuery(getProfileQueryOptions({ name: params.name })),
       ...(tld !== 'eth'
         ? [queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld }))]
         : []),
@@ -59,8 +57,12 @@ const Profile = ({
   const isEthTld = tld === 'eth'
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const { network } = Route.useRouteContext()
-  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
+  const profileQuery = useQuery(
+    getProfileQueryOptions({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion,
+    }),
+  )
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
@@ -201,7 +203,7 @@ const Profile = ({
     console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
   }
 
-  const resolvedNetwork = ownerQuery.data.network || 'sepolia'
+  const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
 
   return (
     <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
@@ -212,10 +214,13 @@ const Profile = ({
         <div className="lg:col-span-2 xl:col-span-2 *:h-full">
           <NameProfileCard name={name} />
         </div>
-        <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
+        <ExpiryWithRegistrationData
+          name={name}
+          protocolVersion={resolvedProtocolVersion}
+        />
         <Owner owner={ownerQuery.data.owner} />
         <ParentName name={name} />
-        <TokenLocation name={name} network={resolvedNetwork} />
+        <TokenLocation name={name} protocolVersion={resolvedProtocolVersion} />
         {resolverAddress && (
           <RecordCount
             name={name}
@@ -226,11 +231,14 @@ const Profile = ({
         <SubnameCount
           name={name}
           registryAddress={ownerQuery.data.registryAddress}
-          network={resolvedNetwork}
+          protocolVersion={resolvedProtocolVersion}
         />
-        <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
+        <ProtocolVersionWithCounter
+          name={name}
+          protocolVersion={resolvedProtocolVersion}
+        />
       </div>
-      {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
+      {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
     </div>
   )
 }
