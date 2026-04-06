@@ -14,7 +14,7 @@ import {
 } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { dateToplainDate, plainDateToDate } from '@/utils/temporal'
+import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
 
 // import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 
@@ -41,7 +41,7 @@ export const RegistrationExpiryDatePicker = ({
 
   const handleSelect = (d: Date | undefined) => {
     if (d) {
-      onDateChange(dateToplainDate(d))
+      onDateChange(dateToPlainDate(d))
       setIsOpen(false)
     }
   }

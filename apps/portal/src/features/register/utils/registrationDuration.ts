@@ -4,7 +4,7 @@ import {
   MIN_REGISTRATION_DURATION,
 } from '@/lib/constants/duration'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { dateToplainDate, plainDateToDate } from '@/utils/temporal'
+import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
 
 /**
  * Returns true when `date` falls on or between `minDate` and `maxDate` (inclusive),
@@ -18,9 +18,9 @@ export function isDateWithinCalendarRange(
   minDate: Date,
   maxDate: Date,
 ): boolean {
-  const check = dateToplainDate(date)
-  const min = dateToplainDate(minDate)
-  const max = dateToplainDate(maxDate)
+  const check = dateToPlainDate(date)
+  const min = dateToPlainDate(minDate)
+  const max = dateToPlainDate(maxDate)
   return (
     Temporal.PlainDate.compare(check, min) >= 0 &&
     Temporal.PlainDate.compare(check, max) <= 0

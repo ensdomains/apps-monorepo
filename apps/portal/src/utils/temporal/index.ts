@@ -19,7 +19,7 @@ export const plainDateToDate = (plain: Temporal.PlainDate): Date =>
   new Date(plain.year, plain.month - 1, plain.day)
 
 /** Convert a Date from react-day-picker's disabled callback to Temporal.PlainDate. */
-export const dateToplainDate = (date: Date): Temporal.PlainDate =>
+export const dateToPlainDate = (date: Date): Temporal.PlainDate =>
   Temporal.PlainDate.from({
     year: date.getFullYear(),
     month: date.getMonth() + 1,
