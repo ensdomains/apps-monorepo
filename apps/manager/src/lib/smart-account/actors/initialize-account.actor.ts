@@ -1,9 +1,22 @@
 import type { SmartAccountConfig } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
+import type {
+  AccountError,
+  ExecutionError,
+  OrchestratorError,
+} from '@rhinestone/sdk/errors'
+import type {
+  KernelAccountClient,
+  KernelValidator,
+  SignTransactionNotSupportedBySmartAccountError,
+  AccountNotFoundError as ZeroDevAccountNotFoundError,
+} from '@zerodev/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { SmartAccountClient as PimlicoAccountClient } from 'permissionless'
+import type {
+  AccountNotFoundError as PermissionlessAccountNotFoundError,
+  SmartAccountClient as PimlicoAccountClient,
+} from 'permissionless'
 import type { Address, WalletClient } from 'viem'
 import type { SessionProvider, TransactionInfra } from '@/utils/feature-flags'
 import { initializePimlicoAccount, type PimlicoInitResult } from '../pimlico'
@@ -22,6 +35,27 @@ import {
 } from '../zerodev/kernel'
 
 type WalletSource = Exclude<BaseWalletSource, null>
+
+// Provider-specific error cause types
+export type RhinestoneErrorCause =
+  | AccountError
+  | ExecutionError
+  | OrchestratorError
+
+export type ZeroDevErrorCause =
+  | ZeroDevAccountNotFoundError
+  | SignTransactionNotSupportedBySmartAccountError
+  | Error
+
+export type PimlicoErrorCause = PermissionlessAccountNotFoundError | Error
+
+export type RoutingErrorCause = Error
+
+export type AccountInitializationErrorCause =
+  | RhinestoneErrorCause
+  | ZeroDevErrorCause
+  | PimlicoErrorCause
+  | RoutingErrorCause
 
 export type AccountClient =
   | KernelAccountClient
@@ -48,7 +82,7 @@ export class AccountInitializationError extends TaggedError(
   'AccountInitializationError',
 )<{
   provider: 'pimlico' | 'zerodev' | 'rhinestone' | 'routing'
-  cause: unknown
+  cause: AccountInitializationErrorCause
 }> {}
 
 function mapZeroDevConfig(
@@ -154,7 +188,7 @@ export function initializeAccountActor(
       (error) =>
         new AccountInitializationError({
           provider: 'rhinestone',
-          cause: error,
+          cause: error as RhinestoneErrorCause,
         }),
     ).map((result) => mapRhinestoneConfig(result, result.ownerAddress))
   }
@@ -179,7 +213,7 @@ export function initializeAccountActor(
       (error) =>
         new AccountInitializationError({
           provider: 'pimlico',
-          cause: error,
+          cause: error as PimlicoErrorCause,
         }),
     ).map((result) => {
       const ownerAddress = (result.eoaAddress ?? result.address) as Address
@@ -217,7 +251,28 @@ export function initializeAccountActor(
     (error) =>
       new AccountInitializationError({
         provider: 'zerodev',
-        cause: error,
+        cause: error as ZeroDevErrorCause,
       }),
   ).map((result) => mapZeroDevConfig(result, ownerAddress))
 }
+
+// Type guards for narrowing AccountInitializationError by provider
+export const isRhinestoneInitError = (
+  error: AccountInitializationError,
+): error is AccountInitializationError & { provider: 'rhinestone' } =>
+  error.provider === 'rhinestone'
+
+export const isZeroDevInitError = (
+  error: AccountInitializationError,
+): error is AccountInitializationError & { provider: 'zerodev' } =>
+  error.provider === 'zerodev'
+
+export const isPimlicoInitError = (
+  error: AccountInitializationError,
+): error is AccountInitializationError & { provider: 'pimlico' } =>
+  error.provider === 'pimlico'
+
+export const isRoutingInitError = (
+  error: AccountInitializationError,
+): error is AccountInitializationError & { provider: 'routing' } =>
+  error.provider === 'routing'

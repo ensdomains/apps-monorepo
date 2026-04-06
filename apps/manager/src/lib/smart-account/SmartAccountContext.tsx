@@ -86,6 +86,80 @@ function detectWalletSource(
   return null
 }
 
+/**
+ * Synchronizes wallet connection state with the smart account state machine.
+ * Handles transitions between disconnected, external-wallet, and para-embedded states.
+ */
+function useWalletConnectionSync(
+  paraWallet: ReturnType<typeof useParaWallet>['data'],
+  wagmiWalletClient: WalletClient | undefined,
+  paraClient: ReturnType<typeof useParaClient>,
+  snapshotValue: string,
+  send: (event: {
+    type: string
+    walletSource?: string
+    walletClient?: WalletClient
+    paraClient?: ReturnType<typeof useParaClient>
+  }) => void,
+) {
+  const connectedKeyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const walletSource = detectWalletSource(
+      paraWallet,
+      wagmiWalletClient,
+      paraClient,
+    )
+
+    const nextKey =
+      walletSource === 'external-wallet'
+        ? `external-${wagmiWalletClient?.account?.address?.toLowerCase() ?? 'unknown'}`
+        : walletSource === 'para-embedded'
+          ? 'para-embedded'
+          : null
+
+    if (!walletSource || !nextKey) {
+      connectedKeyRef.current = null
+      if (snapshotValue !== 'disconnected') {
+        send({ type: 'WALLET_DISCONNECTED' })
+      }
+      return
+    }
+
+    if (connectedKeyRef.current === nextKey) {
+      return
+    }
+
+    if (snapshotValue !== 'disconnected') {
+      send({ type: 'WALLET_DISCONNECTED' })
+      return
+    }
+
+    if (walletSource === 'external-wallet') {
+      if (!wagmiWalletClient) return
+      send({
+        type: 'WALLET_CONNECTED',
+        walletSource: 'external-wallet',
+        walletClient: wagmiWalletClient,
+      })
+      connectedKeyRef.current = nextKey
+      return
+    }
+
+    if (walletSource === 'para-embedded' && paraClient) {
+      send({
+        type: 'WALLET_CONNECTED',
+        walletSource: 'para-embedded',
+        paraClient,
+      })
+      connectedKeyRef.current = nextKey
+      return
+    }
+
+    connectedKeyRef.current = nextKey
+  }, [paraWallet, wagmiWalletClient, paraClient, snapshotValue, send])
+}
+
 export const SmartAccountContextProvider = ({
   children,
   accountType = 'hca',
@@ -103,66 +177,17 @@ export const SmartAccountContextProvider = ({
   const showSessionModal = useSelector(actorRef, selectShowSessionModal)
   const isCreatingSession = useSelector(actorRef, selectIsCreatingSession)
 
-  const connectedKeyRef = useRef<string | null>(null)
-
   useEffect(() => {
     send({ type: 'SET_ACCOUNT_TYPE', accountType })
   }, [accountType, send])
 
-  useEffect(() => {
-    const walletSource = detectWalletSource(
-      paraWallet,
-      wagmiWalletClient as WalletClient | undefined,
-      paraClient,
-    )
-
-    const nextKey =
-      walletSource === 'external-wallet'
-        ? `external-${wagmiWalletClient?.account?.address?.toLowerCase() ?? 'unknown'}`
-        : walletSource === 'para-embedded'
-          ? 'para-embedded'
-          : null
-
-    if (!walletSource || !nextKey) {
-      connectedKeyRef.current = null
-      if (snapshot.value !== 'disconnected') {
-        send({ type: 'WALLET_DISCONNECTED' })
-      }
-      return
-    }
-
-    if (connectedKeyRef.current === nextKey) {
-      return
-    }
-
-    if (snapshot.value !== 'disconnected') {
-      send({ type: 'WALLET_DISCONNECTED' })
-      return
-    }
-
-    if (walletSource === 'external-wallet') {
-      if (!wagmiWalletClient) return
-      send({
-        type: 'WALLET_CONNECTED',
-        walletSource: 'external-wallet',
-        walletClient: wagmiWalletClient as WalletClient,
-      })
-      connectedKeyRef.current = nextKey
-      return
-    }
-
-    if (walletSource === 'para-embedded' && paraClient) {
-      send({
-        type: 'WALLET_CONNECTED',
-        walletSource: 'para-embedded',
-        paraClient,
-      })
-      connectedKeyRef.current = nextKey
-      return
-    }
-
-    connectedKeyRef.current = nextKey
-  }, [paraWallet, wagmiWalletClient, paraClient, snapshot.value, send])
+  useWalletConnectionSync(
+    paraWallet,
+    wagmiWalletClient as WalletClient | undefined,
+    paraClient,
+    snapshot.value as string,
+    send,
+  )
 
   const accountAddress = snapshot.context.accountAddress
   const ownerAddress = snapshot.context.ownerAddress
