@@ -25,7 +25,7 @@
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.4",
-    "@ensdomains/ensjs": "link:/Users/chakravarthi/workspace/ens/ensjs/packages/ensjs",
+    "@ensdomains/ensjs": "catalog:",
     "@ensdomains/locales": "workspace:^",
     "@metamask/sdk": "~0.33.1",
     "@posthog/react": "^1.5.2",
