@@ -8,9 +8,10 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { CheckIcon, CopyIcon, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
+import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,16 @@ export interface SubnameRow {
   readonly name: string
   readonly owner: Address
 }
+
+const OwnerCell = ({ owner }: { owner: Address }) => (
+  <div className="flex flex-row gap-2 items-center">
+    <NameAvatar name={owner} height="20px" width="20px" rounded="rounded-sm" />
+    <Link to="/addr/$addr" params={{ addr: owner }}>
+      <EntityBadge variant="address">{truncateAddress(owner)}</EntityBadge>
+    </Link>
+    <CopyButton value={owner} size="sm" />
+  </div>
+)
 
 const columns: ColumnDef<SubnameRow>[] = [
   {
@@ -76,41 +87,7 @@ const columns: ColumnDef<SubnameRow>[] = [
         Owner
       </SortButton>
     ),
-    cell: ({ row }) => {
-      const owner = row.original.owner
-      const [copied, setCopied] = useState(false)
-
-      return (
-        <div className="flex flex-row gap-2 items-center">
-          <NameAvatar
-            name={owner}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <Link to="/addr/$addr" params={{ addr: owner }}>
-            <EntityBadge variant="address">
-              {truncateAddress(owner)}
-            </EntityBadge>
-          </Link>
-          <button
-            type="button"
-            className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              navigator.clipboard.writeText(owner)
-              setCopied(true)
-              setTimeout(() => setCopied(false), 2000)
-            }}
-          >
-            {copied ? (
-              <CheckIcon className="size-3" />
-            ) : (
-              <CopyIcon className="size-3" />
-            )}
-          </button>
-        </div>
-      )
-    },
+    cell: ({ row }) => <OwnerCell owner={row.original.owner} />,
   },
 ]
 

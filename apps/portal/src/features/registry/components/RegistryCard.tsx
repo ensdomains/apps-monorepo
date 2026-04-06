@@ -27,7 +27,7 @@ const ContractAddressRow = ({
   explorerUrl?: string
 }) => (
   <div className="flex items-center justify-start gap-3">
-    <span className="text-sm text-muted-foreground shrink-0 min-w-[60px]">
+    <span className="text-sm text-muted-foreground shrink-0 min-w-15">
       {label}
     </span>
     <div className="flex items-center gap-2 min-w-0 flex-1">
