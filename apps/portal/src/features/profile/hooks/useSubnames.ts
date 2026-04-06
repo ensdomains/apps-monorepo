@@ -10,7 +10,7 @@ import { fromPromise, ok } from 'neverthrow'
 import { type Address, checksumAddress, type Hex } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import type { WithEnsNetwork } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
   cause: GetSubnamesErrorType | ClientError
@@ -23,15 +23,16 @@ type Subname = {
   owner: Address
 }
 
-type GetSubnamesParameters = WithEnsNetwork<{
+type GetSubnamesParameters = {
   name: string
-}>
+  protocolVersion: ProtocolVersion
+}
 
 export const getSubnames = ResultFn(async function* ({
   name,
-  network,
+  protocolVersion,
 }: GetSubnamesParameters) {
-  if (network === 'sepolia') {
+  if (protocolVersion === 'ENSv1') {
     const client = yield* safeGetClient()
 
     const subnames = yield* fromPromise(

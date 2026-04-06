@@ -1,20 +1,23 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
 import { decodeImplementationAddress } from '@/features/resolver/utils/dedicatedResolver'
-import { namechainSepolia, sepoliaWithEns } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 const EIP1967_IMPLEMENTATION_SLOT: Hex =
   '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
 
 const knownDedicatedResolverImplementations = [
-  namechainSepolia.contracts.ensDedicatedResolver?.address,
-  sepoliaWithEns.contracts.ensDedicatedResolver?.address,
+  getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensPermissionedResolverImpl',
+  }),
 ]
   .filter(Boolean)
   .map((address) => address.toLowerCase())
