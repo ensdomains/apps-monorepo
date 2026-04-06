@@ -1,4 +1,6 @@
+import { useSelector } from '@xstate/store-react'
 import { useEffect, useState } from 'react'
+import { backendAuthStore } from '@/utils/backend-client'
 
 const STORAGE_KEY = 'migration-modal-dismissed'
 
@@ -8,15 +10,21 @@ export const useOpenModalOnFirstVisit = (
 ) => {
   const [open, setOpen] = useState(false)
 
+  const isAuthResolved = useSelector(
+    backendAuthStore,
+    (state) => !!state.context.authKey || state.context.modalDismissed,
+  )
+
   useEffect(() => {
     if (
       isConnected &&
       hasV1Names &&
+      isAuthResolved &&
       localStorage.getItem(STORAGE_KEY) !== 'true'
     ) {
       setOpen(true)
     }
-  }, [isConnected, hasV1Names])
+  }, [isConnected, hasV1Names, isAuthResolved])
 
   const dismiss = () => {
     localStorage.setItem(STORAGE_KEY, 'true')
