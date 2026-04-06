@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { CheckIcon, CopyIcon } from 'lucide-react'
-import { useState } from 'react'
+import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +16,16 @@ export type NameRow = {
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
 }
+
+const NameCell = ({ name }: { name: string }) => (
+  <div className="flex flex-row gap-2 items-center">
+    <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
+    <Link to="/$name" params={{ name }}>
+      <EntityBadge variant="name">{name}</EntityBadge>
+    </Link>
+    <CopyButton value={name} size="sm" />
+  </div>
+)
 
 export const columns: ColumnDef<NameRow>[] = [
   {
@@ -50,40 +59,10 @@ export const columns: ColumnDef<NameRow>[] = [
         Name
       </SortButton>
     ),
-    cell(cell) {
-      const name = cell.getValue() as string
-      const [copied, setCopied] = useState(false)
-
+    cell: ({ getValue }) => {
+      const name = getValue() as string
       if (!name) return null
-
-      return (
-        <div className="flex flex-row gap-2 items-center">
-          <NameAvatar
-            name={name}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <Link to="/$name" params={{ name }}>
-            <EntityBadge variant="name">{name}</EntityBadge>
-          </Link>
-          <button
-            type="button"
-            className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              navigator.clipboard.writeText(name)
-              setCopied(true)
-              setTimeout(() => setCopied(false), 2000)
-            }}
-          >
-            {copied ? (
-              <CheckIcon className="size-3" />
-            ) : (
-              <CopyIcon className="size-3" />
-            )}
-          </button>
-        </div>
-      )
+      return <NameCell name={name} />
     },
   },
   {

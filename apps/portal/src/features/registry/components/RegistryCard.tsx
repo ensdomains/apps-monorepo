@@ -1,7 +1,6 @@
-import { CheckIcon, CopyIcon } from 'lucide-react'
-import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
+import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -26,49 +25,27 @@ const ContractAddressRow = ({
   label: string
   address: Address
   explorerUrl?: string
-}) => {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(address)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="flex items-center justify-start gap-3">
-      <span className="text-sm text-muted-foreground shrink-0 min-w-[60px]">
-        {label}
-      </span>
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        {explorerUrl ? (
-          <ExternalLink href={explorerUrl}>
-            <EntityBadge variant="contract">
-              {truncateAddress(address)}
-            </EntityBadge>
-          </ExternalLink>
-        ) : (
+}) => (
+  <div className="flex items-center justify-start gap-3">
+    <span className="text-sm text-muted-foreground shrink-0 min-w-[60px]">
+      {label}
+    </span>
+    <div className="flex items-center gap-2 min-w-0 flex-1">
+      {explorerUrl ? (
+        <ExternalLink href={explorerUrl}>
           <EntityBadge variant="contract">
             {truncateAddress(address)}
           </EntityBadge>
-        )}
-        <button
-          type="button"
-          className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-          onClick={handleCopy}
-        >
-          {copied ? (
-            <CheckIcon className="size-3" />
-          ) : (
-            <CopyIcon className="size-3" />
-          )}
-        </button>
-      </div>
+        </ExternalLink>
+      ) : (
+        <EntityBadge variant="contract">{truncateAddress(address)}</EntityBadge>
+      )}
+      <CopyButton value={address} size="sm" />
     </div>
-  )
-}
+  </div>
+)
 
-export function RegistryCard({ registry, chainId }: RegistryCardProps) {
+export const RegistryCard = ({ registry, chainId }: RegistryCardProps) => {
   const addressUrl = useBlockExplorerAddressUrl(registry.address, chainId)
   const factoryUrl = useBlockExplorerAddressUrl(registry.factory, chainId)
 
@@ -76,7 +53,7 @@ export function RegistryCard({ registry, chainId }: RegistryCardProps) {
     <div className="border border-border rounded-lg p-4 sm:p-6 flex flex-col items-center gap-4 relative w-full">
       <div className="flex flex-col gap-3 w-full">
         <div className="flex items-center justify-start gap-3">
-          <span className="text-sm text-muted-foreground min-w-[60px]">
+          <span className="text-sm text-muted-foreground min-w-15">
             Protocol
           </span>
           <span className="text-sm font-medium">{registry.protocol}</span>

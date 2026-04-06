@@ -1,8 +1,7 @@
-import { CheckIcon, CopyIcon } from 'lucide-react'
-import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { HttpsUrl } from '@/utils/types'
 import { CopyableRecord } from './CopyableRecord'
+import { CopyButton } from './CopyButton'
 import { EntityBadge, type EntityVariant } from './EntityBadge'
 
 export type DatapointProps = {
@@ -14,14 +13,6 @@ export type DatapointProps = {
 }
 
 export const Datapoint = ({ label, value, href, variant }: DatapointProps) => {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   return (
     <>
       <span className="text-sm sm:text-base font-medium max-w-160">
@@ -36,17 +27,7 @@ export const Datapoint = ({ label, value, href, variant }: DatapointProps) => {
           ) : (
             <EntityBadge variant={variant}>{value}</EntityBadge>
           )}
-          <button
-            type="button"
-            className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-            onClick={handleCopy}
-          >
-            {copied ? (
-              <CheckIcon className="size-3" />
-            ) : (
-              <CopyIcon className="size-3" />
-            )}
-          </button>
+          <CopyButton value={value} size="sm" />
         </div>
       ) : (
         <CopyableRecord value={value} href={href} />

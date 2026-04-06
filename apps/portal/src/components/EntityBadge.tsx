@@ -20,7 +20,7 @@ const pillClass = (variant: EntityVariant, className?: string) =>
     className,
   )
 
-export function EntityBadge({
+export const EntityBadge = ({
   children,
   variant,
   className,
@@ -31,7 +31,7 @@ export function EntityBadge({
   className?: string
   /** External link — opens in new tab */
   externalHref?: string
-}) {
+}) => {
   if (externalHref) {
     return (
       <ExternalLink

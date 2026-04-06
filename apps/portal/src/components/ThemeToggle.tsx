@@ -13,17 +13,16 @@ const options: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'system', label: 'System', icon: <Monitor className="size-4" /> },
 ]
 
-export function ThemeToggle() {
+const themeIcons: Record<Theme, React.ReactNode> = {
+  dark: <Moon className="size-4" />,
+  light: <Sun className="size-4" />,
+  system: <Monitor className="size-4" />,
+}
+
+export const ThemeToggle = () => {
   const { theme, setTheme } = useTheme()
 
-  const currentIcon =
-    theme === 'dark' ? (
-      <Moon className="size-4" />
-    ) : theme === 'light' ? (
-      <Sun className="size-4" />
-    ) : (
-      <Monitor className="size-4" />
-    )
+  const currentIcon = themeIcons[theme]
 
   return (
     <DropdownMenuSub>
