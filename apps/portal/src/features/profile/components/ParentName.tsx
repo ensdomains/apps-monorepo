@@ -9,7 +9,7 @@ export const ParentName = ({ name }: { name: string }) => {
     return (
       <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted">
         <div className="flex flex-col">
-          <span className="font-medium">Parent</span>
+          <span className="text-sm text-muted-foreground">Parent</span>
           <span>Root</span>
         </div>
       </div>
@@ -23,7 +23,7 @@ export const ParentName = ({ name }: { name: string }) => {
     >
       <NameAvatar width="40px" height="40px" name={parent} />
       <div className="flex flex-col gap-1">
-        <span className="font-medium">Parent</span>
+        <span className="text-sm text-muted-foreground">Parent</span>
         <EntityBadge variant="name">{parent}</EntityBadge>
       </div>
     </Link>

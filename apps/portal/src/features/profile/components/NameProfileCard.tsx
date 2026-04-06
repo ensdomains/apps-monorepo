@@ -82,7 +82,7 @@ export const NameProfileCard = ({
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <div className="flex flex-col sm:flex-row p-6 items-center gap-6 rounded-lg border border-border">
+    <div className="flex flex-col sm:flex-row p-6 items-center gap-6">
       <NameAvatar name={name} />
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-0.5 ">
@@ -106,7 +106,9 @@ export const NameProfileCard = ({
           <span>
             {texts.name && <span className="font-medium">{texts.name}</span>}{' '}
             {texts.name && texts.description ? '–' : null}{' '}
-            {texts.description && <span>{texts.description}</span>}
+            {texts.description && (
+              <span className="text-muted-foreground">{texts.description}</span>
+            )}
           </span>
           <div className="flex flex-row flex-wrap gap-x-2 gap-y-1">
             <SocialRecord

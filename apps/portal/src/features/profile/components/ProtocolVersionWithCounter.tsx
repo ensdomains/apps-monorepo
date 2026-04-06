@@ -35,7 +35,10 @@ const RoleCount = ({ name }: { name: string }) => {
       icon={ListIcon}
       action={<CounterCardLink to="/$name/roles" params={{ name }} />}
     >
-      <span className="font-medium">{(data || { size: 0 }).size}</span> roles
+      <span className="font-medium text-muted-foreground">
+        {(data || { size: 0 }).size}
+      </span>{' '}
+      <span className="text-muted-foreground">roles</span>
     </CounterCardRow>
   )
 }
@@ -54,7 +57,8 @@ const FuseCount = ({ name }: { name: string }) => {
       icon={ListIcon}
       action={<CounterCardLink to="/$name/fuses" params={{ name }} />}
     >
-      <span className="font-medium">{data || 0}</span> fuses burned
+      <span className="font-medium text-foreground">{data || 0}</span>{' '}
+      <span className="text-muted-foreground">fuses burned</span>
     </CounterCardRow>
   )
 }
@@ -80,7 +84,7 @@ export const ProtocolVersionWithCounter = ({
           />
         }
       >
-        <div className="font-medium">Protocol</div>
+        <div className="text-sm text-muted-foreground">Protocol</div>
         <div>{network === 'namechainSepolia' ? 'ENSv2' : 'ENSv1'}</div>
       </CounterCardRow>
     </CounterCard>

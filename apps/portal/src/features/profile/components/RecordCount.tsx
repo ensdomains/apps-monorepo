@@ -48,7 +48,8 @@ export const RecordCount = ({
         icon={ListIcon}
         action={<CounterCardLink to="/$name/records" params={{ name }} />}
       >
-        <span className="font-medium">{recordCount}</span> records set
+        <span className="font-medium text-foreground">{recordCount}</span>{' '}
+        <span className="text-muted-foreground">records set</span>
       </CounterCardRow>
       <CounterCardRow
         icon={FileCodeIcon}
@@ -61,7 +62,7 @@ export const RecordCount = ({
         }
       >
         <div className="flex flex-col gap-1">
-          <span className="font-medium">Resolver</span>
+          <span className="text-sm text-muted-foreground">Resolver</span>
           {underlyingResolverAddress ? (
             <EntityBadge variant="contract">
               {truncateAddress(underlyingResolverAddress, 6, 4, '...')}

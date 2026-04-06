@@ -17,8 +17,8 @@ export const TokenLocation = ({ name }: TokenLocationProps) => {
       <div className="flex flex-row gap-6 items-center">
         <NamechainSVG height={40} width={40} />
         <div>
-          <span className="font-medium">Network</span>
-          <h3>Sepolia</h3>
+          <span className="text-sm text-muted-foreground">Network</span>
+          <h3 className="text-foreground">Sepolia</h3>
         </div>
       </div>
     </Link>

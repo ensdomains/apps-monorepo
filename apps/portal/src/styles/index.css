@@ -6,35 +6,35 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --background: #faf9f7;
+  --foreground: #191919;
+  --card: #faf9f7;
+  --card-foreground: #191919;
+  --popover: #ffffff;
+  --popover-foreground: #191919;
   --primary: var(--lapis-500);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: #dbf0f8;
-  --secondary-foreground: #0082bb;
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: var(--lapis-500);
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f2;
+  --secondary-foreground: #191919;
+  --muted: #f2f2f2;
+  --muted-foreground: #737373;
+  --accent: #f2f2f2;
+  --accent-foreground: #191919;
   --destructive: var(--garnet-500);
   --danger: var(--garnet-500);
   --success: var(--peridot-500);
   --warning: var(--citrine-500);
-  --border: var(--quartz-100);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: var(--lapis-500);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: var(--lapis-100);
-  --sidebar-accent-foreground: var(--lapis-500);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: #e1e1e0;
+  --input: #f2f2f2;
+  --ring: #737373;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #737373;
+  --sidebar-primary: #f2f2f2;
+  --sidebar-primary-foreground: #191919;
+  --sidebar-accent: #f2f2f2;
+  --sidebar-accent-foreground: #595755;
+  --sidebar-border: #e1e1e0;
+  --sidebar-ring: #737373;
 
   --lapis-100: #dbf0f8;
   --lapis-400: #80c4e0;
@@ -65,11 +65,11 @@
   --quartz-500: #5d5751;
   --quartz-900: #191919;
 
-  /* Syntax/entity colors — fixed regardless of theme, optimized for dark pill bg */
-  --syntax-name: #39b4ea;
-  --syntax-address: #1cbf46;
-  --syntax-contract: #f569ab;
-  --syntax-tx: #e7a259;
+  /* Syntax/entity colors — light mode values (higher contrast for light backgrounds) */
+  --syntax-name: #0082bb;
+  --syntax-address: #0e8a30;
+  --syntax-contract: #e72a96;
+  --syntax-tx: #984d1b;
   --entity-bg: transparent;
   --entity-border: transparent;
 
@@ -179,6 +179,11 @@
   --sidebar-ring: var(--lapis-400);
   --entity-bg: #242424;
   --entity-border: #383838;
+  /* Syntax/entity colors — dark mode values (bright for dark pill bg) */
+  --syntax-name: #39b4ea;
+  --syntax-address: #1cbf46;
+  --syntax-contract: #f569ab;
+  --syntax-tx: #e7a259;
 }
 
 @layer base {

@@ -35,7 +35,10 @@ export const SubnameCount = ({
         icon={ListIcon}
         action={<CounterCardLink to="/$name/subnames" params={{ name }} />}
       >
-        <span className="font-medium">{data ? data.length : 0}</span> subnames
+        <span className="font-medium text-foreground">
+          {data ? data.length : 0}
+        </span>{' '}
+        <span className="text-muted-foreground">subnames</span>
       </CounterCardRow>
       <CounterCardRow
         icon={ListStartIcon}
@@ -51,8 +54,8 @@ export const SubnameCount = ({
           <RegistryLocation name={name} registryAddress={registryAddress} />
         ) : (
           <>
-            <span className="font-medium">Subregistry</span>
-            <div>None set</div>
+            <span className="text-sm text-muted-foreground">Subregistry</span>
+            <div className="text-muted-foreground">None set</div>
           </>
         )}
       </CounterCardRow>

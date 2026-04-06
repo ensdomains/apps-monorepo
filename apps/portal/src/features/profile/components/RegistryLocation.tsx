@@ -26,14 +26,14 @@ export const RegistryLocation = ({
 
   return (
     <div className="flex-1 flex flex-col gap-1">
-      <span className="font-medium">Subregistry</span>
+      <span className="text-sm text-muted-foreground">Subregistry</span>
 
       {hasSubregistry ? (
         <EntityBadge variant="contract">
           {truncateAddress(data.registryAddress, 6, 4, '...')}
         </EntityBadge>
       ) : (
-        <div>No subregistry</div>
+        <div className="text-muted-foreground">No subregistry</div>
       )}
     </div>
   )
