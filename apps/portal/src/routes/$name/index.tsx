@@ -212,41 +212,43 @@ const Profile = ({
         <CopyButton value={name} />
       </div>
 
-      {/* Profile + Expiry */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
-        <div className="*:h-full">
-          <NameProfileCard name={name} />
+      <div className="flex flex-col gap-3">
+        {/* Profile + Expiry */}
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
+          <div className="*:h-full">
+            <NameProfileCard name={name} />
+          </div>
+          <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
         </div>
-        <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
-      </div>
 
-      {/* Owner / Parent / Resolver / Registry */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Owner owner={ownerQuery.data.owner} />
-        <ParentName name={name} />
-        {resolverAddress && (
-          <ResolverCard name={name} resolverAddress={resolverAddress} />
-        )}
-        <RegistryCard
-          name={name}
-          registryAddress={ownerQuery.data.registryAddress}
-        />
-      </div>
-
-      {/* Counts */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {resolverAddress && (
-          <RecordCount
+        {/* Owner / Parent / Resolver / Registry */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <Owner owner={ownerQuery.data.owner} />
+          <ParentName name={name} />
+          {resolverAddress && (
+            <ResolverCard name={name} resolverAddress={resolverAddress} />
+          )}
+          <RegistryCard
             name={name}
-            records={profileQuery.data?.records}
-            resolverAddress={resolverAddress}
+            registryAddress={ownerQuery.data.registryAddress}
           />
-        )}
-        <SubnameCount name={name} network={resolvedNetwork} />
-        <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
-      </div>
+        </div>
 
-      {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
+        {/* Counts */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {resolverAddress && (
+            <RecordCount
+              name={name}
+              records={profileQuery.data?.records}
+              resolverAddress={resolverAddress}
+            />
+          )}
+          <SubnameCount name={name} network={resolvedNetwork} />
+          <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
+        </div>
+
+        {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
+      </div>
     </div>
   )
 }
