@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FileCodeIcon } from 'lucide-react'
 import type { Address } from 'viem'
+import { ResolverIcon } from '@/assets/icons'
 import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -28,7 +28,7 @@ export const ResolverCard = ({
       params={{ name }}
       className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted"
     >
-      <FileCodeIcon className="size-10 shrink-0 text-muted-foreground" />
+      <ResolverIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
       <div className="flex flex-col gap-1">
         <span className="text-sm text-muted-foreground">Resolver</span>
         {isLoading ? (

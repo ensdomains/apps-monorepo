@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ListIcon } from 'lucide-react'
+import { GraphIcon } from '@/assets/icons'
 import {
   CounterCard,
   CounterCardLink,
@@ -25,7 +25,7 @@ export const SubnameCount = ({
   return (
     <CounterCard>
       <CounterCardRow
-        icon={ListIcon}
+        icon={GraphIcon}
         action={<CounterCardLink to="/$name/subnames" params={{ name }} />}
       >
         <span className="font-medium text-foreground">

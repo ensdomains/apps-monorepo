@@ -1,7 +1,7 @@
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
-import { ListIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
+import { CardsStackIcon } from '@/assets/icons'
 import {
   CounterCard,
   CounterCardLink,
@@ -25,7 +25,7 @@ export const RecordCount = ({
   return (
     <CounterCard>
       <CounterCardRow
-        icon={ListIcon}
+        icon={CardsStackIcon}
         action={<CounterCardLink to="/$name/records" params={{ name }} />}
       >
         <span className="font-medium text-foreground">{recordCount}</span>{' '}

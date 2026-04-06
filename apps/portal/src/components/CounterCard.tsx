@@ -1,5 +1,6 @@
 import { createLink } from '@tanstack/react-router'
-import { ChevronRight, type LucideIcon } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+import type { SVGProps } from 'react'
 import { forwardRef, type ReactNode } from 'react'
 
 export const CounterCard = ({ children }: { children: ReactNode }) => (
@@ -13,12 +14,12 @@ export const CounterCardRow = ({
   children,
   action,
 }: {
-  icon: LucideIcon
+  icon: React.ComponentType<SVGProps<SVGSVGElement>>
   children: ReactNode
   action?: ReactNode
 }) => (
   <div className="w-full p-6 flex flex-row items-center gap-6">
-    <Icon className="p-2 size-8 shrink-0 rounded-4xl bg-muted text-foreground" />
+    <Icon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
     <div className="flex-1">{children}</div>
     {action}
   </div>

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { Network } from 'lucide-react'
 import type { Address } from 'viem'
+import { HubIcon } from '@/assets/icons'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { RegistryLocation } from './RegistryLocation'
 
@@ -21,7 +21,7 @@ export const RegistryCard = ({
       params={{ name }}
       className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted"
     >
-      <Network className="size-10 shrink-0 text-muted-foreground" />
+      <HubIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
       {isCustomRegistry ? (
         <RegistryLocation name={name} registryAddress={registryAddress} />
       ) : (

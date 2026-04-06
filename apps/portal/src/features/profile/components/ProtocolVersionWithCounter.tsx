@@ -1,6 +1,6 @@
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
-import { ListIcon } from 'lucide-react'
+import { ShieldIcon } from '@/assets/icons'
 import {
   CounterCard,
   CounterCardLink,
@@ -32,7 +32,7 @@ const RoleCount = ({ name }: { name: string }) => {
 
   return (
     <CounterCardRow
-      icon={ListIcon}
+      icon={ShieldIcon}
       action={<CounterCardLink to="/$name/roles" params={{ name }} />}
     >
       <span className="font-medium text-foreground">
@@ -54,7 +54,7 @@ const FuseCount = ({ name }: { name: string }) => {
 
   return (
     <CounterCardRow
-      icon={ListIcon}
+      icon={ShieldIcon}
       action={<CounterCardLink to="/$name/fuses" params={{ name }} />}
     >
       <span className="font-medium text-foreground">{data || 0}</span>{' '}
