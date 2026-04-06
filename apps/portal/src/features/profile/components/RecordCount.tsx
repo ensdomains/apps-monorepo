@@ -2,11 +2,7 @@ import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
 import { CardsStackIcon } from '@/assets/icons'
-import {
-  CounterCard,
-  CounterCardLink,
-  CounterCardRow,
-} from '@/components/CounterCard'
+import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const RecordCount = ({
@@ -23,11 +19,8 @@ export const RecordCount = ({
   }, [records])
 
   return (
-    <CounterCard>
-      <CounterCardRow
-        icon={CardsStackIcon}
-        action={<CounterCardLink to="/$name/records" params={{ name }} />}
-      >
+    <CounterCard to="/$name/records" params={{ name }}>
+      <CounterCardRow icon={CardsStackIcon}>
         <span className="font-medium text-foreground">{recordCount}</span>{' '}
         <span className="text-muted-foreground">records set</span>
       </CounterCardRow>

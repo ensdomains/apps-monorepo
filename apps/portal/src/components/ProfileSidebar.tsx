@@ -1,22 +1,23 @@
 import { Link } from '@tanstack/react-router'
-import type { LucideIcon } from 'lucide-react'
 import {
   BookIcon,
   CircleQuestionMarkIcon,
-  ClockIcon,
-  CoinsIcon,
-  FileCodeIcon,
-  FileSpreadsheetIcon,
   FlameIcon,
-  ListTreeIcon,
-  Network,
-  PersonStandingIcon,
   SettingsIcon,
-  UserLockIcon,
-  UserRoundCog,
 } from 'lucide-react'
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
+import {
+  BrowseIcon,
+  CardsStackIcon,
+  GraphIcon,
+  HistoryIcon,
+  HubIcon,
+  KeyIcon,
+  ResolverIcon,
+  ShieldIcon,
+  TollIcon,
+} from '@/assets/icons'
 import { LogoWithTextSVG } from '@/assets/logo'
 import { SoonBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -47,7 +48,7 @@ import { WalletMenu } from './WalletMenu'
 
 type SidebarItemData = {
   title: string
-  icon: LucideIcon
+  icon: React.ComponentType<{ className?: string }>
   disabled?: boolean
   upcoming?: boolean
 }
@@ -57,7 +58,7 @@ const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 const getItems = (name: string) => [
   defineProfileSidebarItem({
     title: 'Overview',
-    icon: PersonStandingIcon,
+    icon: BrowseIcon,
     link: {
       to: '/$name',
       params: { name },
@@ -66,7 +67,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'Records',
-    icon: FileSpreadsheetIcon,
+    icon: CardsStackIcon,
     link: {
       to: '/$name/records',
       params: { name },
@@ -74,7 +75,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'Resolver',
-    icon: FileCodeIcon,
+    icon: ResolverIcon,
     link: {
       to: '/$name/resolver',
       params: { name },
@@ -82,7 +83,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'Ownership',
-    icon: UserLockIcon,
+    icon: KeyIcon,
     link: {
       to: '/$name/ownership',
       params: { name },
@@ -90,7 +91,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'Roles',
-    icon: UserRoundCog,
+    icon: ShieldIcon,
     link: {
       to: '/$name/roles',
       params: { name },
@@ -106,7 +107,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'Subnames',
-    icon: ListTreeIcon,
+    icon: GraphIcon,
     link: {
       to: '/$name/subnames',
       params: { name },
@@ -114,7 +115,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'Registry',
-    icon: Network,
+    icon: HubIcon,
     link: {
       to: '/$name/registry',
       params: { name },
@@ -122,7 +123,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'Token info',
-    icon: CoinsIcon,
+    icon: TollIcon,
     link: {
       to: '/$name/token',
       params: { name },
@@ -130,7 +131,7 @@ const getItems = (name: string) => [
   }),
   defineProfileSidebarItem({
     title: 'History',
-    icon: ClockIcon,
+    icon: HistoryIcon,
     link: {
       to: '/$name/history',
       params: { name },

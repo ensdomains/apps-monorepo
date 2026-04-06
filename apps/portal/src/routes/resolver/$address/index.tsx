@@ -3,11 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import {
-  CounterCard,
-  CounterCardLink,
-  CounterCardRow,
-} from '@/components/CounterCard'
+import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -69,31 +65,15 @@ function RouteComponent() {
       <DedicatedResolverBanner resolverAddress={address as Address} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <CounterCard>
-          <CounterCardRow
-            icon={GridIcon}
-            action={
-              <CounterCardLink
-                to="/resolver/$address/nodes"
-                params={{ address }}
-              />
-            }
-          >
+        <CounterCard to="/resolver/$address/nodes" params={{ address }}>
+          <CounterCardRow icon={GridIcon}>
             <span className="font-medium">{resolver?.nodeCount ?? 0}</span>{' '}
             nodes
           </CounterCardRow>
         </CounterCard>
 
-        <CounterCard>
-          <CounterCardRow
-            icon={UserRoundCog}
-            action={
-              <CounterCardLink
-                to="/resolver/$address/roles"
-                params={{ address }}
-              />
-            }
-          >
+        <CounterCard to="/resolver/$address/roles" params={{ address }}>
+          <CounterCardRow icon={UserRoundCog}>
             <span className="font-medium">
               {resolver?.roleHolderCount ?? 0}
             </span>{' '}
@@ -101,16 +81,8 @@ function RouteComponent() {
           </CounterCardRow>
         </CounterCard>
 
-        <CounterCard>
-          <CounterCardRow
-            icon={SplitIcon}
-            action={
-              <CounterCardLink
-                to="/resolver/$address/aliases"
-                params={{ address }}
-              />
-            }
-          >
+        <CounterCard to="/resolver/$address/aliases" params={{ address }}>
+          <CounterCardRow icon={SplitIcon}>
             <span className="font-medium">{resolver?.aliasCount ?? 0}</span>{' '}
             aliases
           </CounterCardRow>

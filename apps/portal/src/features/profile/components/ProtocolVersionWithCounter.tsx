@@ -1,11 +1,7 @@
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { ShieldIcon } from '@/assets/icons'
-import {
-  CounterCard,
-  CounterCardLink,
-  CounterCardRow,
-} from '@/components/CounterCard'
+import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
@@ -31,15 +27,14 @@ const RoleCount = ({ name }: { name: string }) => {
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <CounterCardRow
-      icon={ShieldIcon}
-      action={<CounterCardLink to="/$name/roles" params={{ name }} />}
-    >
-      <span className="font-medium text-foreground">
-        {(data || { size: 0 }).size}
-      </span>{' '}
-      <span className="text-muted-foreground">roles</span>
-    </CounterCardRow>
+    <CounterCard to="/$name/roles" params={{ name }}>
+      <CounterCardRow icon={ShieldIcon}>
+        <span className="font-medium text-foreground">
+          {(data || { size: 0 }).size}
+        </span>{' '}
+        <span className="text-muted-foreground">roles</span>
+      </CounterCardRow>
+    </CounterCard>
   )
 }
 
@@ -53,13 +48,12 @@ const FuseCount = ({ name }: { name: string }) => {
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <CounterCardRow
-      icon={ShieldIcon}
-      action={<CounterCardLink to="/$name/fuses" params={{ name }} />}
-    >
-      <span className="font-medium text-foreground">{data || 0}</span>{' '}
-      <span className="text-muted-foreground">fuses burned</span>
-    </CounterCardRow>
+    <CounterCard to="/$name/fuses" params={{ name }}>
+      <CounterCardRow icon={ShieldIcon}>
+        <span className="font-medium text-foreground">{data || 0}</span>{' '}
+        <span className="text-muted-foreground">fuses burned</span>
+      </CounterCardRow>
+    </CounterCard>
   )
 }
 
@@ -67,13 +61,9 @@ export const ProtocolVersionWithCounter = ({
   name,
   network,
 }: ProtocolVersionWithCounterProps) => {
-  return (
-    <CounterCard>
-      {network === 'sepolia' ? (
-        <FuseCount name={name} />
-      ) : (
-        <RoleCount name={name} />
-      )}
-    </CounterCard>
+  return network === 'sepolia' ? (
+    <FuseCount name={name} />
+  ) : (
+    <RoleCount name={name} />
   )
 }

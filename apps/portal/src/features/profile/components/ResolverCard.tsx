@@ -26,7 +26,7 @@ export const ResolverCard = ({
     <Link
       to="/$name/resolver"
       params={{ name }}
-      className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted"
+      className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted"
     >
       <ResolverIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
       <div className="flex flex-col gap-1">

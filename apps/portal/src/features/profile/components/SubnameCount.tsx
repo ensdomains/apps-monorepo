@@ -1,10 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { GraphIcon } from '@/assets/icons'
-import {
-  CounterCard,
-  CounterCardLink,
-  CounterCardRow,
-} from '@/components/CounterCard'
+import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import type { WithEnsNetwork } from '@/utils/types'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
@@ -23,11 +19,8 @@ export const SubnameCount = ({
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
-    <CounterCard>
-      <CounterCardRow
-        icon={GraphIcon}
-        action={<CounterCardLink to="/$name/subnames" params={{ name }} />}
-      >
+    <CounterCard to="/$name/subnames" params={{ name }}>
+      <CounterCardRow icon={GraphIcon}>
         <span className="font-medium text-foreground">
           {data ? data.length : 0}
         </span>{' '}

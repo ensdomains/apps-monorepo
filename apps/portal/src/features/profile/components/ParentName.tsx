@@ -7,7 +7,7 @@ export const ParentName = ({ name }: { name: string }) => {
 
   if (parent === name)
     return (
-      <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted">
+      <div className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted">
         <div className="flex flex-col">
           <span className="text-sm text-muted-foreground">Parent</span>
           <span>Root</span>
@@ -19,7 +19,7 @@ export const ParentName = ({ name }: { name: string }) => {
     <Link
       to="/$name"
       params={{ name: parent }}
-      className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted"
+      className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted"
     >
       <NameAvatar width="40px" height="40px" name={parent} />
       <div className="flex flex-col gap-1">
