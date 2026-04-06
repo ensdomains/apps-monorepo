@@ -59,10 +59,10 @@ export class SessionError extends Error {
 }
 
 export interface CreateZeroDevSessionParams {
-  ownerAddress: Address
-  smartAccountAddress: Address
-  ecdsaValidator: KernelValidator<'ECDSAValidator'>
-  config?: SessionConfig
+  readonly ownerAddress: Address
+  readonly smartAccountAddress: Address
+  readonly ecdsaValidator: KernelValidator<'ECDSAValidator'>
+  readonly config?: SessionConfig
 }
 
 /**
