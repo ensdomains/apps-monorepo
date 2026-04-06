@@ -6,18 +6,19 @@ import type { ClassifiedName } from './classifyNames'
 
 export const ENABLE_PRE_MIGRATE = true
 
-const getPreMigrateParams = (name: ClassifiedName) => ({
-  label: name.label,
-  expiry: BigInt(
-    name.domain.wrappedDomain?.expiryDate ??
-      name.domain.registration?.expiryDate ??
-      (() => {
-        throw new Error(`No expiry found for ${name.domain.name}`)
-      })(),
-  ),
-  registry: V1_CONTRACTS.ENSRegistry,
-  resolver: (name.v1ResolverAddress || V1_CONTRACTS.PublicResolver) as Address,
-})
+const getPreMigrateParams = (name: ClassifiedName) => {
+  const expiryValue = name.domain.expiryDate?.value
+  if (expiryValue == null) {
+    throw new Error(`No expiry found for ${name.domain.name}`)
+  }
+  return {
+    label: name.label,
+    expiry: BigInt(expiryValue),
+    registry: V1_CONTRACTS.ENSRegistry,
+    resolver: (name.v1ResolverAddress ||
+      V1_CONTRACTS.PublicResolver) as Address,
+  }
+}
 
 export const buildPreMigrateCall = (name: ClassifiedName) => {
   const params = getPreMigrateParams(name)

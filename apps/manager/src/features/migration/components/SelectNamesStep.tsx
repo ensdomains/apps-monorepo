@@ -21,8 +21,9 @@ export const SelectNamesStep = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const filtered = useMemo(
     () =>
-      v1Names.filter((n) =>
-        n.name.toLowerCase().includes(search.toLowerCase()),
+      v1Names.filter(
+        (n): n is typeof n & { name: string } =>
+          n.name != null && n.name.toLowerCase().includes(search.toLowerCase()),
       ),
     [search, v1Names],
   )

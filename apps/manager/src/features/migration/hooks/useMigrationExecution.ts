@@ -4,7 +4,7 @@ import {
   getMigrationStepInfo,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { V1Name } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const ERROR_DISPLAY_DELAY_MS = 1500
@@ -28,7 +28,7 @@ function extractErrorMessage(err: unknown): string {
 }
 
 export function useMigrationExecution(
-  domains: V1Domain[],
+  domains: V1Name[],
   onComplete: (result: MigrationResult) => void,
   onError: (error: string) => void,
   hugDelay: number,

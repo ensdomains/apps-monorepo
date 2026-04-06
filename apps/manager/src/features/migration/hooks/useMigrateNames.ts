@@ -8,7 +8,7 @@ import {
   type MigrationProgress,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { V1Name } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 
@@ -17,13 +17,13 @@ export function useMigrateNames() {
   const { ownerAddress } = useSmartAccountContext()
   const [progress, setProgress] = useState<MigrationProgress | null>(null)
 
-  const mutation = useMutation<MigrationResult, Error, V1Domain[]>({
+  const mutation = useMutation<MigrationResult, Error, V1Name[]>({
     mutationKey: $qk({
       $scope: 'migration',
       $action: 'migrate',
       owner: ownerAddress,
     }),
-    mutationFn: async (domains: V1Domain[]) => {
+    mutationFn: async (domains: V1Name[]) => {
       if (!ownerAddress) {
         throw new Error('Wallet not connected')
       }

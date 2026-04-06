@@ -7,7 +7,7 @@ import {
   WRAPPER_REGISTRY_ABI,
 } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
+import { type ClassifiedName, is2LD } from './classifyNames'
 
 const PREFLIGHT_TIMEOUT = 8000
 const MULTICALL_BATCH_SIZE = 100
@@ -109,7 +109,7 @@ export const filterFrozenApprovals = async (
   const locked = names.filter(
     (n) =>
       (n.tokenType === 'locked-2ld' || n.tokenType === 'locked-child') &&
-      hasFuse(n.fuses, FUSES.CANNOT_APPROVE),
+      n.fuses?.child.CANNOT_APPROVE,
   )
 
   if (locked.length === 0) {
@@ -174,7 +174,7 @@ export const runPreFlightChecks = async (
 
 // "sub.nick.eth" → ["nick"], "deep.sub.nick.eth" → ["nick", "sub"]
 const getParentLabels = (name: ClassifiedName): string[] =>
-  name.domain.name.split('.').slice(1, -1).reverse()
+  (name.domain.name ?? '').split('.').slice(1, -1).reverse()
 
 export const resolveParentRegistries = async (
   publicClient: PublicClient,

@@ -79,7 +79,7 @@ export const signWrappedTxs = async (params: {
         hashes: [],
         skipped: [
           {
-            name: names[0]?.domain.name ?? 'unknown',
+            name: names[0]?.domain.name || 'unknown',
             reason: 'transfer-failed',
           },
         ],
@@ -102,7 +102,10 @@ export const signWrappedTxs = async (params: {
       hashes.push(hash)
     } catch (error) {
       if (isUserRejection(error)) throw error
-      skipped.push({ name: name.domain.name, reason: 'transfer-failed' })
+      skipped.push({
+        name: name.domain.name || 'unknown',
+        reason: 'transfer-failed',
+      })
     }
   }
 

@@ -3,11 +3,11 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
 import { useMigrationExecution } from '@/features/migration/hooks/useMigrationExecution'
 import type { MigrationResult } from '@/features/migration/service/migrationService'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { V1Name } from '@/features/migration/service/v1SubgraphClient'
 import { cn } from '@/lib/utils'
 
 type GameStepProps = {
-  readonly domains: V1Domain[]
+  readonly domains: V1Name[]
   readonly onComplete: (result: MigrationResult) => void
   readonly onError: (error: string) => void
 }

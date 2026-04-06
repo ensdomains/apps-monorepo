@@ -3,7 +3,7 @@ import { type Address, encodeFunctionData, type Hex } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { MULTICALL3_ABI, MULTICALL3_ADDRESS } from '../contracts/multicall3'
-import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import type { ClassifiedName } from './classifyNames'
 import {
   createMigrationData,
   encodeMigrationData,
@@ -79,10 +79,7 @@ const getResolverForName = (
 ): Address =>
   match(name.tokenType)
     .with('locked-2ld', 'locked-child', () => {
-      if (
-        hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
-        name.v1ResolverAddress
-      ) {
+      if (name.fuses?.child.CANNOT_SET_RESOLVER && name.v1ResolverAddress) {
         return name.v1ResolverAddress as Address
       }
       return defaultResolver

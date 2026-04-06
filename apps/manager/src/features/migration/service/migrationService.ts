@@ -31,7 +31,7 @@ import {
   signUnwrappedTx,
   signWrappedTxs,
 } from './signTransactions'
-import type { V1Domain } from './v1SubgraphClient'
+import type { V1Name } from './v1SubgraphClient'
 
 export class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -79,7 +79,7 @@ const countSteps = (
 }
 
 export const executeMigration = async (params: {
-  domains: V1Domain[]
+  domains: V1Name[]
   migrationOwner: Address
   defaultResolver: Address
   wagmiConfig: WagmiConfig
@@ -112,11 +112,11 @@ export const executeMigration = async (params: {
 
   const skipped: SkippedName[] = [
     ...preflight.notReserved.map((n) => ({
-      name: n.domain.name,
+      name: n.domain.name || 'unknown',
       reason: 'not-premigrated' as const,
     })),
     ...preflight.frozen.map((n) => ({
-      name: n.domain.name,
+      name: n.domain.name || 'unknown',
       reason: 'frozen-approval' as const,
     })),
   ]
@@ -124,13 +124,17 @@ export const executeMigration = async (params: {
   if (preflight.valid.length === 0) {
     const reasons: string[] = []
     if (preflight.notReserved.length > 0) {
-      const names = preflight.notReserved.map((n) => n.domain.name).join(', ')
+      const names = preflight.notReserved
+        .map((n) => n.domain.name || 'unknown')
+        .join(', ')
       reasons.push(
         `Not yet premigrated in ENS v2: ${names}. These names must be premigrated before they can be migrated.`,
       )
     }
     if (preflight.frozen.length > 0) {
-      const names = preflight.frozen.map((n) => n.domain.name).join(', ')
+      const names = preflight.frozen
+        .map((n) => n.domain.name || 'unknown')
+        .join(', ')
       reasons.push(
         `Frozen approval prevents migration: ${names}. These names have CANNOT_APPROVE with an active approval.`,
       )
@@ -382,7 +386,7 @@ export const executeMigration = async (params: {
 }
 
 export const getMigrationStepInfo = (
-  domains: V1Domain[],
+  domains: V1Name[],
   ownerAddress: Address,
 ): { stepCount: number; stepDescriptions: string[] } => {
   const classified = classifyNames(domains, ownerAddress)

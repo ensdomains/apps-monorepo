@@ -1,18 +1,6 @@
+import type { DecodedFuses } from '@ensdomains/ensjs/utils'
 import type { Address } from 'viem'
-import type { V1Domain } from './v1SubgraphClient'
-
-export const FUSES = {
-  CANNOT_UNWRAP: 1,
-  CANNOT_BURN_FUSES: 2,
-  CANNOT_TRANSFER: 4,
-  CANNOT_SET_RESOLVER: 8,
-  CANNOT_SET_TTL: 16,
-  CANNOT_CREATE_SUBDOMAIN: 32,
-  CANNOT_APPROVE: 64,
-  PARENT_CANNOT_CONTROL: 1 << 16,
-  IS_DOT_ETH: 1 << 17,
-  CAN_EXTEND_EXPIRY: 1 << 18,
-} as const
+import type { V1Name } from './v1SubgraphClient'
 
 export type MigrationTokenType =
   | 'unwrapped'
@@ -21,17 +9,14 @@ export type MigrationTokenType =
   | 'locked-child'
 
 export type ClassifiedName = {
-  readonly domain: V1Domain
+  readonly domain: V1Name
   readonly tokenType: MigrationTokenType
   readonly label: string
   readonly parentName: string | null
-  readonly fuses: number
+  readonly fuses: DecodedFuses | null
   readonly tokenHolder: Address
   readonly v1ResolverAddress: string | null
 }
-
-export const hasFuse = (fuses: number, fuse: number): boolean =>
-  (fuses & fuse) !== 0
 
 export const is2LD = (name: ClassifiedName): boolean =>
   name.tokenType === 'unwrapped' ||
@@ -39,37 +24,36 @@ export const is2LD = (name: ClassifiedName): boolean =>
   name.tokenType === 'locked-2ld'
 
 export const classifyName = (
-  domain: V1Domain,
+  domain: V1Name,
   ownerAddress: Address,
 ): ClassifiedName | null => {
   const label = domain.labelName
   if (!label) return null
 
-  const parentName = domain.parent?.name ?? null
+  const parentName = domain.parentName
   const addr = ownerAddress.toLowerCase()
-  const v1ResolverAddress = domain.resolver?.address ?? null
 
-  if (!domain.wrappedDomain) {
+  if (!domain.wrappedOwner) {
     const registrant = domain.registrant
-    if (registrant?.id.toLowerCase() !== addr) return null
+    if (registrant?.toLowerCase() !== addr) return null
     if (parentName !== 'eth') return null
     return {
       domain,
       tokenType: 'unwrapped',
       label,
       parentName,
-      fuses: 0,
-      tokenHolder: registrant.id as Address,
-      v1ResolverAddress,
+      fuses: null,
+      tokenHolder: registrant as Address,
+      v1ResolverAddress: null,
     }
   }
 
-  if (domain.wrappedOwner?.id.toLowerCase() !== addr) return null
+  if (domain.wrappedOwner.toLowerCase() !== addr) return null
 
-  const fuses = domain.wrappedDomain.fuses
-  const wrappedHolder = domain.wrappedOwner.id as Address
+  const fuses = domain.fuses
+  const wrappedHolder = domain.wrappedOwner as Address
 
-  if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
+  if (!fuses?.child.CANNOT_UNWRAP) {
     if (parentName !== 'eth') return null
     return {
       domain,
@@ -78,11 +62,11 @@ export const classifyName = (
       parentName,
       fuses,
       tokenHolder: wrappedHolder,
-      v1ResolverAddress,
+      v1ResolverAddress: null,
     }
   }
 
-  if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) return null
+  if (fuses.child.CANNOT_TRANSFER) return null
   if (!parentName) return null
 
   if (parentName === 'eth') {
@@ -93,7 +77,7 @@ export const classifyName = (
       parentName,
       fuses,
       tokenHolder: wrappedHolder,
-      v1ResolverAddress,
+      v1ResolverAddress: null,
     }
   }
 
@@ -104,12 +88,12 @@ export const classifyName = (
     parentName,
     fuses,
     tokenHolder: wrappedHolder,
-    v1ResolverAddress,
+    v1ResolverAddress: null,
   }
 }
 
 export const classifyNames = (
-  domains: V1Domain[],
+  domains: V1Name[],
   ownerAddress: Address,
 ): ClassifiedName[] =>
   domains.flatMap((domain) => {
