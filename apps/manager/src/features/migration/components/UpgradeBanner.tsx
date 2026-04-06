@@ -5,12 +5,14 @@ import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
   const { data: v1Names } = useV1Names()
 
+  if (!isFeatureEnabled('NAME_MIGRATION')) return null
   if (!isConnected || !v1Names?.length) return null
 
   return (
