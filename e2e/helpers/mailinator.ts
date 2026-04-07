@@ -54,7 +54,7 @@ export async function waitForMessage(inbox: string, predicate: (message: Record<
         if (candidate) return candidate
 
         await new Promise((resolve) => setTimeout(resolve, 1_000))
-    }
+export function findVerifyLink(message: MailinatorMessage): string {
     throw new Error(`Timeout waiting for mailinator message in inbox ${inbox}`)
 }
 
