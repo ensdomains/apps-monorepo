@@ -5,9 +5,9 @@ const MAILINATOR_DOMAIN = process.env.MAILINATOR_DOMAIN
 const MAILINATOR_V2_BASE = 'https://api.mailinator.com/v2'
 
 function checkApiKey() {
-    if (!MAILINATOR_API_KEY) {
-        throw new Error('MAILINATOR_API_KEY is required in environment for mailinator helpers')
-    }
+  if (!MAILINATOR_API_KEY) {
+    throw new Error('MAILINATOR_API_KEY is required in environment for mailinator helpers')
+  }
 }
 
 function checkDomain() {
