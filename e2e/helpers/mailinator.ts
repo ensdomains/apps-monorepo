@@ -64,7 +64,7 @@ export function findVerifyLink(message: any): string {
         (link.text || '').includes('Verify Email Address') || (link.link || '').includes('/notifications/channels/email/verify'),
     )
     if (clickable?.link) return clickable.link
-
+  const bodies = [message.parts?.map((p) => p.body).join('\n')].filter(Boolean)
     // fallback to body text
     const bodies = [message.parts?.map((p: any) => p.body).join('\n')].filter(Boolean)
     for (const body of bodies) {
