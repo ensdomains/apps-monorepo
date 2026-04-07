@@ -111,15 +111,11 @@ export const PaymentTokenSection = ({
     [usdcBalance, daiBalance],
   )
 
-  if (balancesQuery.isLoading) {
-    return <TokenSectionSkeleton />
-  }
-
-  if (priceQueries[0].isLoading) {
-    return <TokenSectionSkeleton />
-  }
-
-  if (priceQueries[1].isLoading) {
+  if (
+    balancesQuery.isLoading ||
+    priceQueries[0].isLoading ||
+    priceQueries[1].isLoading
+  ) {
     return <TokenSectionSkeleton />
   }
 
