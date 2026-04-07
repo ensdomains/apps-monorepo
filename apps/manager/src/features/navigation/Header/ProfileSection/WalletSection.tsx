@@ -9,9 +9,12 @@ import {
   WalletIcon,
 } from 'lucide-react'
 import { match } from 'ts-pattern'
+import { useDisconnect } from 'wagmi'
 import paraColorIcon from '@/assets/icons/para-color.svg'
 import { Switch } from '@/components/ui/switch'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
+import { useDirectMetaMask } from '@/lib/DirectMetaMaskContext'
+import { setParaConnectionCookie } from '@/lib/para'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -36,6 +39,26 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   const { openModal } = useModal()
   const logout = useLogout()
+  const { disconnectAsync } = useDisconnect()
+  const directMetaMask = useDirectMetaMask()
+
+  const handleDisconnect = async () => {
+    if (directMetaMask.isConnected) {
+      await directMetaMask.disconnect()
+      onAction?.()
+      return
+    }
+
+    if (walletSource === 'external-wallet') {
+      await disconnectAsync()
+      await setParaConnectionCookie(null)
+      onAction?.()
+      return
+    }
+
+    logout.logout()
+    onAction?.()
+  }
 
   return (
     <div className="mb-3 space-y-4">
@@ -139,8 +162,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       <button
         className="flex w-full items-center gap-2 rounded-lg"
         onClick={() => {
-          logout.logout()
-          onAction?.()
+          void handleDisconnect()
         }}
         type="button"
       >

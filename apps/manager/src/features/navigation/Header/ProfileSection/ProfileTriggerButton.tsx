@@ -1,23 +1,31 @@
-import { useAccount } from '@getpara/react-sdk-lite'
+import {
+  useAccount as useParaAccount,
+  useWallet as useParaWallet,
+} from '@getpara/react-sdk-lite'
 import { ChevronDownIcon, Loader2Icon, UserIcon } from 'lucide-react'
 import type { ButtonHTMLAttributes } from 'react'
 import { match, P } from 'ts-pattern'
 import paraIcon from '@/assets/icons/para-color.svg'
 import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
+import { useDirectMetaMask } from '@/lib/DirectMetaMaskContext'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { truncateAddress } from '@/lib/utils'
 
 const getHeaderDisplayName = ({
   account,
   isLoading,
+  directMetaMaskAddress,
   ownerAddress,
   reverseName,
+  walletAddress,
 }: {
-  account: ReturnType<typeof useAccount>
+  account: ReturnType<typeof useParaAccount>
+  directMetaMaskAddress: string | null | undefined
   isLoading: boolean
   ownerAddress: string | null | undefined
   reverseName: string | null
+  walletAddress: string | null | undefined
 }) => {
   if (isLoading) {
     return 'Initializing...'
@@ -25,6 +33,16 @@ const getHeaderDisplayName = ({
 
   if (reverseName) {
     return reverseName
+  }
+
+  // For external wallets (e.g. MetaMask via connectionOnly mode), account.embedded
+  // is null — there is no Para embedded wallet. Use the Para wallet address directly.
+  if (account?.connectionType === 'external' && walletAddress) {
+    return truncateAddress(walletAddress)
+  }
+
+  if (directMetaMaskAddress) {
+    return truncateAddress(directMetaMaskAddress)
   }
 
   const embeddedAccount = account?.embedded
@@ -69,10 +87,12 @@ const getHeaderDisplayName = ({
 export const ProfileTriggerButton = (
   props: ButtonHTMLAttributes<HTMLButtonElement>,
 ) => {
-  const { ownerAddress } = useSmartAccountContext()
+  const { ownerAddress, walletSource } = useSmartAccountContext()
   const reverseNameQuery = useConnectedReverseName()
   const avatar = useConnectedAvatar()
-  const paraAccount = useAccount()
+  const paraAccount = useParaAccount()
+  const { data: paraWallet } = useParaWallet()
+  const directMetaMask = useDirectMetaMask()
 
   return (
     <button
@@ -86,6 +106,7 @@ export const ProfileTriggerButton = (
             avatar: avatar.url,
             avatarLoading: avatar.isLoading,
             connectionType: paraAccount.connectionType,
+            walletSource,
           })
             .with({ avatar: P.string }, ({ avatar }) => (
               <img
@@ -97,9 +118,19 @@ export const ProfileTriggerButton = (
             .with({ avatarLoading: true }, () => (
               <Loader2Icon className="size-4 animate-spin rounded-full bg-ens-gray-two md:size-5" />
             ))
-            .with({ connectionType: 'external' }, () => (
-              <UserIcon className="size-4 text-muted-foreground md:size-5" />
-            ))
+            .with(
+              {
+                walletSource: 'external-wallet',
+              },
+              () => (
+                <UserIcon className="size-4 text-muted-foreground md:size-5" />
+              ),
+            )
+            .with({ walletSource: null, connectionType: P.any }, () =>
+              directMetaMask.isConnected ? (
+                <UserIcon className="size-4 text-muted-foreground md:size-5" />
+              ) : null,
+            )
             .with({ connectionType: P.union('embedded', 'both') }, () => (
               <img
                 alt="Para Icon"
@@ -113,9 +144,11 @@ export const ProfileTriggerButton = (
         <span className="min-w-0 truncate font-normal text-gray-700 text-xs leading-tight tracking-tight md:text-lg md:leading-[0.96] md:tracking-[-0.32px]">
           {getHeaderDisplayName({
             account: paraAccount,
+            directMetaMaskAddress: directMetaMask.address,
             isLoading: paraAccount.isLoading,
             ownerAddress,
             reverseName: reverseNameQuery.data ?? null,
+            walletAddress: paraWallet?.address,
           })}
         </span>
       </div>

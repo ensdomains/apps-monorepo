@@ -15,9 +15,10 @@ import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
 import { tw } from '@/utils/tailwind'
+import { DirectMetaMaskProvider } from './DirectMetaMaskContext'
 import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
 import { getParaClient, setParaConnectionCookie } from './para'
-import { customSepolia } from './wagmi'
+import { WagmiConnectionCookieSync } from './WagmiConnectionCookieSync'
 
 const onWalletChange = () => {
   const client = getParaClient()
@@ -63,79 +64,68 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <I18nProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <ParaProvider
-          callbacks={{
-            onLogin: onWalletChange,
-            onLogout() {
-              setParaConnectionCookie(null)
-              // Clear all active transactions when wallet disconnects
-              transactionManager.clearAllAndPersistence()
+        <DirectMetaMaskProvider>
+          <ParaProvider
+            callbacks={{
+              onLogin: onWalletChange,
+              onLogout() {
+                setParaConnectionCookie(null)
+                // Clear all active transactions when wallet disconnects
+                transactionManager.clearAllAndPersistence()
 
-              // Clear the backend auth store
-              backendAuthStore.trigger.signOut()
+                // Clear the backend auth store
+                backendAuthStore.trigger.signOut()
 
-              // Clear all local storage for the app
-              localStorage.clear()
+                // Clear all local storage for the app
+                localStorage.clear()
 
-              // Clear the posthog session
-              track('wallet:disconnect')
-              posthog.reset()
-            },
-            onExternalWalletChange: onWalletChange,
-            onWalletsChange: onWalletChange,
-          }}
-          config={{
-            appName: 'ENS Manager',
-          }}
-          externalWalletConfig={{
-            wallets: ['METAMASK'],
-            // Do not create Para accounts for external wallet connections
-            createLinkedEmbeddedForExternalWallets: [],
-            evmConnector: {
-              config: {
-                chains: [customSepolia],
+                // Clear the posthog session
+                track('wallet:disconnect')
+                posthog.reset()
               },
-            },
-            // walletConnect: {
-            //   projectId: '1cb2e088d817de31a39a54154b265f68',
-            // },
-            connectionOnly: true,
-          }}
-          paraClientConfig={{
-            apiKey: VITE_PARA_API_KEY,
-          }}
-          paraModalConfig={{
-            disableEmailLogin: false,
-            disablePhoneLogin: true,
-            onRampTestMode: true,
-            oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
-            authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
-            recoverySecretStepEnabled: true,
+              onExternalWalletChange: onWalletChange,
+              onWalletsChange: onWalletChange,
+            }}
+            config={{
+              appName: 'ENS Manager',
+            }}
+            paraClientConfig={{
+              apiKey: VITE_PARA_API_KEY,
+            }}
+            paraModalConfig={{
+              disableEmailLogin: false,
+              disablePhoneLogin: true,
+              onRampTestMode: true,
+              oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
+              authLayout: ['AUTH:FULL'],
+              recoverySecretStepEnabled: true,
 
-            theme: {
-              foregroundColor: '#2D3648',
-              backgroundColor: '#FFFFFF',
-              accentColor: '#0066CC',
-              darkForegroundColor: '#E8EBF2',
-              darkBackgroundColor: '#1A1F2B',
-              darkAccentColor: '#4D9FFF',
-              mode: 'light',
-              borderRadius: 'lg',
-              font: 'Inter',
-            },
-            twoFactorAuthEnabled: false,
-            // By default, the Para modal uses a high z-index (10011) to render above other elements. However, our dialog/alertdialog components apply `pointer-events-none` to the body, which can unintentionally block interaction with the Para modal when these dialogs are open underneath. To prevent this, we explicitly set `pointer-events-auto` on the Para modal, ensuring it remains interactive even when an underlying dialog/alertdialog is present—mirroring the approach we use for other modals.
-            className: tw`pointer-events-auto`,
-          }}
-        >
-          <ParaConnectionCookieSync />
-          <PHProvider>
-            <SmartAccountContextProvider>
-              {children}
-              <SmartAccountSessionModal />
-            </SmartAccountContextProvider>
-          </PHProvider>
-        </ParaProvider>
+              theme: {
+                foregroundColor: '#2D3648',
+                backgroundColor: '#FFFFFF',
+                accentColor: '#0066CC',
+                darkForegroundColor: '#E8EBF2',
+                darkBackgroundColor: '#1A1F2B',
+                darkAccentColor: '#4D9FFF',
+                mode: 'light',
+                borderRadius: 'lg',
+                font: 'Inter',
+              },
+              twoFactorAuthEnabled: false,
+              // By default, the Para modal uses a high z-index (10011) to render above other elements. However, our dialog/alertdialog components apply `pointer-events-none` to the body, which can unintentionally block interaction with the Para modal when these dialogs are open underneath. To prevent this, we explicitly set `pointer-events-auto` on the Para modal, ensuring it remains interactive even when an underlying dialog/alertdialog is present—mirroring the approach we use for other modals.
+              className: tw`pointer-events-auto`,
+            }}
+          >
+            <ParaConnectionCookieSync />
+            <WagmiConnectionCookieSync />
+            <PHProvider>
+              <SmartAccountContextProvider>
+                {children}
+                <SmartAccountSessionModal />
+              </SmartAccountContextProvider>
+            </PHProvider>
+          </ParaProvider>
+        </DirectMetaMaskProvider>
       </QueryClientProvider>
     </I18nProvider>
   )

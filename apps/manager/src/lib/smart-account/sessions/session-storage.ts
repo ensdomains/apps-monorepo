@@ -185,7 +185,11 @@ export function setSkippedStatus(
  */
 export function isSessionExpired(session: StoredSession): boolean {
   if (!session.validUntil) return false
-  return Date.now() > session.validUntil * 1000
+  const expiryMs =
+    session.validUntil > 1_000_000_000_000
+      ? session.validUntil
+      : session.validUntil * 1000
+  return Date.now() > expiryMs
 }
 
 /**

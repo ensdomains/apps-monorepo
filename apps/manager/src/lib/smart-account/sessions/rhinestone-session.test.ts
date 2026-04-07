@@ -23,7 +23,10 @@ import {
   createRhinestoneSession,
   restoreRhinestoneSession,
 } from './rhinestone-session'
-import type { RhinestoneStoredSession } from './types'
+import type {
+  RhinestoneSessionConfigData,
+  RhinestoneStoredSession,
+} from './types'
 import { SessionError } from './zerodev-session'
 
 // ── Mocks ──────────────────────────────────────────────────────────────
@@ -187,6 +190,7 @@ describe('rhinestone-session', () => {
             accounts: [{ address: MOCK_SESSION_ADDRESS }],
           },
           chain: MOCK_CHAIN,
+          actions: [{ policies: [{ type: 'sudo' }] }],
         }),
         MOCK_ENABLE_SIGNATURE,
         MOCK_HASHES_AND_CHAIN_IDS,
@@ -194,7 +198,8 @@ describe('rhinestone-session', () => {
       )
       expect(mockAccount.sendTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
-          chain: MOCK_CHAIN,
+          sourceChains: [MOCK_CHAIN],
+          targetChain: MOCK_CHAIN,
           sponsored: true,
           calls: expect.any(Array),
         }),
@@ -256,7 +261,9 @@ describe('rhinestone-session', () => {
       })
 
       const { session } = result._unsafeUnwrap()
-      const parsed = JSON.parse(session.sessionConfig)
+      const parsed = JSON.parse(
+        session.sessionConfig,
+      ) as RhinestoneSessionConfigData
 
       expect(parsed).toEqual({ provider: 'rhinestone', chainId: 11155111 })
     })

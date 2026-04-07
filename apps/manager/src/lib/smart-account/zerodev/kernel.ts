@@ -21,6 +21,7 @@ import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import { isHCARegistrationDisabled } from '@/utils/feature-flags'
 import { registerHCAOwnership } from '../hca-registry'
 import type { SmartAccountType } from '../types'
 
@@ -129,7 +130,7 @@ export async function initializeZeroDevAccount(
   // Register HCA ownership if using HCA account type
   // This maps the smart account to its EOA owner in the HCA Factory
   // Required for HCAEquivalence to work (tokens + registrar see EOA as msg.sender)
-  if (accountType === 'hca') {
+  if (accountType === 'hca' && !isHCARegistrationDisabled()) {
     logger.info('🔧 [ZERODEV] Registering HCA ownership...')
 
     const zerodevSigner = {
@@ -157,6 +158,10 @@ export async function initializeZeroDevAccount(
     }
 
     logger.info('✅ [ZERODEV] HCA registration result:', result.value)
+  } else if (accountType === 'hca') {
+    logger.warn(
+      '⚠️ [ZERODEV] Skipping HCA registration because VITE_FF_DISABLE_HCA_REGISTRATION=true',
+    )
   }
 
   const config: ZeroDevConfig = {

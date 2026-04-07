@@ -11,6 +11,7 @@ Control features via environment variables or user-specific lists. User identifi
 ```bash
 # .env
 VITE_FF_DISCOUNTS_APPLIED=false
+VITE_FF_DISABLE_HCA_REGISTRATION=false
 ```
 
 ### Define Flags

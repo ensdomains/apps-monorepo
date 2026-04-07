@@ -44,6 +44,9 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig | boolean> = {
     enabled: import.meta.env.VITE_FF_USE_WARP_INFRA === 'true',
     allowedUsers: [...BASE_USER_LISTS.TEAM],
   },
+  DISABLE_HCA_REGISTRATION: {
+    enabled: import.meta.env.VITE_FF_DISABLE_HCA_REGISTRATION === 'true',
+  },
   LANGUAGE_SELECTOR: {
     enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
   },
@@ -131,6 +134,12 @@ export function getTransactionInfra(
   identifier?: UserIdentifier,
 ): TransactionInfra {
   return isFeatureEnabled('USE_WARP_INFRA', identifier) ? 'warp' : 'pimlico'
+}
+
+export function isHCARegistrationDisabled(
+  identifier?: UserIdentifier,
+): boolean {
+  return isFeatureEnabled('DISABLE_HCA_REGISTRATION', identifier)
 }
 
 /**

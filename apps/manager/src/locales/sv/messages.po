@@ -414,6 +414,10 @@ msgstr ""
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
+#: src/features/wallet/components/WalletConnectDialog.tsx:46
+msgid "Choose the connection path you want to test in the manager."
+msgstr ""
+
 #: src/features/register/pages/CheckDomainPage.tsx:18
 #: src/routes/index.tsx:28
 msgid "Claim your"
@@ -437,6 +441,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
+#: src/features/wallet/components/WalletConnectDialog.tsx:107
 msgid "Close"
 msgstr ""
 
@@ -491,7 +496,7 @@ msgstr ""
 msgid "Confirming commitment"
 msgstr ""
 
-#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:23
 msgid "Connect"
 msgstr ""
 
@@ -503,6 +508,10 @@ msgstr ""
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr ""
 
+#: src/features/wallet/components/WalletConnectDialog.tsx:95
+msgid "Connect directly through wagmi like the standalone MetaMask debug app."
+msgstr ""
+
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx:56
 msgid "Connect or sign in"
 msgstr ""
@@ -512,6 +521,7 @@ msgid "Connect Wallet"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:84
+#: src/features/wallet/components/WalletConnectDialog.tsx:43
 msgid "Connect your wallet"
 msgstr ""
 
@@ -551,7 +561,7 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:54
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:77
 msgid "Copied!"
 msgstr ""
 
@@ -651,7 +661,7 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:153
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:175
 msgid "Disconnect"
 msgstr ""
 
@@ -824,12 +834,12 @@ msgstr ""
 msgid "Failed to enable session"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:236
+#: src/lib/smart-account/SmartAccountContext.tsx:284
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:237
+#: src/lib/smart-account/SmartAccountContext.tsx:285
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -918,11 +928,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:205
+#: src/lib/smart-account/SmartAccountContext.tsx:253
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:206
+#: src/lib/smart-account/SmartAccountContext.tsx:254
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -1063,7 +1073,7 @@ msgstr ""
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:215
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
-#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:23
 #: src/features/notifications/inbox/list.tsx:46
 msgid "Loading..."
 msgstr "Laddar..."
@@ -1089,7 +1099,7 @@ msgstr ""
 msgid "Makes crypto addresses human-readable"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:73
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:96
 msgid "Manage Para Wallet"
 msgstr ""
 
@@ -1107,6 +1117,10 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx:112
 msgid "Marking..."
+msgstr ""
+
+#: src/features/wallet/components/WalletConnectDialog.tsx:89
+msgid "MetaMask"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:38
@@ -1292,6 +1306,10 @@ msgstr ""
 
 #: src/features/not-found/pages/NotFoundPage.tsx:9
 msgid "Page not found"
+msgstr ""
+
+#: src/features/wallet/components/WalletConnectDialog.tsx:65
+msgid "Para"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:107
@@ -1804,11 +1822,11 @@ msgstr ""
 msgid "Smart Account"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:100
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:123
 msgid "Smart Session Active"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:102
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:125
 msgid "Smart Session Disabled"
 msgstr ""
 
@@ -2038,6 +2056,10 @@ msgstr ""
 msgid "Use Different Email"
 msgstr ""
 
+#: src/features/wallet/components/WalletConnectDialog.tsx:68
+msgid "Use the existing Para modal for embedded wallets or Para-managed external connections."
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:551
 msgid "Use This Image"
 msgstr ""
@@ -2087,7 +2109,7 @@ msgstr ""
 msgid "Verify Wallet"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:134
+#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:157
 #: src/features/notifications/RequireBackendAuth.tsx:117
 msgid "Verify wallet ownership"
 msgstr ""
@@ -2141,7 +2163,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:225
+#: src/lib/smart-account/SmartAccountContext.tsx:273
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2157,7 +2179,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:224
+#: src/lib/smart-account/SmartAccountContext.tsx:272
 msgid "Wallet funded successfully"
 msgstr ""
 

@@ -2,10 +2,7 @@
  * Rhinestone Account Initialization
  *
  * Pure async function that creates a RhinestoneAccount using the Rhinestone SDK.
- *
- * Two infrastructure paths:
- * - Warp (default): No bundler — SDK routes through Orchestrator → Relayer Market (intents)
- * - Pimlico: ERC-4337 bundler for UserOperations
+ * Uses Rhinestone warp (intents) exclusively — no ERC-4337 bundler.
  */
 
 import type {
@@ -21,6 +18,7 @@ import {
 } from '@rhinestone/sdk'
 import type { Account, Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import { isHCARegistrationDisabled } from '@/utils/feature-flags'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient, SmartAccountType } from './types'
 
@@ -89,24 +87,12 @@ export async function initializeRhinestoneAccount(
     )
   }
 
-  // Always include Pimlico bundler when available.
-  // Warp (intents) doesn't need it, but session-based transactions require
-  // sendUserOperation (ERC-4337) since SDK v1.2.14 rejects experimental_session
-  // signers in sendTransaction.
-  const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-
-  if (infrastructure === 'pimlico' && !pimlicoApiKey) {
-    throw new Error(
-      'Pimlico API key not configured (required for ERC-4337 bundler)',
-    )
-  }
-
-  const sdk = pimlicoApiKey
-    ? new RhinestoneSDK({
-        apiKey,
-        bundler: { type: 'pimlico', apiKey: pimlicoApiKey },
-      })
-    : new RhinestoneSDK({ apiKey })
+  // Use Rhinestone intents (warp) only — no ERC-4337 bundler.
+  // With no bundler configured, deploy() uses deployWithIntent which sends an
+  // empty-calls sponsored warp intent. This installs the intent executor and
+  // registers the TheCompact allocator as part of the deployment, so all
+  // subsequent sponsored warp intents (HCA registration, sessions, etc.) work.
+  const sdk = new RhinestoneSDK({ apiKey })
 
   const rhinestoneAccount = await sdk.createAccount({
     owners: {
@@ -122,14 +108,16 @@ export async function initializeRhinestoneAccount(
   // Both Pimlico (ERC-4337) and Warp (intents) require the account to exist on-chain
   // before sending transactions — the orchestrator simulates bundles against deployed state.
   const deployed = await rhinestoneAccount.isDeployed(customSepolia)
+  debugger
   if (!deployed) {
+    debugger
     console.log('🔧 [RHINESTONE] Deploying smart account on-chain...')
     await rhinestoneAccount.deploy(customSepolia, { sponsored: true })
     console.log('✅ [RHINESTONE] Smart account deployed:', accountAddress)
   }
 
   // Register HCA ownership via smart account (sponsored) if requested
-  if (registerHCA) {
+  if (registerHCA && !isHCARegistrationDisabled()) {
     const signer: RhinestoneSigner = {
       type: 'rhinestone' as const,
       // Rhinestone account types can come from different package instances
@@ -144,6 +132,7 @@ export async function initializeRhinestoneAccount(
       },
     }
 
+    debugger
     const result = await registerHCAOwnership({
       smartAccountAddress: accountAddress,
       eoaAddress,
@@ -158,6 +147,10 @@ export async function initializeRhinestoneAccount(
     }
 
     console.log('✅ HCA registration result:', result.value)
+  } else if (registerHCA) {
+    console.warn(
+      '⚠️ [RHINESTONE] Skipping HCA registration because VITE_FF_DISABLE_HCA_REGISTRATION=true',
+    )
   }
 
   const config: RhinestoneConfig = {

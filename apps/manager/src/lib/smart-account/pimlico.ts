@@ -18,6 +18,7 @@ import type { Address, WalletClient } from 'viem'
 import { http } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { customSepolia, publicClient } from '@/lib/wagmi'
+import { isHCARegistrationDisabled } from '@/utils/feature-flags'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient, SmartAccountType, WalletSource } from './types'
 export interface PimlicoConfig {
@@ -106,7 +107,7 @@ export async function initializePimlicoAccount(
   })
 
   // Register HCA ownership via smart account (sponsored) if requested
-  if (registerHCA && eoaAddress) {
+  if (registerHCA && eoaAddress && !isHCARegistrationDisabled()) {
     const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
     if (pimlicoApiKey) {
       const signer = {
@@ -135,6 +136,10 @@ export async function initializePimlicoAccount(
 
       console.log('✅ HCA registration result:', result.value)
     }
+  } else if (registerHCA && eoaAddress) {
+    console.warn(
+      '⚠️ [PIMLICO] Skipping HCA registration because VITE_FF_DISABLE_HCA_REGISTRATION=true',
+    )
   }
 
   const config: PimlicoConfig = {

@@ -99,10 +99,12 @@ export function submitWarpTransaction(
         )
       }
 
+      debugger
       const transaction = await account.sendTransaction({
-        chain,
+        sourceChains: [chain],
+        targetChain: chain,
         calls,
-        sponsored: sponsored ?? true,
+        sponsored: true,
         ...(sessionSigners ? { signers: sessionSigners } : {}),
       })
       const sendLatencyMs = nowMs() - sendStart

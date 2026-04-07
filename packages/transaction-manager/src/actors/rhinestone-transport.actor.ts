@@ -77,8 +77,10 @@ export function submitRhinestoneTransaction(input: {
         hasSessionSigners: !!sessionSigners,
       })
 
+      debugger
       const transaction = await account.sendTransaction({
-        chain,
+        sourceChains: [chain],
+        targetChain: chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
         sponsored: rhinestoneRequest.rhinestoneParams.sponsored ?? true,
         ...(sessionSigners ? { signers: sessionSigners } : {}),

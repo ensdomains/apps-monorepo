@@ -9,6 +9,11 @@ import type { Address, Hex } from 'viem'
 
 export type SessionProvider = 'zerodev' | 'rhinestone'
 
+export interface RhinestoneSessionConfigData {
+  readonly provider: 'rhinestone'
+  readonly chainId: number
+}
+
 /**
  * Session configuration options
  */
@@ -52,7 +57,7 @@ export interface ZeroDevStoredSession extends BaseStoredSession {
  */
 export interface RhinestoneStoredSession extends BaseStoredSession {
   readonly provider: 'rhinestone'
-  /** JSON-serialized RhinestoneSessionConfig */
+  /** JSON-serialized RhinestoneSessionConfigData */
   readonly sessionConfig: string
   /**
    * Transitional compatibility field for existing call-sites typed against

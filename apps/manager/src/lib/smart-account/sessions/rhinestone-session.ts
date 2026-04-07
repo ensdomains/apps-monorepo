@@ -18,7 +18,10 @@ import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessio
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import type { RhinestoneStoredSession } from './types'
+import type {
+  RhinestoneSessionConfigData,
+  RhinestoneStoredSession,
+} from './types'
 import { SessionError } from './zerodev-session'
 
 export interface CreateRhinestoneSessionParams {
@@ -80,6 +83,7 @@ export function createRhinestoneSession(
         await rhinestoneAccount.experimental_getSessionDetails([sdkSession])
 
       // 4. Sign enablement (one-time owner signature)
+      debugger
       const enableSignature =
         await rhinestoneAccount.experimental_signEnableSession(sessionDetails)
 
@@ -97,8 +101,10 @@ export function createRhinestoneSession(
           sessionDetails.hashesAndChainIds,
           sessionToEnableIndex,
         )
+        debugger
         const enableTransaction = await rhinestoneAccount.sendTransaction({
-          chain,
+          sourceChains: [chain],
+          targetChain: chain,
           calls: [enableCall],
           sponsored: true,
         })
@@ -115,6 +121,11 @@ export function createRhinestoneSession(
         ),
       )
 
+      const sessionConfig: RhinestoneSessionConfigData = {
+        provider: 'rhinestone',
+        chainId,
+      }
+
       const session: RhinestoneStoredSession = {
         id: crypto.randomUUID(),
         provider: 'rhinestone',
@@ -125,7 +136,7 @@ export function createRhinestoneSession(
         chainId,
         validUntil: config?.validUntil,
         sessionPrivateKey,
-        sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId }),
+        sessionConfig: JSON.stringify(sessionConfig),
         serializedSessionAccount: '',
         enableSignature,
         hashesAndChainIds: serializedHashes,

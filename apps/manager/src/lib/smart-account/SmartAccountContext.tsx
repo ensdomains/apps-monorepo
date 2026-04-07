@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import type { Address, Hex, WalletClient } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { useWalletClient } from 'wagmi'
+import { useDirectMetaMask } from '@/lib/DirectMetaMaskContext'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import type { RhinestoneConfig } from './rhinestone'
@@ -70,17 +71,25 @@ function detectWalletSource(
   paraWallet: ReturnType<typeof useParaWallet>['data'],
   wagmiWalletClient: WalletClient | undefined,
   paraClient: ReturnType<typeof useParaClient>,
+  directMetaMask: ReturnType<typeof useDirectMetaMask>,
 ): BaseWalletSource {
+  if (
+    directMetaMask.isConnected &&
+    directMetaMask.walletClient?.account?.address
+  ) {
+    return 'external-wallet'
+  }
+
   const wagmiAddress = wagmiWalletClient?.account?.address
   const hasWagmi = !!wagmiAddress
   const hasPara = !paraWallet?.isExternal && !!paraWallet && !!paraClient
 
-  if (paraWallet?.isExternal && hasWagmi) {
-    return 'external-wallet'
-  }
-
   if (hasPara) {
     return 'para-embedded'
+  }
+
+  if (hasWagmi) {
+    return 'external-wallet'
   }
 
   return null
@@ -94,13 +103,22 @@ function useWalletConnectionSync(
   paraWallet: ReturnType<typeof useParaWallet>['data'],
   wagmiWalletClient: WalletClient | undefined,
   paraClient: ReturnType<typeof useParaClient>,
+  directMetaMask: ReturnType<typeof useDirectMetaMask>,
   snapshotValue: string,
-  send: (event: {
-    type: string
-    walletSource?: string
-    walletClient?: WalletClient
-    paraClient?: ReturnType<typeof useParaClient>
-  }) => void,
+  send: (
+    event:
+      | { type: 'WALLET_DISCONNECTED' }
+      | {
+          type: 'WALLET_CONNECTED'
+          walletSource: 'external-wallet'
+          walletClient: WalletClient
+        }
+      | {
+          type: 'WALLET_CONNECTED'
+          walletSource: 'para-embedded'
+          paraClient: ReturnType<typeof useParaClient>
+        },
+  ) => void,
 ) {
   const connectedKeyRef = useRef<string | null>(null)
 
@@ -109,6 +127,7 @@ function useWalletConnectionSync(
       paraWallet,
       wagmiWalletClient,
       paraClient,
+      directMetaMask,
     )
 
     const nextKey =
@@ -118,7 +137,25 @@ function useWalletConnectionSync(
           ? 'para-embedded'
           : null
 
-    if (!walletSource || !nextKey) {
+    const directMetaMaskAddress =
+      directMetaMask.walletClient?.account?.address ?? directMetaMask.address
+
+    const resolvedExternalWalletClient =
+      directMetaMask.walletClient ?? wagmiWalletClient
+
+    const resolvedNextKey =
+      walletSource === 'external-wallet'
+        ? `external-${directMetaMaskAddress?.toLowerCase() ?? resolvedExternalWalletClient?.account?.address?.toLowerCase() ?? 'unknown'}`
+        : nextKey
+
+    if (
+      directMetaMask.isActive &&
+      (directMetaMask.isConnecting || !directMetaMaskAddress)
+    ) {
+      return
+    }
+
+    if (!walletSource || !resolvedNextKey) {
       connectedKeyRef.current = null
       if (snapshotValue !== 'disconnected') {
         send({ type: 'WALLET_DISCONNECTED' })
@@ -126,7 +163,7 @@ function useWalletConnectionSync(
       return
     }
 
-    if (connectedKeyRef.current === nextKey) {
+    if (connectedKeyRef.current === resolvedNextKey) {
       return
     }
 
@@ -136,13 +173,13 @@ function useWalletConnectionSync(
     }
 
     if (walletSource === 'external-wallet') {
-      if (!wagmiWalletClient) return
+      if (!resolvedExternalWalletClient) return
       send({
         type: 'WALLET_CONNECTED',
         walletSource: 'external-wallet',
-        walletClient: wagmiWalletClient,
+        walletClient: resolvedExternalWalletClient,
       })
-      connectedKeyRef.current = nextKey
+      connectedKeyRef.current = resolvedNextKey
       return
     }
 
@@ -152,12 +189,19 @@ function useWalletConnectionSync(
         walletSource: 'para-embedded',
         paraClient,
       })
-      connectedKeyRef.current = nextKey
+      connectedKeyRef.current = resolvedNextKey
       return
     }
 
-    connectedKeyRef.current = nextKey
-  }, [paraWallet, wagmiWalletClient, paraClient, snapshotValue, send])
+    connectedKeyRef.current = resolvedNextKey
+  }, [
+    paraWallet,
+    wagmiWalletClient,
+    paraClient,
+    directMetaMask,
+    snapshotValue,
+    send,
+  ])
 }
 
 export const SmartAccountContextProvider = ({
@@ -169,6 +213,10 @@ export const SmartAccountContextProvider = ({
   const paraClient = useParaClient()
   const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
   const { data: wagmiWalletClient } = useWalletClient()
+  const directMetaMask = useDirectMetaMask()
+  const resolvedWalletClient =
+    directMetaMask.walletClient ??
+    (wagmiWalletClient as WalletClient | undefined)
 
   const [snapshot, send, actorRef] = useActor(smartAccountMachine)
 
@@ -183,8 +231,9 @@ export const SmartAccountContextProvider = ({
 
   useWalletConnectionSync(
     paraWallet,
-    wagmiWalletClient as WalletClient | undefined,
+    resolvedWalletClient,
     paraClient,
+    directMetaMask,
     snapshot.value as string,
     send,
   )
@@ -221,7 +270,7 @@ export const SmartAccountContextProvider = ({
       }
       return response.json()
     },
-    onSuccess: (data, address, _, context) => {
+    onSuccess: (data, address) => {
       if (!data || !data.txHash) {
         toast.dismiss(`fund-wallet-${address}`)
         return
@@ -297,7 +346,6 @@ export const SmartAccountContextProvider = ({
         enableSignature: Hex
         hashesAndChainIds: string
       } | null
-
       // Deserialize hashesAndChainIds from localStorage format (string chainId → bigint)
       const deserializeHashes = (json: string) =>
         (JSON.parse(json) as { chainId: string; sessionDigest: Hex }[]).map(
@@ -447,7 +495,7 @@ export const SmartAccountContextProvider = ({
     showSessionModal,
     isReady,
     isCreatingSession,
-    walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
+    walletClient: resolvedWalletClient ?? null,
     enableSession,
     dismissSession,
     promptSession,

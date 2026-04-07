@@ -1,6 +1,8 @@
 import { useWallet } from '@getpara/react-sdk-lite'
 import { useLocation } from '@tanstack/react-router'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useDirectMetaMask } from '@/lib/DirectMetaMaskContext'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { ConnectedHeaderContent } from './ConnectedHeaderContent'
 import { DisconnectedHeaderContent } from './DisconnectedHeaderContent'
 import { NavigationMenu } from './NavigationMenu/NavigationMenu'
@@ -9,7 +11,12 @@ import { HeaderSearchSection } from './SearchSection/SearchSection'
 export const Header = () => {
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const { data: wallet, isLoading: walletLoading } = useWallet()
-  const isConnected = !!wallet && !walletLoading
+  const directMetaMask = useDirectMetaMask()
+  const { isConnected: isSmartAccountConnected } = useSmartAccountContext()
+  const isConnected =
+    isSmartAccountConnected ||
+    directMetaMask.isConnected ||
+    (!!wallet && !walletLoading)
 
   const shouldShowSearch = useLocation({
     select: (location) => location.pathname !== '/',
