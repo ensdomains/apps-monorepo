@@ -55,10 +55,10 @@ export async function waitForMessage(inbox: string, predicate: (message: Record<
 
         await new Promise((resolve) => setTimeout(resolve, 1_000))
 export function findVerifyLink(message: MailinatorMessage): string {
-    throw new Error(`Timeout waiting for mailinator message in inbox ${inbox}`)
-}
-
-export function findVerifyLink(message: any): string {
+  // Check clickthrough links first
+  const clickable = message.clickablelinks?.find((link) =>
+    (link.text || '').includes('Verify Email Address') || (link.link || '').includes('/notifications/channels/email/verify'),
+  )
     // Check clickthrough links first
     const clickable = message.clickablelinks?.find((link: any) =>
         (link.text || '').includes('Verify Email Address') || (link.link || '').includes('/notifications/channels/email/verify'),
