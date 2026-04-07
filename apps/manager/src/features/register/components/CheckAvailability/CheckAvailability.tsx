@@ -20,6 +20,7 @@ import { useCheckAvailability } from '@/features/register/components/CheckAvaila
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
@@ -210,8 +211,18 @@ export const CheckAvailability = ({
                     {...dropdownAnimation}
                   >
                     <Link
-                      search={{ name: state.domainName, duration: 1 }}
-                      to="/register"
+                      {...(isFeatureEnabled('REGISTRATION_V2')
+                        ? {
+                            params: { name: state.domainName },
+                            to: '/register/$name',
+                          }
+                        : {
+                            search: {
+                              name: state.domainName,
+                              duration: 1,
+                            },
+                            to: '/register',
+                          })}
                     >
                       <DomainResultCard
                         clickable

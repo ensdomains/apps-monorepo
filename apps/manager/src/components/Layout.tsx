@@ -11,7 +11,7 @@ export const Layout = ({ children }: LayoutProps) => {
     <div className="flex min-h-screen flex-col bg-white">
       <Header />
 
-      <main className="isolate flex flex-1 flex-col bg-[#FCFBFB]">
+      <main className="relative isolate flex flex-1 flex-col bg-[#FCFBFB]">
         {children}
       </main>
       <BackendAuthModal />
