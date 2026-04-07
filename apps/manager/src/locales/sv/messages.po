@@ -121,7 +121,7 @@ msgstr ""
 msgid "60-second wait prevents attacks"
 msgstr ""
 
-#: src/features/register/pages/CheckDomainPage.tsx:26
+#: src/features/register/pages/CheckDomainPage.tsx:36
 #: src/routes/index.tsx:37
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
@@ -445,7 +445,7 @@ msgstr ""
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
-#: src/features/register/pages/CheckDomainPage.tsx:18
+#: src/features/register/pages/CheckDomainPage.tsx:28
 #: src/routes/index.tsx:29
 msgid "Claim your"
 msgstr ""
@@ -1391,9 +1391,6 @@ msgid "Pay with PayPal"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:69
-msgid "Pay with stable coins"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr ""
@@ -2401,7 +2398,7 @@ msgstr ""
 msgid "We sent a verification code to your email address."
 msgstr ""
 
-#: src/features/register/pages/CheckDomainPage.tsx:22
+#: src/features/register/pages/CheckDomainPage.tsx:32
 #: src/routes/index.tsx:33
 msgid "web3 username"
 msgstr ""
