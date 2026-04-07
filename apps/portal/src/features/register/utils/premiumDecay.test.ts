@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   getInstantForPremiumPrice,
   getPremiumInstantRange,
@@ -117,15 +117,6 @@ describe('premiumDecay', () => {
   })
 
   describe('getPremiumInstantRange', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2025-03-18T12:00:00'))
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
     it('returns null for zero or negative premium', () => {
       expect(getPremiumInstantRange(0)).toBeNull()
       expect(getPremiumInstantRange(-1)).toBeNull()
@@ -153,15 +144,6 @@ describe('premiumDecay', () => {
   })
 
   describe('getPremiumInstantRangeFromPrice', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2025-03-18T12:00:00'))
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
     it('returns null when hasPremium is false', () => {
       expect(
         getPremiumInstantRangeFromPrice({
