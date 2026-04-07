@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
+import { UpgradeNamesButtonWithNFT } from '@/features/migration/components/UpgradeNamesButtonWithNFT'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -18,7 +18,7 @@ export const UpgradeBanner = () => {
   return (
     <div className="relative overflow-hidden rounded-sm bg-gradient-to-b from-[#feeaf0] to-[rgba(255,188,219,1)] px-5 py-[22px]">
       <GrainOverlay />
-      <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
+      <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <h2 className="text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Welcome to the new ENS app</Trans>
@@ -40,7 +40,7 @@ export const UpgradeBanner = () => {
             </button>
           </div>
         </div>
-        <UpgradeNamesButton className="w-full shrink-0 md:w-[300px]" />
+        <UpgradeNamesButtonWithNFT className="w-full shrink-0 md:w-[300px]" />
       </div>
     </div>
   )

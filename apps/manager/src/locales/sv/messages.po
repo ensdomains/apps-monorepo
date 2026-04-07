@@ -102,7 +102,7 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/SelectNamesStep.tsx:141
+#: src/features/migration/components/SelectNamesStep.tsx:142
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr ""
 
@@ -818,7 +818,7 @@ msgid "expires {expiryDateString}"
 msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx:357
-#: src/features/dashboard/components/MyNamesList.tsx:424
+#: src/features/dashboard/components/MyNamesList.tsx:422
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -927,7 +927,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:130
+#: src/features/dashboard/components/NamesTable.tsx:129
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1171,7 +1171,7 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:125
+#: src/features/dashboard/components/NamesTable.tsx:124
 msgid "My Names"
 msgstr "Mina namn"
 
@@ -1232,7 +1232,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:297
-#: src/features/dashboard/components/MyNamesList.tsx:449
+#: src/features/dashboard/components/MyNamesList.tsx:447
 #: src/features/profile/components/view/AddressProfileView.tsx:275
 msgid "Next page"
 msgstr ""
@@ -1253,7 +1253,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:84
+#: src/features/migration/components/SelectNamesStep.tsx:85
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1270,7 +1270,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:81
+#: src/features/migration/components/SelectNamesStep.tsx:82
 msgid "No names match your search"
 msgstr ""
 
@@ -1450,7 +1450,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:288
-#: src/features/dashboard/components/MyNamesList.tsx:440
+#: src/features/dashboard/components/MyNamesList.tsx:438
 #: src/features/profile/components/view/AddressProfileView.tsx:266
 msgid "Previous page"
 msgstr ""
@@ -1694,7 +1694,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:168
+#: src/features/dashboard/components/NamesTable.tsx:167
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
@@ -1707,12 +1707,12 @@ msgstr ""
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/dashboard/components/NamesTable.tsx:168
+#: src/features/dashboard/components/NamesTable.tsx:167
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:60
-#: src/features/migration/components/SelectNamesStep.tsx:64
+#: src/features/migration/components/SelectNamesStep.tsx:61
+#: src/features/migration/components/SelectNamesStep.tsx:65
 msgid "Search names"
 msgstr ""
 
@@ -1827,7 +1827,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:462
+#: src/features/dashboard/components/MyNamesList.tsx:460
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -1835,7 +1835,7 @@ msgstr "Visar dina namn"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:133
+#: src/features/dashboard/components/NamesTable.tsx:132
 msgid "Sign in to view favorites"
 msgstr "Logga in för att se favoriter"
 
@@ -2118,11 +2118,8 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:154
-msgid "Upgrade names"
-msgstr ""
-
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
+#: src/features/migration/components/UpgradeNamesButtonWithNFT.tsx:35
 msgid "Upgrade Names"
 msgstr ""
 
@@ -2397,7 +2394,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:53
+#: src/features/migration/components/SelectNamesStep.tsx:54
 msgid "Your names are ready to upgrade"
 msgstr ""
 

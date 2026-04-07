@@ -97,7 +97,7 @@ msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/SelectNamesStep.tsx:141
+#: src/features/migration/components/SelectNamesStep.tsx:142
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 
@@ -813,7 +813,7 @@ msgid "expires {expiryDateString}"
 msgstr "expires {expiryDateString}"
 
 #: src/features/dashboard/components/MyNamesList.tsx:357
-#: src/features/dashboard/components/MyNamesList.tsx:424
+#: src/features/dashboard/components/MyNamesList.tsx:422
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Expires in {daysUntilExpiry} days"
 
@@ -922,7 +922,7 @@ msgstr "Failed to update resolver"
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
 
-#: src/features/dashboard/components/NamesTable.tsx:130
+#: src/features/dashboard/components/NamesTable.tsx:129
 msgid "Favorites"
 msgstr "Favorites"
 
@@ -1166,7 +1166,7 @@ msgstr "Modified"
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr "Multi-year Discount ({discountPercentage}%)"
 
-#: src/features/dashboard/components/NamesTable.tsx:125
+#: src/features/dashboard/components/NamesTable.tsx:124
 msgid "My Names"
 msgstr "My Names"
 
@@ -1227,7 +1227,7 @@ msgid "Next card"
 msgstr "Next card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:297
-#: src/features/dashboard/components/MyNamesList.tsx:449
+#: src/features/dashboard/components/MyNamesList.tsx:447
 #: src/features/profile/components/view/AddressProfileView.tsx:275
 msgid "Next page"
 msgstr "Next page"
@@ -1248,7 +1248,7 @@ msgstr "No coins found"
 msgid "No default payment method set."
 msgstr "No default payment method set."
 
-#: src/features/migration/components/SelectNamesStep.tsx:84
+#: src/features/migration/components/SelectNamesStep.tsx:85
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
@@ -1265,7 +1265,7 @@ msgstr "No more records to add"
 msgid "No names found"
 msgstr "No names found"
 
-#: src/features/migration/components/SelectNamesStep.tsx:81
+#: src/features/migration/components/SelectNamesStep.tsx:82
 msgid "No names match your search"
 msgstr "No names match your search"
 
@@ -1445,7 +1445,7 @@ msgid "Previous card"
 msgstr "Previous card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:288
-#: src/features/dashboard/components/MyNamesList.tsx:440
+#: src/features/dashboard/components/MyNamesList.tsx:438
 #: src/features/profile/components/view/AddressProfileView.tsx:266
 msgid "Previous page"
 msgstr "Previous page"
@@ -1689,7 +1689,7 @@ msgstr "Search coins"
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
-#: src/features/dashboard/components/NamesTable.tsx:168
+#: src/features/dashboard/components/NamesTable.tsx:167
 msgid "Search my name..."
 msgstr "Search my name..."
 
@@ -1702,12 +1702,12 @@ msgstr "Search name or address"
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
-#: src/features/dashboard/components/NamesTable.tsx:168
+#: src/features/dashboard/components/NamesTable.tsx:167
 msgid "Search name..."
 msgstr "Search name..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:60
-#: src/features/migration/components/SelectNamesStep.tsx:64
+#: src/features/migration/components/SelectNamesStep.tsx:61
+#: src/features/migration/components/SelectNamesStep.tsx:65
 msgid "Search names"
 msgstr "Search names"
 
@@ -1822,7 +1822,7 @@ msgstr "Short Description"
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:462
+#: src/features/dashboard/components/MyNamesList.tsx:460
 msgid "Showing your names"
 msgstr "Showing your names"
 
@@ -1830,7 +1830,7 @@ msgstr "Showing your names"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
-#: src/features/dashboard/components/NamesTable.tsx:133
+#: src/features/dashboard/components/NamesTable.tsx:132
 msgid "Sign in to view favorites"
 msgstr "Sign in to view favorites"
 
@@ -2113,11 +2113,8 @@ msgstr "Update Resolver"
 msgid "Updating profile"
 msgstr "Updating profile"
 
-#: src/features/migration/components/SelectNamesStep.tsx:154
-msgid "Upgrade names"
-msgstr "Upgrade names"
-
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
+#: src/features/migration/components/UpgradeNamesButtonWithNFT.tsx:35
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
 
@@ -2392,7 +2389,7 @@ msgstr "Your ENS name works across web3"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/migration/components/SelectNamesStep.tsx:53
+#: src/features/migration/components/SelectNamesStep.tsx:54
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 
