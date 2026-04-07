@@ -345,7 +345,7 @@ export const MyNamesList = ({
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <NameRow label={label} />
                     <div className="flex items-start gap-4 md:gap-[30px]">
-                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
+                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
                         <div className="flex flex-col items-start">
                           <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
                             {formattedExpiryDate}
@@ -410,7 +410,7 @@ export const MyNamesList = ({
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <NameRow avatarUrl={avatarUrl} label={label} />
                     <div className="flex items-start gap-4 md:gap-[30px]">
-                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
+                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
                         <div className="flex flex-col items-start">
                           <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
                             {formattedExpiryDate}
