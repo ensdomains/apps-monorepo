@@ -54,8 +54,8 @@ export const RegistrationSuccess = ({
           })
         },
       })
-    } catch {
-      // pass
+    } catch (error) {
+      console.error('Failed to sync profile after registration:', error)
     } finally {
       setIsViewProfileLoading(false)
     }
