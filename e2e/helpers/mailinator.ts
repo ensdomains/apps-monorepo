@@ -34,7 +34,7 @@ async function authFetch(endpoint: string) {
     return res.json()
 }
 
-export async function getInboxMessages(inbox: string) {
+export async function getInboxMessages(inbox: string): Promise<Record<string, unknown>> {
     checkDomain()
     return authFetch(`/domains/${MAILINATOR_DOMAIN}/inboxes/${inbox}`)
 }
