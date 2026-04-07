@@ -42,7 +42,7 @@ export async function getInboxMessages(inbox: string): Promise<Record<string, un
 export async function getMessageById(messageId: string) {
     checkDomain()
     return authFetch(`/domains/${MAILINATOR_DOMAIN}/messages/${messageId}`)
-}
+export async function waitForMessage(inbox: string, predicate: (message: MailinatorMessage) => boolean, timeoutMs = 60_000) {
 
 export async function waitForMessage(inbox: string, predicate: (message: Record<string, unknown>) => boolean, timeoutMs = 60_000) {
     const start = Date.now()
