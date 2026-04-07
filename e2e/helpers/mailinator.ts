@@ -44,7 +44,7 @@ export async function getMessageById(messageId: string) {
     return authFetch(`/domains/${MAILINATOR_DOMAIN}/messages/${messageId}`)
 }
 
-export async function waitForMessage(inbox: string, predicate: (message: any) => boolean, timeoutMs = 60_000) {
+export async function waitForMessage(inbox: string, predicate: (message: Record<string, unknown>) => boolean, timeoutMs = 60_000) {
     const start = Date.now()
     while (Date.now() - start < timeoutMs) {
         const inboxData = await getInboxMessages(inbox)
