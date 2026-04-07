@@ -7,6 +7,7 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import {
+  ArrowUpCircle,
   ChevronDown,
   CircleAlert,
   CircleArrowLeft,
@@ -15,8 +16,9 @@ import {
   Mountain,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import type { Address } from 'viem'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -24,7 +26,10 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
+import { useV1Names } from '@/features/migration/hooks/useV1Names'
+import { classifyNames } from '@/features/migration/service/classifyNames'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { tw } from '@/utils/tailwind'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { NameRow } from './NameRow'
@@ -104,6 +109,21 @@ export const MyNamesList = ({
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<Sort>('name-desc')
+
+  const { ownerAddress } = useSmartAccountContext()
+  const { data: v1NamesRaw } = useV1Names()
+
+  const v1Names = useMemo(() => {
+    if (!v1NamesRaw || !ownerAddress) return []
+    const classified = classifyNames(v1NamesRaw, ownerAddress as Address)
+    if (!searchQuery) return classified
+    const q = searchQuery.toLowerCase()
+    return classified.filter(
+      (n) =>
+        n.domain.name.toLowerCase().includes(q) ||
+        n.label.toLowerCase().includes(q),
+    )
+  }, [v1NamesRaw, ownerAddress, searchQuery])
 
   const {
     field: sortField,
@@ -262,17 +282,89 @@ export const MyNamesList = ({
               </div>
             </>
           ))
-          .with({ names: P.when((n) => n.length === 0) }, () => (
-            <div className="flex flex-col items-center justify-center gap-3 py-16">
-              <Mountain
-                className="size-12 text-ens-gray-three"
-                strokeWidth={1}
-              />
-              <span className="font-sans text-muted-foreground text-sm">
-                <Trans>No names to display</Trans>
-              </span>
-            </div>
-          ))
+          .with({ names: P.when((n) => n.length === 0) }, () => {
+            const showV1 = page === 1 && !searchQuery && v1Names.length > 0
+            if (!showV1) {
+              return (
+                <div className="flex flex-col items-center justify-center gap-3 py-16">
+                  <Mountain
+                    className="size-12 text-ens-gray-three"
+                    strokeWidth={1}
+                  />
+                  <span className="font-sans text-muted-foreground text-sm">
+                    <Trans>No names to display</Trans>
+                  </span>
+                </div>
+              )
+            }
+            return v1Names.map((classified, index) => {
+              const label = classified.domain.name
+              const expirySeconds =
+                classified.domain.registration?.expiryDate ??
+                classified.domain.wrappedDomain?.expiryDate ??
+                null
+              const expiryDate = toDateFromSeconds(
+                expirySeconds ? Number(expirySeconds) : null,
+              )
+              const daysUntilExpiry = getDaysUntil(expiryDate)
+              const expiringSoon = isExpiringSoon(
+                expiryDate,
+                30,
+                daysUntilExpiry,
+              )
+              const formattedExpiryDate = formatDashboardDate(expiryDate)
+
+              return (
+                <motion.div
+                  className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+                  key={`v1-${classified.domain.id}`}
+                  {...(shouldReduceMotion
+                    ? {}
+                    : {
+                        initial: { opacity: 0, y: 6 },
+                        animate: { opacity: 1, y: 0 },
+                        transition: {
+                          duration: 0.2,
+                          ease: [0.25, 0.46, 0.45, 0.94] as const,
+                          delay: index * 0.04,
+                        },
+                      })}
+                >
+                  <div className="mb-[10px]">
+                    <div className="inline-flex items-center gap-[6px] rounded-[73px] bg-[#f3eeff] px-[6.5px] py-[3.3px]">
+                      <ArrowUpCircle className="size-[12px] text-[#7c5cc4]" />
+                      <span className="font-sans text-[#7c5cc4] text-[12px] leading-[1.15] tracking-[-0.24px] md:text-[13px]">
+                        <Trans>Eligible to upgrade</Trans>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <NameRow label={label} />
+                    <div className="flex items-start gap-4 md:gap-[30px]">
+                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
+                        <div className="flex flex-col items-start">
+                          <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
+                            {formattedExpiryDate}
+                          </span>
+                        </div>
+                        {expiringSoon && daysUntilExpiry !== null && (
+                          <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
+                            <CircleAlert
+                              className="size-[10px] text-[#e3a531] md:size-[12px]"
+                              strokeWidth={2}
+                            />
+                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
+                              <Trans>Expires in {daysUntilExpiry} days</Trans>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })
+          })
           .otherwise(({ names }) =>
             names.map((name, index) => {
               const label = resolveDomainLabel(name)

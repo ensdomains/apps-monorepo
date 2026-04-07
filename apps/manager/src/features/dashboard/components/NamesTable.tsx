@@ -4,9 +4,9 @@ import { useQueries } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { CountBadge } from '@/components/atoms/CountBadge'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,7 +14,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useV1Names } from '@/features/migration/hooks/useV1Names'
+import { classifyNames } from '@/features/migration/service/classifyNames'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
@@ -99,15 +102,27 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     ],
   })
 
+  const { ownerAddress } = useSmartAccountContext()
+  const { data: v1NamesRaw } = useV1Names()
+
+  const v1NamesCount = useMemo(() => {
+    if (!v1NamesRaw || !ownerAddress) return 0
+    return classifyNames(v1NamesRaw, ownerAddress as Address).length
+  }, [v1NamesRaw, ownerAddress])
+
   const { data: favorites = [] } = favoritesQuery
   const { data: ownedNamesCount } = ownedNamesCountQuery
   const favoritesCount = favorites.length
+  const hasNoV2Names = ownedNamesCount === 0
+  const totalNamesCount = hasNoV2Names
+    ? v1NamesCount || undefined
+    : ownedNamesCount
 
   const tabs = [
     {
       key: 'myNames' as const,
       label: <Trans>My Names</Trans>,
-      badge: ownedNamesCount,
+      badge: totalNamesCount,
     },
     {
       key: 'favorites' as const,
