@@ -48,7 +48,7 @@ export async function waitForMessage(inbox: string, predicate: (message: Record<
     const start = Date.now()
     while (Date.now() - start < timeoutMs) {
         const inboxData = await getInboxMessages(inbox)
-        const messages = inboxData.msgs ?? inboxData.messages ?? []
+    const candidate = messages.find(predicate)
 
         const candidate = (messages as any[]).find(predicate)
         if (candidate) return candidate
