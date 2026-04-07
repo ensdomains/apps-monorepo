@@ -10,7 +10,6 @@ import { DAIcon } from '@/assets/dai-icon'
 import { USDCIcon } from '@/assets/usdc-icon'
 import { Button } from '@/components/ui/button'
 import { MessageCard } from '@/components/ui/message-card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { buildTokenData } from '@/features/register/utils/tokenData'
 import {
@@ -29,6 +28,17 @@ type PaymentTokenSectionProps = {
   readonly isConnected: boolean
   readonly isRegistering?: boolean
 }
+
+const TokenSectionSkeleton = () => (
+  <section className="border border-border rounded-lg bg-card p-5 space-y-4">
+    <div className="h-5 w-40 bg-quartz-100 animate-pulse rounded-md" />
+    <div className="space-y-2">
+      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
+      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
+    </div>
+    <div className="h-10 w-full bg-quartz-100 animate-pulse rounded-md" />
+  </section>
+)
 
 const PAYMENT_TOKENS = [
   {
@@ -101,18 +111,25 @@ export const PaymentTokenSection = ({
     [usdcBalance, daiBalance],
   )
 
+  if (balancesQuery.isLoading) {
+    return <TokenSectionSkeleton />
+  }
+
+  if (priceQueries[0].isLoading) {
+    return <TokenSectionSkeleton />
+  }
+
+  if (priceQueries[1].isLoading) {
+    return <TokenSectionSkeleton />
+  }
+
   const selectedTokenData = selectedToken
     ? tokenData.find((t) => t.address === selectedToken)
     : null
 
-  const isPriceLoading =
-    priceQueries[0].isLoading ||
-    priceQueries[1].isLoading ||
-    balancesQuery.isLoading
-
-  const noSupportedTokenHasSufficientBalance =
-    !isPriceLoading &&
-    tokenData.every((token) => token.balance < token.price.total)
+  const noSupportedTokenHasSufficientBalance = tokenData.every(
+    (token) => token.balance < token.price.total,
+  )
 
   const handleBuyName = () => {
     if (selectedToken && selectedTokenData) {
@@ -120,8 +137,7 @@ export const PaymentTokenSection = ({
     }
   }
 
-  const isRegisterDisabled =
-    !selectedToken || isPriceLoading || !address || !selectedTokenData
+  const isRegisterDisabled = !selectedToken || !address || !selectedTokenData
 
   if (!isConnected) {
     return (
@@ -182,26 +198,17 @@ export const PaymentTokenSection = ({
                   <p className="font-medium">{token.symbol}</p>
                 </div>
                 <div className="text-right">
-                  {isPriceLoading ? (
-                    <Skeleton className="h-5 w-14" />
+                  <p className="font-normal">
+                    {Number(
+                      formatUnits(token.balance, token.decimals),
+                    ).toLocaleString()}
+                  </p>
+                  {hasSufficientBalance ? (
+                    <p className="text-muted-foreground text-xs">available</p>
                   ) : (
-                    <>
-                      <p className="font-normal">
-                        {Number(
-                          formatUnits(token.balance, token.decimals),
-                        ).toLocaleString()}
-                      </p>
-
-                      {hasSufficientBalance ? (
-                        <p className="text-muted-foreground text-xs">
-                          available
-                        </p>
-                      ) : (
-                        <p className="text-destructive text-xs">
-                          Insufficient balance
-                        </p>
-                      )}
-                    </>
+                    <p className="text-destructive text-xs">
+                      Insufficient balance
+                    </p>
                   )}
                 </div>
               </button>
