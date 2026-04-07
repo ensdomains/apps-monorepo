@@ -105,13 +105,13 @@ export const PaymentTokenSection = ({
     ? tokenData.find((t) => t.address === selectedToken)
     : null
 
-  const isPriceLoading =
-    priceQueries[0].isLoading ||
-    priceQueries[1].isLoading ||
-    balancesQuery.isLoading
+  const selectedTokenIndex = selectedToken
+    ? PAYMENT_TOKENS.findIndex((t) => t.address === selectedToken)
+    : -1
 
   const noSupportedTokenHasSufficientBalance =
-    !isPriceLoading &&
+    priceQueries.every((q) => !q.isLoading) &&
+    !balancesQuery.isLoading &&
     tokenData.every((token) => token.balance < token.price.total)
 
   const handleBuyName = () => {
@@ -121,7 +121,12 @@ export const PaymentTokenSection = ({
   }
 
   const isRegisterDisabled =
-    !selectedToken || isPriceLoading || !address || !selectedTokenData
+    !selectedToken ||
+    selectedTokenIndex === -1 ||
+    priceQueries[selectedTokenIndex]?.isLoading ||
+    balancesQuery.isLoading ||
+    !address ||
+    !selectedTokenData
 
   if (!isConnected) {
     return (
@@ -158,7 +163,9 @@ export const PaymentTokenSection = ({
         />
       ) : (
         <div className="space-y-2">
-          {tokenData.map((token) => {
+          {tokenData.map((token, index) => {
+            const isTokenLoading =
+              priceQueries[index].isLoading || balancesQuery.isLoading
             const hasSufficientBalance = token.balance >= token.price.total
 
             return (
@@ -182,7 +189,7 @@ export const PaymentTokenSection = ({
                   <p className="font-medium">{token.symbol}</p>
                 </div>
                 <div className="text-right">
-                  {isPriceLoading ? (
+                  {isTokenLoading ? (
                     <Skeleton className="h-5 w-14" />
                   ) : (
                     <>
