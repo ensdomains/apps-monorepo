@@ -7,7 +7,6 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import {
-  ArrowUpCircle,
   ChevronDown,
   CircleAlert,
   CircleArrowLeft,
@@ -19,6 +18,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
+import ensMarkBadge from '@/assets/ens-mark-badge.svg'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -331,10 +331,14 @@ export const MyNamesList = ({
                       })}
                 >
                   <div className="mb-[10px]">
-                    <div className="inline-flex items-center gap-[6px] rounded-[73px] bg-[#f3eeff] px-[6.5px] py-[3.3px]">
-                      <ArrowUpCircle className="size-[12px] text-[#7c5cc4]" />
-                      <span className="font-sans text-[#7c5cc4] text-[12px] leading-[1.15] tracking-[-0.24px] md:text-[13px]">
-                        <Trans>Eligible to upgrade</Trans>
+                    <div className="inline-flex items-center gap-1 rounded-full bg-[#feeaf0] px-1 py-0.5">
+                      <img
+                        alt=""
+                        className="mt-[2px] size-4.5 shrink-0"
+                        src={ensMarkBadge}
+                      />
+                      <span className="font-sans text-[#e72a96] text-[14px] leading-[1.05] tracking-[0.28px]">
+                        <Trans>Eligible for upgrade</Trans>
                       </span>
                     </div>
                   </div>

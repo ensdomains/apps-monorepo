@@ -696,8 +696,8 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:337
-msgid "Eligible to upgrade"
+#: src/features/dashboard/components/MyNamesList.tsx:341
+msgid "Eligible for upgrade"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:47
@@ -817,8 +817,8 @@ msgstr ""
 msgid "expires {expiryDateString}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:357
-#: src/features/dashboard/components/MyNamesList.tsx:422
+#: src/features/dashboard/components/MyNamesList.tsx:361
+#: src/features/dashboard/components/MyNamesList.tsx:426
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -1232,7 +1232,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:297
-#: src/features/dashboard/components/MyNamesList.tsx:447
+#: src/features/dashboard/components/MyNamesList.tsx:451
 #: src/features/profile/components/view/AddressProfileView.tsx:275
 msgid "Next page"
 msgstr ""
@@ -1450,7 +1450,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:288
-#: src/features/dashboard/components/MyNamesList.tsx:438
+#: src/features/dashboard/components/MyNamesList.tsx:442
 #: src/features/profile/components/view/AddressProfileView.tsx:266
 msgid "Previous page"
 msgstr ""
@@ -1827,7 +1827,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:460
+#: src/features/dashboard/components/MyNamesList.tsx:464
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
