@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { ProfileCardPreview } from '@/features/migration/components/ProfileCardPreview'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useAutoScrollCarousel } from '@/features/migration/hooks/useAutoScrollCarousel'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
@@ -18,22 +19,10 @@ import { isFeatureEnabled } from '@/utils/feature-flags'
 const AUTO_SCROLL_INTERVAL = 5000
 
 const SLIDE_DATA = [
-  {
-    id: 'profiles',
-    image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-  },
-  {
-    id: 'nft',
-    image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-  },
-  {
-    id: 'v2',
-    image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-  },
-  {
-    id: 'experience',
-    image: 'https://placehold.co/192x270/e5e5e5/737373?text=Preview',
-  },
+  { id: 'profiles' },
+  { id: 'nft', image: '/migration/slide-nft.png' },
+  { id: 'v2', image: '/migration/slide-v2.png' },
+  { id: 'experience', image: '/migration/slide-experience.png' },
 ]
 
 export const MigrationModal = () => {
@@ -90,7 +79,7 @@ export const MigrationModal = () => {
       open={open}
     >
       <DialogContent
-        className="overflow-hidden border-0 bg-linear-to-b from-[#feeaf0] to-[#ffc6e0] p-0 sm:max-w-[420px]"
+        className="overflow-hidden border-0 bg-linear-to-b from-[#feeaf0] to-[#ffc6e0] p-0 sm:max-w-[726px]"
         showCloseButton={false}
       >
         <GrainOverlay />
@@ -108,14 +97,14 @@ export const MigrationModal = () => {
         </button>
 
         {/* Content */}
-        <div className="relative z-10 flex flex-col items-center gap-4 px-5 pt-7 pb-7">
+        <div className="relative z-10 mx-auto flex w-full max-w-[486px] flex-col items-center gap-4 px-5 pt-7 pb-7">
           <DialogTitle className="w-full pt-4 font-normal text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Welcome to the new ENS app!</Trans>
           </DialogTitle>
-          <DialogDescription className="w-full text-[#e72a96] text-sm leading-[1.2] tracking-[-0.21px]">
+          <DialogDescription className="w-full text-[#e72a96] text-base leading-[1.2] tracking-[-0.24px]">
             <Trans>
-              Upgrade your name(s) to unlock your new ENS profile and claim your
-              commemorative NFT.
+              Upgrade your name(s) in just a couple steps to unlock your new ENS
+              profile and claim your commemorative NFT.
             </Trans>
           </DialogDescription>
 
@@ -151,13 +140,17 @@ export const MigrationModal = () => {
                   className="flex w-full shrink-0 snap-center flex-col items-center gap-4 px-5"
                   key={slide.id}
                 >
-                  <div className="overflow-hidden rounded-2xl border-[0.1px] border-[rgba(25,87,128,0.2)] shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.3)]">
-                    <img
-                      alt={slideLabels[slide.id] ?? ''}
-                      className="h-[270px] w-[192px] object-cover"
-                      src={slide.image}
-                    />
-                  </div>
+                  {slide.id === 'profiles' ? (
+                    <ProfileCardPreview />
+                  ) : (
+                    <div className="overflow-hidden rounded-2xl border-[0.1px] border-[rgba(25,87,128,0.2)] shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.3)]">
+                      <img
+                        alt={slideLabels[slide.id] ?? ''}
+                        className="h-[320px] w-[228px] object-cover"
+                        src={slide.image}
+                      />
+                    </div>
+                  )}
                   <p className="font-semi-mono text-[#e72a96] text-xs uppercase leading-[1.2] tracking-[0.12px]">
                     {slideLabels[slide.id]}
                   </p>
@@ -167,7 +160,17 @@ export const MigrationModal = () => {
           </div>
 
           {/* CTA button */}
-          <UpgradeNamesButton className="w-full max-w-[313px] tracking-[1.68px]" />
+          <div className="flex w-full max-w-[313px] flex-col items-start gap-2">
+            <UpgradeNamesButton className="w-full tracking-[1.68px]" />
+            {v1Names && v1Names.length > 0 && (
+              <p className="w-full font-semi-mono text-[#5a0024] text-[10px] uppercase leading-[1.2] tracking-[0.1px]">
+                <Trans>
+                  You have <span className="font-medium">{v1Names.length}</span>{' '}
+                  names that are eligible for upgrade
+                </Trans>
+              </p>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
