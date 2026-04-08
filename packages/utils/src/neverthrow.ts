@@ -43,6 +43,7 @@ export {
   asyncRes,
   createIntoResult,
   deserializeResult,
+  fromThrowableV2,
   getFirstOrFallback,
   type InferErrTypes,
   type InferOkTypes,

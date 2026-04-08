@@ -37,5 +37,22 @@ export const SUPPORTED_TOKENS = {
   DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as const,
 } as const
 
+export const TOKENS = {
+  USDC: {
+    address: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6',
+    decimals: 6,
+    symbol: 'USDC',
+  },
+  DAI: {
+    address: '0xd030a2465ee661338de1f02d05042bbf20d5d127',
+    decimals: 18,
+    symbol: 'DAI',
+  },
+} as const
+
+export type SUPPORTED_TOKEN = keyof typeof TOKENS
+export type SUPPORTED_TOKEN_ADDRESS =
+  (typeof TOKENS)[SUPPORTED_TOKEN]['address']
+
 export const EMPTY_ADDRESS = zeroAddress
 export const REFERER_ADDRESS = zeroHash
