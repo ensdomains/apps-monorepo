@@ -18,12 +18,14 @@ type RegistrationSuccessProps = {
   readonly domainName: string
   readonly durationSeconds: number
   readonly price: RegistrationPriceResult
+  readonly onRegisterAnother: () => void
 }
 
 export const RegistrationSuccess = ({
   domainName,
   durationSeconds,
   price,
+  onRegisterAnother,
 }: RegistrationSuccessProps) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -75,6 +77,7 @@ export const RegistrationSuccess = ({
       : undefined
 
   const handleRegisterAnother = () => {
+    onRegisterAnother()
     navigate({ to: '/register' })
   }
 

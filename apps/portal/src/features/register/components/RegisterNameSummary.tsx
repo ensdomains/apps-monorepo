@@ -228,7 +228,7 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
           />
         )}
 
-        {years >= 1 && (
+        {Math.round(years * 12) >= 12 && (
           <SummaryRow
             label={
               premiumLabel ? (

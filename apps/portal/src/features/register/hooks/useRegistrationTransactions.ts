@@ -161,6 +161,11 @@ export const useRegistrationTransactions = ({
     })
   }
 
+  const resetRegistration = useCallback(() => {
+    actor.send({ type: 'CANCEL' })
+    clearTransaction()
+  }, [actor, clearTransaction])
+
   return {
     transactions,
     actor,
@@ -168,5 +173,6 @@ export const useRegistrationTransactions = ({
     isSuccess,
     selectedToken,
     startFlow,
+    resetRegistration,
   }
 }

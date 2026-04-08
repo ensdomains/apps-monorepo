@@ -39,8 +39,14 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const { openConnectModal } = useConnectModal()
   const { openModal } = useTransactionModal()
 
-  const { transactions, isRegistering, isSuccess, selectedToken, startFlow } =
-    useRegistrationTransactions({ name, duration })
+  const {
+    transactions,
+    isRegistering,
+    isSuccess,
+    selectedToken,
+    startFlow,
+    resetRegistration,
+  } = useRegistrationTransactions({ name, duration })
 
   const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
@@ -166,6 +172,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           domainName={name}
           durationSeconds={duration}
           price={price}
+          onRegisterAnother={resetRegistration}
         />
       ) : (
         <>
