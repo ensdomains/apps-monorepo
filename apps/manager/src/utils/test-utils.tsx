@@ -1,3 +1,4 @@
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import {
   render as baseRender,
@@ -15,7 +16,7 @@ import { beforeEach } from 'vitest'
 
 import { hashFn } from 'wagmi/query'
 
-const mainnetWithEns = extendChainWithL1Ens(mainnet)
+const mainnetWithEns = extendChainWithEns(mainnet)
 
 const client = createClient({
   transport: http('http://mock.local'),
