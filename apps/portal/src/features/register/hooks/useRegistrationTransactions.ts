@@ -107,9 +107,7 @@ export const useRegistrationTransactions = ({
     if (currentState === 'error') {
       transactionManager.clear()
       actor.send({ type: 'RETRY' })
-      return
     }
-    actor.send({ type: 'PROCEED' })
   }, [actor])
 
   const handleDone = useCallback(() => {
