@@ -55,7 +55,7 @@ msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
 #. placeholder {0}: skippedNames.length
-#: src/features/migration/pages/MigrationPage.tsx:44
+#: src/features/migration/pages/MigrationPage.tsx:47
 msgid "{0} name(s) could not be migrated"
 msgstr "{0} name(s) could not be migrated"
 
@@ -218,7 +218,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/migration/components/GameStep.tsx:36
+#: src/features/migration/components/GameStep.tsx:50
 msgid "Almost there..."
 msgstr "Almost there..."
 
@@ -282,7 +282,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:163
+#: src/features/migration/pages/MigrationPage.tsx:182
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -683,7 +683,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
 #: src/features/migration/components/SuccessModal.tsx:38
-#: src/features/migration/pages/MigrationPage.tsx:194
+#: src/features/migration/pages/MigrationPage.tsx:213
 msgid "Done"
 msgstr "Done"
 
@@ -1006,7 +1006,7 @@ msgstr "Go to Profile"
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
-#: src/features/migration/pages/MigrationPage.tsx:22
+#: src/features/migration/pages/MigrationPage.tsx:25
 msgid "Has a frozen approval that prevents migration"
 msgstr "Has a frozen approval that prevents migration"
 
@@ -1146,11 +1146,22 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
+#. placeholder {0}: descriptor.count
+#: src/features/migration/components/GameStep.tsx:43
+msgid "Migrating {0} name(s)"
+msgstr "Migrating {0} name(s)"
+
+#. placeholder {0}: descriptor.count
+#. placeholder {1}: descriptor.parentName
+#: src/features/migration/components/GameStep.tsx:45
+msgid "Migrating {0} subname(s) under {1}"
+msgstr "Migrating {0} subname(s) under {1}"
+
 #: src/features/migration/components/SuccessModal.tsx:28
 msgid "Migration Complete!"
 msgstr "Migration Complete!"
 
-#: src/features/migration/pages/MigrationPage.tsx:135
+#: src/features/migration/pages/MigrationPage.tsx:154
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1304,7 +1315,7 @@ msgstr "Not set"
 msgid "Not supported"
 msgstr "Not supported"
 
-#: src/features/migration/pages/MigrationPage.tsx:20
+#: src/features/migration/pages/MigrationPage.tsx:23
 msgid "Not yet premigrated in ENS v2"
 msgstr "Not yet premigrated in ENS v2"
 
@@ -1418,6 +1429,11 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
+#. placeholder {0}: descriptor.count
+#: src/features/migration/components/GameStep.tsx:41
+msgid "Pre-migrating {0} name(s)"
+msgstr "Pre-migrating {0} name(s)"
+
 #: src/features/notifications/settings/preferences.tsx:64
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:51
 msgid "Preferences updated"
@@ -1427,7 +1443,7 @@ msgstr "Preferences updated"
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
 
-#: src/features/migration/components/GameStep.tsx:39
+#: src/features/migration/components/GameStep.tsx:53
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
 
@@ -1634,7 +1650,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:170
+#: src/features/migration/pages/MigrationPage.tsx:189
 msgid "Retry"
 msgstr "Retry"
 
@@ -1899,7 +1915,7 @@ msgstr "Smart Session Disabled"
 msgid "Social Links"
 msgstr "Social Links"
 
-#: src/features/migration/pages/MigrationPage.tsx:178
+#: src/features/migration/pages/MigrationPage.tsx:197
 msgid "Some names could not be migrated"
 msgstr "Some names could not be migrated"
 
@@ -2077,7 +2093,7 @@ msgstr "Trademark Guidelines"
 msgid "Transaction:"
 msgstr "Transaction:"
 
-#: src/features/migration/pages/MigrationPage.tsx:24
+#: src/features/migration/pages/MigrationPage.tsx:27
 msgid "Transfer reverted on-chain"
 msgstr "Transfer reverted on-chain"
 
@@ -2126,7 +2142,7 @@ msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your comme
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:57
+#: src/features/migration/components/GameStep.tsx:71
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useMachine } from '@xstate/react'
 import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -9,7 +9,10 @@ import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import { migrationMachine } from '@/features/migration/machines/migrationMachine'
+import {
+  type MigrationError,
+  migrationMachine,
+} from '@/features/migration/machines/migrationMachine'
 import type {
   MigrationResult,
   SkippedName,
@@ -74,7 +77,20 @@ const ResultLayout = ({ children }: { children: ReactNode }) => (
   </motion.div>
 )
 
+const formatMigrationError = (
+  error: MigrationError,
+  t: ReturnType<typeof useLingui>['t'],
+) => {
+  switch (error.type) {
+    case 'preflight-failure':
+      return t`${error.count} name(s) could not be migrated due to pre-flight check failures.`
+    case 'generic':
+      return error.message
+  }
+}
+
 export const MigrationPage = () => {
+  const { t } = useLingui()
   const [state, send] = useMachine(migrationMachine)
   const { data: v1Names = [] } = useV1Names()
 
@@ -104,7 +120,10 @@ export const MigrationPage = () => {
 
   const handleMigrationError = useCallback(
     (error: string) => {
-      send({ type: 'MIGRATION_ERROR', error })
+      send({
+        type: 'MIGRATION_ERROR',
+        error: { type: 'generic', message: error },
+      })
     },
     [send],
   )
@@ -141,7 +160,8 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <p className="whitespace-pre-wrap break-all font-mono text-ens-garnet-900/70 text-xs leading-normal">
-                {state.context.error}
+                {state.context.error &&
+                  formatMigrationError(state.context.error, t)}
               </p>
             </motion.div>
 

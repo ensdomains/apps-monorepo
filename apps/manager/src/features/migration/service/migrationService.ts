@@ -381,35 +381,42 @@ export const executeMigration = async (params: {
   }
 }
 
+export type MigrationStepDescriptor =
+  | { type: 'pre-migrate'; count: number }
+  | { type: 'migrate'; count: number }
+  | { type: 'migrate-subnames'; count: number; parentName: string }
+
 export const getMigrationStepInfo = (
   domains: V1Domain[],
   ownerAddress: Address,
-): { stepCount: number; stepDescriptions: string[] } => {
+): { stepCount: number; stepDescriptors: MigrationStepDescriptor[] } => {
   const classified = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
-  const descriptions: string[] = []
+  const descriptors: MigrationStepDescriptor[] = []
 
   if (ENABLE_PRE_MIGRATE) {
     const twoLDCount = classified.filter(is2LD).length
     if (twoLDCount > 0) {
-      descriptions.push(`Pre-migrating ${twoLDCount} name(s)`)
+      descriptors.push({ type: 'pre-migrate', count: twoLDCount })
     }
   }
 
   if (has2LDNames(groups)) {
     const count =
       groups.unwrapped.length + groups.unlocked.length + groups.locked2ld.length
-    descriptions.push(`Migrating ${count} name(s)`)
+    descriptors.push({ type: 'migrate', count })
   }
 
   for (const [parentName, children] of groups.lockedChildren) {
-    descriptions.push(
-      `Migrating ${children.length} subname(s) under ${parentName}`,
-    )
+    descriptors.push({
+      type: 'migrate-subnames',
+      count: children.length,
+      parentName,
+    })
   }
 
   return {
     stepCount: countSteps(groups, ENABLE_PRE_MIGRATE),
-    stepDescriptions: descriptions,
+    stepDescriptors: descriptors,
   }
 }

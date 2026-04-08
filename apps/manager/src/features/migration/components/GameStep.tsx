@@ -2,7 +2,10 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
 import { useMigrationExecution } from '@/features/migration/hooks/useMigrationExecution'
-import type { MigrationResult } from '@/features/migration/service/migrationService'
+import type {
+  MigrationResult,
+  MigrationStepDescriptor,
+} from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { cn } from '@/lib/utils'
 
@@ -18,7 +21,7 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const { t } = useLingui()
   const { ref: trackRef, width: trackWidth } = useElementWidth()
 
-  const { done, errorMessage, progress, stepCount, stepDescriptions } =
+  const { done, errorMessage, progress, stepCount, stepDescriptors } =
     useMigrationExecution(domains, onComplete, onError, HUG_DELAY)
 
   const totalSteps = Math.max(stepCount, 1)
@@ -32,10 +35,21 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   // Excited when tx is signed but step hasn't completed yet
   const isExcited = !!progress?.txHash && !done && !hasCollapsed
 
+  const formatStepDescriptor = (descriptor: MigrationStepDescriptor) => {
+    switch (descriptor.type) {
+      case 'pre-migrate':
+        return t`Pre-migrating ${descriptor.count} name(s)`
+      case 'migrate':
+        return t`Migrating ${descriptor.count} name(s)`
+      case 'migrate-subnames':
+        return t`Migrating ${descriptor.count} subname(s) under ${descriptor.parentName}`
+    }
+  }
+
   const descriptionText = done
     ? t`Almost there...`
-    : completedSteps < stepDescriptions.length
-      ? `${stepDescriptions[completedSteps]}...`
+    : completedSteps < stepDescriptors.length
+      ? `${formatStepDescriptor(stepDescriptors[completedSteps]!)}...`
       : t`Preparing migration...`
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)

@@ -2,12 +2,16 @@ import type { Hex } from 'viem'
 import { assign, setup } from 'xstate'
 import type { SkippedName } from '@/features/migration/service/migrationService'
 
+export type MigrationError =
+  | { type: 'preflight-failure'; count: number }
+  | { type: 'generic'; message: string }
+
 export type MigrationContext = {
   selectedNames: string[]
   migratedNames: string[]
   txHashes: readonly Hex[]
   skippedNames: readonly SkippedName[]
-  error?: string
+  error?: MigrationError
 }
 
 const initialContext: MigrationContext = {
@@ -29,7 +33,7 @@ export const migrationMachine = setup({
           skipped: readonly SkippedName[]
           migratedNames: string[]
         }
-      | { type: 'MIGRATION_ERROR'; error: string }
+      | { type: 'MIGRATION_ERROR'; error: MigrationError }
       | { type: 'RETRY' }
       | { type: 'DONE' }
       | { type: 'RESET' },
@@ -78,10 +82,10 @@ export const migrationMachine = setup({
             actions: assign({
               txHashes: ({ event }) => event.txHashes,
               skippedNames: ({ event }) => event.skipped,
-              error: ({ event }) => {
-                const count = event.skipped.length
-                return `${count} name(s) could not be migrated due to pre-flight check failures.`
-              },
+              error: ({ event }) => ({
+                type: 'preflight-failure' as const,
+                count: event.skipped.length,
+              }),
             }),
           },
           {

@@ -3,6 +3,7 @@ import { useMigrateNames } from '@/features/migration/hooks/useMigrateNames'
 import {
   getMigrationStepInfo,
   type MigrationResult,
+  type MigrationStepDescriptor,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -45,9 +46,9 @@ export function useMigrationExecution(
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
 
-  const { stepCount, stepDescriptions } = useMemo(() => {
+  const { stepCount, stepDescriptors } = useMemo(() => {
     if (!ownerAddress || domains.length === 0) {
-      return { stepCount: 0, stepDescriptions: [] }
+      return { stepCount: 0, stepDescriptors: [] as MigrationStepDescriptor[] }
     }
     return getMigrationStepInfo(domains, ownerAddress)
   }, [domains, ownerAddress])
@@ -74,6 +75,6 @@ export function useMigrationExecution(
     errorMessage,
     progress,
     stepCount,
-    stepDescriptions,
+    stepDescriptors,
   }
 }
