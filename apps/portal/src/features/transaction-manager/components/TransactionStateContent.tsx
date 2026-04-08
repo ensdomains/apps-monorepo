@@ -66,7 +66,8 @@ export const TransactionStateContent = ({
       />
 
       <div className="flex flex-col gap-2">
-        {transactions.map((transaction) => {
+        {transactions.map((transaction, index) => {
+          const isPending = index > activeIndex
           const status = getStatus(transaction.id, activeTransactionsMap)
 
           const activeTxSnapshot = activeTransactionsMap
@@ -86,6 +87,7 @@ export const TransactionStateContent = ({
               key={transaction.id}
               className={cn(
                 'flex flex-start gap-4 border border-border rounded-lg p-3.5',
+                isPending && 'opacity-60',
               )}
             >
               <div className="mt-1 shrink-0">
