@@ -160,7 +160,11 @@ export const MigrationModal = () => {
           </div>
 
           {/* CTA button */}
-          <div className="flex w-full max-w-[313px] flex-col items-start gap-2">
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: dismiss wrapper, button inside handles keyboard */}
+          <div
+            className="flex w-full max-w-[313px] flex-col items-start gap-2"
+            onClick={dismiss}
+          >
             <UpgradeNamesButton className="w-full tracking-[1.68px]" />
             {v1Names && v1Names.length > 0 && (
               <p className="w-full font-semi-mono text-[#5a0024] text-[10px] uppercase leading-[1.2] tracking-[0.1px]">

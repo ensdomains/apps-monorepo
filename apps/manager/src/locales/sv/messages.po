@@ -2347,7 +2347,7 @@ msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/MigrationModal.tsx:167
+#: src/features/migration/components/MigrationModal.tsx:171
 msgid "You have <0>{0}</0> names that are eligible for upgrade"
 msgstr ""
 
