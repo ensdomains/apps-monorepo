@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
@@ -6,13 +6,18 @@ import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
+import {
+  getBaseRateUsdForLength,
+  getPricingBreakdown,
+} from '@/features/register/utils/registrationPricing'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { getLabel } from '@/utils/token/getLabel'
 
 type RegistrationSuccessProps = {
   readonly domainName: string
@@ -30,6 +35,21 @@ export const RegistrationSuccess = ({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [isViewProfileLoading, setIsViewProfileLoading] = useState(false)
+
+  const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
+
+  let pricePerYearUsd: number | undefined
+  if (oracleData) {
+    try {
+      const labelLength = getLabel(domainName).length
+      pricePerYearUsd = getBaseRateUsdForLength(
+        oracleData.baseRatesUsd,
+        labelLength,
+      )
+    } catch {
+      // not a valid label — discount text stays hidden
+    }
+  }
 
   const handleViewProfile = async () => {
     try {
@@ -69,7 +89,7 @@ export const RegistrationSuccess = ({
   const totalCost = formatPriceDisplay(price.total, price.decimals)
 
   const { discountAmount, discountPercent, discountLabel } =
-    getPricingBreakdown(domainName, price, durationSeconds)
+    getPricingBreakdown(domainName, price, durationSeconds, pricePerYearUsd)
 
   const discountText =
     discountPercent > 0 && discountAmount > 0 && discountLabel

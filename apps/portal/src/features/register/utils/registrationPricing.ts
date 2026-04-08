@@ -1,31 +1,24 @@
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import {
-  CHARACTER_PREMIUM_USD,
   getPremiumLabel,
   type PremiumLabelVariant,
 } from '@/features/register/utils/premium'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
-import { getLabel } from '@/utils/token/getLabel'
-
-/** Standard price per year for names with more than 4 characters */
-export const STANDARD_PRICE_PER_YEAR_USD = 5
 
 /**
- * Returns the standard (full) price per year for a name based on its label length.
- * - 3 letters: $640/year
- * - 4 letters: $160/year
- * - 5+ chars: $5/year
+ * Returns the USD price per year for a label of the given length,
+ * using oracle-fetched base rates (0-indexed: index 0 = 1-char label).
+ * Labels longer than the array use the last entry.
  */
-export function getStandardPricePerYear(name: string): number {
-  try {
-    const label = getLabel(name)
-    const length = label.length
-    if (length === 3) return CHARACTER_PREMIUM_USD['premium-3']
-    if (length === 4) return CHARACTER_PREMIUM_USD['premium-4']
-    return STANDARD_PRICE_PER_YEAR_USD
-  } catch {
-    return STANDARD_PRICE_PER_YEAR_USD
-  }
+export function getBaseRateUsdForLength(
+  baseRatesUsd: number[],
+  labelLength: number,
+): number {
+  if (baseRatesUsd.length === 0) return 0
+  // Mirrors the contract: _baseRatePerCp[(ncp > nbr ? nbr : ncp) - 1]
+  // i.e. clamp labelLength to [1, array.length] then convert to 0-based index.
+  const idx = Math.min(Math.max(labelLength - 1, 0), baseRatesUsd.length - 1)
+  return baseRatesUsd[idx] ?? 0
 }
 
 export type PricingBreakdown = {
@@ -52,34 +45,49 @@ export type PricingBreakdown = {
  * - Standard subtotal = pricePerYear × (durationSeconds / SECONDS_PER_YEAR)
  * - Actual price = what the contract charges (includes multi-year discount)
  * - Discount = standard subtotal - actual price
+ *
+ * @param name           - The ENS name being registered (used for premium label).
+ * @param price          - Oracle-fetched price result for the full duration.
+ * @param durationSeconds - Registration duration in seconds.
+ * @param pricePerYearUsd - Oracle-fetched 1-year base price in USD. When undefined
+ *                          (oracle still loading), subtotal and discount are omitted.
  */
 export function getPricingBreakdown(
   name: string,
   price: RegistrationPriceResult,
   durationSeconds: number,
+  pricePerYearUsd: number | undefined,
 ): PricingBreakdown {
   const premiumLabel = getPremiumLabel(name)
-  const pricePerYear = getStandardPricePerYear(name)
-
   const years = durationSeconds / CONTRACT_SECONDS_PER_YEAR
-  const standardSubtotal = pricePerYear * years
-
   const actualPrice = Number(price.base) / 10 ** price.decimals
 
-  const discountAmount = Math.max(0, standardSubtotal - actualPrice)
+  if (!pricePerYearUsd) {
+    return {
+      pricePerYear: 0,
+      years,
+      standardSubtotal: 0,
+      actualPrice,
+      discountAmount: 0,
+      discountPercent: 0,
+      discountLabel: '',
+      premiumLabel,
+    }
+  }
 
+  const standardSubtotal = pricePerYearUsd * years
+  const discountAmount = Math.max(0, standardSubtotal - actualPrice)
   const discountPercent =
     standardSubtotal > 0
       ? ((discountAmount / standardSubtotal) * 10000) / 100
       : 0
-
   const discountLabel =
     years >= 2
       ? `${Math.round(years)}+ year${Math.round(years) === 1 ? '' : 's'}`
       : ''
 
   return {
-    pricePerYear,
+    pricePerYear: pricePerYearUsd,
     years,
     standardSubtotal,
     actualPrice,

@@ -1,4 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
+import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
   formatDiscountPercentForDisplay,
   getDiscountForYears,
@@ -6,18 +8,6 @@ import {
 import { cn } from '@/lib/utils'
 
 const PRESET_YEARS = [1, 3, 5, 10]
-
-const DISCOUNT_CONFIG = PRESET_YEARS.map((years) => {
-  const { percent } = getDiscountForYears(years)
-  return {
-    spanValue: years,
-    spanLabel: `${years} year${years > 1 ? 's' : ''}`,
-    discount:
-      percent > 0
-        ? `${formatDiscountPercentForDisplay(percent)} off`
-        : undefined,
-  }
-})
 
 type RegistrationDurationPresetsProps = {
   readonly value: number
@@ -28,24 +18,34 @@ export const RegistrationDurationPresets = ({
   value,
   onSelect,
 }: RegistrationDurationPresetsProps) => {
+  const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
+
   const selectedYears = PRESET_YEARS.includes(value) ? value : undefined
 
   return (
     <div className="flex gap-2 items-center">
-      {DISCOUNT_CONFIG.map(({ spanValue, spanLabel, discount }) => {
-        const isSelected = selectedYears === spanValue
+      {PRESET_YEARS.map((years) => {
+        const { percent } = getDiscountForYears(
+          years,
+          oracleData?.discountPoints,
+        )
+        const discount =
+          percent > 0
+            ? `${formatDiscountPercentForDisplay(percent)} off`
+            : undefined
+        const isSelected = selectedYears === years
 
         return (
           <Badge
-            key={spanValue}
+            key={years}
             variant={isSelected ? 'secondary' : 'outline'}
             role="button"
             tabIndex={0}
-            onClick={() => onSelect(spanValue)}
+            onClick={() => onSelect(years)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                onSelect(spanValue)
+                onSelect(years)
               }
             }}
             className={cn(
@@ -54,7 +54,7 @@ export const RegistrationDurationPresets = ({
               isSelected && 'border-transparent',
             )}
           >
-            {spanLabel}{' '}
+            {`${years} year${years > 1 ? 's' : ''}`}{' '}
             {discount ? (
               <span
                 className={cn(

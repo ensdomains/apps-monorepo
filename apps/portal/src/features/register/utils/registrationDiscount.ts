@@ -1,20 +1,10 @@
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 
 /**
- * Discount points matching the v2 StandardRentPriceOracle deployment config.
- * Uses CONTRACT_SECONDS_PER_YEAR so intervals match the contract exactly.
- *
- * @see contracts-v2/contracts/deploy/02_StandardRentPriceOracle.ts
- * @see contracts-v2/contracts/src/registrar/StandardRentPriceOracle.sol
+ * Oracle-derived discount point: [duration in seconds, discount rate as a fraction of 1.0].
+ * Mirrors the shape of the oracle's DiscountPoint struct after normalising value → [0, 1].
  */
-const DISCOUNT_POINTS: readonly [seconds: number, rate: number][] = [
-  [CONTRACT_SECONDS_PER_YEAR, 0], // Year 1: 0%
-  [CONTRACT_SECONDS_PER_YEAR, 0.1], // Year 2: 10%
-  [CONTRACT_SECONDS_PER_YEAR, 0.2], // Year 3: 20%
-  [CONTRACT_SECONDS_PER_YEAR * 2, 0.2875], // Years 4–5: 28.75%
-  [CONTRACT_SECONDS_PER_YEAR * 5, 0.325], // Years 6–10: 32.5%
-  [CONTRACT_SECONDS_PER_YEAR * 15, 1 / 3], // Years 11–25: 33.33%
-]
+export type OracleDiscountPoint = readonly [seconds: number, rate: number]
 
 /**
  * Computes the integrated discount over `[0, duration)`, replicating
@@ -24,14 +14,17 @@ const DISCOUNT_POINTS: readonly [seconds: number, rate: number][] = [
  * NOT the final percentage — divide by duration to get the effective
  * average discount.
  */
-function integratedDiscount(durationSeconds: number): number {
+function integratedDiscount(
+  durationSeconds: number,
+  discountPoints: readonly OracleDiscountPoint[],
+): number {
   if (durationSeconds <= 0) return 0
 
   let remaining = durationSeconds
   let acc = 0
   let sum = 0
 
-  for (const [t, rate] of DISCOUNT_POINTS) {
+  for (const [t, rate] of discountPoints) {
     if (remaining <= t) {
       return acc + remaining * rate
     }
@@ -52,12 +45,19 @@ function integratedDiscount(durationSeconds: number): number {
 /**
  * Computes the effective average discount percentage for a given duration
  * in seconds, matching the v2 contract's piecewise-linear discount function.
+ * Returns 0 if oracle discount points are not yet loaded.
  *
- * Returns a value between 0 and ~33 (percent).
+ * @param durationSeconds  - Registration duration in seconds.
+ * @param discountPoints   - Oracle-fetched schedule.
+ * @returns A value between 0 and ~33 (percent).
  */
-export function getEffectiveDiscountPercent(durationSeconds: number): number {
-  if (durationSeconds <= 0) return 0
-  const avg = integratedDiscount(durationSeconds) / durationSeconds
+export function getEffectiveDiscountPercent(
+  durationSeconds: number,
+  discountPoints?: readonly OracleDiscountPoint[],
+): number {
+  if (!discountPoints || durationSeconds <= 0) return 0
+  const avg =
+    integratedDiscount(durationSeconds, discountPoints) / durationSeconds
   return avg * 100
 }
 
@@ -76,13 +76,22 @@ export function formatDiscountPercentForDisplay(percent: number): string {
 /**
  * Returns the effective discount percent and a human-readable label
  * for a given number of years.
+ * Returns zero percent and empty label if oracle discount points are not yet loaded.
+ *
+ * @param years           - Registration duration in years.
+ * @param discountPoints  - Oracle-fetched schedule.
  */
-export function getDiscountForYears(years: number): {
+export function getDiscountForYears(
+  years: number,
+  discountPoints?: readonly OracleDiscountPoint[],
+): {
   percent: number
   label: string
 } {
+  if (!discountPoints) return { percent: 0, label: '' }
+
   const durationSeconds = years * CONTRACT_SECONDS_PER_YEAR
-  const percent = getEffectiveDiscountPercent(durationSeconds)
+  const percent = getEffectiveDiscountPercent(durationSeconds, discountPoints)
 
   if (percent <= 0) return { percent: 0, label: '' }
 

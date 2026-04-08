@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
+import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
@@ -20,12 +21,16 @@ import {
   formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
+import {
+  getBaseRateUsdForLength,
+  getPricingBreakdown,
+} from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { getLabel } from '@/utils/token/getLabel'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
 type RegisterNameCheckoutSummaryProps = {
@@ -59,9 +64,30 @@ export const RegisterNameCheckoutSummary = ({
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
 
+  const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
+
+  // Derive the oracle-fetched price per year for the pricing breakdown.
+  // When undefined (oracle still loading), price/subtotal/discount rows are hidden.
+  let pricePerYearUsd: number | undefined
+  if (oracleData) {
+    try {
+      const labelLength = getLabel(name).length
+      pricePerYearUsd = getBaseRateUsdForLength(
+        oracleData.baseRatesUsd,
+        labelLength,
+      )
+    } catch {
+      // not a valid label — rows stay hidden
+    }
+  }
+
+  const premiumDecayConfig = oracleData?.premiumDecay
+
   const hasPrice = price && isPriceResult(price)
   const premiumRange =
-    hasPrice && price ? getPremiumInstantRangeFromPrice(price) : null
+    hasPrice && price
+      ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
+      : null
 
   return (
     <Fragment>
@@ -105,7 +131,12 @@ export const RegisterNameCheckoutSummary = ({
           })
           .with({ hasPrice: true }, () =>
             price ? (
-              <PriceBreakdown name={name} price={price} duration={duration} />
+              <PriceBreakdown
+                name={name}
+                price={price}
+                duration={duration}
+                pricePerYearUsd={pricePerYearUsd}
+              />
             ) : null,
           )
           .otherwise(() => (
@@ -116,12 +147,13 @@ export const RegisterNameCheckoutSummary = ({
             </div>
           ))}
 
-        {hasPrice && price.hasPremium && (
+        {hasPrice && price.hasPremium && premiumDecayConfig && (
           <TemporaryPremiumDrawer
             open={premiumDrawerOpen}
             onOpenChange={setPremiumDrawerOpen}
             currentPremium={formatPriceDisplay(price.premium, price.decimals)}
             premiumStart={premiumRange?.start ?? null}
+            premiumDecayConfig={premiumDecayConfig}
           />
         )}
       </section>
@@ -195,9 +227,15 @@ type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
   readonly duration: number
+  readonly pricePerYearUsd: number | undefined
 }
 
-const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
+const PriceBreakdown = ({
+  name,
+  price,
+  duration,
+  pricePerYearUsd,
+}: PriceBreakdownProps) => {
   const { registrationPeriod, expiresFormatted } =
     getRegistrationDisplayDates(duration)
 
@@ -209,7 +247,7 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
     discountPercent,
     discountLabel,
     premiumLabel,
-  } = getPricingBreakdown(name, price, duration)
+  } = getPricingBreakdown(name, price, duration, pricePerYearUsd)
 
   return (
     <div className="space-y-2">
@@ -228,7 +266,7 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
           />
         )}
 
-        {Math.round(years * 12) >= 12 && (
+        {pricePerYear > 0 && Math.round(years * 12) >= 12 && (
           <SummaryRow
             label={
               premiumLabel ? (
@@ -246,11 +284,13 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
           />
         )}
 
-        <SummaryRow
-          label="Subtotal:"
-          value={formatUsd(Math.round(standardSubtotal))}
-          valueClassName="flex items-center gap-1 m-0"
-        />
+        {standardSubtotal > 0 && (
+          <SummaryRow
+            label="Subtotal:"
+            value={formatUsd(Math.round(standardSubtotal))}
+            valueClassName="flex items-center gap-1 m-0"
+          />
+        )}
 
         {discountPercent > 0 && discountAmount > 0 && discountLabel && (
           <SummaryRow

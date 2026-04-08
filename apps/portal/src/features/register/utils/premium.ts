@@ -2,11 +2,6 @@ import { getLabel } from '@/utils/token/getLabel'
 
 export type PremiumLabelVariant = 'premium-3' | 'premium-4'
 
-export const CHARACTER_PREMIUM_USD: Record<PremiumLabelVariant, number> = {
-  'premium-4': 160,
-  'premium-3': 640,
-}
-
 export type PremiumLabel = {
   readonly label: string
   readonly variant: PremiumLabelVariant
