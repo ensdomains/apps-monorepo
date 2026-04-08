@@ -124,11 +124,6 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.001,
         onStart: handleStart,
         onDone: handleProceed,
-        steps: [
-          'Deploy dedicated resolver contract',
-          'Wait for on-chain confirmation',
-          'Extract resolver address',
-        ],
       },
       {
         id: REGISTRATION_TX_IDS.commit,
@@ -137,12 +132,6 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.0005,
         onStart: handleProceed,
         onDone: handleProceed,
-        steps: [
-          'Generate commitment hash',
-          'Submit commitment transaction',
-          'Wait for on-chain confirmation',
-          'Validate commitment on-chain',
-        ],
       },
       {
         id: REGISTRATION_TX_IDS.approve,
@@ -151,10 +140,6 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.0003,
         onStart: handleProceed,
         onDone: handleProceed,
-        steps: [
-          'Approve token spending allowance',
-          'Wait for on-chain confirmation',
-        ],
       },
       {
         id: REGISTRATION_TX_IDS.register,
@@ -163,10 +148,6 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.001,
         onStart: handleProceed,
         onDone: handleDone,
-        steps: [
-          'Submit registration transaction',
-          'Wait for on-chain confirmation',
-        ],
       },
     ],
     [name, savedParams?.tokenSymbol, handleStart, handleProceed, handleDone],
