@@ -228,21 +228,23 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
           />
         )}
 
-        <SummaryRow
-          label={
-            premiumLabel ? (
-              <ExternalLink
-                href={ENS_PREMIUM_PRICING_DOCS_URL}
-                className="underline decoration-dotted underline-offset-2"
-              >
-                {premiumLabel.label}:
-              </ExternalLink>
-            ) : (
-              'Price:'
-            )
-          }
-          value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
-        />
+        {years >= 1 && (
+          <SummaryRow
+            label={
+              premiumLabel ? (
+                <ExternalLink
+                  href={ENS_PREMIUM_PRICING_DOCS_URL}
+                  className="underline decoration-dotted underline-offset-2"
+                >
+                  {premiumLabel.label}:
+                </ExternalLink>
+              ) : (
+                'Price:'
+              )
+            }
+            value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
+          />
+        )}
 
         <SummaryRow
           label="Subtotal:"
