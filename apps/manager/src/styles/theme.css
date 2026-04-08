@@ -29,6 +29,11 @@
   --color-ens-peridot-text-dark: oklch(0.447 0.119 151.4);
   --color-ens-peridot-text-medium: oklch(0.53 0.149 149);
 
+  --color-ens-garnet-50: #fff6f9;
+  --color-ens-garnet-100: #feeaf0;
+  --color-ens-garnet-200: #ffc6e0;
+  --color-ens-garnet-500: #e72a96;
+  --color-ens-garnet-800: #4a0326;
   --color-ens-garnet-dust: #f2c4da;
   --color-ens-garnet-surface: #f886b6;
   --color-ens-garnet-core: #f53293;

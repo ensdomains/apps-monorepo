@@ -25,7 +25,7 @@ export const UpgradeNamesButtonWithNFT = ({
     {onClick ? (
       <button
         className={cn(
-          'relative w-full overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[0.24px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50',
+          'relative w-full overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[0.24px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50',
           buttonClassName,
         )}
         disabled={disabled}

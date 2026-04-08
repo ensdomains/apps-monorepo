@@ -80,7 +80,7 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
           <AnimatePresence mode="popLayout">
             <motion.span
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              className="font-semi-mono text-[#e72a96] text-xs uppercase tracking-[0.12px]"
+              className="font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12px]"
               exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
               initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
               key={descriptionText}

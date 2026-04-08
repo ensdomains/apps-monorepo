@@ -131,7 +131,7 @@ export const MigrationPage = () => {
   const { skippedNames } = state.context
 
   return (
-    <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-[#feeaf0] to-[#ffc5df]">
+    <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">
       <GrainOverlay />
 
       {match(state.value)
@@ -183,7 +183,7 @@ export const MigrationPage = () => {
                 <Trans>Back</Trans>
               </button>
               <button
-                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
+                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
                 onClick={() => send({ type: 'RETRY' })}
                 type="button"
               >
@@ -207,7 +207,7 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.35 }}
             >
               <button
-                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
+                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
                 onClick={() => send({ type: 'DONE' })}
                 type="button"
               >

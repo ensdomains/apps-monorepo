@@ -146,7 +146,7 @@ export const SelectNamesStep = ({
           </Trans>
         </p>
         <button
-          className="h-[46px] w-full min-w-[160px] overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
+          className="h-[46px] w-full min-w-[160px] overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
           disabled={totalSelected === 0 || isPending}
           onClick={onNext}
           type="button"

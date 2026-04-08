@@ -46,12 +46,12 @@ export const ProfileCardPreview = () => (
     {/* Content */}
     <div className="flex flex-1 flex-col gap-1.5 overflow-hidden px-2.5 pt-1 pb-2.5">
       {/* Name badge */}
-      <span className="w-fit rounded bg-[#e72a96] px-1.5 py-px font-medium text-white text-xs leading-snug">
+      <span className="w-fit rounded bg-ens-garnet-500 px-1.5 py-px font-medium text-white text-xs leading-snug">
         erni.eth
       </span>
 
       {/* Registration */}
-      <div className="flex items-center gap-0.5 text-[#e72a96]">
+      <div className="flex items-center gap-0.5 text-ens-garnet-500">
         <Calendar className="size-2.5 shrink-0 opacity-60" strokeWidth={1.5} />
         <p className="text-[9px] leading-tight">
           <span className="opacity-60">Registered</span>{' '}
@@ -60,32 +60,32 @@ export const ProfileCardPreview = () => (
       </div>
 
       {/* Bio */}
-      <p className="text-[#5a0024]/45 text-[11px] leading-[1.5]">
+      <p className="text-[11px] text-ens-garnet-900/45 leading-[1.5]">
         A scrappy generalist builder with taste. Senior Product Designer and
         Researcher at ENS Labs, dedicated to making web3 feel straightforward to
         newcomers.
       </p>
 
       {/* Divider */}
-      <div className="h-px bg-[#e72a96]/8" />
+      <div className="h-px bg-ens-garnet-500/8" />
 
       {/* Links */}
-      <p className="font-semibold text-[#e72a96] text-[9px] leading-tight">
+      <p className="font-semibold text-[9px] text-ens-garnet-500 leading-tight">
         links
       </p>
       <div className="flex flex-wrap gap-1">
-        <span className="inline-flex items-center gap-px rounded-full bg-[#e72a96]/[0.06] px-1 py-px text-[#e72a96] text-[9px]">
+        <span className="inline-flex items-center gap-px rounded-full bg-ens-garnet-500/[0.06] px-1 py-px text-[9px] text-ens-garnet-500">
           <SiX className="mr-1 size-2" />
           @erni_eth
           <ArrowUpRight className="size-2 opacity-50" />
         </span>
-        <span className="inline-flex items-center gap-px rounded-full bg-[#e72a96]/[0.06] px-1 py-px text-[#e72a96] text-[9px]">
+        <span className="inline-flex items-center gap-px rounded-full bg-ens-garnet-500/[0.06] px-1 py-px text-[9px] text-ens-garnet-500">
           <SiFarcaster className="mr-1 size-2" />
           @ernieth
           <ArrowUpRight className="size-2 opacity-50" />
         </span>
       </div>
-      <span className="inline-flex w-fit items-center gap-px rounded-full bg-[#e72a96]/[0.06] px-1 py-px text-[#e72a96] text-[9px]">
+      <span className="inline-flex w-fit items-center gap-px rounded-full bg-ens-garnet-500/[0.06] px-1 py-px text-[9px] text-ens-garnet-500">
         <Mail className="mr-1 size-2" strokeWidth={1.5} />
         asmallrelish@gmail.com
         <Copy className="size-2 opacity-40" strokeWidth={1.5} />

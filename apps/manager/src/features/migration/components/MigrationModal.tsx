@@ -79,14 +79,14 @@ export const MigrationModal = () => {
       open={open}
     >
       <DialogContent
-        className="overflow-hidden border-0 bg-linear-to-b from-[#feeaf0] to-[#ffc6e0] p-0 sm:max-w-[726px]"
+        className="overflow-hidden border-0 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 p-0 sm:max-w-[726px]"
         showCloseButton={false}
       >
         <GrainOverlay />
 
         {/* Close button */}
         <button
-          className="absolute top-5 right-5 z-20 cursor-pointer text-[#4a0326] opacity-70 transition-opacity hover:opacity-100"
+          className="absolute top-5 right-5 z-20 cursor-pointer text-ens-garnet-800 opacity-70 transition-opacity hover:opacity-100"
           onClick={dismiss}
           type="button"
         >
@@ -101,7 +101,7 @@ export const MigrationModal = () => {
           <DialogTitle className="w-full pt-4 font-normal text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Welcome to the new ENS app!</Trans>
           </DialogTitle>
-          <DialogDescription className="w-full text-[#e72a96] text-base leading-[1.2] tracking-[-0.24px]">
+          <DialogDescription className="w-full text-base text-ens-garnet-500 leading-[1.2] tracking-[-0.24px]">
             <Trans>
               Upgrade your name(s) in just a couple steps to unlock your new ENS
               profile and claim your commemorative NFT.
@@ -114,8 +114,8 @@ export const MigrationModal = () => {
               <button
                 className={`h-1.5 rounded-full transition-all ${
                   i === activeSlide
-                    ? 'w-[19px] bg-[#e72a96]'
-                    : 'w-[7px] bg-[#e72a96]/50'
+                    ? 'w-[19px] bg-ens-garnet-500'
+                    : 'w-[7px] bg-ens-garnet-500/50'
                 }`}
                 key={slide.id}
                 onClick={() => handleManualNav(i)}
@@ -151,7 +151,7 @@ export const MigrationModal = () => {
                       />
                     </div>
                   )}
-                  <p className="font-semi-mono text-[#e72a96] text-xs uppercase leading-[1.2] tracking-[0.12px]">
+                  <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
                     {slideLabels[slide.id]}
                   </p>
                 </div>
@@ -167,7 +167,7 @@ export const MigrationModal = () => {
           >
             <UpgradeNamesButton className="w-full tracking-[1.68px]" />
             {v1Names && v1Names.length > 0 && (
-              <p className="w-full font-semi-mono text-[#5a0024] text-[10px] uppercase leading-[1.2] tracking-[0.1px]">
+              <p className="w-full font-semi-mono text-[10px] text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.1px]">
                 <Trans>
                   You have <span className="font-medium">{v1Names.length}</span>{' '}
                   names that are eligible for upgrade
