@@ -5,7 +5,6 @@ import { match } from 'ts-pattern'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
-import { UpgradeNamesButtonWithNFT } from './UpgradeNamesButtonWithNFT'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
@@ -146,12 +145,14 @@ export const SelectNamesStep = ({
             <span className="font-semi-mono"> eligible names selected</span>
           </Trans>
         </p>
-        <UpgradeNamesButtonWithNFT
-          buttonClassName="h-[46px] min-w-[160px] tracking-[1.68px]"
-          className="w-full sm:w-[320px]"
+        <button
+          className="h-[46px] w-full min-w-[160px] overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-[#fff6f9] text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
           disabled={totalSelected === 0 || isPending}
           onClick={onNext}
-        />
+          type="button"
+        >
+          <Trans>Upgrade Names</Trans>
+        </button>
       </div>
     </div>
   )

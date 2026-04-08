@@ -102,7 +102,7 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/SelectNamesStep.tsx:142
+#: src/features/migration/components/SelectNamesStep.tsx:141
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr ""
 
@@ -287,7 +287,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:182
+#: src/features/migration/pages/MigrationPage.tsx:183
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -688,7 +688,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx:38
-#: src/features/migration/pages/MigrationPage.tsx:213
+#: src/features/migration/pages/MigrationPage.tsx:214
 msgid "Done"
 msgstr ""
 
@@ -1264,7 +1264,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:85
+#: src/features/migration/components/SelectNamesStep.tsx:84
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1281,7 +1281,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:82
+#: src/features/migration/components/SelectNamesStep.tsx:81
 msgid "No names match your search"
 msgstr ""
 
@@ -1655,7 +1655,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:189
+#: src/features/migration/pages/MigrationPage.tsx:190
 msgid "Retry"
 msgstr ""
 
@@ -1727,8 +1727,8 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:61
-#: src/features/migration/components/SelectNamesStep.tsx:65
+#: src/features/migration/components/SelectNamesStep.tsx:60
+#: src/features/migration/components/SelectNamesStep.tsx:64
 msgid "Search names"
 msgstr ""
 
@@ -1920,7 +1920,7 @@ msgstr ""
 msgid "Social Links"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:197
+#: src/features/migration/pages/MigrationPage.tsx:198
 msgid "Some names could not be migrated"
 msgstr ""
 
@@ -2134,6 +2134,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:154
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 #: src/features/migration/components/UpgradeNamesButtonWithNFT.tsx:35
 msgid "Upgrade Names"
@@ -2410,7 +2411,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:54
+#: src/features/migration/components/SelectNamesStep.tsx:53
 msgid "Your names are ready to upgrade"
 msgstr ""
 

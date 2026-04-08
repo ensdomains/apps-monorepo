@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { UpgradeNamesButtonWithNFT } from '@/features/migration/components/UpgradeNamesButtonWithNFT'
+import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -40,7 +40,7 @@ export const UpgradeBanner = () => {
             </button>
           </div>
         </div>
-        <UpgradeNamesButtonWithNFT className="w-full shrink-0 md:w-[300px]" />
+        <UpgradeNamesButton className="w-full shrink-0 md:w-[300px]" />
       </div>
     </div>
   )
