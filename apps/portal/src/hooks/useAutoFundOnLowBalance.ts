@@ -48,7 +48,7 @@ export function useAutoFundOnLowBalance() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
-    if (!address || isLoadingBalances || !fundWalletMutation.isIdle) return
+    if (!address || isLoadingBalances || fundWalletMutation.isPending) return
 
     const totalBalance = balances.reduce((acc, balance, i) => {
       if (balance.status !== 'success' || balance.result === undefined)

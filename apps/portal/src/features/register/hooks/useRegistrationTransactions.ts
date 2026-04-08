@@ -163,8 +163,9 @@ export const useRegistrationTransactions = ({
 
   const resetRegistration = useCallback(() => {
     actor.send({ type: 'CANCEL' })
+    closeModal()
     clearTransaction()
-  }, [actor, clearTransaction])
+  }, [actor, closeModal, clearTransaction])
 
   return {
     transactions,
