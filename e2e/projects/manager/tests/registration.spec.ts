@@ -8,6 +8,7 @@ const PARA_EMAIL = process.env.PARA_E2E_EMAIL ?? 'test1@test.getpara.com'
 const PARA_PIN = process.env.PARA_E2E_PIN ?? '123456'
 const DOMAIN_TO_REGISTER =
   process.env.E2E_DOMAIN ?? `e2e-${Date.now().toString(36)}.eth`
+const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 
 test.describe('ENS name registration', () => {
   test('registers a name via Para wallet and stablecoin payment', async ({
@@ -55,5 +56,23 @@ test.describe('ENS name registration', () => {
     await expect(successBanner).toContainText('Registration Complete', {
       timeout: 30_000,
     })
+  })
+
+
+  test('user is unable to register a name when disconnected', async ({ page }) => {
+    await page.goto(MANAGER_APP_URL)
+
+    const searchInput = page.getByPlaceholder('.eth')
+    await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
+    await searchInput.click()
+    await searchInput.fill(DISCONNECTED_DOMAIN.replace(/\.eth$/i, ''))
+
+    await page.locator('.domain-result-card').click()
+
+    await page.waitForURL(/\/register\//, { timeout: 15_000 })
+
+    await expect(
+      page.getByRole('button', { name: /connect or sign in to register/i }),
+    ).toBeVisible({ timeout: 15_000 })
   })
 })
