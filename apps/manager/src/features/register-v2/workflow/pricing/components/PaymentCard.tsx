@@ -14,8 +14,7 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
-  const { isConnected, ownerAddress } = useSmartAccountContext()
-  const { openModal, isOpen } = useModal()
+  const { ownerAddress } = useSmartAccountContext()
 
   const [duration, canNext] = useSelector(uiActor, (state) => [
     state.context.duration,
@@ -34,6 +33,30 @@ export const PaymentCard = () => {
   })
 
   return (
+    <PaymentCardBase
+      amount={pricingQuery.data}
+      canNext={canNext}
+      onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+      type="register"
+    />
+  )
+}
+
+export const PaymentCardBase = ({
+  canNext,
+  onNext,
+  amount,
+  type,
+}: {
+  canNext: boolean
+  onNext: () => void
+  amount: number | undefined
+  type: 'register' | 'renew'
+}) => {
+  const { isConnected } = useSmartAccountContext()
+  const { openModal, isOpen } = useModal()
+
+  return (
     <div
       className={tw(
         'flex flex-1 flex-col items-center justify-between gap-8',
@@ -46,8 +69,8 @@ export const PaymentCard = () => {
         </p>
         <div className="flex items-end gap-1.5">
           <span className="font-medium text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl">
-            {pricingQuery.data ? (
-              formatUsd(pricingQuery.data)
+            {amount ? (
+              formatUsd(amount)
             ) : (
               <span className="animate-pulse">$...</span>
             )}
@@ -62,7 +85,7 @@ export const PaymentCard = () => {
         <Button
           className="w-full uppercase"
           disabled={!canNext}
-          onClick={() => uiActor.send({ type: 'pricing.step.next' })}
+          onClick={onNext}
           size="xl"
           variant="blue"
         >
@@ -76,7 +99,11 @@ export const PaymentCard = () => {
           size="xl"
           variant="blue"
         >
-          <Trans>Connect or sign in to register</Trans>
+          {type === 'register' ? (
+            <Trans>Connect or sign in to register</Trans>
+          ) : (
+            <Trans>Connect or sign in to renew</Trans>
+          )}
         </Button>
       )}
     </div>

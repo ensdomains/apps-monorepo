@@ -103,4 +103,28 @@ export const FAST_TEST_ETH_REGISTRAR_ABI = [
     stateMutability: 'view',
     type: 'function',
   },
+  {
+    inputs: [
+      {
+        name: 'label',
+        type: 'string',
+      },
+      {
+        name: 'duration',
+        type: 'uint64',
+      },
+      {
+        name: 'paymentToken',
+        type: 'address',
+      },
+      {
+        name: 'referrer',
+        type: 'bytes32',
+      },
+    ],
+    name: 'renew',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
 ] as const

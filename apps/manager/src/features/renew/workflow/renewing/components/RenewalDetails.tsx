@@ -1,0 +1,157 @@
+import { Trans } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
+import { useSelector } from '@xstate/react'
+import { format } from 'date-fns'
+import { secondsInYear } from 'date-fns/constants'
+import { useMemo } from 'react'
+import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
+import { LinkButton } from '@/components/ui/button'
+import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
+import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
+import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+
+const getDiscount = (
+  basePriceNumber: number,
+  baseRate: bigint,
+  duration: bigint,
+) => {
+  const basePriceWithoutDiscount = decimalBigintToNumber(
+    duration * baseRate,
+    12,
+  )
+  const discountAmount = Math.max(basePriceWithoutDiscount - basePriceNumber, 0)
+  const discountPercentage = Math.round(
+    (discountAmount / basePriceWithoutDiscount) * 100,
+  )
+
+  return {
+    discountAmount,
+    discountPercentage,
+  }
+}
+
+export const RenewalDetails = () => {
+  const { uiActor, label } = useRenewalUiContext()
+  const submissionData = useSelector(
+    uiActor,
+    (state) => state.context.submissionData,
+  )
+  const baseRate = useBaseRate(label)
+  const isCompleted = useSelector(uiActor, (state) => state.matches('success'))
+
+  const currentExpiry = useQuery({
+    ...profileExpiryQuery(`${submissionData?.label ?? label}.eth`),
+    select: (data) => (data.expiry ? Number(data.expiry) : undefined),
+  })
+
+  const expirationDate = useMemo(() => {
+    if (!currentExpiry.data || !submissionData?.duration) {
+      return
+    }
+
+    return new Date(
+      currentExpiry.data * 1000 + Number(submissionData.duration) * 1000,
+    )
+  }, [currentExpiry.data, submissionData?.duration])
+
+  if (!submissionData) {
+    return null
+  }
+
+  const { discountAmount, discountPercentage } = getDiscount(
+    submissionData.priceNumber,
+    baseRate,
+    submissionData.duration,
+  )
+
+  const durationYears = (
+    Number(submissionData.duration) / secondsInYear
+  ).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  })
+  const totalPrice = submissionData.priceNumber - discountAmount
+
+  return (
+    <div className="flex w-full flex-col gap-6">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
+        <div className="w-full lg:w-1/2">
+          <DomainCard
+            domainName={`${submissionData.label}.eth`}
+            variant="garnet"
+          />
+        </div>
+
+        <div className="flex w-full flex-col gap-6 lg:w-1/2">
+          <div className="flex flex-col gap-5">
+            <h3 className="font-medium text-ens-blue-dark text-xl tracking-tight">
+              <Trans>Renewal Details</Trans>
+            </h3>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <p className="text-base text-ens-gray">
+                  <Trans>Renewal Period</Trans>
+                </p>
+                <p className="text-base text-ens-blue-dark">
+                  <Trans>{durationYears} years</Trans>
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className="text-base text-ens-gray">
+                  <Trans>Renewal Fee</Trans>
+                </p>
+                <p className="text-base text-ens-blue-dark">
+                  {formatUsd(submissionData.priceNumber)}
+                </p>
+              </div>
+
+              {discountAmount > 0 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-base text-ens-peridot-core">
+                    <Trans>Multi-year Discount ({discountPercentage}%)</Trans>
+                  </p>
+                  <p className="text-base text-ens-peridot-core">
+                    -{formatUsd(discountAmount)}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between border-ens-gray-two border-t pt-4">
+                <p className="text-base text-ens-blue-dark">
+                  <Trans>Total Paid</Trans>
+                </p>
+                <p className="text-base text-ens-blue-dark">
+                  {formatUsd(totalPrice)}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className="text-base text-ens-gray">
+                  <Trans>Expires</Trans>
+                </p>
+                <p className="text-base text-ens-blue">
+                  {expirationDate ? format(expirationDate, 'MMMM d, yyyy') : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {isCompleted && (
+            <LinkButton
+              params={{ name: `${submissionData.label}.eth` }}
+              size="xl"
+              to="/p/$name"
+              variant="blue"
+            >
+              <Trans>Back to profile</Trans>
+            </LinkButton>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

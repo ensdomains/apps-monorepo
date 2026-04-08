@@ -14,6 +14,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
+import { Route as RenewNameRouteImport } from './routes/renew/$name'
 import { Route as RegisterNameRouteImport } from './routes/register/$name'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
@@ -52,6 +53,11 @@ const RegisterIndexRoute = RegisterIndexRouteImport.update({
 const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
   id: '/auto-renewal/',
   path: '/auto-renewal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RenewNameRoute = RenewNameRouteImport.update({
+  id: '/renew/$name',
+  path: '/renew/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterNameRoute = RegisterNameRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/register': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
     | '/auto-renewal/'
     | '/register/'
     | '/debug/backend/settings'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
     | '/auto-renewal'
     | '/register'
     | '/debug/backend/settings'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
     | '/auto-renewal/'
     | '/register/'
     | '/debug/backend/settings'
@@ -269,6 +281,7 @@ export interface RootRouteChildren {
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   RegisterNameRoute: typeof RegisterNameRoute
+  RenewNameRoute: typeof RenewNameRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
@@ -313,6 +326,13 @@ declare module '@tanstack/react-router' {
       path: '/auto-renewal'
       fullPath: '/auto-renewal/'
       preLoaderRoute: typeof AutoRenewalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/renew/$name': {
+      id: '/renew/$name'
+      path: '/renew/$name'
+      fullPath: '/renew/$name'
+      preLoaderRoute: typeof RenewNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register/$name': {
@@ -445,6 +465,7 @@ const rootRouteChildren: RootRouteChildren = {
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   RegisterNameRoute: RegisterNameRoute,
+  RenewNameRoute: RenewNameRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,

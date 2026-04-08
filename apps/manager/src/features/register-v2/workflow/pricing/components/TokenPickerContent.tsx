@@ -1,8 +1,8 @@
-import { Trans, useLingui } from '@lingui/react/macro'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { Search } from 'lucide-react'
@@ -21,17 +21,12 @@ import { filterStablecoinBalances } from '../lib/tokenFilter'
 import { TokenListItem } from './TokenListItem'
 
 export const TokenPickerContent = () => {
-  const { t } = useLingui()
   const { label, uiActor } = useRegistrationV2Context()
-  const [searchQuery, setSearchQuery] = useState('')
-  const { stablecoinBalances, isLoadingBalances, isConnected, ownerAddress } =
-    useSmartAccountContext()
+  const { ownerAddress } = useSmartAccountContext()
   const [duration, selectedToken] = useSelector(
     uiActor,
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
-
-  const hasBalances = (stablecoinBalances?.length || 0) > 0
 
   const pricingQuery = useQuery({
     ...getPricingQueryOptions(
@@ -44,14 +39,45 @@ export const TokenPickerContent = () => {
       decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
   })
 
+  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
+    uiActor.send({ type: 'pricing.token.select', token: coin })
+  }
+
+  return (
+    <TokenPickerContentBase
+      onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+      onSelectCoin={onSelectCoin}
+      pricingData={pricingQuery.data}
+      pricingLoading={pricingQuery.isLoading}
+      selectedToken={selectedToken}
+    />
+  )
+}
+
+export const TokenPickerContentBase = ({
+  pricingLoading,
+  pricingData,
+  selectedToken,
+  onSelectCoin,
+  onNext,
+}: {
+  pricingLoading: boolean
+  pricingData: number | undefined
+  selectedToken: SUPPORTED_TOKEN | undefined
+  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  onNext: () => void
+}) => {
+  const { t } = useLingui()
+  const [searchQuery, setSearchQuery] = useState('')
+  const { stablecoinBalances, isLoadingBalances, isConnected } =
+    useSmartAccountContext()
+
   const filteredStablecoins = useMemo(
     () => filterStablecoinBalances(stablecoinBalances, searchQuery),
     [stablecoinBalances, searchQuery],
   )
 
-  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
-    uiActor.send({ type: 'pricing.token.select', token: coin })
-  }
+  const hasBalances = (stablecoinBalances?.length || 0) > 0
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -59,18 +85,18 @@ export const TokenPickerContent = () => {
 
   const hasSufficientBalanceForSelectedCoin =
     selectedCoinBalance &&
-    pricingQuery.data &&
+    pricingData &&
     decimalBigintToNumber(
       BigInt(selectedCoinBalance.balance),
       selectedCoinBalance.decimals,
-    ) >= pricingQuery.data
+    ) >= pricingData
 
-  const actionDisabled =
-    !isConnected ||
-    !selectedToken ||
-    pricingQuery.isLoading ||
-    !hasBalances ||
-    !hasSufficientBalanceForSelectedCoin
+  const canNext =
+    isConnected &&
+    !!selectedToken &&
+    !pricingLoading &&
+    hasBalances &&
+    !!hasSufficientBalanceForSelectedCoin
 
   return (
     <div className="flex h-full flex-1 flex-col justify-between gap-4 px-4">
@@ -111,7 +137,7 @@ export const TokenPickerContent = () => {
             hasBalances,
             filteredStablecoins: filteredStablecoins.length,
             isConnected,
-            pricingLoading: pricingQuery.isLoading,
+            pricingLoading: pricingLoading,
           })
             .with({ isConnected: false }, () => (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -158,7 +184,7 @@ export const TokenPickerContent = () => {
                   <TokenListItem
                     key={stablecoin.address}
                     onSelectCoin={onSelectCoin}
-                    priceUSD={pricingQuery.data ?? 0}
+                    priceUSD={pricingData ?? 0}
                     selectedCoin={selectedToken}
                     stablecoin={stablecoin}
                   />
@@ -174,10 +200,10 @@ export const TokenPickerContent = () => {
           'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
           'hover:bg-ens-gray-two',
           'disabled:cursor-not-allowed disabled:opacity-50',
-          !actionDisabled && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
+          canNext && 'bg-ens-blue text-white hover:bg-ens-blue-hover',
         )}
-        disabled={actionDisabled}
-        onClick={() => uiActor.send({ type: 'pricing.step.next' })}
+        disabled={!canNext}
+        onClick={onNext}
       >
         <Trans>Confirm Payment</Trans>
       </Button>
