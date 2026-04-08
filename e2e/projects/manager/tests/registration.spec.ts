@@ -78,7 +78,7 @@ test.describe('ENS name registration', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  test('registers a name after signing in from the pricing page', async ({ page }) => {
+  test('registers a name after connecting from the pricing page', async ({ page }) => {
     await page.goto(MANAGER_APP_URL)
 
     const searchInput = page.getByPlaceholder('.eth')
@@ -92,6 +92,7 @@ test.describe('ENS name registration', () => {
 
     await page.getByRole('button', { name: /connect or sign in to register/i }).click()
 
+    //// ===== Para auth flow =====
     const emailInput = page.locator('input[id="cpsl-input-0"]')
     await emailInput.waitFor({ state: 'visible', timeout: 15_000 })
     await emailInput.fill(PARA_EMAIL)
@@ -100,6 +101,7 @@ test.describe('ENS name registration', () => {
     await fillParaOtpInput(page, PARA_PIN)
     await clickParaSignInButton(page)
 
+    //// ===== registration flow =====
     await page
       .getByRole('button', { name: /pay with stablecoins/i })
       .waitFor({ state: 'visible', timeout: 15_000 })
