@@ -15,7 +15,6 @@ import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection, useWalletClient } from 'wagmi'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getIsDedicatedResolverQueryOptions } from '@/features/resolver/hooks/useIsDedicatedResolver'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
@@ -50,12 +49,6 @@ export function useReverseResolutionMutations({
   )
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
-
-  // Determine which protocol version the name lives on (ENSv1 vs ENSv2)
-  const { data: _ownerData } = useQuery({
-    ...getEnsOwnerQueryOptions({ name: displayName }),
-    enabled: isL1 && Boolean(displayName),
-  })
 
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress } = useQuery({

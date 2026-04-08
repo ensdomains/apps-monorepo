@@ -1,14 +1,12 @@
 import type { Address } from 'viem'
 import { Owner } from '@/features/profile/components/Owner'
 import { cn } from '@/lib/utils'
-import type { ProtocolVersion } from '@/utils/types'
 import { LabelCard } from './LabelCard'
 import { NetworkCard } from './NetworkCard'
 
 type RegistryCardsGridProps = {
   label: string
   owner?: Address
-  protocolVersion: ProtocolVersion
 }
 
 export function RegistryCardsGrid({ label, owner }: RegistryCardsGridProps) {

@@ -101,8 +101,7 @@ const ETHRegistry = ({
   const tld = name.split('.').at(-1)!
 
   if (protocolVersion === 'ENSv1') return <V1ETHRegistry tld={tld} />
-  else
-    return <RegistryCardsGrid label={tld} protocolVersion={protocolVersion} />
+  else return <RegistryCardsGrid label={tld} />
 }
 
 const RegistryInfo = ({

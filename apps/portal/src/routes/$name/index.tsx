@@ -220,7 +220,7 @@ const Profile = ({
         />
         <Owner owner={ownerQuery.data.owner} />
         <ParentName name={name} />
-        <TokenLocation name={name} protocolVersion={resolvedProtocolVersion} />
+        <TokenLocation name={name} />
         {resolverAddress && (
           <RecordCount
             name={name}
