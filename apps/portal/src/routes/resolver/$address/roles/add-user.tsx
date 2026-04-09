@@ -1,9 +1,9 @@
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon } from 'lucide-react'
-import { useState } from 'react'
-import type { Address } from 'viem'
+import { ArrowLeftIcon, Loader2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { type Address, isAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -19,17 +19,24 @@ import {
   ComboboxList,
 } from '@/components/ui/combobox'
 import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
-import { namechainSepolia } from '@/lib/wagmi'
+import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+
+const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 export const Route = createFileRoute('/resolver/$address/roles/add-user')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
+
+const ROOT_NODE_VALUE = ''
 
 function RouteComponent() {
   const { address } = Route.useParams()
@@ -37,7 +44,16 @@ function RouteComponent() {
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
 
-  const [selectedName, setSelectedName] = useState<string | null>(null)
+  // User (account to grant roles to)
+  const [userInput, setUserInput] = useState('')
+  const [userAddress, setUserAddress] = useState<Address | null>(null)
+  const [isResolving, setIsResolving] = useState(false)
+  const [resolveError, setResolveError] = useState<string | null>(null)
+  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Node to grant roles on (empty string = root / all nodes)
+  const [selectedNode, setSelectedNode] = useState<string>(ROOT_NODE_VALUE)
+  const [selectedRoles, setSelectedRoles] = useState<ResolverRole[]>([])
 
   const {
     data: resolver,
@@ -64,25 +80,59 @@ function RouteComponent() {
 
   const nodes = resolver?.nodes ?? []
   const nameOptions = nodes.map((n) => n.name).filter(Boolean)
-  const selectedNode = nodes.find((n) => n.name === selectedName)
-  const ownerAddress = selectedNode?.owner?.id as Address | undefined
+
+  const handleUserInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setUserInput(value)
+    setResolveError(null)
+    setUserAddress(null)
+
+    if (resolveTimeoutRef.current) {
+      clearTimeout(resolveTimeoutRef.current)
+    }
+
+    if (!value) return
+
+    if (isAddress(value)) {
+      setUserAddress(value)
+      return
+    }
+
+    if (!value.includes('.')) return
+
+    setIsResolving(true)
+    resolveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const resolved = await resolveAddressOrName({
+          client: getClient(),
+          nameOrAddress: value,
+        })
+        setUserAddress(resolved)
+        setIsResolving(false)
+        if (!resolved) {
+          setResolveError(`Could not resolve address for ${value}`)
+        }
+      } catch (err) {
+        setUserAddress(null)
+        setIsResolving(false)
+        setResolveError(
+          err instanceof Error ? err.message : 'Failed to resolve ENS name',
+        )
+      }
+    }, 500)
+  }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!e.currentTarget.reportValidity()) return
+    if (!userAddress) return
 
-    const fd = new FormData(e.currentTarget)
-    const roles: ResolverRole[] = []
-
-    for (const [k, v] of fd.entries()) {
-      if (v === 'on') {
-        roles.push(k as ResolverRole)
-      }
-    }
-
-    if (ownerAddress && selectedName && roles.length > 0) {
+    if (selectedRoles.length > 0) {
       mutation.reset()
-      mutation.mutate({ name: selectedName, account: ownerAddress, roles })
+      mutation.mutate({
+        name: selectedNode,
+        account: userAddress,
+        roles: selectedRoles,
+      })
     }
   }
 
@@ -98,12 +148,45 @@ function RouteComponent() {
       <h1 className="text-heading font-medium leading-none">Add user</h1>
 
       <div className="flex flex-col gap-6">
+        {/* User input */}
         <Field>
-          <FieldLabel>Name</FieldLabel>
-          <Combobox value={selectedName} onValueChange={setSelectedName}>
-            <ComboboxInput placeholder="Select a name..." />
+          <FieldLabel>User</FieldLabel>
+          <Input
+            placeholder="ENS name or HEX address"
+            value={userInput}
+            onChange={handleUserInputChange}
+          />
+          {isResolving && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <Loader2 className="size-3 animate-spin" />
+              Resolving...
+            </p>
+          )}
+          {userAddress && !isAddress(userInput) && !isResolving && (
+            <p className="text-sm text-muted-foreground">
+              Resolved: {truncateAddress(userAddress)}
+            </p>
+          )}
+          {resolveError && (
+            <p className="text-sm text-danger">{resolveError}</p>
+          )}
+        </Field>
+
+        {/* Node dropdown */}
+        <Field>
+          <FieldLabel>Node</FieldLabel>
+          <Combobox
+            value={selectedNode}
+            onValueChange={(v) => setSelectedNode(v ?? ROOT_NODE_VALUE)}
+          >
+            <ComboboxInput placeholder="Root (all nodes)" />
             <ComboboxContent>
               <ComboboxList>
+                <ComboboxItem value={ROOT_NODE_VALUE}>
+                  <span className="text-sm text-muted-foreground">
+                    Root (all nodes)
+                  </span>
+                </ComboboxItem>
                 {nameOptions.map((name) => {
                   const node = nodes.find((n) => n.name === name)
                   return (
@@ -130,62 +213,79 @@ function RouteComponent() {
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {ownerAddress && (
-            <p className="text-sm text-muted-foreground">
-              Owner: {ownerAddress.slice(0, 6)}...{ownerAddress.slice(-4)}
-            </p>
-          )}
         </Field>
 
+        {/* Roles */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <h2 className="text-lg font-medium">Roles</h2>
           <div className="border rounded-lg divide-y">
-            {resolverPermissions.map((permission) => (
-              <div
-                key={permission.key}
-                className="flex items-center justify-between p-4 gap-4"
-              >
-                <div className="flex flex-col gap-1 flex-1">
-                  <div className="font-medium">{permission.title}</div>
-                  <div className="text-sm text-quartz-500">
-                    {permission.description}
+            {resolverPermissions.map((permission) => {
+              const role = permission.key as ResolverRole
+              const isChecked = selectedRoles.includes(role)
+
+              return (
+                <div
+                  key={permission.key}
+                  className="flex items-center justify-between p-4 gap-4"
+                >
+                  <div className="flex flex-col gap-1 flex-1">
+                    <div className="font-medium">{permission.title}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {permission.description}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={permission.key}
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          setSelectedRoles((prev) => {
+                            if (checked)
+                              return prev.includes(role)
+                                ? prev
+                                : [...prev, role]
+                            return prev.filter((r) => r !== role)
+                          })
+                        }}
+                      />
+                      <Label
+                        htmlFor={permission.key}
+                        className="font-normal cursor-pointer text-muted-foreground"
+                      >
+                        Manager
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`${permission.key}_ADMIN`}
+                        name={`${permission.key}_ADMIN`}
+                        disabled
+                      />
+                      <Label
+                        htmlFor={`${permission.key}_ADMIN`}
+                        className="font-normal cursor-pointer text-muted-foreground opacity-50"
+                      >
+                        Admin
+                      </Label>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-8">
-                  <div className="flex items-center gap-2">
-                    <Checkbox name={permission.key} id={permission.key} />
-                    <Label
-                      htmlFor={permission.key}
-                      className="font-normal cursor-pointer text-quartz-500"
-                    >
-                      Manager
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      name={`${permission.key}_ADMIN`}
-                      id={`${permission.key}_ADMIN`}
-                      disabled
-                    />
-                    <Label
-                      htmlFor={`${permission.key}_ADMIN`}
-                      className="font-normal cursor-pointer text-quartz-500"
-                    >
-                      Admin
-                    </Label>
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
+
           <Button
             type="submit"
             variant="secondary"
             className="w-fit"
-            disabled={!ownerAddress || !selectedName || mutation.isPending}
+            disabled={
+              !userAddress || selectedRoles.length === 0 || mutation.isPending
+            }
           >
             {mutation.isPending ? 'Saving...' : 'Save roles'}
           </Button>
+
           {mutation.error && (
             <ErrorMessage
               description={mutation.error.message}
