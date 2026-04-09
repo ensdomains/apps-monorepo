@@ -46,7 +46,7 @@ export async function getInboxMessages(inbox: string): Promise<Record<string, un
   return authFetch(`/domains/${MAILINATOR_DOMAIN}/inboxes/${inbox}`)
 }
 
-export async function getMessageById(messageId: string) {
+export async function getMessageById(messageId: string): Promise<Record<string, unknown>> {
   checkDomain()
   return authFetch(`/domains/${MAILINATOR_DOMAIN}/messages/${messageId}`)
 }
