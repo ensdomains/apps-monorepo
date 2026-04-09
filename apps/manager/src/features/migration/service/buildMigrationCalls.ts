@@ -1,8 +1,7 @@
 import { match } from 'ts-pattern'
-import { type Address, encodeFunctionData, type Hex } from 'viem'
+import { type Address, encodeFunctionData, type Hex, multicall3Abi } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { MULTICALL3_ABI, MULTICALL3_ADDRESS } from '../contracts/multicall3'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 import {
   createMigrationData,
@@ -240,8 +239,8 @@ export const buildUnwrappedMulticall = (params: {
   })
 
   return {
-    address: MULTICALL3_ADDRESS,
-    abi: MULTICALL3_ABI,
+    address: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    abi: multicall3Abi,
     functionName: 'aggregate3' as const,
     args: [calls] as const,
   }
