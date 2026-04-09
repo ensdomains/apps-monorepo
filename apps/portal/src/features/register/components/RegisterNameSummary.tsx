@@ -14,7 +14,7 @@ import {
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
 import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
-import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
+// import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
@@ -229,9 +229,9 @@ const PriceBreakdown = ({
     pricePerYear,
     years,
     standardSubtotal,
-    discountAmount,
-    discountPercent,
-    discountLabel,
+    // discountAmount,
+    // discountPercent,
+    // discountLabel,
     premiumLabel,
   } = getPricingBreakdown(
     name,
@@ -284,14 +284,14 @@ const PriceBreakdown = ({
           />
         )}
 
-        {discountPercent > 0 && discountAmount > 0 && discountLabel && (
+        {/* {discountPercent > 0 && discountAmount > 0 && discountLabel && (
           <SummaryRow
             label={`${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}):`}
             value={`-${formatUsd(discountAmount)}`}
             valueClassName="flex items-center gap-1 m-0 text-success"
             labelClassName="text-success"
           />
-        )}
+        )} */}
 
         <SummaryRow
           label="Total:"
