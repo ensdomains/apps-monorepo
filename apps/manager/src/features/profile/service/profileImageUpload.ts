@@ -72,8 +72,7 @@ export interface UploadImageMutationOptionsArgs {
   isConnected: boolean
   address?: string
   chainId: number | undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  signTypedDataAsync: (args: any) => Promise<string>
+  signTypedDataAsync: (args: unknown) => Promise<string>
   onImageChange: (imageUrl: string) => void
   setOpen: (open: boolean) => void
   setUploadFile: (file: File | null) => void

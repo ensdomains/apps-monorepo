@@ -191,7 +191,7 @@ export function handleSetPrimaryName(
   const hasSmartAccountSigner =
     account.signer && account.signer.type !== 'eoa' && account.accountAddress
 
-  if (hasSmartAccountSigner) {
+  if (hasSmartAccountSigner && account.signer) {
     // Use signature flow: EOA signs, smart account submits
     console.log(
       '✅ Creating START_UPDATE event for primary name (signature flow):',
@@ -199,7 +199,7 @@ export function handleSetPrimaryName(
         name,
         eoaAddress: account.ownerAddress,
         smartAccountAddress: account.accountAddress,
-        signerType: account.signer?.type,
+        signerType: account.signer.type,
         hasPublicClient: !!publicClient,
       },
     )
@@ -207,7 +207,7 @@ export function handleSetPrimaryName(
     primaryNameActor.send({
       type: 'START_UPDATE',
       name,
-      signer: account.signer!,
+      signer: account.signer,
       accountAddress: account.accountAddress as Address,
       publicClient,
       // Signature flow fields

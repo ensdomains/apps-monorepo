@@ -32,7 +32,6 @@ export const LucideIcon = ({
           : strokeWidth
       }
       {...rest}
-      // biome-ignore lint/correctness/noChildrenProp: Passing children to SVG is required to render custom icon nodes from Lucide.
       children={iconNode.map(([tag, attrs]) => createElement(tag, attrs))}
     />
   )
