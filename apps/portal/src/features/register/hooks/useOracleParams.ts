@@ -4,8 +4,8 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromPromise, ok } from 'neverthrow'
-import type { ReadContractErrorType } from 'viem'
-import { readContract } from 'viem/actions'
+import type { MulticallErrorType } from 'viem'
+import { multicall } from 'viem/actions'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
 import type { OracleDiscountPoint } from '@/features/register/utils/registrationDiscount'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
@@ -23,7 +23,7 @@ const PRICE_DECIMALS = 12
 const DISCOUNT_SCALE = (1n << 128n) - 1n
 
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
-  readonly cause: ReadContractErrorType
+  readonly cause: MulticallErrorType
 }> {}
 
 export type OracleParams = {
@@ -59,34 +59,37 @@ export const getOracleParams = ResultFn(async function* () {
     premiumHalvingPeriod,
     premiumPeriod,
   ] = yield* fromPromise(
-    Promise.all([
-      readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'getBaseRates',
-      }),
-      readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'getDiscountPoints',
-      }),
-      readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'premiumPriceInitial',
-      }),
-      readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'premiumHalvingPeriod',
-      }),
-      readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'premiumPeriod',
-      }),
-    ]),
-    (e) => new GetOracleParamsError({ cause: e as ReadContractErrorType }),
+    multicall(client, {
+      allowFailure: false,
+      contracts: [
+        {
+          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+          functionName: 'getBaseRates',
+        },
+        {
+          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+          functionName: 'getDiscountPoints',
+        },
+        {
+          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+          functionName: 'premiumPriceInitial',
+        },
+        {
+          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+          functionName: 'premiumHalvingPeriod',
+        },
+        {
+          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+          functionName: 'premiumPeriod',
+        },
+      ],
+    }),
+    (e) => new GetOracleParamsError({ cause: e as MulticallErrorType }),
   )
 
   // Convert per-second base-unit rates → USD per year.
