@@ -6,7 +6,7 @@ import { Timestamp } from '@/features/profile/components/Timestamp'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
 interface RegistrationDateProps {
   blockNumber: number | bigint
@@ -144,16 +144,16 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
 interface ExpiryWithRegistrationDataProps {
   name: string
-  network: EnsNetworkName
+  protocolVersion: ProtocolVersion
 }
 
 export const ExpiryWithRegistrationData = ({
   name,
-  network,
+  protocolVersion,
 }: ExpiryWithRegistrationDataProps) => {
   return (
     <div className="w-full flex flex-col lg:flex-row gap-4 lg:gap-6">
-      {network === 'sepolia' ? (
+      {protocolVersion === 'ENSv1' ? (
         <V1ExpiryWithRegistrationData name={name} />
       ) : (
         <V2ExpiryWithRegistrationData name={name} />

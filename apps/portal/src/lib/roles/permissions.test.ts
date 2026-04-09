@@ -21,14 +21,9 @@ describe('permissions', () => {
           "title": "Set Resolver",
         },
         {
-          "description": "Can set token observer contracts",
-          "key": "ROLE_SET_TOKEN_OBSERVER",
-          "title": "Set Token Observer",
-        },
-        {
-          "description": "Can burn (delete) the name",
-          "key": "ROLE_BURN",
-          "title": "Burn",
+          "description": "Can unregister (delete) the name",
+          "key": "ROLE_UNREGISTER",
+          "title": "Unregister",
         },
       ]
     `)
@@ -38,7 +33,7 @@ describe('permissions', () => {
     expect(isManagerRoleSettable('ROLE_SET_RESOLVER')).toBe(true)
     expect(isManagerRoleSettable('ROLE_SET_SUBREGISTRY')).toBe(true)
     expect(isManagerRoleSettable('ROLE_RENEW')).toBe(false)
-    expect(isManagerRoleSettable('ROLE_SET_TOKEN_OBSERVER')).toBe(false)
-    expect(isManagerRoleSettable('ROLE_BURN')).toBe(false)
+    expect(isManagerRoleSettable('ROLE_UNREGISTER')).toBe(true)
+    expect(isManagerRoleSettable('ROLE_SET_RESOLVER')).toBe(true)
   })
 })

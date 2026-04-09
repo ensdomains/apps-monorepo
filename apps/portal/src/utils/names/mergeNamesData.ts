@@ -1,5 +1,5 @@
 import type { NameWithRelation } from '@ensdomains/ensjs/subgraph'
-import type { EnsNetworkName, WithEnsNetwork } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
 const MS_PER_SECOND = 1000
 
@@ -45,14 +45,15 @@ export type V2NameWithRoles = {
 /**
  * Unified name structure for display
  */
-export type MergedName = WithEnsNetwork<{
+export type MergedName = {
   name: string | null
   expiryDate?: Date | null
   subdomainCount?: number
   recordCount?: number
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
-}>
+  protocolVersion: ProtocolVersion
+}
 
 /**
  * Merges V1 and V2 ENS names into a unified format for display.
@@ -62,15 +63,15 @@ export type MergedName = WithEnsNetwork<{
  *
  * @param v1Names - Array of V1 names from Sepolia
  * @param v2Names - Array of V2 names from Namechain Sepolia (with subdomains or roles)
- * @returns Combined array with normalized expiry dates and network labels
+ * @returns Combined array with normalized expiry dates and protocol versions
  *
  * @example
  * const v1 = [{ name: 'vitalik.eth', expiryDate: { date: new Date('2025-01-01') } }]
  * const v2 = [{ name: 'alice.eth', expiryDate: 1735689600, roleBitmap: '0x...' }]
  * mergeNamesData(v1, v2)
  * // [
- * //   { name: 'vitalik.eth', expiryDate: Date('2025-01-01'), network: 'sepolia' },
- * //   { name: 'alice.eth', expiryDate: Date('2025-01-01'), network: 'namechainSepolia', roleBitmap: '0x...' }
+ * //   { name: 'vitalik.eth', expiryDate: Date('2025-01-01'), protocolVersion: 'ENSv1' },
+ * //   { name: 'alice.eth', expiryDate: Date('2025-01-01'), protocolVersion: 'ENSv2', roleBitmap: '0x...' }
  * // ]
  */
 export const mergeNamesData = (
@@ -81,7 +82,7 @@ export const mergeNamesData = (
     ({ name, expiryDate, relation }) => ({
       name,
       expiryDate: expiryDate ? expiryDate.date : null,
-      network: 'sepolia' as EnsNetworkName,
+      protocolVersion: 'ENSv1' as ProtocolVersion,
       roleBitmap: null,
       v1Roles: {
         // For wrapped names: wrappedOwner controls both ownership and management
@@ -104,7 +105,7 @@ export const mergeNamesData = (
         item.expiryDate !== null && item.expiryDate !== undefined
           ? new Date(item.expiryDate * MS_PER_SECOND)
           : null,
-      network: 'namechainSepolia' as EnsNetworkName,
+      protocolVersion: 'ENSv2' as ProtocolVersion,
       subdomainCount: hasSubdomainsArray
         ? item.subdomains.length
         : hasSubdomainCount

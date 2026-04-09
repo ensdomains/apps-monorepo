@@ -115,7 +115,7 @@ describe('filterEventsByResource', () => {
 
   it('should decode old and new role bitmaps', () => {
     const oldBitmap = registryRoles.ROLE_RENEW
-    const newBitmap = registryRoles.ROLE_RENEW | registryRoles.ROLE_BURN
+    const newBitmap = registryRoles.ROLE_RENEW | registryRoles.ROLE_UNREGISTER
 
     const events = [
       makeEvent({
@@ -126,9 +126,9 @@ describe('filterEventsByResource', () => {
     const result = filterEventsByResource(events, RESOURCE_A)
 
     expect(result[0].oldRoles).toContain('ROLE_RENEW')
-    expect(result[0].oldRoles).not.toContain('ROLE_BURN')
+    expect(result[0].oldRoles).not.toContain('ROLE_UNREGISTER')
     expect(result[0].newRoles).toContain('ROLE_RENEW')
-    expect(result[0].newRoles).toContain('ROLE_BURN')
+    expect(result[0].newRoles).toContain('ROLE_UNREGISTER')
   })
 
   it('should return empty array when no events match', () => {

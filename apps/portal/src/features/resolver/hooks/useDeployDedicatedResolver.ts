@@ -3,6 +3,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type Address, encodeFunctionData, type Hash, parseAbi } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -12,8 +13,7 @@ import {
   getResolverInitCalldata,
   parseProxyDeployedAddress,
 } from '@/features/resolver/utils/dedicatedResolver'
-import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
 
@@ -47,16 +47,21 @@ const deployDedicatedResolver = async ({
   chainId: number
   id: string
 }): Promise<DeployDedicatedResolverResult> => {
+  const permissionedResolverImpl = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensPermissionedResolverImpl',
+  })
+  const verifiableFactory = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensVerifiableFactory',
+  })
+
   const salt = generateResolverSalt(name)
   const initCalldata = getResolverInitCalldata(accountAddress)
   const deployCalldata = encodeFunctionData({
     abi: verifiableFactoryAbi,
     functionName: 'deployProxy',
-    args: [
-      namechainSepolia.contracts.ensDedicatedResolver.address,
-      salt,
-      initCalldata,
-    ],
+    args: [permissionedResolverImpl, salt, initCalldata],
   })
 
   const txId = transactionManager.startTransaction(
@@ -65,7 +70,7 @@ const deployDedicatedResolver = async ({
       request: {
         type: 'eoa',
         from: accountAddress,
-        to: namechainVerifiableFactory,
+        to: verifiableFactory,
         data: deployCalldata,
         value: 0n,
         chainId,
@@ -97,7 +102,7 @@ const deployDedicatedResolver = async ({
 export const useDeployDedicatedResolver = ({
   name,
 }: UseDeployDedicatedResolverParams) => {
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })

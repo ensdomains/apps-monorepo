@@ -44,7 +44,7 @@ import {
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -53,7 +53,7 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
     name: string
     canManageRoles: boolean
-    registryAddress?: Address
+    registryAddress: Address
   }>
 
 export const RolesSidebar = <
@@ -68,7 +68,7 @@ export const RolesSidebar = <
   registryAddress,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null)

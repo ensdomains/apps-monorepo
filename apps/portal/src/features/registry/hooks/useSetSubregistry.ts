@@ -11,14 +11,12 @@ import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { setSubregistry } from '@/features/registry/helpers/setSubregistry'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import type { EnsNetworkName } from '@/utils/types'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
 interface UseSetSubregistryParams {
   readonly name: string
-  readonly network: EnsNetworkName
   readonly label: string
   readonly parentRegistry: Address
   readonly id: string
@@ -26,12 +24,11 @@ interface UseSetSubregistryParams {
 
 export const useSetSubregistry = ({
   name,
-  network,
   label,
   parentRegistry,
   id,
 }: UseSetSubregistryParams) => {
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
@@ -59,7 +56,7 @@ export const useSetSubregistry = ({
     onSuccess: () => {
       const invalidate = () =>
         queryClient.invalidateQueries({
-          queryKey: getNameRegistriesQueryOptions({ name, network }).queryKey,
+          queryKey: getNameRegistriesQueryOptions({ name }).queryKey,
         })
       invalidate()
       pollForIndexerSync({ invalidateQueries: invalidate })

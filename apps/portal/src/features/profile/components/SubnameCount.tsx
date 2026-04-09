@@ -8,22 +8,23 @@ import {
 } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import type { WithEnsNetwork } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 import { RegistryLocation } from './RegistryLocation'
 
-const v1EnsRegistry = sepoliaWithEns.contracts.ensRegistry.address
+const v1EnsRegistry = sepoliaWithEns.contracts.ensLegacyRegistry.address
 
 export const SubnameCount = ({
   name,
   registryAddress,
-  network,
-}: WithEnsNetwork<{
+  protocolVersion,
+}: {
   name: string
   registryAddress?: Address
-}>) => {
+  protocolVersion: ProtocolVersion
+}) => {
   const { data, isLoading, error } = useQuery(
-    getSubnamesQueryOptions({ name, network }),
+    getSubnamesQueryOptions({ name, protocolVersion }),
   )
 
   if (error) return <div>Error: {error.cause?.message}</div>

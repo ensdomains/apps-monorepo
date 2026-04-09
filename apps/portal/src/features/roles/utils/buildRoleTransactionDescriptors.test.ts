@@ -49,7 +49,7 @@ describe('buildRoleTransactionDescriptors', () => {
   })
 
   it('returns single revoke descriptor when only roles to revoke', () => {
-    const roles: readonly Role[] = ['ROLE_RENEW', 'ROLE_BURN']
+    const roles: readonly Role[] = ['ROLE_RENEW', 'ROLE_UNREGISTER']
     const result = buildRoleTransactionDescriptors(
       {
         account: TEST_ACCOUNT,
@@ -74,7 +74,7 @@ describe('buildRoleTransactionDescriptors', () => {
 
   it('returns grant then revoke descriptors when both present', () => {
     const toGrant: readonly Role[] = ['ROLE_RENEW']
-    const toRevoke: readonly Role[] = ['ROLE_BURN']
+    const toRevoke: readonly Role[] = ['ROLE_UNREGISTER']
     const result = buildRoleTransactionDescriptors(
       {
         account: TEST_ACCOUNT,
@@ -138,7 +138,7 @@ describe('buildRoleTransactionDescriptors', () => {
       },
       {
         account: TEST_ACCOUNT_2,
-        roles: ['ROLE_BURN'],
+        roles: ['ROLE_UNREGISTER'],
       },
       'test.eth',
     )

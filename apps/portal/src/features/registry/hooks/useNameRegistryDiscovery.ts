@@ -8,20 +8,12 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import type { GetEnsOwnerError } from '@/features/profile/hooks/useEnsOwner'
-import { l2RegistryFinderAddress } from '@/lib/constants/registry'
-import {
-  safeGetClient,
-  safeGetNamechainSepoliaClient,
-} from '@/lib/wagmi/helpers'
-import type {
-  EnsNetworkName,
-  ProtocolVersion,
-  WithEnsNetwork,
-} from '@/utils/types'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+import type { ProtocolVersion } from '@/utils/types'
 
-type GetNameRegistriesParameters = WithEnsNetwork<{
+type GetNameRegistriesParameters = {
   name: string
-}>
+}
 
 type Root = [root: Address | null]
 type TLD = [tld: Address, ...Root]
@@ -32,7 +24,6 @@ type NameRegistries = Root | TLD | TwoLD | ThreeLD
 
 type NameRegistriesReturnType = {
   registries: NameRegistries
-  network: EnsNetworkName
   protocolVersion: ProtocolVersion
 } | null
 
@@ -41,52 +32,25 @@ class NameRegistriesError extends TaggedError('NameRegistriesError')<{
 }> {}
 
 /**
- * Discovers which registry (L1 V1, L1 V2, or L2) a name exists on and returns all registry addresses.
+ * Discovers which registries a name exists on using the UniversalResolver V2.
  *
- * Checks in order:
- * 1. L2 V2 (Namechain) using ensjs getNameRegistries with RegistryFinder
- * 2. L1 V2 (Sepolia) using ensjs getNameRegistries with UniversalResolver
- * 3. L1 V1 (Sepolia) using getOwner with V1 ETHRegistry
- *
- * For V1 registries, all subnames live on the same registry.
- * For V2 registries, ensjs getNameRegistries efficiently fetches all registry addresses at once.
+ * Uses ensjs getNameRegistries which calls findRegistries on the UniversalResolver.
+ * For V2 registries, this efficiently fetches all registry addresses at once.
  */
 export const getNameRegistries = ResultFn(async function* ({
-  network,
   name,
 }: GetNameRegistriesParameters) {
-  const l1Client = yield* safeGetClient()
-  const l2Client = yield* safeGetNamechainSepoliaClient()
+  const client = yield* safeGetClient()
 
-  if (!network) return ok(null)
+  const registries = (yield* fromPromise(
+    ensjsGetNameRegistries(client, { name }),
+    (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
+  )) as NameRegistries
 
-  if (network === 'sepolia') {
-    const registries = (yield* fromPromise(
-      ensjsGetNameRegistries(l1Client, { name }),
-      (e) =>
-        new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
-    )) as NameRegistries
-    return ok({
-      registries,
-      network: 'sepolia',
-      protocolVersion: 'ENSv1',
-    } as const satisfies NameRegistriesReturnType)
-  } else if (network === 'namechainSepolia') {
-    const registries = (yield* fromPromise(
-      ensjsGetNameRegistries(l2Client, {
-        name,
-        address: l2RegistryFinderAddress,
-      }),
-      (e) =>
-        new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
-    )) as NameRegistries
-    return ok({
-      registries,
-      network: 'namechainSepolia',
-      protocolVersion: 'ENSv2',
-    } as const satisfies NameRegistriesReturnType)
-  }
-  return ok(null)
+  return ok({
+    registries,
+    protocolVersion: 'ENSv2' as ProtocolVersion,
+  } satisfies NameRegistriesReturnType)
 })
 
 const nameRegistriesQueryKey = createQueryKey<

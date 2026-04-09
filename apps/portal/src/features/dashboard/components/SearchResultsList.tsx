@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
+import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 
 const AVATAR_SIZE = '32px'
@@ -91,7 +92,11 @@ type SearchResultsListData = {
   suggestions: Suggestion[]
   ownerBySuggestionId: Map<
     string,
-    | { owner: string; registryAddress: string; network: string }
+    | {
+        owner: string
+        registryAddress: string
+        protocolVersion: ProtocolVersion
+      }
     | null
     | undefined
   >
