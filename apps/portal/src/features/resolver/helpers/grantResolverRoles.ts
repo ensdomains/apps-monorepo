@@ -4,6 +4,7 @@ import type { Address, Hash, WalletClient } from 'viem'
 
 export interface GrantResolverRolesParameters {
   readonly resolverAddress: Address
+  /** Dotted name (e.g. "myname.eth") or empty string for ROOT_RESOURCE (all names). */
   readonly name: string
   readonly account: Address
   readonly roles: ResolverRole[]
@@ -24,6 +25,15 @@ export const grantResolverRoles = async (
   }
 
   const client = walletClient as Parameters<typeof ensjsGrantResolverRoles>[0]
+
+  if (name === '') {
+    return ensjsGrantResolverRoles(client, {
+      resolverAddress,
+      targetAccount: account,
+      scope: 'root',
+      roles,
+    })
+  }
 
   return ensjsGrantResolverRoles(client, {
     resolverAddress,
