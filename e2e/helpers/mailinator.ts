@@ -87,11 +87,12 @@ export function createRandomInbox() {
   return `e2e-${Date.now()}-${Math.floor(Math.random() * 9_000_000).toString().padStart(7, '0')}`
 }
 
-export function createEmailAddress(inbox: string) {
+export function createEmailAddress(inbox: string): string {
   checkDomain()
   return `${inbox}@${MAILINATOR_DOMAIN}`
+}
+
 export async function expectMessageWithSubject(inbox: string, expectedSubject: string, timeoutMs = 60_000): Promise<MailinatorMessage> {
-export async function expectMessageWithSubject(inbox: string, expectedSubject: string, timeoutMs = 60_000) {
   const msg = await waitForMessage(
     inbox,
     (m) => (m.subject || '').toLowerCase() === expectedSubject.toLowerCase(),
