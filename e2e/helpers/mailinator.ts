@@ -91,7 +91,7 @@ export function createEmailAddress(inbox: string) {
   checkDomain()
   return `${inbox}@${MAILINATOR_DOMAIN}`
 }
-
+export async function expectMessageWithSubject(inbox: string, expectedSubject: string, timeoutMs = 60_000): Promise<MailinatorMessage> {
 export async function expectMessageWithSubject(inbox: string, expectedSubject: string, timeoutMs = 60_000) {
   const msg = await waitForMessage(
     inbox,
