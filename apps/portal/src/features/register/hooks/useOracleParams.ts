@@ -1,4 +1,4 @@
-import { STANDARD_RENT_PRICE_ORACLE_ABI } from '@ens-apps/transaction-manager/abis/StandardRentPriceOracle.abi.js'
+import { STANDARD_RENT_PRICE_ORACLE_ABI } from '@ens-apps/transaction-manager/contracts/abis/StandardRentPriceOracle.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
