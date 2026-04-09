@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { cn } from '@/lib/utils'
@@ -27,21 +27,21 @@ export const SelectNamesStep = ({
     [search, v1Names],
   )
 
-  const toggleName = (name: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) {
-        next.delete(name)
-      } else {
-        next.add(name)
-      }
-      return next
-    })
-  }
-
-  useEffect(() => {
-    onNamesChange([...selected])
-  }, [selected, onNamesChange])
+  const toggleName = useCallback(
+    (name: string) => {
+      setSelected((prev) => {
+        const next = new Set(prev)
+        if (next.has(name)) {
+          next.delete(name)
+        } else {
+          next.add(name)
+        }
+        onNamesChange([...next])
+        return next
+      })
+    },
+    [onNamesChange],
+  )
 
   const totalSelected = selected.size
 
