@@ -3,6 +3,7 @@ import { buildRoleTransactions } from './buildRoleTransactions'
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890' as const
 const TEST_ACCOUNT_2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
+const TEST_REGISTRY = '0x1111111111111111111111111111111111111111' as const
 
 describe('buildRoleTransactions', () => {
   const mockHandlers = {
@@ -16,7 +17,13 @@ describe('buildRoleTransactions', () => {
   })
 
   it('returns empty array when no pending state', () => {
-    const result = buildRoleTransactions(null, null, 'test.eth', mockHandlers)
+    const result = buildRoleTransactions(
+      null,
+      null,
+      'test.eth',
+      mockHandlers,
+      TEST_REGISTRY,
+    )
     expect(result).toEqual([])
     expect(mockHandlers.grantRoles).not.toHaveBeenCalled()
     expect(mockHandlers.revokeRoles).not.toHaveBeenCalled()
@@ -33,6 +40,7 @@ describe('buildRoleTransactions', () => {
       null,
       'test.eth',
       mockHandlers,
+      TEST_REGISTRY,
     )
 
     expect(result).toHaveLength(1)
@@ -51,7 +59,7 @@ describe('buildRoleTransactions', () => {
       account: TEST_ACCOUNT,
       roles: ['ROLE_RENEW'],
       id: 'tx-grant-roles',
-      registryAddress: undefined,
+      registryAddress: TEST_REGISTRY,
     })
 
     result[0].onDone()
@@ -63,11 +71,12 @@ describe('buildRoleTransactions', () => {
       {
         account: TEST_ACCOUNT,
         rolesToGrant: ['ROLE_RENEW'],
-        rolesToRevoke: ['ROLE_BURN'],
+        rolesToRevoke: ['ROLE_UNREGISTER'],
       },
       null,
       'example.eth',
       mockHandlers,
+      TEST_REGISTRY,
     )
 
     expect(result).toHaveLength(2)
@@ -76,9 +85,9 @@ describe('buildRoleTransactions', () => {
     expect(mockHandlers.revokeRoles).toHaveBeenCalledWith({
       name: 'example.eth',
       account: TEST_ACCOUNT,
-      roles: ['ROLE_BURN'],
+      roles: ['ROLE_UNREGISTER'],
       id: 'tx-revoke-roles',
-      registryAddress: undefined,
+      registryAddress: TEST_REGISTRY,
     })
     expect(mockHandlers.handleDone).not.toHaveBeenCalled()
 
@@ -89,9 +98,10 @@ describe('buildRoleTransactions', () => {
   it('returns remove user transaction for pendingRemove', () => {
     const result = buildRoleTransactions(
       null,
-      { account: TEST_ACCOUNT_2, roles: ['ROLE_BURN'] },
+      { account: TEST_ACCOUNT_2, roles: ['ROLE_UNREGISTER'] },
       'parent.eth',
       mockHandlers,
+      TEST_REGISTRY,
     )
 
     expect(result).toHaveLength(1)
@@ -105,9 +115,9 @@ describe('buildRoleTransactions', () => {
     expect(mockHandlers.revokeRoles).toHaveBeenCalledWith({
       name: 'parent.eth',
       account: TEST_ACCOUNT_2,
-      roles: ['ROLE_BURN'],
+      roles: ['ROLE_UNREGISTER'],
       id: 'tx-revoke-roles',
-      registryAddress: undefined,
+      registryAddress: TEST_REGISTRY,
     })
   })
 })

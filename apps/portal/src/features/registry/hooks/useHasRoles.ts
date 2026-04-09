@@ -8,11 +8,7 @@ import {
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import {
-  safeGetClient,
-  safeGetNamechainSepoliaClient,
-} from '@/lib/wagmi/helpers'
-import type { EnsNetworkName } from '@/utils/types'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class HasRolesError extends TaggedError('HasRolesError')<{
   cause: unknown
@@ -23,14 +19,12 @@ type RegistryRolesParameters = {
   readonly label: string
   readonly roles: Role[]
   readonly account: Address
-  readonly network: EnsNetworkName
 }
 
 type ResolverRootRolesParameters = {
   readonly resolverAddress: Address
   readonly roles: ResolverRole[]
   readonly account: Address
-  readonly network: EnsNetworkName
 }
 
 type ResolverRolesParameters = {
@@ -38,7 +32,6 @@ type ResolverRolesParameters = {
   readonly resource: bigint
   readonly roles: ResolverRole[]
   readonly account: Address
-  readonly network: EnsNetworkName
 }
 
 type GetHasRolesParameters =
@@ -47,15 +40,10 @@ type GetHasRolesParameters =
   | ResolverRolesParameters
 
 const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
-  const client =
-    params.network === 'namechainSepolia'
-      ? yield* safeGetNamechainSepoliaClient()
-      : yield* safeGetClient()
-
-  const { network: _, ...ensjsParams } = params
+  const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
-    ensjsHasRoles(client, ensjsParams as EnsjsHasRolesParameters),
+    ensjsHasRoles(client, params as EnsjsHasRolesParameters),
     (e) => new HasRolesError({ cause: e }),
   )
 

@@ -5,7 +5,6 @@ import {
 } from '@testing-library/react'
 import { createConfig, mock, WagmiProvider } from 'wagmi'
 import '@testing-library/jest-dom'
-import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

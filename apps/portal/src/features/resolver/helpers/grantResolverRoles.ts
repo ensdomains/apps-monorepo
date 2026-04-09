@@ -1,5 +1,5 @@
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
-import { grantResolverNameRoles } from '@ensdomains/ensjs/wallet/v2'
+import { grantResolverRoles as ensjsGrantResolverRoles } from '@ensdomains/ensjs/wallet/v2'
 import type { Address, Hash, WalletClient } from 'viem'
 
 export interface GrantResolverRolesParameters {
@@ -23,12 +23,13 @@ export const grantResolverRoles = async (
     throw new Error('At least one role must be selected')
   }
 
-  const client = walletClient as Parameters<typeof grantResolverNameRoles>[0]
+  const client = walletClient as Parameters<typeof ensjsGrantResolverRoles>[0]
 
-  return grantResolverNameRoles(client, {
+  return ensjsGrantResolverRoles(client, {
     resolverAddress,
+    targetAccount: account,
+    scope: 'name',
     name,
     roles,
-    account,
   })
 }

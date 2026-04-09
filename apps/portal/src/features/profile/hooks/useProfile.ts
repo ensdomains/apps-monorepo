@@ -8,7 +8,7 @@ import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { mergeCoinTypes, mergeTextKeys } from '@/utils/records/mergeRecordKeys'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import { getRecords } from './useRecords'
 import { getSubgraphRecords } from './useSubgraphRecords'
 
@@ -18,15 +18,15 @@ class GetProfileError extends TaggedError('RecordsError')<{
 
 type GetProfileParameters = {
   name: string
-  network?: EnsNetworkName
+  protocolVersion?: ProtocolVersion
 }
 
 const getProfile = ResultFn(async function* ({
   name,
-  network,
+  protocolVersion,
 }: GetProfileParameters) {
-  const isV2 = network === 'namechainSepolia'
-  const isV1 = network === 'sepolia'
+  const isV1 = protocolVersion === 'ENSv1'
+  const isV2 = protocolVersion === 'ENSv2'
 
   const subgraphV1Records = !isV2 ? yield* getSubgraphRecords(name) : null
 
@@ -45,12 +45,12 @@ const getProfile = ResultFn(async function* ({
           { name: string }
         >(
           gql`query getRecords($name: String!) {
-          domains(where: {name: $name}) {
-            resolver {
-              texts
+            domains(where: {name: $name}) {
+              resolver {
+                texts
+              }
             }
-          }
-        }`,
+          }`,
           { name },
         ),
         (e) => new GetProfileError({ cause: e as ClientError }),
@@ -108,16 +108,16 @@ const profileQueryKey = createQueryKey<
   'profile',
   {
     name: string
-    network?: EnsNetworkName
+    protocolVersion?: ProtocolVersion
   }
 >('profile')
 
 export const getProfileQueryOptions = ({
   name,
-  network,
+  protocolVersion,
 }: GetProfileParameters) =>
   resultQueryOptions({
-    queryKey: profileQueryKey({ name, network }),
-    queryFn: ({ queryKey: [, { name, network }] }) =>
-      getProfile({ name, network }),
+    queryKey: profileQueryKey({ name, protocolVersion }),
+    queryFn: ({ queryKey: [, { name, protocolVersion }] }) =>
+      getProfile({ name, protocolVersion }),
   })

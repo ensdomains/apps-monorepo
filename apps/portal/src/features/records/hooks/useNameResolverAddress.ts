@@ -1,42 +1,18 @@
 /**
  * Hook to get the resolver address for a name.
  *
- * Handles both V1 (Sepolia) and V2 (Namechain) names by calling the
- * appropriate registry contract.
+ * Uses the version-agnostic getResolver which goes through
+ * the UniversalResolver V2 contract on L1.
  */
 
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getNameResolverAddress as getNameResolverAddressV2 } from '@ensdomains/ensjs/public/v2'
+import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, namehash, zeroAddress } from 'viem'
-import { readContract } from 'viem/actions'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
-import {
-  safeGetClient,
-  safeGetNamechainSepoliaClient,
-} from '@/lib/wagmi/helpers'
-import type { EnsNetworkName } from '@/utils/types'
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/** V1 ENS Registry on Sepolia */
-const ENS_REGISTRY_V1 = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as Address
-
-/** ABI for V1 ENS Registry resolver lookup */
-const ENS_REGISTRY_V1_ABI = [
-  {
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    name: 'resolver',
-    outputs: [{ name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
+import { zeroAddress } from 'viem'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
 // ============================================================================
 // Types
@@ -44,7 +20,6 @@ const ENS_REGISTRY_V1_ABI = [
 
 export type GetNameResolverAddressParams = {
   name: string
-  network: EnsNetworkName
 }
 
 // ============================================================================
@@ -62,47 +37,16 @@ class GetNameResolverAddressError extends TaggedError(
 // ============================================================================
 
 /**
- * Get the resolver address for a name from the appropriate registry.
- *
- * - V1 (sepolia): Calls ENS Registry's `resolver(node)` with namehash
- * - V2 (namechainSepolia): Calls ETHRegistry's `getResolver(label)` with label
+ * Get the resolver address for a name via the UniversalResolver.
  */
 export const getNameResolverAddress = ResultFn(async function* (
   params: GetNameResolverAddressParams,
 ) {
-  const { name, network } = params
-
-  if (network === 'namechainSepolia') {
-    // V2: Use Namechain client and ETHRegistry via ensjs
-    const client = yield* safeGetNamechainSepoliaClient()
-    const label = name.split('.')[0]
-
-    const resolverAddress = yield* fromPromise(
-      getNameResolverAddressV2(client, {
-        registryAddress: namechainEthRegistryAddress,
-        label,
-      }),
-      (e) => new GetNameResolverAddressError({ cause: e }),
-    )
-
-    if (!resolverAddress || resolverAddress === zeroAddress) {
-      return ok(null)
-    }
-
-    return ok(resolverAddress)
-  }
-
-  // V1: Use Sepolia client and V1 ENS Registry
+  const { name } = params
   const client = yield* safeGetClient()
-  const node = namehash(name)
 
   const resolverAddress = yield* fromPromise(
-    readContract(client, {
-      address: ENS_REGISTRY_V1,
-      abi: ENS_REGISTRY_V1_ABI,
-      functionName: 'resolver',
-      args: [node],
-    }),
+    getResolver(client, { name }),
     (e) => new GetNameResolverAddressError({ cause: e }),
   )
 
@@ -135,26 +79,20 @@ export const getNameResolverAddressQueryOptions = (
 // ============================================================================
 
 export type UseNameResolverAddressParams = {
-  name: string
-  network: EnsNetworkName | undefined
+  name: string | undefined
 }
 
 /**
  * Hook to get the resolver address for a name.
  *
  * @param name - The ENS name (e.g., "myname.eth")
- * @param network - The network where the name is registered ('sepolia' or 'namechainSepolia')
  * @returns Query result with resolver address or null
  */
-export function useNameResolverAddress({
-  name,
-  network,
-}: UseNameResolverAddressParams) {
+export function useNameResolverAddress({ name }: UseNameResolverAddressParams) {
   return useQuery({
     ...getNameResolverAddressQueryOptions({
-      name,
-      network: network ?? 'sepolia',
+      name: name ?? '',
     }),
-    enabled: !!network,
+    enabled: !!name,
   })
 }

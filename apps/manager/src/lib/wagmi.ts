@@ -1,4 +1,4 @@
-import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { injected } from '@wagmi/core'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -18,7 +18,7 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithL1Ens(customSepolia)
+export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
