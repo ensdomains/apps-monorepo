@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
+import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 import { buildSearchSuggestions } from '../utils/buildSearchSuggestions'
 import {
@@ -38,7 +39,11 @@ export type UseSearchResultsReturn = {
   suggestions: Suggestion[]
   ownerBySuggestionId: Map<
     string,
-    | { owner: string; registryAddress: string; protocolVersion: string }
+    | {
+        owner: string
+        registryAddress: string
+        protocolVersion: ProtocolVersion
+      }
     | null
     | undefined
   >
@@ -165,7 +170,11 @@ export const useSearchResults = ({
   const ownerBySuggestionId = useMemo(() => {
     const m = new Map<
       string,
-      | { owner: string; registryAddress: string; protocolVersion: string }
+      | {
+          owner: string
+          registryAddress: string
+          protocolVersion: ProtocolVersion
+        }
       | null
       | undefined
     >()
