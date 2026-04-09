@@ -91,7 +91,7 @@ export const NameSuggestionItem = ({
   const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
   const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
   const isAvailable = isSupported && !isSubname && isRegistered === false
-  const isDisabled = !isSupported || (isSubname && !isRegistered)
+  const isDisabled = !isSupported || (isSubname && isRegistered === false)
 
   return (
     <Link

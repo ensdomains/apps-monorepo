@@ -66,7 +66,7 @@ export const MigrationModal = () => {
   const handleManualNav = useCallback(
     (index: number) => {
       scrollToSlide(index)
-      resetAutoScroll()
+      resetAutoScroll(index)
     },
     [scrollToSlide, resetAutoScroll],
   )

@@ -38,9 +38,15 @@ export const useAutoScrollCarousel = ({
     }
   }, [enabled, startInterval])
 
-  const reset = useCallback(() => {
-    startInterval()
-  }, [startInterval])
+  const reset = useCallback(
+    (fromIndex?: number) => {
+      if (fromIndex !== undefined) {
+        currentRef.current = fromIndex
+      }
+      startInterval()
+    },
+    [startInterval],
+  )
 
   return { reset }
 }

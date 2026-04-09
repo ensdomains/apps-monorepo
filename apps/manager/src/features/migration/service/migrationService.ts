@@ -110,7 +110,7 @@ export const executeMigration = async (params: {
       )
     : await runPreFlightChecks(publicClient, classified)
 
-  const skipped: SkippedName[] = [
+  const preflightSkipped: SkippedName[] = [
     ...preflight.notReserved.map((n) => ({
       name: n.domain.name,
       reason: 'not-premigrated' as const,
@@ -120,6 +120,7 @@ export const executeMigration = async (params: {
       reason: 'frozen-approval' as const,
     })),
   ]
+  const skipped: SkippedName[] = [...preflightSkipped]
 
   if (preflight.valid.length === 0) {
     const reasons: string[] = []
@@ -375,7 +376,7 @@ export const executeMigration = async (params: {
   }
 
   return {
-    completed: validNames.length - skipped.length,
+    completed: validNames.length - (skipped.length - preflightSkipped.length),
     txHashes,
     skipped,
   }
