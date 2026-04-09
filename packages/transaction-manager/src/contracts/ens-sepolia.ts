@@ -26,7 +26,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   RegistryDatastore: '0xe82b3bef599d45806fcce747df176808ff6244cf' as const,
   SimpleRegistryMetadata: '0x30eb652ab8498ee8b90e4a0553b31ed7d1c924cd' as const,
   StandardRentPriceOracle:
-    '0x8067e4771d9599ba5f33fcab8d05ee18ac505b23' as const,
+    '0x812bbA10e6422abd810889C7e91A48308974e660' as const,
   UserRegistry: '0x8cfbf4a6b3f546021b9f8e6099bda2cb0297cd25' as const,
   VerifiableFactory: '0xb9541bdd86c4d01c726a33694f14e8528adcb20d' as const,
 } as const
