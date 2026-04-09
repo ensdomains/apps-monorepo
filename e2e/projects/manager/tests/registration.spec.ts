@@ -60,7 +60,6 @@ test.describe('ENS name registration', () => {
     })
   })
 
-
   test('user is unable to register a name when disconnected', async ({ page }) => {
     await page.goto(MANAGER_APP_URL)
 
@@ -69,7 +68,7 @@ test.describe('ENS name registration', () => {
     await searchInput.click()
     await searchInput.fill(DISCONNECTED_DOMAIN.replace(/\.eth$/i, ''))
 
-    await page.locator('.domain-result-card').click()
+    await page.getByText(DISCONNECTED_DOMAIN).click()
 
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
 
@@ -86,7 +85,7 @@ test.describe('ENS name registration', () => {
     await searchInput.click()
     await searchInput.fill(LATE_AUTH_DOMAIN.replace(/\.eth$/i, ''))
 
-    await page.locator('.domain-result-card').click()
+    await page.getByText(LATE_AUTH_DOMAIN).click()
 
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
 
