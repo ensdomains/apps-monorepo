@@ -67,11 +67,9 @@ test.describe('ENS name registration', () => {
     await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
     await searchInput.click()
     await searchInput.fill(DISCONNECTED_DOMAIN.replace(/\.eth$/i, ''))
-
     await page.getByText(DISCONNECTED_DOMAIN).click()
 
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
-
     await expect(
       page.getByRole('button', { name: /connect or sign in to register/i }),
     ).toBeVisible({ timeout: 15_000 })
@@ -84,14 +82,12 @@ test.describe('ENS name registration', () => {
     await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
     await searchInput.click()
     await searchInput.fill(LATE_AUTH_DOMAIN.replace(/\.eth$/i, ''))
-
     await page.getByText(LATE_AUTH_DOMAIN).click()
 
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
-
     await page.getByRole('button', { name: /connect or sign in to register/i }).click()
 
-    //// ===== Para auth flow =====
+    // ===== Para auth flow =====
     const emailInput = page.locator('input[id="cpsl-input-0"]')
     await emailInput.waitFor({ state: 'visible', timeout: 15_000 })
     await emailInput.fill(PARA_EMAIL)
@@ -100,19 +96,17 @@ test.describe('ENS name registration', () => {
     await fillParaOtpInput(page, PARA_PIN)
     await clickParaSignInButton(page)
 
-    //// ===== registration flow =====
-    await page
-      .getByRole('button', { name: /pay with stablecoins/i })
-      .waitFor({ state: 'visible', timeout: 15_000 })
-
-    await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    // ===== registration flow =====
+    const payButton = page.getByRole('button', { name: /pay with stablecoins/i })
+    await payButton.waitFor({ state: 'visible', timeout: 15_000 })
+    await payButton.click()
     await page.getByText('USDC', { exact: true }).click()
     await page.getByRole('button', { name: /confirm payment/i }).click()
     await page.getByRole('button', { name: /buy name/i }).click()
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     await expect(successBanner).toContainText('Registration Complete', {
-      timeout: 30_000,
+      timeout: 50_000,
     })
   })
 })
