@@ -6,29 +6,9 @@ import { useMemo } from 'react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
+import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-
-const getDiscount = (
-  basePriceNumber: number,
-  baseRate: bigint,
-  duration: bigint,
-) => {
-  const basePriceWithoutDiscount = decimalBigintToNumber(
-    duration * baseRate,
-    12,
-  )
-  const discountAmount = Math.max(basePriceWithoutDiscount - basePriceNumber, 0)
-  const discountPercentage = Math.round(
-    (discountAmount / basePriceWithoutDiscount) * 100,
-  )
-
-  return {
-    discountAmount,
-    discountPercentage,
-  }
-}
 
 export const RenewalDetails = () => {
   const { uiActor, label, currentExpiry } = useRenewalUiContext()
@@ -53,11 +33,12 @@ export const RenewalDetails = () => {
     return null
   }
 
-  const { discountAmount, discountPercentage } = getDiscount(
-    submissionData.priceNumber,
-    baseRate,
-    submissionData.duration,
-  )
+  const { discountAmount, discountPercentage, basePriceWithoutDiscount } =
+    calculateDiscount(
+      submissionData.priceNumber,
+      baseRate,
+      submissionData.duration,
+    )
 
   const durationYears = (
     Number(submissionData.duration) / secondsInYear
@@ -65,7 +46,6 @@ export const RenewalDetails = () => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 3,
   })
-  const totalPrice = submissionData.priceNumber - discountAmount
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -98,7 +78,7 @@ export const RenewalDetails = () => {
                   <Trans>Renewal Fee</Trans>
                 </p>
                 <p className="text-base text-ens-blue-dark">
-                  {formatUsd(submissionData.priceNumber)}
+                  {formatUsd(basePriceWithoutDiscount)}
                 </p>
               </div>
 
@@ -118,7 +98,7 @@ export const RenewalDetails = () => {
                   <Trans>Total Paid</Trans>
                 </p>
                 <p className="text-base text-ens-blue-dark">
-                  {formatUsd(totalPrice)}
+                  {formatUsd(submissionData.priceNumber)}
                 </p>
               </div>
 

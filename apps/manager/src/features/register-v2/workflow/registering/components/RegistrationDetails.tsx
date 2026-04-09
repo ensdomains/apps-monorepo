@@ -4,7 +4,7 @@ import { secondsInYear } from 'date-fns/constants'
 import { useMemo } from 'react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
+import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { useBaseRate } from '../../../data/queries/baseRates.query'
 import { RegisterV2Context } from '../../../state/registrationUi.context'
@@ -16,26 +16,6 @@ const useDetails = RegisterV2Context.createSelector(
 const useIsCompleted = RegisterV2Context.createSelector((state) =>
   state.matches('success'),
 )
-
-const getDiscount = (
-  basePriceNumber: number,
-  baseRate: bigint,
-  duration: bigint,
-) => {
-  const basePriceWithoutDiscount = decimalBigintToNumber(
-    duration * baseRate,
-    12,
-  )
-  const discountAmount = Math.max(basePriceWithoutDiscount - basePriceNumber, 0)
-  const discountPercentage = Math.round(
-    (discountAmount / basePriceWithoutDiscount) * 100,
-  )
-
-  return {
-    discountAmount,
-    discountPercentage,
-  }
-}
 
 export const RegistrationDetails = () => {
   const { uiActor, label } = RegisterV2Context.use()
@@ -52,11 +32,8 @@ export const RegistrationDetails = () => {
     return null
   }
 
-  const { discountAmount, discountPercentage } = getDiscount(
-    details.basePriceNumber,
-    baseRate,
-    details.duration,
-  )
+  const { discountAmount, discountPercentage, basePriceWithoutDiscount } =
+    calculateDiscount(details.basePriceNumber, baseRate, details.duration)
 
   const durationYears = (
     Number(details.duration) / secondsInYear
@@ -65,7 +42,7 @@ export const RegistrationDetails = () => {
     maximumFractionDigits: 3,
   })
   const totalPrice =
-    details.basePriceNumber + details.premiumPriceNumber - discountAmount
+    basePriceWithoutDiscount + details.premiumPriceNumber - discountAmount
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -95,7 +72,7 @@ export const RegistrationDetails = () => {
                   <Trans>Registration Fee</Trans>
                 </p>
                 <p className="text-base text-ens-blue-dark">
-                  {formatUsd(details.basePriceNumber)}
+                  {formatUsd(basePriceWithoutDiscount)}
                 </p>
               </div>
 

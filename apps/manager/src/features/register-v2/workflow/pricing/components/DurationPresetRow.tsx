@@ -18,14 +18,14 @@ export const DurationPresetRow = ({
   isSelected,
   price,
   onSelect,
-  discount,
+  discountPercentage,
 }: {
   duration: number
   isLoading: boolean
   price: number | undefined
   isSelected: boolean
   onSelect: () => void
-  discount: number
+  discountPercentage: number
 }) => {
   return (
     <button
@@ -43,15 +43,15 @@ export const DurationPresetRow = ({
       </div>
 
       <div className="flex gap-3">
-        {discount > 0 && (
+        {discountPercentage > 0 && (
           <div
             className={cn(
-              getDiscountBadgeStyle(discount),
+              getDiscountBadgeStyle(discountPercentage),
               'flex items-center justify-center rounded-xs px-1 py-0.5 md:px-1.5 md:py-1',
             )}
           >
             <span className="font-medium text-white text-xs leading-none tracking-tight md:text-base">
-              <Trans>{discount}% off</Trans>
+              <Trans>{discountPercentage}% off</Trans>
             </span>
           </div>
         )}

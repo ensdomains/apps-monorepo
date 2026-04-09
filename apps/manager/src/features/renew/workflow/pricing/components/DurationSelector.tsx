@@ -3,14 +3,15 @@ import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay, secondsInYear } from 'date-fns/constants'
 import { zeroAddress } from 'viem'
+import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import {
   type GetPricingError,
   getPricingQueryOptions,
   type MissingTokenError,
 } from '@/features/register-v2/data/queries/pricing.query'
+import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
 import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
-import { getDurationDiscount } from '@/features/register-v2/workflow/pricing/lib/durationDiscount'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
@@ -36,6 +37,8 @@ export const DurationSelector = () => {
     uiActor,
     (state) => state.context.duration,
   )
+
+  const baseRate = useBaseRate(label)
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map((duration) =>
@@ -73,8 +76,6 @@ export const DurationSelector = () => {
       }),
   })
 
-  const baseCostQuery = presetPricingQueries[0]
-
   const selectedPresetIdx = PRESET_DURATIONS.findIndex(
     (duration) => Math.abs(selectedDuration - duration) < secondsInDay,
   )
@@ -87,16 +88,15 @@ export const DurationSelector = () => {
           throw new Error('Invalid preset duration index')
         }
 
-        const years = duration / secondsInYear
-        const discount = getDurationDiscount(
-          query.data?.basePrice,
-          baseCostQuery?.data?.basePrice,
-          years,
+        const { discountPercentage } = calculateDiscount(
+          query.data?.basePrice ?? 0,
+          baseRate,
+          BigInt(duration),
         )
 
         return (
           <DurationPresetRow
-            discount={discount}
+            discountPercentage={discountPercentage}
             duration={duration}
             isLoading={query.isPending}
             isSelected={idx === selectedPresetIdx}

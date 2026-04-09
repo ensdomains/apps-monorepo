@@ -3,6 +3,8 @@ import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay, secondsInYear } from 'date-fns/constants'
 import { zeroAddress } from 'viem'
+import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
+import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
@@ -11,7 +13,6 @@ import {
   type MissingTokenError,
 } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
-import { getDurationDiscount } from '../lib/durationDiscount'
 import { DurationCustomRow } from './DurationCustomRow'
 import { DurationPresetRow } from './DurationPresetRow'
 
@@ -40,6 +41,8 @@ export const DurationSelector = () => {
   )
 
   const ownerAddress = account.ownerAddress ?? zeroAddress
+
+  const baseRate = useBaseRate(label)
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map((duration) =>
@@ -71,8 +74,6 @@ export const DurationSelector = () => {
       }),
   })
 
-  const baseCostQuery = presetPricingQueries[0]
-
   const selectedPresetIdx = PRESET_DURATIONS.findIndex(
     (duration) => Math.abs(selectedDuration - duration) < secondsInDay,
   )
@@ -85,16 +86,15 @@ export const DurationSelector = () => {
           throw new Error('Invalid preset duration index')
         }
 
-        const years = duration / secondsInYear
-        const discount = getDurationDiscount(
-          query.data?.basePrice,
-          baseCostQuery?.data?.basePrice,
-          years,
+        const { discountPercentage } = calculateDiscount(
+          query.data?.basePrice ?? 0,
+          baseRate,
+          BigInt(duration),
         )
 
         return (
           <DurationPresetRow
-            discount={discount}
+            discountPercentage={discountPercentage}
             duration={duration}
             isLoading={query.isPending}
             isSelected={idx === selectedPresetIdx}

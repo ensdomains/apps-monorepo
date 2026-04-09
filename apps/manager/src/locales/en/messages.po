@@ -70,15 +70,15 @@ msgid "{0}% off"
 msgstr "{0}% off"
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
-msgid "{discount}% off"
-msgstr "{discount}% off"
+msgid "{discountPercentage}% off"
+msgstr "{discountPercentage}% off"
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr "{duration, plural, one {# year} other {# years}}"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:89
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:94
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:66
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:72
 msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
@@ -312,7 +312,7 @@ msgstr "Back to dashboard"
 msgid "Back to Home"
 msgstr "Back to Home"
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:145
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:123
 msgid "Back to profile"
 msgstr "Back to profile"
 
@@ -498,7 +498,7 @@ msgstr "Committing"
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:151
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:128
 msgid "Complete your profile"
 msgstr "Complete your profile"
 
@@ -826,9 +826,9 @@ msgstr "Error loading names"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:135
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:112
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:129
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:107
 msgid "Expires"
 msgstr "Expires"
 
@@ -1197,9 +1197,9 @@ msgstr "MM/YY"
 msgid "Modified"
 msgstr "Modified"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:116
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:93
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:102
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:110
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:88
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr "Multi-year Discount ({discountPercentage}%)"
 
@@ -1456,7 +1456,7 @@ msgstr "Please wait while we verify your email address."
 msgid "Preferences updated"
 msgstr "Preferences updated"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:105
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:82
 msgid "Premium Fee"
 msgstr "Premium Fee"
 
@@ -1579,7 +1579,7 @@ msgstr "Registration complete"
 msgid "Registration Complete!"
 msgstr "Registration Complete!"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:80
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:57
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:73
 msgid "Registration Details"
 msgstr "Registration Details"
@@ -1594,7 +1594,7 @@ msgstr "Registration failed"
 msgid "Registration Failed"
 msgstr "Registration Failed"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:95
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:72
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:92
 msgid "Registration Fee"
 msgstr "Registration Fee"
@@ -1604,7 +1604,7 @@ msgstr "Registration Fee"
 msgid "Registration in progress"
 msgstr "Registration in progress"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:86
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:63
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
 msgid "Registration Period"
 msgstr "Registration Period"
@@ -1672,7 +1672,7 @@ msgstr "Removing telegram channel"
 msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:27
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:40
 msgid "Renew Name"
 msgstr "Renew Name"
 
@@ -1680,7 +1680,7 @@ msgstr "Renew Name"
 msgid "Renewal Complete!"
 msgstr "Renewal Complete!"
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:85
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:63
 msgid "Renewal Details"
 msgstr "Renewal Details"
 
@@ -1688,15 +1688,15 @@ msgstr "Renewal Details"
 msgid "Renewal Failed"
 msgstr "Renewal Failed"
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:100
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:78
 msgid "Renewal Fee"
 msgstr "Renewal Fee"
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:91
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:69
 msgid "Renewal Period"
 msgstr "Renewal Period"
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:53
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:64
 msgid "Renewing"
 msgstr "Renewing"
 
@@ -2205,9 +2205,9 @@ msgstr "Total"
 msgid "TOTAL"
 msgstr "TOTAL"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:126
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:103
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:112
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:120
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:98
 msgid "Total Paid"
 msgstr "Total Paid"
 
