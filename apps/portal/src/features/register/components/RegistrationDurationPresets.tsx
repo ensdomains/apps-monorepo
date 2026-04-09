@@ -1,13 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
-import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
-  formatDiscountPercentForDisplay,
-  getDiscountForYears,
-} from '@/features/register/utils/registrationDiscount'
+  getPresetDiscountsQueryOptions,
+  PRESET_YEARS,
+} from '@/features/register/hooks/usePresetDiscounts'
+import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { cn } from '@/lib/utils'
-
-const PRESET_YEARS = [1, 3, 5, 10]
 
 type RegistrationDurationPresetsProps = {
   readonly value: number
@@ -18,17 +16,18 @@ export const RegistrationDurationPresets = ({
   value,
   onSelect,
 }: RegistrationDurationPresetsProps) => {
-  const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
+  const { data: discounts } = useQuery(getPresetDiscountsQueryOptions)
 
-  const selectedYears = PRESET_YEARS.includes(value) ? value : undefined
+  const selectedYears = PRESET_YEARS.includes(
+    value as (typeof PRESET_YEARS)[number],
+  )
+    ? value
+    : undefined
 
   return (
     <div className="flex gap-2 items-center">
       {PRESET_YEARS.map((years) => {
-        const { percent } = getDiscountForYears(
-          years,
-          oracleData?.discountPoints,
-        )
+        const percent = discounts?.[years] ?? 0
         const discount =
           percent > 0
             ? `${formatDiscountPercentForDisplay(percent)} off`

@@ -28,7 +28,6 @@ describe('getBaseRateUsdForLength', () => {
 
 const mockOracleData = {
   baseRatesUsd: BASE_RATES,
-  discountPoints: [],
   premiumDecay: { startPriceUsd: 0, halvingPeriodMs: 0, periodMs: 0 },
 }
 

@@ -7,7 +7,6 @@ import { fromPromise, ok } from 'neverthrow'
 import type { MulticallErrorType } from 'viem'
 import { multicall } from 'viem/actions'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
-import type { OracleDiscountPoint } from '@/features/register/utils/registrationDiscount'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
 
@@ -19,9 +18,6 @@ import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
  */
 const PRICE_DECIMALS = 12
 
-/** type(uint128).max — used to normalise oracle discount point values to [0, 1]. */
-const DISCOUNT_SCALE = (1n << 128n) - 1n
-
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
   readonly cause: MulticallErrorType
 }> {}
@@ -32,8 +28,6 @@ export type OracleParams = {
    * Labels longer than the array use the last entry.
    */
   readonly baseRatesUsd: number[]
-  /** Piecewise-linear discount schedule from the oracle. */
-  readonly discountPoints: OracleDiscountPoint[]
   /** Premium decay configuration for recently expired names. */
   readonly premiumDecay: PremiumDecayConfig
 }
@@ -52,45 +46,35 @@ export const getOracleParamsQueryOptions = resultQueryOptions({
 export const getOracleParams = ResultFn(async function* () {
   const client = yield* safeGetNamechainSepoliaClient()
 
-  const [
-    baseRates,
-    rawDiscountPoints,
-    premiumPriceInitial,
-    premiumHalvingPeriod,
-    premiumPeriod,
-  ] = yield* fromPromise(
-    multicall(client, {
-      allowFailure: false,
-      contracts: [
-        {
-          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-          functionName: 'getBaseRates',
-        },
-        {
-          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-          functionName: 'getDiscountPoints',
-        },
-        {
-          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-          functionName: 'premiumPriceInitial',
-        },
-        {
-          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-          functionName: 'premiumHalvingPeriod',
-        },
-        {
-          address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-          abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-          functionName: 'premiumPeriod',
-        },
-      ],
-    }),
-    (e) => new GetOracleParamsError({ cause: e as MulticallErrorType }),
-  )
+  const [baseRates, premiumPriceInitial, premiumHalvingPeriod, premiumPeriod] =
+    yield* fromPromise(
+      multicall(client, {
+        allowFailure: false,
+        contracts: [
+          {
+            address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+            abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+            functionName: 'getBaseRates',
+          },
+          {
+            address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+            abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+            functionName: 'premiumPriceInitial',
+          },
+          {
+            address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+            abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+            functionName: 'premiumHalvingPeriod',
+          },
+          {
+            address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+            abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+            functionName: 'premiumPeriod',
+          },
+        ],
+      }),
+      (e) => new GetOracleParamsError({ cause: e as MulticallErrorType }),
+    )
 
   // Convert per-second base-unit rates → USD per year.
   const baseRatesUsd = Array.from(
@@ -99,20 +83,11 @@ export const getOracleParams = ResultFn(async function* () {
       Number(rate * BigInt(CONTRACT_SECONDS_PER_YEAR)) / 10 ** PRICE_DECIMALS,
   )
 
-  // Convert oracle discount points from (uint64 t, uint128 value/DISCOUNT_SCALE)
-  // to the [seconds, rate] format used by registrationDiscount.ts.
-  const discountPoints: OracleDiscountPoint[] = rawDiscountPoints.map((p) => [
-    Number(p.t),
-    // Integer division with 5 decimal places avoids floating-point loss
-    // when dividing large BigInts.
-    Number((p.value * 100000n) / DISCOUNT_SCALE) / 100000,
-  ])
-
   const premiumDecay: PremiumDecayConfig = {
     startPriceUsd: Number(premiumPriceInitial) / 10 ** PRICE_DECIMALS,
     halvingPeriodMs: Number(premiumHalvingPeriod) * 1000,
     periodMs: Number(premiumPeriod) * 1000,
   }
 
-  return ok<OracleParams>({ baseRatesUsd, discountPoints, premiumDecay })
+  return ok<OracleParams>({ baseRatesUsd, premiumDecay })
 })
