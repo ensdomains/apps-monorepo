@@ -6,7 +6,6 @@ import { describe, expect, it, vi } from 'vitest'
 const mockClient = { chain: { id: 11155111 } }
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok(mockClient),
-  safeGetNamechainSepoliaClient: () => ok(mockClient),
 }))
 
 // Mock ensjs v1
@@ -35,7 +34,7 @@ describe('getEnsOwner', () => {
 
     expect(result._unsafeUnwrap()).toMatchObject({
       owner: mockOwnerAddress,
-      network: 'sepolia',
+      protocolVersion: 'ENSv1',
     })
   })
 
@@ -48,7 +47,7 @@ describe('getEnsOwner', () => {
 
     expect(result._unsafeUnwrap()).toMatchObject({
       owner: mockOwnerAddress,
-      network: 'namechainSepolia',
+      protocolVersion: 'ENSv2',
     })
   })
 

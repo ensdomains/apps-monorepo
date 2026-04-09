@@ -38,10 +38,13 @@ function RouteComponent() {
         <h1 className="font-medium text-heading">Ownership</h1>
       </div>
       <div className="flex flex-col gap-4 sm:gap-6">
-        <ExpiryWithRegistrationData name={name} network={data.network} />
+        <ExpiryWithRegistrationData
+          name={name}
+          protocolVersion={data.protocolVersion}
+        />
         <div className="flex flex-col gap-4 sm:gap-6 md:flex-row justify-between">
           <Owner owner={data.owner} label="Name owner" className="w-full" />
-          {data.network === 'sepolia' && (
+          {data.protocolVersion === 'ENSv1' && (
             <V1NameManagerRecord name={name} className="w-full" />
           )}
         </div>

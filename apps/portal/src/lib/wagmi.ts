@@ -1,7 +1,4 @@
-import {
-  extendChainWithL1Ens,
-  extendChainWithL2Ens,
-} from '@ensdomains/ensjs/chain'
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
   frameWallet,
@@ -18,15 +15,8 @@ import {
   sepolia,
 } from 'viem/chains'
 import { createConfig } from 'wagmi'
-import type { EnsNetworkName } from '@/utils/types'
 
-export const sepoliaWithEns = extendChainWithL1Ens(sepolia)
-
-// later to be replaced with actual namechain sepolia
-export const namechainSepolia = extendChainWithL2Ens(sepolia)
-
-export const getChainIdForNetwork = (network: EnsNetworkName): number =>
-  network === 'sepolia' ? sepoliaWithEns.id : namechainSepolia.id
+export const sepoliaWithEns = extendChainWithEns(sepolia)
 
 const DRPC_CHAIN_SLUGS: Record<number, string> = {
   11155111: 'sepolia',
@@ -54,7 +44,6 @@ export const wagmiConfig = createConfig({
     baseSepolia,
     lineaSepolia,
     scrollSepolia,
-    namechainSepolia,
   ],
   connectors: connectorsForWallets(
     [

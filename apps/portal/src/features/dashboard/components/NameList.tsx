@@ -13,7 +13,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
-import type { WithEnsNetwork } from '@/utils/types'
+
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
@@ -22,7 +22,7 @@ interface NameListProps {
   readonly limit?: number
 }
 
-type column = WithEnsNetwork<MergedName>
+type column = MergedName
 
 const columns: ColumnDef<column>[] = [
   {

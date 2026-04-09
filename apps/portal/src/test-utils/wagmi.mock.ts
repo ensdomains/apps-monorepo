@@ -1,10 +1,10 @@
-import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { mock } from '@wagmi/connectors'
 import { http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-export const sepoliaWithEns = extendChainWithL1Ens(sepolia)
+export const sepoliaWithEns = extendChainWithEns(sepolia)
 
 /**
  * Mock wagmi config for testing
