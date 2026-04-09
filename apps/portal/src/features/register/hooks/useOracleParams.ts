@@ -7,28 +7,13 @@ import { fromPromise, ok } from 'neverthrow'
 import type { MulticallErrorType } from 'viem'
 import { multicall } from 'viem/actions'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
-import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
-
-/**
- * Scaling factor used by the StandardRentPriceOracle for base-unit pricing.
- * All oracle base-unit values are divided by 10^PRICE_DECIMALS to get USD.
- *
- * @see contracts-v2/contracts/deploy/02_StandardRentPriceOracle.ts
- */
-const PRICE_DECIMALS = 12
 
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
   readonly cause: MulticallErrorType
 }> {}
 
 export type OracleParams = {
-  /**
-   * Per-year USD price indexed by label length (0-indexed: index 0 = 1-char label).
-   * Labels longer than the array use the last entry.
-   */
-  readonly baseRatesUsd: number[]
-  /** Premium decay configuration for recently expired names. */
   readonly premiumDecay: PremiumDecayConfig
 }
 
@@ -38,24 +23,20 @@ const getOracleParamsQueryKey = createQueryKey<'get-oracle-params', object>(
 
 export const getOracleParamsQueryOptions = resultQueryOptions({
   queryKey: getOracleParamsQueryKey({}),
-  // Oracle params change only via owner governance actions; cache indefinitely.
   staleTime: Number.POSITIVE_INFINITY,
   queryFn: () => getOracleParams(),
 })
 
+const PRICE_DECIMALS = 12
+
 export const getOracleParams = ResultFn(async function* () {
   const client = yield* safeGetNamechainSepoliaClient()
 
-  const [baseRates, premiumPriceInitial, premiumHalvingPeriod, premiumPeriod] =
+  const [premiumPriceInitial, premiumHalvingPeriod, premiumPeriod] =
     yield* fromPromise(
       multicall(client, {
         allowFailure: false,
         contracts: [
-          {
-            address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-            abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-            functionName: 'getBaseRates',
-          },
           {
             address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
             abi: STANDARD_RENT_PRICE_ORACLE_ABI,
@@ -76,18 +57,11 @@ export const getOracleParams = ResultFn(async function* () {
       (e) => new GetOracleParamsError({ cause: e as MulticallErrorType }),
     )
 
-  // Convert per-second base-unit rates → USD per year.
-  const baseRatesUsd = Array.from(
-    baseRates,
-    (rate) =>
-      Number(rate * BigInt(CONTRACT_SECONDS_PER_YEAR)) / 10 ** PRICE_DECIMALS,
-  )
-
   const premiumDecay: PremiumDecayConfig = {
     startPriceUsd: Number(premiumPriceInitial) / 10 ** PRICE_DECIMALS,
     halvingPeriodMs: Number(premiumHalvingPeriod) * 1000,
     periodMs: Number(premiumPeriod) * 1000,
   }
 
-  return ok<OracleParams>({ baseRatesUsd, premiumDecay })
+  return ok<OracleParams>({ premiumDecay })
 })

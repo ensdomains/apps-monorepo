@@ -1,0 +1,61 @@
+import { STANDARD_RENT_PRICE_ORACLE_ABI } from '@ens-apps/transaction-manager/contracts/abis/StandardRentPriceOracle.abi'
+import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { useQuery } from '@tanstack/react-query'
+import { fromPromise, ok } from 'neverthrow'
+import type { ReadContractErrorType } from 'viem'
+import { readContract } from 'viem/actions'
+import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { getLabel } from '@/utils/token/getLabel'
+
+export class GetBaseRatesError extends TaggedError('GetBaseRatesError')<{
+  readonly cause: ReadContractErrorType
+}> {}
+
+const getBaseRatesQueryKey = createQueryKey<'get-base-rates', object>(
+  'get-base-rates',
+)
+
+export const getBaseRatesQueryOptions = resultQueryOptions({
+  queryKey: getBaseRatesQueryKey({}),
+  staleTime: Number.POSITIVE_INFINITY,
+  queryFn: () => getBaseRates(),
+})
+
+export const getBaseRates = ResultFn(async function* () {
+  const client = yield* safeGetNamechainSepoliaClient()
+
+  const rates = yield* fromPromise(
+    readContract(client, {
+      address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+      abi: STANDARD_RENT_PRICE_ORACLE_ABI,
+      functionName: 'getBaseRates',
+    }),
+    (e) => new GetBaseRatesError({ cause: e as ReadContractErrorType }),
+  )
+
+  return ok(rates)
+})
+
+/**
+ * Returns the raw per-second oracle base rate (in oracle units, 12 decimals)
+ * for the given ENS name. Returns 0n while loading or on error.
+ */
+export const useBaseRate = (name: string): bigint => {
+  const { data } = useQuery(getBaseRatesQueryOptions)
+
+  if (!data) return 0n
+
+  let labelLength: number
+  try {
+    labelLength = getLabel(name).length
+  } catch {
+    return 0n
+  }
+
+  // 0-indexed: index 0 = 1-char, clamp longer names to last entry
+  const idx = Math.min(Math.max(labelLength - 1, 0), data.length - 1)
+  return data[idx] ?? 0n
+}

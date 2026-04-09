@@ -12,11 +12,11 @@ import {
   // getYearsFromDuration,
   isDateWithinCalendarRange,
 } from '@/features/register/utils/registrationDuration'
+
+// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
-
-// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 
 type RegistrationExpiryDatePickerProps = {
   readonly date: Temporal.PlainDate
@@ -99,7 +99,7 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      {/* Note : Currently we disabled discounts on contracts - Commenting this section out for now until we re-enable discounts */}
+      {/* Discounts disabled on contracts - uncomment once re-enabled */}
       {/* <RegistrationDurationPresets
         value={Math.round(
           getYearsFromDuration(getDurationFromPickerDate(date)),

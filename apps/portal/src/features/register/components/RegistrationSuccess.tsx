@@ -1,20 +1,17 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
+import { formatUnits } from 'viem'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
-import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
+import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
-import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import {
-  getPricePerYearUsd,
-  getPricingBreakdown,
-} from '@/features/register/utils/registrationPricing'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
@@ -35,9 +32,7 @@ export const RegistrationSuccess = ({
   const queryClient = useQueryClient()
   const [isViewProfileLoading, setIsViewProfileLoading] = useState(false)
 
-  const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
-
-  const pricePerYearUsd = getPricePerYearUsd(oracleData, domainName)
+  const baseRate = useBaseRate(domainName)
 
   const handleViewProfile = async () => {
     try {
@@ -76,18 +71,21 @@ export const RegistrationSuccess = ({
 
   const totalCost = formatPriceDisplay(price.total, price.decimals)
 
-  const { discountAmount, discountPercent, discountLabel } =
-    getPricingBreakdown(
-      domainName,
-      price,
-      durationSeconds,
-      pricePerYearUsd,
-      price.discountPercent,
-    )
-
+  // Discount = diff between undiscounted (baseRate × duration) and actual price
+  const basePriceNumber = Number(formatUnits(price.base, price.decimals))
+  const basePriceWithoutDiscount =
+    baseRate > 0n
+      ? Number(formatUnits(baseRate * BigInt(Math.round(durationSeconds)), 12))
+      : 0
+  const discountAmount = Math.max(basePriceWithoutDiscount - basePriceNumber, 0)
+  const discountPercentage =
+    basePriceWithoutDiscount > 0
+      ? Math.round((discountAmount / basePriceWithoutDiscount) * 100)
+      : 0
+  const years = durationSeconds / CONTRACT_SECONDS_PER_YEAR
   const discountText =
-    discountPercent > 0 && discountAmount > 0 && discountLabel
-      ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(discountAmount)}`
+    discountAmount > 0 && discountPercentage > 0 && years >= 2
+      ? `${Math.floor(years)}+ years discount (${discountPercentage}%): -${formatUsd(discountAmount)}`
       : undefined
 
   const handleRegisterAnother = () => {

@@ -3,30 +3,29 @@ import { SirenIcon } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
+import { formatUnits } from 'viem'
 import { useConnection } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
+import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
+import { getPremiumLabel } from '@/features/register/utils/premium'
 import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
-// import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
   formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
-import {
-  getPricePerYearUsd,
-  getPricingBreakdown,
-} from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -64,8 +63,7 @@ export const RegisterNameCheckoutSummary = ({
   })
 
   const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
-
-  const pricePerYearUsd = getPricePerYearUsd(oracleData, name)
+  const baseRate = useBaseRate(name)
 
   const premiumDecayConfig = oracleData?.premiumDecay
 
@@ -121,7 +119,7 @@ export const RegisterNameCheckoutSummary = ({
                 name={name}
                 price={price}
                 duration={duration}
-                pricePerYearUsd={pricePerYearUsd}
+                baseRate={baseRate}
               />
             ) : null,
           )
@@ -213,33 +211,26 @@ type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
   readonly duration: number
-  readonly pricePerYearUsd: number | undefined
+  readonly baseRate: bigint
 }
 
 const PriceBreakdown = ({
   name,
   price,
   duration,
-  pricePerYearUsd,
+  baseRate,
 }: PriceBreakdownProps) => {
   const { registrationPeriod, expiresFormatted } =
     getRegistrationDisplayDates(duration)
 
-  const {
-    pricePerYear,
-    years,
-    standardSubtotal,
-    // discountAmount,
-    // discountPercent,
-    // discountLabel,
-    premiumLabel,
-  } = getPricingBreakdown(
-    name,
-    price,
-    duration,
-    pricePerYearUsd,
-    price.discountPercent,
-  )
+  const years = duration / CONTRACT_SECONDS_PER_YEAR
+  // baseRate is per-second in oracle units (12 decimals). Convert to USD/year.
+  const pricePerYear =
+    baseRate > 0n
+      ? Number(formatUnits(baseRate * BigInt(CONTRACT_SECONDS_PER_YEAR), 12))
+      : 0
+  const standardSubtotal = pricePerYear * years
+  const premiumLabel = getPremiumLabel(name)
 
   return (
     <div className="space-y-2">
@@ -283,15 +274,6 @@ const PriceBreakdown = ({
             valueClassName="flex items-center gap-1 m-0"
           />
         )}
-
-        {/* {discountPercent > 0 && discountAmount > 0 && discountLabel && (
-          <SummaryRow
-            label={`${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}):`}
-            value={`-${formatUsd(discountAmount)}`}
-            valueClassName="flex items-center gap-1 m-0 text-success"
-            labelClassName="text-success"
-          />
-        )} */}
 
         <SummaryRow
           label="Total:"

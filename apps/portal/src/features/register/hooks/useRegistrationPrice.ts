@@ -1,5 +1,3 @@
-import { STANDARD_RENT_PRICE_ORACLE_ABI } from '@ens-apps/transaction-manager/contracts/abis/StandardRentPriceOracle.abi'
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -7,8 +5,6 @@ import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { readContract } from 'viem/actions'
-import { integratedDiscountToPercent } from '@/features/register/utils/registrationPricing'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
@@ -35,8 +31,6 @@ export type RegistrationPriceResult = {
   readonly total: bigint
   readonly decimals: number
   readonly hasPremium: boolean
-  /** Effective average discount % from integratedDiscount() for this duration. */
-  readonly discountPercent: number
 }
 
 export const getRegistrationPrice = ResultFn(async function* ({
@@ -61,22 +55,14 @@ export const getRegistrationPrice = ResultFn(async function* ({
   // The StandardRentPriceOracle skips the temporary premium when owner is
   // address(0) (the ensjs default). Passing the user's address ensures the
   // returned price includes any active premium for recently expired names.
-  const [{ base, premium }, integratedDiscount] = yield* fromPromise(
-    Promise.all([
-      getPrice(client, {
-        nameOrNames: label,
-        duration: BigInt(duration),
-        paymentToken: resolvedToken,
-        registrarAddress: fastTestETHRegistrar,
-        owner,
-      }),
-      readContract(client, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'integratedDiscount',
-        args: [BigInt(duration)],
-      }),
-    ]),
+  const { base, premium } = yield* fromPromise(
+    getPrice(client, {
+      nameOrNames: label,
+      duration: BigInt(duration),
+      paymentToken: resolvedToken,
+      registrarAddress: fastTestETHRegistrar,
+      owner,
+    }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
   )
 
@@ -89,7 +75,6 @@ export const getRegistrationPrice = ResultFn(async function* ({
     total,
     decimals,
     hasPremium: premium > 0n,
-    discountPercent: integratedDiscountToPercent(integratedDiscount, duration),
   })
 })
 

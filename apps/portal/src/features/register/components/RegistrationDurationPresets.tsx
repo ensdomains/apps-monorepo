@@ -1,23 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
-import {
-  getPresetDiscountsQueryOptions,
-  PRESET_YEARS,
-} from '@/features/register/hooks/usePresetDiscounts'
-import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { cn } from '@/lib/utils'
+
+export const PRESET_YEARS = [1, 3, 5, 10] as const
 
 type RegistrationDurationPresetsProps = {
   readonly value: number
   readonly onSelect: (years: number) => void
+  /** Discount percent keyed by preset year, derived from getPrice() vs base rate. */
+  readonly discounts?: Partial<Record<(typeof PRESET_YEARS)[number], number>>
 }
 
 export const RegistrationDurationPresets = ({
   value,
   onSelect,
+  discounts,
 }: RegistrationDurationPresetsProps) => {
-  const { data: discounts } = useQuery(getPresetDiscountsQueryOptions)
-
   const selectedYears = PRESET_YEARS.includes(
     value as (typeof PRESET_YEARS)[number],
   )
@@ -28,10 +25,7 @@ export const RegistrationDurationPresets = ({
     <div className="flex gap-2 items-center">
       {PRESET_YEARS.map((years) => {
         const percent = discounts?.[years] ?? 0
-        const discount =
-          percent > 0
-            ? `${formatDiscountPercentForDisplay(percent)} off`
-            : undefined
+        const discount = percent > 0 ? `${Math.round(percent)}% off` : undefined
         const isSelected = selectedYears === years
 
         return (
