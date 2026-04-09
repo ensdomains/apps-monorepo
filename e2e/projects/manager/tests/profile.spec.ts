@@ -4,7 +4,7 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const NAME_TO_VIEW = 'test020.eth'
 
 test.describe('ENS name profile', () => {
-    test('disconnected profile viewing', async ({ page }) => {
+  test('disconnected profile viewing', async ({ page }) => {
         await page.goto(MANAGER_APP_URL)
 
         const searchInput = page.getByPlaceholder('.eth')
