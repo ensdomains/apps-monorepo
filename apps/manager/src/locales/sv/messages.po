@@ -83,7 +83,7 @@ msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:89
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:99
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:94
 msgid "{durationYears} years"
 msgstr ""
 
@@ -304,7 +304,7 @@ msgstr ""
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:548
 #: src/features/register-v2/workflow/pricing/PricingStep.tsx:22
-#: src/features/renew/workflow/pricing/PricingStep.tsx:19
+#: src/features/renew/workflow/pricing/PricingStep.tsx:20
 msgid "Back"
 msgstr ""
 
@@ -317,12 +317,12 @@ msgstr ""
 msgid "Back to Home"
 msgstr ""
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:150
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:145
 msgid "Back to profile"
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx:67
-#: src/features/renew/workflow/result/FailureStep.tsx:68
+#: src/features/renew/workflow/result/FailureStep.tsx:69
 msgid "Back to Quote"
 msgstr ""
 
@@ -833,7 +833,7 @@ msgstr "Fel vid laddning av namn"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:135
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:134
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:129
 msgid "Expires"
 msgstr "Går ut"
 
@@ -856,7 +856,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:48
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:69
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:62
 msgid "expiring on"
 msgstr ""
 
@@ -1204,7 +1204,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:116
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:102
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:115
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:110
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
@@ -1677,7 +1677,7 @@ msgstr ""
 msgid "Removing telegram for {0}"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:40
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:27
 msgid "Renew Name"
 msgstr ""
 
@@ -1685,27 +1685,27 @@ msgstr ""
 msgid "Renewal Complete!"
 msgstr ""
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:90
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:85
 msgid "Renewal Details"
 msgstr ""
 
-#: src/features/renew/workflow/result/FailureStep.tsx:25
+#: src/features/renew/workflow/result/FailureStep.tsx:26
 msgid "Renewal Failed"
 msgstr ""
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:105
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:100
 msgid "Renewal Fee"
 msgstr ""
 
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:96
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:91
 msgid "Renewal Period"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:64
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:53
 msgid "Renewing"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:63
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:56
 msgid "Renewing for <0>{durationYears}</0> years"
 msgstr ""
 
@@ -1738,7 +1738,7 @@ msgstr ""
 msgid "Retrying will attempt the registration again from where it left off."
 msgstr ""
 
-#: src/features/renew/workflow/result/FailureStep.tsx:45
+#: src/features/renew/workflow/result/FailureStep.tsx:46
 msgid "Retrying will attempt the renewal again from where it left off."
 msgstr ""
 
@@ -2140,7 +2140,7 @@ msgstr ""
 msgid "The registration for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr ""
 
-#: src/features/renew/workflow/result/FailureStep.tsx:29
+#: src/features/renew/workflow/result/FailureStep.tsx:30
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
 msgstr ""
 
@@ -2212,7 +2212,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:126
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:112
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:125
+#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:120
 msgid "Total Paid"
 msgstr ""
 
@@ -2230,7 +2230,7 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/register-v2/workflow/result/FailureStep.tsx:58
-#: src/features/renew/workflow/result/FailureStep.tsx:59
+#: src/features/renew/workflow/result/FailureStep.tsx:60
 #: src/features/wallet/components/EnableSessionModal.tsx:183
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
@@ -2495,7 +2495,7 @@ msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest ve
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx:40
-#: src/features/renew/workflow/result/FailureStep.tsx:42
+#: src/features/renew/workflow/result/FailureStep.tsx:43
 msgid "What would you like to do?"
 msgstr ""
 

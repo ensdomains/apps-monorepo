@@ -3,6 +3,7 @@ import {
   type ErrorComponentProps,
 } from '@tanstack/react-router'
 import { match, P } from 'ts-pattern'
+import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { parseName } from '@/features/register-v2'
 import {
   RenewalUiProvider,
@@ -15,7 +16,7 @@ import { RenewFailureStep } from '@/features/renew/workflow/result/FailureStep'
 import { RenewSuccessStep } from '@/features/renew/workflow/result/SuccessStep'
 
 export const Route = createFileRoute('/renew/$name')({
-  loader: async ({ params: { name } }) => {
+  loader: async ({ params: { name }, context: { queryClient } }) => {
     const parsedName = parseName(name)
 
     if (parsedName.isErr()) {
@@ -30,9 +31,17 @@ export const Route = createFileRoute('/renew/$name')({
       throw new Error('Subnames are not supported')
     }
 
+    const expiryData = await queryClient.ensureQueryData(
+      profileExpiryQuery(name),
+    )
+
+    if (!expiryData?.expiry) {
+      throw new Error('Name expiry could not be loaded')
+    }
+
     return {
       label: parsedName.value.label,
-      currentExpiry: eligibility.expiry,
+      currentExpiry: expiryData.expiry,
     }
   },
   component: RouteComponent,

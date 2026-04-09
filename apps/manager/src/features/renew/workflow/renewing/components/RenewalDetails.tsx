@@ -1,12 +1,10 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { format } from 'date-fns'
 import { secondsInYear } from 'date-fns/constants'
 import { useMemo } from 'react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -33,7 +31,7 @@ const getDiscount = (
 }
 
 export const RenewalDetails = () => {
-  const { uiActor, label } = useRenewalUiContext()
+  const { uiActor, label, currentExpiry } = useRenewalUiContext()
   const submissionData = useSelector(
     uiActor,
     (state) => state.context.submissionData,
@@ -41,20 +39,15 @@ export const RenewalDetails = () => {
   const baseRate = useBaseRate(label)
   const isCompleted = useSelector(uiActor, (state) => state.matches('success'))
 
-  const currentExpiry = useQuery({
-    ...profileExpiryQuery(`${submissionData?.label ?? label}.eth`),
-    select: (data) => (data.expiry ? Number(data.expiry) : undefined),
-  })
-
   const expirationDate = useMemo(() => {
-    if (!currentExpiry.data || !submissionData?.duration) {
+    if (!currentExpiry || !submissionData?.duration) {
       return
     }
 
     return new Date(
-      currentExpiry.data * 1000 + Number(submissionData.duration) * 1000,
+      Number(currentExpiry) * 1000 + Number(submissionData.duration) * 1000,
     )
-  }, [currentExpiry.data, submissionData?.duration])
+  }, [currentExpiry, submissionData?.duration])
 
   if (!submissionData) {
     return null

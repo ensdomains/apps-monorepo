@@ -4,6 +4,7 @@ import { XCircle } from 'lucide-react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Button } from '@/components/ui/button'
 import { useRenewalUiContext } from '../../state/renewalUi.context'
+import { RenewPageLayout } from '../components/RenewPageLayout'
 
 export const RenewFailureStep = () => {
   const { t } = useLingui()
@@ -14,7 +15,7 @@ export const RenewFailureStep = () => {
   )
 
   return (
-    <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
+    <RenewPageLayout>
       <div className="flex items-start gap-3 rounded-lg border border-ens-garnet-dust bg-ens-garnet-dust/15 p-4">
         <XCircle
           aria-hidden="true"
@@ -70,6 +71,6 @@ export const RenewFailureStep = () => {
           </div>
         </div>
       </div>
-    </div>
+    </RenewPageLayout>
   )
 }

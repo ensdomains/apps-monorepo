@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
 import { shallowEqual, useSelector } from '@xstate/react'
 import { addMonths, addSeconds, format } from 'date-fns'
 import { secondsInYear } from 'date-fns/constants'
@@ -11,17 +10,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 
 export const PricingSummaryCard = () => {
-  const { uiActor, label } = useRenewalUiContext()
-
-  const currentExpiry = useQuery({
-    ...profileExpiryQuery(`${label}.eth`),
-    select: (data) => (data.expiry ? Number(data.expiry) : undefined),
-  })
+  const { uiActor, currentExpiry } = useRenewalUiContext()
   const [durationYears, duration] = useSelector(
     uiActor,
     (state) =>
@@ -42,11 +35,11 @@ export const PricingSummaryCard = () => {
   })
 
   const currentExpirationDate = useMemo(() => {
-    if (!currentExpiry.data) {
+    if (!currentExpiry) {
       return now
     }
-    return new Date(Number(currentExpiry.data) * 1000)
-  }, [currentExpiry.data, now])
+    return new Date(Number(currentExpiry) * 1000)
+  }, [currentExpiry, now])
 
   const newExpirationDate = useMemo(() => {
     return new Date(currentExpirationDate.getTime() + duration * 1000)
