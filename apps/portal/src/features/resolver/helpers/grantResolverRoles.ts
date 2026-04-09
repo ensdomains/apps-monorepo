@@ -1,13 +1,9 @@
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
-import {
-  grantResolverNameRoles,
-  grantResolverRootRoles,
-} from '@ensdomains/ensjs/wallet/v2'
+import { grantResolverRoles as ensjsGrantResolverRoles } from '@ensdomains/ensjs/wallet/v2'
 import type { Address, Hash, WalletClient } from 'viem'
 
 export interface GrantResolverRolesParameters {
   readonly resolverAddress: Address
-  /** Dotted name (e.g. "myname.eth") or empty string for ROOT_RESOURCE (all names). */
   readonly name: string
   readonly account: Address
   readonly roles: ResolverRole[]
@@ -27,16 +23,13 @@ export const grantResolverRoles = async (
     throw new Error('At least one role must be selected')
   }
 
-  if (name === '') {
-    const client = walletClient as Parameters<typeof grantResolverRootRoles>[0]
-    return grantResolverRootRoles(client, { resolverAddress, roles, account })
-  }
+  const client = walletClient as Parameters<typeof ensjsGrantResolverRoles>[0]
 
-  const client = walletClient as Parameters<typeof grantResolverNameRoles>[0]
-  return grantResolverNameRoles(client, {
+  return ensjsGrantResolverRoles(client, {
     resolverAddress,
+    targetAccount: account,
+    scope: 'name',
     name,
     roles,
-    account,
   })
 }

@@ -1,11 +1,17 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { readContract } from 'viem/actions'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { fastTestETHRegistrar } from '../../../lib/constants/registry'
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export class CheckNameAvailabilityError extends TaggedError(
   'CheckNameAvailabilityError',
@@ -23,7 +29,7 @@ export type CheckNameAvailabilityReturnType = {
 }
 
 /**
- * Check if a name is available for registration using the FastTestETHRegistrar.
+ * Check if a name is available for registration using the ETHRegistrar.
  * This checks availability on the V2 registrar on Sepolia.
  */
 export const checkNameAvailability = ResultFn(async function* ({
@@ -36,7 +42,7 @@ export const checkNameAvailability = ResultFn(async function* ({
 
   const isAvailable = yield* fromPromise(
     readContract(client, {
-      address: fastTestETHRegistrar,
+      address: ethRegistrar,
       abi: l2EthRegistrarIsAvailableSnippet,
       functionName: 'isAvailable',
       args: [cleanName],

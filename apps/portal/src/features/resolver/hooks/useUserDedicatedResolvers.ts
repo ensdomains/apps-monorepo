@@ -1,4 +1,5 @@
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
@@ -6,8 +7,17 @@ import {
   filterDedicatedResolverAddresses,
   type ProxyDeployedLog,
 } from '@/features/resolver/utils/dedicatedResolver'
-import { namechainVerifiableFactory } from '@/lib/constants/verifiableFactory'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
+
+const verifiableFactory = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+
+const permissionedResolverImpl = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensPermissionedResolverImpl',
+})
 
 const proxyDeployedEvent = parseAbiItem(
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
@@ -25,7 +35,7 @@ const userDedicatedResolversQueryKey = createQueryKey<
 export const useUserDedicatedResolvers = ({
   senderAddress,
 }: UseUserDedicatedResolversParams) => {
-  const publicClient = usePublicClient({ chainId: namechainSepolia.id })
+  const publicClient = usePublicClient({ chainId: sepoliaWithEns.id })
 
   return useQuery({
     queryKey: userDedicatedResolversQueryKey({ senderAddress }),
@@ -34,7 +44,7 @@ export const useUserDedicatedResolvers = ({
       if (!publicClient || !senderAddress) return []
 
       const logs = await publicClient.getLogs({
-        address: namechainVerifiableFactory,
+        address: verifiableFactory,
         event: proxyDeployedEvent,
         args: {
           sender: senderAddress,
@@ -45,7 +55,7 @@ export const useUserDedicatedResolvers = ({
 
       return filterDedicatedResolverAddresses(
         logs as ProxyDeployedLog[],
-        namechainSepolia.contracts.ensDedicatedResolver.address,
+        permissionedResolverImpl,
       )
     },
   })

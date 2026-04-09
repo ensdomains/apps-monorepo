@@ -4,13 +4,7 @@ import { getOwner as getOwnerV2 } from '@ensdomains/ensjs/public/v2'
 import { zeroAddress } from 'viem'
 import { parseAvatarRecord } from 'viem/ens'
 
-import {
-  createL1Client,
-  createL2Client,
-  type L1Client,
-  type L2Client,
-  v2EthRegistry,
-} from './clients'
+import { createClient, type EnsClient, v2EthRegistry } from './clients'
 
 export interface EnsData {
   avatar: string | null
@@ -19,7 +13,7 @@ export interface EnsData {
 }
 
 export async function resolveAvatarDataUri(
-  client: L1Client,
+  client: EnsClient,
   avatarRecord: string,
 ): Promise<string | null> {
   try {
@@ -41,8 +35,7 @@ export async function resolveAvatarDataUri(
 }
 
 export async function resolveOwner(
-  client: L1Client,
-  namechainClient: L2Client,
+  client: EnsClient,
   name: string,
 ): Promise<string | null> {
   const v1Owner = await getOwnerV1(client, { name }).catch(() => null)
@@ -50,7 +43,7 @@ export async function resolveOwner(
 
   try {
     const labels = name.split('.')
-    const v2Owner = await getOwnerV2(namechainClient, {
+    const v2Owner = await getOwnerV2(client, {
       label: labels[0],
       registryAddress: v2EthRegistry,
     })
@@ -63,15 +56,14 @@ export async function resolveOwner(
 }
 
 export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
-  const client = createL1Client(env)
-  const namechainClient = createL2Client(env)
+  const client = createClient(env)
   try {
     const [records, owner] = await Promise.all([
       getRecords(client, {
         name,
         texts: ['avatar', 'description'],
       }).catch(() => null),
-      resolveOwner(client, namechainClient, name),
+      resolveOwner(client, name),
     ])
 
     if (!records) {

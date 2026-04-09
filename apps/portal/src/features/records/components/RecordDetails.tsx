@@ -24,7 +24,7 @@ import {
 } from '@/utils/history/transformRecordHistory'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import type { NameRecord } from './RecordsTable/columns'
 
 const RecordDetailsView = ({ record }: { record: NameRecord }) => {
@@ -205,12 +205,12 @@ const columns: ColumnDef<HistoryEvent>[] = [
 interface HistoryViewProps {
   name: string
   record: NameRecord
-  network?: EnsNetworkName
+  protocolVersion?: ProtocolVersion
 }
 
-const HistoryView = ({ name, record, network }: HistoryViewProps) => {
-  const isV1 = network === 'sepolia'
-  const isV2 = network === 'namechainSepolia'
+const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
+  const isV1 = protocolVersion === 'ENSv1'
+  const isV2 = protocolVersion === 'ENSv2'
 
   // Only query V1 history for V1 names, V2 history for V2 names
   // If network is undefined, we don't know which to query yet
@@ -243,7 +243,7 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
     })
 
   // Handle loading and error states
-  if (!network) {
+  if (!protocolVersion) {
     return <LoadingSpinner title="Loading..." />
   }
 
@@ -309,19 +309,19 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
 interface RecordDetailsProps {
   record: NameRecord
   name: string
-  network?: EnsNetworkName
+  protocolVersion?: ProtocolVersion
 }
 
 export const RecordDetails = ({
   record,
   name,
-  network,
+  protocolVersion,
 }: RecordDetailsProps) => {
   return (
     <div className="p-6 flex flex-col gap-6">
       <RecordDetailsView record={record} />
       <ResolverView name={name} />
-      <HistoryView {...{ name, record, network }} />
+      <HistoryView {...{ name, record, protocolVersion }} />
     </div>
   )
 }

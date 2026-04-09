@@ -1,6 +1,6 @@
 /**
  * Permission definitions based on RegistryRolesLib contract constants
- * @see https://github.com/ensdomains/namechain/blob/429e873130a4985da99b42050817b77745b90381/contracts/src/common/registry/libraries/RegistryRolesLib.sol
+ * @see https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/registry/libraries/RegistryRolesLib.sol
  */
 
 import type { Role } from '@ensdomains/ensjs/utils/v2'
@@ -30,23 +30,13 @@ export const permissions: Permission[] = [
     description: 'Can change the resolver addresses',
   },
   {
-    key: 'ROLE_SET_TOKEN_OBSERVER',
-    title: 'Set Token Observer',
-    description: 'Can set token observer contracts',
-  },
-  {
-    key: 'ROLE_BURN',
-    title: 'Burn',
-    description: 'Can burn (delete) the name',
+    key: 'ROLE_UNREGISTER',
+    title: 'Unregister',
+    description: 'Can unregister (delete) the name',
   },
 ] as const
 
-const nonSettableManagerRoles = new Set<Role>([
-  'ROLE_REGISTRAR',
-  'ROLE_RENEW',
-  'ROLE_SET_TOKEN_OBSERVER',
-  'ROLE_BURN',
-])
+const nonSettableManagerRoles = new Set<Role>(['ROLE_REGISTRAR', 'ROLE_RENEW'])
 
 export const isManagerRoleSettable = (role: Role) =>
   !nonSettableManagerRoles.has(role)
