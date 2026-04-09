@@ -233,7 +233,13 @@ const PriceBreakdown = ({
     discountPercent,
     discountLabel,
     premiumLabel,
-  } = getPricingBreakdown(name, price, duration, pricePerYearUsd)
+  } = getPricingBreakdown(
+    name,
+    price,
+    duration,
+    pricePerYearUsd,
+    price.discountPercent,
+  )
 
   return (
     <div className="space-y-2">
@@ -266,14 +272,14 @@ const PriceBreakdown = ({
                 'Price:'
               )
             }
-            value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
+            value={`${formatUsd(pricePerYear)}/year × ${Math.floor(years)}`}
           />
         )}
 
         {standardSubtotal > 0 && (
           <SummaryRow
             label="Subtotal:"
-            value={formatUsd(Math.round(standardSubtotal))}
+            value={formatUsd(standardSubtotal)}
             valueClassName="flex items-center gap-1 m-0"
           />
         )}

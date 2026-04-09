@@ -77,7 +77,13 @@ export const RegistrationSuccess = ({
   const totalCost = formatPriceDisplay(price.total, price.decimals)
 
   const { discountAmount, discountPercent, discountLabel } =
-    getPricingBreakdown(domainName, price, durationSeconds, pricePerYearUsd)
+    getPricingBreakdown(
+      domainName,
+      price,
+      durationSeconds,
+      pricePerYearUsd,
+      price.discountPercent,
+    )
 
   const discountText =
     discountPercent > 0 && discountAmount > 0 && discountLabel

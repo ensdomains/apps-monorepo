@@ -80,12 +80,4 @@ export const STANDARD_RENT_PRICE_ORACLE_ABI = [
     inputs: [{ name: 'duration', type: 'uint64' }],
     outputs: [{ name: '', type: 'uint256' }],
   },
-
-  {
-    type: 'function',
-    name: 'premiumPriceAfter',
-    stateMutability: 'view',
-    inputs: [{ name: 'duration', type: 'uint64' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
 ] as const satisfies Abi

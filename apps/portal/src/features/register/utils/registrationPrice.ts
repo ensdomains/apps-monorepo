@@ -36,6 +36,7 @@ export function isPriceResult(
     typeof v.premium === 'bigint' &&
     typeof v.total === 'bigint' &&
     typeof v.decimals === 'number' &&
-    typeof v.hasPremium === 'boolean'
+    typeof v.hasPremium === 'boolean' &&
+    typeof v.discountPercent === 'number'
   )
 }

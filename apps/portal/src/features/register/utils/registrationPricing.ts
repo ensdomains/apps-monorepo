@@ -7,6 +7,29 @@ import {
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { getLabel } from '@/utils/token/getLabel'
 
+/** type(uint128).max — the scale factor used by the oracle for discount values. */
+const DISCOUNT_SCALE = (1n << 128n) - 1n
+
+/**
+ * Converts the contract's integratedDiscount() return value to an effective
+ * average discount percentage for a given duration.
+ *
+ * Formula: percent = (integratedDiscount / (DISCOUNT_SCALE × duration)) × 100
+ *
+ * BigInt division is used to preserve precision on the large uint256 values
+ * returned by the contract.
+ */
+export function integratedDiscountToPercent(
+  integratedResult: bigint,
+  durationSeconds: number,
+): number {
+  if (integratedResult === 0n || durationSeconds === 0) return 0
+  // Scale by 1e6 before dividing to preserve 2 decimal places of precision
+  const scaled =
+    (integratedResult * 1_000_000n) / (DISCOUNT_SCALE * BigInt(durationSeconds))
+  return Number(scaled) / 10_000
+}
+
 /**
  * Returns the USD price per year for a label of the given length,
  * using oracle-fetched base rates (0-indexed: index 0 = 1-char label).
@@ -54,32 +77,32 @@ export type PricingBreakdown = {
 /**
  * Computes the pricing breakdown for display.
  *
- * Uses the same duration (seconds) and SECONDS_PER_YEAR as the contract so
- * standardSubtotal matches the contract's pre-discount amount. This avoids
- * spurious discount rows from rounding mismatches.
- *
  * Mental model:
- * - Standard subtotal = pricePerYear × (durationSeconds / SECONDS_PER_YEAR)
- * - Actual price = what the contract charges (includes multi-year discount)
- * - Discount = standard subtotal - actual price
+ * - Standard subtotal = pricePerYear × years (undiscounted)
+ * - discountPercent = from integratedDiscount() contract call (authoritative)
+ * - discountAmount = standardSubtotal × discountPercent / 100
+ * - Actual price = what the contract charges (includes discount + rounding)
  *
- * @param name           - The ENS name being registered (used for premium label).
- * @param price          - Oracle-fetched price result for the full duration.
+ * @param name            - The ENS name being registered (used for premium label).
+ * @param price           - Oracle-fetched price result for the full duration.
  * @param durationSeconds - Registration duration in seconds.
- * @param pricePerYearUsd - Oracle-fetched 1-year base price in USD. When undefined
- *                          (oracle still loading), subtotal and discount are omitted.
+ * @param pricePerYearUsd - Oracle base rate for this name length in USD/year.
+ *                          When undefined (oracle loading), breakdown rows are hidden.
+ * @param discountPercent - Effective discount % from integratedDiscount() contract call.
+ *                          When undefined (query loading), discount rows are hidden.
  */
 export function getPricingBreakdown(
   name: string,
   price: RegistrationPriceResult,
   durationSeconds: number,
   pricePerYearUsd: number | undefined,
+  discountPercent: number | undefined,
 ): PricingBreakdown {
   const premiumLabel = getPremiumLabel(name)
   const years = durationSeconds / CONTRACT_SECONDS_PER_YEAR
   const actualPrice = Number(price.base) / 10 ** price.decimals
 
-  if (!pricePerYearUsd) {
+  if (!pricePerYearUsd || discountPercent === undefined) {
     return {
       pricePerYear: 0,
       years,
@@ -93,9 +116,7 @@ export function getPricingBreakdown(
   }
 
   const standardSubtotal = pricePerYearUsd * years
-  const discountAmount = Math.max(0, standardSubtotal - actualPrice)
-  const discountPercent =
-    standardSubtotal > 0 ? (discountAmount / standardSubtotal) * 100 : 0
+  const discountAmount = standardSubtotal * (discountPercent / 100)
   const discountLabel = years >= 2 ? `${Math.floor(years)}+ years` : ''
 
   return {
