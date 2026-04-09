@@ -81,13 +81,7 @@ const V1ETHRegistry = ({ tld }: { tld: string }) => {
 
   if (!data) return <div>No V1 ETH Registry data</div>
 
-  return (
-    <RegistryCardsGrid
-      label={tld}
-      owner={data.owner}
-      protocolVersion={data.protocolVersion}
-    />
-  )
+  return <RegistryCardsGrid label={tld} owner={data.owner} />
 }
 
 const ETHRegistry = ({
@@ -169,11 +163,7 @@ const RegistryInfo = ({
             return (
               <>
                 {subregistryAddress !== zeroAddress && <VerifiedRegistryCard />}
-                <RegistryCardsGrid
-                  label={firstLabel}
-                  protocolVersion={data.protocolVersion}
-                  owner={ownerData.owner}
-                />
+                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
                 {subregistryAddress === zeroAddress ? (
                   <RegistryCard
                     registry={{
@@ -194,10 +184,7 @@ const RegistryInfo = ({
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid
-                  label={labels[1]}
-                  protocolVersion={data.protocolVersion}
-                />
+                <RegistryCardsGrid label={labels[1]} />
                 <RegistryCard
                   registry={{
                     address: data.registries.at(-2) as Address,
@@ -214,18 +201,11 @@ const RegistryInfo = ({
           () => {
             return (
               <>
-                <RegistryCardsGrid
-                  label={firstLabel}
-                  protocolVersion={data.protocolVersion}
-                  owner={ownerData.owner}
-                />
+                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid
-                  label={labels[1]}
-                  protocolVersion={data.protocolVersion}
-                />
+                <RegistryCardsGrid label={labels[1]} />
                 <RegistryCard
                   registry={{
                     address: data.registries.at(-2) as Address,
@@ -247,11 +227,7 @@ const RegistryInfo = ({
             // ["sub.2ld.eth"] on V2
             return (
               <>
-                <RegistryCardsGrid
-                  label={firstLabel}
-                  protocolVersion={data.protocolVersion}
-                  owner={ownerData.owner}
-                />
+                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
                 {subsubRegistryAddress === zeroAddress ? null : (
                   <RegistryCard
                     registry={{
@@ -266,10 +242,7 @@ const RegistryInfo = ({
                   Parent Registry
                 </h2>
 
-                <RegistryCardsGrid
-                  label={labels[1]}
-                  protocolVersion={data.protocolVersion}
-                />
+                <RegistryCardsGrid label={labels[1]} />
                 <RegistryCard
                   registry={{
                     address: data.registries.at(-3) as Address,
@@ -290,18 +263,11 @@ const RegistryInfo = ({
             // ["sub.2ld.eth"]
             return (
               <>
-                <RegistryCardsGrid
-                  label={firstLabel}
-                  protocolVersion={data.protocolVersion}
-                  owner={ownerData.owner}
-                />
+                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid
-                  label={labels[1]}
-                  protocolVersion={data.protocolVersion}
-                />
+                <RegistryCardsGrid label={labels[1]} />
               </>
             )
           },
