@@ -1,5 +1,5 @@
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -44,16 +44,28 @@ function RouteComponent() {
   const chainId = namechainSepolia.id
   const { data: walletClient } = useWalletClient({ chainId })
 
-  // User (account to grant roles to)
   const [userInput, setUserInput] = useState('')
-  const [userAddress, setUserAddress] = useState<Address | null>(null)
-  const [isResolving, setIsResolving] = useState(false)
-  const [resolveError, setResolveError] = useState<string | null>(null)
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Node to grant roles on (empty string = root / all nodes)
   const [selectedNode, setSelectedNode] = useState<string>(ROOT_NODE_VALUE)
   const [selectedRoles, setSelectedRoles] = useState<ResolverRole[]>([])
+
+  const resolveMutation = useMutation({
+    mutationFn: async ({ nameOrAddress }: { nameOrAddress: string }) => {
+      const resolved = await resolveAddressOrName({
+        client: getClient(),
+        nameOrAddress,
+      })
+      if (!resolved)
+        throw new Error(`Could not resolve address for ${nameOrAddress}`)
+      return resolved
+    },
+  })
+
+  const userAddress: Address | null = isAddress(userInput)
+    ? userInput
+    : (resolveMutation.data ?? null)
 
   const {
     data: resolver,
@@ -84,41 +96,13 @@ function RouteComponent() {
   const handleUserInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setUserInput(value)
-    setResolveError(null)
-    setUserAddress(null)
+    resolveMutation.reset()
 
-    if (resolveTimeoutRef.current) {
-      clearTimeout(resolveTimeoutRef.current)
-    }
+    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
+    if (!value || isAddress(value) || !value.includes('.')) return
 
-    if (!value) return
-
-    if (isAddress(value)) {
-      setUserAddress(value)
-      return
-    }
-
-    if (!value.includes('.')) return
-
-    setIsResolving(true)
-    resolveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const resolved = await resolveAddressOrName({
-          client: getClient(),
-          nameOrAddress: value,
-        })
-        setUserAddress(resolved)
-        setIsResolving(false)
-        if (!resolved) {
-          setResolveError(`Could not resolve address for ${value}`)
-        }
-      } catch (err) {
-        setUserAddress(null)
-        setIsResolving(false)
-        setResolveError(
-          err instanceof Error ? err.message : 'Failed to resolve ENS name',
-        )
-      }
+    resolveTimeoutRef.current = setTimeout(() => {
+      resolveMutation.mutate({ nameOrAddress: value })
     }, 500)
   }
 
@@ -156,19 +140,23 @@ function RouteComponent() {
             value={userInput}
             onChange={handleUserInputChange}
           />
-          {isResolving && (
+          {resolveMutation.isPending && (
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Loader2 className="size-3 animate-spin" />
               Resolving...
             </p>
           )}
-          {userAddress && !isAddress(userInput) && !isResolving && (
-            <p className="text-sm text-muted-foreground">
-              Resolved: {truncateAddress(userAddress)}
+          {userAddress &&
+            !isAddress(userInput) &&
+            !resolveMutation.isPending && (
+              <p className="text-sm text-muted-foreground">
+                Resolved: {truncateAddress(userAddress)}
+              </p>
+            )}
+          {resolveMutation.error && (
+            <p className="text-sm text-danger">
+              {resolveMutation.error.message}
             </p>
-          )}
-          {resolveError && (
-            <p className="text-sm text-danger">{resolveError}</p>
           )}
         </Field>
 
