@@ -630,7 +630,7 @@ msgstr ""
 msgid "Current"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
 msgid "Custom duration in years"
 msgstr ""
 
@@ -774,7 +774,7 @@ msgstr ""
 msgid "Enter 6-digit code"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 msgid "Enter custom duration"
 msgstr ""
 
@@ -2325,7 +2325,7 @@ msgstr ""
 msgid "Wrong wallet connected"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
 msgstr ""
@@ -2347,7 +2347,7 @@ msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/MigrationModal.tsx:171
+#: src/features/migration/components/MigrationModal.tsx:172
 msgid "You have <0>{0}</0> names that are eligible for upgrade"
 msgstr ""
 

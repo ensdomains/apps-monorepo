@@ -190,6 +190,8 @@ export const DurationSelector = ({
       })}
 
       {/* Custom Duration Row */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: clicking focuses the input, keyboard users can tab directly to it */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: clicking focuses the input, keyboard users can tab directly to it */}
       <div
         className={cn(
           'group relative',

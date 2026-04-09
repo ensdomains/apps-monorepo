@@ -277,6 +277,7 @@ function sleep(ms: number): Promise<void> {
  * Send ETH to an address
  */
 async function sendEth(
+  // biome-ignore lint/suspicious/noExplicitAny: test utility with dynamic account type
   fromAccount: any,
   toAddress: `0x${string}`,
   amountEth: string,
@@ -304,6 +305,7 @@ async function sendEth(
  * Mint tokens to an address
  */
 async function mintTokens(
+  // biome-ignore lint/suspicious/noExplicitAny: test utility with dynamic account type
   fromAccount: any,
   tokenAddress: `0x${string}`,
   toAddress: `0x${string}`,
@@ -1044,6 +1046,7 @@ async function registerEnsDomain(
       }
     }
     try {
+      // biome-ignore lint/suspicious/noExplicitAny: accessing internal error context for debugging
       const ctx = (error as any)?._context
       if (ctx) {
         console.log('🔎 Orchestrator context id:', ctx.id)

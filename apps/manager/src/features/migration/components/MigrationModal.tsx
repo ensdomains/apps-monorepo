@@ -161,6 +161,7 @@ export const MigrationModal = () => {
 
           {/* CTA button */}
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: dismiss wrapper, button inside handles keyboard */}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: dismiss wrapper, button inside handles keyboard */}
           <div
             className="flex w-full max-w-[313px] flex-col items-start gap-2"
             onClick={dismiss}
