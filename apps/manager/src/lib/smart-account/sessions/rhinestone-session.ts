@@ -18,6 +18,7 @@ import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessio
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { normalizeSessionDetailsForEip712Signing } from '../utils'
 import type { RhinestoneStoredSession } from './types'
 import { SessionError } from './zerodev-session'
 
@@ -79,6 +80,8 @@ export function createRhinestoneSession(
       const sessionDetails =
         await rhinestoneAccount.experimental_getSessionDetails([sdkSession])
 
+      normalizeSessionDetailsForEip712Signing(sessionDetails)
+
       // 4. Sign enablement (one-time owner signature)
       const enableSignature =
         await rhinestoneAccount.experimental_signEnableSession(sessionDetails)
@@ -98,7 +101,8 @@ export function createRhinestoneSession(
           sessionToEnableIndex,
         )
         const enableTransaction = await rhinestoneAccount.sendTransaction({
-          chain,
+          sourceChains: [chain],
+          targetChain: chain,
           calls: [enableCall],
           sponsored: true,
         })

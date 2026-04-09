@@ -8,6 +8,7 @@ import type {
   TypedDataDefinition,
   WalletClient,
 } from 'viem'
+import { maxUint256 } from 'viem'
 
 /**
  * Error thrown when wallet client has no connected account
@@ -49,9 +50,16 @@ export function walletClientToAccount(walletClient: WalletClient): Account {
         typedData,
         primaryType
       >
+      const serializedTypedData: TypedDataDefinition<typedData, primaryType> = {
+        ...def,
+        message: convertBigIntsToStrings(def.message) as Record<
+          string,
+          unknown
+        >,
+      }
       const signature = (walletClient as any).signTypedData({
         account: address,
-        ...def,
+        ...serializedTypedData,
       })
       return signature
     },
@@ -142,6 +150,46 @@ export function wrapParaAccount(
   } as Account
 }
 
+const TWO_POW_256 = 2n ** 256n
+
+export function normalizeSessionDetailsForEip712Signing(sessionDetails: {
+  readonly nonces: readonly bigint[]
+  readonly hashesAndChainIds: readonly { chainId: bigint; sessionDigest: Hex }[]
+  readonly data: { message?: unknown }
+}): void {
+  const msg = sessionDetails.data.message
+  if (msg === null || msg === undefined || typeof msg !== 'object') {
+    return
+  }
+
+  const message = msg as {
+    sessionsAndChainIds?: Array<{
+      chainId?: unknown
+      session?: {
+        expires?: unknown
+        nonce?: unknown
+        [key: string]: unknown
+      }
+    }>
+  }
+
+  const rows = message.sessionsAndChainIds
+  if (!rows?.length) return
+
+  rows.forEach((row, i) => {
+    const digestRow = sessionDetails.hashesAndChainIds[i]
+    const nonceFromRpc = sessionDetails.nonces[i]
+
+    row.chainId = toChainSessionUint64(row.chainId, digestRow?.chainId)
+
+    const session = row.session
+    if (!session) return
+
+    session.expires = toSignedSessionExpires(session.expires)
+    session.nonce = toSignedSessionNonce(session.nonce, nonceFromRpc)
+  })
+}
+
 /**
  * Adjusts the v-byte in a signature from Para's 0/1 format to Ethereum's 27/28 format.
  * @internal
@@ -182,6 +230,47 @@ function convertBigIntsToStrings<T>(value: T): T {
     ) as T
   }
   return value
+}
+
+function toChainSessionUint64(
+  value: unknown,
+  fallback: bigint | undefined,
+): bigint {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'string') return BigInt(value)
+  if (typeof value === 'number' && Number.isSafeInteger(value)) {
+    return BigInt(value)
+  }
+  if (fallback !== undefined) return fallback
+  return 0n
+}
+
+function toSignedSessionExpires(value: unknown): bigint {
+  if (typeof value === 'bigint') {
+    if (value === TWO_POW_256) return maxUint256
+    return value
+  }
+  if (typeof value === 'string') return BigInt(value)
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) {
+      return maxUint256
+    }
+    return BigInt(value)
+  }
+  return maxUint256
+}
+
+function toSignedSessionNonce(
+  value: unknown,
+  fallback: bigint | undefined,
+): bigint {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'string') return BigInt(value)
+  if (typeof value === 'number' && Number.isSafeInteger(value)) {
+    return BigInt(value)
+  }
+  if (fallback !== undefined) return fallback
+  return 0n
 }
 
 export const getTxHashResult = (result: any) => {

@@ -13,16 +13,12 @@ import type {
   TransactionInfra,
 } from '@ens-apps/transaction-manager'
 import { createParaAccount } from '@getpara/viem-v2-integration'
-import {
-  type RhinestoneAccount,
-  RhinestoneSDK,
-  walletClientToAccount,
-  wrapParaAccount,
-} from '@rhinestone/sdk'
+import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import type { Account, Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient, SmartAccountType } from './types'
+import { walletClientToAccount, wrapParaAccount } from './utils'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia

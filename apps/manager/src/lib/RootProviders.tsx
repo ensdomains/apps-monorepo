@@ -144,6 +144,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 const SmartAccountSessionModal = () => {
   const {
     showSessionModal,
+    isCreatingSession,
     enableSession,
     dismissSession,
     accountAddress,
@@ -158,7 +159,7 @@ const SmartAccountSessionModal = () => {
           dismissSession()
         }
       }}
-      open={showSessionModal}
+      open={showSessionModal || isCreatingSession}
       smartAccountAddress={accountAddress ?? undefined}
       walletAddress={ownerAddress ?? undefined}
     />

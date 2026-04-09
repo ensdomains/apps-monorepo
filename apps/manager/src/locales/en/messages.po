@@ -192,7 +192,7 @@ msgstr "Address"
 msgid "Address profile"
 msgstr "Address profile"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:157
+#: src/features/wallet/components/EnableSessionModal.tsx:169
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 
@@ -227,6 +227,10 @@ msgstr "And more..."
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:82
 msgid "Approval allows registrar to charge"
 msgstr "Approval allows registrar to charge"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:157
+msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
+msgstr "Approve the signature in your wallet, then wait for on-chain confirmation."
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
@@ -699,13 +703,18 @@ msgstr "Email Verified!"
 msgid "Enable"
 msgstr "Enable"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:185
+#: src/features/wallet/components/EnableSessionModal.tsx:197
 msgid "Enable Sessions"
 msgstr "Enable Sessions"
 
 #: src/features/wallet/components/EnableSessionModal.tsx:91
 msgid "Enable Smart Sessions"
 msgstr "Enable Smart Sessions"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:154
+#: src/features/wallet/components/EnableSessionModal.tsx:193
+msgid "Enabling sessions…"
+msgstr "Enabling sessions…"
 
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
 msgid "ENS"
@@ -819,12 +828,12 @@ msgstr "Failed to authenticate with Telegram"
 msgid "Failed to enable session"
 msgstr "Failed to enable session"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:236
+#: src/lib/smart-account/SmartAccountContext.tsx:241
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:237
+#: src/lib/smart-account/SmartAccountContext.tsx:242
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
@@ -913,11 +922,11 @@ msgstr "Frequently Asked Questions"
 msgid "From:"
 msgstr "From:"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:205
+#: src/lib/smart-account/SmartAccountContext.tsx:210
 msgid "Funding wallet"
 msgstr "Funding wallet"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:206
+#: src/lib/smart-account/SmartAccountContext.tsx:211
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
@@ -1768,7 +1777,7 @@ msgstr "Sign Message"
 msgid "Sign once to enable gasless transactions for your ENS operations."
 msgstr "Sign once to enable gasless transactions for your ENS operations."
 
-#: src/features/wallet/components/EnableSessionModal.tsx:154
+#: src/features/wallet/components/EnableSessionModal.tsx:166
 msgid "Sign once to enable seamless transactions."
 msgstr "Sign once to enable seamless transactions."
 
@@ -1787,7 +1796,7 @@ msgid "Skip Anyway"
 msgstr "Skip Anyway"
 
 #: src/features/wallet/components/BackendAuthModal.tsx:116
-#: src/features/wallet/components/EnableSessionModal.tsx:195
+#: src/features/wallet/components/EnableSessionModal.tsx:207
 msgid "Skip for now"
 msgstr "Skip for now"
 
@@ -1937,7 +1946,7 @@ msgstr "This name is already registered or not available for registration."
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr "This page can only verify your email when opened from the link in the verification email."
 
-#: src/features/wallet/components/EnableSessionModal.tsx:204
+#: src/features/wallet/components/EnableSessionModal.tsx:216
 msgid "This signature is free and doesn't cost any gas."
 msgstr "This signature is free and doesn't cost any gas."
 
@@ -1990,7 +1999,7 @@ msgid "Transfer your name to any wallet"
 msgstr "Transfer your name to any wallet"
 
 #: src/features/notifications/settings/email-verify-step.tsx:148
-#: src/features/wallet/components/EnableSessionModal.tsx:183
+#: src/features/wallet/components/EnableSessionModal.tsx:195
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
 msgstr "Try Again"
@@ -2120,7 +2129,6 @@ msgid "Waiting for signature"
 msgstr "Waiting for signature"
 
 #: src/features/register/components/VerifyWalletModal.tsx:193
-#: src/features/wallet/components/EnableSessionModal.tsx:181
 msgid "Waiting for signature..."
 msgstr "Waiting for signature..."
 
@@ -2136,7 +2144,7 @@ msgstr "Waiting for transaction"
 msgid "Waiting period"
 msgstr "Waiting period"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:225
+#: src/lib/smart-account/SmartAccountContext.tsx:230
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
@@ -2152,7 +2160,7 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 msgid "Wallet Connected"
 msgstr "Wallet Connected"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:224
+#: src/lib/smart-account/SmartAccountContext.tsx:229
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 

@@ -7,6 +7,7 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import type { Address, Chain, Hex } from 'viem'
+import { maxUint256 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
@@ -19,6 +20,7 @@ vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
   })),
 }))
 
+import { normalizeSessionDetailsForEip712Signing } from '../utils'
 import {
   createRhinestoneSession,
   restoreRhinestoneSession,
@@ -169,6 +171,22 @@ describe('rhinestone-session', () => {
       )
     })
 
+    it('calls experimental_signEnableSession like rhinestone-browser-debug', async () => {
+      const mockAccount = createMockRhinestoneAccount()
+
+      await createRhinestoneSession({
+        ownerAddress: OWNER_ADDRESS,
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
+      })
+
+      expect(mockAccount.experimental_signEnableSession).toHaveBeenCalledTimes(
+        1,
+      )
+    })
+
     it('submits on-chain enable via experimental_enableSession + sendTransaction', async () => {
       const mockAccount = createMockRhinestoneAccount()
 
@@ -194,7 +212,8 @@ describe('rhinestone-session', () => {
       )
       expect(mockAccount.sendTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
-          chain: MOCK_CHAIN,
+          sourceChains: [MOCK_CHAIN],
+          targetChain: MOCK_CHAIN,
           sponsored: true,
           calls: expect.any(Array),
         }),
@@ -359,5 +378,45 @@ describe('rhinestone-session', () => {
       expect(result.isOk()).toBe(true)
       expect(result._unsafeUnwrap()).toBeUndefined()
     })
+  })
+})
+
+describe('normalizeSessionDetailsForEip712Signing', () => {
+  it('replaces unsafe JS number expires with maxUint256 (Para / float corruption)', () => {
+    const details = {
+      nonces: [9n],
+      hashesAndChainIds: [
+        { chainId: 11155111n, sessionDigest: '0xdigest' as Hex },
+      ],
+      data: {
+        message: {
+          sessionsAndChainIds: [
+            {
+              chainId: 11155111,
+              session: {
+                expires: 1.157920892373162e77 as number,
+                nonce: 9,
+              },
+            },
+          ],
+        },
+      },
+    }
+
+    normalizeSessionDetailsForEip712Signing(details)
+
+    const [row] = (
+      details.data.message as unknown as {
+        sessionsAndChainIds: Array<{
+          session: { expires: bigint; nonce: bigint }
+        }>
+      }
+    ).sessionsAndChainIds
+
+    expect(row).toBeDefined()
+    const sess = row!.session
+
+    expect(sess.expires).toBe(maxUint256)
+    expect(sess.nonce).toBe(9n)
   })
 })

@@ -100,7 +100,8 @@ export function submitWarpTransaction(
       }
 
       const transaction = await account.sendTransaction({
-        chain,
+        sourceChains: [chain],
+        targetChain: chain,
         calls,
         sponsored: sponsored ?? true,
         ...(sessionSigners ? { signers: sessionSigners } : {}),

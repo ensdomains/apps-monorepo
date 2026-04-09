@@ -197,7 +197,7 @@ msgstr ""
 msgid "Address profile"
 msgstr "Adressprofil"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:157
+#: src/features/wallet/components/EnableSessionModal.tsx:169
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
 
@@ -231,6 +231,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:82
 msgid "Approval allows registrar to charge"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:157
+msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
@@ -704,12 +708,17 @@ msgstr ""
 msgid "Enable"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:185
+#: src/features/wallet/components/EnableSessionModal.tsx:197
 msgid "Enable Sessions"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx:91
 msgid "Enable Smart Sessions"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:154
+#: src/features/wallet/components/EnableSessionModal.tsx:193
+msgid "Enabling sessions…"
 msgstr ""
 
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
@@ -824,12 +833,12 @@ msgstr ""
 msgid "Failed to enable session"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:236
+#: src/lib/smart-account/SmartAccountContext.tsx:241
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:237
+#: src/lib/smart-account/SmartAccountContext.tsx:242
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -918,11 +927,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:205
+#: src/lib/smart-account/SmartAccountContext.tsx:210
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:206
+#: src/lib/smart-account/SmartAccountContext.tsx:211
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -1773,7 +1782,7 @@ msgstr ""
 msgid "Sign once to enable gasless transactions for your ENS operations."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:154
+#: src/features/wallet/components/EnableSessionModal.tsx:166
 msgid "Sign once to enable seamless transactions."
 msgstr ""
 
@@ -1792,7 +1801,7 @@ msgid "Skip Anyway"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx:116
-#: src/features/wallet/components/EnableSessionModal.tsx:195
+#: src/features/wallet/components/EnableSessionModal.tsx:207
 msgid "Skip for now"
 msgstr ""
 
@@ -1942,7 +1951,7 @@ msgstr ""
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:204
+#: src/features/wallet/components/EnableSessionModal.tsx:216
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
@@ -1995,7 +2004,7 @@ msgid "Transfer your name to any wallet"
 msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:148
-#: src/features/wallet/components/EnableSessionModal.tsx:183
+#: src/features/wallet/components/EnableSessionModal.tsx:195
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
 msgstr ""
@@ -2125,7 +2134,6 @@ msgid "Waiting for signature"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:193
-#: src/features/wallet/components/EnableSessionModal.tsx:181
 msgid "Waiting for signature..."
 msgstr ""
 
@@ -2141,7 +2149,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:225
+#: src/lib/smart-account/SmartAccountContext.tsx:230
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2157,7 +2165,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:224
+#: src/lib/smart-account/SmartAccountContext.tsx:229
 msgid "Wallet funded successfully"
 msgstr ""
 

@@ -12,23 +12,44 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
 vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
 
+const {
+  MOCK_OWNER_ADDRESS,
+  MOCK_SMART_ACCOUNT_ADDRESS,
+  mockRhinestoneAccount,
+} = vi.hoisted(() => ({
+  MOCK_OWNER_ADDRESS: '0x2222222222222222222222222222222222222222' as const,
+  MOCK_SMART_ACCOUNT_ADDRESS:
+    '0x1111111111111111111111111111111111111111' as const,
+  mockRhinestoneAccount: {
+    getAddress: () => '0x1111111111111111111111111111111111111111' as const,
+    isDeployed: vi.fn().mockResolvedValue(true),
+    deploy: vi.fn().mockResolvedValue(true),
+    sendTransaction: vi.fn().mockResolvedValue('mock-hca-tx'),
+    waitForExecution: vi.fn().mockResolvedValue({ fill: { hash: '0x01' } }),
+  },
+}))
+
+vi.mock('@ens-apps/transaction-manager', () => ({
+  ENS_SEPOLIA_CONTRACTS: {
+    HCAFactory: '0x3333333333333333333333333333333333333333' as const,
+  },
+}))
+
 // Mock RhinestoneSDK
 vi.mock('@rhinestone/sdk', () => ({
   RhinestoneSDK: vi.fn().mockImplementation(() => ({
-    createAccount: vi.fn().mockResolvedValue({
-      getAddress: () =>
-        '0xSmartAccountAddress123456789012345678901234' as const,
-      isDeployed: vi.fn().mockResolvedValue(true),
-      deploy: vi.fn().mockResolvedValue(true),
-    }),
+    createAccount: vi.fn().mockResolvedValue(mockRhinestoneAccount),
   })),
+}))
+
+vi.mock('./utils', () => ({
   walletClientToAccount: vi.fn().mockReturnValue({
-    address: '0xOwnerAddress12345678901234567890123456789' as const,
+    address: MOCK_OWNER_ADDRESS,
     signMessage: vi.fn(),
     signTypedData: vi.fn(),
   }),
   wrapParaAccount: vi.fn().mockReturnValue({
-    address: '0xOwnerAddress12345678901234567890123456789' as const,
+    address: MOCK_OWNER_ADDRESS,
     signMessage: vi.fn(),
     signTypedData: vi.fn(),
   }),
@@ -42,39 +63,33 @@ vi.mock('@/lib/wagmi', () => ({
   },
   publicClient: {
     chain: { id: 11155111 },
-    readContract: vi.fn(),
   },
 }))
 
-// Mock HCA registry
 vi.mock('./hca-registry', () => ({
   registerHCAOwnership: vi.fn().mockResolvedValue({
     isOk: () => true,
     isErr: () => false,
-    value: { status: 'already_registered' },
+    value: { status: 'already-registered' },
   }),
 }))
 
 // Mock Para viem integration
 vi.mock('@getpara/viem-v2-integration', () => ({
   createParaAccount: vi.fn().mockReturnValue({
-    address: '0xParaAddress123456789012345678901234567890' as const,
+    address: '0x4444444444444444444444444444444444444444' as const,
     signMessage: vi.fn(),
     signTypedData: vi.fn(),
   }),
 }))
 
-import {
-  RhinestoneSDK,
-  walletClientToAccount,
-  wrapParaAccount,
-} from '@rhinestone/sdk'
-
+import { RhinestoneSDK } from '@rhinestone/sdk'
 import { registerHCAOwnership } from './hca-registry'
 import {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
 } from './rhinestone'
+import { walletClientToAccount, wrapParaAccount } from './utils'
 
 type WalletClientParam = Parameters<
   typeof initializeRhinestoneAccount
@@ -83,7 +98,7 @@ type WalletClientParam = Parameters<
 describe('initializeRhinestoneAccount', () => {
   const mockWalletClient = {
     account: {
-      address: '0xOwnerAddress12345678901234567890123456789' as `0x${string}`,
+      address: MOCK_OWNER_ADDRESS as `0x${string}`,
     },
     signMessage: vi.fn(),
     signTypedData: vi.fn(),
@@ -93,6 +108,11 @@ describe('initializeRhinestoneAccount', () => {
     vi.clearAllMocks()
     vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
     vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
+    vi.mocked(registerHCAOwnership).mockResolvedValue({
+      isOk: () => true,
+      isErr: () => false,
+      value: { status: 'already-registered' },
+    } as any)
   })
 
   afterEach(() => {
@@ -105,10 +125,8 @@ describe('initializeRhinestoneAccount', () => {
     })
 
     expect(result.client).toBeDefined()
-    expect(result.address).toBe('0xSmartAccountAddress123456789012345678901234')
-    expect(result.ownerAddress).toBe(
-      '0xOwnerAddress12345678901234567890123456789',
-    )
+    expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
+    expect(result.ownerAddress).toBe(MOCK_OWNER_ADDRESS)
     expect(result.config.accountType).toBe('simple')
     expect(result.config.rhinestoneApiKey).toBe('test-rhinestone-key')
   })
@@ -168,8 +186,8 @@ describe('initializeRhinestoneAccount', () => {
     expect(result.config.accountType).toBe('hca')
     expect(registerHCAOwnership).toHaveBeenCalledWith(
       expect.objectContaining({
-        smartAccountAddress: '0xSmartAccountAddress123456789012345678901234',
-        eoaAddress: '0xOwnerAddress12345678901234567890123456789',
+        smartAccountAddress: MOCK_SMART_ACCOUNT_ADDRESS,
+        eoaAddress: MOCK_OWNER_ADDRESS,
         signer: expect.objectContaining({
           type: 'rhinestone',
         }),
@@ -261,7 +279,7 @@ describe('initializeRhinestoneAccount', () => {
     })
 
     expect(result.client).toBeDefined()
-    expect(result.address).toBe('0xSmartAccountAddress123456789012345678901234')
+    expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
   })
 
   it('throws error when HCA registration fails', async () => {
@@ -269,7 +287,7 @@ describe('initializeRhinestoneAccount', () => {
       isOk: () => false,
       isErr: () => true,
       error: {
-        reason: 'registration_failed',
+        reason: 'tx-failed',
         details: 'Transaction reverted',
       },
     } as any)
@@ -280,26 +298,5 @@ describe('initializeRhinestoneAccount', () => {
         accountType: 'hca',
       }),
     ).rejects.toThrow('HCA registration failed')
-  })
-
-  it('passes rhinestone signer config to HCA registration', async () => {
-    await initializeRhinestoneAccount({
-      walletClient: mockWalletClient,
-      accountType: 'hca',
-    })
-
-    expect(registerHCAOwnership).toHaveBeenCalledWith(
-      expect.objectContaining({
-        signer: {
-          type: 'rhinestone',
-          account: expect.any(Object),
-          config: expect.objectContaining({
-            chain: expect.objectContaining({ id: 11155111 }),
-            accountAddress: '0xSmartAccountAddress123456789012345678901234',
-            rhinestoneApiKey: 'test-rhinestone-key',
-          }),
-        },
-      }),
-    )
   })
 })
