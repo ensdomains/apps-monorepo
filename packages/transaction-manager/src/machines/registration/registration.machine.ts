@@ -75,6 +75,7 @@ export type RegistrationEvent =
   | {
       type: 'START_REGISTRATION'
       name: string
+      /** Duration in seconds */
       duration: bigint
       token: 'USDC' | 'DAI'
       price: bigint
