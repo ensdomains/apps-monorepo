@@ -22,7 +22,7 @@ import {
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
 import {
-  getBaseRateUsdForLength,
+  getPricePerYearUsd,
   getPricingBreakdown,
 } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
@@ -30,7 +30,6 @@ import { getTransactionErrorInfo } from '@/features/registry/utils/transactionEr
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { getLabel } from '@/utils/token/getLabel'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
 type RegisterNameCheckoutSummaryProps = {
@@ -66,20 +65,7 @@ export const RegisterNameCheckoutSummary = ({
 
   const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
 
-  // Derive the oracle-fetched price per year for the pricing breakdown.
-  // When undefined (oracle still loading), price/subtotal/discount rows are hidden.
-  let pricePerYearUsd: number | undefined
-  if (oracleData) {
-    try {
-      const labelLength = getLabel(name).length
-      pricePerYearUsd = getBaseRateUsdForLength(
-        oracleData.baseRatesUsd,
-        labelLength,
-      )
-    } catch {
-      // not a valid label — rows stay hidden
-    }
-  }
+  const pricePerYearUsd = getPricePerYearUsd(oracleData, name)
 
   const premiumDecayConfig = oracleData?.premiumDecay
 

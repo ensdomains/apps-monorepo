@@ -12,12 +12,11 @@ import { formatDiscountPercentForDisplay } from '@/features/register/utils/regis
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import {
-  getBaseRateUsdForLength,
+  getPricePerYearUsd,
   getPricingBreakdown,
 } from '@/features/register/utils/registrationPricing'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import { getLabel } from '@/utils/token/getLabel'
 
 type RegistrationSuccessProps = {
   readonly domainName: string
@@ -38,18 +37,7 @@ export const RegistrationSuccess = ({
 
   const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
 
-  let pricePerYearUsd: number | undefined
-  if (oracleData) {
-    try {
-      const labelLength = getLabel(domainName).length
-      pricePerYearUsd = getBaseRateUsdForLength(
-        oracleData.baseRatesUsd,
-        labelLength,
-      )
-    } catch {
-      // not a valid label — discount text stays hidden
-    }
-  }
+  const pricePerYearUsd = getPricePerYearUsd(oracleData, domainName)
 
   const handleViewProfile = async () => {
     try {

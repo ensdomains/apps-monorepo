@@ -1,9 +1,11 @@
+import type { OracleParams } from '@/features/register/hooks/useOracleParams'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import {
   getPremiumLabel,
-  type PremiumLabelVariant,
+  type PremiumLabel,
 } from '@/features/register/utils/premium'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import { getLabel } from '@/utils/token/getLabel'
 
 /**
  * Returns the USD price per year for a label of the given length,
@@ -21,6 +23,23 @@ export function getBaseRateUsdForLength(
   return baseRatesUsd[idx] ?? 0
 }
 
+/**
+ * Returns the USD price per year for the given name using oracle base rates.
+ * Returns undefined when oracle data is unavailable or the name is invalid.
+ */
+export function getPricePerYearUsd(
+  oracleData: OracleParams | undefined,
+  name: string,
+): number | undefined {
+  if (!oracleData) return undefined
+  try {
+    const labelLength = getLabel(name).length
+    return getBaseRateUsdForLength(oracleData.baseRatesUsd, labelLength)
+  } catch {
+    return undefined
+  }
+}
+
 export type PricingBreakdown = {
   readonly pricePerYear: number
   readonly years: number
@@ -29,9 +48,7 @@ export type PricingBreakdown = {
   readonly discountAmount: number
   readonly discountPercent: number
   readonly discountLabel: string
-  readonly premiumLabel:
-    | { label: string; variant: PremiumLabelVariant }
-    | undefined
+  readonly premiumLabel: PremiumLabel | undefined
 }
 
 /**
@@ -78,13 +95,8 @@ export function getPricingBreakdown(
   const standardSubtotal = pricePerYearUsd * years
   const discountAmount = Math.max(0, standardSubtotal - actualPrice)
   const discountPercent =
-    standardSubtotal > 0
-      ? ((discountAmount / standardSubtotal) * 10000) / 100
-      : 0
-  const discountLabel =
-    years >= 2
-      ? `${Math.round(years)}+ year${Math.round(years) === 1 ? '' : 's'}`
-      : ''
+    standardSubtotal > 0 ? (discountAmount / standardSubtotal) * 100 : 0
+  const discountLabel = years >= 2 ? `${Math.floor(years)}+ years` : ''
 
   return {
     pricePerYear: pricePerYearUsd,
