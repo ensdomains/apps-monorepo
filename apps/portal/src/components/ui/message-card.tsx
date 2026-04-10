@@ -32,7 +32,9 @@ export type MessageCardVariant = NonNullable<
 export type MessageCardProps = {
   icon: React.ReactNode
   title: string
+  titleClassName?: string
   description: React.ReactNode
+  descriptionClassName?: string
   variant?: MessageCardVariant
   badge?: string
   actionButton?: {
@@ -49,7 +51,9 @@ export type MessageCardProps = {
 export function MessageCard({
   icon,
   title,
+  titleClassName,
   description,
+  descriptionClassName,
   variant = 'primary',
   badge,
   actionButton,
@@ -71,11 +75,19 @@ export function MessageCard({
           {icon}
         </div>
 
-        <h2 data-slot="title" className="text-2xl font-bold">
+        <h2
+          data-slot="title"
+          className={cn('text-2xl font-bold', titleClassName)}
+        >
           {title}
         </h2>
 
-        <div className="text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere">
+        <div
+          className={cn(
+            'text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere',
+            descriptionClassName,
+          )}
+        >
           {description}
         </div>
       </div>
