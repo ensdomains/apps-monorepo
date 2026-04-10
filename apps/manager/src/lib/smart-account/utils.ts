@@ -273,7 +273,25 @@ function toSignedSessionNonce(
   return 0n
 }
 
-export const getTxHashResult = (result: any) => {
+export const getTxHashResult = (result: unknown): Hex | null => {
+  if (result && typeof result === 'object') {
+    const obj = result as Record<string, unknown>
+    if ('fill' in obj && obj.fill && typeof obj.fill === 'object') {
+      const fill = obj.fill as Record<string, unknown>
+      if ('hash' in fill) {
+        return fill.hash as Hex
+      }
+    }
+    // legacy structure
+    if ('fillTransactionHash' in obj) {
+      return obj.fillTransactionHash as Hex
+    }
+    if ('transactionHash' in obj) {
+      return obj.transactionHash as Hex
+    }
+  }
+  return null
+}
   if (result && typeof result === 'object') {
     if ('fill' in result && result.fill && typeof result.fill === 'object') {
       if ('hash' in result.fill) {
