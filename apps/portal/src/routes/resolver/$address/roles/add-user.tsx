@@ -26,7 +26,7 @@ import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolve
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
-import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/resolver/$address/roles/add-user')({
   component: RouteComponent,
