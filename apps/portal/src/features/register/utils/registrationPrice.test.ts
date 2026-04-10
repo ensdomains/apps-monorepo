@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DAI_DECIMALS, USDC_DECIMALS } from '@/lib/constants/tokens'
 import {
   formatPriceDisplay,
-  formatTotalWithGas,
+  formatRegistrationTotal,
   isPriceResult,
 } from './registrationPrice'
 
@@ -80,45 +80,45 @@ describe('isPriceResult', () => {
   })
 })
 
-describe('formatTotalWithGas', () => {
-  it('adds gas and fees to base+premium and formats as USD', () => {
+describe('formatRegistrationTotal', () => {
+  it('formats base + premium as USD total', () => {
     const base = 5_000_000n // 5 USDC
     const premium = 0n
-    const result = formatTotalWithGas(base, premium, 0.1)
-    expect(result).toBe('$5.10')
+    const result = formatRegistrationTotal(base, premium)
+    expect(result).toBe('$5.00')
   })
 
-  it('uses ceil for base and premium to match formatPriceDisplay', () => {
-    const base = 410_000n // 0.41 USDC (displays as $1)
+  it('formats fractional amounts without rounding to whole dollars', () => {
+    const base = 3_840_001_000n // 3840.001 USDC
     const premium = 0n
-    const result = formatTotalWithGas(base, premium, 0.1)
-    expect(result).toBe('$1.10') // ceil(0.41) + ceil(0) + 0.10 = 1 + 0.10
+    const result = formatRegistrationTotal(base, premium)
+    expect(result).toBe('$3,840.00')
   })
 
   it('uses default decimals (USDC) when not specified', () => {
     const base = 10_000_000n
     const premium = 0n
-    const result = formatTotalWithGas(base, premium, 0.05)
-    expect(result).toBe('$10.05')
+    const result = formatRegistrationTotal(base, premium)
+    expect(result).toBe('$10.00')
   })
 
   it('accepts custom decimals for DAI', () => {
     const base = 5_000_000_000_000_000_000n // 5 DAI
     const premium = 0n
-    const result = formatTotalWithGas(base, premium, 0.1, DAI_DECIMALS)
-    expect(result).toBe('$5.10')
+    const result = formatRegistrationTotal(base, premium, DAI_DECIMALS)
+    expect(result).toBe('$5.00')
   })
 
-  it('handles zero gas and fees', () => {
+  it('handles base and premium', () => {
     const base = 5_000_000n
     const premium = 0n
-    const result = formatTotalWithGas(base, premium, 0)
+    const result = formatRegistrationTotal(base, premium)
     expect(result).toBe('$5.00')
   })
 
   it('handles zero base and premium', () => {
-    const result = formatTotalWithGas(0n, 0n, 0.1)
-    expect(result).toBe('$0.10')
+    const result = formatRegistrationTotal(0n, 0n)
+    expect(result).toBe('$0.00')
   })
 })
 
