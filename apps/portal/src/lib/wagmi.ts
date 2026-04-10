@@ -48,6 +48,11 @@ const DRPC_CHAIN_SLUGS: Record<number, string> = {
 }
 
 const getRpcUrl = (chain: Chain): string => {
+  // For Sepolia (and namechain-sepolia which shares the chain ID),
+  // prefer the override RPC URL so the app can target a local Anvil fork.
+  if (chain.id === sepolia.id && SEPOLIA_RPC_URL !== DEFAULT_SEPOLIA_RPC_URL) {
+    return SEPOLIA_RPC_URL
+  }
   const drpcKey = import.meta.env.VITE_PUBLIC_DRPC_API_KEY
   if (drpcKey) {
     const slug =
@@ -57,10 +62,6 @@ const getRpcUrl = (chain: Chain): string => {
   }
   return chain.rpcUrls.default.http[0]
 }
-
-/** Returns the RPC URL for a chain — uses VITE_SEPOLIA_RPC_URL for Sepolia, drpc for others. */
-const rpcUrl = (chain: Chain): string =>
-  chain.id === sepolia.id ? SEPOLIA_RPC_URL : drpc(chain)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,

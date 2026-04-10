@@ -129,8 +129,11 @@ export function createMakeName({ accounts, time }: Dependencies) {
     config: NameConfig,
     options: { timeOffset?: number } = {},
   ): Promise<string> {
-    const ownerAddress = accounts.getAddress('user')
-    const ownerAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    // Register with 'user2' so the connected wallet ('user') is NOT the
+    // previous owner. The StandardRentPriceOracle exempts the previous
+    // owner from the temporary premium.
+    const ownerAddress = accounts.getAddress('user2')
+    const ownerAccount = privateKeyToAccount(accounts.getPrivateKey('user2'))
     const timestamp = Math.floor(Date.now() / 1000)
     const uniqueLabel = `${config.label}-${timestamp}`
 
