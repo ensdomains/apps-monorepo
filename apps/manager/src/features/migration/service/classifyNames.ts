@@ -2,6 +2,7 @@ import type { Address } from 'viem'
 import type { V1Domain } from './v1SubgraphClient'
 
 export const FUSES = {
+  CAN_DO_EVERYTHING: 0,
   CANNOT_UNWRAP: 1,
   CANNOT_BURN_FUSES: 2,
   CANNOT_TRANSFER: 4,
@@ -19,6 +20,14 @@ export type MigrationTokenType =
   | 'unlocked'
   | 'locked-2ld'
   | 'locked-child'
+  | 'detached-child'
+
+export type IneligibleReason = 'unlocked-subname' | 'registry-only'
+
+export type IneligibleName = {
+  readonly domain: V1Domain
+  readonly reason: IneligibleReason
+}
 
 export type ClassifiedName = {
   readonly domain: V1Domain
@@ -38,10 +47,18 @@ export const is2LD = (name: ClassifiedName): boolean =>
   name.tokenType === 'unlocked' ||
   name.tokenType === 'locked-2ld'
 
+export const isChildName = (name: ClassifiedName): boolean =>
+  name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
+
+type ClassifyResult =
+  | { type: 'classified'; name: ClassifiedName }
+  | { type: 'ineligible'; name: IneligibleName }
+  | null
+
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
-): ClassifiedName | null => {
+): ClassifyResult => {
   const label = domain.labelName
   if (!label) return null
 
@@ -54,13 +71,16 @@ export const classifyName = (
     if (registrant?.id.toLowerCase() !== addr) return null
     if (parentName !== 'eth') return null
     return {
-      domain,
-      tokenType: 'unwrapped',
-      label,
-      parentName,
-      fuses: 0,
-      tokenHolder: registrant.id as Address,
-      v1ResolverAddress,
+      type: 'classified',
+      name: {
+        domain,
+        tokenType: 'unwrapped',
+        label,
+        parentName,
+        fuses: 0,
+        tokenHolder: registrant.id as Address,
+        v1ResolverAddress,
+      },
     }
   }
 
@@ -70,15 +90,44 @@ export const classifyName = (
   const wrappedHolder = domain.wrappedOwner.id as Address
 
   if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
-    if (parentName !== 'eth') return null
+    if (parentName !== 'eth') {
+      // Detached: emancipated (PARENT_CANNOT_CONTROL) but not locked, parent is locked
+      if (
+        hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
+        parentName &&
+        domain.parent?.wrappedDomain &&
+        hasFuse(domain.parent.wrappedDomain.fuses, FUSES.CANNOT_UNWRAP)
+      ) {
+        return {
+          type: 'classified',
+          name: {
+            domain,
+            tokenType: 'detached-child',
+            label,
+            parentName,
+            fuses,
+            tokenHolder: wrappedHolder,
+            v1ResolverAddress,
+          },
+        }
+      }
+      // Unlocked 3LD+ — not migratable, must register directly on ENSv2
+      return {
+        type: 'ineligible',
+        name: { domain, reason: 'unlocked-subname' },
+      }
+    }
     return {
-      domain,
-      tokenType: 'unlocked',
-      label,
-      parentName,
-      fuses,
-      tokenHolder: wrappedHolder,
-      v1ResolverAddress,
+      type: 'classified',
+      name: {
+        domain,
+        tokenType: 'unlocked',
+        label,
+        parentName,
+        fuses,
+        tokenHolder: wrappedHolder,
+        v1ResolverAddress,
+      },
     }
   }
 
@@ -87,48 +136,70 @@ export const classifyName = (
 
   if (parentName === 'eth') {
     return {
+      type: 'classified',
+      name: {
+        domain,
+        tokenType: 'locked-2ld',
+        label,
+        parentName,
+        fuses,
+        tokenHolder: wrappedHolder,
+        v1ResolverAddress,
+      },
+    }
+  }
+
+  return {
+    type: 'classified',
+    name: {
       domain,
-      tokenType: 'locked-2ld',
+      tokenType: 'locked-child',
       label,
       parentName,
       fuses,
       tokenHolder: wrappedHolder,
       v1ResolverAddress,
-    }
+    },
   }
+}
 
-  return {
-    domain,
-    tokenType: 'locked-child',
-    label,
-    parentName,
-    fuses,
-    tokenHolder: wrappedHolder,
-    v1ResolverAddress,
-  }
+export type ClassifyNamesResult = {
+  readonly classified: ClassifiedName[]
+  readonly ineligible: IneligibleName[]
 }
 
 export const classifyNames = (
   domains: V1Domain[],
   ownerAddress: Address,
-): ClassifiedName[] =>
-  domains.flatMap((domain) => {
-    const classified = classifyName(domain, ownerAddress)
-    return classified ? [classified] : []
-  })
+): ClassifyNamesResult => {
+  const classified: ClassifiedName[] = []
+  const ineligible: IneligibleName[] = []
+
+  for (const domain of domains) {
+    const result = classifyName(domain, ownerAddress)
+    if (!result) continue
+    if (result.type === 'classified') {
+      classified.push(result.name)
+    } else {
+      ineligible.push(result.name)
+    }
+  }
+
+  return { classified, ineligible }
+}
 
 export type GroupedNames = {
   readonly unwrapped: readonly ClassifiedName[]
   readonly unlocked: readonly ClassifiedName[]
   readonly locked2ld: readonly ClassifiedName[]
-  readonly lockedChildren: ReadonlyMap<string, readonly ClassifiedName[]>
+  readonly childNames: ReadonlyMap<string, readonly ClassifiedName[]>
 }
 
 export const groupClassifiedNames = (names: ClassifiedName[]): GroupedNames => {
   const unwrapped: ClassifiedName[] = []
   const unlocked: ClassifiedName[] = []
   const locked2ld: ClassifiedName[] = []
-  const lockedChildren = new Map<string, ClassifiedName[]>()
+  const childNames = new Map<string, ClassifiedName[]>()
 
   for (const name of names) {
     switch (name.tokenType) {
@@ -141,16 +212,17 @@ export const groupClassifiedNames = (names: ClassifiedName[]): GroupedNames => {
       case 'locked-2ld':
         locked2ld.push(name)
         break
-      case 'locked-child': {
+      case 'locked-child':
+      case 'detached-child': {
         const parent = name.parentName
         if (!parent) break
-        const existing = lockedChildren.get(parent) ?? []
+        const existing = childNames.get(parent) ?? []
         existing.push(name)
-        lockedChildren.set(parent, existing)
+        childNames.set(parent, existing)
         break
       }
     }
   }
 
-  return { unwrapped, unlocked, locked2ld, lockedChildren }
+  return { unwrapped, unlocked, locked2ld, childNames }
 }

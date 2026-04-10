@@ -7,6 +7,7 @@ import {
   type WrappedMigrationCall,
 } from './buildMigrationCalls'
 import type { ClassifiedName } from './classifyNames'
+import { decodeMigrationRevertReason } from './decodeMigrationError'
 import type { SkippedName } from './migrationService'
 
 export const isUserRejection = (error: unknown): boolean => {
@@ -21,12 +22,12 @@ export const isUserRejection = (error: unknown): boolean => {
   return false
 }
 
-export const signUnwrappedTx = async (params: {
+export const signUnwrappedTxs = async (params: {
   wagmiConfig: WagmiConfig
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
-}): Promise<Hex> => {
+}): Promise<{ hashes: Hex[]; skipped: SkippedName[] }> => {
   const { wagmiConfig, names, migrationOwner, defaultResolver } = params
 
   if (names.length === 1 && names[0]) {
@@ -35,13 +36,56 @@ export const signUnwrappedTx = async (params: {
       migrationOwner,
       defaultResolver,
     })
-    return writeContract(wagmiConfig, call.request)
+    try {
+      const hash = await writeContract(wagmiConfig, call.request)
+      return { hashes: [hash], skipped: [] }
+    } catch (error) {
+      if (isUserRejection(error)) throw error
+      return {
+        hashes: [],
+        skipped: [
+          {
+            name: names[0].domain.name,
+            reason: decodeMigrationRevertReason(error),
+          },
+        ],
+      }
+    }
   }
 
-  return writeContract(
-    wagmiConfig,
-    buildUnwrappedMulticall({ names, migrationOwner, defaultResolver }),
-  )
+  // Try batch via Multicall3 first
+  try {
+    const hash = await writeContract(
+      wagmiConfig,
+      buildUnwrappedMulticall({ names, migrationOwner, defaultResolver }),
+    )
+    return { hashes: [hash], skipped: [] }
+  } catch (error) {
+    if (isUserRejection(error)) throw error
+  }
+
+  // Fallback: sign individually
+  const hashes: Hex[] = []
+  const skipped: SkippedName[] = []
+  for (const name of names) {
+    const call = buildUnwrappedCall({
+      name,
+      migrationOwner,
+      defaultResolver,
+    })
+    try {
+      const hash = await writeContract(wagmiConfig, call.request)
+      hashes.push(hash)
+    } catch (error) {
+      if (isUserRejection(error)) throw error
+      skipped.push({
+        name: name.domain.name,
+        reason: decodeMigrationRevertReason(error),
+      })
+    }
+  }
+
+  return { hashes, skipped }
 }
 
 // Narrowing helper: writeContract requires a specific request type, not the WrappedMigrationCall union
@@ -80,7 +124,7 @@ export const signWrappedTxs = async (params: {
         skipped: [
           {
             name: names[0]?.domain.name ?? 'unknown',
-            reason: 'transfer-failed',
+            reason: decodeMigrationRevertReason(error),
           },
         ],
       }
@@ -102,7 +146,10 @@ export const signWrappedTxs = async (params: {
       hashes.push(hash)
     } catch (error) {
       if (isUserRejection(error)) throw error
-      skipped.push({ name: name.domain.name, reason: 'transfer-failed' })
+      skipped.push({
+        name: name.domain.name,
+        reason: decodeMigrationRevertReason(error),
+      })
     }
   }
 

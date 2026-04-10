@@ -62,10 +62,10 @@ const getMigrationTarget = (
       () => V2_CONTRACTS.UnlockedMigrationController,
     )
     .with('locked-2ld', () => V2_CONTRACTS.LockedMigrationController)
-    .with('locked-child', () => {
+    .with('locked-child', 'detached-child', () => {
       if (!parentWrapperRegistry) {
         throw new Error(
-          'Parent WrapperRegistry address required for locked child migration',
+          'Parent WrapperRegistry address required for child migration',
         )
       }
       return parentWrapperRegistry
@@ -86,6 +86,8 @@ const getResolverForName = (
       }
       return defaultResolver
     })
+    // Detached names are unwrapped to Graveyard — resolver is always cleared
+    .with('detached-child', () => defaultResolver)
     .otherwise(() => defaultResolver)
 
 export const buildUnwrappedCall = (params: {
@@ -196,7 +198,10 @@ export const buildWrappedCalls = (params: {
       migrationOwner,
       defaultResolver,
       parentWrapperRegistry:
-        names[0].tokenType === 'locked-child' ? target : undefined,
+        names[0].tokenType === 'locked-child' ||
+        names[0].tokenType === 'detached-child'
+          ? target
+          : undefined,
     })
   }
 

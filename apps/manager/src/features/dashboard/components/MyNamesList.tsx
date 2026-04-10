@@ -115,7 +115,7 @@ export const MyNamesList = ({
 
   const v1Names = useMemo(() => {
     if (!v1NamesRaw || !ownerAddress) return []
-    const classified = classifyNames(v1NamesRaw, ownerAddress as Address)
+    const { classified } = classifyNames(v1NamesRaw, ownerAddress as Address)
     if (!searchQuery) return classified
     const q = searchQuery.toLowerCase()
     return classified.filter(

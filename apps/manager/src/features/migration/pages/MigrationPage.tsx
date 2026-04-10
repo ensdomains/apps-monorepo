@@ -25,6 +25,21 @@ const SkipReasonLabel = ({ reason }: { reason: SkippedName['reason'] }) => {
       <Trans>Has a frozen approval that prevents migration</Trans>
     ),
     'transfer-failed': <Trans>Transfer reverted on-chain</Trans>,
+    'invalid-data': <Trans>Invalid migration data encoding</Trans>,
+    'name-data-mismatch': (
+      <Trans>Name data does not match the migration receiver</Trans>
+    ),
+    'name-is-locked': (
+      <Trans>Name is locked and was sent to the wrong controller</Trans>
+    ),
+    'name-not-locked': (
+      <Trans>
+        Name is not locked/emancipated and cannot use this controller
+      </Trans>
+    ),
+    'frozen-token-approval': (
+      <Trans>Has an irrevocable approval that blocks migration</Trans>
+    ),
   }
   return <>{labels[reason]}</>
 }

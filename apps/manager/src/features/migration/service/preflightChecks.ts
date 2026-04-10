@@ -176,7 +176,10 @@ export const runPreFlightChecks = async (
 const getParentLabels = (name: ClassifiedName): string[] =>
   name.domain.name.split('.').slice(1, -1).reverse()
 
-export const resolveParentRegistries = async (
+const PARENT_REGISTRY_RETRIES = 3
+const PARENT_REGISTRY_RETRY_DELAY = 4000
+
+const resolveParentRegistriesOnce = async (
   publicClient: PublicClient,
   lockedChildren: ReadonlyMap<string, readonly ClassifiedName[]>,
 ): Promise<Map<string, Address>> => {
@@ -246,4 +249,36 @@ export const resolveParentRegistries = async (
   }
 
   return registries
+}
+
+export const resolveParentRegistries = async (
+  publicClient: PublicClient,
+  childNames: ReadonlyMap<string, readonly ClassifiedName[]>,
+): Promise<Map<string, Address>> => {
+  for (let attempt = 0; attempt <= PARENT_REGISTRY_RETRIES; attempt++) {
+    const registries = await resolveParentRegistriesOnce(
+      publicClient,
+      childNames,
+    )
+
+    // Check if any parents are unresolved
+    const unresolved = [...registries.entries()].filter(
+      ([, addr]) => addr === zeroAddress,
+    )
+
+    if (unresolved.length === 0 || attempt === PARENT_REGISTRY_RETRIES) {
+      return registries
+    }
+
+    // Retry only unresolved parents after a delay
+    console.warn(
+      `[migration] ${unresolved.length} parent registries unresolved, retrying in ${PARENT_REGISTRY_RETRY_DELAY}ms (attempt ${attempt + 1}/${PARENT_REGISTRY_RETRIES})`,
+    )
+    await new Promise((resolve) =>
+      setTimeout(resolve, PARENT_REGISTRY_RETRY_DELAY),
+    )
+  }
+
+  // Unreachable but satisfies TS
+  return resolveParentRegistriesOnce(publicClient, childNames)
 }

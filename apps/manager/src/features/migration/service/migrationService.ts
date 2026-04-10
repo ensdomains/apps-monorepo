@@ -7,6 +7,15 @@ import {
 import type { Address, Hex, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
 import { V2_CONTRACTS } from '../contracts/addresses'
+
+const TX_RECEIPT_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+
+const waitForReceipt = (wagmiConfig: WagmiConfig, hash: Hex) =>
+  waitForTransactionReceipt(wagmiConfig, {
+    hash,
+    timeout: TX_RECEIPT_TIMEOUT_MS,
+  })
+
 import {
   buildPreMigrateCall,
   buildPreMigrateMulticall,
@@ -17,6 +26,7 @@ import {
   classifyNames,
   type GroupedNames,
   groupClassifiedNames,
+  type IneligibleName,
   is2LD,
 } from './classifyNames'
 import {
@@ -28,7 +38,7 @@ import {
 } from './preflightChecks'
 import {
   isUserRejection,
-  signUnwrappedTx,
+  signUnwrappedTxs,
   signWrappedTxs,
 } from './signTransactions'
 import type { V1Domain } from './v1SubgraphClient'
@@ -51,15 +61,26 @@ export type MigrationProgress = {
   readonly txHash?: Hex
 }
 
+export type SkipReason =
+  | 'not-premigrated'
+  | 'frozen-approval'
+  | 'transfer-failed'
+  | 'invalid-data'
+  | 'name-data-mismatch'
+  | 'name-is-locked'
+  | 'name-not-locked'
+  | 'frozen-token-approval'
+
 export type SkippedName = {
   readonly name: string
-  readonly reason: 'not-premigrated' | 'frozen-approval' | 'transfer-failed'
+  readonly reason: SkipReason
 }
 
 export type MigrationResult = {
   readonly completed: number
   readonly txHashes: readonly Hex[]
   readonly skipped: readonly SkippedName[]
+  readonly ineligible: readonly IneligibleName[]
 }
 
 const has2LDNames = (groups: GroupedNames): boolean =>
@@ -74,7 +95,7 @@ const countSteps = (
   let count = 0
   if (includePreMigrate) count++
   if (has2LDNames(groups)) count++
-  count += groups.lockedChildren.size
+  count += groups.childNames.size
   return count
 }
 
@@ -95,9 +116,9 @@ export const executeMigration = async (params: {
     onProgress,
   } = params
 
-  const classified = classifyNames(domains, migrationOwner)
+  const { classified, ineligible } = classifyNames(domains, migrationOwner)
   if (classified.length === 0) {
-    return { completed: 0, txHashes: [], skipped: [] }
+    return { completed: 0, txHashes: [], skipped: [], ineligible }
   }
 
   const preflight: PreFlightResult = ENABLE_PRE_MIGRATE
@@ -184,7 +205,7 @@ export const executeMigration = async (params: {
           description: 'Reserving your names on ENS v2!',
           txHash: hash,
         })
-        await waitForTransactionReceipt(wagmiConfig, { hash })
+        await waitForReceipt(wagmiConfig, hash)
         txHashes.push(hash)
       } catch (error) {
         if (isUserRejection(error)) {
@@ -223,15 +244,13 @@ export const executeMigration = async (params: {
       {
         names: groups.unwrapped,
         step: 'Unwrapped names',
-        sign: async () => {
-          const hash = await signUnwrappedTx({
+        sign: () =>
+          signUnwrappedTxs({
             wagmiConfig,
             names: groups.unwrapped,
             migrationOwner,
             defaultResolver,
-          })
-          return { hashes: [hash], skipped: [] as SkippedName[] }
-        },
+          }),
       },
       {
         names: groups.unlocked,
@@ -279,9 +298,7 @@ export const executeMigration = async (params: {
       })
 
       await Promise.all(
-        pendingHashes.map((hash) =>
-          waitForTransactionReceipt(wagmiConfig, { hash }),
-        ),
+        pendingHashes.map((hash) => waitForReceipt(wagmiConfig, hash)),
       )
       txHashes.push(...pendingHashes)
     }
@@ -305,13 +322,13 @@ export const executeMigration = async (params: {
     })
   }
 
-  // ── Steps: Locked children (resolve all parent registries in one batch, then sign per parent) ──
+  // ── Steps: Child names (resolve all parent registries in one batch, then sign per parent) ──
   const parentRegistries =
-    groups.lockedChildren.size > 0
-      ? await resolveParentRegistries(publicClient, groups.lockedChildren)
+    groups.childNames.size > 0
+      ? await resolveParentRegistries(publicClient, groups.childNames)
       : new Map<string, Address>()
 
-  for (const [parentName, children] of groups.lockedChildren) {
+  for (const [parentName, children] of groups.childNames) {
     onProgress({
       currentStep: stepIndex,
       totalSteps,
@@ -348,9 +365,7 @@ export const executeMigration = async (params: {
         })
 
         await Promise.all(
-          result.hashes.map((hash) =>
-            waitForTransactionReceipt(wagmiConfig, { hash }),
-          ),
+          result.hashes.map((hash) => waitForReceipt(wagmiConfig, hash)),
         )
         txHashes.push(...result.hashes)
       }
@@ -379,6 +394,7 @@ export const executeMigration = async (params: {
     completed: validNames.length - (skipped.length - preflightSkipped.length),
     txHashes,
     skipped,
+    ineligible,
   }
 }
 
@@ -390,8 +406,12 @@ export type MigrationStepDescriptor =
 export const getMigrationStepInfo = (
   domains: V1Domain[],
   ownerAddress: Address,
-): { stepCount: number; stepDescriptors: MigrationStepDescriptor[] } => {
-  const classified = classifyNames(domains, ownerAddress)
+): {
+  stepCount: number
+  stepDescriptors: MigrationStepDescriptor[]
+  ineligible: IneligibleName[]
+} => {
+  const { classified, ineligible } = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
   const descriptors: MigrationStepDescriptor[] = []
 
@@ -408,7 +428,7 @@ export const getMigrationStepInfo = (
     descriptors.push({ type: 'migrate', count })
   }
 
-  for (const [parentName, children] of groups.lockedChildren) {
+  for (const [parentName, children] of groups.childNames) {
     descriptors.push({
       type: 'migrate-subnames',
       count: children.length,
@@ -419,5 +439,6 @@ export const getMigrationStepInfo = (
   return {
     stepCount: countSteps(groups, ENABLE_PRE_MIGRATE),
     stepDescriptors: descriptors,
+    ineligible,
   }
 }
