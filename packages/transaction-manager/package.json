@@ -6,6 +6,7 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
+    "./abis/*": "./src/contracts/abis/*",
     "./*": "./src/*.ts"
   },
   "scripts": {

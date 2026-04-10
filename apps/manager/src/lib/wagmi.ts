@@ -23,6 +23,9 @@ export const sepoliaWithEns = extendChainWithEns(customSepolia)
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
   transport: http(SEPOLIA_RPC_URL),
+  batch: {
+    multicall: true,
+  },
 })
 
 export const wagmiConfig = createConfig({
