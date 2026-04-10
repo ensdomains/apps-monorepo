@@ -7,15 +7,6 @@ import {
 import type { Address, Hex, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
 import { V2_CONTRACTS } from '../contracts/addresses'
-
-const TX_RECEIPT_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
-
-const waitForReceipt = (wagmiConfig: WagmiConfig, hash: Hex) =>
-  waitForTransactionReceipt(wagmiConfig, {
-    hash,
-    timeout: TX_RECEIPT_TIMEOUT_MS,
-  })
-
 import {
   buildPreMigrateCall,
   buildPreMigrateMulticall,
@@ -42,6 +33,8 @@ import {
   signWrappedTxs,
 } from './signTransactions'
 import type { V1Domain } from './v1SubgraphClient'
+
+const TX_RECEIPT_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
 export class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -205,7 +198,10 @@ export const executeMigration = async (params: {
           description: 'Reserving your names on ENS v2!',
           txHash: hash,
         })
-        await waitForReceipt(wagmiConfig, hash)
+        await waitForTransactionReceipt(wagmiConfig, {
+          hash,
+          timeout: TX_RECEIPT_TIMEOUT_MS,
+        })
         txHashes.push(hash)
       } catch (error) {
         if (isUserRejection(error)) {
@@ -298,7 +294,12 @@ export const executeMigration = async (params: {
       })
 
       await Promise.all(
-        pendingHashes.map((hash) => waitForReceipt(wagmiConfig, hash)),
+        pendingHashes.map((hash) =>
+          waitForTransactionReceipt(wagmiConfig, {
+            hash,
+            timeout: TX_RECEIPT_TIMEOUT_MS,
+          }),
+        ),
       )
       txHashes.push(...pendingHashes)
     }
@@ -365,7 +366,12 @@ export const executeMigration = async (params: {
         })
 
         await Promise.all(
-          result.hashes.map((hash) => waitForReceipt(wagmiConfig, hash)),
+          result.hashes.map((hash) =>
+            waitForTransactionReceipt(wagmiConfig, {
+              hash,
+              timeout: TX_RECEIPT_TIMEOUT_MS,
+            }),
+          ),
         )
         txHashes.push(...result.hashes)
       }
