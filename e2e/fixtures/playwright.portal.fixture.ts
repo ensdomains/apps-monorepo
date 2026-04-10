@@ -18,6 +18,8 @@ import {
   connectWithHeadlessWallet,
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
+import { createMakeName } from './makeName.js'
+import { createTime, type Time } from './time.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
 // The headless provider's internal walletClient uses this RPC URL
@@ -90,6 +92,10 @@ type PortalFixtures = {
   accounts: PortalAccounts
   /** Page with the headless wallet already injected (but NOT connected). */
   portalPage: Page
+  /** Time fixture for syncing anvil block time with the browser clock. */
+  time: Time
+  /** Register names on the anvil fork (supports expired / premium states). */
+  makeName: ReturnType<typeof createMakeName>
 }
 
 export const test = base.extend<PortalFixtures>({
@@ -117,6 +123,14 @@ export const test = base.extend<PortalFixtures>({
       page.waitForTimeout(5_000),
     ]).catch(() => { })
     await use(page)
+  },
+
+  time: async ({ page }, use) => {
+    await use(createTime({ page }))
+  },
+
+  makeName: async ({ accounts, time }, use) => {
+    await use(createMakeName({ accounts, time }))
   },
 })
 

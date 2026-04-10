@@ -141,8 +141,6 @@ const machineSetup = setup({
 
       queryClient.invalidateQueries({
         queryKey: $qk({
-          $scope: 'profile',
-          $action: 'reverse_name',
           name: `${name}.eth`,
         }),
       })

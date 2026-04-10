@@ -878,12 +878,12 @@ msgstr ""
 msgid "Failed to enable session"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:232
+#: src/lib/smart-account/SmartAccountContext.tsx:233
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:233
+#: src/lib/smart-account/SmartAccountContext.tsx:234
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -975,11 +975,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:201
+#: src/lib/smart-account/SmartAccountContext.tsx:202
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:202
+#: src/lib/smart-account/SmartAccountContext.tsx:203
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -2365,7 +2365,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:221
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2381,7 +2381,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:220
+#: src/lib/smart-account/SmartAccountContext.tsx:221
 msgid "Wallet funded successfully"
 msgstr ""
 

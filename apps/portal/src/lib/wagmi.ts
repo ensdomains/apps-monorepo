@@ -47,15 +47,21 @@ const DRPC_CHAIN_SLUGS: Record<number, string> = {
   534351: 'scroll-sepolia',
 }
 
-const drpc = (chain: Chain) => {
-  const slug =
-    DRPC_CHAIN_SLUGS[chain.id] ?? chain.name.toLowerCase().replace(/\s+/g, '-')
-  return `https://lb.drpc.live/${slug}/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j`
+const getRpcUrl = (chain: Chain): string => {
+  // For Sepolia (and namechain-sepolia which shares the chain ID),
+  // prefer the override RPC URL so the app can target a local Anvil fork.
+  if (chain.id === sepolia.id && SEPOLIA_RPC_URL !== DEFAULT_SEPOLIA_RPC_URL) {
+    return SEPOLIA_RPC_URL
+  }
+  const drpcKey = import.meta.env.VITE_PUBLIC_DRPC_API_KEY
+  if (drpcKey) {
+    const slug =
+      DRPC_CHAIN_SLUGS[chain.id] ??
+      chain.name.toLowerCase().replace(/\s+/g, '-')
+    return `https://lb.drpc.live/${slug}/${drpcKey}`
+  }
+  return chain.rpcUrls.default.http[0]
 }
-
-/** Returns the RPC URL for a chain — uses VITE_SEPOLIA_RPC_URL for Sepolia, drpc for others. */
-const rpcUrl = (chain: Chain): string =>
-  chain.id === sepolia.id ? SEPOLIA_RPC_URL : drpc(chain)
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -82,7 +88,7 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(rpcUrl(chain), {
+      transport: http(getRpcUrl(chain), {
         batch: {
           wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
         },
