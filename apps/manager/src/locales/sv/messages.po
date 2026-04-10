@@ -222,7 +222,6 @@ msgid "All Notifications"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:115
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:135
 msgid "Almost complete"
 msgstr ""
 
@@ -234,7 +233,7 @@ msgstr ""
 msgid "An error occurred"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:200
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:180
 msgid "An error occurred during registration. Please try again."
 msgstr ""
 
@@ -250,10 +249,6 @@ msgstr ""
 msgid "Approval allows registrar to charge"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:102
-msgid "Approve and register are batched in one intent"
-msgstr ""
-
 #: src/features/wallet/components/EnableSessionModal.tsx:157
 msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
 msgstr ""
@@ -262,12 +257,16 @@ msgstr ""
 msgid "Approving"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Approving payment token"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:80
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:102
 msgid "Approving the payment token"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:80
+msgid "Approving the token and registering your name"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:283
@@ -537,10 +536,6 @@ msgstr ""
 msgid "Confirming commitment"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
-msgid "Confirming registration"
-msgstr ""
-
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 msgid "Connect"
 msgstr ""
@@ -630,7 +625,7 @@ msgstr ""
 msgid "Create Profile"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:126
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:106
 msgid "Create unlimited subdomains for free"
 msgstr ""
 
@@ -795,7 +790,6 @@ msgid "ENS Labs Updates"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:42
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:106
 msgid "ENS names are stored on-chain as NFTs"
 msgstr ""
 
@@ -973,7 +967,7 @@ msgstr "Favoriter"
 msgid "Favourited Name Expiry"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:125
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
 msgid "Finalizing registration"
 msgstr ""
 
@@ -1063,8 +1057,7 @@ msgstr "Hur kan jag säkra mitt ENS-namn?"
 msgid "How do I show my .eth name instead of my address?"
 msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:132
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:112
 msgid "Human-readable addresses for wallets"
 msgstr ""
 
@@ -1153,7 +1146,7 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 #: src/features/notifications/inbox/list.tsx:46
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:63
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:73
 msgid "Loading..."
 msgstr "Laddar..."
 
@@ -1174,7 +1167,7 @@ msgstr ""
 msgid "Make sure you have a wallet extension installed"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:150
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:130
 msgid "Makes crypto addresses human-readable"
 msgstr ""
 
@@ -1244,11 +1237,11 @@ msgid "Name on card"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:41
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:149
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:129
 msgid "Name registering"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:122
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:102
 msgid "Names are permanent, only expire if not renewed"
 msgstr ""
 
@@ -1527,7 +1520,7 @@ msgstr ""
 msgid "Protect your name with autorenewal"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:136
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
 msgid "Receive crypto from any chain"
 msgstr ""
 
@@ -1565,7 +1558,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:103
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:51
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:121
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
 msgid "Registering"
 msgstr ""
 
@@ -1577,14 +1570,14 @@ msgstr ""
 msgid "Registering for <0>{durationYears}</0> years"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:99
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:122
 msgid "Registration complete"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationCompletionBanner.tsx:13
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:141
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:212
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:121
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:192
 msgid "Registration Complete!"
 msgstr ""
 
@@ -1593,13 +1586,13 @@ msgstr ""
 msgid "Registration Details"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:126
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:127
 msgid "Registration failed"
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx:23
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:230
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:210
 msgid "Registration Failed"
 msgstr ""
 
@@ -1608,8 +1601,8 @@ msgstr ""
 msgid "Registration Fee"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:110
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:131
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:132
 msgid "Registration in progress"
 msgstr ""
 
@@ -2022,15 +2015,19 @@ msgstr ""
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
+msgid "Submitting approval and registration"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:56
 msgid "Submitting commitment transaction"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
-msgid "Submitting payment & registration"
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+msgid "Submitting registration bundle"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:89
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:111
 msgid "Submitting registration transaction"
 msgstr ""
 
@@ -2038,7 +2035,7 @@ msgstr ""
 msgid "Submitting the commitment transaction"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:90
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
 msgid "Submitting the registration transaction"
 msgstr ""
 
@@ -2320,7 +2317,7 @@ msgstr "Visa profil"
 msgid "Waiting for approval"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:84
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:106
 msgid "Waiting for approval confirmation"
 msgstr ""
 
@@ -2336,11 +2333,13 @@ msgstr ""
 msgid "Waiting for commitment submission"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:131
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
 msgid "Waiting for registration"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:94
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:91
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
 msgid "Waiting for registration confirmation"
 msgstr ""
 
@@ -2353,7 +2352,6 @@ msgid "Waiting for resolver submission"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:55
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
 msgid "Waiting for signature"
 msgstr ""
 
@@ -2361,7 +2359,7 @@ msgstr ""
 msgid "Waiting for signature..."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:85
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:107
 msgid "Waiting for the approval confirmation"
 msgstr ""
 
@@ -2369,8 +2367,13 @@ msgstr ""
 msgid "Waiting for the commitment confirmation"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:95
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
 msgid "Waiting for the registration confirmation"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:92
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:97
+msgid "Waiting for the registration transaction"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:46
@@ -2517,11 +2520,11 @@ msgid "Your email has been verified successfully!"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationCompletionBanner.tsx:16
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:215
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:195
 msgid "Your ENS domain has been successfully registered and is now active."
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:142
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:122
 msgid "Your ENS domain is now active"
 msgstr ""
 
@@ -2545,15 +2548,11 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:112
-msgid "Your name will be active once the intent completes"
-msgstr ""
-
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:38
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:45
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 

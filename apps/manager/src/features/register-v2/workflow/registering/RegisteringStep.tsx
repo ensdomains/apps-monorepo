@@ -27,8 +27,15 @@ export const RegisteringStep = () => {
   const txState = useRegistrationTxState(registeringTx)
   const stageMessages = getRegistrationStageMessages(registeringTx, txState)
 
+  /** Child machine success must win even if UI actor has not raised `transaction.success` yet */
+  const isRegistrationComplete =
+    registeringTx.value === 'success' || uiStage?.transaction === 'success'
+
   useBlocker({
     shouldBlockFn: () => {
+      if (isRegistrationComplete) {
+        return false
+      }
       if (uiStage?.transaction !== 'pending') {
         return false
       }
@@ -46,23 +53,30 @@ export const RegisteringStep = () => {
   return (
     <div className="h-full space-y-6 pb-4 max-md:bg-white md:space-y-4 md:pt-5">
       <div className="mx-auto max-w-6xl pt-3 md:w-full-[32px]">
-        {match(uiStage?.transaction)
-          .with('pending', () => (
-            <RegistrationProgressBar
-              description={
-                stageMessages.stageDescription
-                  ? _(stageMessages.stageDescription)
-                  : undefined
-              }
-              label={_(stageMessages.stageLabel)}
-              progress={stageMessages.progress}
-            />
-          ))
-          .with('success', () => <RegistrationCompletionBanner />)
-          .with(undefined, () => (
-            <RegistrationProgressBar label={_(msg`Loading...`)} progress={0} />
-          ))
-          .exhaustive()}
+        {isRegistrationComplete ? (
+          <RegistrationCompletionBanner />
+        ) : (
+          match(uiStage?.transaction)
+            .with('pending', () => (
+              <RegistrationProgressBar
+                description={
+                  stageMessages.stageDescription
+                    ? _(stageMessages.stageDescription)
+                    : undefined
+                }
+                label={_(stageMessages.stageLabel)}
+                progress={stageMessages.progress}
+              />
+            ))
+            .with('success', () => <RegistrationCompletionBanner />)
+            .with(undefined, () => (
+              <RegistrationProgressBar
+                label={_(msg`Loading...`)}
+                progress={0}
+              />
+            ))
+            .exhaustive()
+        )}
       </div>
       <div className="mx-auto w-full-[32px] max-w-6xl space-y-6.5">
         {match(uiStage)
