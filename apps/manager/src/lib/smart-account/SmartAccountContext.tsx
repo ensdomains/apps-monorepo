@@ -12,7 +12,6 @@ import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
 import type { KernelAccountClient } from '@zerodev/sdk'
-
 import {
   createContext,
   type ReactNode,
@@ -26,6 +25,7 @@ import { toast } from 'sonner'
 import type { Address, Hex, WalletClient } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { useWalletClient } from 'wagmi'
+import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import type { RhinestoneConfig } from './rhinestone'
@@ -95,12 +95,7 @@ function useWalletConnectionSync(
   wagmiWalletClient: WalletClient | undefined,
   paraClient: ReturnType<typeof useParaClient>,
   snapshotValue: string,
-  send: (event: {
-    type: string
-    walletSource?: string
-    walletClient?: WalletClient
-    paraClient?: ReturnType<typeof useParaClient>
-  }) => void,
+  send: (event: EventFromLogic<typeof smartAccountMachine>) => void,
 ) {
   const connectedKeyRef = useRef<string | null>(null)
 
@@ -221,7 +216,7 @@ export const SmartAccountContextProvider = ({
       }
       return response.json()
     },
-    onSuccess: (data, address, _, context) => {
+    onSuccess: (data, address) => {
       if (!data || !data.txHash) {
         toast.dismiss(`fund-wallet-${address}`)
         return

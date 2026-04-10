@@ -216,6 +216,7 @@ msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't
 msgid "All Notifications"
 msgstr "All Notifications"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:115
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:135
 msgid "Almost complete"
 msgstr "Almost complete"
@@ -243,6 +244,10 @@ msgstr "And more..."
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:82
 msgid "Approval allows registrar to charge"
 msgstr "Approval allows registrar to charge"
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:102
+msgid "Approve and register are batched in one intent"
+msgstr "Approve and register are batched in one intent"
 
 #: src/features/wallet/components/EnableSessionModal.tsx:157
 msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
@@ -527,6 +532,10 @@ msgstr "Confirming approval"
 msgid "Confirming commitment"
 msgstr "Confirming commitment"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:111
+msgid "Confirming registration"
+msgstr "Confirming registration"
+
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 msgid "Connect"
 msgstr "Connect"
@@ -781,6 +790,7 @@ msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:42
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:106
 msgid "ENS names are stored on-chain as NFTs"
 msgstr "ENS names are stored on-chain as NFTs"
 
@@ -882,12 +892,12 @@ msgstr "Failed to authenticate with Telegram"
 msgid "Failed to enable session"
 msgstr "Failed to enable session"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:241
+#: src/lib/smart-account/SmartAccountContext.tsx:237
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:242
+#: src/lib/smart-account/SmartAccountContext.tsx:238
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
@@ -979,11 +989,11 @@ msgstr "Frequently Asked Questions"
 msgid "From:"
 msgstr "From:"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:210
+#: src/lib/smart-account/SmartAccountContext.tsx:206
 msgid "Funding wallet"
 msgstr "Funding wallet"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:211
+#: src/lib/smart-account/SmartAccountContext.tsx:207
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
@@ -1048,6 +1058,7 @@ msgstr "How can I secure my ENS name?"
 msgid "How do I show my .eth name instead of my address?"
 msgstr "How do I show my .eth name instead of my address?"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:132
 msgid "Human-readable addresses for wallets"
 msgstr "Human-readable addresses for wallets"
@@ -2010,6 +2021,10 @@ msgstr "Start typing to check if your perfect name is available"
 msgid "Submitting commitment transaction"
 msgstr "Submitting commitment transaction"
 
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
+msgid "Submitting payment & registration"
+msgstr "Submitting payment & registration"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:89
 msgid "Submitting registration transaction"
 msgstr "Submitting registration transaction"
@@ -2333,6 +2348,7 @@ msgid "Waiting for resolver submission"
 msgstr "Waiting for resolver submission"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:55
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
 msgid "Waiting for signature"
 msgstr "Waiting for signature"
 
@@ -2368,7 +2384,7 @@ msgstr "Waiting for transaction"
 msgid "Waiting period"
 msgstr "Waiting period"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:230
+#: src/lib/smart-account/SmartAccountContext.tsx:226
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
@@ -2384,7 +2400,7 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 msgid "Wallet Connected"
 msgstr "Wallet Connected"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:229
+#: src/lib/smart-account/SmartAccountContext.tsx:225
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 
@@ -2523,6 +2539,10 @@ msgstr "Your ENS name works across web3"
 #: src/features/landing/FeaturesCarousel.tsx:33
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
+
+#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:112
+msgid "Your name will be active once the intent completes"
+msgstr "Your name will be active once the intent completes"
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."

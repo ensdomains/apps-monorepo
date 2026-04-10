@@ -98,22 +98,22 @@ const stateMessages: Record<string, StateMessage[]> = {
   ],
   submittingRhinestoneBundle: [
     {
-      primary: 'Submitting payment & registration',
-      fact: 'Approve and register are batched in one intent',
+      primary: msg`Submitting payment & registration`,
+      fact: msg`Approve and register are batched in one intent`,
     },
     {
-      primary: 'Waiting for signature',
-      fact: 'ENS names are stored on-chain as NFTs',
+      primary: msg`Waiting for signature`,
+      fact: msg`ENS names are stored on-chain as NFTs`,
     },
   ],
   waitingForRhinestoneBundle: [
     {
-      primary: 'Confirming registration',
-      fact: 'Your name will be active once the intent completes',
+      primary: msg`Confirming registration`,
+      fact: msg`Your name will be active once the intent completes`,
     },
     {
-      primary: 'Almost complete',
-      fact: 'Human-readable addresses for wallets',
+      primary: msg`Almost complete`,
+      fact: msg`Human-readable addresses for wallets`,
     },
   ],
   registeringDomain: [

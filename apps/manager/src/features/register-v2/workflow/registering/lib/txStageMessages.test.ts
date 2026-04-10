@@ -9,7 +9,10 @@ describe('getRegistrationStageMessages', () => {
     )
 
     expect(message).toEqual({
-      stageLabel: 'Waiting for commitment receipt',
+      stageLabel: {
+        id: expect.any(String),
+        message: 'Waiting for commitment receipt',
+      },
       progress: 35,
     })
   })
@@ -20,7 +23,10 @@ describe('getRegistrationStageMessages', () => {
       undefined,
     )
 
-    expect(message.stageLabel).toBe('Registration complete')
+    expect(message.stageLabel).toEqual({
+      id: expect.any(String),
+      message: 'Registration complete',
+    })
     expect(message.progress).toBe(100)
   })
 })
