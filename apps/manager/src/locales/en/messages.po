@@ -1141,7 +1141,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 #: src/features/notifications/inbox/list.tsx:46
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:73
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:74
 msgid "Loading..."
 msgstr "Loading..."
 

@@ -10,6 +10,18 @@ import type {
 } from 'viem'
 import { maxUint256 } from 'viem'
 
+/** Para’s viem integration may attach wallet IDs on the account; not part of viem’s public `Account` type */
+type ParaAccountExtensions = {
+  walletId?: string
+  _walletId?: string
+  _paraWalletId?: string
+}
+
+/** Matches `WalletClient.signTransaction`; viem’s `Account['signTransaction']` uses a wider union that doesn’t narrow cleanly when merged with `account`. */
+type WalletSignTransactionParameters = Parameters<
+  WalletClient['signTransaction']
+>[0]
+
 /**
  * Error thrown when wallet client has no connected account
  */
@@ -57,16 +69,17 @@ export function walletClientToAccount(walletClient: WalletClient): Account {
           unknown
         >,
       }
-      const signature = (walletClient as any).signTypedData({
+      return walletClient.signTypedData({
         account: address,
         ...serializedTypedData,
-      })
-      return signature
+      } as Parameters<WalletClient['signTypedData']>[0])
     },
-    async signTransaction(transaction: any): Promise<Hex> {
-      return (walletClient as any).signTransaction({
-        account: address,
+    async signTransaction(
+      transaction: WalletSignTransactionParameters,
+    ): Promise<Hex> {
+      return walletClient.signTransaction({
         ...transaction,
+        account: address,
       })
     },
   } as unknown as Account
@@ -104,11 +117,12 @@ export function wrapParaAccount(
   viemAccount: Account,
   walletId?: string,
 ): Account {
+  const paraAccount = viemAccount as Account & ParaAccountExtensions
   const effectiveWalletId =
-    walletId || (viemAccount as any).walletId || (viemAccount as any)._walletId
+    walletId ?? paraAccount.walletId ?? paraAccount._walletId
 
   if (effectiveWalletId) {
-    ;(viemAccount as any)._paraWalletId = effectiveWalletId
+    paraAccount._paraWalletId = effectiveWalletId
   }
 
   return {
