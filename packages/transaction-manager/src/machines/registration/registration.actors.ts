@@ -310,6 +310,7 @@ export function submitResolverDeploymentActor(input: {
   signer: import('../..').Signer
   publicClient: PublicClient
   sponsored?: boolean
+  id?: string
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
@@ -347,6 +348,7 @@ export function submitResolverDeploymentActor(input: {
         },
         input.signer,
         {
+          id: input.id,
           description: `Deploy dedicated resolver for ${input.name}.eth`,
           publicClient: input.publicClient,
           timeout: 120_000,
@@ -418,6 +420,7 @@ export function submitCommitmentActor(input: {
   publicClient: PublicClient
   useFastRegistrar: boolean
   sponsored?: boolean
+  id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -466,6 +469,7 @@ export function submitCommitmentActor(input: {
         },
         input.signer,
         {
+          id: input.id,
           description: `Commit to register ${input.name}.eth`,
           publicClient: input.publicClient,
           timeout: 120_000,
@@ -608,6 +612,7 @@ export function submitApprovalActor(input: {
   publicClient: PublicClient
   useFastRegistrar: boolean
   sponsored?: boolean
+  id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -651,6 +656,7 @@ export function submitApprovalActor(input: {
         },
         input.signer,
         {
+          id: input.id,
           description: `Approve ${input.selectedToken} for registration`,
           publicClient: input.publicClient,
           timeout: 120_000,
@@ -677,6 +683,7 @@ export function submitRegistrationActor(input: {
   useFastRegistrar: boolean
   sponsored?: boolean
   resolverAddress: Address
+  id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
 
@@ -743,6 +750,7 @@ export function submitRegistrationActor(input: {
         },
         input.signer,
         {
+          id: input.id,
           description: `Register ${input.name}.eth`,
           publicClient: input.publicClient,
           timeout: 120_000,

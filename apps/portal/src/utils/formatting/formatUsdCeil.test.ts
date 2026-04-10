@@ -9,6 +9,11 @@ describe('formatUsd', () => {
     expect(formatUsd(1000)).toBe('$1,000.00')
   })
 
+  it('does not round to whole dollars', () => {
+    expect(formatUsd(99.93)).toBe('$99.93')
+    expect(formatUsd(5.5)).toBe('$5.50')
+  })
+
   it('returns "—" for non-finite values', () => {
     expect(formatUsd(NaN)).toBe('—')
     expect(formatUsd(Infinity)).toBe('—')

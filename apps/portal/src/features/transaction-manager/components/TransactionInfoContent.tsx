@@ -41,6 +41,16 @@ export const TransactionInfoContent = ({
             <p className="text-xs font-mono">
               Est. cost: {transaction.estimatedGasCost} ETH
             </p>
+            {transaction.steps && transaction.steps.length > 0 && (
+              <ul className="flex flex-col gap-1 pb-4 text-sm mt-3">
+                {transaction.steps.map((step) => (
+                  <li key={step} className="flex items-center gap-1.5">
+                    <ArrowRight className="size-3 shrink-0" />
+                    {step}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>
