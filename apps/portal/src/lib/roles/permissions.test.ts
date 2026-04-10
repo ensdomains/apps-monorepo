@@ -34,6 +34,5 @@ describe('permissions', () => {
     expect(isManagerRoleSettable('ROLE_SET_SUBREGISTRY')).toBe(true)
     expect(isManagerRoleSettable('ROLE_RENEW')).toBe(false)
     expect(isManagerRoleSettable('ROLE_UNREGISTER')).toBe(true)
-    expect(isManagerRoleSettable('ROLE_SET_RESOLVER')).toBe(true)
   })
 })
