@@ -1,21 +1,15 @@
 import type { Address } from 'viem'
 import { Owner } from '@/features/profile/components/Owner'
 import { cn } from '@/lib/utils'
-import type { EnsNetworkName } from '@/utils/types'
 import { LabelCard } from './LabelCard'
 import { NetworkCard } from './NetworkCard'
 
 type RegistryCardsGridProps = {
   label: string
   owner?: Address
-  network: EnsNetworkName
 }
 
-export function RegistryCardsGrid({
-  label,
-  owner,
-  network,
-}: RegistryCardsGridProps) {
+export function RegistryCardsGrid({ label, owner }: RegistryCardsGridProps) {
   return (
     <div
       className={cn(
@@ -25,7 +19,7 @@ export function RegistryCardsGrid({
     >
       <LabelCard label={label} />
       {owner && <Owner owner={owner} />}
-      <NetworkCard network={network} />
+      <NetworkCard />
     </div>
   )
 }

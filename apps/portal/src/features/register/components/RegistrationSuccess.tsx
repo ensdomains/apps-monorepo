@@ -1,0 +1,99 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { CheckCircle2 } from 'lucide-react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { RegistrationSummaryCards } from './RegistrationSummaryCards'
+
+type RegistrationSuccessProps = {
+  readonly domainName: string
+  readonly durationSeconds: number
+  readonly price: RegistrationPriceResult
+  readonly onRegisterAnother: () => void
+}
+
+export const RegistrationSuccess = ({
+  domainName,
+  durationSeconds,
+  price,
+  onRegisterAnother,
+}: RegistrationSuccessProps) => {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [isViewProfileLoading, setIsViewProfileLoading] = useState(false)
+
+  const handleViewProfile = async () => {
+    try {
+      setIsViewProfileLoading(true)
+      await pollForIndexerSync({
+        invalidateQueries: async () => {
+          await queryClient.invalidateQueries({
+            queryKey: getEnsOwnerQueryOptions({ name: domainName }).queryKey,
+            refetchType: 'all',
+          })
+          await queryClient.invalidateQueries({
+            queryKey: getNameAvailabilityQueryOptions({ name: domainName })
+              .queryKey,
+            refetchType: 'all',
+          })
+          await queryClient.invalidateQueries({
+            queryKey: getProfileQueryOptions({ name: domainName }).queryKey,
+            refetchType: 'all',
+          })
+          navigate({
+            to: '/$name',
+            params: { name: domainName },
+            replace: true,
+          })
+        },
+      })
+    } catch (error) {
+      console.error('Failed to sync profile after registration:', error)
+    } finally {
+      setIsViewProfileLoading(false)
+    }
+  }
+
+  const handleRegisterAnother = () => {
+    onRegisterAnother()
+    navigate({ to: '/register' })
+  }
+
+  return (
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-col items-center gap-2">
+        <CheckCircle2 className="size-8" />
+        <h3 className="text-3xl font-medium" title={domainName}>
+          Congratulations!
+        </h3>
+        <p className="text-base text-muted-foreground">
+          You're now the owner of <b>{domainName}</b>
+        </p>
+      </div>
+
+      <RegistrationSummaryCards
+        domainName={domainName}
+        durationSeconds={durationSeconds}
+        price={price}
+      />
+
+      <div className="grid grid-cols-2 gap-4">
+        <Button variant="ghost" onClick={handleRegisterAnother}>
+          Register another
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleViewProfile}
+          disabled={isViewProfileLoading}
+        >
+          {isViewProfileLoading ? 'Loading...' : 'View name'}
+        </Button>
+      </div>
+    </section>
+  )
+}

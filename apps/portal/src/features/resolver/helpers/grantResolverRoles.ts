@@ -35,8 +35,9 @@ export const grantResolverRoles = async (
   const client = walletClient as Parameters<typeof grantResolverNameRoles>[0]
   return grantResolverNameRoles(client, {
     resolverAddress,
+    targetAccount: account,
+    scope: 'name',
     name,
     roles,
-    account,
   })
 }

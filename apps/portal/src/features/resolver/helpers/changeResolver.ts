@@ -2,7 +2,7 @@
  * Pure async function to change the resolver for an ENS V2 name.
  *
  * Follows the same pattern as saveRecords and deploySubregistry/setSubregistry:
- * 1. Get tokenId from registry (getRegistryNameData)
+ * 1. Compute labelToCanonicalId from name label
  * 2. Encode setResolver call with ensjs ABI snippet
  * 3. Submit via transaction manager
  */
@@ -13,7 +13,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs/contracts'
-import { getRegistryNameData } from '@ensdomains/ensjs/public/v2'
+import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -52,7 +52,7 @@ export interface ChangeResolverResult {
 /**
  * Change the resolver for an ENS V2 name.
  *
- * @throws Error if wallet not connected, name not found, or transaction fails
+ * @throws Error if wallet not connected or transaction fails
  *
  * @example
  * ```ts
@@ -82,20 +82,12 @@ export const changeResolver = async ({
   }
 
   const label = name.split('.')[0]
-
-  const [tokenId] = await getRegistryNameData(publicClient, {
-    registryAddress,
-    label,
-  })
-
-  if (tokenId === 0n) {
-    throw new Error(`Name "${name}" not found in registry`)
-  }
+  const anyId = labelToCanonicalId(label)
 
   const data = encodeFunctionData({
     abi: permissionedRegistrySetResolverSnippet,
     functionName: 'setResolver',
-    args: [tokenId, resolverAddress],
+    args: [anyId, resolverAddress],
   })
 
   const txId = transactionManager.startTransaction(

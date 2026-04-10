@@ -109,11 +109,11 @@ msgstr ""
 msgid "<0>Connection failed:</0> {0}"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:17
+#: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:18
 msgid "3 character premium name"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:22
+#: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:26
 msgid "4 character premium name"
 msgstr ""
 

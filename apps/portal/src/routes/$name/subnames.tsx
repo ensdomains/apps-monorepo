@@ -57,17 +57,16 @@ const NoSubregistryMessage = ({
 
 interface V2SubnamesContentProps {
   readonly name: string
-  readonly network: 'namechainSepolia'
 }
 
-const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
+const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const { address: connectedAccount } = useAccount()
 
   const {
     data: registriesData,
     isLoading: registriesLoading,
     error: registriesError,
-  } = useQuery(getNameRegistriesQueryOptions({ name, network }))
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
 
   // The subregistry is always the first element (index 0) in the registries array
   // For 2LD "foo.eth": [subregistry, ethRegistry, root]
@@ -83,7 +82,6 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: '',
       roles: ['ROLE_REGISTRAR'],
       account: connectedAccount as Address,
-      network,
     }),
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
@@ -97,7 +95,6 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: firstLabel,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account: connectedAccount as Address,
-      network,
     }),
     enabled:
       Boolean(parentRegistryAddress) &&
@@ -110,7 +107,7 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
     isLoading: subnamesLoading,
     error: subnamesError,
   } = useQuery({
-    ...getSubnamesQueryOptions({ name, network }),
+    ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
     enabled: Boolean(hasSubregistry),
   })
 
@@ -206,11 +203,11 @@ function RouteComponent() {
     return <NotFoundMessage />
   }
 
-  // V1 names (sepolia network) - show message
-  if (ownerData.network === 'sepolia') {
+  // V1 names - show message
+  if (ownerData.protocolVersion === 'ENSv1') {
     return <V1SubnamesMessage />
   }
 
-  // V2 names (namechainSepolia network)
-  return <V2SubnamesContent name={name} network={ownerData.network} />
+  // V2 names
+  return <V2SubnamesContent name={name} />
 }
