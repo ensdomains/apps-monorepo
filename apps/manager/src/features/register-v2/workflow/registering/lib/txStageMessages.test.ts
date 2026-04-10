@@ -8,10 +8,8 @@ describe('getRegistrationStageMessages', () => {
       'pending',
     )
 
-    expect(message).toEqual({
-      stageLabel: 'Waiting for commitment receipt',
-      progress: 35,
-    })
+    expect(message.stageLabel.message).toBe('Waiting for commitment receipt')
+    expect(message.progress).toBe(35)
   })
 
   it('maps success stage', () => {
@@ -20,7 +18,7 @@ describe('getRegistrationStageMessages', () => {
       undefined,
     )
 
-    expect(message.stageLabel).toBe('Registration complete')
+    expect(message.stageLabel.message).toBe('Registration complete')
     expect(message.progress).toBe(100)
   })
 })

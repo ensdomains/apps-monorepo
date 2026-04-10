@@ -1,58 +1,52 @@
-import { registrationMachine } from '@ens-apps/transaction-manager'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { useActorRef, useSelector } from '@xstate/react'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { useQuery } from '@tanstack/react-query'
+import { useBlocker } from '@tanstack/react-router'
 import { AlertCircle, UserCheck } from 'lucide-react'
 import { useState } from 'react'
-import { sepolia } from 'viem/chains'
+import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
-import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
-
-import { useStartRegistration } from '@/features/register/hooks/useStartRegistration'
-import {
-  formatDurationLabel,
-  getDurationInSecondsFromYears,
-} from '@/features/register/utils/registrationDuration'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
+import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
+import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { usePreventUnload } from '@/hooks/usePreventUnload'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import {
   validateNameLength,
   validateRegistrableEthName,
 } from '@/utils/token/nameValidation'
+import { PaymentTokenSection } from './PaymentTokenSection'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
-import { RegistrationProgress } from './RegistrationProgress'
+import { RegistrationSuccess } from './RegistrationSuccess'
 
 type RegisterNameProps = {
   readonly name: string
 }
 
 export const RegisterName = ({ name }: RegisterNameProps) => {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [isNavigatingToProfile, setIsNavigatingToProfile] = useState(false)
-
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
 
-  const actor = useActorRef(registrationMachine, {
-    input: { chainId: sepolia.id },
-  })
+  const { isConnected, address } = useConnection()
+  const { openConnectModal } = useConnectModal()
+  const { openModal } = useTransactionModal()
 
-  const startRegistration = useStartRegistration({
-    name,
-    duration,
-    actor,
-  })
-
-  const machineState = useSelector(actor, (state) => state.value)
-
-  const isIdle = machineState === 'idle'
-  const isSuccess = machineState === 'success'
+  const {
+    transactions,
+    isRegistering,
+    isSuccess,
+    selectedToken,
+    startFlow,
+    resetRegistration,
+  } = useRegistrationTransactions({ name, duration })
 
   const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
@@ -66,39 +60,38 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   } = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: Boolean(name) && isNameValid,
-    // Don't refetch when the registration is successful - this prevents the query from being refetched when the registration is successful
-    // for all other states, it important to refetch regularly to check for name availability changes
-    // This is to avoid the issue where the name availability is not updated immediately after the registration is successful
-    // avoiding users being stuck in endless failure and try again loops.
     refetchInterval: isSuccess ? false : 5000,
+  })
+
+  // Fetch price for success screen
+  const { data: price } = useQuery({
+    ...getRegistrationPriceQueryOptions({
+      name,
+      duration,
+      owner: address,
+      token: selectedToken ? SUPPORTED_TOKENS[selectedToken] : undefined,
+    }),
+    enabled: isSuccess && Boolean(name) && duration > 0 && Boolean(address),
   })
 
   const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
 
-  const handleViewProfile = async () => {
-    setIsNavigatingToProfile(true)
-    try {
-      await pollForIndexerSync({
-        invalidateQueries: async () => {
-          await queryClient.invalidateQueries({
-            queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
-            refetchType: 'all',
-          })
-          await queryClient.invalidateQueries({
-            queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
-            refetchType: 'all',
-          })
-          await queryClient.invalidateQueries({
-            queryKey: getProfileQueryOptions({ name }).queryKey,
-            refetchType: 'all',
-          })
-          navigate({ to: '/$name', params: { name }, replace: true })
-        },
-      })
-    } finally {
-      setIsNavigatingToProfile(false)
-    }
+  // Prevent navigation during registration
+  useBlocker({
+    shouldBlockFn: () => {
+      if (!isRegistering) return false
+      const shouldLeave = confirm(
+        'Your registration is in progress. Leaving may interrupt it and you could lose your commitment. Are you sure you want to leave?',
+      )
+      return !shouldLeave
+    },
+  })
+  usePreventUnload(isRegistering)
+
+  const handleConfirm = (selectedTokenAddress: Address, tokenPrice: bigint) => {
+    startFlow(selectedTokenAddress, tokenPrice)
+    openModal()
   }
 
   if (registrableEthError) {
@@ -150,7 +143,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     )
   }
 
-  if (isNameTaken && !isNavigatingToProfile) {
+  if (isNameTaken && !isRegistering && !isSuccess) {
     return (
       <MessageCard
         icon={<UserCheck className="size-8" strokeWidth={1.5} />}
@@ -174,27 +167,32 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
 
   return (
     <main className="flex-1 mx-auto w-full max-w-xl px-6 py-8 flex flex-col gap-8">
-      {isIdle ? (
+      {isSuccess && isPriceResult(price) ? (
+        <RegistrationSuccess
+          domainName={name}
+          durationSeconds={duration}
+          price={price}
+          onRegisterAnother={resetRegistration}
+        />
+      ) : (
         <>
           <RegisterNameForm
             name={name}
             duration={duration}
             setDuration={setDuration}
+            disabled={isRegistering}
           />
-          <RegisterNameCheckoutSummary
+          <RegisterNameCheckoutSummary name={name} duration={duration} />
+          <PaymentTokenSection
             name={name}
             duration={duration}
-            durationLabel={formatDurationLabel(duration)}
-            onContinue={startRegistration}
+            onConfirm={handleConfirm}
+            onConnectWallet={openConnectModal}
+            isConnected={isConnected}
+            isRegistering={isRegistering}
           />
+          <TransactionModal transactions={transactions} />
         </>
-      ) : (
-        <RegistrationProgress
-          domainName={name}
-          actor={actor}
-          onViewProfile={handleViewProfile}
-          isViewProfileLoading={isNavigatingToProfile}
-        />
       )}
     </main>
   )
