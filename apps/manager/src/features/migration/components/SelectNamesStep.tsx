@@ -1,8 +1,14 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { Check, Search } from 'lucide-react'
+import { AlertTriangle, Check, Info, Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
+import {
+  classifyNames,
+  type IneligibleName,
+} from '@/features/migration/service/classifyNames'
+import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
 
@@ -17,14 +23,41 @@ export const SelectNamesStep = ({
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
   const { data: v1Names = [], isPending } = useV1Names()
+  const { ownerAddress } = useSmartAccountContext()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  const { eligibleNames, ineligibleNames } = useMemo(() => {
+    if (!ownerAddress || v1Names.length === 0) {
+      return {
+        eligibleNames: v1Names,
+        ineligibleNames: [] as IneligibleName[],
+      }
+    }
+    const { classified, ineligible } = classifyNames(
+      v1Names,
+      ownerAddress as Address,
+    )
+    return {
+      eligibleNames: classified.map((c) => c.domain),
+      ineligibleNames: ineligible,
+    }
+  }, [v1Names, ownerAddress])
+
   const filtered = useMemo(
     () =>
-      v1Names.filter((n) =>
+      eligibleNames.filter((n) =>
         n.name.toLowerCase().includes(search.toLowerCase()),
       ),
-    [search, v1Names],
+    [search, eligibleNames],
+  )
+
+  const filteredIneligible = useMemo(
+    () =>
+      ineligibleNames.filter((n) =>
+        n.domain.name.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [search, ineligibleNames],
   )
 
   const toggleName = useCallback(
@@ -88,47 +121,86 @@ export const SelectNamesStep = ({
                         </p>
                       </div>
                     ))
-                    .otherwise(() =>
-                      filtered.map((item) => {
-                        const isSelected = selected.has(item.name)
-                        return (
-                          <button
-                            aria-pressed={isSelected}
-                            className="flex cursor-pointer items-center gap-3"
-                            key={item.id}
-                            onClick={() => toggleName(item.name)}
-                            type="button"
-                          >
-                            <div
-                              className={cn(
-                                'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
-                                isSelected
-                                  ? 'bg-ens-garnet-900'
-                                  : 'border border-ens-garnet-900/30 bg-transparent',
-                              )}
+                    .otherwise(() => (
+                      <>
+                        {filtered.map((item) => {
+                          const isSelected = selected.has(item.name)
+                          return (
+                            <button
+                              aria-pressed={isSelected}
+                              className="flex cursor-pointer items-center gap-3"
+                              key={item.id}
+                              onClick={() => toggleName(item.name)}
+                              type="button"
                             >
-                              <Check
+                              <div
                                 className={cn(
-                                  'size-5 transition-opacity',
+                                  'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
                                   isSelected
-                                    ? 'text-white opacity-100'
-                                    : 'text-transparent opacity-0',
+                                    ? 'bg-ens-garnet-900'
+                                    : 'border border-ens-garnet-900/30 bg-transparent',
                                 )}
-                                strokeWidth={2.5}
-                              />
+                              >
+                                <Check
+                                  className={cn(
+                                    'size-5 transition-opacity',
+                                    isSelected
+                                      ? 'text-white opacity-100'
+                                      : 'text-transparent opacity-0',
+                                  )}
+                                  strokeWidth={2.5}
+                                />
+                              </div>
+                              <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+                                <span className="font-semi-mono text-ens-garnet-900 text-xs">
+                                  {item.labelName?.[0]?.toUpperCase() ?? '?'}
+                                </span>
+                              </div>
+                              <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
+                                {item.name}
+                              </div>
+                            </button>
+                          )
+                        })}
+
+                        {filteredIneligible.length > 0 && (
+                          <div className="mt-4 border-ens-garnet-900/10 border-t pt-4">
+                            <div className="mb-3 flex items-center gap-2">
+                              <AlertTriangle className="size-4 shrink-0 text-ens-garnet-900/50" />
+                              <p className="font-semi-mono text-ens-garnet-900/50 text-xs uppercase tracking-[0.12px]">
+                                <Trans>Not eligible for migration</Trans>
+                              </p>
                             </div>
-                            <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                              <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                                {item.labelName?.[0]?.toUpperCase() ?? '?'}
-                              </span>
-                            </div>
-                            <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
-                              {item.name}
-                            </div>
-                          </button>
-                        )
-                      }),
-                    )}
+                            {filteredIneligible.map((item) => (
+                              <div
+                                className="flex items-center gap-3 py-1 opacity-50"
+                                key={item.domain.id}
+                              >
+                                <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+                                  <span className="font-semi-mono text-ens-garnet-900 text-xs">
+                                    {item.domain.labelName?.[0]?.toUpperCase() ??
+                                      '?'}
+                                  </span>
+                                </div>
+                                <div className="rounded-[2px] border border-[#595755]/20 bg-white/60 px-2 py-1 font-medium font-semi-mono text-[#595755]/60 text-base leading-[0.96] tracking-[-0.32px]">
+                                  {item.domain.name}
+                                </div>
+                                <span className="text-ens-garnet-900/40 text-xs">
+                                  {item.reason === 'unlocked-subname' ? (
+                                    <Trans>
+                                      Subname must be registered directly on ENS
+                                      v2
+                                    </Trans>
+                                  ) : (
+                                    <Trans>Not eligible for migration</Trans>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ))}
                 </div>
               </div>
             </div>
@@ -137,14 +209,25 @@ export const SelectNamesStep = ({
       </div>
 
       <div className="flex shrink-0 flex-col items-center justify-between gap-4 bg-[rgba(251,249,250,0.3)] px-8 py-8 sm:flex-row lg:px-[150px]">
-        <p className="text-base text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.16px]">
-          <Trans>
-            <span>{totalSelected}</span>
-            <span className="font-semi-mono"> out of </span>
-            <span>{v1Names.length}</span>
-            <span className="font-semi-mono"> eligible names selected</span>
-          </Trans>
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-base text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.16px]">
+            <Trans>
+              <span>{totalSelected}</span>
+              <span className="font-semi-mono"> out of </span>
+              <span>{eligibleNames.length}</span>
+              <span className="font-semi-mono"> eligible names selected</span>
+            </Trans>
+          </p>
+          {totalSelected > 0 && (
+            <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
+              <Info className="size-3 shrink-0" />
+              <Trans>
+                Migration transfers ownership only. Records must be set manually
+                on ENS v2 after migration.
+              </Trans>
+            </p>
+          )}
+        </div>
         <button
           className="h-[46px] w-full min-w-[160px] overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
           disabled={totalSelected === 0 || isPending}

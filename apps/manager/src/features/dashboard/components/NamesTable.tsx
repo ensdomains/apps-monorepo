@@ -107,7 +107,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
 
   const v1NamesCount = useMemo(() => {
     if (!v1NamesRaw || !ownerAddress) return 0
-    return classifyNames(v1NamesRaw, ownerAddress as Address).length
+    return classifyNames(v1NamesRaw, ownerAddress as Address).classified.length
   }, [v1NamesRaw, ownerAddress])
 
   const { data: favorites = [] } = favoritesQuery
