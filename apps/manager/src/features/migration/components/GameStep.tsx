@@ -49,7 +49,7 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const descriptionText = done
     ? t`Almost there...`
     : completedSteps < stepDescriptors.length
-      ? `${formatStepDescriptor(stepDescriptors[completedSteps]!)}...`
+      ? `${formatStepDescriptor(stepDescriptors[completedSteps] as MigrationStepDescriptor)}...`
       : t`Preparing migration...`
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)

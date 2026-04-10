@@ -3,6 +3,8 @@ import { PRE_MIGRATION_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import type { ClassifiedName } from './classifyNames'
 
+const MULTICALL3_ADDRESS: Address = '0xcA11bde05977b3631167028862bE2a173976CA11'
+
 export const ENABLE_PRE_MIGRATE = true
 
 const getPreMigrateParams = (name: ClassifiedName) => ({
@@ -48,7 +50,7 @@ export const buildPreMigrateMulticall = (names: readonly ClassifiedName[]) => {
   })
 
   return {
-    address: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    address: MULTICALL3_ADDRESS,
     abi: multicall3Abi,
     functionName: 'aggregate3' as const,
     args: [calls] as const,

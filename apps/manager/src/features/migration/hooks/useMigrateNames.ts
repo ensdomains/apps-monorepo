@@ -1,6 +1,7 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useMutation } from '@tanstack/react-query'
 import { useCallback, useRef, useState } from 'react'
+import type { PublicClient } from 'viem'
 import { useConfig } from 'wagmi'
 import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
 import {
@@ -33,7 +34,7 @@ export function useMigrateNames() {
         migrationOwner: ownerAddress,
         defaultResolver: V2_CONTRACTS.ENSV2Resolver,
         wagmiConfig,
-        publicClient,
+        publicClient: publicClient as PublicClient,
         onProgress: setProgress,
       })
     },
