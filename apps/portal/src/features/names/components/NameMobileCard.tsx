@@ -5,6 +5,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { V1Roles } from '@/utils/names/mergeNamesData'
+import { dateToPlainDate } from '@/utils/temporal'
 
 export interface NameMobileCardProps {
   name: string | null
@@ -61,7 +62,9 @@ export const NameMobileCard = ({
       <div className="text-sm font-medium text-quartz-500">Expiry</div>
       <div className="flex items-center gap-2">
         {expiryDate ? (
-          <span className="text-base">{formatDateTime(expiryDate)}</span>
+          <span className="text-base">
+            {formatDateTime(dateToPlainDate(expiryDate))}
+          </span>
         ) : (
           <Badge variant="secondary" className="text-xs">
             Does not expire
