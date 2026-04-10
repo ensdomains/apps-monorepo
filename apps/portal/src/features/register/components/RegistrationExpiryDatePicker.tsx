@@ -12,11 +12,11 @@ import {
   // getYearsFromDuration,
   isDateWithinCalendarRange,
 } from '@/features/register/utils/registrationDuration'
-
-// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
+
+// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 
 type RegistrationExpiryDatePickerProps = {
   readonly date: Temporal.PlainDate

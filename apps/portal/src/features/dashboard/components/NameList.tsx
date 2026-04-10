@@ -23,7 +23,7 @@ interface NameListProps {
   readonly limit?: number
 }
 
-type column = WithEnsNetwork<MergedName>
+type column = MergedName
 
 const columns: ColumnDef<column>[] = [
   {

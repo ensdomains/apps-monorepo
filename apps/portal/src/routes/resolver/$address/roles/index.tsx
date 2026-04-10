@@ -39,7 +39,6 @@ function RouteComponent() {
       resolverAddress: address as Address,
       roles: ['ROLE_SET_ADDR'],
       account: accountAddress as Address,
-      network: 'namechainSepolia',
     }),
     enabled: !!accountAddress,
   })

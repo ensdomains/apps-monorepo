@@ -10,7 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { grantRoles } from '../helpers/grantRoles'
 import { invalidateRolesQueries } from '../utils/invalidateRolesQueries'
@@ -20,11 +20,11 @@ type UseGrantRolesParameters = {
   readonly account: Address
   readonly roles: Role[]
   readonly id: string
-  readonly registryAddress?: Address
+  readonly registryAddress: Address
 }
 
 export function useGrantRoles() {
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })

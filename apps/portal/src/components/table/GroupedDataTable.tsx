@@ -41,7 +41,7 @@ type GroupedDataTableProps<
   itemsWrapper?: (rowData: TData) => ReactNode
   name: string
   canManageRoles: boolean
-  registryAddress?: Address
+  registryAddress: Address
 }
 
 export const GroupedDataTable = <

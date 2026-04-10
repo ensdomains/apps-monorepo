@@ -40,8 +40,8 @@ export const PricingSummaryCard = () => {
     <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-[#DDDDDE] bg-white px-6 py-8 font-[350] text-neutral-800 text-xl leading-ens-none md:py-12 md:text-2xl">
       <div>
         <Trans>
-          Registering for <span className="text-[#024A70]">{durationYears}</span>{' '}
-          years
+          Registering for{' '}
+          <span className="text-[#024A70]">{durationYears}</span> years
         </Trans>
       </div>
       <div>

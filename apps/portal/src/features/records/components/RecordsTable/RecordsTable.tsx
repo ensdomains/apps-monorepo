@@ -17,7 +17,7 @@ import {
   type TableViewSettings,
   useTableViewSettings,
 } from '@/features/profile/hooks/useTableViewSettings'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import { columns, type NameRecord } from './columns'
 import { RecordSidebar } from './RecordSidebar'
 
@@ -25,12 +25,12 @@ export const RecordsTable = ({
   defaultTableSettings,
   name,
   table,
-  network,
+  protocolVersion,
 }: {
   name: string
   defaultTableSettings?: TableViewSettings
   table: TableData<NameRecord>
-  network?: EnsNetworkName
+  protocolVersion?: ProtocolVersion
 }) => {
   const [clickedRow, setClickedRow] = useState<Row<NameRecord> | null>(null)
 
@@ -39,7 +39,10 @@ export const RecordsTable = ({
   const [tableView] = useTableViewSettings(defaultTableSettings)
 
   return (
-    <RecordSidebar row={clickedRow} {...{ name, open, setOpen, network }}>
+    <RecordSidebar
+      row={clickedRow}
+      {...{ name, open, setOpen, protocolVersion }}
+    >
       <Table className="relative">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

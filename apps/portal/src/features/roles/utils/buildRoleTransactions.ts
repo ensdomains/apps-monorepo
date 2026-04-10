@@ -22,14 +22,14 @@ export type RoleTransactionHandlers = {
     readonly account: Address
     readonly roles: readonly Role[]
     readonly id: string
-    readonly registryAddress?: Address
+    readonly registryAddress: Address
   }) => void
   readonly revokeRoles: (params: {
     readonly name: string
     readonly account: Address
     readonly roles: readonly Role[]
     readonly id: string
-    readonly registryAddress?: Address
+    readonly registryAddress: Address
   }) => void
   readonly handleDone: () => void
 }
@@ -46,7 +46,7 @@ export function buildRoleTransactions(
   pendingRemove: PendingRemove | null,
   name: string,
   handlers: RoleTransactionHandlers,
-  registryAddress?: Address,
+  registryAddress: Address,
 ): readonly Transaction[] {
   const descriptors = buildRoleTransactionDescriptors(
     pendingSave,
