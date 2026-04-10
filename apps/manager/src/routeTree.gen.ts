@@ -14,7 +14,9 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
+import { Route as RegisterNameRouteImport } from './routes/register/$name'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
 import { Route as LegalTrademarkGuidelinesRouteImport } from './routes/legal/trademark-guidelines'
@@ -54,9 +56,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterIndexRoute = RegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
   id: '/auto-renewal/',
   path: '/auto-renewal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterNameRoute = RegisterNameRouteImport.update({
+  id: '/register/$name',
+  path: '/register/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaymentListRoute = PaymentListRouteImport.update({
@@ -142,7 +154,9 @@ export interface FileRoutesByFullPath {
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
+  '/register/$name': typeof RegisterNameRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
@@ -162,7 +176,9 @@ export interface FileRoutesByTo {
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
+  '/register/$name': typeof RegisterNameRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend': typeof DebugBackendIndexRoute
@@ -184,7 +200,9 @@ export interface FileRoutesById {
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
+  '/register/$name': typeof RegisterNameRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
@@ -207,7 +225,9 @@ export interface FileRouteTypes {
     | '/legal/trademark-guidelines'
     | '/payment/add'
     | '/payment/list'
+    | '/register/$name'
     | '/auto-renewal/'
+    | '/register/'
     | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend/'
@@ -227,7 +247,9 @@ export interface FileRouteTypes {
     | '/legal/trademark-guidelines'
     | '/payment/add'
     | '/payment/list'
+    | '/register/$name'
     | '/auto-renewal'
+    | '/register'
     | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend'
@@ -248,7 +270,9 @@ export interface FileRouteTypes {
     | '/legal/trademark-guidelines'
     | '/payment/add'
     | '/payment/list'
+    | '/register/$name'
     | '/auto-renewal/'
+    | '/register/'
     | '/debug/backend/settings'
     | '/p/$name/edit'
     | '/debug/backend/'
@@ -270,7 +294,9 @@ export interface RootRouteChildren {
   LegalTrademarkGuidelinesRoute: typeof LegalTrademarkGuidelinesRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
+  RegisterNameRoute: typeof RegisterNameRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
+  RegisterIndexRoute: typeof RegisterIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
   PNameEditRoute: typeof PNameEditRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
@@ -315,11 +341,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register/'
+      preLoaderRoute: typeof RegisterIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auto-renewal/': {
       id: '/auto-renewal/'
       path: '/auto-renewal'
       fullPath: '/auto-renewal/'
       preLoaderRoute: typeof AutoRenewalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register/$name': {
+      id: '/register/$name'
+      path: '/register/$name'
+      fullPath: '/register/$name'
+      preLoaderRoute: typeof RegisterNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/payment/list': {
@@ -446,7 +486,9 @@ const rootRouteChildren: RootRouteChildren = {
   LegalTrademarkGuidelinesRoute: LegalTrademarkGuidelinesRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
+  RegisterNameRoute: RegisterNameRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
+  RegisterIndexRoute: RegisterIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,
   PNameEditRoute: PNameEditRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
