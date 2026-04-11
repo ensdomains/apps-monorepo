@@ -291,7 +291,7 @@ async function buildRecordsUpdateRequest(params: {
     publicClient,
     chainId,
     resolverAddress,
-    resolverType = 'dedicated',
+    resolverType = 'public',
   } = params
 
   const changes = computeRecordChanges(before, after)
