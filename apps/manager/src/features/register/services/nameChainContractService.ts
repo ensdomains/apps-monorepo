@@ -67,8 +67,8 @@ export const EMPTY_ADDRESS = zeroAddress
 export const REFERER_ADDRESS = zeroHash
 
 export const SUPPORTED_TOKENS = {
-  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as Address, // MockUSDC
-  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as Address, // MockDAI
+  USDC: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as Address, // USDC (matches ensjs chain config)
+  DAI: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as Address, // DAI (matches SUPPORTED_TOKENS in transaction-manager)
 } as const
 
 // Default payment token - USDC

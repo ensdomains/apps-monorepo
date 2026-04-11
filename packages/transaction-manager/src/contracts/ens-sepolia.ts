@@ -35,12 +35,12 @@ export const SUPPORTED_TOKENS = {
 
 export const TOKENS = {
   USDC: {
-    address: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6',
+    address: SUPPORTED_TOKENS.USDC,
     decimals: 6,
     symbol: 'USDC',
   },
   DAI: {
-    address: '0xd030a2465ee661338de1f02d05042bbf20d5d127',
+    address: SUPPORTED_TOKENS.DAI,
     decimals: 18,
     symbol: 'DAI',
   },
