@@ -18,6 +18,13 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Default reverse registrar (sets primary/default ENS name per coin type)
   DefaultReverseRegistrar:
     '0xeb8269fb39290f31c4c29cec548807ca2133abb4' as const,
+  // Standard Rent Price Oracle
+  StandardRentPriceOracle:
+    '0x6e5b8a907ed46a15869b9a19f6961781d6af2270' as const,
+  // HCA Factory
+  HCAFactory: '0x12919bd18e9eb9f004e2faf78709d0319747d761' as const,
+  // Public Resolver
+  PublicResolver: '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const,
 } as const
 
 // Payment tokens (Mock tokens on Sepolia)
