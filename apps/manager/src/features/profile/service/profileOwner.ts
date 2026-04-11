@@ -1,17 +1,36 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok } from 'neverthrow'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
+import { fromPromise, ok } from 'neverthrow'
 import { type Address, zeroAddress } from 'viem'
-import { getIndexerDomain } from './getIndexerDomain'
+import { sepoliaWithEns } from '@/lib/wagmi'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+
+class GetOwnerError extends TaggedError('GetOwnerError')<{
+  cause: unknown
+}> {}
+
+const ensRegistry = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
 
 export const getOwner = ResultFn(async function* (params: { name: string }) {
-  const domain = yield* getIndexerDomain(params.name)
+  const client = yield* safeGetClient()
+  const label = params.name.replace(/\.eth$/i, '')
 
-  if (domain?.owner?.id && domain.owner.id !== zeroAddress) {
-    return ok({
-      owner: domain.owner.id as Address,
-    })
+  const owner = yield* fromPromise(
+    ensjsv2_getOwner(client, {
+      registryAddress: ensRegistry,
+      label,
+    }),
+    (e) => new GetOwnerError({ cause: e }),
+  )
+
+  if (owner && owner !== zeroAddress) {
+    return ok({ owner: owner as Address })
   }
 
   return ok(null)
