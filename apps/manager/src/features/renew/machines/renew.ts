@@ -1,8 +1,7 @@
-// @ts-nocheck - TODO: Fix imports or remove machine if no longer needed
+// @ts-nocheck - TODO: Rewrite for ENSv2 or remove — renewNames is v1-only (ensEthRegistrarController)
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-// Broken import since ENSJS update. Machine is currently unused
-import { getPrice } from '@ensdomains/ensjs/public'
+import { getPrice } from '@ensdomains/ensjs/public/v2'
 import { renewNames } from '@ensdomains/ensjs/wallet'
 import { fromPromise, ok } from 'neverthrow'
 import type { TransactionReceipt } from 'viem'

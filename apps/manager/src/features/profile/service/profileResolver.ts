@@ -1,12 +1,18 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { registryGetResolverSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
-import { ETH_REGISTRY_ABI } from '@/lib/eth-registry.abi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+
+const ensRegistry = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
 
 class GetResolverError extends TaggedError('GetResolverError')<{
   cause: unknown
@@ -19,8 +25,8 @@ export const getResolver = ResultFn(async function* (name: string) {
 
   const resolverAddress = yield* await fromPromise(
     readContract(client, {
-      address: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      abi: ETH_REGISTRY_ABI,
+      address: ensRegistry,
+      abi: registryGetResolverSnippet,
       functionName: 'getResolver',
       args: [cleanName],
     }),

@@ -1,9 +1,17 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import { getAvailable } from '@ensdomains/ensjs/public'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
+import { readContract } from 'viem/actions'
 import { assign, createActor, log, setup } from 'xstate'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient, type WagmiClientError } from '@/lib/wagmi/helpers'
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',
@@ -41,15 +49,20 @@ export const registrationMachineMock = setup({
     checkAvailability: fromResultAsync(
       ResultFn(async function* ({ name }: { name: string }) {
         const client = yield* safeGetClient()
-        const availability = yield* await fromPromise(
-          // @ts-expect-error - Issue with client types
-          getAvailable(client, { name }),
+        const cleanName = name.replace(/\.eth$/i, '')
+        const isAvailable = yield* await fromPromise(
+          readContract(client, {
+            address: ethRegistrar,
+            abi: l2EthRegistrarIsAvailableSnippet,
+            functionName: 'isAvailable',
+            args: [cleanName],
+          }),
           (error) => {
             return new NameAvailabilityError({ cause: error })
           },
         )
 
-        return ok(availability)
+        return ok(isAvailable)
       }),
     ),
   },
