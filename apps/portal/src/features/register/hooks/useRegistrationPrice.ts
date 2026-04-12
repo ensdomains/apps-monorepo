@@ -67,6 +67,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
       duration: BigInt(duration),
       paymentToken: resolvedToken,
       registrarAddress: ethRegistrar,
+      owner,
     }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
   )

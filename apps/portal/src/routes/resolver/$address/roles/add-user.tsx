@@ -27,6 +27,7 @@ import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useRe
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/resolver/$address/roles/add-user')({
   component: RouteComponent,
@@ -34,6 +35,7 @@ export const Route = createFileRoute('/resolver/$address/roles/add-user')({
 })
 
 const ROOT_NODE_VALUE = ''
+const getClient = () => wagmiConfig.getClient({ chainId: sepoliaWithEns.id })
 
 function RouteComponent() {
   const { address } = Route.useParams()
