@@ -43,7 +43,8 @@ export const decodeMigrationRevertReason = (error: unknown): SkipReason => {
       data,
     })
     return ERROR_NAME_TO_REASON[decoded.errorName] ?? 'transfer-failed'
-  } catch {
+  } catch (decodeError) {
+    console.warn('[migration] Failed to decode revert:', decodeError)
     return 'transfer-failed'
   }
 }

@@ -22,7 +22,11 @@ export type MigrationTokenType =
   | 'locked-child'
   | 'detached-child'
 
-export type IneligibleReason = 'unlocked-subname' | 'registry-only'
+export type IneligibleReason =
+  | 'unlocked-subname'
+  | 'registry-only'
+  | 'not-transferable'
+  | 'missing-parent'
 
 export type IneligibleName = {
   readonly domain: V1Domain
@@ -37,6 +41,7 @@ export type ClassifiedName = {
   readonly fuses: number
   readonly tokenHolder: Address
   readonly v1ResolverAddress: string | null
+  readonly preservedResolver: Address | null
 }
 
 export const hasFuse = (fuses: number, fuse: number): boolean =>
@@ -80,6 +85,7 @@ export const classifyName = (
         fuses: 0,
         tokenHolder: registrant.id as Address,
         v1ResolverAddress,
+        preservedResolver: null,
       },
     }
   }
@@ -91,7 +97,6 @@ export const classifyName = (
 
   if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
     if (parentName !== 'eth') {
-      // Detached: emancipated (PARENT_CANNOT_CONTROL) but not locked, parent is locked
       if (
         hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
         parentName &&
@@ -108,10 +113,10 @@ export const classifyName = (
             fuses,
             tokenHolder: wrappedHolder,
             v1ResolverAddress,
+            preservedResolver: null,
           },
         }
       }
-      // Unlocked 3LD+ — not migratable, must register directly on ENSv2
       return {
         type: 'ineligible',
         name: { domain, reason: 'unlocked-subname' },
@@ -127,12 +132,22 @@ export const classifyName = (
         fuses,
         tokenHolder: wrappedHolder,
         v1ResolverAddress,
+        preservedResolver: null,
       },
     }
   }
 
-  if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) return null
-  if (!parentName) return null
+  if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
+    return { type: 'ineligible', name: { domain, reason: 'not-transferable' } }
+  }
+  if (!parentName) {
+    return { type: 'ineligible', name: { domain, reason: 'missing-parent' } }
+  }
+
+  const preservedResolver: Address | null =
+    hasFuse(fuses, FUSES.CANNOT_SET_RESOLVER) && v1ResolverAddress
+      ? (v1ResolverAddress as Address)
+      : null
 
   if (parentName === 'eth') {
     return {
@@ -145,6 +160,7 @@ export const classifyName = (
         fuses,
         tokenHolder: wrappedHolder,
         v1ResolverAddress,
+        preservedResolver,
       },
     }
   }
@@ -159,6 +175,7 @@ export const classifyName = (
       fuses,
       tokenHolder: wrappedHolder,
       v1ResolverAddress,
+      preservedResolver,
     },
   }
 }

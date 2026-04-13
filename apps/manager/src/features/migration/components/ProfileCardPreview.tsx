@@ -3,7 +3,6 @@ import { ArrowUpRight, Calendar, Copy, Mail } from 'lucide-react'
 
 export const ProfileCardPreview = () => (
   <div className="flex h-[320px] w-[228px] flex-col overflow-hidden rounded-2xl border-[0.1px] border-[rgba(25,87,128,0.2)] bg-white shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.3)]">
-    {/* Banner */}
     <div
       className="relative h-[72px] shrink-0"
       style={{
@@ -29,7 +28,6 @@ export const ProfileCardPreview = () => (
       />
     </div>
 
-    {/* Avatar */}
     <div className="-mt-4 relative z-10 ml-2.5">
       <div
         className="size-10 rounded-full border-[1.5px] border-white shadow-sm"
@@ -43,14 +41,11 @@ export const ProfileCardPreview = () => (
       />
     </div>
 
-    {/* Content */}
     <div className="flex flex-1 flex-col gap-1.5 overflow-hidden px-2.5 pt-1 pb-2.5">
-      {/* Name badge */}
       <span className="w-fit rounded bg-ens-garnet-500 px-1.5 py-px font-medium text-white text-xs leading-snug">
         erni.eth
       </span>
 
-      {/* Registration */}
       <div className="flex items-center gap-0.5 text-ens-garnet-500">
         <Calendar className="size-2.5 shrink-0 opacity-60" strokeWidth={1.5} />
         <p className="text-[9px] leading-tight">
@@ -59,17 +54,14 @@ export const ProfileCardPreview = () => (
         </p>
       </div>
 
-      {/* Bio */}
       <p className="text-[11px] text-ens-garnet-900/45 leading-[1.5]">
         A scrappy generalist builder with taste. Senior Product Designer and
         Researcher at ENS Labs, dedicated to making web3 feel straightforward to
         newcomers.
       </p>
 
-      {/* Divider */}
       <div className="h-px bg-ens-garnet-500/8" />
 
-      {/* Links */}
       <p className="font-semibold text-[9px] text-ens-garnet-500 leading-tight">
         links
       </p>

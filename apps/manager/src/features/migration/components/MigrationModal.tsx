@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { X } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -10,13 +10,12 @@ import {
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { ProfileCardPreview } from '@/features/migration/components/ProfileCardPreview'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
-import { useAutoScrollCarousel } from '@/features/migration/hooks/useAutoScrollCarousel'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 
-const AUTO_SCROLL_INTERVAL = 5000
+const AUTO_SCROLL_INTERVAL_MS = 5000
 
 const SLIDE_DATA = [
   { id: 'profiles' },
@@ -56,20 +55,13 @@ export const MigrationModal = () => {
     setActiveSlide(index)
   }, [])
 
-  const { reset: resetAutoScroll } = useAutoScrollCarousel({
-    enabled: open,
-    intervalMs: AUTO_SCROLL_INTERVAL,
-    totalSlides: SLIDE_DATA.length,
-    onSlideChange: scrollToSlide,
-  })
-
-  const handleManualNav = useCallback(
-    (index: number) => {
-      scrollToSlide(index)
-      resetAutoScroll(index)
-    },
-    [scrollToSlide, resetAutoScroll],
-  )
+  useEffect(() => {
+    if (!open) return
+    const timer = setInterval(() => {
+      scrollToSlide((activeSlide + 1) % SLIDE_DATA.length)
+    }, AUTO_SCROLL_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [open, activeSlide, scrollToSlide])
 
   return (
     <Dialog
@@ -84,7 +76,6 @@ export const MigrationModal = () => {
       >
         <GrainOverlay />
 
-        {/* Close button */}
         <button
           className="absolute top-5 right-5 z-20 cursor-pointer text-ens-garnet-800 opacity-70 transition-opacity hover:opacity-100"
           onClick={dismiss}
@@ -96,7 +87,6 @@ export const MigrationModal = () => {
           </span>
         </button>
 
-        {/* Content */}
         <div className="relative z-10 mx-auto flex w-full max-w-[486px] flex-col items-center gap-4 px-5 pt-7 pb-7">
           <DialogTitle className="w-full pt-4 font-normal text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
             <Trans>Welcome to the new ENS app!</Trans>
@@ -108,7 +98,6 @@ export const MigrationModal = () => {
             </Trans>
           </DialogDescription>
 
-          {/* Pagination dots */}
           <div className="flex items-center gap-0.5">
             {SLIDE_DATA.map((slide, i) => (
               <button
@@ -118,7 +107,7 @@ export const MigrationModal = () => {
                     : 'w-[7px] bg-ens-garnet-500/50'
                 }`}
                 key={slide.id}
-                onClick={() => handleManualNav(i)}
+                onClick={() => scrollToSlide(i)}
                 type="button"
               >
                 <span className="sr-only">
@@ -128,7 +117,6 @@ export const MigrationModal = () => {
             ))}
           </div>
 
-          {/* Carousel */}
           <div className="w-full overflow-hidden">
             <div
               className="flex snap-x snap-mandatory overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -159,7 +147,6 @@ export const MigrationModal = () => {
             </div>
           </div>
 
-          {/* CTA button */}
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: dismiss wrapper, button inside handles keyboard */}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: dismiss wrapper, button inside handles keyboard */}
           <div

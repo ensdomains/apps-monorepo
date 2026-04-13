@@ -9,7 +9,7 @@ import {
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
 
-const PREFLIGHT_TIMEOUT = 8000
+const PREFLIGHT_TIMEOUT_MS = 8000
 const MULTICALL_BATCH_SIZE = 100
 
 type MulticallFailure = {
@@ -18,24 +18,23 @@ type MulticallFailure = {
   result: undefined
 }
 
-const MULTICALL_FAILURE: MulticallFailure = {
-  status: 'failure',
-  error: new Error('timeout'),
-  result: undefined,
-}
+const preflightTimeoutError = (ms: number): Error =>
+  Object.assign(new Error(`Pre-flight RPC call timed out after ${ms}ms`), {
+    name: 'PreflightTimeoutError',
+    timeoutMs: ms,
+  })
 
-const withTimeout = async <T>(
-  promise: Promise<T>,
-  ms: number,
-  fallback: T,
-): Promise<T> => {
+const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
       promise,
-      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(preflightTimeoutError(ms)), ms)
+      }),
     ])
-  } catch {
-    return fallback
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 }
 
@@ -52,8 +51,7 @@ const batchedMulticall = async <T>(
     chunks.map((chunk) =>
       withTimeout(
         multicall(publicClient, { contracts: chunk, allowFailure: true }),
-        PREFLIGHT_TIMEOUT,
-        chunk.map(() => MULTICALL_FAILURE),
+        PREFLIGHT_TIMEOUT_MS,
       ),
     ),
   )
@@ -151,33 +149,43 @@ export const runPreFlightChecks = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
 ): Promise<PreFlightResult> => {
-  try {
-    const reservedResult = await filterNotReserved(publicClient, names)
-    const frozenResult = await filterFrozenApprovals(
-      publicClient,
-      reservedResult.valid,
-    )
+  const reservedResult = await filterNotReserved(publicClient, names)
+  const frozenResult = await filterFrozenApprovals(
+    publicClient,
+    reservedResult.valid,
+  )
 
-    return {
-      valid: frozenResult.valid,
-      notReserved: reservedResult.notReserved,
-      frozen: frozenResult.frozen,
-    }
-  } catch (error) {
-    console.warn(
-      '[migration] Pre-flight checks failed, proceeding with all names:',
-      error,
-    )
-    return { valid: names, notReserved: [], frozen: [] }
+  return {
+    valid: frozenResult.valid,
+    notReserved: reservedResult.notReserved,
+    frozen: frozenResult.frozen,
   }
 }
 
-// "sub.nick.eth" → ["nick"], "deep.sub.nick.eth" → ["nick", "sub"]
 const getParentLabels = (name: ClassifiedName): string[] =>
   name.domain.name.split('.').slice(1, -1).reverse()
 
 const PARENT_REGISTRY_RETRIES = 3
 const PARENT_REGISTRY_RETRY_DELAY = 4000
+
+const walkDeepRegistry = async (
+  publicClient: PublicClient,
+  start: Address,
+  labels: readonly string[],
+): Promise<Address> => {
+  let registry: Address = start
+  for (const label of labels) {
+    const subregistry = (await readContract(publicClient, {
+      address: registry,
+      abi: WRAPPER_REGISTRY_ABI,
+      functionName: 'getSubregistry',
+      args: [label],
+    })) as Address
+    if (subregistry === zeroAddress) return zeroAddress
+    registry = subregistry
+  }
+  return registry
+}
 
 const resolveParentRegistriesOnce = async (
   publicClient: PublicClient,
@@ -189,7 +197,6 @@ const resolveParentRegistriesOnce = async (
     return first ? getParentLabels(first) : []
   })
 
-  // Batch the first hop (ETHRegistry.getSubregistry) for all parents
   const firstHopLabels = parentLabelsByGroup.map((labels) => labels[0] ?? '')
   const firstHopResults = await batchedMulticall<Address>(
     publicClient,
@@ -201,54 +208,31 @@ const resolveParentRegistriesOnce = async (
     })),
   )
 
-  const registries = new Map<string, Address>()
+  const resolved = await Promise.all(
+    entries.map(async ([parentName], i): Promise<[string, Address]> => {
+      const labels = parentLabelsByGroup[i]
+      const firstHop = firstHopResults[i]
 
-  for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i]
-    const labels = parentLabelsByGroup[i]
-    if (!entry || !labels) continue
-    const [parentName] = entry
-    const firstHop = firstHopResults[i]
-
-    if (!firstHop || firstHop.status === 'failure') {
-      registries.set(parentName, zeroAddress)
-      continue
-    }
-
-    if (firstHop.result === zeroAddress) {
-      registries.set(parentName, zeroAddress)
-      continue
-    }
-
-    // Single-level parent (e.g. sub.nick.eth → labels ["nick"])
-    if (labels.length <= 1) {
-      registries.set(parentName, firstHop.result)
-      continue
-    }
-
-    // Deeper names: walk remaining levels sequentially from the first hop result
-    let registry: Address = firstHop.result
-    let resolved = true
-    for (const label of labels.slice(1)) {
-      const subregistry = await readContract(publicClient, {
-        address: registry,
-        abi: WRAPPER_REGISTRY_ABI,
-        functionName: 'getSubregistry',
-        args: [label],
-      })
-      if (subregistry === zeroAddress) {
-        registries.set(parentName, zeroAddress)
-        resolved = false
-        break
+      if (!labels || !firstHop || firstHop.status === 'failure') {
+        return [parentName, zeroAddress]
       }
-      registry = subregistry as Address
-    }
-    if (resolved) {
-      registries.set(parentName, registry)
-    }
-  }
+      if (firstHop.result === zeroAddress) {
+        return [parentName, zeroAddress]
+      }
+      if (labels.length <= 1) {
+        return [parentName, firstHop.result]
+      }
 
-  return registries
+      const final = await walkDeepRegistry(
+        publicClient,
+        firstHop.result,
+        labels.slice(1),
+      )
+      return [parentName, final]
+    }),
+  )
+
+  return new Map(resolved)
 }
 
 export const resolveParentRegistries = async (
@@ -261,7 +245,6 @@ export const resolveParentRegistries = async (
       childNames,
     )
 
-    // Check if any parents are unresolved
     const unresolved = [...registries.entries()].filter(
       ([, addr]) => addr === zeroAddress,
     )
@@ -270,7 +253,6 @@ export const resolveParentRegistries = async (
       return registries
     }
 
-    // Retry only unresolved parents after a delay
     console.warn(
       `[migration] ${unresolved.length} parent registries unresolved, retrying in ${PARENT_REGISTRY_RETRY_DELAY}ms (attempt ${attempt + 1}/${PARENT_REGISTRY_RETRIES})`,
     )
@@ -279,6 +261,5 @@ export const resolveParentRegistries = async (
     )
   }
 
-  // Unreachable but satisfies TS
   return resolveParentRegistriesOnce(publicClient, childNames)
 }

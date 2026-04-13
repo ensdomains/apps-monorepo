@@ -1,5 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
+import { match, P } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
 import { useMigrationExecution } from '@/features/migration/hooks/useMigrationExecution'
 import type {
@@ -32,27 +33,35 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
   const frensX =
     trackWidth > 0 ? ((plankIndex + 0.5) / totalSteps) * trackWidth : 0
 
-  // Excited when tx is signed but step hasn't completed yet
   const isExcited = !!progress?.txHash && !done && !hasCollapsed
 
-  const formatStepDescriptor = (descriptor: MigrationStepDescriptor) => {
-    switch (descriptor.type) {
-      case 'pre-migrate':
-        return t`Pre-migrating ${descriptor.count} name(s)`
-      case 'approve-multicall3':
-        return t`Approving Multicall3 to batch ${descriptor.count} name(s)`
-      case 'migrate':
-        return t`Migrating ${descriptor.count} ${descriptor.bucket} name(s)`
-      case 'migrate-subnames':
-        return t`Migrating ${descriptor.count} subname(s) under ${descriptor.parentName}`
-    }
-  }
+  const nextDescriptor = stepDescriptors[completedSteps] as
+    | MigrationStepDescriptor
+    | undefined
 
-  const descriptionText = done
-    ? t`Almost there...`
-    : completedSteps < stepDescriptors.length
-      ? `${formatStepDescriptor(stepDescriptors[completedSteps] as MigrationStepDescriptor)}...`
-      : t`Preparing migration...`
+  const descriptionText = match({ done, descriptor: nextDescriptor })
+    .with({ done: true }, () => t`Almost there...`)
+    .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
+    .with(
+      { descriptor: { type: 'pre-migrate' } },
+      ({ descriptor }) => `${t`Pre-migrating ${descriptor.count} name(s)`}...`,
+    )
+    .with(
+      { descriptor: { type: 'approve-multicall3' } },
+      ({ descriptor }) =>
+        `${t`Approving Multicall3 to batch ${descriptor.count} name(s)`}...`,
+    )
+    .with(
+      { descriptor: { type: 'migrate' } },
+      ({ descriptor }) =>
+        `${t`Migrating ${descriptor.count} ${descriptor.bucket} name(s)`}...`,
+    )
+    .with(
+      { descriptor: { type: 'migrate-subnames' } },
+      ({ descriptor }) =>
+        `${t`Migrating ${descriptor.count} subname(s) under ${descriptor.parentName}`}...`,
+    )
+    .exhaustive()
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)
 
@@ -60,6 +69,31 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
     duration: 0.8,
     ease: [0.55, 0, 1, 0.45] as const,
   }
+
+  const giantAnimate = match({ hasCollapsed, isExcited })
+    .with({ hasCollapsed: true }, () => ({ y: 300, rotate: -10, opacity: 0 }))
+    .with({ isExcited: true }, () => ({
+      y: [0, -14, 0],
+      scale: [1, 1.05, 1],
+    }))
+    .otherwise(() => ({ y: [0, -6, 0] }))
+
+  const giantTransition = match({ hasCollapsed, isExcited })
+    .with({ hasCollapsed: true }, () => ({
+      duration: 0.9,
+      ease: [0.36, 0, 0.66, -0.56] as const,
+      delay: 0.1,
+    }))
+    .with({ isExcited: true }, () => ({
+      duration: 0.7,
+      ease: 'easeInOut' as const,
+      repeat: Number.POSITIVE_INFINITY,
+    }))
+    .otherwise(() => ({
+      duration: 4,
+      ease: 'easeInOut' as const,
+      repeat: Number.POSITIVE_INFINITY,
+    }))
 
   return (
     <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
@@ -99,7 +133,6 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
             className="absolute inset-0"
             transition={{ duration: 0.5, ease: 'easeOut' }}
           >
-            {/* Characters */}
             <div
               className="absolute right-[90px] bottom-[42px] left-0 z-10"
               ref={trackRef}
@@ -206,36 +239,14 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
               </motion.div>
             </div>
 
-            {/* Giant */}
             <motion.div
-              animate={
-                hasCollapsed
-                  ? { y: 300, rotate: -10, opacity: 0 }
-                  : isExcited
-                    ? { y: [0, -14, 0], scale: [1, 1.05, 1] }
-                    : { y: [0, -6, 0] }
-              }
+              animate={giantAnimate}
               className="absolute right-0 bottom-[10px]"
-              transition={
-                hasCollapsed
-                  ? { duration: 0.9, ease: [0.36, 0, 0.66, -0.56], delay: 0.1 }
-                  : isExcited
-                    ? {
-                        duration: 0.7,
-                        ease: 'easeInOut',
-                        repeat: Number.POSITIVE_INFINITY,
-                      }
-                    : {
-                        duration: 4,
-                        ease: 'easeInOut',
-                        repeat: Number.POSITIVE_INFINITY,
-                      }
-              }
+              transition={giantTransition}
             >
               <img alt="" className="h-[93px]" src="/frens/giant.svg" />
             </motion.div>
 
-            {/* Bridge */}
             <motion.div
               animate={
                 hasCollapsed
