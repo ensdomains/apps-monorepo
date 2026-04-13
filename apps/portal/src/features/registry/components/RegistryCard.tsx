@@ -1,6 +1,9 @@
+import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
+import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 
 type RegistryInfo = {
@@ -14,41 +17,62 @@ type RegistryCardProps = {
   chainId?: number
 }
 
-export function RegistryCard({ registry, chainId }: RegistryCardProps) {
+const ContractAddressRow = ({
+  label,
+  address,
+  explorerUrl,
+}: {
+  label: string
+  address: Address
+  explorerUrl?: string
+}) => (
+  <div className="flex items-center justify-start gap-3">
+    <span className="text-sm text-muted-foreground shrink-0 min-w-15">
+      {label}
+    </span>
+    <div className="flex items-center gap-2 min-w-0 flex-1">
+      {explorerUrl ? (
+        <ExternalLink href={explorerUrl}>
+          <EntityBadge variant="contract">
+            {truncateAddress(address)}
+          </EntityBadge>
+        </ExternalLink>
+      ) : (
+        <EntityBadge variant="contract">{truncateAddress(address)}</EntityBadge>
+      )}
+      <CopyButton value={address} size="sm" />
+    </div>
+  </div>
+)
+
+export const RegistryCard = ({ registry, chainId }: RegistryCardProps) => {
   const addressUrl = useBlockExplorerAddressUrl(registry.address, chainId)
   const factoryUrl = useBlockExplorerAddressUrl(registry.factory, chainId)
+
   return (
     <div className="border border-border rounded-lg p-4 sm:p-6 flex flex-col items-center gap-4 relative w-full">
       <div className="flex flex-col gap-3 w-full">
-        <div className="flex items-center justify-start gap-3 ">
-          <span className="text-sm text-quartz-500 min-w-[60px]">Protocol</span>
+        <div className="flex items-center justify-start gap-3">
+          <span className="text-sm text-muted-foreground min-w-15">
+            Protocol
+          </span>
           <span className="text-sm font-medium">{registry.protocol}</span>
         </div>
 
         {registry.address && (
-          <div className="flex items-center justify-start gap-3">
-            <span className="text-sm text-quartz-500 shrink-0 min-w-[60px]">
-              Contract
-            </span>
-            <CopyableRecord
-              href={addressUrl}
-              value={registry.address}
-              className="min-w-0 flex-1"
-            />
-          </div>
+          <ContractAddressRow
+            label="Contract"
+            address={registry.address}
+            explorerUrl={addressUrl}
+          />
         )}
 
         {registry.factory && (
-          <div className="flex items-center justify-start gap-3">
-            <span className="text-sm text-quartz-500 shrink-0 min-w-[60px]">
-              Factory
-            </span>
-            <CopyableRecord
-              href={factoryUrl}
-              value={registry.factory}
-              className="min-w-0 flex-1"
-            />
-          </div>
+          <ContractAddressRow
+            label="Factory"
+            address={registry.factory}
+            explorerUrl={factoryUrl}
+          />
         )}
       </div>
     </div>

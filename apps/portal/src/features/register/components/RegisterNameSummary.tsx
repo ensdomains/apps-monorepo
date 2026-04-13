@@ -161,10 +161,15 @@ const SummaryRow = ({
   valueClassName,
 }: SummaryRowProps) => (
   <div className={cn('flex items-center justify-between', className)}>
-    <dt className={cn('text-base font-normal text-quartz-350', labelClassName)}>
+    <dt
+      className={cn(
+        'text-base font-normal text-muted-foreground',
+        labelClassName,
+      )}
+    >
       {label}
     </dt>
-    <dd className={cn('m-0 font-normal text-quartz-900', valueClassName)}>
+    <dd className={cn('m-0 font-normal text-foreground', valueClassName)}>
       {value}
     </dd>
   </div>
@@ -244,8 +249,8 @@ const PriceBreakdown = ({
           <SummaryRow
             label={'Temporary premium:'}
             value={formatPriceDisplay(price.premium, price.decimals)}
-            labelClassName="font-medium text-quartz-900"
-            valueClassName="font-medium text-quartz-900"
+            labelClassName="font-medium text-foreground"
+            valueClassName="font-medium text-foreground"
           />
         )}
 

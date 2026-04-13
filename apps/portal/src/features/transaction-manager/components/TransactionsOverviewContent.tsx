@@ -76,7 +76,7 @@ export const TransactionsOverviewContent = ({
           {ensName ? (
             <div className="flex flex-col items-center gap-2 pt-10">
               <NameAvatar name={ensName} height="80px" width="80px" />
-              <h2 className="text-3xl font-medium w-max text-quartz-900">
+              <h2 className="text-3xl font-medium w-max text-foreground">
                 {ensName}
               </h2>
             </div>
@@ -101,7 +101,7 @@ export const TransactionsOverviewContent = ({
                   tabIndex={0}
                   className={cn(
                     'flex flex-col gap-4 p-4 rounded-lg border',
-                    'border-border text-quartz-900 cursor-pointer',
+                    'border-border text-foreground cursor-pointer',
                   )}
                   onClick={() =>
                     setTransactionModalContentState({
@@ -122,7 +122,7 @@ export const TransactionsOverviewContent = ({
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-base font-medium w-max text-quartz-900">
+                        <h4 className="text-base font-medium w-max text-foreground">
                           {transaction.title}
                         </h4>
                         {match(getStatus(transaction.id, activeTransactionsMap))

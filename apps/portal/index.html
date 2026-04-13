@@ -12,6 +12,15 @@
     </head>
 
     <body>
+        <script>
+            ;(() => {
+                const stored = localStorage.getItem('ens-portal-theme')
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+                if (stored === 'dark' || ((!stored || stored === 'system') && prefersDark)) {
+                    document.documentElement.classList.add('dark')
+                }
+            })()
+        </script>
         <div id="app"></div>
         <script type="module" src="/src/main.tsx"></script>
     </body>

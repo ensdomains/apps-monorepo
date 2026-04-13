@@ -1,5 +1,7 @@
+import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,6 +17,16 @@ export type NameRow = {
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
 }
+
+const NameCell = ({ name }: { name: string }) => (
+  <div className="flex flex-row gap-2 items-center">
+    <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
+    <Link to="/$name" params={{ name }}>
+      <EntityBadge variant="name">{name}</EntityBadge>
+    </Link>
+    <CopyButton value={name} size="sm" />
+  </div>
+)
 
 export const columns: ColumnDef<NameRow>[] = [
   {
@@ -48,22 +60,10 @@ export const columns: ColumnDef<NameRow>[] = [
         Name
       </SortButton>
     ),
-    cell(cell) {
-      const name = cell.getValue() as string
-
+    cell: ({ getValue }) => {
+      const name = getValue() as string
       if (!name) return null
-
-      return (
-        <div className="flex flex-row gap-1 items-center w-max">
-          <NameAvatar
-            name={name}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <CopyableRecord href={`/${name}`} value={name} />
-        </div>
-      )
+      return <NameCell name={name} />
     },
   },
   {

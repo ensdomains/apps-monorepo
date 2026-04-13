@@ -6,10 +6,15 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
-import { sepolia } from 'viem/chains'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import {
+  useAccount,
+  usePublicClient,
+  useSwitchChain,
+  useWalletClient,
+} from 'wagmi'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { type SaveRecordsParameters, saveRecords } from '../helpers/saveRecords'
 
@@ -32,11 +37,23 @@ type UseSaveRecordsOptions = {
  */
 export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
   const { onSyncComplete } = options
-  const chainId = sepolia.id
+  const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
+  const { chain, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
+  const { switchChain, isPending: isSwitchingChain } = useSwitchChain()
   const [isSyncing, setIsSyncing] = useState(false)
+  const isWrongChain = isConnected && chain?.id !== chainId
+
+  const getSwitchToRequiredNetworkRequest = useCallback(
+    () => ({ chainId }),
+    [chainId],
+  )
+
+  const switchToRequiredNetwork = useCallback(() => {
+    switchChain(getSwitchToRequiredNetworkRequest())
+  }, [getSwitchToRequiredNetworkRequest, switchChain])
 
   const syncAfterSave = useCallback(
     async (name: string) => {
@@ -60,7 +77,15 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
 
   const mutation = useMutation({
     mutationFn: async (params: UseSaveRecordsParameters) => {
+      if (!isConnected) {
+        throw new Error('No account connected')
+      }
+
       if (!walletClient || !publicClient) {
+        if (isWrongChain) {
+          throw new Error('Wrong network. Switch to Sepolia to save records.')
+        }
+
         throw new Error('Wallet not connected')
       }
 
@@ -95,5 +120,9 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
     txHash: mutation.data?.hash,
     reset: mutation.reset,
     hasWallet: !!walletClient,
+    isWrongChain,
+    isSwitchingChain,
+    switchToRequiredNetwork,
+    requiredChainId: chainId,
   }
 }

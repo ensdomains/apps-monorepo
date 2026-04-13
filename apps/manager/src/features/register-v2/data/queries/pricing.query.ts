@@ -1,16 +1,21 @@
 import {
-  ENS_SEPOLIA_CONTRACTS,
   type SUPPORTED_TOKEN,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { l2EthRegistrarRentPriceSnippet } from '@ensdomains/ensjs/contracts'
 import { err, fromPromise, ok } from 'neverthrow'
 import type { Address, ReadContractErrorType } from 'viem'
 import { readContract } from 'viem/actions'
-import { FASTTESTETHREGISTRAR_ABI } from '@/lib/ens.abi'
-import { publicClient } from '@/lib/wagmi'
+import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
+
+const ETH_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export class GetPricingError extends TaggedError('GetPricingError')<{
   readonly cause: ReadContractErrorType
@@ -32,8 +37,8 @@ export const getPricing = ResultFn(async function* (
   const tokenInfo = TOKENS[token]
   const [basePrice, premium] = yield* fromPromise(
     readContract(publicClient, {
-      address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
-      abi: FASTTESTETHREGISTRAR_ABI,
+      address: ETH_REGISTRAR,
+      abi: l2EthRegistrarRentPriceSnippet,
       functionName: 'rentPrice',
       args: [
         name,

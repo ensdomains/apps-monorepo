@@ -1,12 +1,9 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
-import { HashIcon, ListIcon } from 'lucide-react'
-import {
-  CounterCard,
-  CounterCardLink,
-  CounterCardRow,
-} from '@/components/CounterCard'
+import { AlertCircleIcon } from 'lucide-react'
+import { ShieldIcon } from '@/assets/icons'
+import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
@@ -33,16 +30,26 @@ const RoleCount = ({ name }: { name: string }) => {
   )
 
   if (error)
-    return <div>Failed to fetch fuses count: {error.cause?.message}</div>
+    return (
+      <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
+        <CounterCardRow icon={AlertCircleIcon}>
+          <span className="text-sm text-muted-foreground">
+            Failed to load roles
+          </span>
+        </CounterCardRow>
+      </div>
+    )
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <CounterCardRow
-      icon={ListIcon}
-      action={<CounterCardLink to="/$name/roles" params={{ name }} />}
-    >
-      <span className="font-medium">{(data || { size: 0 }).size}</span> roles
-    </CounterCardRow>
+    <CounterCard to="/$name/roles" params={{ name }}>
+      <CounterCardRow icon={ShieldIcon}>
+        <span className="font-medium text-foreground">
+          {(data || { size: 0 }).size}
+        </span>{' '}
+        <span className="text-muted-foreground">roles</span>
+      </CounterCardRow>
+    </CounterCard>
   )
 }
 
@@ -52,16 +59,24 @@ const FuseCount = ({ name }: { name: string }) => {
   )
 
   if (error)
-    return <div>Failed to fetch fuses count: {error.cause?.message}</div>
+    return (
+      <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
+        <CounterCardRow icon={AlertCircleIcon}>
+          <span className="text-sm text-muted-foreground">
+            Failed to load fuses
+          </span>
+        </CounterCardRow>
+      </div>
+    )
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <CounterCardRow
-      icon={ListIcon}
-      action={<CounterCardLink to="/$name/fuses" params={{ name }} />}
-    >
-      <span className="font-medium">{data || 0}</span> fuses burned
-    </CounterCardRow>
+    <CounterCard to="/$name/fuses" params={{ name }}>
+      <CounterCardRow icon={ShieldIcon}>
+        <span className="font-medium text-foreground">{data || 0}</span>{' '}
+        <span className="text-muted-foreground">fuses burned</span>
+      </CounterCardRow>
+    </CounterCard>
   )
 }
 
@@ -69,26 +84,9 @@ export const ProtocolVersionWithCounter = ({
   name,
   protocolVersion,
 }: ProtocolVersionWithCounterProps) => {
-  return (
-    <CounterCard>
-      {protocolVersion === 'ENSv1' ? (
-        <FuseCount name={name} />
-      ) : (
-        <RoleCount name={name} />
-      )}
-      <CounterCardRow
-        icon={HashIcon}
-        action={
-          <CounterCardLink
-            to="/$name/records"
-            search={{ view: 'list' }}
-            params={{ name }}
-          />
-        }
-      >
-        <div className="font-medium">Protocol</div>
-        <div>{protocolVersion}</div>
-      </CounterCardRow>
-    </CounterCard>
+  return protocolVersion === 'ENSv1' ? (
+    <FuseCount name={name} />
+  ) : (
+    <RoleCount name={name} />
   )
 }

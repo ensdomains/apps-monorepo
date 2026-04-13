@@ -58,18 +58,18 @@ const EventData = ({ event, txHash }: EventDataProps) => {
       {showDecoded ? (
         <div className="border rounded-lg overflow-auto">
           <table className="w-full">
-            <thead className="bg-quartz-50">
+            <thead className="bg-muted">
               <tr>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700 w-12">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground w-12">
                   #
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                   Name
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                   Type
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                   Data
                 </th>
               </tr>
@@ -98,17 +98,17 @@ const EventData = ({ event, txHash }: EventDataProps) => {
           </table>
         </div>
       ) : (
-        <div className="bg-quartz-50 p-4 rounded-lg">
+        <div className="bg-muted p-4 rounded-lg">
           {eventLog ? (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-medium text-quartz-500 mb-2">
+                <p className="text-xs font-medium text-muted-foreground mb-2">
                   Data:
                 </p>
                 <CopyableRecord
                   value={eventLog.data}
                   displayValue={
-                    <p className="text-xs font-mono break-all text-quartz-900">
+                    <p className="text-xs font-mono break-all text-foreground">
                       {eventLog.data}
                     </p>
                   }
@@ -116,7 +116,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               </div>
               {eventLog.topics.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-quartz-500 mb-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
                     Topics:
                   </p>
                   <div className="space-y-2">
@@ -125,7 +125,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
                         key={topic}
                         value={topic}
                         displayValue={
-                          <p className="text-xs font-mono break-all text-quartz-900">
+                          <p className="text-xs font-mono break-all text-foreground">
                             [{i}]: {topic}
                           </p>
                         }
@@ -136,7 +136,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               )}
             </div>
           ) : (
-            <p className="text-xs text-quartz-500">
+            <p className="text-xs text-muted-foreground">
               Encoded data not available. Transaction receipt may still be
               loading.
             </p>
@@ -158,7 +158,9 @@ export const TransactionEvents = ({
 }: TransactionEventsProps) => {
   if (events.length === 0) {
     return (
-      <div className="text-quartz-400 text-center py-6">No events found</div>
+      <div className="text-muted-foreground text-center py-6">
+        No events found
+      </div>
     )
   }
 
@@ -217,7 +219,7 @@ export const TransactionEvents = ({
                       </Button>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
-                      <span className="text-base font-semibold text-black shrink-0 sm:min-w-[160px]">
+                      <span className="text-base font-semibold shrink-0 sm:min-w-40">
                         Transaction
                       </span>
                       <CopyableRecord
@@ -231,7 +233,7 @@ export const TransactionEvents = ({
                       />
                     </div>
                     <div className="flex flex-row gap-6 items-center">
-                      <span className="text-base font-semibold text-black sm:min-w-[160px]">
+                      <span className="text-base font-semibold sm:min-w-40">
                         Event
                       </span>
                       <CopyableRecord
