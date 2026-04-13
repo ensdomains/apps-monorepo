@@ -1,6 +1,6 @@
 /* Structured logger for Cloudflare Workers */
 export interface LogMeta {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 // prettify errors
