@@ -216,7 +216,7 @@ export const MigrationPage = () => {
     [send],
   )
 
-  const { skippedNames } = state.context
+  const { skippedNames, migratedNames } = state.context
 
   return (
     <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">
@@ -308,7 +308,11 @@ export const MigrationPage = () => {
           </ResultLayout>
         ))
         .with('success', () => (
-          <SuccessModal onClose={() => send({ type: 'DONE' })} open />
+          <SuccessModal
+            migratedNames={migratedNames}
+            onClose={() => send({ type: 'DONE' })}
+            open
+          />
         ))
         .exhaustive()}
     </div>

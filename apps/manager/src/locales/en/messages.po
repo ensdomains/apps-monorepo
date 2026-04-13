@@ -74,6 +74,10 @@ msgstr "{0} USD/year"
 msgid "{0}% off"
 msgstr "{0}% off"
 
+#: src/features/migration/components/SuccessModal.tsx:102
+msgid "{count} names migrated"
+msgstr "{count} names migrated"
+
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
 msgid "{discount}% off"
 msgstr "{discount}% off"
@@ -104,6 +108,10 @@ msgstr "{label} theme"
 msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
+#: src/features/migration/components/SuccessModal.tsx:125
+msgid "+{overflow} more"
+msgstr "+{overflow} more"
+
 #. placeholder {0}: eligibleNames.length
 #: src/features/migration/components/SelectNamesStep.tsx:359
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
@@ -113,6 +121,10 @@ msgstr "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names select
 #: src/routes/wallet.tsx:192
 msgid "<0>Connection failed:</0> {0}"
 msgstr "<0>Connection failed:</0> {0}"
+
+#: src/features/migration/components/SuccessModal.tsx:100
+msgid "1 name migrated"
+msgstr "1 name migrated"
 
 #: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:18
 msgid "3 character premium name"
@@ -263,7 +275,7 @@ msgid "Approving"
 msgstr "Approving"
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:53
+#: src/features/migration/components/GameStep.tsx:52
 msgid "Approving Multicall3 to batch {0} name(s)"
 msgstr "Approving Multicall3 to batch {0} name(s)"
 
@@ -741,7 +753,7 @@ msgstr "Disconnect Wallet"
 msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
-#: src/features/migration/components/SuccessModal.tsx:38
+#: src/features/migration/components/SuccessModal.tsx:139
 #: src/features/migration/pages/MigrationPage.tsx:305
 msgid "Done"
 msgstr "Done"
@@ -1235,19 +1247,15 @@ msgstr "Marking..."
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.bucket
-#: src/features/migration/components/GameStep.tsx:58
+#: src/features/migration/components/GameStep.tsx:57
 msgid "Migrating {0} {1} name(s)"
 msgstr "Migrating {0} {1} name(s)"
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.parentName
-#: src/features/migration/components/GameStep.tsx:63
+#: src/features/migration/components/GameStep.tsx:62
 msgid "Migrating {0} subname(s) under {1}"
 msgstr "Migrating {0} subname(s) under {1}"
-
-#: src/features/migration/components/SuccessModal.tsx:28
-msgid "Migration Complete!"
-msgstr "Migration Complete!"
 
 #: src/features/migration/pages/MigrationPage.tsx:245
 msgid "Migration failed"
@@ -1555,7 +1563,7 @@ msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:48
+#: src/features/migration/components/GameStep.tsx:47
 msgid "Pre-migrating {0} name(s)"
 msgstr "Pre-migrating {0} name(s)"
 
@@ -2355,7 +2363,7 @@ msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profi
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:108
+#: src/features/migration/components/GameStep.tsx:107
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 
@@ -2660,6 +2668,10 @@ msgstr "You'll miss:"
 msgid "You're all caught up!"
 msgstr "You're all caught up!"
 
+#: src/features/migration/components/SuccessModal.tsx:96
+msgid "You're on ENS v2!"
+msgstr "You're on ENS v2!"
+
 #: src/features/register/components/Autorenewal.tsx:91
 msgid "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
 msgstr "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
@@ -2700,10 +2712,6 @@ msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 ap
 #: src/features/migration/components/SelectNamesStep.tsx:157
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
-
-#: src/features/migration/components/SuccessModal.tsx:31
-msgid "Your names have been successfully upgraded."
-msgstr "Your names have been successfully upgraded."
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."

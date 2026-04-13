@@ -79,6 +79,10 @@ msgstr ""
 msgid "{0}% off"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:102
+msgid "{count} names migrated"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
 msgid "{discount}% off"
 msgstr ""
@@ -109,6 +113,10 @@ msgstr ""
 msgid "{label} theme (selected)"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:125
+msgid "+{overflow} more"
+msgstr ""
+
 #. placeholder {0}: eligibleNames.length
 #: src/features/migration/components/SelectNamesStep.tsx:359
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
@@ -117,6 +125,10 @@ msgstr ""
 #. placeholder {0}: getErrorMessage(error)
 #: src/routes/wallet.tsx:192
 msgid "<0>Connection failed:</0> {0}"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:100
+msgid "1 name migrated"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:18
@@ -268,7 +280,7 @@ msgid "Approving"
 msgstr ""
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:53
+#: src/features/migration/components/GameStep.tsx:52
 msgid "Approving Multicall3 to batch {0} name(s)"
 msgstr ""
 
@@ -746,7 +758,7 @@ msgstr ""
 msgid "Domain transfer & expiry notifications"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:38
+#: src/features/migration/components/SuccessModal.tsx:139
 #: src/features/migration/pages/MigrationPage.tsx:305
 msgid "Done"
 msgstr ""
@@ -1240,18 +1252,14 @@ msgstr ""
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.bucket
-#: src/features/migration/components/GameStep.tsx:58
+#: src/features/migration/components/GameStep.tsx:57
 msgid "Migrating {0} {1} name(s)"
 msgstr ""
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.parentName
-#: src/features/migration/components/GameStep.tsx:63
+#: src/features/migration/components/GameStep.tsx:62
 msgid "Migrating {0} subname(s) under {1}"
-msgstr ""
-
-#: src/features/migration/components/SuccessModal.tsx:28
-msgid "Migration Complete!"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:245
@@ -1560,7 +1568,7 @@ msgid "Please wait while we verify your email address."
 msgstr ""
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:48
+#: src/features/migration/components/GameStep.tsx:47
 msgid "Pre-migrating {0} name(s)"
 msgstr ""
 
@@ -2360,7 +2368,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:108
+#: src/features/migration/components/GameStep.tsx:107
 msgid "Upgrading your names..."
 msgstr ""
 
@@ -2665,6 +2673,10 @@ msgstr ""
 msgid "You're all caught up!"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:96
+msgid "You're on ENS v2!"
+msgstr ""
+
 #: src/features/register/components/Autorenewal.tsx:91
 msgid "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
 msgstr ""
@@ -2704,10 +2716,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx:157
 msgid "Your names are ready to upgrade"
-msgstr ""
-
-#: src/features/migration/components/SuccessModal.tsx:31
-msgid "Your names have been successfully upgraded."
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
