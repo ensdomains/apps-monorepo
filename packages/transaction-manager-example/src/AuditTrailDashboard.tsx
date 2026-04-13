@@ -4,20 +4,20 @@ import type {
 } from '@ens-apps/transaction-manager'
 import * as auditTrail from '@ens-apps/transaction-manager'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export const AuditTrailDashboard = () => {
   const [history, setHistory] = useState<StateTransition[]>([])
   const [report, setReport] = useState<DebugReport | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(false)
 
-  const handleViewHistory = () => {
+  const handleViewHistory = useCallback(() => {
     const transitions = auditTrail.getTransitionHistory({
       fromTime: Date.now() - 3600000, // Last hour
       includeErrors: true,
     })
     setHistory(transitions)
-  }
+  }, [])
 
   useEffect(() => {
     if (autoRefresh) {
