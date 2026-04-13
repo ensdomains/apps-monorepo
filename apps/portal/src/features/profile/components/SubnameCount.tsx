@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { AlertCircleIcon } from 'lucide-react'
 import { GraphIcon } from '@/assets/icons'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -16,7 +17,16 @@ export const SubnameCount = ({
     getSubnamesQueryOptions({ name, protocolVersion }),
   )
 
-  if (error) return <div>Error: {error.cause?.message}</div>
+  if (error)
+    return (
+      <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
+        <CounterCardRow icon={AlertCircleIcon}>
+          <span className="text-sm text-muted-foreground">
+            Failed to load subnames
+          </span>
+        </CounterCardRow>
+      </div>
+    )
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   return (
