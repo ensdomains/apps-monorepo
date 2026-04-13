@@ -278,9 +278,7 @@ function RouteComponent() {
         <TokenV1Name name={name} />
       ) : data?.protocolVersion === 'ENSv2' ? (
         <TokenV2Name name={name} registryAddress={data.registryAddress} />
-      ) : (
-        <NotFoundMessage />
-      )}
+      ) : null}
 
       {/* Normalization Section */}
       <h2 className="font-medium text-2xl">Normalization</h2>
