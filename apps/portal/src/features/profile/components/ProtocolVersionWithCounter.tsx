@@ -1,6 +1,7 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
+import { AlertCircleIcon } from 'lucide-react'
 import { ShieldIcon } from '@/assets/icons'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -29,7 +30,15 @@ const RoleCount = ({ name }: { name: string }) => {
   )
 
   if (error)
-    return <div>Failed to fetch roles count: {error.cause?.message}</div>
+    return (
+      <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
+        <CounterCardRow icon={AlertCircleIcon}>
+          <span className="text-sm text-muted-foreground">
+            Failed to load roles
+          </span>
+        </CounterCardRow>
+      </div>
+    )
   if (isLoading) return <LoadingSpinner />
 
   return (
@@ -50,7 +59,15 @@ const FuseCount = ({ name }: { name: string }) => {
   )
 
   if (error)
-    return <div>Failed to fetch fuses count: {error.cause?.message}</div>
+    return (
+      <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
+        <CounterCardRow icon={AlertCircleIcon}>
+          <span className="text-sm text-muted-foreground">
+            Failed to load fuses
+          </span>
+        </CounterCardRow>
+      </div>
+    )
   if (isLoading) return <LoadingSpinner />
 
   return (
