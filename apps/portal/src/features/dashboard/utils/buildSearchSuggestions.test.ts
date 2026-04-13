@@ -35,6 +35,18 @@ describe('buildSearchSuggestions', () => {
       expect(result).toEqual([])
     })
 
+    it('should return empty array for names shorter than 3 characters', () => {
+      const withTlds = { ...defaultOptions, validTlds: ['eth'] }
+      expect(buildSearchSuggestions({ ...withTlds, value: 'a' })).toEqual([])
+      expect(buildSearchSuggestions({ ...withTlds, value: 'ab' })).toEqual([])
+      // ab.eth — label is 2 chars, should be hidden
+      expect(buildSearchSuggestions({ ...withTlds, value: 'ab.eth' })).toEqual(
+        [],
+      )
+      // ab. — trailing dot, label still 2 chars
+      expect(buildSearchSuggestions({ ...withTlds, value: 'ab.' })).toEqual([])
+    })
+
     it('should trim leading and trailing whitespace', () => {
       const result = buildSearchSuggestions({
         ...defaultOptions,
