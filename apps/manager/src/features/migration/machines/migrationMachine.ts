@@ -40,6 +40,14 @@ export const migrationMachine = setup({
   },
   actions: {
     resetContext: assign(() => initialContext),
+    recordCompletion: assign({
+      txHashes: ({ event }) =>
+        event.type === 'MIGRATION_COMPLETE' ? event.txHashes : [],
+      migratedNames: ({ context, event }) =>
+        event.type === 'MIGRATION_COMPLETE'
+          ? [...context.migratedNames, ...event.migratedNames]
+          : context.migratedNames,
+    }),
   },
 }).createMachine({
   id: 'migration',
@@ -66,14 +74,10 @@ export const migrationMachine = setup({
             target: 'partialSuccess',
             guard: ({ event }) =>
               event.skipped.length > 0 && event.txHashes.length > 0,
-            actions: assign({
-              txHashes: ({ event }) => event.txHashes,
-              skippedNames: ({ event }) => event.skipped,
-              migratedNames: ({ context, event }) => [
-                ...context.migratedNames,
-                ...event.migratedNames,
-              ],
-            }),
+            actions: [
+              'recordCompletion',
+              assign({ skippedNames: ({ event }) => event.skipped }),
+            ],
           },
           {
             target: 'error',
@@ -90,14 +94,7 @@ export const migrationMachine = setup({
           },
           {
             target: 'success',
-            actions: assign({
-              txHashes: ({ event }) => event.txHashes,
-              skippedNames: () => [],
-              migratedNames: ({ context, event }) => [
-                ...context.migratedNames,
-                ...event.migratedNames,
-              ],
-            }),
+            actions: ['recordCompletion', assign({ skippedNames: () => [] })],
           },
         ],
         MIGRATION_ERROR: {

@@ -320,14 +320,25 @@ export const SelectNamesStep = ({
                                   {item.domain.name}
                                 </div>
                                 <span className="text-ens-garnet-900/40 text-xs">
-                                  {item.reason === 'unlocked-subname' ? (
-                                    <Trans>
-                                      Subname must be registered directly on ENS
-                                      v2
-                                    </Trans>
-                                  ) : (
-                                    <Trans>Not eligible for migration</Trans>
-                                  )}
+                                  {match(item.reason)
+                                    .with('unlocked-subname', () => (
+                                      <Trans>
+                                        Subname must be registered directly on
+                                        ENS v2
+                                      </Trans>
+                                    ))
+                                    .with('not-transferable', () => (
+                                      <Trans>
+                                        CANNOT_TRANSFER is burned — token cannot
+                                        be moved
+                                      </Trans>
+                                    ))
+                                    .with('missing-parent', () => (
+                                      <Trans>Parent name is unknown</Trans>
+                                    ))
+                                    .otherwise(() => (
+                                      <Trans>Not eligible for migration</Trans>
+                                    ))}
                                 </span>
                               </div>
                             ))}

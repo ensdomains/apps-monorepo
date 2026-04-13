@@ -40,7 +40,7 @@ import {
 } from './signTransactions'
 import type { V1Domain } from './v1SubgraphClient'
 
-const TX_RECEIPT_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+const TX_RECEIPT_TIMEOUT_MS = 5 * 60 * 1000
 
 export class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -82,24 +82,61 @@ export type MigrationResult = {
   readonly ineligible: readonly IneligibleName[]
 }
 
-const count2LDBuckets = (groups: GroupedNames): number =>
-  (groups.unwrapped.length > 0 ? 1 : 0) +
-  (groups.unlocked.length > 0 ? 1 : 0) +
-  (groups.locked2ld.length > 0 ? 1 : 0)
-
 const needsMulticall3Approval = (groups: GroupedNames): boolean =>
   groups.unwrapped.length >= 2
 
-const countSteps = (
+const buildStepDescriptors = (
+  classified: readonly ClassifiedName[],
   groups: GroupedNames,
   includePreMigrate: boolean,
-): number => {
-  let count = 0
-  if (includePreMigrate) count++
-  if (needsMulticall3Approval(groups)) count++
-  count += count2LDBuckets(groups)
-  count += groups.childNames.size
-  return count
+): MigrationStepDescriptor[] => {
+  const descriptors: MigrationStepDescriptor[] = []
+
+  if (includePreMigrate) {
+    const twoLDCount = classified.filter(is2LD).length
+    if (twoLDCount > 0) {
+      descriptors.push({ type: 'pre-migrate', count: twoLDCount })
+    }
+  }
+
+  if (needsMulticall3Approval(groups)) {
+    descriptors.push({
+      type: 'approve-multicall3',
+      count: groups.unwrapped.length,
+    })
+  }
+
+  if (groups.unwrapped.length > 0) {
+    descriptors.push({
+      type: 'migrate',
+      count: groups.unwrapped.length,
+      bucket: 'unwrapped',
+    })
+  }
+  if (groups.unlocked.length > 0) {
+    descriptors.push({
+      type: 'migrate',
+      count: groups.unlocked.length,
+      bucket: 'unlocked',
+    })
+  }
+  if (groups.locked2ld.length > 0) {
+    descriptors.push({
+      type: 'migrate',
+      count: groups.locked2ld.length,
+      bucket: 'locked-2ld',
+    })
+  }
+
+  for (const [parentName, children] of groups.childNames) {
+    descriptors.push({
+      type: 'migrate-subnames',
+      count: children.length,
+      parentName,
+    })
+  }
+
+  return descriptors
 }
 
 export const executeMigration = async (params: {
@@ -134,7 +171,7 @@ export const executeMigration = async (params: {
       )
     : await runPreFlightChecks(publicClient, classified)
 
-  const preflightSkipped: SkippedName[] = [
+  const skipped: SkippedName[] = [
     ...preflight.notReserved.map((n) => ({
       name: n.domain.name,
       reason: 'not-premigrated' as const,
@@ -144,7 +181,6 @@ export const executeMigration = async (params: {
       reason: 'frozen-approval' as const,
     })),
   ]
-  const skipped: SkippedName[] = [...preflightSkipped]
 
   if (preflight.valid.length === 0) {
     const reasons: string[] = []
@@ -169,14 +205,17 @@ export const executeMigration = async (params: {
   const validNames = preflight.valid
 
   const groups = groupClassifiedNames(validNames)
-  const totalSteps = countSteps(groups, ENABLE_PRE_MIGRATE)
+  const totalSteps = buildStepDescriptors(
+    validNames,
+    groups,
+    ENABLE_PRE_MIGRATE,
+  ).length
   const txHashes: Hex[] = []
   let stepIndex = 0
+  let migratedCount = 0
 
-  // ── Step: Pre-migrate (sequential, must complete before transfers) ──
-  if (ENABLE_PRE_MIGRATE) {
-    const twoLDs = validNames.filter(is2LD)
-
+  const twoLDs = validNames.filter(is2LD)
+  if (ENABLE_PRE_MIGRATE && twoLDs.length > 0) {
     const { notReserved: needsPreMigrate } = await filterNotReserved(
       publicClient,
       twoLDs,
@@ -219,20 +258,17 @@ export const executeMigration = async (params: {
         }
         throw new MigrationError({ cause: error, step: 'Pre-migrate' })
       }
-
-      stepIndex++
-      onProgress({
-        currentStep: stepIndex,
-        totalSteps,
-        description: 'Pre-migration complete',
-        txHash: txHashes[txHashes.length - 1],
-      })
-    } else {
-      stepIndex++
     }
+
+    stepIndex++
+    onProgress({
+      currentStep: stepIndex,
+      totalSteps,
+      description: 'Pre-migration complete',
+      txHash: txHashes[txHashes.length - 1],
+    })
   }
 
-  // ── Step: Multicall3 operator approval (required for batched unwrapped transfers) ──
   if (needsMulticall3Approval(groups)) {
     const isApproved = (await readContract(wagmiConfig, {
       address: V1_CONTRACTS.BaseRegistrar,
@@ -279,7 +315,6 @@ export const executeMigration = async (params: {
     })
   }
 
-  // ── Step: 2LD migrations — one step per non-empty bucket (each = one tx) ──
   const signingSteps = [
     {
       names: groups.unwrapped,
@@ -341,6 +376,7 @@ export const executeMigration = async (params: {
     }
 
     skipped.push(...bucketResult.skipped)
+    migratedCount += names.length - bucketResult.skipped.length
 
     if (bucketResult.hashes.length > 0) {
       onProgress({
@@ -370,7 +406,6 @@ export const executeMigration = async (params: {
     })
   }
 
-  // ── Steps: Child names (resolve all parent registries in one batch, then sign per parent) ──
   const parentRegistries =
     groups.childNames.size > 0
       ? await resolveParentRegistries(publicClient, groups.childNames)
@@ -403,6 +438,7 @@ export const executeMigration = async (params: {
         target: wrapperRegistry,
       })
       skipped.push(...result.skipped)
+      migratedCount += children.length - result.skipped.length
 
       if (result.hashes.length > 0) {
         onProgress({
@@ -444,7 +480,7 @@ export const executeMigration = async (params: {
   }
 
   return {
-    completed: validNames.length - (skipped.length - preflightSkipped.length),
+    completed: migratedCount,
     txHashes,
     skipped,
     ineligible,
@@ -469,54 +505,14 @@ export const getMigrationStepInfo = (
 } => {
   const { classified, ineligible } = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
-  const descriptors: MigrationStepDescriptor[] = []
-
-  if (ENABLE_PRE_MIGRATE) {
-    const twoLDCount = classified.filter(is2LD).length
-    if (twoLDCount > 0) {
-      descriptors.push({ type: 'pre-migrate', count: twoLDCount })
-    }
-  }
-
-  if (needsMulticall3Approval(groups)) {
-    descriptors.push({
-      type: 'approve-multicall3',
-      count: groups.unwrapped.length,
-    })
-  }
-
-  if (groups.unwrapped.length > 0) {
-    descriptors.push({
-      type: 'migrate',
-      count: groups.unwrapped.length,
-      bucket: 'unwrapped',
-    })
-  }
-  if (groups.unlocked.length > 0) {
-    descriptors.push({
-      type: 'migrate',
-      count: groups.unlocked.length,
-      bucket: 'unlocked',
-    })
-  }
-  if (groups.locked2ld.length > 0) {
-    descriptors.push({
-      type: 'migrate',
-      count: groups.locked2ld.length,
-      bucket: 'locked-2ld',
-    })
-  }
-
-  for (const [parentName, children] of groups.childNames) {
-    descriptors.push({
-      type: 'migrate-subnames',
-      count: children.length,
-      parentName,
-    })
-  }
+  const descriptors = buildStepDescriptors(
+    classified,
+    groups,
+    ENABLE_PRE_MIGRATE,
+  )
 
   return {
-    stepCount: countSteps(groups, ENABLE_PRE_MIGRATE),
+    stepCount: descriptors.length,
     stepDescriptors: descriptors,
     ineligible,
   }

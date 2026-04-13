@@ -1,4 +1,3 @@
-import { match } from 'ts-pattern'
 import { type Address, encodeFunctionData, type Hex, multicall3Abi } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import {
@@ -6,7 +5,7 @@ import {
   V1_CONTRACTS,
   V2_CONTRACTS,
 } from '../contracts/addresses'
-import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import type { ClassifiedName } from './classifyNames'
 import {
   createMigrationData,
   encodeMigrationData,
@@ -55,44 +54,8 @@ const getTokenId = (name: ClassifiedName): bigint =>
     ? BigInt(name.domain.labelhash)
     : BigInt(name.domain.id)
 
-const getMigrationTarget = (
-  tokenType: ClassifiedName['tokenType'],
-  parentWrapperRegistry?: Address,
-): Address =>
-  match(tokenType)
-    .with(
-      'unwrapped',
-      'unlocked',
-      () => V2_CONTRACTS.UnlockedMigrationController,
-    )
-    .with('locked-2ld', () => V2_CONTRACTS.LockedMigrationController)
-    .with('locked-child', 'detached-child', () => {
-      if (!parentWrapperRegistry) {
-        throw new Error(
-          'Parent WrapperRegistry address required for child migration',
-        )
-      }
-      return parentWrapperRegistry
-    })
-    .exhaustive()
-
-const getResolverForName = (
-  name: ClassifiedName,
-  defaultResolver: Address,
-): Address =>
-  match(name.tokenType)
-    .with('locked-2ld', 'locked-child', () => {
-      if (
-        hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER) &&
-        name.v1ResolverAddress
-      ) {
-        return name.v1ResolverAddress as Address
-      }
-      return defaultResolver
-    })
-    // Detached names are unwrapped to Graveyard — resolver is always cleared
-    .with('detached-child', () => defaultResolver)
-    .otherwise(() => defaultResolver)
+const resolverFor = (name: ClassifiedName, defaultResolver: Address): Address =>
+  name.preservedResolver ?? defaultResolver
 
 export const buildUnwrappedCall = (params: {
   name: ClassifiedName
@@ -100,11 +63,12 @@ export const buildUnwrappedCall = (params: {
   defaultResolver: Address
 }): UnwrappedMigrationCall => {
   const { name, migrationOwner, defaultResolver } = params
-  const tokenId = getTokenId(name)
-  const target = getMigrationTarget(name.tokenType)
-  const resolver = getResolverForName(name, defaultResolver)
   const data = encodeMigrationData(
-    createMigrationData({ label: name.label, owner: migrationOwner, resolver }),
+    createMigrationData({
+      label: name.label,
+      owner: migrationOwner,
+      resolver: resolverFor(name, defaultResolver),
+    }),
   )
 
   return {
@@ -114,7 +78,12 @@ export const buildUnwrappedCall = (params: {
       address: V1_CONTRACTS.BaseRegistrar,
       abi: BASE_REGISTRAR_ABI,
       functionName: 'safeTransferFrom',
-      args: [name.tokenHolder, target, tokenId, data] as const,
+      args: [
+        name.tokenHolder,
+        V2_CONTRACTS.UnlockedMigrationController,
+        getTokenId(name),
+        data,
+      ] as const,
     },
   }
 }
@@ -123,15 +92,15 @@ const buildWrappedSingleCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
-  parentWrapperRegistry?: Address
+  target: Address
 }): WrappedSingleMigrationCall => {
-  const { name, migrationOwner, defaultResolver, parentWrapperRegistry } =
-    params
-  const tokenId = getTokenId(name)
-  const target = getMigrationTarget(name.tokenType, parentWrapperRegistry)
-  const resolver = getResolverForName(name, defaultResolver)
+  const { name, migrationOwner, defaultResolver, target } = params
   const data = encodeMigrationData(
-    createMigrationData({ label: name.label, owner: migrationOwner, resolver }),
+    createMigrationData({
+      label: name.label,
+      owner: migrationOwner,
+      resolver: resolverFor(name, defaultResolver),
+    }),
   )
 
   return {
@@ -141,7 +110,7 @@ const buildWrappedSingleCall = (params: {
       address: V1_CONTRACTS.NameWrapper,
       abi: NAME_WRAPPER_ABI,
       functionName: 'safeTransferFrom',
-      args: [name.tokenHolder, target, tokenId, 1n, data] as const,
+      args: [name.tokenHolder, target, getTokenId(name), 1n, data] as const,
     },
   }
 }
@@ -164,17 +133,13 @@ const buildWrappedBatchCall = (params: {
     )
   }
 
-  const tokenIds = names.map(getTokenId)
-  const amounts = names.map(() => 1n)
-  const migrationDataArray = names.map((name) => {
-    const resolver = getResolverForName(name, defaultResolver)
-    return createMigrationData({
+  const migrationDataArray = names.map((name) =>
+    createMigrationData({
       label: name.label,
       owner: migrationOwner,
-      resolver,
-    })
-  })
-  const data = encodeMigrationDataBatch(migrationDataArray)
+      resolver: resolverFor(name, defaultResolver),
+    }),
+  )
 
   return {
     type: 'wrapped-batch',
@@ -183,7 +148,13 @@ const buildWrappedBatchCall = (params: {
       address: V1_CONTRACTS.NameWrapper,
       abi: NAME_WRAPPER_ABI,
       functionName: 'safeBatchTransferFrom',
-      args: [first.tokenHolder, target, tokenIds, amounts, data] as const,
+      args: [
+        first.tokenHolder,
+        target,
+        names.map(getTokenId),
+        names.map(() => 1n),
+        encodeMigrationDataBatch(migrationDataArray),
+      ] as const,
     },
   }
 }
@@ -201,11 +172,7 @@ export const buildWrappedCalls = (params: {
       name: names[0],
       migrationOwner,
       defaultResolver,
-      parentWrapperRegistry:
-        names[0].tokenType === 'locked-child' ||
-        names[0].tokenType === 'detached-child'
-          ? target
-          : undefined,
+      target,
     })
   }
 
@@ -225,14 +192,11 @@ export const buildUnwrappedMulticall = (params: {
   const { names, migrationOwner, defaultResolver } = params
 
   const calls = names.map((name) => {
-    const tokenId = getTokenId(name)
-    const target = getMigrationTarget(name.tokenType)
-    const resolver = getResolverForName(name, defaultResolver)
     const data = encodeMigrationData(
       createMigrationData({
         label: name.label,
         owner: migrationOwner,
-        resolver,
+        resolver: resolverFor(name, defaultResolver),
       }),
     )
 
@@ -242,7 +206,12 @@ export const buildUnwrappedMulticall = (params: {
       callData: encodeFunctionData({
         abi: BASE_REGISTRAR_ABI,
         functionName: 'safeTransferFrom',
-        args: [name.tokenHolder, target, tokenId, data],
+        args: [
+          name.tokenHolder,
+          V2_CONTRACTS.UnlockedMigrationController,
+          getTokenId(name),
+          data,
+        ],
       }),
     }
   })
