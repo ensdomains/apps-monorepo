@@ -1,11 +1,8 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getResolver as ensjsGetResolver } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
-import { zeroAddress } from 'viem'
-import { readContract } from 'viem/actions'
-import { ETH_REGISTRY_ABI } from '@/lib/eth-registry.abi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetResolverError extends TaggedError('GetResolverError')<{
@@ -15,23 +12,14 @@ class GetResolverError extends TaggedError('GetResolverError')<{
 export const getResolver = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
-  const cleanName = name.replace('.eth', '')
+  const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
 
   const resolverAddress = yield* await fromPromise(
-    readContract(client, {
-      address: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      abi: ETH_REGISTRY_ABI,
-      functionName: 'getResolver',
-      args: [cleanName],
-    }),
+    ensjsGetResolver(client, { name: nameWithEth }),
     (e) => new GetResolverError({ cause: e }),
   )
 
-  if (!resolverAddress || resolverAddress === zeroAddress) {
-    return ok(undefined)
-  }
-
-  return ok(resolverAddress)
+  return ok(resolverAddress ?? undefined)
 })
 
 export const profileResolverQuery = (name: string) =>
