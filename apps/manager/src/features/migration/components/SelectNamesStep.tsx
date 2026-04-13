@@ -1,79 +1,36 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { AlertTriangle, Check, Info, Search } from 'lucide-react'
+import { AlertTriangle, Check, Info, Search, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, namehash } from 'viem'
-import { labelhash } from 'viem/ens'
+import type { Address } from 'viem'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   classifyNames,
-  FUSES,
   type IneligibleName,
 } from '@/features/migration/service/classifyNames'
+import type {
+  CustomNameSeed,
+  CustomTokenType,
+} from '@/features/migration/service/syntheticDomain'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
 
-type CustomTokenType = 'unwrapped' | 'unlocked' | 'locked-2ld'
-
-const buildSyntheticDomain = (
-  name: string,
-  owner: Address,
-  tokenType: CustomTokenType,
-): V1Domain => {
-  const normalized = name.toLowerCase().trim()
-  const [label = '', ...rest] = normalized.split('.')
-  const parentName = rest.join('.')
-  const ownerId = owner.toLowerCase()
-  const nowSec = Math.floor(Date.now() / 1000).toString()
-  const expiry = (Math.floor(Date.now() / 1000) + 365 * 24 * 3600).toString()
-  const ownerRef = { id: ownerId }
-  const base = {
-    id: namehash(normalized),
-    labelName: label,
-    labelhash: labelhash(label),
-    name: normalized,
-    isMigrated: true,
-    createdAt: nowSec,
-    resolvedAddress: null,
-    resolver: null,
-    owner: ownerRef,
-    registrant: ownerRef,
-    parent: parentName
-      ? { name: parentName, id: namehash(parentName), wrappedDomain: null }
-      : null,
-    registration:
-      parentName === 'eth'
-        ? { registrationDate: nowSec, expiryDate: expiry }
-        : null,
-  }
-  if (tokenType === 'unwrapped') {
-    return { ...base, wrappedOwner: null, wrappedDomain: null }
-  }
-  const fuses =
-    tokenType === 'locked-2ld'
-      ? FUSES.CANNOT_UNWRAP | FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH
-      : 0
-  return {
-    ...base,
-    wrappedOwner: ownerRef,
-    wrappedDomain: { expiryDate: expiry, fuses },
-  }
-}
-
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => void
   readonly customDomains: readonly V1Domain[]
-  readonly onAddCustomDomain: (domain: V1Domain) => void
+  readonly onAddCustomName: (seed: CustomNameSeed) => void
+  readonly onRemoveCustomName: (name: string) => void
 }
 
 export const SelectNamesStep = ({
   onNamesChange,
   onNext,
   customDomains,
-  onAddCustomDomain,
+  onAddCustomName,
+  onRemoveCustomName,
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
   const { data: v1Names = [], isPending } = useV1Names()
@@ -84,6 +41,11 @@ export const SelectNamesStep = ({
   const [customTokenType, setCustomTokenType] =
     useState<CustomTokenType>('unlocked')
   const [customError, setCustomError] = useState<string | null>(null)
+
+  const customNameSet = useMemo(
+    () => new Set(customDomains.map((d) => d.name)),
+    [customDomains],
+  )
 
   const { eligibleNames, ineligibleNames } = useMemo(() => {
     if (!ownerAddress || v1Names.length === 0) {
@@ -135,17 +97,14 @@ export const SelectNamesStep = ({
   )
 
   const handleAddCustomName = useCallback(() => {
-    const name = customNameInput.trim().toLowerCase()
-    if (!name) return
+    const rawInput = customNameInput.trim().toLowerCase()
+    if (!rawInput) return
     setCustomError(null)
     if (!ownerAddress) {
       setCustomError('Connect wallet first')
       return
     }
-    if (!name.includes('.')) {
-      setCustomError('Name must include a TLD (e.g. foo.eth)')
-      return
-    }
+    const name = rawInput.includes('.') ? rawInput : `${rawInput}.eth`
     if (
       v1Names.some((d) => d.name === name) ||
       customDomains.some((d) => d.name === name)
@@ -154,14 +113,9 @@ export const SelectNamesStep = ({
       return
     }
     try {
-      const domain = buildSyntheticDomain(
-        name,
-        ownerAddress as Address,
-        customTokenType,
-      )
-      onAddCustomDomain(domain)
+      onAddCustomName({ name, tokenType: customTokenType })
       setSelected((prev) => {
-        const next = new Set(prev).add(domain.name)
+        const next = new Set(prev).add(name)
         onNamesChange([...next])
         return next
       })
@@ -175,9 +129,23 @@ export const SelectNamesStep = ({
     ownerAddress,
     v1Names,
     customDomains,
-    onAddCustomDomain,
+    onAddCustomName,
     onNamesChange,
   ])
+
+  const handleRemoveCustomName = useCallback(
+    (name: string) => {
+      onRemoveCustomName(name)
+      setSelected((prev) => {
+        if (!prev.has(name)) return prev
+        const next = new Set(prev)
+        next.delete(name)
+        onNamesChange([...next])
+        return next
+      })
+    },
+    [onRemoveCustomName, onNamesChange],
+  )
 
   const totalSelected = selected.size
 
@@ -219,7 +187,7 @@ export const SelectNamesStep = ({
                       handleAddCustomName()
                     }
                   }}
-                  placeholder="Custom name (e.g. foo.eth) — dev only"
+                  placeholder="Custom name (e.g. foo, .eth auto-appended) — dev only"
                   type="text"
                   value={customNameInput}
                 />
@@ -274,41 +242,58 @@ export const SelectNamesStep = ({
                       <>
                         {filtered.map((item) => {
                           const isSelected = selected.has(item.name)
+                          const isCustom = customNameSet.has(item.name)
                           return (
-                            <button
-                              aria-pressed={isSelected}
-                              className="flex cursor-pointer items-center gap-3"
+                            <div
+                              className="flex items-center gap-3"
                               key={item.id}
-                              onClick={() => toggleName(item.name)}
-                              type="button"
                             >
-                              <div
-                                className={cn(
-                                  'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
-                                  isSelected
-                                    ? 'bg-ens-garnet-900'
-                                    : 'border border-ens-garnet-900/30 bg-transparent',
-                                )}
+                              <button
+                                aria-pressed={isSelected}
+                                className="flex flex-1 cursor-pointer items-center gap-3"
+                                onClick={() => toggleName(item.name)}
+                                type="button"
                               >
-                                <Check
+                                <div
                                   className={cn(
-                                    'size-5 transition-opacity',
+                                    'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
                                     isSelected
-                                      ? 'text-white opacity-100'
-                                      : 'text-transparent opacity-0',
+                                      ? 'bg-ens-garnet-900'
+                                      : 'border border-ens-garnet-900/30 bg-transparent',
                                   )}
-                                  strokeWidth={2.5}
-                                />
-                              </div>
-                              <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                                <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                                  {item.labelName?.[0]?.toUpperCase() ?? '?'}
-                                </span>
-                              </div>
-                              <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
-                                {item.name}
-                              </div>
-                            </button>
+                                >
+                                  <Check
+                                    className={cn(
+                                      'size-5 transition-opacity',
+                                      isSelected
+                                        ? 'text-white opacity-100'
+                                        : 'text-transparent opacity-0',
+                                    )}
+                                    strokeWidth={2.5}
+                                  />
+                                </div>
+                                <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+                                  <span className="font-semi-mono text-ens-garnet-900 text-xs">
+                                    {item.labelName?.[0]?.toUpperCase() ?? '?'}
+                                  </span>
+                                </div>
+                                <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
+                                  {item.name}
+                                </div>
+                              </button>
+                              {isCustom && (
+                                <button
+                                  aria-label={`Remove ${item.name}`}
+                                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-ens-garnet-900/50 transition-colors hover:bg-ens-garnet-900/10 hover:text-ens-garnet-900"
+                                  onClick={() =>
+                                    handleRemoveCustomName(item.name)
+                                  }
+                                  type="button"
+                                >
+                                  <X className="size-4" strokeWidth={2.5} />
+                                </button>
+                              )}
+                            </div>
                           )
                         })}
 

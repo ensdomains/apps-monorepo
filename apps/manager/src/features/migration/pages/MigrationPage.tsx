@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -17,7 +18,40 @@ import type {
   MigrationResult,
   SkippedName,
 } from '@/features/migration/service/migrationService'
+import {
+  buildSyntheticDomain,
+  type CustomNameSeed,
+} from '@/features/migration/service/syntheticDomain'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import { useSmartAccountContext } from '@/lib/smart-account'
+
+// TEMP: dev-only persistence for the custom-name migration input.
+const CUSTOM_SEEDS_STORAGE_KEY = 'ens-migration-dev-custom-names'
+
+const loadCustomSeeds = (): CustomNameSeed[] => {
+  if (typeof window === 'undefined') return []
+  const raw = window.localStorage.getItem(CUSTOM_SEEDS_STORAGE_KEY)
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (s): s is CustomNameSeed =>
+        s &&
+        typeof s.name === 'string' &&
+        (s.tokenType === 'unwrapped' ||
+          s.tokenType === 'unlocked' ||
+          s.tokenType === 'locked-2ld'),
+    )
+  } catch {
+    return []
+  }
+}
+
+const saveCustomSeeds = (seeds: readonly CustomNameSeed[]) => {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(CUSTOM_SEEDS_STORAGE_KEY, JSON.stringify(seeds))
+}
 
 const SkipReasonLabel = ({ reason }: { reason: SkippedName['reason'] }) => {
   const labels: Record<SkippedName['reason'], ReactNode> = {
@@ -109,13 +143,35 @@ export const MigrationPage = () => {
   const { t } = useLingui()
   const [state, send] = useMachine(migrationMachine)
   const { data: v1Names = [] } = useV1Names()
-  // TEMP: dev-only custom domains injected via the custom-name input
-  const [customDomains, setCustomDomains] = useState<readonly V1Domain[]>([])
+  const { ownerAddress } = useSmartAccountContext()
+  // TEMP: dev-only custom-name seeds (persisted) → rebuilt into V1Domain[]
+  const [customSeeds, setCustomSeeds] = useState<readonly CustomNameSeed[]>(
+    () => loadCustomSeeds(),
+  )
 
-  const handleAddCustomDomain = useCallback((domain: V1Domain) => {
-    setCustomDomains((prev) =>
-      prev.some((d) => d.name === domain.name) ? prev : [...prev, domain],
+  const customDomains = useMemo<readonly V1Domain[]>(() => {
+    if (!ownerAddress) return []
+    return customSeeds.map((seed) =>
+      buildSyntheticDomain(seed.name, ownerAddress as Address, seed.tokenType),
     )
+  }, [customSeeds, ownerAddress])
+
+  const handleAddCustomName = useCallback((seed: CustomNameSeed) => {
+    setCustomSeeds((prev) => {
+      if (prev.some((s) => s.name === seed.name)) return prev
+      const next = [...prev, seed]
+      saveCustomSeeds(next)
+      return next
+    })
+  }, [])
+
+  const handleRemoveCustomName = useCallback((name: string) => {
+    setCustomSeeds((prev) => {
+      const next = prev.filter((s) => s.name !== name)
+      if (next.length === prev.length) return prev
+      saveCustomSeeds(next)
+      return next
+    })
   }, [])
 
   const selectedDomains = useMemo(() => {
@@ -130,13 +186,21 @@ export const MigrationPage = () => {
 
   const handleMigrationComplete = useCallback(
     (result: MigrationResult) => {
+      const migratedNames = selectedDomains
+        .filter((d) => !result.skipped.some((s) => s.name === d.name))
+        .map((d) => d.name)
+      const migratedSet = new Set(migratedNames)
+      setCustomSeeds((prev) => {
+        const next = prev.filter((s) => !migratedSet.has(s.name))
+        if (next.length === prev.length) return prev
+        saveCustomSeeds(next)
+        return next
+      })
       send({
         type: 'MIGRATION_COMPLETE',
         txHashes: result.txHashes,
         skipped: result.skipped,
-        migratedNames: selectedDomains
-          .filter((d) => !result.skipped.some((s) => s.name === d.name))
-          .map((d) => d.name),
+        migratedNames,
       })
     },
     [send, selectedDomains],
@@ -162,9 +226,10 @@ export const MigrationPage = () => {
         .with('selectNames', () => (
           <SelectNamesStep
             customDomains={customDomains}
-            onAddCustomDomain={handleAddCustomDomain}
+            onAddCustomName={handleAddCustomName}
             onNamesChange={handleNamesChange}
             onNext={() => send({ type: 'BEGIN_UPGRADE' })}
+            onRemoveCustomName={handleRemoveCustomName}
           />
         ))
         .with('migrating', () => (
