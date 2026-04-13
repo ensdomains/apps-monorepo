@@ -9,6 +9,7 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 import { forceFetchRecords } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
 import { getIndexerRecords } from './getIndexerRecords'
+import { getResolver } from './profileResolver'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
@@ -33,7 +34,12 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
   const indexerRecords = yield* getIndexerRecords(name)
 
-  const resolverAddress = indexerRecords.resolverAddress as Address | undefined
+  // Prefer indexer, fall back to on-chain lookup for freshly registered names
+  let resolverAddress = indexerRecords.resolverAddress as Address | undefined
+  if (!resolverAddress) {
+    const onChainResolver = yield* getResolver(name)
+    resolverAddress = onChainResolver as Address | undefined
+  }
 
   const result: ProfileRecordsResult = {
     texts: [],

@@ -43,12 +43,6 @@ export type SaveRecordsParameters = {
   signer: Signer
   chainId: number
   id: string
-  /**
-   * The type of resolver to use:
-   * - `'dedicated'` (default): For V2 names, uses `multicallWithNodeCheck(node, calls)`
-   * - `'public'`: For V1 names, uses `multicall(calls)` with namehash in each call
-   */
-  resolverType?: 'public' | 'dedicated'
 }
 
 export interface SaveRecordsResult {
@@ -63,11 +57,7 @@ export interface SaveRecordsResult {
 /**
  * Save records to the blockchain.
  *
- * Supports both resolver patterns via ensjs's setRecordsWriteParameters:
- * - **Public Resolver (V1)**: Uses `multicall(calls)` where each call includes namehash
- * - **Dedicated Resolver (V2)**: Uses `multicallWithNodeCheck(node, calls)` where calls don't include namehash
- *
- * Pure async function that builds the request, starts the transaction,
+ * Pure async function that builds the request using ensjs's setRecordsWriteParameters, starts the transaction,
  * and waits for it to complete. Returns the transaction result.
  *
  * @throws Error if no changes to apply, wallet not connected, or transaction fails
@@ -79,7 +69,6 @@ export interface SaveRecordsResult {
  *   onSuccess: () => refetchRecords(),
  * })
  *
- * // V2 (Dedicated Resolver) - default
  * mutation.mutate({
  *   name: 'myname.eth',
  *   resolverAddress,
@@ -89,12 +78,6 @@ export interface SaveRecordsResult {
  *   publicClient,
  *   signer,
  *   chainId: 11155111,
- * })
- *
- * // V1 (Public Resolver)
- * mutation.mutate({
- *   ...params,
- *   resolverType: 'public',
  * })
  * ```
  */
@@ -111,7 +94,6 @@ export async function saveRecords(
     signer,
     chainId,
     id,
-    resolverType = 'dedicated',
   } = params
 
   // Validate wallet client has account and chain
@@ -144,7 +126,6 @@ export async function saveRecords(
   const writeParams = await setRecordsWriteParameters(client, {
     name,
     resolverAddress,
-    resolverType,
     texts: recordsInput.texts,
     coins: recordsInput.coins,
     contentHash: recordsInput.contentHash,

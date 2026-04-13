@@ -3,14 +3,11 @@
  *
  * Returns contract parameters for calling setAddr on the resolver.
  * Uses ensjs setAddrParameters for correct address encoding.
- * Handles both Public Resolver and Dedicated Resolver.
- * Includes EIP-7825 gas cap for Sepolia/Holesky.
  */
 
 import { setAddrParameters } from '@ensdomains/ensjs/utils'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { namehash } from 'viem/ens'
 import type { ReverseRegistrarChainId } from '../reverseRegistrarChainIds'
 
 export type SetForwardResolutionRequest = ReturnType<
@@ -25,13 +22,11 @@ export function createSetForwardResolutionRequest({
   reverseRegistrarChainId: _reverseRegistrarChainId,
   resolverAddress,
   targetAddress,
-  isDedicatedResolver,
 }: {
   name: string | undefined
   reverseRegistrarChainId: ReverseRegistrarChainId
   resolverAddress: Address | null | undefined
   targetAddress: Address
-  isDedicatedResolver: boolean
 }) {
   if (!name) {
     throw new Error('No name provided')
@@ -49,14 +44,8 @@ export function createSetForwardResolutionRequest({
     )
   }
 
-  if (typeof isDedicatedResolver !== 'boolean') {
-    throw new Error(
-      'Resolver type must be known before setting forward resolution. Wait for the resolver type query to complete.',
-    )
-  }
-
   const setAddr = setAddrParameters({
-    namehash: isDedicatedResolver ? undefined : namehash(name),
+    name,
     coin: 60,
     value: targetAddress,
   })
