@@ -243,7 +243,6 @@ msgstr ""
 msgid "Almost there..."
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:121
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:122
 msgid "An error occurred"
 msgstr ""
@@ -672,9 +671,8 @@ msgstr ""
 msgid "Current"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:47
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
 msgid "Custom duration in years"
 msgstr ""
 
@@ -827,9 +825,8 @@ msgstr ""
 msgid "Enter 6-digit code"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:37
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 msgid "Enter custom duration"
 msgstr ""
 
@@ -1570,6 +1567,8 @@ msgstr ""
 
 #: src/features/migration/components/GameStep.tsx:53
 msgid "Preparing migration..."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 msgid "Preparing the commitment"
 msgstr ""
@@ -1804,6 +1803,8 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:205
 msgid "Retry"
+msgstr ""
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx:43
 msgid "Retrying will attempt the registration again from where it left off."
 msgstr ""
@@ -1904,6 +1905,8 @@ msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx:38
 msgid "See what's new"
+msgstr ""
+
 #. placeholder {0}: stablecoin.symbol
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:36
 msgid "Select {0}"
@@ -2587,9 +2590,8 @@ msgstr ""
 msgid "Wrong wallet connected"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:108
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
 msgstr ""

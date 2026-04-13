@@ -238,7 +238,6 @@ msgstr "Almost ready"
 msgid "Almost there..."
 msgstr "Almost there..."
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:121
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:122
 msgid "An error occurred"
 msgstr "An error occurred"
@@ -667,9 +666,8 @@ msgstr "Cropping functionality coming soon"
 msgid "Current"
 msgstr "Current"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:47
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
@@ -822,9 +820,8 @@ msgstr "ENS v2 Names"
 msgid "Enter 6-digit code"
 msgstr "Enter 6-digit code"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:37
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
@@ -1566,6 +1563,7 @@ msgstr "Preparing commitment"
 #: src/features/migration/components/GameStep.tsx:53
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 msgid "Preparing the commitment"
 msgstr "Preparing the commitment"
@@ -1801,6 +1799,7 @@ msgstr "Resolver address"
 #: src/features/migration/pages/MigrationPage.tsx:205
 msgid "Retry"
 msgstr "Retry"
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx:43
 msgid "Retrying will attempt the registration again from where it left off."
 msgstr "Retrying will attempt the registration again from where it left off."
@@ -1902,6 +1901,7 @@ msgstr "See all"
 #: src/features/migration/components/UpgradeBanner.tsx:38
 msgid "See what's new"
 msgstr "See what's new"
+
 #. placeholder {0}: stablecoin.symbol
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:36
 msgid "Select {0}"
@@ -2585,9 +2585,8 @@ msgstr "Works across all EVM-compatible chains"
 msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
 
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:108
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
 msgstr "years"

@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
-import { Route as RegisterRouteImport } from './routes/register'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
@@ -34,11 +33,6 @@ import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/n
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MigrationRoute = MigrationRouteImport.update({
@@ -146,7 +140,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
@@ -169,7 +162,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -192,7 +184,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/migration': typeof MigrationRoute
-  '/register': typeof RegisterRoute
   '/wallet': typeof WalletRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
@@ -217,7 +208,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/migration'
-    | '/register'
     | '/wallet'
     | '/notifications'
     | '/legal/privacy-policy'
@@ -240,7 +230,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/migration'
-    | '/register'
     | '/wallet'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -262,7 +251,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/migration'
-    | '/register'
     | '/wallet'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
@@ -286,7 +274,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   MigrationRoute: typeof MigrationRoute
-  RegisterRoute: typeof RegisterRoute
   WalletRoute: typeof WalletRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
@@ -311,13 +298,6 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/wallet'
       preLoaderRoute: typeof WalletRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/migration': {
@@ -477,7 +457,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   MigrationRoute: MigrationRoute,
-  RegisterRoute: RegisterRoute,
   WalletRoute: WalletRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
