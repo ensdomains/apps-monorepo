@@ -31,7 +31,7 @@ export const WalletMenu = () => {
     return <Button onClick={() => openConnectModal?.()}>Connect</Button>
   }
 
-  const displayName = name ?? truncateAddress(address)
+  const displayName = name ?? truncateAddress(address, 5, 3)
 
   return (
     <DropdownMenu>
