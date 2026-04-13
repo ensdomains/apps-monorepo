@@ -390,7 +390,7 @@ const PermissionedResolverView = ({
           <ResolverAddressValue address={resolverAddress} />
         </DataRow>
         {permissionedResolverImplAddress ? (
-          <DataRow label="Verifier">
+          <DataRow label="Implementation">
             <ResolverAddressValue address={permissionedResolverImplAddress} />
           </DataRow>
         ) : null}
