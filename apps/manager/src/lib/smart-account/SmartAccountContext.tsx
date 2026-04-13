@@ -23,13 +23,12 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
-import { type Address, formatUnits, type WalletClient } from 'viem'
+import { type Address, erc20Abi, formatUnits, type WalletClient } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
 import { useWalletClient } from 'wagmi'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
-import { ERC20_ABI } from '../ens.abi'
 import { initializePimlicoAccount } from './pimlico'
 import type { StoredSession } from './sessions/types'
 import type { WalletSource, ZeroDevAccountState } from './types'
@@ -164,13 +163,13 @@ export const SmartAccountContextProvider = ({
           try {
             const balance = await readContract(publicClient, {
               address: tokenAddress,
-              abi: ERC20_ABI,
+              abi: erc20Abi,
               functionName: 'balanceOf',
               args: [balanceAddress],
             })
             const decimals = await readContract(publicClient, {
               address: tokenAddress,
-              abi: ERC20_ABI,
+              abi: erc20Abi,
               functionName: 'decimals',
             })
             balances.push({

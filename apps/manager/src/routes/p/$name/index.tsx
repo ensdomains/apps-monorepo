@@ -47,7 +47,8 @@ export const Route = createFileRoute('/p/$name/')({
     ])
 
     const isExpired =
-      !expiryData?.expiry || Number(expiryData.expiry) * 1000 < Date.now()
+      expiryData?.expiry != null &&
+      Number(expiryData.expiry) * 1000 < Date.now()
 
     if (isExpired) {
       throw redirect(

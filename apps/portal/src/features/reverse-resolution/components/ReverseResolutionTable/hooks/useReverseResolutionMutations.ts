@@ -12,11 +12,9 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
-import { zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection, useWalletClient } from 'wagmi'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
-import { getIsDedicatedResolverQueryOptions } from '@/features/resolver/hooks/useIsDedicatedResolver'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
@@ -56,13 +54,6 @@ export function useReverseResolutionMutations({
       name: displayName ?? '',
     }),
     enabled: isL1 && Boolean(displayName),
-  })
-
-  const { data: isDedicatedResolver = false } = useQuery({
-    ...getIsDedicatedResolverQueryOptions({
-      resolverAddress: resolverAddress ?? zeroAddress,
-    }),
-    enabled: Boolean(resolverAddress),
   })
 
   const invalidateReverseResolutionQuery = useCallback(() => {
@@ -112,16 +103,9 @@ export function useReverseResolutionMutations({
         reverseRegistrarChainId,
         resolverAddress,
         targetAddress: address,
-        isDedicatedResolver,
       })
     },
-    [
-      displayName,
-      isDedicatedResolver,
-      isL1,
-      resolverAddress,
-      reverseRegistrarChainId,
-    ],
+    [displayName, isL1, resolverAddress, reverseRegistrarChainId],
   )
 
   return {
