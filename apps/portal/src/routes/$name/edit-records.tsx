@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { useConnection } from 'wagmi'
+import { useAccount, useConnection } from 'wagmi'
 import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -177,6 +177,7 @@ const EditRecordsContent = ({
   resolverAddress: Address
 }) => {
   const navigate = useNavigate()
+  const { isConnected } = useAccount()
 
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
@@ -236,11 +237,19 @@ const EditRecordsContent = ({
     isSyncing,
     error: saveError,
     reset: resetSaveError,
+    isWrongChain,
+    isSwitchingChain,
+    switchToRequiredNetwork,
   } = useSaveRecords({
     onSyncComplete: handleSyncComplete,
   })
 
   const handleSaveRecords = () => {
+    if (isWrongChain) {
+      switchToRequiredNetwork()
+      return
+    }
+
     openTransactionModal()
 
     saveRecords({
@@ -473,11 +482,14 @@ const EditRecordsContent = ({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={openTransactionModal}
+        onSave={handleSaveRecords}
         onDiscard={discardAll}
         onDismissError={resetSaveError}
         isSaving={isWriting || isConfirming}
         isSyncing={isSyncing}
+        isSwitchingChain={isSwitchingChain}
+        isWrongChain={isWrongChain}
+        isConnected={isConnected}
         errorMessage={saveError?.message}
         hasValidationErrors={hasValidationErrors}
       />
