@@ -370,7 +370,7 @@ const PermissionedResolverView = ({
         <SummaryCard
           icon={<ShieldCheckIcon className="size-5 text-primary" />}
           label="Network"
-          value="Namechain"
+          value="Sepolia"
           tooltip="Permissioned resolvers are deployed on ENSv2 infrastructure."
         />
       </div>
