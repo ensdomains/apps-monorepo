@@ -15,7 +15,6 @@ import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
-import type { WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
@@ -24,7 +23,7 @@ interface NameListProps {
   readonly limit?: number
 }
 
-type column = WithEnsNetwork<MergedName>
+type column = MergedName
 
 const NameCell = ({ name }: { name: string }) => (
   <div className="flex flex-row gap-2 items-center">

@@ -9,7 +9,7 @@ type RolesTableProps = {
   name: string
   canManageRoles: boolean
   roles: GetNameRolesAccountsReturnType
-  registryAddress?: Address
+  registryAddress: Address
 }
 
 type AccountGroup = {

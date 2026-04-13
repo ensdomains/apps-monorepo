@@ -4,11 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getNameRolesForAccount as ensjsGetNameRolesForAccount } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import {
-  safeGetClient,
-  safeGetNamechainSepoliaClient,
-} from '@/lib/wagmi/helpers'
-import type { EnsNetworkName } from '@/utils/types'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetNameRolesForAccountError extends TaggedError(
   'GetNameRolesForAccountError',
@@ -20,19 +16,14 @@ type GetNameRolesForAccountParameters = {
   registryAddress: Address
   label: string
   account: Address
-  network?: EnsNetworkName
 }
 
 const getNameRolesForAccount = ResultFn(async function* ({
   registryAddress,
   label,
   account,
-  network,
 }: GetNameRolesForAccountParameters) {
-  const client =
-    network === 'namechainSepolia'
-      ? yield* safeGetNamechainSepoliaClient()
-      : yield* safeGetClient()
+  const client = yield* safeGetClient()
 
   const result = yield* await fromPromise(
     ensjsGetNameRolesForAccount(client, {

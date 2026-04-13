@@ -20,20 +20,20 @@ import {
 import { columns } from '@/features/records/components/RecordsTable/columns'
 import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
 export const RecordList = ({
   name,
   records: rawRecords,
   canEdit = false,
-  network,
+  protocolVersion,
 }: {
   name: string
   records: GetRecordsReturnType
   /** Whether the connected user can edit records (owner check) */
   canEdit?: boolean
-  /** The network where the name is registered */
-  network?: EnsNetworkName
+  /** The protocol version of the name */
+  protocolVersion?: ProtocolVersion
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
@@ -128,7 +128,7 @@ export const RecordList = ({
         <RecordsTable
           name={name}
           table={table}
-          network={network}
+          protocolVersion={protocolVersion}
           {...{ rowSelection, setRowSelection }}
         />
       </div>

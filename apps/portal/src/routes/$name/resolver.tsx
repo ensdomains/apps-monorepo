@@ -22,7 +22,7 @@ import { ResolverPrimaryName } from '@/features/resolver/components/ResolverPrim
 import { ResolverType } from '@/features/resolver/components/ResolverType'
 import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/resolver')({
@@ -37,20 +37,15 @@ interface EditButtonsProps {
 
 const EditButtons = ({ address, name }: EditButtonsProps) => {
   const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
-  const registryQuery = useQuery(
-    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-  )
+  const registryQuery = useQuery(getNameRegistriesQueryOptions({ name }))
   const currentNameRegistry = registryQuery.data?.registries?.[1]
   const label = name.split('.')[0]
-  const network = registryQuery.data?.network ?? 'sepolia'
-
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: currentNameRegistry ?? zeroAddress,
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: address,
-      network,
     }),
     enabled: !!address && !!currentNameRegistry,
   })
@@ -76,7 +71,7 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
 const sepoliaUrl = sepolia.blockExplorers.default.url
 
 const factoryAddress = getChainContractAddress({
-  chain: namechainSepolia,
+  chain: sepoliaWithEns,
   contract: 'ensVerifiableFactory',
 })
 

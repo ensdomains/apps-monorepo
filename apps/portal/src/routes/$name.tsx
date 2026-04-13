@@ -6,7 +6,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { queryClient } from '@/utils/queryClient'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
 export const Route = createFileRoute('/$name')({
   component: RouteComponent,
@@ -15,13 +15,16 @@ export const Route = createFileRoute('/$name')({
     const ownerData = await queryClient.fetchQuery(
       getEnsOwnerQueryOptions({ name: params.name }),
     )
-    return { network: ownerData?.network as EnsNetworkName | undefined }
+    return {
+      protocolVersion: ownerData?.protocolVersion as
+        | ProtocolVersion
+        | undefined,
+    }
   },
-  loader: ({ params, context: { network } }) =>
+  loader: ({ params }) =>
     queryClient.prefetchQuery(
       getNameRegistriesQueryOptions({
         name: params.name,
-        network: network ?? 'namechainSepolia',
       }),
     ),
 })

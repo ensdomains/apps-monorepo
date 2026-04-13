@@ -37,12 +37,10 @@ import { isValidEnsName } from '@/utils/token/isNormalized'
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params, context: { network } }) => {
+  loader: ({ params }) => {
     const tld = getTLD(params.name)
     return Promise.all([
-      queryClient.prefetchQuery(
-        getProfileQueryOptions({ name: params.name, network }),
-      ),
+      queryClient.prefetchQuery(getProfileQueryOptions({ name: params.name })),
       ...(tld !== 'eth'
         ? [queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld }))]
         : []),
@@ -61,8 +59,12 @@ const Profile = ({
   const isEthTld = tld === 'eth'
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const { network } = Route.useRouteContext()
-  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
+  const profileQuery = useQuery(
+    getProfileQueryOptions({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion,
+    }),
+  )
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
@@ -203,7 +205,7 @@ const Profile = ({
     console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
   }
 
-  const resolvedNetwork = ownerQuery.data.network || 'sepolia'
+  const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
 
   return (
     <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
@@ -218,7 +220,10 @@ const Profile = ({
           <div className="*:h-full">
             <NameProfileCard name={name} />
           </div>
-          <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
+          <ExpiryWithRegistrationData
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
         </div>
 
         {/* Owner / Parent / Resolver / Registry */}
@@ -243,11 +248,14 @@ const Profile = ({
               resolverAddress={resolverAddress}
             />
           )}
-          <SubnameCount name={name} network={resolvedNetwork} />
-          <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
+          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
+          <ProtocolVersionWithCounter
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
         </div>
 
-        {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
+        {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
       </div>
     </div>
   )

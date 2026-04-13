@@ -3,7 +3,7 @@ import { CalendarIcon, ClockIcon, PlusCircleIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Label } from '@/components/ui/label'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
@@ -133,16 +133,16 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
 interface ExpiryWithRegistrationDataProps {
   name: string
-  network: EnsNetworkName
+  protocolVersion: ProtocolVersion
 }
 
 export const ExpiryWithRegistrationData = ({
   name,
-  network,
+  protocolVersion,
 }: ExpiryWithRegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-col justify-between gap-4 lg:col-span-1">
-      {network === 'sepolia' ? (
+    <div className="w-full flex flex-col justify-between p-6 gap-4 rounded-lg border border-border lg:col-span-1">
+      {protocolVersion === 'ENSv1' ? (
         <V1ExpiryWithRegistrationData name={name} />
       ) : (
         <V2ExpiryWithRegistrationData name={name} />

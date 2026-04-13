@@ -25,7 +25,7 @@ import {
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-alias')({
@@ -80,7 +80,7 @@ function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
   const { address: accountAddress, isConnected } = useConnection()
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
 
@@ -98,7 +98,6 @@ function RouteComponent() {
       resolverAddress: address as Address,
       roles: ['ROLE_SET_ALIAS'],
       account: accountAddress as Address,
-      network: 'namechainSepolia',
     }),
     enabled: !!accountAddress,
   })

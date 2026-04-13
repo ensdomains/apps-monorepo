@@ -1,5 +1,5 @@
-import { Trans, useLingui } from '@lingui/react/macro'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { STABLECOINS } from '@/features/register/utils'
 import type { StablecoinBalance } from '@/lib/smart-account'

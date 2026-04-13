@@ -35,9 +35,9 @@ import { validateRecords } from '@/utils/records/validateRecord'
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params, context: { network } }) => {
+  loader: ({ params }) => {
     return queryClient.prefetchQuery(
-      getProfileQueryOptions({ name: params.name, network }),
+      getProfileQueryOptions({ name: params.name }),
     )
   },
 })
@@ -59,12 +59,16 @@ function EditRecordsPage() {
   const { address: connectedAddress } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const { network } = Route.useRouteContext()
-  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
+  const profileQuery = useQuery(
+    getProfileQueryOptions({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion,
+    }),
+  )
 
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =
-    useNameResolverAddress({ name, network: ownerQuery.data?.network })
+    useNameResolverAddress({ name })
 
   const isLoading =
     profileQuery.isLoading || ownerQuery.isLoading || isResolverLoading

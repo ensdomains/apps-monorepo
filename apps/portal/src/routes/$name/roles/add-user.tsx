@@ -20,10 +20,10 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
-import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 
 const GRANT_ROLES_TRANSACTION_ID = 'tx-grant-roles'
-const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
+const client = wagmiConfig.getClient({ chainId: sepoliaWithEns.id })
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
@@ -39,7 +39,7 @@ function RouteComponent() {
     roles: Role[]
   } | null>(null)
 
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const { data: walletClient } = useWalletClient({ chainId })
 
   const labels = name.split('.')
@@ -51,8 +51,8 @@ function RouteComponent() {
   })
 
   const { data: registriesData } = useQuery({
-    ...getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-    enabled: is3LD && ownerData?.network === 'namechainSepolia',
+    ...getNameRegistriesQueryOptions({ name }),
+    enabled: is3LD && ownerData?.protocolVersion === 'ENSv2',
   })
 
   const registryAddress = is3LD
@@ -119,7 +119,7 @@ function RouteComponent() {
   }
 
   const handleStartTransaction = () => {
-    if (!pendingGrant || !walletClient?.account) return
+    if (!pendingGrant || !walletClient?.account || !registryAddress) return
 
     grantRoles({
       name,

@@ -2,17 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { GraphIcon } from '@/assets/icons'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import type { WithEnsNetwork } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import { getSubnamesQueryOptions } from '../hooks/useSubnames'
 
 export const SubnameCount = ({
   name,
-  network,
-}: WithEnsNetwork<{
+  protocolVersion,
+}: {
   name: string
-}>) => {
+  protocolVersion: ProtocolVersion
+}) => {
   const { data, isLoading, error } = useQuery(
-    getSubnamesQueryOptions({ name, network }),
+    getSubnamesQueryOptions({ name, protocolVersion }),
   )
 
   if (error) return <div>Error: {error.cause?.message}</div>

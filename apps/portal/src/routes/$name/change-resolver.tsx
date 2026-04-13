@@ -38,15 +38,11 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
 
-  const registryQuery = useQuery(
-    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-  )
+  const registryQuery = useQuery(getNameRegistriesQueryOptions({ name }))
 
   const label = name.split('.')[0]
   // Use registries[1] to get the parent registry that manages this name
   const currentNameRegistry = registryQuery.data?.registries[1]
-
-  const network = registryQuery.data?.network ?? 'sepolia'
 
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
@@ -54,7 +50,6 @@ function RouteComponent() {
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: connectedAddress ?? zeroAddress,
-      network,
     }),
     enabled: !!connectedAddress && !!currentNameRegistry,
   })

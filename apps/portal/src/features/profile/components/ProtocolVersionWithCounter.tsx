@@ -1,3 +1,4 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { ShieldIcon } from '@/assets/icons'
@@ -5,19 +6,24 @@ import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
-import type { EnsNetworkName } from '@/utils/types'
+import { sepoliaWithEns } from '@/lib/wagmi'
+import type { ProtocolVersion } from '@/utils/types'
+
+const v2EthRegistry = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
 
 interface ProtocolVersionWithCounterProps {
   name: string
-  network: EnsNetworkName
+  protocolVersion: ProtocolVersion
 }
 
 const RoleCount = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(
     getNameRolesAccountsQueryOptions({
       ...makeLabelNodeAndParent(name),
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress: v2EthRegistry,
       fromBlock: 9782822n,
     }),
   )
@@ -59,9 +65,9 @@ const FuseCount = ({ name }: { name: string }) => {
 
 export const ProtocolVersionWithCounter = ({
   name,
-  network,
+  protocolVersion,
 }: ProtocolVersionWithCounterProps) => {
-  return network === 'sepolia' ? (
+  return protocolVersion === 'ENSv1' ? (
     <FuseCount name={name} />
   ) : (
     <RoleCount name={name} />
