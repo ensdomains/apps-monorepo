@@ -4,6 +4,7 @@ import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataRow } from '@/components/DataRow'
+import { EntityBadge } from '@/components/EntityBadge'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import {
@@ -33,8 +34,7 @@ const NameDisplay = ({ name }: NameDisplayProps) => {
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
       <CopyableRecord
         value={name}
-        displayValue={<span className="flex items-center gap-1">{name}</span>}
-        className="underline decoration-dashed underline-offset-4"
+        displayValue={<EntityBadge variant="name">{name}</EntityBadge>}
         href={`/name/${name}`}
       />
     </div>
@@ -98,9 +98,9 @@ const TransactionDetails = ({
           <CopyableRecord
             value={txHash}
             displayValue={
-              <span className="flex items-center gap-1">
+              <EntityBadge variant="tx">
                 {truncateAddress(txHash, 10, 8, '...')}
-              </span>
+              </EntityBadge>
             }
             href={txUrl}
           />
@@ -127,9 +127,9 @@ const TransactionDetails = ({
 
             <DataRow label="To">
               {data.to ? (
-                <AddressDisplay address={data.to} />
+                <AddressDisplay address={data.to} variant="contract" />
               ) : (
-                <span className="text-quartz-500">Contract Creation</span>
+                <span className="text-muted-foreground">Contract Creation</span>
               )}
             </DataRow>
           </>
@@ -162,7 +162,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-220 bg-card p-0 flex flex-col h-dvh"
       >
         {/* Fixed header at the top */}
         <div className="p-6 shrink-0 border-b">
@@ -183,7 +183,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
               events={row.original.events}
             />
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No transaction selected
             </div>
           )}

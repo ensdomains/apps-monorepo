@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getNameRegistryQueryOptions } from '@/features/registry/hooks/useNameRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -25,16 +26,18 @@ export const RegistryLocation = ({
   const hasSubregistry = data.registryAddress !== zeroAddress
 
   return (
-    <div className="flex-1">
-      <span className="font-medium">Subregistry</span>
+    <div className="flex-1 flex flex-col gap-1">
+      <span className="text-sm text-muted-foreground">Subregistry</span>
 
       {hasSubregistry ? (
-        <CopyableRecord
-          displayValue={truncateAddress(data.registryAddress, 6, 4, '...')}
-          value={data.registryAddress}
-        />
+        <div className="flex items-center gap-1">
+          <EntityBadge variant="contract">
+            {truncateAddress(data.registryAddress, 6, 4, '...')}
+          </EntityBadge>
+          <CopyButton value={data.registryAddress} />
+        </div>
       ) : (
-        <div>No subregistry</div>
+        <div className="text-muted-foreground">No subregistry</div>
       )}
     </div>
   )

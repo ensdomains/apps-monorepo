@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { AlertCircle, Info } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -162,20 +162,35 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   )
 }
 
-const V1SubnamesMessage = () => (
-  <MessageCard
-    icon={<Info size={30} strokeWidth={1.5} />}
-    title="ENSv1 Name"
-    description={
-      <>
-        <p>This page is only for ENSv2 names.</p>
-        <p className="text-quartz-500 text-sm mt-2">
-          ENSv1 subnames are managed differently.
-        </p>
-      </>
-    }
-  />
-)
+interface V1SubnamesContentProps {
+  readonly name: string
+}
+
+const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
+  const {
+    data: subnames,
+    isLoading,
+    error,
+  } = useQuery(getSubnamesQueryOptions({ name, protocolVersion: 'ENSv1' }))
+
+  if (isLoading) return <LoadingMessage title="Loading subnames..." />
+
+  if (error) {
+    return (
+      <ErrorMessage
+        title="Failed to load subnames"
+        description={error.cause?.message || error.message}
+      />
+    )
+  }
+
+  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
+    name: subname.name || '',
+    owner: subname.owner,
+  }))
+
+  return <SubnamesTable subnames={subnameRows} name={name} />
+}
 
 function RouteComponent() {
   const { name } = Route.useParams()
@@ -200,12 +215,22 @@ function RouteComponent() {
   }
 
   if (!ownerData) {
-    return <NotFoundMessage />
+    return (
+      <NotFoundMessage
+        title="Name not registered"
+        description={
+          <>
+            <strong>{name}</strong> is not registered, so there are no subnames
+            to display.
+          </>
+        }
+      />
+    )
   }
 
-  // V1 names - show message
+  // V1 names - show their subnames
   if (ownerData.protocolVersion === 'ENSv1') {
-    return <V1SubnamesMessage />
+    return <V1SubnamesContent name={name} />
   }
 
   // V2 names

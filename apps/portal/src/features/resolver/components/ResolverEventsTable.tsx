@@ -98,7 +98,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
     ),
     cell: ({ row }) => {
       const txHash = row.original.transactionHash
-      if (!txHash) return <span className="text-quartz-400">-</span>
+      if (!txHash) return <span className="text-muted-foreground">-</span>
       return <BlockExplorerTxLink txHash={txHash as Hash} />
     },
   },
@@ -115,7 +115,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
     ),
     cell: ({ row }) => {
       const from = row.original.from
-      if (!from) return <span className="text-quartz-400">-</span>
+      if (!from) return <span className="text-muted-foreground">-</span>
       return <AddressDisplay address={from} />
     },
   },
@@ -305,8 +305,8 @@ export const ResolverEventsTable = ({
                   <TableRow
                     key={row.id}
                     className={cn(
-                      'hover:bg-quartz-50',
-                      tableView.strippedRows && 'odd:bg-quartz-50',
+                      'hover:bg-muted',
+                      tableView.strippedRows && 'odd:bg-muted',
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
@@ -321,7 +321,7 @@ export const ResolverEventsTable = ({
                   {row.getIsExpanded() && (
                     <TableRow
                       key={`${row.id}-expanded`}
-                      className="hover:bg-quartz-50"
+                      className="hover:bg-muted"
                     >
                       <TableCell colSpan={2} className={cellClassName} />
                       <TableCell className={cellClassName}>
@@ -331,7 +331,7 @@ export const ResolverEventsTable = ({
                         {row.original.from ? (
                           <AddressDisplay address={row.original.from} />
                         ) : (
-                          <span className="text-quartz-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       {trailingColSpan > 0 && (
