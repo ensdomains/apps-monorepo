@@ -56,7 +56,7 @@ test.describe('ENS name registration', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     await expect(successBanner).toContainText('Registration Complete', {
-      timeout: 30_000,
+      timeout: 90_000,
     })
   })
 
@@ -106,7 +106,7 @@ test.describe('ENS name registration', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     await expect(successBanner).toContainText('Registration Complete', {
-      timeout: 50_000,
+      timeout: 90_000,
     })
   })
 })

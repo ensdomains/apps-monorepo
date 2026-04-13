@@ -9,6 +9,7 @@
     "infra:up": "bash infra/scripts/start-local-env.sh",
     "infra:down": "bash infra/scripts/start-local-env.sh --down"
   },
+  "postinstall": "playwright install --with-deps chromium",
   "dependencies": {
     "@ensdomains/headless-web3-provider": "^1.0.8",
     "dotenv": "^17.2.3",

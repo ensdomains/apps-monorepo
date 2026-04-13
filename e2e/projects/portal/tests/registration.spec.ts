@@ -34,7 +34,7 @@ test.describe('Portal ENS name registration', () => {
     })
 
     // ── 3. Click Continue to open payment token modal ──────────────
-    const continueButton = page.getByRole('button', { name: 'Continue' })
+    const continueButton = page.getByRole('button', { name: 'Register' })
     await continueButton.waitFor({ state: 'visible', timeout: 30_000 })
     await continueButton.click()
 
