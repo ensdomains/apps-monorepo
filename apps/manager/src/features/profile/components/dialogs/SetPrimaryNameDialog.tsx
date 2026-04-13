@@ -8,6 +8,7 @@ import { AlertCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address, PublicClient } from 'viem'
+import { getAddress } from 'viem'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -129,7 +130,10 @@ export const SetPrimaryNameDialog = ({
             ? [{ coinType: 60, value: existingEthAddress }]
             : [],
         },
-        after: { texts: [], coins: [{ coinType: 60, value: walletAddress }] },
+        after: {
+          texts: [],
+          coins: [{ coinType: 60, value: getAddress(walletAddress) }],
+        },
         signer: account.signer,
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,

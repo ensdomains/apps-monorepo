@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Need to mock the transaction manager */
-import { dedicatedResolverSetTextSnippet } from '@ensdomains/ensjs/contracts'
+import { publicResolverSetTextSnippet } from '@ensdomains/ensjs/contracts'
 import { encodeFunctionData, namehash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -15,11 +15,11 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 }))
 
 // Helper to encode setText for test expectations
-const encodeSetText = (key: string, value: string) =>
+const encodeSetText = (name: string, key: string, value: string) =>
   encodeFunctionData({
-    abi: dedicatedResolverSetTextSnippet,
+    abi: publicResolverSetTextSnippet,
     functionName: 'setText',
-    args: [key, value],
+    args: [namehash(name), key, value],
   })
 
 // Mock setRecordsWriteParameters to return realistic data
@@ -32,7 +32,7 @@ vi.mock('@ensdomains/ensjs/wallet', () => ({
 
       if (params.texts) {
         for (const { key, value } of params.texts) {
-          calls.push(encodeSetText(key, value))
+          calls.push(encodeSetText(params.name, key, value))
         }
       }
 
@@ -148,7 +148,6 @@ describe('saveRecords', () => {
       expect.objectContaining({
         name: mockParams.name,
         resolverAddress: mockParams.resolverAddress,
-        resolverType: 'dedicated', // default value
       }),
     )
   })
@@ -209,7 +208,11 @@ describe('saveRecords encoding (integration)', () => {
     const requestData = (call[0] as any).request.data as string
 
     // The data should contain the encoded setText for 'description' -> 'new description'
-    const expectedSetTextCall = encodeSetText('description', 'new description')
+    const expectedSetTextCall = encodeSetText(
+      'test.eth',
+      'description',
+      'new description',
+    )
     expect(requestData).toContain(expectedSetTextCall.slice(2)) // slice to remove 0x prefix
   })
 
@@ -239,7 +242,7 @@ describe('saveRecords encoding (integration)', () => {
     const requestData = (call[0] as any).request.data as string
 
     // The data should contain setText('twitter', '') for deletion
-    const expectedSetTextCall = encodeSetText('twitter', '')
+    const expectedSetTextCall = encodeSetText('test.eth', 'twitter', '')
     expect(requestData).toContain(expectedSetTextCall.slice(2))
   })
 
@@ -268,7 +271,7 @@ describe('saveRecords encoding (integration)', () => {
     const call = vi.mocked(transactionManager.startTransaction).mock.calls[0]
     const requestData = (call[0] as any).request.data as string
 
-    const expectedSetTextCall = encodeSetText('github', 'johndoe')
+    const expectedSetTextCall = encodeSetText('test.eth', 'github', 'johndoe')
     expect(requestData).toContain(expectedSetTextCall.slice(2))
   })
 
