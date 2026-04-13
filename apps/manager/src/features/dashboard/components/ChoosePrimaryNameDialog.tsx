@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
+import { getAddress } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Button } from '@/components/ui/button'
@@ -143,7 +144,9 @@ export const ChoosePrimaryNameDialog = ({
         },
         after: {
           texts: [],
-          coins: [{ coinType: 60, value: account.ownerAddress as string }],
+          coins: [
+            { coinType: 60, value: getAddress(account.ownerAddress as string) },
+          ],
         },
         signer: account.signer,
         accountAddress: account.accountAddress,

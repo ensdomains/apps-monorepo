@@ -66,7 +66,8 @@ export const TransactionStateContent = ({
       />
 
       <div className="flex flex-col gap-2">
-        {transactions.map((transaction) => {
+        {transactions.map((transaction, index) => {
+          const isPending = index > activeIndex
           const status = getStatus(transaction.id, activeTransactionsMap)
 
           const activeTxSnapshot = activeTransactionsMap
@@ -86,6 +87,7 @@ export const TransactionStateContent = ({
               key={transaction.id}
               className={cn(
                 'flex flex-start gap-4 border border-border rounded-lg p-3.5',
+                isPending && 'opacity-60',
               )}
             >
               <div className="mt-1 shrink-0">
@@ -100,7 +102,7 @@ export const TransactionStateContent = ({
                     <XCircle className="size-4 text-garnet-600" />
                   ))
                   .otherwise(() => (
-                    <Hourglass className="size-4 text-muted-foreground animate-pulse" />
+                    <Hourglass className="size-4 text-quartz-600 animate-spin" />
                   ))}
               </div>
               <div className="space-y-2 flex-1 min-w-0">
@@ -119,6 +121,16 @@ export const TransactionStateContent = ({
                     </a>
                   )}
                 </div>
+                {transaction.steps && transaction.steps.length > 0 && (
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {transaction.steps.map((step) => (
+                      <li key={step} className="flex items-center gap-1.5">
+                        <ArrowRight className="size-3 shrink-0" />
+                        {step}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {txError && (
                   <TransactionErrorAlert
                     title="Transaction Error"

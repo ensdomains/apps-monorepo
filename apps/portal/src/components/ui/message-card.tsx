@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-lg p-8 sm:min-w-96 xl:min-w-[640px] flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4',
+  'rounded-lg p-8 sm:min-w-96 xl:min-w-160 flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4',
   {
     variants: {
       variant: {
@@ -32,7 +32,9 @@ export type MessageCardVariant = NonNullable<
 export type MessageCardProps = {
   icon: React.ReactNode
   title: string
+  titleClassName?: string
   description: React.ReactNode
+  descriptionClassName?: string
   variant?: MessageCardVariant
   badge?: string
   actionButton?: {
@@ -49,7 +51,9 @@ export type MessageCardProps = {
 export function MessageCard({
   icon,
   title,
+  titleClassName,
   description,
+  descriptionClassName,
   variant = 'primary',
   badge,
   actionButton,
@@ -71,11 +75,19 @@ export function MessageCard({
           {icon}
         </div>
 
-        <h2 data-slot="title" className="text-2xl font-bold">
+        <h2
+          data-slot="title"
+          className={cn('text-2xl font-bold', titleClassName)}
+        >
           {title}
         </h2>
 
-        <div className="text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-quartz-900">
+        <div
+          className={cn(
+            'text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-quartz-900',
+            descriptionClassName,
+          )}
+        >
           {description}
         </div>
       </div>
