@@ -1,7 +1,7 @@
-import { DEDICATED_RESOLVER_ABI } from '@ens-apps/transaction-manager/contracts/abis/DedicatedResolver.abi'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash } from 'viem'
 import { readContract } from 'viem/actions'
@@ -71,7 +71,7 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
   const forwardAddress = yield* await fromPromise(
     readContract(client, {
       address: resolverAddress,
-      abi: DEDICATED_RESOLVER_ABI,
+      abi: publicResolverSingleAddrSnippet,
       functionName: 'addr',
       args: [node],
     }),
