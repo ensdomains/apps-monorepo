@@ -32,8 +32,9 @@ export const LucideIcon = ({
           : strokeWidth
       }
       {...rest}
-      children={iconNode.map(([tag, attrs]) => createElement(tag, attrs))}
-    />
+    >
+      {iconNode.map(([tag, attrs]) => createElement(tag, attrs))}
+    </svg>
   )
 }
 
