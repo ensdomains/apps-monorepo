@@ -215,7 +215,17 @@ function RouteComponent() {
   }
 
   if (!ownerData) {
-    return <SubnamesTable subnames={[]} name={name} />
+    return (
+      <NotFoundMessage
+        title="Name not registered"
+        description={
+          <>
+            <strong>{name}</strong> is not registered, so there are no subnames
+            to display.
+          </>
+        }
+      />
+    )
   }
 
   // V1 names - show their subnames
