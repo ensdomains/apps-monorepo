@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { type Address, checksumAddress, isAddress } from 'viem'
 import { AddrSidebar } from '@/components/AddrSidebar'
-import { NavBar } from '@/components/NavBar'
+import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
@@ -18,16 +18,12 @@ export const Route = createFileRoute('/addr/$addr')({
 function RouteComponent() {
   const { addr } = Route.useParams()
   return (
-    <div className="[--header-height:calc(--spacing(16))]">
-      <SidebarProvider className="flex flex-col">
-        <NavBar />
-        <div className="flex flex-1">
-          <AddrSidebar addr={checksumAddress(addr as Address)} />
-          <SidebarInset className="w-full min-w-0">
-            <Outlet />
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+    <SidebarProvider>
+      <AddrSidebar addr={checksumAddress(addr as Address)} />
+      <SidebarInset className="w-full min-w-0">
+        <MobileHeader />
+        <Outlet />
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

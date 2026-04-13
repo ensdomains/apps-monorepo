@@ -1,22 +1,42 @@
 import { Link } from '@tanstack/react-router'
-import type { LucideIcon } from 'lucide-react'
 import {
-  ClockIcon,
-  CoinsIcon,
-  FileCodeIcon,
-  FileSpreadsheetIcon,
+  BookIcon,
+  CircleQuestionMarkIcon,
   FlameIcon,
-  ListTreeIcon,
-  Network,
-  PersonStandingIcon,
-  UserLockIcon,
-  UserRoundCog,
+  IdCardIcon,
+  SettingsIcon,
 } from 'lucide-react'
+import { useState } from 'react'
+import { ExternalLink } from 'react-external-link'
+import {
+  BrowseIcon,
+  CardsStackIcon,
+  GraphIcon,
+  HistoryIcon,
+  HubIcon,
+  KeyIcon,
+  ResolverIcon,
+  ShieldIcon,
+  TollIcon,
+} from '@/assets/icons'
+import { LogoWithTextSVG } from '@/assets/logo'
+import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
 import { createDefineLinkItem } from '@/utils/tsr'
+import { HelpMenu } from './HelpMenu'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -24,111 +44,101 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarTrigger,
 } from './ui/sidebar'
+import { WalletMenu } from './WalletMenu'
 
 type SidebarItemData = {
   title: string
-  icon: LucideIcon
+  icon: React.ComponentType<{ className?: string }>
   disabled?: boolean
   upcoming?: boolean
 }
 
 const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 
-const getItemGroups = (name: string) => [
-  [
-    defineProfileSidebarItem({
-      title: 'Overview',
-      icon: PersonStandingIcon,
-      link: {
-        to: '/$name',
-        params: { name },
-        activeOptions: { exact: true },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Records',
-      icon: FileSpreadsheetIcon,
-      link: {
-        to: '/$name/records',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Resolver',
-      icon: FileCodeIcon,
-      link: {
-        to: '/$name/resolver',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Ownership',
-      icon: UserLockIcon,
-      link: {
-        to: '/$name/ownership',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Roles',
-      icon: UserRoundCog,
-      link: {
-        to: '/$name/roles',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Fuses',
-      icon: FlameIcon,
-      link: {
-        to: '/$name/fuses',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Subnames',
-      icon: ListTreeIcon,
-      link: {
-        to: '/$name/subnames',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Registry',
-      icon: Network,
-      link: {
-        to: '/$name/registry',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Token info',
-      icon: CoinsIcon,
-      link: {
-        to: '/$name/token',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'History',
-      icon: ClockIcon,
-      link: {
-        to: '/$name/history',
-        params: { name },
-      },
-    }),
-  ],
+const getItems = (name: string) => [
+  defineProfileSidebarItem({
+    title: 'Overview',
+    icon: BrowseIcon,
+    link: {
+      to: '/$name',
+      params: { name },
+      activeOptions: { exact: true },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Records',
+    icon: CardsStackIcon,
+    link: {
+      to: '/$name/records',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Resolver',
+    icon: ResolverIcon,
+    link: {
+      to: '/$name/resolver',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Ownership',
+    icon: KeyIcon,
+    link: {
+      to: '/$name/ownership',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Roles',
+    icon: ShieldIcon,
+    link: {
+      to: '/$name/roles',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Fuses',
+    icon: FlameIcon,
+    link: {
+      to: '/$name/fuses',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Subnames',
+    icon: GraphIcon,
+    link: {
+      to: '/$name/subnames',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Registry',
+    icon: HubIcon,
+    link: {
+      to: '/$name/registry',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Token info',
+    icon: TollIcon,
+    link: {
+      to: '/$name/token',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'History',
+    icon: HistoryIcon,
+    link: {
+      to: '/$name/history',
+      params: { name },
+    },
+  }),
 ]
 
 interface ProfileSidebarProps {
@@ -136,57 +146,145 @@ interface ProfileSidebarProps {
 }
 
 export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
-  const itemGroups = getItemGroups(name)
+  const items = getItems(name)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   return (
-    <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
-      <SidebarHeader>
-        <span className="ml-3 text-lg font-bold wrap-break-word">{name}</span>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="p-3 gap-3">
+        {/* Logo row */}
+        <div className="flex items-center justify-between min-h-8">
+          <Link
+            to="/"
+            className="flex items-center group-data-[collapsible=icon]:hidden"
+          >
+            <LogoWithTextSVG width={72} height="auto" />
+          </Link>
+          <SidebarTrigger className="shrink-0" />
+        </div>
+
+        {/* Search — hidden when collapsed */}
+        <div className="group-data-[collapsible=icon]:hidden">
+          <HomeSearchInput />
+        </div>
       </SidebarHeader>
-      <SidebarSeparator />
+
+      <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
+
       <SidebarContent>
-        {itemGroups.map((items, i) => (
-          <div key={items[0].title}>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {items.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      {item.disabled || item.upcoming ? (
-                        <SidebarMenuButton
-                          disabled
-                          className="opacity-50 cursor-not-allowed"
-                        >
-                          <item.icon className="size-6" />
-                          <span className="text-sm font-medium">
-                            {item.title}
-                          </span>
-                          {item.upcoming && <SoonBadge />}
-                        </SidebarMenuButton>
-                      ) : (
-                        <SidebarMenuButton asChild>
-                          <Link
-                            {...item.link}
-                            activeProps={{
-                              'data-active': 'true',
-                            }}
-                          >
-                            <item.icon className="size-6" />
-                            <span className="text-sm font-medium">
-                              {item.title}
-                            </span>
-                          </Link>
-                        </SidebarMenuButton>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            {i < itemGroups.length - 1 && <SidebarSeparator />}
+        {/* Name section — hidden when collapsed */}
+        <div className="group-data-[collapsible=icon]:hidden px-3 py-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <div className="flex items-center justify-center bg-lapis-100 dark:bg-lapis-900/30 rounded-xs size-4 shrink-0">
+                <IdCardIcon className="size-2.5 text-lapis-500" />
+              </div>
+              <span className="text-xs text-lapis-500 font-medium">Name</span>
+            </div>
+            <CopyButton value={name} />
           </div>
-        ))}
+          <div className="flex items-center gap-2">
+            <NameAvatar
+              name={name}
+              height="36px"
+              width="36px"
+              rounded="rounded-xs"
+            />
+            <span className="text-base font-medium text-foreground break-all leading-tight">
+              {name}
+            </span>
+          </div>
+        </div>
+
+        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-3.5">
+              {items.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  {item.disabled || item.upcoming ? (
+                    <SidebarMenuButton
+                      disabled
+                      className="opacity-50 cursor-not-allowed"
+                      tooltip={item.title}
+                    >
+                      <item.icon className="size-4" />
+                      <span className="text-sm">{item.title}</span>
+                      {item.upcoming && <SoonBadge />}
+                    </SidebarMenuButton>
+                  ) : (
+                    <SidebarMenuButton asChild tooltip={item.title}>
+                      <Link
+                        {...item.link}
+                        activeProps={{
+                          'data-active': 'true',
+                        }}
+                      >
+                        <item.icon className="size-4" />
+                        <span className="text-sm">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  )}
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
+
+      <SidebarSeparator />
+
+      <SidebarFooter className="p-3">
+        <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+          <div className="flex-1 group-data-[collapsible=icon]:flex-none">
+            <WalletMenu />
+          </div>
+          <Popover open={helpOpen} onOpenChange={setHelpOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-foreground"
+                aria-label="Help"
+              >
+                <CircleQuestionMarkIcon className="size-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" align="end">
+              <HelpMenu />
+            </PopoverContent>
+          </Popover>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-foreground"
+                aria-label="Settings"
+              >
+                <SettingsIcon className="size-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" align="end">
+              <TableViewSwitch />
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground hover:text-foreground"
+            aria-label="Documentation"
+            asChild
+          >
+            <ExternalLink href="https://docs.ens.domains">
+              <BookIcon className="size-4" />
+            </ExternalLink>
+          </Button>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   )
 }

@@ -26,12 +26,12 @@ export const DashboardProfilePreview = () => {
       <section className="flex flex-col gap-6">
         <div className="flex flex-row flex-wrap gap-2 justify-between items-center">
           <div className="flex flex-row gap-2 items-baseline">
-            <span className="font-mono text-quartz-500 font-medium min-w-30">
+            <span className="font-mono text-muted-foreground font-medium min-w-30">
               Connected as
             </span>
 
             <CopyableRecord
-              className="font-mono text-quartz-500 font-medium"
+              className="font-mono text-muted-foreground font-medium"
               value={address}
               displayValue={truncateAddress(address, 6, 4, '...')}
               href={`/addr/${address}`}
