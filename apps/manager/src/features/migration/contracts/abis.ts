@@ -4,6 +4,7 @@ export const BASE_REGISTRAR_ABI = parseAbi([
   'function safeTransferFrom(address from, address to, uint256 tokenId, bytes data)',
   'function ownerOf(uint256 tokenId) view returns (address)',
   'function isApprovedForAll(address owner, address operator) view returns (bool)',
+  'function setApprovalForAll(address operator, bool approved)',
   'function getApproved(uint256 tokenId) view returns (address)',
 ])
 

@@ -39,8 +39,10 @@ export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
     switch (descriptor.type) {
       case 'pre-migrate':
         return t`Pre-migrating ${descriptor.count} name(s)`
+      case 'approve-multicall3':
+        return t`Approving Multicall3 to batch ${descriptor.count} name(s)`
       case 'migrate':
-        return t`Migrating ${descriptor.count} name(s)`
+        return t`Migrating ${descriptor.count} ${descriptor.bucket} name(s)`
       case 'migrate-subnames':
         return t`Migrating ${descriptor.count} subname(s) under ${descriptor.parentName}`
     }

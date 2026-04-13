@@ -239,7 +239,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:50
+#: src/features/migration/components/GameStep.tsx:52
 msgid "Almost there..."
 msgstr ""
 
@@ -265,6 +265,11 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
+msgstr ""
+
+#. placeholder {0}: descriptor.count
+#: src/features/migration/components/GameStep.tsx:43
+msgid "Approving Multicall3 to batch {0} name(s)"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
@@ -1230,13 +1235,14 @@ msgid "Marking..."
 msgstr ""
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:43
-msgid "Migrating {0} name(s)"
+#. placeholder {1}: descriptor.bucket
+#: src/features/migration/components/GameStep.tsx:45
+msgid "Migrating {0} {1} name(s)"
 msgstr ""
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.parentName
-#: src/features/migration/components/GameStep.tsx:45
+#: src/features/migration/components/GameStep.tsx:47
 msgid "Migrating {0} subname(s) under {1}"
 msgstr ""
 
@@ -1565,7 +1571,7 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:53
+#: src/features/migration/components/GameStep.tsx:55
 msgid "Preparing migration..."
 msgstr ""
 
@@ -2347,7 +2353,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:71
+#: src/features/migration/components/GameStep.tsx:73
 msgid "Upgrading your names..."
 msgstr ""
 
