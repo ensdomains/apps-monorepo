@@ -2,35 +2,93 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { AlertTriangle, Check, Info, Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, namehash } from 'viem'
+import { labelhash } from 'viem/ens'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   classifyNames,
+  FUSES,
   type IneligibleName,
 } from '@/features/migration/service/classifyNames'
+import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
 
+type CustomTokenType = 'unwrapped' | 'unlocked' | 'locked-2ld'
+
+const buildSyntheticDomain = (
+  name: string,
+  owner: Address,
+  tokenType: CustomTokenType,
+): V1Domain => {
+  const normalized = name.toLowerCase().trim()
+  const [label = '', ...rest] = normalized.split('.')
+  const parentName = rest.join('.')
+  const ownerId = owner.toLowerCase()
+  const nowSec = Math.floor(Date.now() / 1000).toString()
+  const expiry = (Math.floor(Date.now() / 1000) + 365 * 24 * 3600).toString()
+  const ownerRef = { id: ownerId }
+  const base = {
+    id: namehash(normalized),
+    labelName: label,
+    labelhash: labelhash(label),
+    name: normalized,
+    isMigrated: true,
+    createdAt: nowSec,
+    resolvedAddress: null,
+    resolver: null,
+    owner: ownerRef,
+    registrant: ownerRef,
+    parent: parentName
+      ? { name: parentName, id: namehash(parentName), wrappedDomain: null }
+      : null,
+    registration:
+      parentName === 'eth'
+        ? { registrationDate: nowSec, expiryDate: expiry }
+        : null,
+  }
+  if (tokenType === 'unwrapped') {
+    return { ...base, wrappedOwner: null, wrappedDomain: null }
+  }
+  const fuses =
+    tokenType === 'locked-2ld'
+      ? FUSES.CANNOT_UNWRAP | FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH
+      : 0
+  return {
+    ...base,
+    wrappedOwner: ownerRef,
+    wrappedDomain: { expiryDate: expiry, fuses },
+  }
+}
+
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => void
+  readonly customDomains: readonly V1Domain[]
+  readonly onAddCustomDomain: (domain: V1Domain) => void
 }
 
 export const SelectNamesStep = ({
   onNamesChange,
   onNext,
+  customDomains,
+  onAddCustomDomain,
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
   const { data: v1Names = [], isPending } = useV1Names()
   const { ownerAddress } = useSmartAccountContext()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [customNameInput, setCustomNameInput] = useState('')
+  const [customTokenType, setCustomTokenType] =
+    useState<CustomTokenType>('unlocked')
+  const [customError, setCustomError] = useState<string | null>(null)
 
   const { eligibleNames, ineligibleNames } = useMemo(() => {
     if (!ownerAddress || v1Names.length === 0) {
       return {
-        eligibleNames: v1Names,
+        eligibleNames: [...v1Names, ...customDomains],
         ineligibleNames: [] as IneligibleName[],
       }
     }
@@ -39,10 +97,10 @@ export const SelectNamesStep = ({
       ownerAddress as Address,
     )
     return {
-      eligibleNames: classified.map((c) => c.domain),
+      eligibleNames: [...classified.map((c) => c.domain), ...customDomains],
       ineligibleNames: ineligible,
     }
-  }, [v1Names, ownerAddress])
+  }, [v1Names, customDomains, ownerAddress])
 
   const filtered = useMemo(
     () =>
@@ -76,6 +134,51 @@ export const SelectNamesStep = ({
     [onNamesChange],
   )
 
+  const handleAddCustomName = useCallback(() => {
+    const name = customNameInput.trim().toLowerCase()
+    if (!name) return
+    setCustomError(null)
+    if (!ownerAddress) {
+      setCustomError('Connect wallet first')
+      return
+    }
+    if (!name.includes('.')) {
+      setCustomError('Name must include a TLD (e.g. foo.eth)')
+      return
+    }
+    if (
+      v1Names.some((d) => d.name === name) ||
+      customDomains.some((d) => d.name === name)
+    ) {
+      setCustomError('Name already in the list')
+      return
+    }
+    try {
+      const domain = buildSyntheticDomain(
+        name,
+        ownerAddress as Address,
+        customTokenType,
+      )
+      onAddCustomDomain(domain)
+      setSelected((prev) => {
+        const next = new Set(prev).add(domain.name)
+        onNamesChange([...next])
+        return next
+      })
+      setCustomNameInput('')
+    } catch (err) {
+      setCustomError(err instanceof Error ? err.message : 'Failed to add')
+    }
+  }, [
+    customNameInput,
+    customTokenType,
+    ownerAddress,
+    v1Names,
+    customDomains,
+    onAddCustomDomain,
+    onNamesChange,
+  ])
+
   const totalSelected = selected.size
 
   return (
@@ -98,6 +201,52 @@ export const SelectNamesStep = ({
                 type="text"
                 value={search}
               />
+            </div>
+
+            {/* TEMP: dev-only custom name input — remove before prod */}
+            <div className="flex shrink-0 flex-col gap-1">
+              <div className="flex h-[42px] items-center gap-2 rounded-[20px] border border-ens-garnet-900/30 border-dashed bg-white/40 px-4 py-1.5">
+                <input
+                  aria-label="Custom name"
+                  className="flex-1 bg-transparent text-base text-ens-garnet-900 leading-[0.96] tracking-[-0.32px] placeholder:text-ens-garnet-900/40 focus:outline-none"
+                  onChange={(e) => {
+                    setCustomNameInput(e.target.value)
+                    setCustomError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddCustomName()
+                    }
+                  }}
+                  placeholder="Custom name (e.g. foo.eth) — dev only"
+                  type="text"
+                  value={customNameInput}
+                />
+                <select
+                  aria-label="Custom name token type"
+                  className="rounded-[8px] bg-white/60 px-2 py-1 font-semi-mono text-ens-garnet-900 text-xs"
+                  onChange={(e) =>
+                    setCustomTokenType(e.target.value as CustomTokenType)
+                  }
+                  value={customTokenType}
+                >
+                  <option value="unwrapped">unwrapped</option>
+                  <option value="unlocked">unlocked</option>
+                  <option value="locked-2ld">locked-2ld</option>
+                </select>
+                <button
+                  className="rounded-[12px] bg-ens-garnet-900 px-3 py-1 font-semi-mono text-ens-garnet-50 text-xs uppercase tracking-[1.2px] disabled:opacity-50"
+                  disabled={!customNameInput.trim()}
+                  onClick={handleAddCustomName}
+                  type="button"
+                >
+                  Add
+                </button>
+              </div>
+              {customError && (
+                <p className="px-4 text-red-600 text-xs">{customError}</p>
+              )}
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden rounded-[20px] bg-white/40">

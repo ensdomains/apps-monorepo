@@ -2,7 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMachine } from '@xstate/react'
 import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useMemo } from 'react'
+import { type ReactNode, useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -17,6 +17,7 @@ import type {
   MigrationResult,
   SkippedName,
 } from '@/features/migration/service/migrationService'
+import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 
 const SkipReasonLabel = ({ reason }: { reason: SkippedName['reason'] }) => {
   const labels: Record<SkippedName['reason'], ReactNode> = {
@@ -108,11 +109,19 @@ export const MigrationPage = () => {
   const { t } = useLingui()
   const [state, send] = useMachine(migrationMachine)
   const { data: v1Names = [] } = useV1Names()
+  // TEMP: dev-only custom domains injected via the custom-name input
+  const [customDomains, setCustomDomains] = useState<readonly V1Domain[]>([])
+
+  const handleAddCustomDomain = useCallback((domain: V1Domain) => {
+    setCustomDomains((prev) =>
+      prev.some((d) => d.name === domain.name) ? prev : [...prev, domain],
+    )
+  }, [])
 
   const selectedDomains = useMemo(() => {
     const selectedSet = new Set(state.context.selectedNames)
-    return v1Names.filter((n) => selectedSet.has(n.name))
-  }, [v1Names, state.context.selectedNames])
+    return [...v1Names, ...customDomains].filter((n) => selectedSet.has(n.name))
+  }, [v1Names, customDomains, state.context.selectedNames])
 
   const handleNamesChange = useCallback(
     (names: string[]) => send({ type: 'SELECT_NAMES', names }),
@@ -152,6 +161,8 @@ export const MigrationPage = () => {
       {match(state.value)
         .with('selectNames', () => (
           <SelectNamesStep
+            customDomains={customDomains}
+            onAddCustomDomain={handleAddCustomDomain}
             onNamesChange={handleNamesChange}
             onNext={() => send({ type: 'BEGIN_UPGRADE' })}
           />
