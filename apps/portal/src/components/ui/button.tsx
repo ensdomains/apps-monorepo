@@ -18,7 +18,7 @@ const buttonVariants = cva(
           'bg-secondary text-secondary-foreground hover:bg-secondary/50',
         success: 'bg-peridot-100 text-success hover:bg-peridot-100/50',
         ghost:
-          'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+          'hover:bg-accent text-primary hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
         input: 'bg-quartz-100 text-primary hover:bg-quartz-200',
       },

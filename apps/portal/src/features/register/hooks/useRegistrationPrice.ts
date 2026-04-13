@@ -5,6 +5,7 @@ import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
+import type { Address } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -27,6 +28,7 @@ export type RegistrationPriceParameters = {
   readonly name: string
   readonly duration: number
   readonly token?: SupportedTokenAddresses
+  readonly owner?: Address
 }
 
 export type RegistrationPriceResult = {
@@ -41,6 +43,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   name,
   duration,
   token,
+  owner,
 }: RegistrationPriceParameters) {
   const client = yield* safeGetClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
@@ -55,12 +58,16 @@ export const getRegistrationPrice = ResultFn(async function* ({
     )
   }
 
+  // The StandardRentPriceOracle skips the temporary premium when owner is
+  // address(0) (the ensjs default). Passing the user's address ensures the
+  // returned price includes any active premium for recently expired names.
   const { base, premium } = yield* fromPromise(
     getPrice(client, {
       nameOrNames: label,
       duration: BigInt(duration),
       paymentToken: resolvedToken,
       registrarAddress: ethRegistrar,
+      owner,
     }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
   )

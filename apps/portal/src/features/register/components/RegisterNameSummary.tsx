@@ -1,37 +1,36 @@
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
-import { InfoIcon } from 'lucide-react'
-import { useState } from 'react'
+import { SirenIcon } from 'lucide-react'
+import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PaymentTokenModal } from '@/features/register/components/PaymentTokenModal'
-import { PremiumPill } from '@/features/register/components/PremiumPill'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
-import { getPremiumLabel } from '@/features/register/utils/premium'
+import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
+import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
+import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
-  EST_GAS_USD,
   formatPriceDisplay,
-  formatTotalWithGas,
+  formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
+import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { cn } from '@/lib/utils'
+import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
 type RegisterNameCheckoutSummaryProps = {
   readonly name: string
   readonly duration: number
-  readonly durationLabel: string
-  readonly onContinue: (selectedToken: Address, tokenPrice: bigint) => void
 }
 
 /** ENS docs explaining premium pricing for short names */
@@ -41,15 +40,10 @@ const ENS_PREMIUM_PRICING_DOCS_URL =
 export const RegisterNameCheckoutSummary = ({
   name,
   duration,
-  durationLabel,
-  onContinue,
 }: RegisterNameCheckoutSummaryProps) => {
   const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
-
-  const { address, isConnected } = useConnection()
-  const { openConnectModal } = useConnectModal()
+  const { address } = useConnection()
 
   const {
     data: price,
@@ -60,165 +54,139 @@ export const RegisterNameCheckoutSummary = ({
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
+      owner: address,
     }),
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
 
-  const isReady = !isLoading && !isError && price
   const hasPrice = price && isPriceResult(price)
-
-  const canContinue = isReady && hasPrice && isConnected && Boolean(address)
-
-  const handleContinueClick = () => {
-    if (canContinue) setPaymentModalOpen(true)
-  }
+  const premiumRange =
+    hasPrice && price ? getPremiumInstantRangeFromPrice(price) : null
 
   return (
-    <section
-      className="border border-border rounded-lg bg-card p-5"
-      aria-labelledby="checkout-heading"
-    >
-      <h2 id="checkout-heading" className="text-lg font-semibold mb-4">
-        Registration summary
-      </h2>
-
-      {match({ isLoading, isError, hasPrice })
-        .with({ isLoading: true }, () => (
-          <PriceBreakdownSkeleton
-            durationLabel={durationLabel}
-            premiumLabel={getPremiumLabel(name)}
-          />
-        ))
-        .with({ isError: true }, () => {
-          const errorInfo = error ? getTransactionErrorInfo(error) : null
-          return (
-            <TransactionErrorAlert
-              title="Failed to load price"
-              summary={
-                errorInfo?.summary ?? 'Failed to load price. Please try again.'
-              }
-              details={errorInfo?.details}
-            />
-          )
-        })
-        .with({ hasPrice: true }, () =>
-          price ? (
-            <PriceBreakdown
-              name={name}
-              price={price}
-              durationLabel={durationLabel}
-              onOpenPremiumDrawer={() => setPremiumDrawerOpen(true)}
-            />
-          ) : null,
-        )
-        .otherwise(() => (
-          <div className="border border-border rounded-md p-4">
-            <p className="text-muted-foreground text-sm">
-              Unable to load price
+    <Fragment>
+      {premiumRange && (
+        <Alert variant="default" className="flex p-5 items-center">
+          <AlertDescription className="text-base flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
+            <SirenIcon className="size-6 shrink-0" />
+            <p className="text-center md:text-left">
+              This name is in Temporary premium until{' '}
+              {formatExpiryDateTimeLocal(premiumRange.end)}.
             </p>
-          </div>
-        ))}
-
-      {match({ isConnected, openConnectModal })
-        .when(
-          ({ isConnected, openConnectModal }) =>
-            !isConnected && typeof openConnectModal === 'function',
-          ({ openConnectModal }) => (
             <Button
-              className="w-full mt-4 h-12"
-              onClick={() => openConnectModal?.()}
-              type="button"
+              variant="outline"
+              size="sm"
+              className="text-primary text-sm"
+              onClick={() => setPremiumDrawerOpen(true)}
             >
-              Connect Wallet
+              Learn more
             </Button>
-          ),
-        )
-        .when(
-          ({ isConnected }) => !isConnected,
-          () => (
-            <Button className="w-full mt-4 h-12" disabled type="button">
-              Wallet not connected
-            </Button>
-          ),
-        )
-        .otherwise(() => (
-          <Button
-            className="w-full mt-4 h-12"
-            onClick={handleContinueClick}
-            disabled={!canContinue}
-          >
-            {isLoading ? 'Loading...' : 'Continue'}
-          </Button>
-        ))}
-
-      <PaymentTokenModal
-        open={paymentModalOpen}
-        onOpenChange={setPaymentModalOpen}
-        name={name}
-        duration={duration}
-        onConfirm={onContinue}
-      />
-
-      {hasPrice && price.hasPremium && (
-        <TemporaryPremiumDrawer
-          open={premiumDrawerOpen}
-          onOpenChange={setPremiumDrawerOpen}
-          currentPremium={formatPriceDisplay(price.premium, price.decimals)}
-        />
+          </AlertDescription>
+        </Alert>
       )}
-    </section>
+      <section
+        className="border border-border rounded-lg bg-card p-5"
+        aria-label="Checkout summary"
+      >
+        {match({ isLoading, isError, hasPrice })
+          .with({ isLoading: true }, () => <PriceBreakdownSkeleton />)
+          .with({ isError: true }, () => {
+            const errorInfo = error ? getTransactionErrorInfo(error) : null
+            return (
+              <TransactionErrorAlert
+                title="Failed to load price"
+                summary={
+                  errorInfo?.summary ??
+                  'Failed to load price. Please try again.'
+                }
+                details={errorInfo?.details}
+              />
+            )
+          })
+          .with({ hasPrice: true }, () =>
+            price ? (
+              <PriceBreakdown name={name} price={price} duration={duration} />
+            ) : null,
+          )
+          .otherwise(() => (
+            <div className="border border-border rounded-md p-4">
+              <p className="text-muted-foreground text-sm">
+                Unable to load price
+              </p>
+            </div>
+          ))}
+
+        {hasPrice && price.hasPremium && (
+          <TemporaryPremiumDrawer
+            open={premiumDrawerOpen}
+            onOpenChange={setPremiumDrawerOpen}
+            currentPremium={formatPriceDisplay(price.premium, price.decimals)}
+            premiumStart={premiumRange?.start ?? null}
+          />
+        )}
+      </section>
+    </Fragment>
   )
 }
 
-type PriceBreakdownSkeletonProps = {
-  readonly durationLabel: string
-  readonly premiumLabel: ReturnType<typeof getPremiumLabel>
+type SummaryRowProps = {
+  readonly label: ReactNode
+  readonly value: ReactNode
+  readonly className?: string
+  readonly labelClassName?: string
+  readonly valueClassName?: string
 }
 
-const PriceBreakdownSkeleton = ({
-  durationLabel,
-  premiumLabel,
-}: PriceBreakdownSkeletonProps) => (
-  <div className="space-y-3">
-    {premiumLabel && (
-      <div className="flex flex-wrap items-center gap-2">
-        <PremiumPill
-          label={premiumLabel.label}
-          variant={premiumLabel.variant}
-        />
-        <ExternalLink
-          href={ENS_PREMIUM_PRICING_DOCS_URL}
-          className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
-        >
-          Learn more
-        </ExternalLink>
-      </div>
-    )}
-    <dl className="space-y-3">
-      <div className="flex items-center justify-between">
-        <dt className="text-base font-normal">{durationLabel} registration</dt>
-        <dd className="flex items-center gap-1 m-0">
-          <Skeleton className="h-5 w-12" />
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
-      <div className="flex items-center justify-between">
-        <dt className="text-base font-normal">Est. gas cost</dt>
-        <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-          <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
-      <div className="flex items-center justify-between pt-3 border-t border-border">
-        <dt className="text-xl font-bold">Est. total</dt>
-        <dd className="flex items-center gap-1 m-0">
-          <Skeleton className="h-7 w-14" />
-          <span className="text-xs">USD</span>
-        </dd>
-      </div>
-      <p className="text-xs text-muted-foreground pt-1">
-        Paid in USDC or DAI. Gas and network fees are approximations.
-      </p>
+const SummaryRow = ({
+  label,
+  value,
+  className,
+  labelClassName,
+  valueClassName,
+}: SummaryRowProps) => (
+  <div className={cn('flex items-center justify-between', className)}>
+    <dt className={cn('text-base font-normal text-quartz-350', labelClassName)}>
+      {label}
+    </dt>
+    <dd className={cn('m-0 font-normal text-quartz-900', valueClassName)}>
+      {value}
+    </dd>
+  </div>
+)
+
+const PriceBreakdownSkeleton = () => (
+  <div className="space-y-2">
+    <dl className="space-y-2">
+      <SummaryRow
+        label="Registration:"
+        value={<Skeleton className="h-5 w-16" />}
+      />
+      <SummaryRow label="Expires:" value={<Skeleton className="h-5 w-24" />} />
+
+      <hr className="border-border" />
+
+      <SummaryRow label="Price:" value={<Skeleton className="h-5 w-20" />} />
+      <SummaryRow
+        label="Subtotal:"
+        value={
+          <span className="flex items-center gap-1">
+            <Skeleton className="h-5 w-14" />
+          </span>
+        }
+        valueClassName="flex items-center gap-1 m-0"
+      />
+
+      <SummaryRow
+        label="Total:"
+        value={
+          <span className="flex items-center gap-1">
+            <Skeleton className="h-7 w-14" />
+          </span>
+        }
+        className="pt-3 border-t border-border"
+        labelClassName="text-xl text-primary font-medium"
+        valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+      />
     </dl>
   </div>
 )
@@ -226,97 +194,84 @@ const PriceBreakdownSkeleton = ({
 type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
-  readonly durationLabel: string
-  readonly onOpenPremiumDrawer: () => void
+  readonly duration: number
 }
 
-const PriceBreakdown = ({
-  name,
-  price,
-  durationLabel,
-  onOpenPremiumDrawer,
-}: PriceBreakdownProps) => {
-  const premiumLabel = getPremiumLabel(name)
+const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
+  const { registrationPeriod, expiresFormatted } =
+    getRegistrationDisplayDates(duration)
+
+  const {
+    pricePerYear,
+    years,
+    standardSubtotal,
+    discountAmount,
+    discountPercent,
+    discountLabel,
+    premiumLabel,
+  } = getPricingBreakdown(name, price, duration)
 
   return (
-    <div className="space-y-3">
-      {premiumLabel && (
-        <div className="flex flex-wrap items-center gap-2">
-          <PremiumPill
-            label={premiumLabel.label}
-            variant={premiumLabel.variant}
-          />
-          <ExternalLink
-            href={ENS_PREMIUM_PRICING_DOCS_URL}
-            className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
-          >
-            Learn more
-          </ExternalLink>
-        </div>
-      )}
-      <dl className="space-y-3">
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">
-            {durationLabel} registration
-          </dt>
-          <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-base font-medium">
-              {formatPriceDisplay(price.base, price.decimals)}
-            </span>
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
+    <div className="space-y-2">
+      <dl className="space-y-2">
+        <SummaryRow label="Registration:" value={registrationPeriod} />
+        <SummaryRow label="Expires:" value={expiresFormatted} />
+
+        <hr className="border-border my-3" />
 
         {price.hasPremium && (
-          <div className="flex items-center justify-between">
-            <dt className="text-base font-normal flex items-center gap-1">
-              Temporary premium{' '}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6"
-                onClick={onOpenPremiumDrawer}
-                aria-label="Learn more about temporary premium"
-              >
-                <InfoIcon className="size-3.5" />
-              </Button>
-            </dt>
-            <dd className="flex items-center gap-1 m-0">
-              <span className="font-mono text-base font-medium">
-                {formatPriceDisplay(price.premium, price.decimals)}
-              </span>
-              <span className="text-xs">USD</span>
-            </dd>
-          </div>
+          <SummaryRow
+            label={'Temporary premium:'}
+            value={formatPriceDisplay(price.premium, price.decimals)}
+            labelClassName="font-medium text-quartz-900"
+            valueClassName="font-medium text-quartz-900"
+          />
         )}
 
-        <div className="flex items-center justify-between">
-          <dt className="text-base font-normal">Est. gas cost</dt>
-          <dd className="flex items-center gap-1 m-0 text-muted-foreground text-sm">
-            <span className="font-mono">~{formatUsd(EST_GAS_USD)}</span>
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
+        {Math.round(years * 12) >= 12 && (
+          <SummaryRow
+            label={
+              premiumLabel ? (
+                <ExternalLink
+                  href={ENS_PREMIUM_PRICING_DOCS_URL}
+                  className="underline decoration-dotted underline-offset-2"
+                >
+                  {premiumLabel.label}:
+                </ExternalLink>
+              ) : (
+                'Price:'
+              )
+            }
+            value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
+          />
+        )}
 
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <dt className="text-xl font-bold">Est. total</dt>
-          <dd className="flex items-center gap-1 m-0">
-            <span className="font-mono text-xl font-bold">
-              {formatTotalWithGas(
-                price.base,
-                price.premium,
-                EST_GAS_USD,
-                price.decimals,
-              )}
-            </span>
-            <span className="text-xs">USD</span>
-          </dd>
-        </div>
+        <SummaryRow
+          label="Subtotal:"
+          value={formatUsd(Math.round(standardSubtotal))}
+          valueClassName="flex items-center gap-1 m-0"
+        />
 
-        <p className="text-xs text-muted-foreground pt-1">
-          Paid in USDC or DAI. Gas and network fees are approximations.
-        </p>
+        {discountPercent > 0 && discountAmount > 0 && discountLabel && (
+          <SummaryRow
+            label={`${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}):`}
+            value={`-${formatUsd(discountAmount)}`}
+            valueClassName="flex items-center gap-1 m-0 text-success"
+            labelClassName="text-success"
+          />
+        )}
+
+        <SummaryRow
+          label="Total:"
+          value={formatRegistrationTotal(
+            price.base,
+            price.premium,
+            price.decimals,
+          )}
+          className="pt-3 border-t border-border"
+          labelClassName="text-xl text-primary font-medium"
+          valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+        />
       </dl>
     </div>
   )
