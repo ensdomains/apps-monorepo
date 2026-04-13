@@ -9,11 +9,11 @@ import {
   stringToBytes,
 } from 'viem'
 
-const dedicatedResolverInitAbi = parseAbi([
+const permissionedResolverInitAbi = parseAbi([
   'function initialize(address owner, uint256 bitmap)',
 ])
 
-const dedicatedResolverRoleBitmap = BigInt(
+const permissionedResolverRoleBitmap = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
 
@@ -29,9 +29,9 @@ export const generateResolverSalt = (name: string) => {
 
 export const getResolverInitCalldata = (ownerAddress: Address): Hex => {
   return encodeFunctionData({
-    abi: dedicatedResolverInitAbi,
+    abi: permissionedResolverInitAbi,
     functionName: 'initialize',
-    args: [ownerAddress, dedicatedResolverRoleBitmap],
+    args: [ownerAddress, permissionedResolverRoleBitmap],
   })
 }
 
@@ -83,7 +83,7 @@ export interface ProxyDeployedLog {
   }
 }
 
-export const filterDedicatedResolverAddresses = (
+export const filterPermissionedResolverAddresses = (
   logs: readonly ProxyDeployedLog[],
   expectedImplementation: Address,
 ): Address[] => {

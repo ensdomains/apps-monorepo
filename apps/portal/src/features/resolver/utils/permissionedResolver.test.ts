@@ -2,10 +2,10 @@ import type { Address, Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   decodeImplementationAddress,
-  filterDedicatedResolverAddresses,
+  filterPermissionedResolverAddresses,
   type ProxyDeployedLog,
   parseProxyDeployedAddress,
-} from './dedicatedResolver'
+} from './permissionedResolver'
 
 describe('decodeImplementationAddress', () => {
   it('returns null for null/undefined input', () => {
@@ -48,11 +48,11 @@ describe('parseProxyDeployedAddress', () => {
   })
 })
 
-describe('filterDedicatedResolverAddresses', () => {
+describe('filterPermissionedResolverAddresses', () => {
   const expectedImpl = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' as Address
 
   it('returns empty array for empty logs', () => {
-    expect(filterDedicatedResolverAddresses([], expectedImpl)).toEqual([])
+    expect(filterPermissionedResolverAddresses([], expectedImpl)).toEqual([])
   })
 
   it('filters logs by implementation address', () => {
@@ -72,7 +72,7 @@ describe('filterDedicatedResolverAddresses', () => {
       },
     ]
 
-    const result = filterDedicatedResolverAddresses(logs, expectedImpl)
+    const result = filterPermissionedResolverAddresses(logs, expectedImpl)
     expect(result).toHaveLength(1)
     expect(result[0]?.toLowerCase()).toBe(
       '0x1111111111111111111111111111111111111111',
@@ -86,7 +86,7 @@ describe('filterDedicatedResolverAddresses', () => {
       { args: { implementation: expectedImpl, proxyAddress: proxy } },
     ]
 
-    const result = filterDedicatedResolverAddresses(logs, expectedImpl)
+    const result = filterPermissionedResolverAddresses(logs, expectedImpl)
     expect(result).toHaveLength(1)
   })
 
@@ -106,7 +106,7 @@ describe('filterDedicatedResolverAddresses', () => {
       },
     ]
 
-    const result = filterDedicatedResolverAddresses(logs, expectedImpl)
+    const result = filterPermissionedResolverAddresses(logs, expectedImpl)
     expect(result).toHaveLength(2)
     expect(result[0]?.toLowerCase()).toBe(
       '0x2222222222222222222222222222222222222222',
