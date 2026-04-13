@@ -35,7 +35,7 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
           <DataRow label="Coin Type">
             <span className="font-mono">
               {record.id}{' '}
-              <span className="font-sans text-quartz-500 uppercase">
+              <span className="font-sans text-muted-foreground uppercase">
                 {record.key}
               </span>
             </span>
@@ -157,7 +157,7 @@ const columns: ColumnDef<HistoryEvent>[] = [
       if (!timestamp) {
         // Fallback to block number if no timestamp
         return (
-          <span className="font-mono text-quartz-500">
+          <span className="font-mono text-muted-foreground">
             Block {row.original.blockNumber}
           </span>
         )
@@ -296,7 +296,7 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
     <div className="flex flex-col gap-6 p-6 border border-border rounded-lg">
       <h3 className="text-2xl font-medium">History</h3>
       {hasNoHistory ? (
-        <p className="text-quartz-500 text-sm py-4">
+        <p className="text-muted-foreground text-sm py-4">
           No history available for this record.
         </p>
       ) : (

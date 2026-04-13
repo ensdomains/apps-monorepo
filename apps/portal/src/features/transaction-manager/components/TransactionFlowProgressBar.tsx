@@ -56,7 +56,7 @@ export const TransactionFlowProgressBar = ({
   const fillColor = match({ hasError, allSuccess })
     .with({ hasError: true }, () => 'bg-garnet-100')
     .with({ allSuccess: true }, () => 'bg-peridot-100')
-    .otherwise(() => 'bg-quartz-100')
+    .otherwise(() => 'bg-muted')
 
   return (
     <div

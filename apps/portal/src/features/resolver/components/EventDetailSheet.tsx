@@ -128,7 +128,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
               {txData.to ? (
                 <AddressDisplay address={txData.to} />
               ) : (
-                <span className="text-quartz-500">Contract Creation</span>
+                <span className="text-muted-foreground">Contract Creation</span>
               )}
             </DataRow>
           </>
@@ -140,7 +140,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
 
         <Card>
           <CardContent className="p-0">
-            <div className="border-b px-6 py-3 bg-quartz-50">
+            <div className="border-b px-6 py-3 bg-muted">
               <span className="text-sm font-medium">{event.type}</span>
             </div>
 
@@ -155,7 +155,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
 
                 {txHash && (
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
-                    <span className="text-base font-semibold text-black shrink-0 sm:min-w-[160px]">
+                    <span className="text-base font-semibold shrink-0 sm:min-w-40">
                       Transaction
                     </span>
                     <CopyableRecord
@@ -171,7 +171,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                 )}
 
                 <div className="flex flex-row gap-6 items-center">
-                  <span className="text-base font-semibold text-black sm:min-w-[160px]">
+                  <span className="text-base font-semibold sm:min-w-40">
                     Event
                   </span>
                   <CopyableRecord
@@ -192,18 +192,18 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                     <h4 className="text-base font-semibold mb-3">Data</h4>
                     <div className="border rounded-lg overflow-auto">
                       <table className="w-full">
-                        <thead className="bg-quartz-50">
+                        <thead className="bg-muted">
                           <tr>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700 w-12">
+                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground w-12">
                               #
                             </th>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                               Name
                             </th>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                               Type
                             </th>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                               Data
                             </th>
                           </tr>
@@ -241,7 +241,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                       <CopyableRecord
                         value={parseError.raw}
                         displayValue={
-                          <pre className="text-xs font-mono text-quartz-500 whitespace-pre-wrap break-all">
+                          <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
                             {parseError.raw}
                           </pre>
                         }
@@ -271,7 +271,7 @@ export const EventDetailSheet = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-[880px] bg-card p-0 flex flex-col h-dvh"
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
@@ -285,7 +285,7 @@ export const EventDetailSheet = ({
           {event ? (
             <TransactionDetails event={event} />
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No transaction selected
             </div>
           )}

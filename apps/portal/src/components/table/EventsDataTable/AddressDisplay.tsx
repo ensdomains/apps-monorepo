@@ -1,17 +1,21 @@
+import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
+import { EntityBadge, type EntityVariant } from '@/components/EntityBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 interface AddressDisplayProps {
   address: Address
   short?: boolean
+  variant?: EntityVariant
 }
 
 export const AddressDisplay = ({
   address,
   short = true,
+  variant: variantProp = 'address',
 }: AddressDisplayProps) => {
   const { data: ensName, isLoading } = useEnsName({ address })
 
@@ -19,12 +23,15 @@ export const AddressDisplay = ({
     return (
       <div className="flex flex-row items-center gap-2">
         <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
-        <span className="text-sm text-quartz-400">Loading...</span>
+        <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     )
   }
 
   const displayName = ensName || (short ? truncateAddress(address) : address)
+  const variant = ensName ? 'name' : variantProp
+
+  const badge = <EntityBadge variant={variant}>{displayName}</EntityBadge>
 
   return (
     <div className="flex flex-row items-center gap-2">
@@ -38,12 +45,16 @@ export const AddressDisplay = ({
       ) : (
         <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
       )}
-      <CopyableRecord
-        value={ensName || address}
-        displayValue={<span>{displayName}</span>}
-        className="text-sm underline decoration-dashed underline-offset-4"
-        href={`/addr/${address}`}
-      />
+      {ensName ? (
+        <Link to="/$name" params={{ name: ensName }}>
+          {badge}
+        </Link>
+      ) : (
+        <Link to="/addr/$addr" params={{ addr: address }}>
+          {badge}
+        </Link>
+      )}
+      <CopyButton value={ensName || address} />
     </div>
   )
 }

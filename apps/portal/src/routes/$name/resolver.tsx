@@ -115,11 +115,13 @@ const UnderlyingResolverInfo = ({
                 label: 'Contract',
                 value: data[0],
                 href: `${sepoliaUrl}/address/${data[0]}`,
+                variant: 'contract',
               },
               {
                 label: 'Factory',
                 value: factoryAddress,
                 href: `${sepoliaUrl}/address/${factoryAddress}`,
+                variant: 'contract',
               },
             ]}
           />
@@ -148,6 +150,7 @@ const UnderlyingResolverInfo = ({
                 label: 'Contract',
                 value: data[0],
                 href: `${sepoliaUrl}/address/${data[0]}`,
+                variant: 'contract',
               },
             ]}
           />
@@ -196,6 +199,7 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
             label: 'Contract',
             value: resolverAddress,
             href: `${sepoliaUrl}/address/${resolverAddress}`,
+            variant: 'contract',
           },
           {
             label: 'Chain ID',

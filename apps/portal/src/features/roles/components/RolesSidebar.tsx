@@ -180,7 +180,7 @@ export const RolesSidebar = <
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-white overflow-y-auto p-8"
+          className="sm:max-w-[880px] bg-card overflow-y-auto p-8"
         >
           <div className="p-6 flex flex-col gap-6 h-screen">
             <SheetHeader className="p-0">
@@ -229,12 +229,12 @@ export const RolesSidebar = <
                         className={cn(
                           'flex items-center justify-between px-6 py-4 gap-4',
                           index !== 0 && 'border-t border-border',
-                          isManagerRoleDisabled && 'text-quartz-500',
+                          isManagerRoleDisabled && 'text-muted-foreground',
                         )}
                       >
                         <div className="flex flex-col gap-1 flex-1 min-w-64">
                           <div className="font-medium">{permission.title}</div>
-                          <div className="text-sm text-quartz-500">
+                          <div className="text-sm text-muted-foreground">
                             {permission.description}
                           </div>
                         </div>
@@ -260,8 +260,8 @@ export const RolesSidebar = <
                               className={cn(
                                 'font-medium cursor-pointer',
                                 canManageRoles
-                                  ? 'text-black'
-                                  : 'text-quartz-400',
+                                  ? 'text-foreground'
+                                  : 'text-muted-foreground',
                               )}
                             >
                               Manager
@@ -279,8 +279,8 @@ export const RolesSidebar = <
                               className={cn(
                                 'font-medium cursor-pointer',
                                 canManageRoles
-                                  ? 'text-black'
-                                  : 'text-quartz-400',
+                                  ? 'text-foreground'
+                                  : 'text-muted-foreground',
                               )}
                             >
                               Admin
@@ -292,7 +292,7 @@ export const RolesSidebar = <
                   })}
 
                   {/* Save Changes Button */}
-                  <div className="flex justify-end px-6 py-4 border-t border-border bg-quartz-0">
+                  <div className="flex justify-end px-6 py-4 border-t border-border bg-background">
                     <Button
                       variant="secondary"
                       disabled={!hasChanges || !isWalletConnected}
@@ -322,7 +322,7 @@ export const RolesSidebar = <
                 </div>
               </div>
             ) : (
-              <div className="text-quartz-400 text-center py-12">
+              <div className="text-muted-foreground text-center py-12">
                 No role selected
               </div>
             )}

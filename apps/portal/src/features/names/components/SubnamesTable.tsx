@@ -11,7 +11,8 @@ import {
 import { Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +38,16 @@ export interface SubnameRow {
   readonly owner: Address
 }
 
+const OwnerCell = ({ owner }: { owner: Address }) => (
+  <div className="flex flex-row gap-2 items-center">
+    <NameAvatar name={owner} height="20px" width="20px" rounded="rounded-sm" />
+    <Link to="/addr/$addr" params={{ addr: owner }}>
+      <EntityBadge variant="address">{truncateAddress(owner)}</EntityBadge>
+    </Link>
+    <CopyButton value={owner} size="sm" />
+  </div>
+)
+
 const columns: ColumnDef<SubnameRow>[] = [
   {
     accessorKey: 'name',
@@ -59,7 +70,9 @@ const columns: ColumnDef<SubnameRow>[] = [
             width="20px"
             rounded="rounded-sm"
           />
-          <CopyableRecord href={`/${name}`} value={name} />
+          <Link to="/$name" params={{ name }}>
+            <EntityBadge variant="name">{name}</EntityBadge>
+          </Link>
         </div>
       )
     },
@@ -74,21 +87,7 @@ const columns: ColumnDef<SubnameRow>[] = [
         Owner
       </SortButton>
     ),
-    cell: ({ row }) => {
-      const owner = row.original.owner
-
-      return (
-        <div className="flex flex-row gap-2 items-center">
-          <NameAvatar
-            name={owner}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <CopyableRecord href={`/addr/${owner}`} value={owner} />
-        </div>
-      )
-    },
+    cell: ({ row }) => <OwnerCell owner={row.original.owner} />,
   },
 ]
 
@@ -126,7 +125,7 @@ export const SubnamesTable = ({
 
   return (
     <>
-      <header className="bg-quartz-50 px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-muted border-b border-border px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row items-center gap-2">
           <h1 className="text-[30px] font-medium leading-tight flex-1">
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
@@ -140,7 +139,7 @@ export const SubnamesTable = ({
             </Button>
           )}
         </div>
-        <InputGroup className="bg-white rounded-sm">
+        <InputGroup className="bg-background rounded-sm">
           <InputGroupInput
             className="w-full"
             placeholder="Search..."
@@ -168,30 +167,22 @@ export const SubnamesTable = ({
                   width="20px"
                   rounded="rounded-sm"
                 />
-                <div className="flex flex-col">
-                  <Link
-                    to="/$name"
-                    params={{ name: row.original.name }}
-                    className="font-mono text-sm underline decoration-dotted"
-                  >
-                    {row.original.name}
-                  </Link>
-                </div>
+                <Link to="/$name" params={{ name: row.original.name }}>
+                  <EntityBadge variant="name">{row.original.name}</EntityBadge>
+                </Link>
               </div>
-              <div className="flex flex-row gap-2 items-center text-sm text-quartz-500">
-                <span>Owner:</span>
-                <Link
-                  to="/addr/$addr"
-                  params={{ addr: row.original.owner }}
-                  className="font-mono underline decoration-dotted"
-                >
-                  {truncateAddress(row.original.owner)}
+              <div className="flex flex-row gap-2 items-center">
+                <span className="text-sm text-muted-foreground">Owner:</span>
+                <Link to="/addr/$addr" params={{ addr: row.original.owner }}>
+                  <EntityBadge variant="address">
+                    {truncateAddress(row.original.owner)}
+                  </EntityBadge>
                 </Link>
               </div>
             </div>
           ))
         ) : (
-          <div className="px-6 py-8 text-center text-quartz-500">
+          <div className="px-6 py-8 text-center text-muted-foreground">
             No subnames found.
           </div>
         )}
@@ -221,8 +212,8 @@ export const SubnamesTable = ({
               <TableRow
                 key={row.id}
                 className={cn(
-                  'hover:bg-quartz-50',
-                  tableView.strippedRows && 'odd:bg-quartz-50',
+                  'hover:bg-muted',
+                  tableView.strippedRows && 'odd:bg-muted',
                 )}
               >
                 {row.getVisibleCells().map((cell) => (
