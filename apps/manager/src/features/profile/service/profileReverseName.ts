@@ -1,13 +1,14 @@
-import { DEDICATED_RESOLVER_ABI } from '@ens-apps/transaction-manager/contracts/abis/DedicatedResolver.abi'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, namehash } from 'viem'
 import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getResolver } from './profileResolver'
 
+// Batch reverse resolver — not in ensjs chain config or ENS_SEPOLIA_CONTRACTS
 const REVERSE_RESOLVER_ADDRESS = '0x7cd0016f722f34394110738eec10265b00c6c7d9'
 
 const REVERSE_RESOLVER_ABI = [
@@ -70,7 +71,7 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
   const forwardAddress = yield* await fromPromise(
     readContract(client, {
       address: resolverAddress,
-      abi: DEDICATED_RESOLVER_ABI,
+      abi: publicResolverSingleAddrSnippet,
       functionName: 'addr',
       args: [node],
     }),
