@@ -3,6 +3,7 @@ import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
+import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -15,8 +16,9 @@ import { ParentName } from '@/features/profile/components/ParentName'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
+import { RegistryCard } from '@/features/profile/components/RegistryCard'
+import { ResolverCard } from '@/features/profile/components/ResolverCard'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
-import { TokenLocation } from '@/features/profile/components/TokenLocation'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -206,39 +208,55 @@ const Profile = ({
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
-      <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-heading font-medium leading-none">Overview</h1>
+    <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+      <div className="flex flex-row justify-between items-center">
+        <h1 className="text-heading font-medium leading-none">{name}</h1>
+        <CopyButton value={name} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 xl:col-span-2 *:h-full">
-          <NameProfileCard name={name} />
-        </div>
-        <ExpiryWithRegistrationData
-          name={name}
-          protocolVersion={resolvedProtocolVersion}
-        />
-        <Owner owner={ownerQuery.data.owner} />
-        <ParentName name={name} />
-        <TokenLocation name={name} />
-        {resolverAddress && (
-          <RecordCount
+
+      <div className="flex flex-col gap-3">
+        {/* Profile + Expiry */}
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
+          <div className="*:h-full">
+            <NameProfileCard name={name} />
+          </div>
+          <ExpiryWithRegistrationData
             name={name}
-            records={profileQuery.data?.records}
-            resolverAddress={resolverAddress}
+            protocolVersion={resolvedProtocolVersion}
           />
-        )}
-        <SubnameCount
-          name={name}
-          registryAddress={ownerQuery.data.registryAddress}
-          protocolVersion={resolvedProtocolVersion}
-        />
-        <ProtocolVersionWithCounter
-          name={name}
-          protocolVersion={resolvedProtocolVersion}
-        />
+        </div>
+
+        {/* Owner / Parent / Resolver / Registry */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <Owner owner={ownerQuery.data.owner} />
+          <ParentName name={name} />
+          {resolverAddress && (
+            <ResolverCard name={name} resolverAddress={resolverAddress} />
+          )}
+          <RegistryCard
+            name={name}
+            registryAddress={ownerQuery.data.registryAddress}
+          />
+        </div>
+
+        {/* Counts */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {resolverAddress && (
+            <RecordCount
+              name={name}
+              records={profileQuery.data?.records}
+              resolverAddress={resolverAddress}
+            />
+          )}
+          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
+          <ProtocolVersionWithCounter
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
+        </div>
+
+        {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
       </div>
-      {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
     </div>
   )
 }

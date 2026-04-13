@@ -32,8 +32,8 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
     <div className="flex flex-col gap-1">
       <Label>Registered</Label>
-      <span className="flex flex-row gap-1 items-center h-[38px]">
-        <CalendarIcon className="size-3.5" />
+      <span className="flex flex-row gap-1 items-center h-9.5 text-foreground">
+        <CalendarIcon className="size-3.5 text-muted-foreground" />
         <RegistrationDate blockNumber={blockNumber} />
       </span>
     </div>
@@ -68,8 +68,8 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       {expiry.data && (
         <div className="flex flex-col gap-1">
           <Label>Expires</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <ClockIcon className="size-3.5" />
+          <span className="flex flex-row gap-1 items-center h-9.5 text-foreground">
+            <ClockIcon className="size-3.5 text-muted-foreground" />
             <Timestamp timestamp={expiry.data.expiry} />
           </span>
         </div>
@@ -101,8 +101,8 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       {data.createdAt !== null && (
         <div className="flex flex-col gap-1">
           <Label>Created</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <PlusCircleIcon className="size-3.5" />
+          <span className="flex flex-row gap-1 items-center h-9.5 text-foreground">
+            <PlusCircleIcon className="size-3.5 text-muted-foreground" />
             {new Date(Number(data.createdAt) * 1000).toUTCString()}
           </span>
         </div>
@@ -111,7 +111,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       {data.registeredAt !== null && (
         <div className="flex flex-col gap-1">
           <Label>Registered</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
+          <span className="flex flex-row gap-1 items-center h-9.5">
             <CalendarIcon className="size-3.5" />
             {new Date(Number(data.registeredAt) * 1000).toUTCString()}
           </span>
@@ -121,8 +121,8 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       {data.expiry !== null && (
         <div className="flex flex-col gap-1">
           <Label>Expires</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <ClockIcon className="size-3.5" />
+          <span className="flex flex-row gap-1 items-center h-9.5 text-foreground">
+            <ClockIcon className="size-3.5 text-muted-foreground" />
             {new Date(Number(data.expiry) * 1000).toUTCString()}
           </span>
         </div>

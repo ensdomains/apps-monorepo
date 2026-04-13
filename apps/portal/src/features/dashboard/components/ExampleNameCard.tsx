@@ -18,7 +18,7 @@ export const ExampleNameCard = ({
       <div className="flex flex-row justify-between items-start gap-4">
         <div>
           <h4 className="font-semibold text-base mb-1 font-mono">{name}</h4>
-          <p className="text-sm text-quartz-500">{description}</p>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
       </div>
       <Button asChild variant="secondary" size="sm">

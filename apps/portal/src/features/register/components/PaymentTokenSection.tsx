@@ -31,12 +31,12 @@ type PaymentTokenSectionProps = {
 
 const TokenSectionSkeleton = () => (
   <section className="border border-border rounded-lg bg-card p-5 space-y-4">
-    <div className="h-5 w-40 bg-quartz-100 animate-pulse rounded-md" />
+    <div className="h-5 w-40 bg-muted animate-pulse rounded-md" />
     <div className="space-y-2">
-      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
-      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
+      <div className="h-16 w-full bg-muted animate-pulse rounded-lg" />
+      <div className="h-16 w-full bg-muted animate-pulse rounded-lg" />
     </div>
-    <div className="h-10 w-full bg-quartz-100 animate-pulse rounded-md" />
+    <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
   </section>
 )
 

@@ -36,7 +36,7 @@ const RoleDiff = ({ entry }: { readonly entry: RoleHistoryEntry }) => {
         </Badge>
       ))}
       {added.length === 0 && removed.length === 0 && (
-        <span className="text-quartz-400 text-sm">No change</span>
+        <span className="text-muted-foreground text-sm">No change</span>
       )}
     </div>
   )
@@ -78,7 +78,9 @@ export const RoleHistoryTable = ({
 
   if (!data || data.length === 0) {
     return (
-      <p className="text-quartz-400 text-sm py-4">No role history found.</p>
+      <p className="text-muted-foreground text-sm py-4">
+        No role history found.
+      </p>
     )
   }
 
@@ -96,7 +98,7 @@ export const RoleHistoryTable = ({
         <TableBody>
           {data.map((entry) => (
             <TableRow key={`${entry.transactionHash}-${entry.account}`}>
-              <TableCell className="px-4 sm:px-6 py-3 text-sm text-quartz-600">
+              <TableCell className="px-4 sm:px-6 py-3 text-sm text-muted-foreground">
                 {formatTimestamp(BigInt(entry.timestamp))}
               </TableCell>
               <TableCell className="px-4 sm:px-6 py-3">
@@ -106,7 +108,7 @@ export const RoleHistoryTable = ({
                 <RoleDiff entry={entry} />
               </TableCell>
               <TableCell className="px-4 sm:px-6 py-3">
-                <div className="flex items-center gap-2 text-xs text-quartz-500">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{entry.oldRoles.length} roles</span>
                   <ArrowRight className="size-3" />
                   <span>{entry.newRoles.length} roles</span>

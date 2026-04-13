@@ -9,7 +9,7 @@ export const LoadingSpinner = ({ title }: LoadingSpinnerProps) => {
     <div className="p-8 gap-4 flex flex-row items-center justify-start">
       <Spinner />
       {title && (
-        <p className="text-base font-medium text-quartz-500">{title}</p>
+        <p className="text-base font-medium text-muted-foreground">{title}</p>
       )}
     </div>
   )

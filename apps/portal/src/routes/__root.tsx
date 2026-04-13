@@ -56,7 +56,7 @@ export const Route = createRootRoute({
         </WagmiProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
-        <TanStackRouterDevtools />
+        <TanStackRouterDevtools position="bottom-right" />
       </>
     )
   },

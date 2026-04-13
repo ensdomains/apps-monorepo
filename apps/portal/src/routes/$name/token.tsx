@@ -11,6 +11,7 @@ import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataRow } from '@/components/DataRow'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -72,7 +73,12 @@ const TokenInfoCard = ({
       </DataRow>
 
       <DataRow label="Contract" tooltip="The smart contract address">
-        <CopyableRecord value={contractAddress} />
+        <CopyableRecord
+          value={contractAddress}
+          displayValue={
+            <EntityBadge variant="contract">{contractAddress}</EntityBadge>
+          }
+        />
       </DataRow>
 
       <DataRow label="Token ID" tooltip="The token identifier">
@@ -112,8 +118,8 @@ const TokenInfoCard = ({
                   </DataRow>
                 </div>
 
-                <div className="bg-quartz-50 rounded-lg p-3 flex gap-2 items-start">
-                  <InfoIcon className="size-6 text-quartz-500 shrink-0 mt-0.5" />
+                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
+                  <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-base">
                     The Token ID will change anytime the roles are updated.
                   </p>
@@ -135,7 +141,7 @@ const TokenInfoCard = ({
                         <TableRow>
                           <TableCell
                             colSpan={4}
-                            className="text-center py-8 text-quartz-500"
+                            className="text-center py-8 text-muted-foreground"
                           >
                             No history available
                           </TableCell>
@@ -272,9 +278,7 @@ function RouteComponent() {
         <TokenV1Name name={name} />
       ) : data?.protocolVersion === 'ENSv2' ? (
         <TokenV2Name name={name} registryAddress={data.registryAddress} />
-      ) : (
-        <NotFoundMessage />
-      )}
+      ) : null}
 
       {/* Normalization Section */}
       <h2 className="font-medium text-2xl">Normalization</h2>
@@ -308,14 +312,14 @@ function RouteComponent() {
                 )}
               >
                 {normalized ? (
-                  <CheckCircleIcon className="size-4 text-success" />
+                  <CheckCircleIcon className="size-4 text-peridot-500" />
                 ) : (
-                  <XCircleIcon className="size-4 text-danger" />
+                  <XCircleIcon className="size-4 text-garnet-500" />
                 )}
                 <span
                   className={cn(
                     'text-xs font-medium',
-                    normalized ? 'text-success' : 'text-danger',
+                    normalized ? 'text-peridot-900' : 'text-garnet-900',
                   )}
                 >
                   {normalized ? 'Normalized' : 'Not Normalized'}

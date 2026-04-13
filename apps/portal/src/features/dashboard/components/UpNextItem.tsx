@@ -19,7 +19,7 @@ export const UpNextItem = ({
         </div>
         <div>
           <h4 className="font-semibold text-base mb-1">{title}</h4>
-          <p className="text-sm text-quartz-500">{description}</p>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
       </div>
       <Badge variant="secondary" className="text-xs">

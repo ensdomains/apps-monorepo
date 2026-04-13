@@ -20,6 +20,7 @@ import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { ProtocolVersion } from '@/utils/types'
+import { NotFoundMessage } from '../../components/NotFoundMessage'
 
 const namechainVerifiableFactory = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -79,7 +80,7 @@ const V1ETHRegistry = ({ tld }: { tld: string }) => {
       />
     )
 
-  if (!data) return <div>No V1 ETH Registry data</div>
+  if (!data) return null
 
   return <RegistryCardsGrid label={tld} owner={data.owner} />
 }
@@ -123,7 +124,7 @@ const RegistryInfo = ({
       />
     )
 
-  if (!data) return <div>No data</div>
+  if (!data) return null
 
   const subregistryAddress = data.registries.at(-3)
 
@@ -297,7 +298,18 @@ function RouteComponent() {
       />
     )
   if (isLoading) return <LoadingSpinner title="Loading owner info" />
-  if (!ownerData) return <div>No owner data</div>
+  if (!ownerData)
+    return (
+      <NotFoundMessage
+        title="Name not registered"
+        description={
+          <>
+            <strong>{name}</strong> is not registered, so there is no registry
+            data to display.
+          </>
+        }
+      />
+    )
 
   return <RegistryInfo name={name} ownerData={ownerData} />
 }
