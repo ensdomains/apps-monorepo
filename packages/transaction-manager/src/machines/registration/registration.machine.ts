@@ -890,13 +890,19 @@ export const registrationMachine = setup({
     },
 
     success: {
-      type: 'final',
+      // Not `type: 'final'` so `CANCEL` can return to `idle` for a new registration
+      // (e.g. register-v2 after another name); `START_REGISTRATION` only runs from `idle`.
       entry: [
         'logTransition',
         'recordTransition',
         'logRegistrationDuration',
         'clearSnapshot',
       ],
+      on: {
+        CANCEL: {
+          target: 'idle',
+        },
+      },
     },
 
     error: {
