@@ -8,7 +8,7 @@ import { assign, createActor, log, setup } from 'xstate'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient, type WagmiClientError } from '@/lib/wagmi/helpers'
 
-const ethRegistrar = getChainContractAddress({
+const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
@@ -52,7 +52,7 @@ export const registrationMachineMock = setup({
         const cleanName = name.replace(/\.eth$/i, '')
         const isAvailable = yield* await fromPromise(
           readContract(client, {
-            address: ethRegistrar,
+            address: ETH_REGISTRAR,
             abi: l2EthRegistrarIsAvailableSnippet,
             functionName: 'isAvailable',
             args: [cleanName],

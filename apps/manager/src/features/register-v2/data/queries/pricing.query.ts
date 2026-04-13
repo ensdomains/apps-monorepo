@@ -12,7 +12,7 @@ import type { Address, ReadContractErrorType } from 'viem'
 import { readContract } from 'viem/actions'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 
-const ethRegistrar = getChainContractAddress({
+const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
@@ -37,7 +37,7 @@ export const getPricing = ResultFn(async function* (
   const tokenInfo = TOKENS[token]
   const [basePrice, premium] = yield* fromPromise(
     readContract(publicClient, {
-      address: ethRegistrar,
+      address: ETH_REGISTRAR,
       abi: l2EthRegistrarRentPriceSnippet,
       functionName: 'rentPrice',
       args: [

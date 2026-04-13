@@ -12,7 +12,7 @@ class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: unknown
 }> {}
 
-const ensRegistry = getChainContractAddress({
+const ENS_REGISTRY = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensRegistry',
 })
@@ -23,7 +23,7 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
 
   const owner = yield* fromPromise(
     ensjsv2_getOwner(client, {
-      registryAddress: ensRegistry,
+      registryAddress: ENS_REGISTRY,
       label,
     }),
     (e) => new GetOwnerError({ cause: e }),

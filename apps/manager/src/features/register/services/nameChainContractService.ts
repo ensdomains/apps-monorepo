@@ -26,18 +26,18 @@ import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
 import { validateENSName } from '../utils'
 
-const ethRegistrar = getChainContractAddress({
+const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
 
-const publicResolver = getChainContractAddress({
+const PUBLIC_RESOLVER = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensPublicResolver',
 })
 
 // ABI snippets for functions not available in ensjs
-const minCommitmentAgeSnippet = [
+const MIN_COMMITMENT_AGE_SNIPPET = [
   {
     inputs: [],
     name: 'MIN_COMMITMENT_AGE',
@@ -47,7 +47,7 @@ const minCommitmentAgeSnippet = [
   },
 ] as const
 
-const isPaymentTokenSnippet = [
+const IS_PAYMENT_TOKEN_SNIPPET = [
   {
     inputs: [{ name: 'token', type: 'address' }],
     name: 'isPaymentToken',
@@ -89,7 +89,7 @@ export const generateCommitment = async (
     const secret = keccak256(toHex(Math.random().toString()) as Hex)
 
     const commitment = await readContract(publicClient, {
-      address: ethRegistrar,
+      address: ETH_REGISTRAR,
       abi: l2EthRegistrarMakeCommitmentSnippet,
       functionName: 'makeCommitment',
       args: [
@@ -97,7 +97,7 @@ export const generateCommitment = async (
         ownerAddress as Address,
         secret,
         zeroAddress,
-        publicResolver,
+        PUBLIC_RESOLVER,
         durationInSeconds,
         REFERER_ADDRESS,
       ],
@@ -124,7 +124,7 @@ export const commitToRegistration = async (
 
     const result = await sendTransaction([
       {
-        to: ethRegistrar,
+        to: ETH_REGISTRAR,
         data: commitData,
         value: 0n,
       },
@@ -132,14 +132,14 @@ export const commitToRegistration = async (
 
     try {
       const minAge = (await readContract(publicClient, {
-        address: ethRegistrar,
-        abi: minCommitmentAgeSnippet,
+        address: ETH_REGISTRAR,
+        abi: MIN_COMMITMENT_AGE_SNIPPET,
         functionName: 'MIN_COMMITMENT_AGE',
       })) as bigint
 
       if (minAge !== 0n) {
         const committedAt = (await readContract(publicClient, {
-          address: ethRegistrar,
+          address: ETH_REGISTRAR,
           abi: l2EthRegistrarCommitmentsSnippet,
           functionName: 'commitmentAt',
           args: [commitment],
@@ -187,7 +187,7 @@ export const approveTokenForRegistration = async (
     const approveData = encodeFunctionData({
       abi: erc20Abi,
       functionName: 'approve',
-      args: [ethRegistrar, amount * 2n],
+      args: [ETH_REGISTRAR, amount * 2n],
     })
 
     const result = await sendTransaction([
@@ -203,9 +203,9 @@ export const approveTokenForRegistration = async (
         address: normalizedTokenAddress,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [ownerAddress, ethRegistrar],
+        args: [ownerAddress, ETH_REGISTRAR],
       })
-      console.log(`🔎 Allowance check: ${ownerAddress} -> ${ethRegistrar}`)
+      console.log(`🔎 Allowance check: ${ownerAddress} -> ${ETH_REGISTRAR}`)
       console.log(
         `🔎 Current allowance: ${currentAllowance.toString()} (required: ${amount.toString()})`,
       )
@@ -213,7 +213,7 @@ export const approveTokenForRegistration = async (
         const reApproveData = encodeFunctionData({
           abi: erc20Abi,
           functionName: 'approve',
-          args: [ethRegistrar, amount * 2n], // Approve double the amount
+          args: [ETH_REGISTRAR, amount * 2n], // Approve double the amount
         })
 
         const reApproveResult = await sendTransaction([
@@ -253,8 +253,8 @@ export const registerDomain = async (
   try {
     // Check if the payment token is supported
     const isSupported = await readContract(publicClient, {
-      address: ethRegistrar,
-      abi: isPaymentTokenSnippet,
+      address: ETH_REGISTRAR,
+      abi: IS_PAYMENT_TOKEN_SNIPPET,
       functionName: 'isPaymentToken',
       args: [normalizedPaymentToken],
     })
@@ -282,7 +282,7 @@ export const registerDomain = async (
         ownerAddress as Address,
         secret as Hex,
         zeroAddress,
-        publicResolver,
+        PUBLIC_RESOLVER,
         durationInSeconds,
         normalizedPaymentToken,
         REFERER_ADDRESS,
@@ -291,7 +291,7 @@ export const registerDomain = async (
 
     const result = await sendTransaction([
       {
-        to: ethRegistrar,
+        to: ETH_REGISTRAR,
         data: registerData,
         value: 0n,
       },
@@ -346,7 +346,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
     // Check availability using the registrar's isAvailable function
     const availability = yield* await fromPromise(
       readContract(publicClient, {
-        address: ethRegistrar,
+        address: ETH_REGISTRAR,
         abi: l2EthRegistrarIsAvailableSnippet,
         functionName: 'isAvailable',
         args: [cleanName],
@@ -382,7 +382,7 @@ export const getENSNameInfo = ResultFn(async function* (
     // Check availability
     const availability = yield* await fromPromise(
       readContract(publicClient, {
-        address: ethRegistrar,
+        address: ETH_REGISTRAR,
         abi: l2EthRegistrarIsAvailableSnippet,
         functionName: 'isAvailable',
         args: [cleanName],
@@ -395,7 +395,7 @@ export const getENSNameInfo = ResultFn(async function* (
     try {
       _priceResult = yield* await fromPromise(
         readContract(publicClient, {
-          address: ethRegistrar,
+          address: ETH_REGISTRAR,
           abi: l2EthRegistrarRentPriceSnippet,
           functionName: 'rentPrice',
           args: [cleanName, ownerAddress, durationInSeconds, paymentToken],
@@ -406,7 +406,7 @@ export const getENSNameInfo = ResultFn(async function* (
       // Fallback to ETH pricing
       _priceResult = yield* await fromPromise(
         readContract(publicClient, {
-          address: ethRegistrar,
+          address: ETH_REGISTRAR,
           abi: l2EthRegistrarRentPriceSnippet,
           functionName: 'rentPrice',
           args: [cleanName, ownerAddress, durationInSeconds, zeroAddress],
@@ -453,7 +453,7 @@ export const getTokenPrices = ResultFn(async function* (
         let priceResult: any
         priceResult = yield* await fromPromise(
           readContract(publicClient, {
-            address: ethRegistrar,
+            address: ETH_REGISTRAR,
             abi: l2EthRegistrarRentPriceSnippet,
             functionName: 'rentPrice',
             args: [cleanName, EMPTY_ADDRESS, durationInSeconds, tokenAddress],
@@ -509,8 +509,8 @@ export const isPaymentTokenSupported = ResultFn(async function* (
   try {
     const isSupported = yield* await fromPromise(
       readContract(publicClient, {
-        address: ethRegistrar,
-        abi: isPaymentTokenSnippet,
+        address: ETH_REGISTRAR,
+        abi: IS_PAYMENT_TOKEN_SNIPPET,
         functionName: 'isPaymentToken',
         args: [tokenAddress],
       }),

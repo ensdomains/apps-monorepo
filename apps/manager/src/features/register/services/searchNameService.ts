@@ -8,7 +8,7 @@ import { readContract } from 'viem/actions'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-const ethRegistrar = getChainContractAddress({
+const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
@@ -26,7 +26,7 @@ export const checkNameAvailability = ResultFn(async function* (name: string) {
   const nameWithEth = `${cleanName}.eth`
   const isAvailable = yield* await fromPromise(
     readContract(client, {
-      address: ethRegistrar,
+      address: ETH_REGISTRAR,
       abi: l2EthRegistrarIsAvailableSnippet,
       functionName: 'isAvailable',
       args: [cleanName],
@@ -35,7 +35,7 @@ export const checkNameAvailability = ResultFn(async function* (name: string) {
   )
 
   return ok({
-    isAvailable: Boolean(isAvailable),
+    isAvailable,
     name: nameWithEth,
   })
 })
