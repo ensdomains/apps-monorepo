@@ -13,6 +13,7 @@ import { Route as NameRouteImport } from './routes/$name'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
+import { Route as TldTldRouteImport } from './routes/tld/$tld'
 import { Route as ResolverAddressRouteImport } from './routes/resolver/$address'
 import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
 import { Route as NameTokenRouteImport } from './routes/$name/token'
@@ -26,6 +27,7 @@ import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records
 import { Route as NameDeployRegistryRouteImport } from './routes/$name/deploy-registry'
 import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
 import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
+import { Route as TldTldIndexRouteImport } from './routes/tld/$tld/index'
 import { Route as ResolverAddressIndexRouteImport } from './routes/resolver/$address/index'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
 import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
@@ -62,6 +64,11 @@ const NameIndexRoute = NameIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => NameRoute,
+} as any)
+const TldTldRoute = TldTldRouteImport.update({
+  id: '/tld/$tld',
+  path: '/tld/$tld',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ResolverAddressRoute = ResolverAddressRouteImport.update({
   id: '/resolver/$address',
@@ -127,6 +134,11 @@ const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
   id: '/change-resolver',
   path: '/change-resolver',
   getParentRoute: () => NameRoute,
+} as any)
+const TldTldIndexRoute = TldTldIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TldTldRoute,
 } as any)
 const ResolverAddressIndexRoute = ResolverAddressIndexRouteImport.update({
   id: '/',
@@ -229,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/resolver/$address': typeof ResolverAddressRouteWithChildren
+  '/tld/$tld': typeof TldTldRouteWithChildren
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
@@ -245,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/$name/roles/': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
   '/resolver/$address/': typeof ResolverAddressIndexRoute
+  '/tld/$tld/': typeof TldTldIndexRoute
   '/resolver/$address/roles/add-user': typeof ResolverAddressRolesAddUserRoute
   '/resolver/$address/roles/': typeof ResolverAddressRolesIndexRoute
 }
@@ -277,6 +291,7 @@ export interface FileRoutesByTo {
   '/$name/roles': typeof NameRolesIndexRoute
   '/addr/$addr': typeof AddrAddrIndexRoute
   '/resolver/$address': typeof ResolverAddressIndexRoute
+  '/tld/$tld': typeof TldTldIndexRoute
   '/resolver/$address/roles/add-user': typeof ResolverAddressRolesAddUserRoute
   '/resolver/$address/roles': typeof ResolverAddressRolesIndexRoute
 }
@@ -297,6 +312,7 @@ export interface FileRoutesById {
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
   '/resolver/$address': typeof ResolverAddressRouteWithChildren
+  '/tld/$tld': typeof TldTldRouteWithChildren
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
@@ -313,6 +329,7 @@ export interface FileRoutesById {
   '/$name/roles/': typeof NameRolesIndexRoute
   '/addr/$addr/': typeof AddrAddrIndexRoute
   '/resolver/$address/': typeof ResolverAddressIndexRoute
+  '/tld/$tld/': typeof TldTldIndexRoute
   '/resolver/$address/roles/add-user': typeof ResolverAddressRolesAddUserRoute
   '/resolver/$address/roles/': typeof ResolverAddressRolesIndexRoute
 }
@@ -334,6 +351,7 @@ export interface FileRouteTypes {
     | '/$name/token'
     | '/addr/$addr'
     | '/resolver/$address'
+    | '/tld/$tld'
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
@@ -350,6 +368,7 @@ export interface FileRouteTypes {
     | '/$name/roles/'
     | '/addr/$addr/'
     | '/resolver/$address/'
+    | '/tld/$tld/'
     | '/resolver/$address/roles/add-user'
     | '/resolver/$address/roles/'
   fileRoutesByTo: FileRoutesByTo
@@ -382,6 +401,7 @@ export interface FileRouteTypes {
     | '/$name/roles'
     | '/addr/$addr'
     | '/resolver/$address'
+    | '/tld/$tld'
     | '/resolver/$address/roles/add-user'
     | '/resolver/$address/roles'
   id:
@@ -401,6 +421,7 @@ export interface FileRouteTypes {
     | '/$name/token'
     | '/addr/$addr'
     | '/resolver/$address'
+    | '/tld/$tld'
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
@@ -417,6 +438,7 @@ export interface FileRouteTypes {
     | '/$name/roles/'
     | '/addr/$addr/'
     | '/resolver/$address/'
+    | '/tld/$tld/'
     | '/resolver/$address/roles/add-user'
     | '/resolver/$address/roles/'
   fileRoutesById: FileRoutesById
@@ -426,6 +448,7 @@ export interface RootRouteChildren {
   NameRoute: typeof NameRouteWithChildren
   AddrAddrRoute: typeof AddrAddrRouteWithChildren
   ResolverAddressRoute: typeof ResolverAddressRouteWithChildren
+  TldTldRoute: typeof TldTldRouteWithChildren
   RegisterIndexRoute: typeof RegisterIndexRoute
 }
 
@@ -458,6 +481,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$name/'
       preLoaderRoute: typeof NameIndexRouteImport
       parentRoute: typeof NameRoute
+    }
+    '/tld/$tld': {
+      id: '/tld/$tld'
+      path: '/tld/$tld'
+      fullPath: '/tld/$tld'
+      preLoaderRoute: typeof TldTldRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/resolver/$address': {
       id: '/resolver/$address'
@@ -549,6 +579,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$name/change-resolver'
       preLoaderRoute: typeof NameChangeResolverRouteImport
       parentRoute: typeof NameRoute
+    }
+    '/tld/$tld/': {
+      id: '/tld/$tld/'
+      path: '/'
+      fullPath: '/tld/$tld/'
+      preLoaderRoute: typeof TldTldIndexRouteImport
+      parentRoute: typeof TldTldRoute
     }
     '/resolver/$address/': {
       id: '/resolver/$address/'
@@ -749,11 +786,23 @@ const ResolverAddressRouteWithChildren = ResolverAddressRoute._addFileChildren(
   ResolverAddressRouteChildren,
 )
 
+interface TldTldRouteChildren {
+  TldTldIndexRoute: typeof TldTldIndexRoute
+}
+
+const TldTldRouteChildren: TldTldRouteChildren = {
+  TldTldIndexRoute: TldTldIndexRoute,
+}
+
+const TldTldRouteWithChildren =
+  TldTldRoute._addFileChildren(TldTldRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NameRoute: NameRouteWithChildren,
   AddrAddrRoute: AddrAddrRouteWithChildren,
   ResolverAddressRoute: ResolverAddressRouteWithChildren,
+  TldTldRoute: TldTldRouteWithChildren,
   RegisterIndexRoute: RegisterIndexRoute,
 }
 export const routeTree = rootRouteImport
