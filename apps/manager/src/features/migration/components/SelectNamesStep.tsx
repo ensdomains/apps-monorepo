@@ -64,20 +64,20 @@ export const SelectNamesStep = ({
     }
   }, [v1Names, customDomains, ownerAddress])
 
+  const searchLower = search.toLowerCase()
+
   const filtered = useMemo(
     () =>
-      eligibleNames.filter((n) =>
-        n.name.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [search, eligibleNames],
+      eligibleNames.filter((n) => n.name.toLowerCase().includes(searchLower)),
+    [searchLower, eligibleNames],
   )
 
   const filteredIneligible = useMemo(
     () =>
       ineligibleNames.filter((n) =>
-        n.domain.name.toLowerCase().includes(search.toLowerCase()),
+        n.domain.name.toLowerCase().includes(searchLower),
       ),
-    [search, ineligibleNames],
+    [searchLower, ineligibleNames],
   )
 
   const toggleName = useCallback(

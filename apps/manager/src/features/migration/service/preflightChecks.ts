@@ -149,14 +149,18 @@ export const runPreFlightChecks = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
 ): Promise<PreFlightResult> => {
-  const reservedResult = await filterNotReserved(publicClient, names)
-  const frozenResult = await filterFrozenApprovals(
-    publicClient,
-    reservedResult.valid,
-  )
+  const [reservedResult, frozenResult] = await Promise.all([
+    filterNotReserved(publicClient, names),
+    filterFrozenApprovals(publicClient, names),
+  ])
+
+  const excluded = new Set<string>([
+    ...reservedResult.notReserved.map((n) => n.domain.id),
+    ...frozenResult.frozen.map((n) => n.domain.id),
+  ])
 
   return {
-    valid: frozenResult.valid,
+    valid: names.filter((n) => !excluded.has(n.domain.id)),
     notReserved: reservedResult.notReserved,
     frozen: frozenResult.frozen,
   }
