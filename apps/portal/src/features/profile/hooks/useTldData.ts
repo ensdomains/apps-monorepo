@@ -31,53 +31,55 @@ type GetTldDataParameters = {
   tld: string
 }
 
-export const getTldData = ResultFn(async function* ({
-  tld,
-}: GetTldDataParameters) {
-  const client = yield* safeGetClient()
+export const getTldData = ResultFn<GetTldDataReturnType, GetTldDataError>(
+  async function* ({
+    tld,
+  }: GetTldDataParameters): Promise<GetTldDataReturnType> {
+    const client = yield* safeGetClient()
 
-  const readContractAction = getAction(client, readContract, 'readContract')
+    const readContractAction = getAction(client, readContract, 'readContract')
 
-  const registries = yield* fromPromise(
-    readContractAction({
-      address: universalResolverAddress,
-      abi: universalResolverFindRegistriesSnippet,
-      functionName: 'findRegistries',
-      args: [toHex(packetToBytes(tld))],
-    }),
-    (e) => new GetTldDataError({ cause: e as Error }),
-  ) as TldRegistries
+    const registries = yield* fromPromise(
+      readContractAction({
+        address: universalResolverAddress,
+        abi: universalResolverFindRegistriesSnippet,
+        functionName: 'findRegistries',
+        args: [toHex(packetToBytes(tld))],
+      }),
+      (e) => new GetTldDataError({ cause: e as Error }),
+    ) as TldRegistries
 
-  // findRegistries returns an array of registry addresses in the ancestry
-  // For TLDs this is [tldRegistry, rootRegistry]
-  const [registryAddress, rootRegistryAddress] = registries
+    // findRegistries returns an array of registry addresses in the ancestry
+    // For TLDs this is [tldRegistry, rootRegistry]
+    const [registryAddress, rootRegistryAddress] = registries
 
-  const state = yield* fromPromise(
-    readContractAction({
-      address: rootRegistryAddress,
-      abi: permissionedRegistryGetStateSnippet,
-      functionName: 'getState',
-      args: [BigInt(labelhash(tld))],
-    }),
-    (e) => new GetTldDataError({ cause: e as Error }),
-  )
+    const state = yield* fromPromise(
+      readContractAction({
+        address: rootRegistryAddress,
+        abi: permissionedRegistryGetStateSnippet,
+        functionName: 'getState',
+        args: [BigInt(labelhash(tld))],
+      }),
+      (e) => new GetTldDataError({ cause: e as Error }),
+    )
 
-  const owner = state.latestOwner !== zeroAddress ? state.latestOwner : null
+    const owner = state.latestOwner !== zeroAddress ? state.latestOwner : null
 
-  return ok<GetTldDataReturnType>({
-    owner,
-    protocolVersion: 'ENSv2',
-    registryAddress,
-    rootRegistryAddress,
-  })
-})
+    return ok<GetTldDataReturnType>({
+      owner,
+      protocolVersion: 'ENSv2',
+      registryAddress,
+      rootRegistryAddress,
+    })
+  },
+)
 
 const getTldDataQueryKey = createQueryKey<'get-tld-data', GetTldDataParameters>(
   'get-tld-data',
 )
 
 export const getTldDataQueryOptions = (params: GetTldDataParameters) =>
-  resultQueryOptions({
+  resultQueryOptions<GetTldDataReturnType, GetTldDataError>({
     queryKey: getTldDataQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getTldData(params),
   })
