@@ -19,12 +19,12 @@ import {
   removeSessionsByOwner,
   saveSession,
 } from './session-storage'
-import type { StoredSession } from './types'
+import type { StoredSession, ZeroDevStoredSession } from './types'
 
 const SESSION_STORAGE_KEY = 'ens-zerodev-sessions'
 
 const createMockSession = (
-  overrides: Partial<StoredSession> = {},
+  overrides: Partial<ZeroDevStoredSession> = {},
 ): StoredSession => ({
   id: 'session-123',
   sessionKeyAddress:

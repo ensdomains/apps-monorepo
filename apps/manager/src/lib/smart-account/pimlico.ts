@@ -8,6 +8,7 @@
  */
 
 import { createParaAccount } from '@getpara/viem-v2-integration'
+import { wrapParaAccount } from '@rhinestone/sdk'
 import {
   createSmartAccountClient,
   type SmartAccountClient,
@@ -28,8 +29,6 @@ import {
 } from './bundler-url'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient, SmartAccountType, WalletSource } from './types'
-import { wrapParaAccount } from './utils'
-
 export interface PimlicoConfig {
   chain: typeof customSepolia
   accountType: SmartAccountType

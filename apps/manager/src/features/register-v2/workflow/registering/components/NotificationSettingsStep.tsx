@@ -23,8 +23,8 @@ export const NotificationSettingsStep = ({
 
         <p className="text-[#717182] text-base">
           <Trans>
-            Manage your notification preferences for your name(s) and ENS-related
-            updates.
+            Manage your notification preferences for your name(s) and
+            ENS-related updates.
           </Trans>
         </p>
         {!isAuthed && (

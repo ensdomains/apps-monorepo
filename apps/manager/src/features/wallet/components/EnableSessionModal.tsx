@@ -148,6 +148,18 @@ export const EnableSessionModal = ({
                   {errorMessage || t`Something went wrong. Please try again.`}
                 </p>
               </div>
+            ) : status === 'signing' ? (
+              <>
+                <p className="text-ens-blue-midnight">
+                  <Trans>Enabling sessions…</Trans>
+                </p>
+                <p className="mt-2 text-ens-gray text-sm">
+                  <Trans>
+                    Approve the signature in your wallet, then wait for on-chain
+                    confirmation.
+                  </Trans>
+                </p>
+              </>
             ) : (
               <>
                 <p className="text-ens-blue-midnight">
@@ -178,7 +190,7 @@ export const EnableSessionModal = ({
                 onClick={handleEnable}
               >
                 {status === 'signing' ? (
-                  <Trans>Waiting for signature...</Trans>
+                  <Trans>Enabling sessions…</Trans>
                 ) : status === 'error' ? (
                   <Trans>Try Again</Trans>
                 ) : (

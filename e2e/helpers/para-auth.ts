@@ -77,12 +77,38 @@ export async function fillParaPasswordInput(
 }
 
 /**
- * Click the "Sign in with Wallet" button.
- * This button is in the main document (not inside the Para iframe).
+ * Click the modal action to complete auth.
+ * Supports the new session-enable flow and the legacy wallet sign-in flow.
  */
 export async function clickParaSignInButton(page: Page): Promise<void> {
-  const signInButton = page.getByRole('button', { name: /sign in with wallet/i })
-  await signInButton.waitFor({ state: 'visible', timeout: 15_000 })
+  const enableSessionsButton = page.getByRole('button', {
+    name: /enable sessions/i,
+  })
+
+  const hasEnableSessionsModal = await enableSessionsButton
+    .waitFor({ state: 'visible', timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (hasEnableSessionsModal) {
+    await enableSessionsButton.click()
+
+    const sessionsEnabledBanner = page.getByText(/sessions enabled/i)
+    const sessionModalTitle = page.getByText(/enable smart sessions/i)
+
+    await Promise.race([
+      sessionsEnabledBanner.waitFor({ state: 'visible', timeout: 20_000 }),
+      sessionModalTitle.waitFor({ state: 'hidden', timeout: 20_000 }),
+      enableSessionsButton.waitFor({ state: 'hidden', timeout: 20_000 }),
+    ]).catch(() => null)
+
+    // return
+  }
+
+  const signInButton = page.getByRole('button', {
+    name: /Sign in with Wallet/i,
+  })
+  await signInButton.waitFor({ state: 'visible', timeout: 60_000 })
   await signInButton.click()
 }
 
