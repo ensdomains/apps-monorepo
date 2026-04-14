@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { SkipReasonLabel } from '@/features/migration/components/SkipReasonLabel'
 import type { SkippedName } from '@/features/migration/service/migrationService'
 
 type SuccessModalProps = {
@@ -19,31 +20,6 @@ type SuccessModalProps = {
 }
 
 const NAME_PREVIEW_LIMIT = 6
-
-const SkipReasonText = ({ reason }: { reason: SkippedName['reason'] }) =>
-  match(reason)
-    .with('not-premigrated', () => <Trans>Not yet premigrated in ENS v2</Trans>)
-    .with('frozen-approval', () => (
-      <Trans>Has a frozen approval that prevents migration</Trans>
-    ))
-    .with('already-migrated', () => <Trans>Already migrated to ENS v2</Trans>)
-    .with('transfer-failed', () => <Trans>Transfer reverted on-chain</Trans>)
-    .with('invalid-data', () => <Trans>Invalid migration data encoding</Trans>)
-    .with('name-data-mismatch', () => (
-      <Trans>Name data does not match the migration receiver</Trans>
-    ))
-    .with('name-is-locked', () => (
-      <Trans>Name is locked and was sent to the wrong controller</Trans>
-    ))
-    .with('name-not-locked', () => (
-      <Trans>
-        Name is not locked/emancipated and cannot use this controller
-      </Trans>
-    ))
-    .with('frozen-token-approval', () => (
-      <Trans>Has an irrevocable approval that blocks migration</Trans>
-    ))
-    .exhaustive()
 
 export const SuccessModal = ({
   open,
@@ -194,7 +170,7 @@ export const SuccessModal = ({
                       {skipped.name}
                     </span>
                     <span className="text-ens-garnet-900/50">
-                      &mdash; <SkipReasonText reason={skipped.reason} />
+                      &mdash; <SkipReasonLabel reason={skipped.reason} />
                     </span>
                   </li>
                 ))}

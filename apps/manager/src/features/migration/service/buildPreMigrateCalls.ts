@@ -7,8 +7,6 @@ import {
 } from '../contracts/addresses'
 import type { ClassifiedName } from './classifyNames'
 
-export const ENABLE_PRE_MIGRATE = true
-
 const getPreMigrateParams = (name: ClassifiedName) => ({
   label: name.label,
   expiry: BigInt(

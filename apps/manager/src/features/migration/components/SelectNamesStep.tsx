@@ -2,11 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Info, Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
-import { useMigrationEligibility } from '@/features/migration/hooks/useMigrationEligibility'
-import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import { classifyNames } from '@/features/migration/service/classifyNames'
-import { useSmartAccountContext } from '@/lib/smart-account'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
 
@@ -20,28 +16,11 @@ export const SelectNamesStep = ({
   onNext,
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
-  const { data: v1Names = [], isPending } = useV1Names()
-  const { ownerAddress } = useSmartAccountContext()
+  const { eligible, isPending } = useEligibleV1Names()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  const classified = useMemo(() => {
-    if (!ownerAddress || v1Names.length === 0) {
-      return [] as ReturnType<typeof classifyNames>['classified']
-    }
-    return classifyNames(v1Names, ownerAddress as Address).classified
-  }, [v1Names, ownerAddress])
-
-  const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(classified, ownerAddress)
-
-  const eligibleNames = useMemo(
-    () =>
-      eligibility
-        ? eligibility.eligible.map((c) => c.domain)
-        : classified.map((c) => c.domain),
-    [classified, eligibility],
-  )
+  const eligibleNames = useMemo(() => eligible.map((c) => c.domain), [eligible])
 
   const searchLower = search.toLowerCase()
 
@@ -95,7 +74,7 @@ export const SelectNamesStep = ({
               <div className="h-full overflow-y-auto p-6 md:p-[42px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ens-garnet-dust [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[rgba(250,249,247,0.6)] [&::-webkit-scrollbar]:w-2">
                 <div className="flex flex-col gap-4">
                   {match({
-                    isPending: isPending || isEligibilityPending,
+                    isPending,
                     hasResults: filtered.length > 0,
                   })
                     .with({ isPending: true }, () => <NameListSkeleton />)

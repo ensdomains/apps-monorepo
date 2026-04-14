@@ -3,8 +3,8 @@ import type { Address, Hex } from 'viem'
 import {
   buildUnwrappedCall,
   buildUnwrappedMulticall,
-  buildWrappedCalls,
-  type WrappedMigrationCall,
+  buildWrappedBatchCall,
+  buildWrappedSingleCall,
 } from './buildMigrationCalls'
 import type { ClassifiedName } from './classifyNames'
 import { decodeMigrationRevertReason } from './decodeMigrationError'
@@ -22,52 +22,35 @@ export const isUserRejection = (error: unknown): boolean => {
   return false
 }
 
-const writeWrappedRequest = (
-  wagmiConfig: WagmiConfig,
-  call: WrappedMigrationCall,
-): Promise<Hex> =>
-  call.type === 'wrapped-single'
-    ? writeContract(wagmiConfig, call.request)
-    : writeContract(wagmiConfig, call.request)
+type BucketResult = { hashes: Hex[]; skipped: SkippedName[] }
 
-export const signUnwrappedTxs = async (params: {
-  wagmiConfig: WagmiConfig
+const toSkipped = (name: ClassifiedName, error: unknown): SkippedName => ({
+  name: name.domain.name,
+  reason: decodeMigrationRevertReason(error),
+})
+
+const signMigrationBucket = async (params: {
   names: readonly ClassifiedName[]
-  migrationOwner: Address
-  defaultResolver: Address
-}): Promise<{ hashes: Hex[]; skipped: SkippedName[] }> => {
-  const { wagmiConfig, names, migrationOwner, defaultResolver } = params
+  executeSingle: (name: ClassifiedName) => Promise<Hex>
+  executeBatch: (names: readonly ClassifiedName[]) => Promise<Hex>
+}): Promise<BucketResult> => {
+  const { names, executeSingle, executeBatch } = params
 
   if (names.length === 0) return { hashes: [], skipped: [] }
 
   if (names.length === 1 && names[0]) {
-    const call = buildUnwrappedCall({
-      name: names[0],
-      migrationOwner,
-      defaultResolver,
-    })
+    const only = names[0]
     try {
-      const hash = await writeContract(wagmiConfig, call.request)
+      const hash = await executeSingle(only)
       return { hashes: [hash], skipped: [] }
     } catch (error) {
       if (isUserRejection(error)) throw error
-      return {
-        hashes: [],
-        skipped: [
-          {
-            name: names[0].domain.name,
-            reason: decodeMigrationRevertReason(error),
-          },
-        ],
-      }
+      return { hashes: [], skipped: [toSkipped(only, error)] }
     }
   }
 
   try {
-    const hash = await writeContract(
-      wagmiConfig,
-      buildUnwrappedMulticall({ names, migrationOwner, defaultResolver }),
-    )
+    const hash = await executeBatch(names)
     return { hashes: [hash], skipped: [] }
   } catch (error) {
     if (isUserRejection(error)) throw error
@@ -76,91 +59,72 @@ export const signUnwrappedTxs = async (params: {
   const hashes: Hex[] = []
   const skipped: SkippedName[] = []
   for (const name of names) {
-    const call = buildUnwrappedCall({
-      name,
-      migrationOwner,
-      defaultResolver,
-    })
     try {
-      const hash = await writeContract(wagmiConfig, call.request)
-      hashes.push(hash)
+      hashes.push(await executeSingle(name))
     } catch (error) {
       if (isUserRejection(error)) throw error
-      skipped.push({
-        name: name.domain.name,
-        reason: decodeMigrationRevertReason(error),
-      })
+      skipped.push(toSkipped(name, error))
     }
   }
 
   return { hashes, skipped }
 }
 
-export const signWrappedTxs = async (params: {
+export const signUnwrappedTxs = (params: {
+  wagmiConfig: WagmiConfig
+  names: readonly ClassifiedName[]
+  migrationOwner: Address
+  defaultResolver: Address
+}): Promise<BucketResult> => {
+  const { wagmiConfig, names, migrationOwner, defaultResolver } = params
+  return signMigrationBucket({
+    names,
+    executeSingle: (name) =>
+      writeContract(
+        wagmiConfig,
+        buildUnwrappedCall({ name, migrationOwner, defaultResolver }).request,
+      ),
+    executeBatch: (batch) =>
+      writeContract(
+        wagmiConfig,
+        buildUnwrappedMulticall({
+          names: batch,
+          migrationOwner,
+          defaultResolver,
+        }),
+      ),
+  })
+}
+
+export const signWrappedTxs = (params: {
   wagmiConfig: WagmiConfig
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
   target: Address
-}): Promise<{ hashes: Hex[]; skipped: SkippedName[] }> => {
+}): Promise<BucketResult> => {
   const { wagmiConfig, names, migrationOwner, defaultResolver, target } = params
-
-  if (names.length === 0) return { hashes: [], skipped: [] }
-
-  if (names.length === 1 && names[0]) {
-    const call = buildWrappedCalls({
-      names,
-      migrationOwner,
-      defaultResolver,
-      target,
-    })
-    try {
-      const hash = await writeWrappedRequest(wagmiConfig, call)
-      return { hashes: [hash], skipped: [] }
-    } catch (error) {
-      if (isUserRejection(error)) throw error
-      return {
-        hashes: [],
-        skipped: [
-          {
-            name: names[0].domain.name,
-            reason: decodeMigrationRevertReason(error),
-          },
-        ],
-      }
-    }
-  }
-
-  try {
-    const hash = await writeWrappedRequest(
-      wagmiConfig,
-      buildWrappedCalls({ names, migrationOwner, defaultResolver, target }),
-    )
-    return { hashes: [hash], skipped: [] }
-  } catch (error) {
-    if (isUserRejection(error)) throw error
-  }
-
-  const hashes: Hex[] = []
-  const skipped: SkippedName[] = []
-  for (const name of names) {
-    const singleCall = buildWrappedCalls({
-      names: [name],
-      migrationOwner,
-      defaultResolver,
-      target,
-    })
-    try {
-      const hash = await writeWrappedRequest(wagmiConfig, singleCall)
-      hashes.push(hash)
-    } catch (error) {
-      if (isUserRejection(error)) throw error
-      skipped.push({
-        name: name.domain.name,
-        reason: decodeMigrationRevertReason(error),
-      })
-    }
-  }
-
-  return { hashes, skipped }
+  return signMigrationBucket({
+    names,
+    executeSingle: (name) =>
+      writeContract(
+        wagmiConfig,
+        buildWrappedSingleCall({
+          name,
+          migrationOwner,
+          defaultResolver,
+          target,
+        }).request,
+      ),
+    executeBatch: (batch) =>
+      writeContract(
+        wagmiConfig,
+        buildWrappedBatchCall({
+          names: batch,
+          migrationOwner,
+          defaultResolver,
+          target,
+        }).request,
+      ),
+  })
 }

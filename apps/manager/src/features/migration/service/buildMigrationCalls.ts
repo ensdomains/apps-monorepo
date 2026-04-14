@@ -45,10 +45,6 @@ type WrappedBatchMigrationCall = {
   }
 }
 
-export type WrappedMigrationCall =
-  | WrappedSingleMigrationCall
-  | WrappedBatchMigrationCall
-
 const getTokenId = (name: ClassifiedName): bigint =>
   name.tokenType === 'unwrapped'
     ? BigInt(name.domain.labelhash)
@@ -88,7 +84,7 @@ export const buildUnwrappedCall = (params: {
   }
 }
 
-const buildWrappedSingleCall = (params: {
+export const buildWrappedSingleCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
@@ -115,7 +111,7 @@ const buildWrappedSingleCall = (params: {
   }
 }
 
-const buildWrappedBatchCall = (params: {
+export const buildWrappedBatchCall = (params: {
   names: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
@@ -157,31 +153,6 @@ const buildWrappedBatchCall = (params: {
       ] as const,
     },
   }
-}
-
-export const buildWrappedCalls = (params: {
-  names: readonly ClassifiedName[]
-  migrationOwner: Address
-  defaultResolver: Address
-  target: Address
-}): WrappedMigrationCall => {
-  const { names, migrationOwner, defaultResolver, target } = params
-
-  if (names.length === 1 && names[0]) {
-    return buildWrappedSingleCall({
-      name: names[0],
-      migrationOwner,
-      defaultResolver,
-      target,
-    })
-  }
-
-  return buildWrappedBatchCall({
-    names,
-    migrationOwner,
-    defaultResolver,
-    target,
-  })
 }
 
 export const buildUnwrappedMulticall = (params: {

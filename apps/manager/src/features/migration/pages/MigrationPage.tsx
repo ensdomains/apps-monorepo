@@ -7,6 +7,7 @@ import type { Address } from 'viem'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
+import { SkipReasonLabel } from '@/features/migration/components/SkipReasonLabel'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import type { SkippedName } from '@/features/migration/service/migrationService'
@@ -20,33 +21,6 @@ import {
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
-
-const SkipReasonLabel = ({ reason }: { reason: SkippedName['reason'] }) => {
-  const labels: Record<SkippedName['reason'], ReactNode> = {
-    'not-premigrated': <Trans>Not yet premigrated in ENS v2</Trans>,
-    'frozen-approval': (
-      <Trans>Has a frozen approval that prevents migration</Trans>
-    ),
-    'transfer-failed': <Trans>Transfer reverted on-chain</Trans>,
-    'invalid-data': <Trans>Invalid migration data encoding</Trans>,
-    'name-data-mismatch': (
-      <Trans>Name data does not match the migration receiver</Trans>
-    ),
-    'name-is-locked': (
-      <Trans>Name is locked and was sent to the wrong controller</Trans>
-    ),
-    'name-not-locked': (
-      <Trans>
-        Name is not locked/emancipated and cannot use this controller
-      </Trans>
-    ),
-    'frozen-token-approval': (
-      <Trans>Has an irrevocable approval that blocks migration</Trans>
-    ),
-    'already-migrated': <Trans>Already migrated to ENS v2</Trans>,
-  }
-  return <>{labels[reason]}</>
-}
 
 const SkippedNamesList = ({
   skippedNames,

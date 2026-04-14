@@ -101,113 +101,14 @@ export const filterNotReserved = async (
   return { valid, notReserved }
 }
 
-export const filterFrozenApprovals = async (
-  publicClient: PublicClient,
-  names: ClassifiedName[],
-): Promise<{ valid: ClassifiedName[]; frozen: ClassifiedName[] }> => {
-  const locked = names.filter(
-    (n) =>
-      (n.tokenType === 'locked-2ld' || n.tokenType === 'locked-child') &&
-      hasFuse(n.fuses, FUSES.CANNOT_APPROVE),
-  )
-
-  if (locked.length === 0) {
-    return { valid: names, frozen: [] }
-  }
-
-  const approvedResults = await batchedMulticall<Address>(
-    publicClient,
-    locked.map((name) => ({
-      address: V1_CONTRACTS.NameWrapper,
-      abi: NAME_WRAPPER_ABI,
-      functionName: 'getApproved' as const,
-      args: [BigInt(name.domain.id)] as const,
-    })),
-  )
-
-  const frozen = locked.filter((_, i) => {
-    const r = approvedResults[i]
-    if (!r || r.status === 'failure') return false
-    return r.result !== zeroAddress
-  })
-
-  if (frozen.length === 0) {
-    return { valid: names, frozen: [] }
-  }
-
-  const frozenIds = new Set(frozen.map((n) => n.domain.id))
-  const valid = names.filter((n) => !frozenIds.has(n.domain.id))
-  return { valid, frozen }
-}
-
-const getTokenIdForOwnership = (name: ClassifiedName): bigint =>
-  name.tokenType === 'unwrapped'
-    ? BigInt(name.domain.labelhash)
-    : BigInt(name.domain.id)
-
-export const filterAlreadyMigrated = async (
-  publicClient: PublicClient,
-  names: ClassifiedName[],
-  migrationOwner: Address,
-): Promise<{
-  valid: ClassifiedName[]
-  alreadyMigrated: ClassifiedName[]
-}> => {
-  if (names.length === 0) return { valid: names, alreadyMigrated: [] }
-
-  const contracts = names.map((name) =>
-    name.tokenType === 'unwrapped'
-      ? ({
-          address: V1_CONTRACTS.BaseRegistrar,
-          abi: BASE_REGISTRAR_ABI,
-          functionName: 'ownerOf' as const,
-          args: [getTokenIdForOwnership(name)] as const,
-        } as const)
-      : ({
-          address: V1_CONTRACTS.NameWrapper,
-          abi: NAME_WRAPPER_ABI,
-          functionName: 'getData' as const,
-          args: [getTokenIdForOwnership(name)] as const,
-        } as const),
-  )
-
-  const results = await batchedMulticall<
-    Address | readonly [Address, number, bigint]
-  >(publicClient, contracts)
-
-  const expectedOwner = migrationOwner.toLowerCase()
-
-  const alreadyMigrated = names.filter((_, i) => {
-    const r = results[i]
-    if (!r || r.status === 'failure') return true
-    const currentOwner = typeof r.result === 'string' ? r.result : r.result[0]
-    return currentOwner.toLowerCase() !== expectedOwner
-  })
-
-  if (alreadyMigrated.length === 0) return { valid: names, alreadyMigrated: [] }
-  const migratedIds = new Set(alreadyMigrated.map((n) => n.domain.id))
-  return {
-    valid: names.filter((n) => !migratedIds.has(n.domain.id)),
-    alreadyMigrated,
-  }
-}
-
 export type EligibilityResult = {
   eligible: ClassifiedName[]
   frozen: ClassifiedName[]
   alreadyMigrated: ClassifiedName[]
 }
 
-// v2 ETHRegistry registration status, mirrors IPermissionedRegistry.Status
 const V2_STATUS_REGISTERED = 2
 
-/**
- * Runs all selectability checks (v1 ownership, v2 registration status, and
- * frozen-approval) in a single batched multicall (chunked into 100-item
- * physical calls via Promise.all). Intended to run once upfront so the
- * select-names list can filter these out before the user picks anything; the
- * migrate-time preflight can then skip re-running them.
- */
 export const runEligibilityChecks = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
@@ -305,38 +206,6 @@ export const runEligibilityChecks = async (
     ),
     frozen: names.filter((n) => frozenIds.has(n.domain.id)),
     alreadyMigrated: names.filter((n) => migratedIds.has(n.domain.id)),
-  }
-}
-
-export type PreFlightResult = {
-  valid: ClassifiedName[]
-  notReserved: ClassifiedName[]
-  frozen: ClassifiedName[]
-  alreadyMigrated: ClassifiedName[]
-}
-
-export const runPreFlightChecks = async (
-  publicClient: PublicClient,
-  names: ClassifiedName[],
-  migrationOwner: Address,
-): Promise<PreFlightResult> => {
-  const [reservedResult, frozenResult, migratedResult] = await Promise.all([
-    filterNotReserved(publicClient, names),
-    filterFrozenApprovals(publicClient, names),
-    filterAlreadyMigrated(publicClient, names, migrationOwner),
-  ])
-
-  const excluded = new Set<string>([
-    ...reservedResult.notReserved.map((n) => n.domain.id),
-    ...frozenResult.frozen.map((n) => n.domain.id),
-    ...migratedResult.alreadyMigrated.map((n) => n.domain.id),
-  ])
-
-  return {
-    valid: names.filter((n) => !excluded.has(n.domain.id)),
-    notReserved: reservedResult.notReserved,
-    frozen: frozenResult.frozen,
-    alreadyMigrated: migratedResult.alreadyMigrated,
   }
 }
 
