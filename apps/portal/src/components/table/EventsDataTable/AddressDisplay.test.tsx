@@ -5,21 +5,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddressDisplay } from './AddressDisplay'
 
 // Mock dependencies
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: React.ReactNode
+    to: string
+    params: Record<string, string>
+  }) => <a href={`${to}/${Object.values(params).join('/')}`}>{children}</a>,
+  useNavigate: () => vi.fn(),
+}))
+
 vi.mock('wagmi', () => ({
   useEnsName: vi.fn(),
 }))
 
-vi.mock('@/components/CopyableRecord', () => ({
-  CopyableRecord: ({
-    displayValue,
-    href,
-  }: {
-    displayValue: React.ReactNode
-    href: string
-  }) => (
-    <a href={href} data-testid="copyable-record">
-      {displayValue}
-    </a>
+vi.mock('@/components/CopyButton', () => ({
+  CopyButton: ({ value }: { value: string }) => (
+    <button data-testid="copy-button" data-value={value}>
+      Copy
+    </button>
   ),
 }))
 
@@ -128,8 +135,8 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={mockAddress} />)
 
-    const link = screen.getByTestId('copyable-record')
-    expect(link).toHaveAttribute('href', `/addr/${mockAddress}`)
+    const link = screen.getByRole('link')
+    expect(link).toHaveAttribute('href', `/addr/$addr/${mockAddress}`)
   })
 
   it('should use ENS name for copyable value when available', () => {
@@ -140,8 +147,10 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={mockAddress} />)
 
-    // The CopyableRecord should be rendered with ENS name
-    expect(screen.getByTestId('copyable-record')).toBeInTheDocument()
+    expect(screen.getByTestId('copy-button')).toHaveAttribute(
+      'data-value',
+      'vitalik.eth',
+    )
   })
 
   it('should use address for copyable value when no ENS name', () => {
@@ -152,7 +161,10 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={mockAddress} />)
 
-    expect(screen.getByTestId('copyable-record')).toBeInTheDocument()
+    expect(screen.getByTestId('copy-button')).toHaveAttribute(
+      'data-value',
+      mockAddress,
+    )
   })
 
   it('should default to short=true', () => {
@@ -189,6 +201,6 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={shortAddress} />)
 
-    expect(screen.getByTestId('copyable-record')).toBeInTheDocument()
+    expect(screen.getByRole('link')).toBeInTheDocument()
   })
 })
