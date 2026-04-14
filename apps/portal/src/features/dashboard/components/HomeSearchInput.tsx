@@ -192,7 +192,7 @@ export const HomeSearchInput = () => {
         <PopoverTrigger asChild>
           <InputGroup
             ref={triggerRef}
-            className="bg-background rounded-sm max-w-3xl w-full"
+            className="bg-sidebar-accent dark:bg-sidebar-accent rounded-sm max-w-3xl w-full"
             onClick={(e) => e.preventDefault()}
           >
             <InputGroupInput

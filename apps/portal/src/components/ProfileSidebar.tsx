@@ -160,7 +160,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
           >
             <LogoWithTextSVG width={72} height="auto" />
           </Link>
-          <SidebarTrigger className="shrink-0" />
+          <SidebarTrigger className="shrink-0 bg-sidebar-accent hover:bg-sidebar-accent/80" />
         </div>
 
         {/* Search — hidden when collapsed */}
@@ -181,7 +181,10 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
               </div>
               <span className="text-xs text-lapis-500 font-medium">Name</span>
             </div>
-            <CopyButton value={name} />
+            <CopyButton
+              value={name}
+              className="bg-sidebar-accent hover:bg-sidebar-accent/80"
+            />
           </div>
           <div className="flex items-center gap-2">
             <NameAvatar
