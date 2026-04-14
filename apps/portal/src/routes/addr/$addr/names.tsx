@@ -355,7 +355,7 @@ function RouteComponent() {
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
-      {selectedNames.length > 0 && (
+      {selectedNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen}
           onClose={() => setExtendModalOpen(false)}
