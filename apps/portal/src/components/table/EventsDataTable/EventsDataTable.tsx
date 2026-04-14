@@ -137,7 +137,7 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
           )}
 
           {enableSearch && (
-            <InputGroup className="bg-input rounded-sm">
+            <InputGroup className="bg-input dark:bg-input rounded-sm">
               <InputGroupInput
                 id={searchId}
                 className="w-full"
