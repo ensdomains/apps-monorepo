@@ -352,12 +352,12 @@ export const MyNamesList = ({
                           </span>
                         </div>
                         {expiringSoon && daysUntilExpiry !== null && (
-                          <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
                             <CircleAlert
-                              className="size-[10px] text-[#e3a531] md:size-[12px]"
+                              className="size-3 shrink-0 text-[#e3a531]"
                               strokeWidth={2}
                             />
-                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
+                            <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
                               <Trans>Expires in {daysUntilExpiry} days</Trans>
                             </span>
                           </div>
@@ -417,12 +417,12 @@ export const MyNamesList = ({
                           </span>
                         </div>
                         {expiringSoon && daysUntilExpiry !== null && (
-                          <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
                             <CircleAlert
-                              className="size-[10px] text-[#e3a531] md:size-[12px]"
+                              className="size-3 shrink-0 text-[#e3a531]"
                               strokeWidth={2}
                             />
-                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
+                            <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
                               <Trans>Expires in {daysUntilExpiry} days</Trans>
                             </span>
                           </div>
