@@ -12,8 +12,8 @@
   --card-foreground: #191919;
   --popover: #ffffff;
   --popover-foreground: #191919;
-  --primary: var(--lapis-500);
-  --primary-foreground: #ffffff;
+  --primary: #191919;
+  --primary-foreground: #faf9f7;
   --secondary: #f2f2f2;
   --secondary-foreground: #191919;
   --muted: #f2f2f2;
@@ -155,7 +155,7 @@
   --card-foreground: #e1e1e0;
   --popover: #383838;
   --popover-foreground: #e1e1e0;
-  --primary: var(--lapis-400);
+  --primary: #e1e1e0;
   --primary-foreground: #191919;
   --secondary: #4f4f4f;
   --secondary-foreground: #e1e1e0;
@@ -174,7 +174,7 @@
   --sidebar-foreground: #e1e1e0;
   --sidebar-primary: var(--lapis-400);
   --sidebar-primary-foreground: #191919;
-  --sidebar-accent: #242424;
+  --sidebar-accent: #2b2b2b;
   --sidebar-accent-foreground: #e1e1e0;
   --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: var(--lapis-400);
