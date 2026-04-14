@@ -8,7 +8,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
-import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
+import { PermissionedResolverBanner } from '@/features/resolver/components/PermissionedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -62,7 +62,7 @@ function RouteComponent() {
         Resolver {truncateAddress(address, 6, 4, '...')}
       </h1>
 
-      <DedicatedResolverBanner resolverAddress={address as Address} />
+      <PermissionedResolverBanner resolverAddress={address as Address} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>

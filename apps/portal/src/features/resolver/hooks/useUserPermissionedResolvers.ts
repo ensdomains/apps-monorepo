@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { type Address, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
 import {
-  filterDedicatedResolverAddresses,
+  filterPermissionedResolverAddresses,
   type ProxyDeployedLog,
-} from '@/features/resolver/utils/dedicatedResolver'
+} from '@/features/resolver/utils/permissionedResolver'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 const verifiableFactory = getChainContractAddress({
@@ -23,22 +23,22 @@ const proxyDeployedEvent = parseAbiItem(
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 )
 
-interface UseUserDedicatedResolversParams {
+interface UseUserPermissionedResolversParams {
   readonly senderAddress?: Address
 }
 
-const userDedicatedResolversQueryKey = createQueryKey<
-  'user-dedicated-resolvers',
+const userPermissionedResolversQueryKey = createQueryKey<
+  'user-permissioned-resolvers',
   { senderAddress?: Address }
->('user-dedicated-resolvers')
+>('user-permissioned-resolvers')
 
-export const useUserDedicatedResolvers = ({
+export const useUserPermissionedResolvers = ({
   senderAddress,
-}: UseUserDedicatedResolversParams) => {
+}: UseUserPermissionedResolversParams) => {
   const publicClient = usePublicClient({ chainId: sepoliaWithEns.id })
 
   return useQuery({
-    queryKey: userDedicatedResolversQueryKey({ senderAddress }),
+    queryKey: userPermissionedResolversQueryKey({ senderAddress }),
     enabled: !!senderAddress && !!publicClient,
     queryFn: async () => {
       if (!publicClient || !senderAddress) return []
@@ -53,7 +53,7 @@ export const useUserDedicatedResolvers = ({
         toBlock: 'latest',
       })
 
-      return filterDedicatedResolverAddresses(
+      return filterPermissionedResolverAddresses(
         logs as ProxyDeployedLog[],
         permissionedResolverImpl,
       )
