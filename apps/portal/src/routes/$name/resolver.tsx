@@ -1,34 +1,73 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import type { GetUnderlyingResolverReturnType } from '@ensdomains/ensjs/public/v2'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
-import { EditIcon } from 'lucide-react'
+import {
+  ClockIcon,
+  EditIcon,
+  FocusIcon,
+  GitBranchIcon,
+  InfoIcon,
+  ShieldCheckIcon,
+} from 'lucide-react'
+import type { ReactNode } from 'react'
+import { ExternalLink } from 'react-external-link'
 import { type Address, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection, useEnsResolver } from 'wagmi'
-import { useQuery } from 'wagmi/query'
+import { CopyButton } from '@/components/CopyButton'
+import { DataRow } from '@/components/DataRow'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import {
+  type GetEnsOwnerReturnType,
+  getEnsOwnerQueryOptions,
+} from '@/features/profile/hooks/useEnsOwner'
+import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
-import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
-import { ResolverNetwork } from '@/features/resolver/components/ResolverNetwork'
-import { ResolverPrimaryName } from '@/features/resolver/components/ResolverPrimaryName'
-import { ResolverType } from '@/features/resolver/components/ResolverType'
-import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
+import {
+  RESOLVER_FEATURES,
+  RESOLVER_INTERFACE_IDS,
+  type ResolverInterfaceName,
+} from '@/lib/constants/resolverInterfaceIds'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
+import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import { NameSubgraphHistory } from '../../components/table/NameSubgraphHistory/NameSubgraphHistory'
 
 export const Route = createFileRoute('/$name/resolver')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
+
+const sepoliaUrl = sepolia.blockExplorers.default.url
+
+const factoryAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+
+const permissionedResolverImplAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensPermissionedResolverImpl',
+})
+
+const officialPublicResolverAddress =
+  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
+
+const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
+  ([name, value]) => [value, name as ResolverInterfaceName] as const,
+)
 
 interface EditButtonsProps {
   address: Address
@@ -57,157 +96,441 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
   if (!canChangeResolver) return null
 
   return (
-    <div className="flex flex-row gap-2">
-      <Button variant="secondary" className="flex items-center gap-2" asChild>
-        <Link to="/$name/change-resolver" params={{ name }}>
-          <EditIcon className="size-4" />
-          Change resolver
-        </Link>
-      </Button>
+    <Button variant="secondary" className="flex items-center gap-2" asChild>
+      <Link to="/$name/change-resolver" params={{ name }}>
+        <EditIcon className="size-4" />
+        Change resolver
+      </Link>
+    </Button>
+  )
+}
+
+const ResolverSection = ({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) => {
+  return (
+    <section
+      className={cn(
+        'rounded-2xl border border-border bg-background',
+        className,
+      )}
+    >
+      {children}
+    </section>
+  )
+}
+
+const SummaryCard = ({
+  icon,
+  label,
+  value,
+  tooltip,
+  valueHref,
+}: {
+  icon: ReactNode
+  label: string
+  value: ReactNode
+  tooltip?: string
+  valueHref?: string
+}) => {
+  const content = valueHref ? (
+    <ExternalLink
+      href={valueHref}
+      className="underline decoration-dotted underline-offset-4"
+    >
+      {value}
+    </ExternalLink>
+  ) : (
+    value
+  )
+
+  return (
+    <ResolverSection className="flex min-h-23 items-center gap-6 p-6">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1 text-base font-medium">
+          <span>{label}</span>
+          {tooltip ? (
+            <InfoIcon className="size-4 text-muted-foreground" />
+          ) : null}
+        </div>
+        <div className="min-w-0 truncate text-base">{content}</div>
+      </div>
+    </ResolverSection>
+  )
+}
+
+const ResolverAddressValue = ({ address }: { address: Address }) => {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <ExternalLink
+        href={`${sepoliaUrl}/address/${address}`}
+        className="min-w-0"
+      >
+        <EntityBadge variant="contract" className="max-w-full truncate">
+          {address}
+        </EntityBadge>
+      </ExternalLink>
+      <CopyButton value={address} size="sm" />
     </div>
   )
 }
 
-const sepoliaUrl = sepolia.blockExplorers.default.url
+const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
+  const { data, isLoading, error } = useQuery(
+    getSupportsInterfacesQueryOptions({
+      address: resolverAddress,
+      interfaces: Object.values(RESOLVER_INTERFACE_IDS),
+    }),
+  )
 
-const factoryAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensVerifiableFactory',
-})
+  if (isLoading) return <LoadingSpinner title="Loading interfaces..." />
+  if (error)
+    return (
+      <div className="text-sm text-destructive">{error.cause?.message}</div>
+    )
+  if (!data) return <div className="text-sm text-muted-foreground">No data</div>
 
-interface UnderlyingResolverInfoProps {
-  underlyingResolverData: GetUnderlyingResolverReturnType
-  resolverAddress: Address
+  const features = data
+    .flatMap((supported, index) => {
+      if (!supported) return []
+      const [, name] = interfaceNamesById[index] ?? []
+      if (!name) return []
+      const feature = RESOLVER_FEATURES[name]
+      if (!feature) return []
+      return [feature]
+    })
+    .filter((feature, index, list) => {
+      return list.findIndex((item) => item.name === feature.name) === index
+    })
+
+  if (features.length === 0)
+    return (
+      <div className="text-sm text-muted-foreground">
+        No interfaces detected
+      </div>
+    )
+
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-base">
+      {features.map((feature) => (
+        <ExternalLink
+          key={feature.name}
+          href={feature.link}
+          className="underline decoration-dotted underline-offset-4 transition-colors hover:text-primary"
+        >
+          {feature.name}
+        </ExternalLink>
+      ))}
+    </div>
+  )
 }
 
-const UnderlyingResolverInfo = ({
-  underlyingResolverData: data,
-  resolverAddress: _resolverAddress,
-}: UnderlyingResolverInfoProps) => {
-  if (!data) {
-    return <div>Introspection of non .eth names is not supported yet</div>
-  } else if (Array.isArray(data)) {
-    if (data[0] === zeroAddress) return <div>This name has no resolver set</div>
-    // resolver is on L2
+const ResolverDetailsCard = ({
+  resolverAddress,
+  children,
+}: {
+  resolverAddress: Address
+  children: ReactNode
+}) => {
+  return (
+    <ResolverSection className="p-6">
+      <div className="flex flex-col gap-4">{children}</div>
+      <div className="mt-4 border-t border-border pt-4">
+        <DataRow label="Interfaces">
+          <FeatureLinks resolverAddress={resolverAddress} />
+        </DataRow>
+      </div>
+    </ResolverSection>
+  )
+}
 
-    if (data[1]) {
+const ResolverBanner = ({
+  name,
+  docsHref,
+}: {
+  name: 'Permissioned Resolver' | 'ENS Public Resolver'
+  docsHref: string
+}) => {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-2xl bg-[#d1eedf] px-6 py-6 text-center text-[#033010]">
+      <ShieldCheckIcon className="size-8" />
+      <p className="text-base">
+        This resolver is the official{' '}
+        <ExternalLink
+          href={docsHref}
+          className="underline decoration-dotted underline-offset-4"
+        >
+          {name}
+        </ExternalLink>
+        . This resolver has been audited and is considered secure.
+      </p>
+    </div>
+  )
+}
+
+const HistorySection = ({
+  name,
+  protocolVersion,
+}: {
+  name: string
+  protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
+}) => {
+  const v2HistoryQuery = useQuery({
+    ...getV2NameHistoryQueryOptions({ name }),
+    enabled: protocolVersion === 'ENSv2',
+  })
+
+  if (protocolVersion === 'ENSv2') {
+    if (v2HistoryQuery.isLoading) {
+      return <LoadingSpinner title="Loading history..." />
+    }
+
+    if (v2HistoryQuery.error) {
       return (
-        <div className="flex flex-col gap-4 sm:gap-6">
-          <DedicatedResolverBanner resolverAddress={data[0]} />
-          <h2 className="font-medium text-2xl">L2 Resolver</h2>
-          <div className="flex flex-row flex-wrap gap-y-4 gap-x-6">
-            <ResolverPrimaryName resolverAddress={data[0]} />
-            <ResolverType resolverAddress={data[0]} />
-            <ResolverNetwork />
-          </div>
-          <ResolverDetails
-            resolverAddress={data[0]}
-            data={[
-              {
-                label: 'Chain ID',
-                value: 'TBD',
-              },
-              {
-                label: 'Protocol',
-                value: 'ENSv2',
-              },
-              {
-                label: 'Contract',
-                value: data[0],
-                href: `${sepoliaUrl}/address/${data[0]}`,
-                variant: 'contract',
-              },
-              {
-                label: 'Factory',
-                value: factoryAddress,
-                href: `${sepoliaUrl}/address/${factoryAddress}`,
-                variant: 'contract',
-              },
-            ]}
-          />
-        </div>
-      )
-    } else {
-      return (
-        <div className="flex flex-col gap-6">
-          <h2 className="font-medium text-2xl">L1 Resolver</h2>
-          <div className="flex flex-row gap-6">
-            <ResolverType resolverAddress={data[0]} />
-            <ResolverNetwork />
-          </div>
-          <ResolverDetails
-            resolverAddress={data[0]}
-            data={[
-              {
-                label: 'Chain ID',
-                value: '11155111',
-              },
-              {
-                label: 'Protocol',
-                value: 'ENSv1',
-              },
-              {
-                label: 'Contract',
-                value: data[0],
-                href: `${sepoliaUrl}/address/${data[0]}`,
-                variant: 'contract',
-              },
-            ]}
-          />
+        <div className="text-sm text-destructive">
+          {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
         </div>
       )
     }
+
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-2xl font-medium">History</h2>
+          <Button variant="secondary" size="sm" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        </div>
+        <NameSubgraphHistory
+          name={name}
+          v2Events={transformV2EventsToSubgraphFormat(
+            v2HistoryQuery.data || [],
+          )}
+          enableHeader={false}
+        />
+      </div>
+    )
   }
 
-  return null
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-2xl font-medium">History</h2>
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <ClockIcon className="size-4" />
+            Full history
+          </Link>
+        </Button>
+      </div>
+      <NameSubgraphHistory name={name} enableHeader={false} />
+    </div>
+  )
+}
+
+const PermissionedResolverView = ({
+  name,
+  ownerData,
+  resolverAddress,
+}: {
+  name: string
+  ownerData: NonNullable<GetEnsOwnerReturnType>
+  resolverAddress: Address
+}) => {
+  const ownerLabel = truncateAddress(ownerData.owner, 6, 4, '...')
+
+  return (
+    <>
+      <ResolverBanner
+        name="Permissioned Resolver"
+        docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
+      />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <SummaryCard
+          icon={<NameAvatar name={name} height="24px" width="24px" />}
+          label="Owner"
+          value={ownerLabel}
+        />
+        <SummaryCard
+          icon={<FocusIcon className="size-5" />}
+          label="Type"
+          value="Permissioned Resolver"
+          valueHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
+        />
+        <SummaryCard
+          icon={<ShieldCheckIcon className="size-5 text-primary" />}
+          label="Network"
+          value="Sepolia"
+          tooltip="Permissioned resolvers are deployed on ENSv2 infrastructure."
+        />
+      </div>
+      <ResolverDetailsCard resolverAddress={resolverAddress}>
+        <DataRow label="Protocol">
+          <span className="text-base">ENSv2</span>
+        </DataRow>
+        <DataRow label="Chain ID">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-base">
+              {String(sepoliaWithEns.id)}
+            </span>
+            <CopyButton value={String(sepoliaWithEns.id)} size="sm" />
+          </div>
+        </DataRow>
+        <DataRow label="Contract">
+          <ResolverAddressValue address={resolverAddress} />
+        </DataRow>
+        {permissionedResolverImplAddress ? (
+          <DataRow label="Implementation">
+            <ResolverAddressValue address={permissionedResolverImplAddress} />
+          </DataRow>
+        ) : null}
+        {factoryAddress ? (
+          <DataRow label="Factory">
+            <ResolverAddressValue address={factoryAddress} />
+          </DataRow>
+        ) : null}
+      </ResolverDetailsCard>
+    </>
+  )
+}
+
+const PublicResolverView = ({
+  resolverAddress,
+}: {
+  resolverAddress: Address
+}) => {
+  return (
+    <>
+      <ResolverBanner
+        name="ENS Public Resolver"
+        docsHref="https://docs.ens.domains/resolvers/public/"
+      />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SummaryCard
+          icon={<GitBranchIcon className="size-5" />}
+          label="Version"
+          value="Latest"
+        />
+        <SummaryCard
+          icon={<FocusIcon className="size-5" />}
+          label="Type"
+          value="Public Resolver"
+          valueHref="https://docs.ens.domains/resolvers/public/"
+        />
+      </div>
+      <ResolverDetailsCard resolverAddress={resolverAddress}>
+        <DataRow label="Contract">
+          <ResolverAddressValue address={resolverAddress} />
+        </DataRow>
+      </ResolverDetailsCard>
+    </>
+  )
+}
+
+const CustomResolverView = ({
+  resolverAddress,
+  protocolVersion,
+}: {
+  resolverAddress: Address
+  protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
+}) => {
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SummaryCard
+          icon={<FocusIcon className="size-5" />}
+          label="Type"
+          value="Custom Resolver"
+        />
+        <SummaryCard
+          icon={<GitBranchIcon className="size-5" />}
+          label="Protocol"
+          value={protocolVersion}
+        />
+      </div>
+      <ResolverDetailsCard resolverAddress={resolverAddress}>
+        <DataRow label="Contract">
+          <ResolverAddressValue address={resolverAddress} />
+        </DataRow>
+        <DataRow label="Chain ID">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-base">
+              {String(sepoliaWithEns.id)}
+            </span>
+            <CopyButton value={String(sepoliaWithEns.id)} size="sm" />
+          </div>
+        </DataRow>
+      </ResolverDetailsCard>
+    </>
+  )
 }
 
 interface ResolverViewProps {
   name: string
+  ownerData: NonNullable<GetEnsOwnerReturnType>
   resolverAddress: Address
 }
 
-const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
+const ResolverView = ({
+  name,
+  ownerData,
+  resolverAddress,
+}: ResolverViewProps) => {
   const { address } = useConnection()
+  const permissionedResolverQuery = useQuery(
+    getIsPermissionedResolverQueryOptions({ resolverAddress }),
+  )
 
-  const {
-    data: underlyingResolverData,
-    isLoading,
-    error,
-  } = useQuery(getUnderlyingAddressQueryOptions({ resolverAddress, name }))
+  const isOfficialPublicResolver =
+    resolverAddress.toLowerCase() ===
+    officialPublicResolverAddress.toLowerCase()
 
-  if (error) return <div>Error: {error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (permissionedResolverQuery.isLoading) {
+    return <LoadingSpinner title="Loading resolver info..." />
+  }
+
+  if (permissionedResolverQuery.error) {
+    return (
+      <ErrorMessage
+        title="Error loading resolver details"
+        description={String(permissionedResolverQuery.error.cause ?? '')}
+      />
+    )
+  }
 
   return (
-    <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
-      <div className="flex flex-row gap-4 justify-between items-center">
+    <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-heading font-medium">Resolver</h1>
-        {address && <EditButtons address={address} name={name} />}
+        {address ? <EditButtons address={address} name={name} /> : null}
       </div>
-      {underlyingResolverData && (
-        <UnderlyingResolverInfo
-          underlyingResolverData={underlyingResolverData}
+
+      {permissionedResolverQuery.data ? (
+        <PermissionedResolverView
+          name={name}
+          ownerData={ownerData}
           resolverAddress={resolverAddress}
         />
+      ) : isOfficialPublicResolver ? (
+        <PublicResolverView resolverAddress={resolverAddress} />
+      ) : (
+        <CustomResolverView
+          resolverAddress={resolverAddress}
+          protocolVersion={ownerData.protocolVersion}
+        />
       )}
-      <h2 className="font-medium text-2xl">Universal Resolver</h2>
-      <ResolverDetails
-        resolverAddress={resolverAddress}
-        data={[
-          {
-            label: 'Contract',
-            value: resolverAddress,
-            href: `${sepoliaUrl}/address/${resolverAddress}`,
-            variant: 'contract',
-          },
-          {
-            label: 'Chain ID',
-            value: '11155111',
-          },
-        ]}
-      />
-      {!underlyingResolverData?.[1] && <NameSubgraphHistory name={name} />}
+
+      <HistorySection name={name} protocolVersion={ownerData.protocolVersion} />
     </div>
   )
 }
@@ -215,29 +538,48 @@ const ResolverView = ({ name, resolverAddress }: ResolverViewProps) => {
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/resolver' })
 
-  const {
-    data: resolverAddress,
-    isLoading,
-    error,
-  } = useEnsResolver({
+  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const resolverQuery = useEnsResolver({
     name,
     universalResolverAddress,
   })
 
-  if (error) {
-    if (error.name === 'ChainDoesNotSupportContract')
-      return <ErrorMessage title="Chain does not have UniversalResolver" />
+  if (ownerQuery.error) {
     return (
       <ErrorMessage
-        title="Error loading resolver"
-        description={extractErrorMessage(error, '')}
+        title={ownerQuery.error.cause.name}
+        description={ownerQuery.error.cause.message}
       />
     )
   }
 
-  if (isLoading) return <LoadingMessage />
+  if (resolverQuery.error) {
+    if (resolverQuery.error.name === 'ChainDoesNotSupportContract')
+      return <ErrorMessage title="Chain does not have UniversalResolver" />
+    return (
+      <ErrorMessage
+        title="Error loading resolver"
+        description={extractErrorMessage(resolverQuery.error, '')}
+      />
+    )
+  }
 
-  if (!resolverAddress)
+  if (ownerQuery.isLoading || resolverQuery.isLoading) return <LoadingMessage />
+
+  if (!ownerQuery.data)
+    return (
+      <NotFoundMessage
+        title="Name not registered"
+        description={
+          <>
+            <strong>{name}</strong> is not registered, so there is no resolver
+            data to display.
+          </>
+        }
+      />
+    )
+
+  if (!resolverQuery.data)
     return (
       <ErrorMessage
         title="Resolver not found"
@@ -245,5 +587,11 @@ function RouteComponent() {
       />
     )
 
-  return <ResolverView {...{ name, resolverAddress }} />
+  return (
+    <ResolverView
+      name={name}
+      ownerData={ownerQuery.data}
+      resolverAddress={resolverQuery.data}
+    />
+  )
 }

@@ -16,10 +16,18 @@ export const LucideIcon = ({
   iconNode,
   ...rest
 }: LucideProps & { iconNode: IconNode }) => {
+  const ariaLabel =
+    typeof rest['aria-label'] === 'string' && rest['aria-label'].length > 0
+      ? rest['aria-label']
+      : undefined
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
+      role={ariaLabel ? 'img' : 'presentation'}
+      aria-label={ariaLabel}
+      aria-hidden={ariaLabel ? undefined : 'true'}
       fill="none"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -33,6 +41,7 @@ export const LucideIcon = ({
       }
       {...rest}
     >
+      {ariaLabel ? <title>{ariaLabel}</title> : null}
       {iconNode.map(([tag, attrs]) => createElement(tag, attrs))}
     </svg>
   )
