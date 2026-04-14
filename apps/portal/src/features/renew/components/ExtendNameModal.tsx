@@ -53,7 +53,15 @@ export const ExtendNameModal = ({
     .exhaustive()
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose()
+        }
+        setStep('disclaimer')
+      }}
+    >
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader className={stepTitle ? '' : 'sr-only'}>
           <DialogTitle className="text-xl">{stepTitle}</DialogTitle>
