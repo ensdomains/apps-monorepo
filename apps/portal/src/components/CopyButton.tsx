@@ -1,14 +1,17 @@
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
 
 // Copy button with checkmark feedback (same pattern as CopyableRecord)
 export const CopyButton = ({
   value,
   size = 'default',
+  className,
 }: {
   value: string
   size?: 'default' | 'sm'
+  className?: string
 }) => {
   const [copied, setCopied] = useState(false)
 
@@ -44,7 +47,12 @@ export const CopyButton = ({
   }
 
   return (
-    <Button variant="ghost" size="icon" className="size-8" onClick={handleCopy}>
+    <Button
+      variant="secondary"
+      size="icon"
+      className={cn('size-7', className)}
+      onClick={handleCopy}
+    >
       {copied ? (
         <CheckIcon className="size-4" />
       ) : (
