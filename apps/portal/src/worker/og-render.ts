@@ -204,13 +204,13 @@ export async function renderTldOgImage(
     <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
         <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <span style="font-size: 72px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; color: white;">.</span>
+          <span style="font-size: 64px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; color: white;">${escapeHtml(displayTld)}</span>
         </div>
         <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
-          <h1 style="margin: 0; font-size: 82px; line-height: 0.95; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; overflow: hidden; max-height: 156px; word-break: break-all;">
+          <h1 style="margin: 0; font-size: 72px; line-height: 1; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; overflow: hidden; max-height: 144px; word-break: break-all;">
             ${escapeHtml(displayTld)}
           </h1>
-          <p style="margin: 0; font-size: 40px; line-height: 0.75; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
+          <p style="margin: 0; font-size: 36px; line-height: 1; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
             Top Level Domain
           </p>
         </div>
