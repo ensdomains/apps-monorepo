@@ -1,23 +1,18 @@
-import {
-  Domain_OrderBy,
-  type DomainFragment,
-  OrderDirection,
-} from '@ens-apps/indexer'
+import type { DomainFragment } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   ChevronDown,
   CircleAlert,
   CircleArrowLeft,
   CircleArrowRight,
-  Loader2,
   Mountain,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import type { Address } from 'viem'
 import ensMarkBadge from '@/assets/ens-mark-badge.svg'
 import {
   formatDashboardDate,
@@ -26,18 +21,33 @@ import {
   resolveDomainLabel,
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
-import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import { classifyNames } from '@/features/migration/service/classifyNames'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { useSmartAccountContext } from '@/lib/smart-account'
 import { tw } from '@/utils/tailwind'
-import { getDomainsQuery } from '../service/queries/getDashboardDomains'
+import { getAllDomainsQuery } from '../service/queries/getAllDashboardDomains'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
 const PAGE_SIZE = 5
 
 type Sort = 'name-asc' | 'name-desc' | 'expiry-asc' | 'expiry-desc'
+
+type MergedItem =
+  | {
+      readonly kind: 'v2'
+      readonly key: string
+      readonly sortName: string
+      readonly sortExpiry: number | null
+      readonly domain: DomainFragment
+    }
+  | {
+      readonly kind: 'v1'
+      readonly key: string
+      readonly sortName: string
+      readonly sortExpiry: number | null
+      readonly classified: ClassifiedName
+    }
 
 interface MyNamesListProps {
   readonly primaryLabel?: string | null
@@ -92,12 +102,35 @@ const SortIndicator = ({
 
 const parseSort = (sort: Sort) => {
   const [field, dir] = sort.split('-') as ['name' | 'expiry', 'asc' | 'desc']
-  return {
-    field,
-    dir,
-    orderBy: field === 'name' ? Domain_OrderBy.Name : Domain_OrderBy.ExpiryDate,
-    orderDirection: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+  return { field, dir }
+}
+
+const v1ExpirySeconds = (classified: ClassifiedName): number | null => {
+  const raw =
+    classified.domain.registration?.expiryDate ??
+    classified.domain.wrappedDomain?.expiryDate ??
+    null
+  if (raw === null) return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
+const compareMerged = (
+  a: MergedItem,
+  b: MergedItem,
+  field: 'name' | 'expiry',
+  dir: 'asc' | 'desc',
+): number => {
+  const mul = dir === 'asc' ? 1 : -1
+  if (field === 'name') {
+    return a.sortName.localeCompare(b.sortName) * mul
   }
+  const ax = a.sortExpiry
+  const bx = b.sortExpiry
+  if (ax === null && bx === null) return 0
+  if (ax === null) return 1
+  if (bx === null) return -1
+  return (ax - bx) * mul
 }
 
 export const MyNamesList = ({
@@ -110,57 +143,78 @@ export const MyNamesList = ({
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<Sort>('name-desc')
 
-  const { ownerAddress } = useSmartAccountContext()
-  const { data: v1NamesRaw } = useV1Names()
+  const { eligible: v1Classified, isPending: isV1Pending } =
+    useEligibleV1Names()
 
-  const v1Names = useMemo(() => {
-    if (!v1NamesRaw || !ownerAddress) return []
-    const { classified } = classifyNames(v1NamesRaw, ownerAddress as Address)
-    if (!searchQuery) return classified
-    const q = searchQuery.toLowerCase()
-    return classified.filter(
-      (n) =>
-        n.domain.name.toLowerCase().includes(q) ||
-        n.label.toLowerCase().includes(q),
-    )
-  }, [v1NamesRaw, ownerAddress, searchQuery])
+  const normalizedAddress = wallet?.address?.toLowerCase()
 
   const {
-    field: sortField,
-    dir: sortDir,
-    orderBy,
-    orderDirection,
-  } = parseSort(sort)
+    data: v2Data,
+    isPending: isV2Pending,
+    isError,
+  } = useQuery(
+    getAllDomainsQuery(
+      normalizedAddress ? { owner: normalizedAddress } : undefined,
+    ),
+  )
+
+  const v2Names: DomainFragment[] = v2Data ?? []
+
+  const { field: sortField, dir: sortDir } = parseSort(sort)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
     setPage(1)
   }, [searchQuery, wallet?.address])
 
-  const normalizedAddress = wallet?.address?.toLowerCase()
+  const mergedSortedFiltered = useMemo<MergedItem[]>(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const items: MergedItem[] = []
 
-  const queryVariables = normalizedAddress
-    ? {
-        where: {
-          owner: normalizedAddress,
-          ...(searchQuery
-            ? { name_contains_nocase: searchQuery.toLowerCase() }
-            : {}),
-        },
-        first: PAGE_SIZE,
-        skip: (page - 1) * PAGE_SIZE,
-        orderBy,
-        orderDirection,
+    for (const domain of v2Names) {
+      const label = resolveDomainLabel(domain)
+      if (q && !label.toLowerCase().includes(q)) continue
+      items.push({
+        kind: 'v2',
+        key: `v2-${domain.id}`,
+        sortName: label,
+        sortExpiry: domain.expiryDate ?? null,
+        domain,
+      })
+    }
+
+    for (const classified of v1Classified) {
+      const label = classified.domain.name
+      if (
+        q &&
+        !label.toLowerCase().includes(q) &&
+        !classified.label.toLowerCase().includes(q)
+      ) {
+        continue
       }
-    : undefined
+      items.push({
+        kind: 'v1',
+        key: `v1-${classified.domain.id}`,
+        sortName: label,
+        sortExpiry: v1ExpirySeconds(classified),
+        classified,
+      })
+    }
 
-  const { data, isPending, isError, isPlaceholderData } = useQuery({
-    ...getDomainsQuery(queryVariables),
-    placeholderData: keepPreviousData,
-  })
+    items.sort((a, b) => compareMerged(a, b, sortField, sortDir))
+    return items
+  }, [v2Names, v1Classified, searchQuery, sortField, sortDir])
 
-  const names: DomainFragment[] =
-    normalizedAddress && data?.domains ? data.domains : []
+  const totalPages = Math.max(
+    1,
+    Math.ceil(mergedSortedFiltered.length / PAGE_SIZE),
+  )
+  const currentPage = Math.min(page, totalPages)
+  const pageItems = mergedSortedFiltered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  )
+  const hasNextPage = currentPage < totalPages
 
   const toggleSort = (field: 'name' | 'expiry') => {
     if (sortField === field) {
@@ -172,12 +226,17 @@ export const MyNamesList = ({
   }
 
   const avatarQueries = useQueries({
-    queries: names.map((domain) =>
-      parseAvatarQuery(domain.resolver?.avatar ?? undefined),
+    queries: pageItems.map((item) =>
+      parseAvatarQuery(
+        item.kind === 'v2'
+          ? (item.domain.resolver?.avatar ?? undefined)
+          : undefined,
+      ),
     ),
   })
 
-  const hasNextPage = names.length === PAGE_SIZE
+  const isPending =
+    (isV2Pending && normalizedAddress !== undefined) || isV1Pending
 
   if (isError) {
     return (
@@ -265,10 +324,8 @@ export const MyNamesList = ({
         </button>
       </div>
 
-      <div
-        className={tw`flex w-full flex-col transition-opacity ${isPlaceholderData && 'opacity-50'}`}
-      >
-        {match({ isPending, names })
+      <div className={tw`flex w-full flex-col`}>
+        {match({ isPending, pageItems })
           .with({ isPending: true }, () => (
             <>
               <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
@@ -282,30 +339,21 @@ export const MyNamesList = ({
               </div>
             </>
           ))
-          .with({ names: P.when((n) => n.length === 0) }, () => {
-            const showV1 = page === 1 && !searchQuery && v1Names.length > 0
-            if (!showV1) {
-              return (
-                <div className="flex flex-col items-center justify-center gap-3 py-16">
-                  <Mountain
-                    className="size-12 text-ens-gray-three"
-                    strokeWidth={1}
-                  />
-                  <span className="font-sans text-muted-foreground text-sm">
-                    <Trans>No names to display</Trans>
-                  </span>
-                </div>
-              )
-            }
-            return v1Names.map((classified, index) => {
-              const label = classified.domain.name
-              const expirySeconds =
-                classified.domain.registration?.expiryDate ??
-                classified.domain.wrappedDomain?.expiryDate ??
-                null
-              const expiryDate = toDateFromSeconds(
-                expirySeconds ? Number(expirySeconds) : null,
-              )
+          .with({ pageItems: P.when((n) => n.length === 0) }, () => (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Mountain
+                className="size-12 text-ens-gray-three"
+                strokeWidth={1}
+              />
+              <span className="font-sans text-muted-foreground text-sm">
+                <Trans>No names to display</Trans>
+              </span>
+            </div>
+          ))
+          .otherwise(({ pageItems }) =>
+            pageItems.map((item, index) => {
+              const label = item.sortName
+              const expiryDate = toDateFromSeconds(item.sortExpiry)
               const daysUntilExpiry = getDaysUntil(expiryDate)
               const expiringSoon = isExpiringSoon(
                 expiryDate,
@@ -313,83 +361,21 @@ export const MyNamesList = ({
                 daysUntilExpiry,
               )
               const formattedExpiryDate = formatDashboardDate(expiryDate)
-
-              return (
-                <motion.div
-                  className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                  key={`v1-${classified.domain.id}`}
-                  {...(shouldReduceMotion
-                    ? {}
-                    : {
-                        initial: { opacity: 0, y: 6 },
-                        animate: { opacity: 1, y: 0 },
-                        transition: {
-                          duration: 0.2,
-                          ease: [0.25, 0.46, 0.45, 0.94] as const,
-                          delay: index * 0.04,
-                        },
-                      })}
-                >
-                  <div className="mb-[10px]">
-                    <div className="inline-flex items-center gap-1 rounded-full bg-[#feeaf0] px-1 py-0.5">
-                      <img
-                        alt=""
-                        className="mt-[2px] size-4.5 shrink-0"
-                        src={ensMarkBadge}
-                      />
-                      <span className="font-sans text-[#e72a96] text-[14px] leading-[1.05] tracking-[0.28px]">
-                        <Trans>Eligible for upgrade</Trans>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow label={label} />
-                    <div className="flex items-start gap-4 md:gap-[30px]">
-                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
-                        <div className="flex flex-col items-start">
-                          <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
-                            {formattedExpiryDate}
-                          </span>
-                        </div>
-                        {expiringSoon && daysUntilExpiry !== null && (
-                          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
-                            <CircleAlert
-                              className="size-3 shrink-0 text-[#e3a531]"
-                              strokeWidth={2}
-                            />
-                            <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
-                              <Trans>Expires in {daysUntilExpiry} days</Trans>
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })
-          })
-          .otherwise(({ names }) =>
-            names.map((name, index) => {
-              const label = resolveDomainLabel(name)
-              const expiryDate = toDateFromSeconds(name.expiryDate ?? null)
-              const daysUntilExpiry = getDaysUntil(expiryDate)
-              const expiringSoon = isExpiringSoon(
-                expiryDate,
-                30,
-                daysUntilExpiry,
-              )
-              const formattedExpiryDate = formatDashboardDate(expiryDate)
+              const isV1 = item.kind === 'v1'
               const isPrimary =
+                !isV1 &&
                 primaryLabel !== undefined &&
                 label.toLowerCase() === primaryLabel?.toLowerCase()
-              const avatarUrl =
-                avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
+              const avatarUrl = isV1
+                ? undefined
+                : (avatarQueries[index]?.data ??
+                  item.domain.resolver?.avatar ??
+                  undefined)
 
               return (
                 <motion.div
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                  key={name.id}
+                  key={item.key}
                   {...(shouldReduceMotion
                     ? {}
                     : {
@@ -402,13 +388,34 @@ export const MyNamesList = ({
                         },
                       })}
                 >
+                  {isV1 && (
+                    <div className="mb-[10px]">
+                      <Link
+                        className="inline-flex items-center gap-1 rounded-full bg-[#feeaf0] px-1 py-0.5 transition-colors hover:bg-[#fcdbe5]"
+                        to="/migration"
+                      >
+                        <img
+                          alt=""
+                          className="mt-[2px] size-4.5 shrink-0"
+                          src={ensMarkBadge}
+                        />
+                        <span className="font-sans text-[#e72a96] text-[14px] leading-[1.05] tracking-[0.28px]">
+                          <Trans>Eligible for upgrade</Trans>
+                        </span>
+                      </Link>
+                    </div>
+                  )}
                   {isPrimary && (
                     <div className="mb-[10px]">
                       <PrimaryBadge />
                     </div>
                   )}
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow avatarUrl={avatarUrl} label={label} />
+                    <NameRow
+                      avatarUrl={avatarUrl}
+                      label={label}
+                      linkToMigration={isV1}
+                    />
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
                         <div className="flex flex-col items-start">
@@ -441,8 +448,8 @@ export const MyNamesList = ({
           <button
             aria-label={t`Previous page`}
             className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
-            disabled={isPending || page === 1}
-            onClick={() => setPage((p) => p - 1)}
+            disabled={isPending || currentPage === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             type="button"
           >
             <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
@@ -458,9 +465,6 @@ export const MyNamesList = ({
           </button>
         </div>
         <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-          {isPlaceholderData && (
-            <Loader2 className="size-[12px] animate-spin" />
-          )}
           <Trans>Showing your names</Trans>
         </span>
       </div>
