@@ -2,6 +2,7 @@ import type { Address, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
 import { multicall, readContract } from 'viem/actions'
 import {
+  BASE_REGISTRAR_ABI,
   ETH_REGISTRY_V2_ABI,
   NAME_WRAPPER_ABI,
   WRAPPER_REGISTRY_ABI,
@@ -139,30 +140,87 @@ export const filterFrozenApprovals = async (
   return { valid, frozen }
 }
 
+const getTokenIdForOwnership = (name: ClassifiedName): bigint =>
+  name.tokenType === 'unwrapped'
+    ? BigInt(name.domain.labelhash)
+    : BigInt(name.domain.id)
+
+export const filterAlreadyMigrated = async (
+  publicClient: PublicClient,
+  names: ClassifiedName[],
+  migrationOwner: Address,
+): Promise<{
+  valid: ClassifiedName[]
+  alreadyMigrated: ClassifiedName[]
+}> => {
+  if (names.length === 0) return { valid: names, alreadyMigrated: [] }
+
+  const contracts = names.map((name) =>
+    name.tokenType === 'unwrapped'
+      ? ({
+          address: V1_CONTRACTS.BaseRegistrar,
+          abi: BASE_REGISTRAR_ABI,
+          functionName: 'ownerOf' as const,
+          args: [getTokenIdForOwnership(name)] as const,
+        } as const)
+      : ({
+          address: V1_CONTRACTS.NameWrapper,
+          abi: NAME_WRAPPER_ABI,
+          functionName: 'getData' as const,
+          args: [getTokenIdForOwnership(name)] as const,
+        } as const),
+  )
+
+  const results = await batchedMulticall<
+    Address | readonly [Address, number, bigint]
+  >(publicClient, contracts)
+
+  const expectedOwner = migrationOwner.toLowerCase()
+
+  const alreadyMigrated = names.filter((_, i) => {
+    const r = results[i]
+    if (!r || r.status === 'failure') return true
+    const currentOwner = typeof r.result === 'string' ? r.result : r.result[0]
+    return currentOwner.toLowerCase() !== expectedOwner
+  })
+
+  if (alreadyMigrated.length === 0) return { valid: names, alreadyMigrated: [] }
+  const migratedIds = new Set(alreadyMigrated.map((n) => n.domain.id))
+  return {
+    valid: names.filter((n) => !migratedIds.has(n.domain.id)),
+    alreadyMigrated,
+  }
+}
+
 export type PreFlightResult = {
   valid: ClassifiedName[]
   notReserved: ClassifiedName[]
   frozen: ClassifiedName[]
+  alreadyMigrated: ClassifiedName[]
 }
 
 export const runPreFlightChecks = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
+  migrationOwner: Address,
 ): Promise<PreFlightResult> => {
-  const [reservedResult, frozenResult] = await Promise.all([
+  const [reservedResult, frozenResult, migratedResult] = await Promise.all([
     filterNotReserved(publicClient, names),
     filterFrozenApprovals(publicClient, names),
+    filterAlreadyMigrated(publicClient, names, migrationOwner),
   ])
 
   const excluded = new Set<string>([
     ...reservedResult.notReserved.map((n) => n.domain.id),
     ...frozenResult.frozen.map((n) => n.domain.id),
+    ...migratedResult.alreadyMigrated.map((n) => n.domain.id),
   ])
 
   return {
     valid: names.filter((n) => !excluded.has(n.domain.id)),
     notReserved: reservedResult.notReserved,
     frozen: frozenResult.frozen,
+    alreadyMigrated: migratedResult.alreadyMigrated,
   }
 }
 

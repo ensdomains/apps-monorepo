@@ -55,7 +55,7 @@ msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
 #. placeholder {0}: skippedNames.length
-#: src/features/migration/pages/MigrationPage.tsx:65
+#: src/features/migration/pages/MigrationPage.tsx:66
 msgid "{0} name(s) could not be migrated"
 msgstr "{0} name(s) could not be migrated"
 
@@ -250,6 +250,10 @@ msgstr "Almost ready"
 msgid "Almost there..."
 msgstr "Almost there..."
 
+#: src/features/migration/pages/MigrationPage.tsx:46
+msgid "Already migrated to ENS v2"
+msgstr "Already migrated to ENS v2"
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:122
 msgid "An error occurred"
 msgstr "An error occurred"
@@ -324,7 +328,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:181
+#: src/features/migration/pages/MigrationPage.tsx:182
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -754,7 +758,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
 #: src/features/migration/components/SuccessModal.tsx:139
-#: src/features/migration/pages/MigrationPage.tsx:212
+#: src/features/migration/pages/MigrationPage.tsx:213
 msgid "Done"
 msgstr "Done"
 
@@ -1257,7 +1261,7 @@ msgstr "Migrating {0} {1} name(s)"
 msgid "Migrating {0} subname(s) under {1}"
 msgstr "Migrating {0} subname(s) under {1}"
 
-#: src/features/migration/pages/MigrationPage.tsx:153
+#: src/features/migration/pages/MigrationPage.tsx:154
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1818,7 +1822,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:188
+#: src/features/migration/pages/MigrationPage.tsx:189
 msgid "Retry"
 msgstr "Retry"
 
@@ -2099,7 +2103,7 @@ msgstr "Smart Session Disabled"
 msgid "Social Links"
 msgstr "Social Links"
 
-#: src/features/migration/pages/MigrationPage.tsx:196
+#: src/features/migration/pages/MigrationPage.tsx:197
 msgid "Some names could not be migrated"
 msgstr "Some names could not be migrated"
 

@@ -43,6 +43,7 @@ const SkipReasonLabel = ({ reason }: { reason: SkippedName['reason'] }) => {
     'frozen-token-approval': (
       <Trans>Has an irrevocable approval that blocks migration</Trans>
     ),
+    'already-migrated': <Trans>Already migrated to ENS v2</Trans>,
   }
   return <>{labels[reason]}</>
 }

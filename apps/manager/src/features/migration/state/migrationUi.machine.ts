@@ -149,10 +149,9 @@ export const migrationUiMachine = setup({
       event.type === 'migration.start' && event.domains.length > 0,
     isOnlyFailures: ({ event }) =>
       event.type === 'migration.complete' &&
-      event.result.skipped.length > 0 &&
-      event.result.txHashes.length === 0,
-    hasPartialFailures: ({ context }) =>
-      context.skippedNames.length > 0 && context.txHashes.length > 0,
+      event.result.txHashes.length === 0 &&
+      event.result.skipped.some((s) => s.reason !== 'already-migrated'),
+    hasPartialFailures: ({ context }) => context.skippedNames.length > 0,
   },
   actions: {
     setSelection: assign({

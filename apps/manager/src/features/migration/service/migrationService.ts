@@ -27,6 +27,7 @@ import {
   is2LD,
 } from './classifyNames'
 import {
+  filterAlreadyMigrated,
   filterFrozenApprovals,
   filterNotReserved,
   type PreFlightResult,
@@ -69,6 +70,7 @@ export type SkipReason =
   | 'name-is-locked'
   | 'name-not-locked'
   | 'frozen-token-approval'
+  | 'already-migrated'
 
 export type SkippedName = {
   readonly name: string
@@ -162,14 +164,23 @@ export const executeMigration = async (params: {
   }
 
   const preflight: PreFlightResult = ENABLE_PRE_MIGRATE
-    ? await filterFrozenApprovals(publicClient, classified).then(
-        (frozenResult) => ({
-          valid: frozenResult.valid,
+    ? await (async () => {
+        const [frozenResult, migratedResult] = await Promise.all([
+          filterFrozenApprovals(publicClient, classified),
+          filterAlreadyMigrated(publicClient, classified, migrationOwner),
+        ])
+        const excluded = new Set<string>([
+          ...frozenResult.frozen.map((n) => n.domain.id),
+          ...migratedResult.alreadyMigrated.map((n) => n.domain.id),
+        ])
+        return {
+          valid: classified.filter((n) => !excluded.has(n.domain.id)),
           notReserved: [] as ClassifiedName[],
           frozen: frozenResult.frozen,
-        }),
-      )
-    : await runPreFlightChecks(publicClient, classified)
+          alreadyMigrated: migratedResult.alreadyMigrated,
+        }
+      })()
+    : await runPreFlightChecks(publicClient, classified, migrationOwner)
 
   const skipped: SkippedName[] = [
     ...preflight.notReserved.map((n) => ({
@@ -180,26 +191,19 @@ export const executeMigration = async (params: {
       name: n.domain.name,
       reason: 'frozen-approval' as const,
     })),
+    ...preflight.alreadyMigrated.map((n) => ({
+      name: n.domain.name,
+      reason: 'already-migrated' as const,
+    })),
   ]
 
   if (preflight.valid.length === 0) {
-    const reasons: string[] = []
-    if (preflight.notReserved.length > 0) {
-      const names = preflight.notReserved.map((n) => n.domain.name).join(', ')
-      reasons.push(
-        `Not yet premigrated in ENS v2: ${names}. These names must be premigrated before they can be migrated.`,
-      )
+    return {
+      completed: 0,
+      txHashes: [],
+      skipped,
+      ineligible,
     }
-    if (preflight.frozen.length > 0) {
-      const names = preflight.frozen.map((n) => n.domain.name).join(', ')
-      reasons.push(
-        `Frozen approval prevents migration: ${names}. These names have CANNOT_APPROVE with an active approval.`,
-      )
-    }
-    throw new MigrationError({
-      cause: new Error(reasons.join('\n')),
-      step: 'Pre-flight checks',
-    })
   }
 
   const validNames = preflight.valid
