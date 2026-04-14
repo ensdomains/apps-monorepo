@@ -135,6 +135,7 @@ function RouteComponent() {
 
   const { transactions: renewalTransactions, startFlow } =
     useRenewalTransactions()
+
   const { openModal } = useTransactionModal()
 
   // Filter state
@@ -282,6 +283,10 @@ function RouteComponent() {
     selectedStatuses.length > 0 ||
     selectedLengths.length > 0
 
+  console.log({
+    renewalTransactions,
+  })
+
   return (
     <>
       <header className="bg-muted px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
@@ -350,20 +355,18 @@ function RouteComponent() {
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
-      <ExtendNameModal
-        open={true}
-        onClose={() => setExtendModalOpen(false)}
-        selectedName={{
-          name: 'charlie.eth',
-          isV2: false,
-          expiryDate: new Date('2026-04-10'),
-        }}
-        onExtend={(config) => {
-          startFlow(selectedNames, config)
-          setExtendModalOpen(false)
-          openModal()
-        }}
-      />
+      {selectedNames.length > 0 && (
+        <ExtendNameModal
+          open={extendModalOpen}
+          onClose={() => setExtendModalOpen(false)}
+          selectedName={selectedNames[0]}
+          onExtend={(config) => {
+            startFlow(selectedNames, config)
+            setExtendModalOpen(false)
+            openModal()
+          }}
+        />
+      )}
       <TransactionModal transactions={renewalTransactions} />
     </>
   )
