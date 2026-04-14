@@ -78,7 +78,7 @@ function buildApproveTransaction(
   const approveData = encodeFunctionData({
     abi: ERC20_ABI,
     functionName: 'approve',
-    args: [ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar, params.tokenPrice * 2n],
+    args: [ENS_SEPOLIA_CONTRACTS.ETHRegistrar, params.tokenPrice * 2n],
   })
 
   transactionManager.clear()
@@ -126,7 +126,7 @@ function buildV2RenewTransaction(
       request: {
         type: 'eoa',
         from: params.from,
-        to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
         data: renewData,
         value: 0n,
         chainId: sepolia.id,
