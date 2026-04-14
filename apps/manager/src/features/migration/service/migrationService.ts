@@ -360,6 +360,8 @@ export const executeMigration = async (params: {
     },
   ]
 
+  const pendingBucketHashes: Hex[] = []
+
   for (const { names, step, label, sign } of signingSteps) {
     if (names.length === 0) continue
 
@@ -383,31 +385,34 @@ export const executeMigration = async (params: {
     migratedCount += names.length - bucketResult.skipped.length
 
     if (bucketResult.hashes.length > 0) {
+      pendingBucketHashes.push(...bucketResult.hashes)
+      txHashes.push(...bucketResult.hashes)
       onProgress({
         currentStep: stepIndex,
         totalSteps,
         description: 'Your names are on their way to v2!',
         txHash: bucketResult.hashes[0],
       })
-
-      await Promise.all(
-        bucketResult.hashes.map((hash) =>
-          waitForTransactionReceipt(wagmiConfig, {
-            hash,
-            timeout: TX_RECEIPT_TIMEOUT_MS,
-          }),
-        ),
-      )
-      txHashes.push(...bucketResult.hashes)
     }
 
     stepIndex++
+  }
+
+  if (pendingBucketHashes.length > 0) {
     onProgress({
       currentStep: stepIndex,
       totalSteps,
-      description: `${label} names migrated`,
-      txHash: txHashes[txHashes.length - 1],
+      description: `Confirming ${pendingBucketHashes.length} transaction(s)...`,
+      txHash: pendingBucketHashes[pendingBucketHashes.length - 1],
     })
+    await Promise.all(
+      pendingBucketHashes.map((hash) =>
+        waitForTransactionReceipt(wagmiConfig, {
+          hash,
+          timeout: TX_RECEIPT_TIMEOUT_MS,
+        }),
+      ),
+    )
   }
 
   const parentRegistries =

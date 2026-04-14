@@ -251,7 +251,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:40
+#: src/features/migration/components/GameStep.tsx:46
 msgid "Almost there..."
 msgstr ""
 
@@ -284,7 +284,7 @@ msgid "Approving"
 msgstr ""
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:49
+#: src/features/migration/components/GameStep.tsx:56
 msgid "Approving Multicall3 to batch {0} name(s)"
 msgstr ""
 
@@ -571,6 +571,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:65
 msgid "Confirming commitment"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:47
+msgid "Confirming transactions"
 msgstr ""
 
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
@@ -1256,13 +1260,13 @@ msgstr ""
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.bucket
-#: src/features/migration/components/GameStep.tsx:54
+#: src/features/migration/components/GameStep.tsx:61
 msgid "Migrating {0} {1} name(s)"
 msgstr ""
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.parentName
-#: src/features/migration/components/GameStep.tsx:59
+#: src/features/migration/components/GameStep.tsx:66
 msgid "Migrating {0} subname(s) under {1}"
 msgstr ""
 
@@ -1572,7 +1576,7 @@ msgid "Please wait while we verify your email address."
 msgstr ""
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:44
+#: src/features/migration/components/GameStep.tsx:51
 msgid "Pre-migrating {0} name(s)"
 msgstr ""
 
@@ -1591,7 +1595,7 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:41
+#: src/features/migration/components/GameStep.tsx:48
 msgid "Preparing migration..."
 msgstr ""
 
@@ -2372,7 +2376,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:104
+#: src/features/migration/components/GameStep.tsx:111
 msgid "Upgrading your names..."
 msgstr ""
 

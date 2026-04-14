@@ -246,7 +246,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/migration/components/GameStep.tsx:40
+#: src/features/migration/components/GameStep.tsx:46
 msgid "Almost there..."
 msgstr "Almost there..."
 
@@ -279,7 +279,7 @@ msgid "Approving"
 msgstr "Approving"
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:49
+#: src/features/migration/components/GameStep.tsx:56
 msgid "Approving Multicall3 to batch {0} name(s)"
 msgstr "Approving Multicall3 to batch {0} name(s)"
 
@@ -567,6 +567,10 @@ msgstr "Confirming approval"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:65
 msgid "Confirming commitment"
 msgstr "Confirming commitment"
+
+#: src/features/migration/components/GameStep.tsx:47
+msgid "Confirming transactions"
+msgstr "Confirming transactions"
 
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 msgid "Connect"
@@ -1251,13 +1255,13 @@ msgstr "Marking..."
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.bucket
-#: src/features/migration/components/GameStep.tsx:54
+#: src/features/migration/components/GameStep.tsx:61
 msgid "Migrating {0} {1} name(s)"
 msgstr "Migrating {0} {1} name(s)"
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.parentName
-#: src/features/migration/components/GameStep.tsx:59
+#: src/features/migration/components/GameStep.tsx:66
 msgid "Migrating {0} subname(s) under {1}"
 msgstr "Migrating {0} subname(s) under {1}"
 
@@ -1567,7 +1571,7 @@ msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:44
+#: src/features/migration/components/GameStep.tsx:51
 msgid "Pre-migrating {0} name(s)"
 msgstr "Pre-migrating {0} name(s)"
 
@@ -1586,7 +1590,7 @@ msgstr "Premium Fee"
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
 
-#: src/features/migration/components/GameStep.tsx:41
+#: src/features/migration/components/GameStep.tsx:48
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
 
@@ -2367,7 +2371,7 @@ msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profi
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:104
+#: src/features/migration/components/GameStep.tsx:111
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

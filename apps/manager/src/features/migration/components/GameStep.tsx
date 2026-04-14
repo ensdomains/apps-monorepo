@@ -36,8 +36,15 @@ export const GameStep = () => {
     | MigrationStepDescriptor
     | undefined
 
-  const descriptionText = match({ done, descriptor: nextDescriptor })
+  const isConfirming = progress?.description?.startsWith('Confirming') ?? false
+
+  const descriptionText = match({
+    done,
+    isConfirming,
+    descriptor: nextDescriptor,
+  })
     .with({ done: true }, () => t`Almost there...`)
+    .with({ isConfirming: true }, () => `${t`Confirming transactions`}...`)
     .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
     .with(
       { descriptor: { type: 'pre-migrate' } },
