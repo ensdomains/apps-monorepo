@@ -1,8 +1,14 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useMachine } from '@xstate/react'
 import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -10,19 +16,21 @@ import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import {
-  type MigrationError,
-  migrationMachine,
-} from '@/features/migration/machines/migrationMachine'
-import type {
-  MigrationResult,
-  SkippedName,
-} from '@/features/migration/service/migrationService'
+import type { SkippedName } from '@/features/migration/service/migrationService'
 import {
   buildSyntheticDomain,
   type CustomNameSeed,
 } from '@/features/migration/service/syntheticDomain'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
+import type { MigrationError } from '@/features/migration/state/migrationUi.machine'
+import {
+  useMigrationLastError,
+  useMigrationMigratedNames,
+  useMigrationSelectedNames,
+  useMigrationSkippedNames,
+  useMigrationStep,
+} from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 // TEMP: dev-only persistence for the custom-name migration input.
@@ -141,7 +149,12 @@ const formatMigrationError = (
 
 export const MigrationPage = () => {
   const { t } = useLingui()
-  const [state, send] = useMachine(migrationMachine)
+  const { uiActor } = useMigrationUiContext()
+  const step = useMigrationStep(uiActor)
+  const selectedNames = useMigrationSelectedNames(uiActor)
+  const skippedNames = useMigrationSkippedNames(uiActor)
+  const migratedNames = useMigrationMigratedNames(uiActor)
+  const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
   const { ownerAddress } = useSmartAccountContext()
   // TEMP: dev-only custom-name seeds (persisted) → rebuilt into V1Domain[]
@@ -174,72 +187,61 @@ export const MigrationPage = () => {
     })
   }, [])
 
-  const selectedDomains = useMemo(() => {
-    const selectedSet = new Set(state.context.selectedNames)
-    return [...v1Names, ...customDomains].filter((n) => selectedSet.has(n.name))
-  }, [v1Names, customDomains, state.context.selectedNames])
+  const allDomains = useMemo(
+    () => [...v1Names, ...customDomains],
+    [v1Names, customDomains],
+  )
 
   const handleNamesChange = useCallback(
-    (names: string[]) => send({ type: 'SELECT_NAMES', names }),
-    [send],
+    (names: string[]) => uiActor.send({ type: 'selection.set', names }),
+    [uiActor],
   )
 
-  const handleMigrationComplete = useCallback(
-    (result: MigrationResult) => {
-      const migratedNames = selectedDomains
-        .filter((d) => !result.skipped.some((s) => s.name === d.name))
-        .map((d) => d.name)
-      const migratedSet = new Set(migratedNames)
-      setCustomSeeds((prev) => {
-        const next = prev.filter((s) => !migratedSet.has(s.name))
-        if (next.length === prev.length) return prev
-        saveCustomSeeds(next)
-        return next
-      })
-      send({
-        type: 'MIGRATION_COMPLETE',
-        txHashes: result.txHashes,
-        skipped: result.skipped,
-        migratedNames,
-      })
-    },
-    [send, selectedDomains],
-  )
+  const handleBeginUpgrade = useCallback(() => {
+    if (!ownerAddress) return
+    const selectedSet = new Set(selectedNames)
+    const domains = allDomains.filter((d) => selectedSet.has(d.name))
+    if (domains.length === 0) return
+    uiActor.send({
+      type: 'migration.start',
+      domains,
+      ownerAddress: ownerAddress as Address,
+    })
+  }, [allDomains, ownerAddress, selectedNames, uiActor])
 
-  const handleMigrationError = useCallback(
-    (error: string) => {
-      send({
-        type: 'MIGRATION_ERROR',
-        error: { type: 'generic', message: error },
-      })
-    },
-    [send],
-  )
-
-  const { skippedNames, migratedNames } = state.context
+  // Drop custom seeds for names that have just been migrated.
+  const seenMigratedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    const newlyMigrated = migratedNames.filter(
+      (n) => !seenMigratedRef.current.has(n),
+    )
+    seenMigratedRef.current = new Set(migratedNames)
+    if (newlyMigrated.length === 0) return
+    const newlySet = new Set(newlyMigrated)
+    setCustomSeeds((prev) => {
+      const next = prev.filter((s) => !newlySet.has(s.name))
+      if (next.length === prev.length) return prev
+      saveCustomSeeds(next)
+      return next
+    })
+  }, [migratedNames])
 
   return (
     <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">
       <GrainOverlay />
 
-      {match(state.value)
-        .with('selectNames', () => (
+      {match(step)
+        .with('select', () => (
           <SelectNamesStep
             customDomains={customDomains}
             onAddCustomName={handleAddCustomName}
             onNamesChange={handleNamesChange}
-            onNext={() => send({ type: 'BEGIN_UPGRADE' })}
+            onNext={handleBeginUpgrade}
             onRemoveCustomName={handleRemoveCustomName}
           />
         ))
-        .with('migrating', () => (
-          <GameStep
-            domains={selectedDomains}
-            onComplete={handleMigrationComplete}
-            onError={handleMigrationError}
-          />
-        ))
-        .with('error', () => (
+        .with('migrate', () => <GameStep />)
+        .with('failure', () => (
           <ResultLayout>
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
               <Trans>Migration failed</Trans>
@@ -251,8 +253,7 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <p className="whitespace-pre-wrap break-all font-mono text-ens-garnet-900/70 text-xs leading-normal">
-                {state.context.error &&
-                  formatMigrationError(state.context.error, t)}
+                {lastError && formatMigrationError(lastError, t)}
               </p>
             </motion.div>
 
@@ -268,14 +269,14 @@ export const MigrationPage = () => {
             >
               <button
                 className="rounded-sm bg-ens-garnet-900/10 px-4 py-3 font-semi-mono text-ens-garnet-900 text-sm uppercase tracking-[1.68px]"
-                onClick={() => send({ type: 'RESET' })}
+                onClick={() => uiActor.send({ type: 'cancel' })}
                 type="button"
               >
                 <Trans>Back</Trans>
               </button>
               <button
                 className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
-                onClick={() => send({ type: 'RETRY' })}
+                onClick={() => uiActor.send({ type: 'retry' })}
                 type="button"
               >
                 <Trans>Retry</Trans>
@@ -299,7 +300,7 @@ export const MigrationPage = () => {
             >
               <button
                 className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
-                onClick={() => send({ type: 'DONE' })}
+                onClick={() => uiActor.send({ type: 'done' })}
                 type="button"
               >
                 <Trans>Done</Trans>
@@ -310,7 +311,7 @@ export const MigrationPage = () => {
         .with('success', () => (
           <SuccessModal
             migratedNames={migratedNames}
-            onClose={() => send({ type: 'DONE' })}
+            onClose={() => uiActor.send({ type: 'done' })}
             open
           />
         ))

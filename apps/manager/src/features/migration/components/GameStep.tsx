@@ -2,32 +2,29 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
 import { match, P } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
-import { useMigrationExecution } from '@/features/migration/hooks/useMigrationExecution'
-import type {
-  MigrationResult,
-  MigrationStepDescriptor,
-} from '@/features/migration/service/migrationService'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
+import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
+import {
+  useMigrateSubstep,
+  useMigrationProgress,
+  useMigrationStepDescriptors,
+} from '@/features/migration/state/migrationUi.selectors'
 import { cn } from '@/lib/utils'
 
-type GameStepProps = {
-  readonly domains: V1Domain[]
-  readonly onComplete: (result: MigrationResult) => void
-  readonly onError: (error: string) => void
-}
-
-const HUG_DELAY = 3000
-
-export const GameStep = ({ domains, onComplete, onError }: GameStepProps) => {
+export const GameStep = () => {
   const { t } = useLingui()
   const { ref: trackRef, width: trackWidth } = useElementWidth()
 
-  const { done, errorMessage, progress, stepCount, stepDescriptors } =
-    useMigrationExecution(domains, onComplete, onError, HUG_DELAY)
+  const { uiActor } = useMigrationUiContext()
+  const substep = useMigrateSubstep(uiActor)
+  const progress = useMigrationProgress(uiActor)
+  const stepDescriptors = useMigrationStepDescriptors(uiActor)
 
-  const totalSteps = Math.max(stepCount, 1)
+  const done = substep === 'succeeding'
+  const hasCollapsed = substep === 'failing'
+
+  const totalSteps = Math.max(stepDescriptors.length, 1)
   const completedSteps = progress?.currentStep ?? 0
-  const hasCollapsed = !!errorMessage
 
   const plankIndex = Math.min(completedSteps, totalSteps - 1)
   const frensX =

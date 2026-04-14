@@ -55,7 +55,7 @@ msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
 #. placeholder {0}: skippedNames.length
-#: src/features/migration/pages/MigrationPage.tsx:97
+#: src/features/migration/pages/MigrationPage.tsx:105
 msgid "{0} name(s) could not be migrated"
 msgstr "{0} name(s) could not be migrated"
 
@@ -246,7 +246,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/migration/components/GameStep.tsx:43
+#: src/features/migration/components/GameStep.tsx:40
 msgid "Almost there..."
 msgstr "Almost there..."
 
@@ -275,7 +275,7 @@ msgid "Approving"
 msgstr "Approving"
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:52
+#: src/features/migration/components/GameStep.tsx:49
 msgid "Approving Multicall3 to batch {0} name(s)"
 msgstr "Approving Multicall3 to batch {0} name(s)"
 
@@ -324,7 +324,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:274
+#: src/features/migration/pages/MigrationPage.tsx:275
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -754,7 +754,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
 #: src/features/migration/components/SuccessModal.tsx:139
-#: src/features/migration/pages/MigrationPage.tsx:305
+#: src/features/migration/pages/MigrationPage.tsx:306
 msgid "Done"
 msgstr "Done"
 
@@ -1086,11 +1086,11 @@ msgstr "Go to Profile"
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
-#: src/features/migration/pages/MigrationPage.tsx:60
+#: src/features/migration/pages/MigrationPage.tsx:68
 msgid "Has a frozen approval that prevents migration"
 msgstr "Has a frozen approval that prevents migration"
 
-#: src/features/migration/pages/MigrationPage.tsx:76
+#: src/features/migration/pages/MigrationPage.tsx:84
 msgid "Has an irrevocable approval that blocks migration"
 msgstr "Has an irrevocable approval that blocks migration"
 
@@ -1134,7 +1134,7 @@ msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your w
 msgid "Invalid character"
 msgstr "Invalid character"
 
-#: src/features/migration/pages/MigrationPage.tsx:63
+#: src/features/migration/pages/MigrationPage.tsx:71
 msgid "Invalid migration data encoding"
 msgstr "Invalid migration data encoding"
 
@@ -1247,17 +1247,17 @@ msgstr "Marking..."
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.bucket
-#: src/features/migration/components/GameStep.tsx:57
+#: src/features/migration/components/GameStep.tsx:54
 msgid "Migrating {0} {1} name(s)"
 msgstr "Migrating {0} {1} name(s)"
 
 #. placeholder {0}: descriptor.count
 #. placeholder {1}: descriptor.parentName
-#: src/features/migration/components/GameStep.tsx:62
+#: src/features/migration/components/GameStep.tsx:59
 msgid "Migrating {0} subname(s) under {1}"
 msgstr "Migrating {0} subname(s) under {1}"
 
-#: src/features/migration/pages/MigrationPage.tsx:245
+#: src/features/migration/pages/MigrationPage.tsx:247
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1298,7 +1298,7 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/migration/pages/MigrationPage.tsx:65
+#: src/features/migration/pages/MigrationPage.tsx:73
 msgid "Name data does not match the migration receiver"
 msgstr "Name data does not match the migration receiver"
 
@@ -1308,11 +1308,11 @@ msgstr "Name data does not match the migration receiver"
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
-#: src/features/migration/pages/MigrationPage.tsx:68
+#: src/features/migration/pages/MigrationPage.tsx:76
 msgid "Name is locked and was sent to the wrong controller"
 msgstr "Name is locked and was sent to the wrong controller"
 
-#: src/features/migration/pages/MigrationPage.tsx:71
+#: src/features/migration/pages/MigrationPage.tsx:79
 msgid "Name is not locked/emancipated and cannot use this controller"
 msgstr "Name is not locked/emancipated and cannot use this controller"
 
@@ -1440,7 +1440,7 @@ msgstr "Not set"
 msgid "Not supported"
 msgstr "Not supported"
 
-#: src/features/migration/pages/MigrationPage.tsx:58
+#: src/features/migration/pages/MigrationPage.tsx:66
 msgid "Not yet premigrated in ENS v2"
 msgstr "Not yet premigrated in ENS v2"
 
@@ -1563,7 +1563,7 @@ msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:47
+#: src/features/migration/components/GameStep.tsx:44
 msgid "Pre-migrating {0} name(s)"
 msgstr "Pre-migrating {0} name(s)"
 
@@ -1582,7 +1582,7 @@ msgstr "Premium Fee"
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
 
-#: src/features/migration/components/GameStep.tsx:44
+#: src/features/migration/components/GameStep.tsx:41
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
 
@@ -1818,7 +1818,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:281
+#: src/features/migration/pages/MigrationPage.tsx:282
 msgid "Retry"
 msgstr "Retry"
 
@@ -2099,7 +2099,7 @@ msgstr "Smart Session Disabled"
 msgid "Social Links"
 msgstr "Social Links"
 
-#: src/features/migration/pages/MigrationPage.tsx:289
+#: src/features/migration/pages/MigrationPage.tsx:290
 msgid "Some names could not be migrated"
 msgstr "Some names could not be migrated"
 
@@ -2312,7 +2312,7 @@ msgstr "Trademark Guidelines"
 msgid "Transaction:"
 msgstr "Transaction:"
 
-#: src/features/migration/pages/MigrationPage.tsx:62
+#: src/features/migration/pages/MigrationPage.tsx:70
 msgid "Transfer reverted on-chain"
 msgstr "Transfer reverted on-chain"
 
@@ -2363,7 +2363,7 @@ msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profi
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:107
+#: src/features/migration/components/GameStep.tsx:104
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

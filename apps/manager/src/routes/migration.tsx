@@ -1,10 +1,15 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
+import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
 import { isConnectedToPara } from '@/lib/para'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const Route = createFileRoute('/migration')({
-  component: MigrationPage,
+  component: () => (
+    <MigrationUiProvider>
+      <MigrationPage />
+    </MigrationUiProvider>
+  ),
   beforeLoad: () => {
     if (!isFeatureEnabled('NAME_MIGRATION')) throw redirect({ to: '/' })
     if (!isConnectedToPara()) throw redirect({ to: '/' })
