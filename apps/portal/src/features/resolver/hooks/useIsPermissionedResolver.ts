@@ -6,14 +6,14 @@ import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
-import { decodeImplementationAddress } from '@/features/resolver/utils/dedicatedResolver'
+import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 const EIP1967_IMPLEMENTATION_SLOT: Hex =
   '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
 
-const knownDedicatedResolverImplementations = [
+const knownPermissionedResolverImplementations = [
   getChainContractAddress({
     chain: sepoliaWithEns,
     contract: 'ensPermissionedResolverImpl',
@@ -22,19 +22,23 @@ const knownDedicatedResolverImplementations = [
   .filter(Boolean)
   .map((address) => address.toLowerCase())
 
-class IsDedicatedResolverError extends TaggedError('IsDedicatedResolverError')<{
+class IsPermissionedResolverError extends TaggedError(
+  'IsPermissionedResolverError',
+)<{
   cause: unknown
 }> {}
 
-interface GetIsDedicatedResolverParams {
+interface GetIsPermissionedResolverParams {
   readonly resolverAddress: Address
 }
 
-export const getIsDedicatedResolver = ResultFn(async function* (
-  params: GetIsDedicatedResolverParams,
+export const getIsPermissionedResolver = ResultFn(async function* (
+  params: GetIsPermissionedResolverParams,
 ) {
   const normalizedResolverAddress = params.resolverAddress.toLowerCase()
-  if (knownDedicatedResolverImplementations.includes(normalizedResolverAddress))
+  if (
+    knownPermissionedResolverImplementations.includes(normalizedResolverAddress)
+  )
     return ok(true)
 
   const client = yield* safeGetClient()
@@ -45,7 +49,7 @@ export const getIsDedicatedResolver = ResultFn(async function* (
       slot: EIP1967_IMPLEMENTATION_SLOT,
     }),
     (error) =>
-      new IsDedicatedResolverError({
+      new IsPermissionedResolverError({
         cause: error,
       }),
   )
@@ -56,25 +60,26 @@ export const getIsDedicatedResolver = ResultFn(async function* (
   if (!implementationAddress) return ok(false)
 
   return ok(
-    knownDedicatedResolverImplementations.includes(
+    knownPermissionedResolverImplementations.includes(
       implementationAddress.toLowerCase(),
     ),
   )
 })
 
-const getIsDedicatedResolverQueryKey = createQueryKey<
-  'is-dedicated-resolver',
-  GetIsDedicatedResolverParams
->('is-dedicated-resolver')
+const getIsPermissionedResolverQueryKey = createQueryKey<
+  'is-permissioned-resolver',
+  GetIsPermissionedResolverParams
+>('is-permissioned-resolver')
 
-export const getIsDedicatedResolverQueryOptions = (
-  params: GetIsDedicatedResolverParams,
+export const getIsPermissionedResolverQueryOptions = (
+  params: GetIsPermissionedResolverParams,
 ) =>
   resultQueryOptions({
-    queryKey: getIsDedicatedResolverQueryKey(params),
+    queryKey: getIsPermissionedResolverQueryKey(params),
     queryFn: ({ queryKey: [, queryParams] }) =>
-      getIsDedicatedResolver(queryParams),
+      getIsPermissionedResolver(queryParams),
   })
 
-export const useIsDedicatedResolver = (params: GetIsDedicatedResolverParams) =>
-  useQuery(getIsDedicatedResolverQueryOptions(params))
+export const useIsPermissionedResolver = (
+  params: GetIsPermissionedResolverParams,
+) => useQuery(getIsPermissionedResolverQueryOptions(params))

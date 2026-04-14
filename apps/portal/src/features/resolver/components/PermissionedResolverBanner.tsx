@@ -2,18 +2,18 @@ import { ShieldCheckIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useIsDedicatedResolver } from '@/features/resolver/hooks/useIsDedicatedResolver'
+import { useIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 
-export const DedicatedResolverBanner = ({
+export const PermissionedResolverBanner = ({
   resolverAddress,
 }: {
   resolverAddress: Address
 }) => {
   const {
-    data: isDedicatedResolver,
+    data: isPermissionedResolver,
     isLoading,
     error,
-  } = useIsDedicatedResolver({
+  } = useIsPermissionedResolver({
     resolverAddress,
   })
 
@@ -22,7 +22,7 @@ export const DedicatedResolverBanner = ({
 
   if (isLoading) return 'Loading...'
 
-  if (isDedicatedResolver)
+  if (isPermissionedResolver)
     return (
       <Alert
         variant="success"
@@ -33,9 +33,9 @@ export const DedicatedResolverBanner = ({
           This resolver is an instance of the official{' '}
           <ExternalLink
             className="underline decoration-dashed underline-offset-4"
-            href="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/OwnedResolver.sol"
+            href="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
           >
-            ENS Dedicated Resolver
+            ENS Permissioned Resolver
           </ExternalLink>
           . This resolver has been audited and is considered secure.
         </AlertDescription>
