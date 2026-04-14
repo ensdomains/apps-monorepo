@@ -31,6 +31,7 @@ import {
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
+import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extenstion/MultiNameExtendModal'
 import {
   type SelectedName,
   useRenewalTransactions,
@@ -365,6 +366,13 @@ function RouteComponent() {
             setExtendModalOpen(false)
             openModal()
           }}
+        />
+      )}
+      {selectedNames.length > 1 && (
+        <MultiNameExtendModal
+          open={extendModalOpen}
+          onClose={() => setExtendModalOpen(false)}
+          selectedNames={selectedNames}
         />
       )}
       <TransactionModal transactions={renewalTransactions} />
