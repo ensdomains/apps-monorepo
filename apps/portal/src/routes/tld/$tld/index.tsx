@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
 import { useMemo } from 'react'
+import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
 import { CardsStackIcon, HubIcon } from '@/assets/icons'
 import { CopyButton } from '@/components/CopyButton'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -18,6 +21,7 @@ import {
   getTldDataQueryOptions,
 } from '@/features/profile/hooks/useTldData'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
@@ -26,15 +30,34 @@ export const Route = createFileRoute('/tld/$tld/')({
   notFoundComponent: () => <NotFoundMessage />,
 })
 
-const ParentRoot = () => (
-  <div className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted">
-    <NameAvatar width="40px" height="40px" name="[root]" />
-    <div className="flex flex-col gap-1">
-      <span className="text-sm text-muted-foreground">Parent</span>
-      <span>[root]</span>
-    </div>
-  </div>
-)
+const ParentRoot = ({
+  rootRegistryAddress,
+}: {
+  rootRegistryAddress: Address
+}) => {
+  const content = (
+    <>
+      <NameAvatar width="40px" height="40px" name="[root]" />
+      <div className="flex flex-col gap-1">
+        <span className="text-sm text-muted-foreground">Parent</span>
+        <span>[root]</span>
+      </div>
+    </>
+  )
+
+  const className =
+    'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted'
+
+  return (
+    <Link
+      to="/addr/$addr"
+      params={{ addr: rootRegistryAddress }}
+      className={className}
+    >
+      {content}
+    </Link>
+  )
+}
 
 const TldRecordCount = ({ tld }: { tld: string }) => {
   const tldDataQuery = useQuery(getTldDataQueryOptions({ tld }))
@@ -68,19 +91,30 @@ const TldRegistryCard = ({
   registryAddress,
 }: {
   registryAddress: GetTldDataReturnType['registryAddress']
-}) => (
-  <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
-    <div className="w-full px-6 flex flex-row items-center gap-6">
-      <HubIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
-      <div className="flex flex-col gap-1">
-        <span className="text-sm text-muted-foreground">Registry</span>
-        <span className="text-muted-foreground">
-          {registryAddress ?? 'No registry deployed'}
-        </span>
+}) => {
+  const hasRegistry = registryAddress !== zeroAddress
+
+  return (
+    <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
+      <div className="w-full px-6 flex flex-row items-center gap-6">
+        <HubIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
+        <div className="flex flex-col gap-1 min-w-0">
+          <span className="text-sm text-muted-foreground">Registry</span>
+          {hasRegistry ? (
+            <div className="flex items-center gap-1 min-w-0">
+              <EntityBadge variant="contract">
+                {truncateAddress(registryAddress, 6, 4, '...')}
+              </EntityBadge>
+              <CopyButton value={registryAddress} />
+            </div>
+          ) : (
+            <span className="text-muted-foreground">No registry deployed</span>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 const ProtocolCard = () => (
   <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
@@ -158,7 +192,7 @@ function TldOverview() {
     )
   }
 
-  const { owner, registryAddress } = tldDataQuery.data
+  const { owner, registryAddress, rootRegistryAddress } = tldDataQuery.data
 
   return (
     <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
@@ -171,7 +205,7 @@ function TldOverview() {
         {/* Owner + Parent */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <Owner owner={owner ?? undefined} />
-          <ParentRoot />
+          <ParentRoot rootRegistryAddress={rootRegistryAddress} />
         </div>
 
         {/* Records / Registry / Protocol */}
