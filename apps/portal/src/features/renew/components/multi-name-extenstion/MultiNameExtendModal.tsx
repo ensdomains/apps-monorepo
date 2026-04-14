@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
+import { useMultiNamePricing } from '../../hooks/useMultiNamePricing'
 import type { SelectedName } from '../../hooks/useRenewalTransactions'
 import { ExtendNameDisclaimer } from '../ExtendNameDisclaimer'
 import { MultiNameExtendSettings } from './MultiNameExtendSettings'
@@ -34,6 +35,8 @@ export const MultiNameExtendModal = ({
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
+
+  const pricingData = useMultiNamePricing(selectedNames, duration)
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -71,8 +74,7 @@ export const MultiNameExtendModal = ({
           ))
           .with('summary', () => (
             <MultiNameExtendSummary
-              selectedNames={selectedNames}
-              duration={duration}
+              pricingData={pricingData}
               onNext={() => setStep('confirm')}
             />
           ))

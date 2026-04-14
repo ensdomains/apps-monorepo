@@ -2,58 +2,31 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
-import {
-  getRegistrationDisplayDates,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
-import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import { cn } from '@/lib/utils'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { dateToPlainDate } from '@/utils/temporal'
-import type { SelectedName } from '../../hooks/useRenewalTransactions'
+import type { NamePricingData } from '../../hooks/useMultiNamePricing'
 
 type MultiNameSummaryCardProps = {
-  readonly selectedName: SelectedName
-  readonly price: RegistrationPriceResult
-  readonly duration: number
+  readonly pricingData: NamePricingData
 }
 
 export const MultiNameSummaryCard = ({
-  selectedName,
-  price,
-  duration,
+  pricingData,
 }: MultiNameSummaryCardProps) => {
   const [isOpen, setIsOpen] = useState(false)
 
-  const { registrationPeriod } = getRegistrationDisplayDates(duration)
+  const {
+    selectedName,
+    isLoading,
+    registrationPeriod,
+    newExpiryFormatted,
+    priceLabel,
+    priceValue,
+    subtotal,
+  } = pricingData
 
-  const days = Math.floor(duration / 86400)
-  const baseDate = selectedName.expiryDate
-    ? dateToPlainDate(selectedName.expiryDate)
-    : getStartOfToday()
-  const newExpiry = baseDate.add({ days })
-  const newExpiryFormatted = formatExpiryDate(newExpiry)
-
-  const { pricePerYear, years, discountPercent } = getPricingBreakdown(
-    selectedName.name,
-    price,
-    duration,
-  )
-
-  const subtotal = formatPriceDisplay(price.base, price.decimals)
-  const hasDiscount = discountPercent > 0
-
-  const priceLabel = hasDiscount
-    ? `Price (${Math.round(discountPercent)}% discount):`
-    : 'Price:'
-
-  const priceValue =
-    Math.round(years * 12) >= 12
-      ? `${formatUsd(pricePerYear)}/year × ${Math.round(years)}`
-      : formatUsd(pricePerYear)
+  if (isLoading || !subtotal) {
+    return <MultiNameSummaryCardSkeleton name={selectedName.name} />
+  }
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -83,7 +56,7 @@ export const MultiNameSummaryCard = ({
       </button>
 
       {isOpen && (
-        <dl className={cn('border-t border-border space-y-2 py-3')}>
+        <dl className="border-t border-border space-y-2 py-3">
           <CardRow label="Extension:" value={registrationPeriod} />
           <CardRow
             label="New expiry:"
@@ -91,7 +64,7 @@ export const MultiNameSummaryCard = ({
             valueClassName="font-semibold text-quartz-900"
           />
           <hr className="border-border" />
-          <CardRow label={priceLabel} value={priceValue} />
+          <CardRow label={priceLabel} value={priceValue ?? '—'} />
           <CardRow label="Subtotal:" value={subtotal} />
         </dl>
       )}
