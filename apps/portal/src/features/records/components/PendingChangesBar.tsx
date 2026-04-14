@@ -10,6 +10,9 @@ export const PendingChangesBar = ({
   onDismissError,
   isSaving = false,
   isSyncing = false,
+  isSwitchingChain = false,
+  isWrongChain = false,
+  isConnected = true,
   errorMessage,
   hasValidationErrors = false,
 }: {
@@ -20,11 +23,22 @@ export const PendingChangesBar = ({
   onDismissError?: () => void
   isSaving?: boolean
   isSyncing?: boolean
+  isSwitchingChain?: boolean
+  isWrongChain?: boolean
+  isConnected?: boolean
   errorMessage?: string
   hasValidationErrors?: boolean
 }) => {
   const canSave = changesCount > 0 && !hasValidationErrors && !isSaving
   useHotkey('Mod+S', onSave, { enabled: canSave })
+
+  const saveButtonLabel = (() => {
+    if (!isConnected) return 'Connect Wallet'
+    if (isSwitchingChain) return 'Switching...'
+    if (isWrongChain) return 'Switch Network'
+    if (isSaving) return `Saving...`
+    return `Save ${changesCount} ${changesCount === 1 ? 'change' : 'changes'}`
+  })()
 
   if (changesCount === 0 && !isSyncing && !errorMessage) return null
 
@@ -96,12 +110,17 @@ export const PendingChangesBar = ({
         >
           {isSaving ? (
             <>
-              Saving...
+              {saveButtonLabel}
+              <Loader2 className="size-4 ml-1 animate-spin" />
+            </>
+          ) : isSwitchingChain ? (
+            <>
+              {saveButtonLabel}
               <Loader2 className="size-4 ml-1 animate-spin" />
             </>
           ) : (
             <>
-              Save {changesCount} {changesCount === 1 ? 'change' : 'changes'}
+              {saveButtonLabel}
               <Save className="size-4 ml-1" />
             </>
           )}
