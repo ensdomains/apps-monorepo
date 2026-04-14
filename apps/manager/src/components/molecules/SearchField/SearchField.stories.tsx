@@ -397,7 +397,7 @@ export const MixedCharacterTypes: Story = {
             {breakdown.map((item, idx) => (
               <span
                 className="rounded bg-slate-200 px-2 py-1 font-mono text-xs"
-                key={idx}
+                key={`${item.char}-${idx}-${item.bytes}`}
                 title={`${item.bytes} byte${item.bytes > 1 ? 's' : ''}`}
               >
                 {item.char}

@@ -12,7 +12,7 @@ import {
   generateResolverSalt,
   getResolverInitCalldata,
   parseProxyDeployedAddress,
-} from '@/features/resolver/utils/dedicatedResolver'
+} from '@/features/resolver/utils/permissionedResolver'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
@@ -22,17 +22,17 @@ const verifiableFactoryAbi = parseAbi([
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 ])
 
-interface DeployDedicatedResolverResult {
+interface DeployPermissionedResolverResult {
   txId: string
   hash: Hash
   resolverAddress: Address
 }
 
-interface UseDeployDedicatedResolverParams {
+interface UseDeployPermissionedResolverParams {
   readonly name: string
 }
 
-const deployDedicatedResolver = async ({
+const deployPermissionedResolver = async ({
   name,
   signer,
   publicClient,
@@ -46,7 +46,7 @@ const deployDedicatedResolver = async ({
   accountAddress: Address
   chainId: number
   id: string
-}): Promise<DeployDedicatedResolverResult> => {
+}): Promise<DeployPermissionedResolverResult> => {
   const permissionedResolverImpl = getChainContractAddress({
     chain: sepoliaWithEns,
     contract: 'ensPermissionedResolverImpl',
@@ -79,7 +79,7 @@ const deployDedicatedResolver = async ({
     signer,
     {
       id,
-      description: `Deploy dedicated resolver for ${name}`,
+      description: `Deploy permissioned resolver for ${name}`,
       publicClient,
       timeout: 120_000,
     },
@@ -99,9 +99,9 @@ const deployDedicatedResolver = async ({
   }
 }
 
-export const useDeployDedicatedResolver = ({
+export const useDeployPermissionedResolver = ({
   name,
-}: UseDeployDedicatedResolverParams) => {
+}: UseDeployPermissionedResolverParams) => {
   const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient({ chainId })
@@ -112,7 +112,7 @@ export const useDeployDedicatedResolver = ({
       id,
     }: {
       id: string
-    }): Promise<DeployDedicatedResolverResult> => {
+    }): Promise<DeployPermissionedResolverResult> => {
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -123,7 +123,7 @@ export const useDeployDedicatedResolver = ({
 
       const signer = createEOASigner(walletClient)
 
-      return deployDedicatedResolver({
+      return deployPermissionedResolver({
         name,
         signer,
         publicClient,
@@ -141,8 +141,8 @@ export const useDeployDedicatedResolver = ({
   })
 
   return {
-    deployDedicatedResolver: mutation.mutate,
-    deployDedicatedResolverAsync: mutation.mutateAsync,
+    deployPermissionedResolver: mutation.mutate,
+    deployPermissionedResolverAsync: mutation.mutateAsync,
     txHash: mutation.data?.hash,
     deployedResolverAddress: mutation.data?.resolverAddress,
     isWriting: mutation.isPending,

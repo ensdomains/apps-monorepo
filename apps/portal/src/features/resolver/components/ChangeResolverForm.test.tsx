@@ -75,11 +75,11 @@ vi.mock('@/features/resolver/hooks/useChangeResolver', () => ({
   }),
 }))
 
-const mockDeployDedicatedResolverAsync = vi.fn()
-vi.mock('@/features/resolver/hooks/useDeployDedicatedResolver', () => ({
-  useDeployDedicatedResolver: (_params: { name: string }) => ({
-    deployDedicatedResolver: vi.fn(),
-    deployDedicatedResolverAsync: mockDeployDedicatedResolverAsync,
+const mockDeployPermissionedResolverAsync = vi.fn()
+vi.mock('@/features/resolver/hooks/useDeployPermissionedResolver', () => ({
+  useDeployPermissionedResolver: (_params: { name: string }) => ({
+    deployPermissionedResolver: vi.fn(),
+    deployPermissionedResolverAsync: mockDeployPermissionedResolverAsync,
     txHash: undefined,
     deployedResolverAddress: undefined,
     isWriting: false,
@@ -91,8 +91,8 @@ vi.mock('@/features/resolver/hooks/useDeployDedicatedResolver', () => ({
   }),
 }))
 
-vi.mock('@/features/resolver/hooks/useUserDedicatedResolvers', () => ({
-  useUserDedicatedResolvers: (_params: { senderAddress?: string }) => ({
+vi.mock('@/features/resolver/hooks/useUserPermissionedResolvers', () => ({
+  useUserPermissionedResolvers: (_params: { senderAddress?: string }) => ({
     data: [
       '0xabcdef123456789012345678901234567890abcd',
       '0x1234512345123451234512345123451234512345',
@@ -108,7 +108,7 @@ describe('ChangeResolverForm', () => {
 
   beforeEach(() => {
     mockChangeResolver.mockReset()
-    mockDeployDedicatedResolverAsync.mockReset()
+    mockDeployPermissionedResolverAsync.mockReset()
     mockOpenModal.mockReset()
     changeResolverHookState.isPending = false
     changeResolverHookState.hasWallet = true
@@ -163,10 +163,10 @@ describe('ChangeResolverForm', () => {
       screen.getByRole('switch', { name: /Use custom resolver/i }),
     )
     await user.click(
-      screen.getByRole('switch', { name: /Deploy new dedicated resolver/i }),
+      screen.getByRole('switch', { name: /Deploy new permissioned resolver/i }),
     )
     await user.selectOptions(
-      screen.getByLabelText(/Existing dedicated resolver/i),
+      screen.getByLabelText(/Existing permissioned resolver/i),
       '0x1234512345123451234512345123451234512345',
     )
     await user.click(screen.getByRole('button', { name: /Save changes/i }))
