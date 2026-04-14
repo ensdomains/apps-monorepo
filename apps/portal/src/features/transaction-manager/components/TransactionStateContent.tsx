@@ -7,6 +7,7 @@ import {
   SquareArrowOutUpRight,
   XCircle,
 } from 'lucide-react'
+import { useEffect } from 'react'
 import { match } from 'ts-pattern'
 import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,12 @@ export const TransactionStateContent = ({
   )
   const hasNextTransaction =
     activeIndex >= 0 && activeIndex < transactions.length - 1
+
+  useEffect(() => {
+    if (activeTxStatus === 'success' && hasNextTransaction) {
+      activeTransaction.onDone()
+    }
+  }, [activeTxStatus, hasNextTransaction, activeTransaction])
 
   return (
     <>

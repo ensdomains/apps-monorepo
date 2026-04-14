@@ -361,7 +361,7 @@ function RouteComponent() {
           onClose={() => setExtendModalOpen(false)}
           selectedName={selectedNames[0]}
           onExtend={(config) => {
-            startFlow(selectedNames, config)
+            startFlow(selectedNames[0], config)
             setExtendModalOpen(false)
             openModal()
           }}

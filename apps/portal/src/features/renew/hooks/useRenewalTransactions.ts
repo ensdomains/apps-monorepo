@@ -33,7 +33,7 @@ export const RENEWAL_TX_IDS = {
 } as const
 
 type SavedRenewalParams = {
-  readonly names: SelectedName[]
+  readonly name: SelectedName
   readonly duration: number
   // V2 (ERC20)
   readonly v2TokenAddress?: Address
@@ -46,6 +46,140 @@ export type StartFlowConfig = {
   readonly duration: number
   readonly v2TokenAddress?: Address
   readonly v2TokenPrice?: bigint
+}
+
+type ApproveParams = {
+  readonly from: Address
+  readonly tokenAddress: Address
+  readonly tokenPrice: bigint
+  readonly tokenSymbol: string | undefined
+  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+}
+
+type V2RenewParams = {
+  readonly name: string
+  readonly duration: number
+  readonly tokenAddress: Address
+  readonly from: Address
+  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+}
+
+type V1RenewParams = {
+  readonly name: string
+  readonly duration: number
+  readonly from: Address
+  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+}
+
+function buildApproveTransaction(
+  params: ApproveParams,
+  signer: ReturnType<typeof createEOASigner>,
+) {
+  const approveData = encodeFunctionData({
+    abi: ERC20_ABI,
+    functionName: 'approve',
+    args: [ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar, params.tokenPrice * 2n],
+  })
+
+  transactionManager.clear()
+
+  transactionManager.startTransaction(
+    {
+      type: 'custom',
+      request: {
+        type: 'eoa',
+        from: params.from,
+        to: params.tokenAddress,
+        data: approveData,
+        value: 0n,
+        chainId: sepolia.id,
+      },
+    },
+    signer,
+    {
+      id: RENEWAL_TX_IDS.approve,
+      publicClient: params.publicClient,
+      description: `Approve ${params.tokenSymbol} for renewal`,
+    },
+  )
+}
+
+function buildV2RenewTransaction(
+  params: V2RenewParams,
+  signer: ReturnType<typeof createEOASigner>,
+) {
+  const label = params.name.replace('.eth', '')
+  const renewData = encodeFunctionData({
+    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    functionName: 'renew',
+    args: [
+      label,
+      BigInt(params.duration),
+      params.tokenAddress,
+      REFERER_ADDRESS,
+    ],
+  })
+
+  transactionManager.startTransaction(
+    {
+      type: 'custom',
+      request: {
+        type: 'eoa',
+        from: params.from,
+        to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        data: renewData,
+        value: 0n,
+        chainId: sepolia.id,
+      },
+    },
+    signer,
+    {
+      id: RENEWAL_TX_IDS.v2Renew(params.name),
+      publicClient: params.publicClient,
+      description: `Renew ${params.name}`,
+    },
+  )
+}
+
+async function buildV1RenewTransaction(
+  params: V1RenewParams,
+  signer: ReturnType<typeof createEOASigner>,
+) {
+  const label = params.name.replace('.eth', '')
+  const priceResult = await readContract(params.publicClient, {
+    address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+    abi: ethRegistrarControllerRentPriceSnippet,
+    functionName: 'rentPrice',
+    args: [label, BigInt(params.duration)],
+  })
+  const rawPrice = priceResult.base + priceResult.premium
+  const bufferedPrice = (rawPrice * 102n) / 100n
+
+  const renewData = encodeFunctionData({
+    abi: ethRegistrarControllerRenewSnippet,
+    functionName: 'renew',
+    args: [label, BigInt(params.duration)],
+  })
+
+  transactionManager.startTransaction(
+    {
+      type: 'custom',
+      request: {
+        type: 'eoa',
+        from: params.from,
+        to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
+        data: renewData,
+        value: bufferedPrice,
+        chainId: sepolia.id,
+      },
+    },
+    signer,
+    {
+      id: RENEWAL_TX_IDS.v1Renew(params.name),
+      publicClient: params.publicClient,
+      description: `Renew ${params.name}`,
+    },
+  )
 }
 
 export const useRenewalTransactions = () => {
@@ -67,6 +201,11 @@ export const useRenewalTransactions = () => {
     return walletClient
   }, [config, connection])
 
+  const handleDone = useCallback(() => {
+    closeModal()
+    clearTransaction()
+  }, [closeModal, clearTransaction])
+
   const handleApproveStart = useCallback(async () => {
     if (
       !savedParams?.v2TokenAddress ||
@@ -79,213 +218,107 @@ export const useRenewalTransactions = () => {
     const walletClient = await getWallet()
     const signer = createEOASigner(walletClient)
 
-    const approveData = encodeFunctionData({
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [
-        ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
-        savedParams.v2TokenPrice * 2n,
-      ],
-    })
-
-    transactionManager.clear()
-
-    transactionManager.startTransaction(
+    buildApproveTransaction(
       {
-        type: 'custom',
-        request: {
-          type: 'eoa',
-          from: connection.address,
-          to: savedParams.v2TokenAddress,
-          data: approveData,
-          value: 0n,
-          chainId: sepolia.id,
-        },
+        from: connection.address,
+        tokenAddress: savedParams.v2TokenAddress,
+        tokenPrice: savedParams.v2TokenPrice,
+        tokenSymbol: savedParams.v2TokenSymbol,
+        publicClient,
       },
       signer,
-      {
-        id: RENEWAL_TX_IDS.approve,
-        publicClient,
-        description: `Approve ${savedParams.v2TokenSymbol} for renewal`,
-      },
     )
   }, [savedParams, connection, getWallet, publicClient])
 
-  const makeV2RenewHandler = useCallback(
-    (name: string) => async () => {
-      if (!savedParams?.v2TokenAddress || !connection.address || !publicClient)
-        return
+  const handleV2RenewStart = useCallback(async () => {
+    if (!savedParams?.v2TokenAddress || !connection.address || !publicClient)
+      return
 
-      const walletClient = await getWallet()
-      const signer = createEOASigner(walletClient)
+    const walletClient = await getWallet()
+    const signer = createEOASigner(walletClient)
 
-      const label = name.replace('.eth', '')
-      const renewData = encodeFunctionData({
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
-        functionName: 'renew',
-        args: [
-          label,
-          BigInt(savedParams.duration),
-          savedParams.v2TokenAddress,
-          REFERER_ADDRESS,
-        ],
-      })
+    buildV2RenewTransaction(
+      {
+        name: savedParams.name.name,
+        duration: savedParams.duration,
+        tokenAddress: savedParams.v2TokenAddress,
+        from: connection.address,
+        publicClient,
+      },
+      signer,
+    )
+  }, [savedParams, connection, getWallet, publicClient])
 
-      transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'eoa',
-            from: connection.address,
-            to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
-            data: renewData,
-            value: 0n,
-            chainId: sepolia.id,
-          },
-        },
-        signer,
-        {
-          id: RENEWAL_TX_IDS.v2Renew(name),
-          publicClient,
-          description: `Renew ${name}`,
-        },
-      )
-    },
-    [savedParams, connection, getWallet, publicClient],
-  )
+  const handleV1RenewStart = useCallback(async () => {
+    if (!connection.address || !publicClient) return
 
-  const makeV1RenewHandler = useCallback(
-    (name: string) => async () => {
-      if (!connection.address || !publicClient) return
+    const walletClient = await getWallet()
+    const signer = createEOASigner(walletClient)
 
-      const walletClient = await getWallet()
-      const signer = createEOASigner(walletClient)
-
-      const label = name.replace('.eth', '')
-      const priceResult = await readContract(publicClient, {
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
-        abi: ethRegistrarControllerRentPriceSnippet,
-        functionName: 'rentPrice',
-        args: [label, BigInt(savedParams?.duration ?? 0)],
-      })
-      const rawPrice = priceResult.base + priceResult.premium
-      const bufferedPrice = (rawPrice * 102n) / 100n
-
-      const renewData = encodeFunctionData({
-        abi: ethRegistrarControllerRenewSnippet,
-        functionName: 'renew',
-        args: [label, BigInt(savedParams?.duration ?? 0)],
-      })
-
-      transactionManager.startTransaction(
-        {
-          type: 'custom',
-          request: {
-            type: 'eoa',
-            from: connection.address,
-            to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
-            data: renewData,
-            value: bufferedPrice,
-            chainId: sepolia.id,
-          },
-        },
-        signer,
-        {
-          id: RENEWAL_TX_IDS.v1Renew(name),
-          publicClient,
-          description: `Renew ${name}`,
-        },
-      )
-    },
-    [savedParams, connection, getWallet, publicClient],
-  )
-
-  const handleDone = useCallback(() => {
-    closeModal()
-    clearTransaction()
-  }, [closeModal, clearTransaction])
+    transactionManager.clear()
+    await buildV1RenewTransaction(
+      {
+        name: savedParams?.name.name ?? '',
+        duration: savedParams?.duration ?? 0,
+        from: connection.address,
+        publicClient,
+      },
+      signer,
+    )
+  }, [savedParams, connection, getWallet, publicClient])
 
   const transactions: Transaction[] = useMemo(() => {
     if (!savedParams) return []
 
-    const v1Names = savedParams.names.filter((n) => !n.isV2)
-    const v2Names = savedParams.names.filter((n) => n.isV2)
+    const { name, v2TokenAddress, v2TokenSymbol } = savedParams
 
-    const allTxs: Transaction[] = []
-
-    if (v2Names.length > 0) {
-      const firstV2Renew = makeV2RenewHandler(v2Names[0].name)
-
-      allTxs.push({
-        id: RENEWAL_TX_IDS.approve,
-        title: 'Approve payment',
-        transactionName: `Approve ${savedParams.v2TokenSymbol ?? 'token'} for renewal`,
-        estimatedGasCost: 0.0003,
-        onStart: handleApproveStart,
-        onDone: firstV2Renew,
-      })
-
-      v2Names.forEach(({ name }, index) => {
-        const isLastV2 = index === v2Names.length - 1
-        const nextHandler = isLastV2
-          ? v1Names.length > 0
-            ? makeV1RenewHandler(v1Names[0].name)
-            : handleDone
-          : makeV2RenewHandler(v2Names[index + 1].name)
-
-        allTxs.push({
-          id: RENEWAL_TX_IDS.v2Renew(name),
-          title: `Extend ${name}`,
-          transactionName: `Extend ${name}`,
+    if (name.isV2 && v2TokenAddress) {
+      return [
+        {
+          id: RENEWAL_TX_IDS.approve,
+          title: 'Approve payment',
+          transactionName: `Approve ${v2TokenSymbol ?? 'token'} for renewal`,
+          estimatedGasCost: 0.0003,
+          onStart: handleApproveStart,
+          onDone: handleV2RenewStart,
+        },
+        {
+          id: RENEWAL_TX_IDS.v2Renew(name.name),
+          title: `Extend ${name.name}`,
+          transactionName: `Extend ${name.name}`,
           estimatedGasCost: 0.001,
-          onStart: makeV2RenewHandler(name),
-          onDone: nextHandler,
-        })
-      })
+          onStart: handleV2RenewStart,
+          onDone: handleDone,
+        },
+      ]
     }
 
-    v1Names.forEach(({ name }, index) => {
-      const isLast = index === v1Names.length - 1
-      const nextHandler = isLast
-        ? handleDone
-        : makeV1RenewHandler(v1Names[index + 1].name)
-
-      const isFirstV1 = index === 0
-      const onStart = makeV1RenewHandler(name)
-
-      allTxs.push({
-        id: RENEWAL_TX_IDS.v1Renew(name),
-        title: `Extend ${name}`,
-        transactionName: `Extend ${name} (V1)`,
+    return [
+      {
+        id: RENEWAL_TX_IDS.v1Renew(name.name),
+        title: `Extend ${name.name}`,
+        transactionName: `Extend ${name.name} (V1)`,
         estimatedGasCost: 0.001,
-        onStart:
-          isFirstV1 && v2Names.length === 0
-            ? async () => {
-                transactionManager.clear()
-                await onStart()
-              }
-            : onStart,
-        onDone: nextHandler,
-      })
-    })
-
-    return allTxs
+        onStart: handleV1RenewStart,
+        onDone: handleDone,
+      },
+    ]
   }, [
     savedParams,
     handleApproveStart,
-    makeV2RenewHandler,
-    makeV1RenewHandler,
+    handleV2RenewStart,
+    handleV1RenewStart,
     handleDone,
   ])
 
   const startFlow = useCallback(
-    (names: SelectedName[], flowConfig: StartFlowConfig) => {
+    (name: SelectedName, flowConfig: StartFlowConfig) => {
       const v2TokenSymbol = flowConfig.v2TokenAddress
         ? getTokenMetadataWithAddress(flowConfig.v2TokenAddress).symbol
         : undefined
 
       setSavedParams({
-        names,
+        name,
         duration: flowConfig.duration,
         v2TokenAddress: flowConfig.v2TokenAddress,
         v2TokenPrice: flowConfig.v2TokenPrice,
