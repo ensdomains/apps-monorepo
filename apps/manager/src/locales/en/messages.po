@@ -55,7 +55,7 @@ msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
 #. placeholder {0}: skippedNames.length
-#: src/features/migration/pages/MigrationPage.tsx:105
+#: src/features/migration/pages/MigrationPage.tsx:65
 msgid "{0} name(s) could not be migrated"
 msgstr "{0} name(s) could not be migrated"
 
@@ -113,7 +113,7 @@ msgid "+{overflow} more"
 msgstr "+{overflow} more"
 
 #. placeholder {0}: eligibleNames.length
-#: src/features/migration/components/SelectNamesStep.tsx:359
+#: src/features/migration/components/SelectNamesStep.tsx:225
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 
@@ -324,7 +324,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:275
+#: src/features/migration/pages/MigrationPage.tsx:181
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -427,7 +427,7 @@ msgstr "Cannot save profile - ENS owner is not available."
 msgid "Cannot save profile - resolver address is not available."
 msgstr "Cannot save profile - resolver address is not available."
 
-#: src/features/migration/components/SelectNamesStep.tsx:331
+#: src/features/migration/components/SelectNamesStep.tsx:197
 msgid "CANNOT_TRANSFER is burned — token cannot be moved"
 msgstr "CANNOT_TRANSFER is burned — token cannot be moved"
 
@@ -754,7 +754,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
 #: src/features/migration/components/SuccessModal.tsx:139
-#: src/features/migration/pages/MigrationPage.tsx:306
+#: src/features/migration/pages/MigrationPage.tsx:212
 msgid "Done"
 msgstr "Done"
 
@@ -1086,11 +1086,11 @@ msgstr "Go to Profile"
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
-#: src/features/migration/pages/MigrationPage.tsx:68
+#: src/features/migration/pages/MigrationPage.tsx:28
 msgid "Has a frozen approval that prevents migration"
 msgstr "Has a frozen approval that prevents migration"
 
-#: src/features/migration/pages/MigrationPage.tsx:84
+#: src/features/migration/pages/MigrationPage.tsx:44
 msgid "Has an irrevocable approval that blocks migration"
 msgstr "Has an irrevocable approval that blocks migration"
 
@@ -1134,7 +1134,7 @@ msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your w
 msgid "Invalid character"
 msgstr "Invalid character"
 
-#: src/features/migration/pages/MigrationPage.tsx:71
+#: src/features/migration/pages/MigrationPage.tsx:31
 msgid "Invalid migration data encoding"
 msgstr "Invalid migration data encoding"
 
@@ -1257,11 +1257,11 @@ msgstr "Migrating {0} {1} name(s)"
 msgid "Migrating {0} subname(s) under {1}"
 msgstr "Migrating {0} subname(s) under {1}"
 
-#: src/features/migration/pages/MigrationPage.tsx:247
+#: src/features/migration/pages/MigrationPage.tsx:153
 msgid "Migration failed"
 msgstr "Migration failed"
 
-#: src/features/migration/components/SelectNamesStep.tsx:369
+#: src/features/migration/components/SelectNamesStep.tsx:235
 msgid "Migration transfers ownership only. Records must be set manually on ENS v2 after migration."
 msgstr "Migration transfers ownership only. Records must be set manually on ENS v2 after migration."
 
@@ -1298,7 +1298,7 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/migration/pages/MigrationPage.tsx:73
+#: src/features/migration/pages/MigrationPage.tsx:33
 msgid "Name data does not match the migration receiver"
 msgstr "Name data does not match the migration receiver"
 
@@ -1308,11 +1308,11 @@ msgstr "Name data does not match the migration receiver"
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
-#: src/features/migration/pages/MigrationPage.tsx:76
+#: src/features/migration/pages/MigrationPage.tsx:36
 msgid "Name is locked and was sent to the wrong controller"
 msgstr "Name is locked and was sent to the wrong controller"
 
-#: src/features/migration/pages/MigrationPage.tsx:79
+#: src/features/migration/pages/MigrationPage.tsx:39
 msgid "Name is not locked/emancipated and cannot use this controller"
 msgstr "Name is not locked/emancipated and cannot use this controller"
 
@@ -1379,7 +1379,7 @@ msgstr "No coins found"
 msgid "No default payment method set."
 msgstr "No default payment method set."
 
-#: src/features/migration/components/SelectNamesStep.tsx:234
+#: src/features/migration/components/SelectNamesStep.tsx:117
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
@@ -1396,7 +1396,7 @@ msgstr "No more records to add"
 msgid "No names found"
 msgstr "No names found"
 
-#: src/features/migration/components/SelectNamesStep.tsx:231
+#: src/features/migration/components/SelectNamesStep.tsx:114
 msgid "No names match your search"
 msgstr "No names match your search"
 
@@ -1426,8 +1426,8 @@ msgstr "No wallet connectors available"
 msgid "Not a valid name format"
 msgstr "Not a valid name format"
 
-#: src/features/migration/components/SelectNamesStep.tsx:305
-#: src/features/migration/components/SelectNamesStep.tsx:340
+#: src/features/migration/components/SelectNamesStep.tsx:171
+#: src/features/migration/components/SelectNamesStep.tsx:206
 msgid "Not eligible for migration"
 msgstr "Not eligible for migration"
 
@@ -1440,7 +1440,7 @@ msgstr "Not set"
 msgid "Not supported"
 msgstr "Not supported"
 
-#: src/features/migration/pages/MigrationPage.tsx:66
+#: src/features/migration/pages/MigrationPage.tsx:26
 msgid "Not yet premigrated in ENS v2"
 msgstr "Not yet premigrated in ENS v2"
 
@@ -1493,7 +1493,7 @@ msgstr "Over 2 million ENS names registered"
 msgid "Page not found"
 msgstr "Page not found"
 
-#: src/features/migration/components/SelectNamesStep.tsx:337
+#: src/features/migration/components/SelectNamesStep.tsx:203
 msgid "Parent name is unknown"
 msgstr "Parent name is unknown"
 
@@ -1818,7 +1818,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:282
+#: src/features/migration/pages/MigrationPage.tsx:188
 msgid "Retry"
 msgstr "Retry"
 
@@ -1898,8 +1898,8 @@ msgstr "Search name, address..."
 msgid "Search name..."
 msgstr "Search name..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:164
-#: src/features/migration/components/SelectNamesStep.tsx:168
+#: src/features/migration/components/SelectNamesStep.tsx:93
+#: src/features/migration/components/SelectNamesStep.tsx:97
 msgid "Search names"
 msgstr "Search names"
 
@@ -2099,7 +2099,7 @@ msgstr "Smart Session Disabled"
 msgid "Social Links"
 msgstr "Social Links"
 
-#: src/features/migration/pages/MigrationPage.tsx:290
+#: src/features/migration/pages/MigrationPage.tsx:196
 msgid "Some names could not be migrated"
 msgstr "Some names could not be migrated"
 
@@ -2176,7 +2176,7 @@ msgstr "Submitting the registration transaction"
 msgid "Submitting your ENS profile update. This may take a few moments."
 msgstr "Submitting your ENS profile update. This may take a few moments."
 
-#: src/features/migration/components/SelectNamesStep.tsx:325
+#: src/features/migration/components/SelectNamesStep.tsx:191
 msgid "Subname must be registered directly on ENS v2"
 msgstr "Subname must be registered directly on ENS v2"
 
@@ -2312,7 +2312,7 @@ msgstr "Trademark Guidelines"
 msgid "Transaction:"
 msgstr "Transaction:"
 
-#: src/features/migration/pages/MigrationPage.tsx:70
+#: src/features/migration/pages/MigrationPage.tsx:30
 msgid "Transfer reverted on-chain"
 msgstr "Transfer reverted on-chain"
 
@@ -2350,7 +2350,7 @@ msgstr "Update Resolver"
 msgid "Updating profile"
 msgstr "Updating profile"
 
-#: src/features/migration/components/SelectNamesStep.tsx:382
+#: src/features/migration/components/SelectNamesStep.tsx:248
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
@@ -2709,7 +2709,7 @@ msgstr "Your ENS name works across web3"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/migration/components/SelectNamesStep.tsx:157
+#: src/features/migration/components/SelectNamesStep.tsx:86
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 

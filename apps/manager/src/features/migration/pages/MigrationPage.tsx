@@ -1,14 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { type ReactNode, useCallback } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -17,11 +10,6 @@ import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import type { SkippedName } from '@/features/migration/service/migrationService'
-import {
-  buildSyntheticDomain,
-  type CustomNameSeed,
-} from '@/features/migration/service/syntheticDomain'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import type { MigrationError } from '@/features/migration/state/migrationUi.machine'
 import {
@@ -32,34 +20,6 @@ import {
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
-
-// TEMP: dev-only persistence for the custom-name migration input.
-const CUSTOM_SEEDS_STORAGE_KEY = 'ens-migration-dev-custom-names'
-
-const loadCustomSeeds = (): CustomNameSeed[] => {
-  if (typeof window === 'undefined') return []
-  const raw = window.localStorage.getItem(CUSTOM_SEEDS_STORAGE_KEY)
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (s): s is CustomNameSeed =>
-        s &&
-        typeof s.name === 'string' &&
-        (s.tokenType === 'unwrapped' ||
-          s.tokenType === 'unlocked' ||
-          s.tokenType === 'locked-2ld'),
-    )
-  } catch {
-    return []
-  }
-}
-
-const saveCustomSeeds = (seeds: readonly CustomNameSeed[]) => {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(CUSTOM_SEEDS_STORAGE_KEY, JSON.stringify(seeds))
-}
 
 const SkipReasonLabel = ({ reason }: { reason: SkippedName['reason'] }) => {
   const labels: Record<SkippedName['reason'], ReactNode> = {
@@ -157,40 +117,6 @@ export const MigrationPage = () => {
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
   const { ownerAddress } = useSmartAccountContext()
-  // TEMP: dev-only custom-name seeds (persisted) → rebuilt into V1Domain[]
-  const [customSeeds, setCustomSeeds] = useState<readonly CustomNameSeed[]>(
-    () => loadCustomSeeds(),
-  )
-
-  const customDomains = useMemo<readonly V1Domain[]>(() => {
-    if (!ownerAddress) return []
-    return customSeeds.map((seed) =>
-      buildSyntheticDomain(seed.name, ownerAddress as Address, seed.tokenType),
-    )
-  }, [customSeeds, ownerAddress])
-
-  const handleAddCustomName = useCallback((seed: CustomNameSeed) => {
-    setCustomSeeds((prev) => {
-      if (prev.some((s) => s.name === seed.name)) return prev
-      const next = [...prev, seed]
-      saveCustomSeeds(next)
-      return next
-    })
-  }, [])
-
-  const handleRemoveCustomName = useCallback((name: string) => {
-    setCustomSeeds((prev) => {
-      const next = prev.filter((s) => s.name !== name)
-      if (next.length === prev.length) return prev
-      saveCustomSeeds(next)
-      return next
-    })
-  }, [])
-
-  const allDomains = useMemo(
-    () => [...v1Names, ...customDomains],
-    [v1Names, customDomains],
-  )
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
@@ -200,31 +126,14 @@ export const MigrationPage = () => {
   const handleBeginUpgrade = useCallback(() => {
     if (!ownerAddress) return
     const selectedSet = new Set(selectedNames)
-    const domains = allDomains.filter((d) => selectedSet.has(d.name))
+    const domains = v1Names.filter((d) => selectedSet.has(d.name))
     if (domains.length === 0) return
     uiActor.send({
       type: 'migration.start',
       domains,
       ownerAddress: ownerAddress as Address,
     })
-  }, [allDomains, ownerAddress, selectedNames, uiActor])
-
-  // Drop custom seeds for names that have just been migrated.
-  const seenMigratedRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    const newlyMigrated = migratedNames.filter(
-      (n) => !seenMigratedRef.current.has(n),
-    )
-    seenMigratedRef.current = new Set(migratedNames)
-    if (newlyMigrated.length === 0) return
-    const newlySet = new Set(newlyMigrated)
-    setCustomSeeds((prev) => {
-      const next = prev.filter((s) => !newlySet.has(s.name))
-      if (next.length === prev.length) return prev
-      saveCustomSeeds(next)
-      return next
-    })
-  }, [migratedNames])
+  }, [v1Names, ownerAddress, selectedNames, uiActor])
 
   return (
     <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">
@@ -233,11 +142,8 @@ export const MigrationPage = () => {
       {match(step)
         .with('select', () => (
           <SelectNamesStep
-            customDomains={customDomains}
-            onAddCustomName={handleAddCustomName}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
-            onRemoveCustomName={handleRemoveCustomName}
           />
         ))
         .with('migrate', () => <GameStep />)

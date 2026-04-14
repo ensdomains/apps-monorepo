@@ -1,5 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { AlertTriangle, Check, Info, Search, X } from 'lucide-react'
+import { AlertTriangle, Check, Info, Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -8,11 +8,6 @@ import {
   classifyNames,
   type IneligibleName,
 } from '@/features/migration/service/classifyNames'
-import type {
-  CustomNameSeed,
-  CustomTokenType,
-} from '@/features/migration/service/syntheticDomain'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
@@ -20,37 +15,22 @@ import { NameListSkeleton } from './NameListSkeleton'
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => void
-  readonly customDomains: readonly V1Domain[]
-  readonly onAddCustomName: (seed: CustomNameSeed) => void
-  readonly onRemoveCustomName: (name: string) => void
 }
 
 export const SelectNamesStep = ({
   onNamesChange,
   onNext,
-  customDomains,
-  onAddCustomName,
-  onRemoveCustomName,
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
   const { data: v1Names = [], isPending } = useV1Names()
   const { ownerAddress } = useSmartAccountContext()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [customNameInput, setCustomNameInput] = useState('')
-  const [customTokenType, setCustomTokenType] =
-    useState<CustomTokenType>('unlocked')
-  const [customError, setCustomError] = useState<string | null>(null)
-
-  const customNameSet = useMemo(
-    () => new Set(customDomains.map((d) => d.name)),
-    [customDomains],
-  )
 
   const { eligibleNames, ineligibleNames } = useMemo(() => {
     if (!ownerAddress || v1Names.length === 0) {
       return {
-        eligibleNames: [...v1Names, ...customDomains],
+        eligibleNames: v1Names,
         ineligibleNames: [] as IneligibleName[],
       }
     }
@@ -59,10 +39,10 @@ export const SelectNamesStep = ({
       ownerAddress as Address,
     )
     return {
-      eligibleNames: [...classified.map((c) => c.domain), ...customDomains],
+      eligibleNames: classified.map((c) => c.domain),
       ineligibleNames: ineligible,
     }
-  }, [v1Names, customDomains, ownerAddress])
+  }, [v1Names, ownerAddress])
 
   const searchLower = search.toLowerCase()
 
@@ -96,57 +76,6 @@ export const SelectNamesStep = ({
     [onNamesChange],
   )
 
-  const handleAddCustomName = useCallback(() => {
-    const rawInput = customNameInput.trim().toLowerCase()
-    if (!rawInput) return
-    setCustomError(null)
-    if (!ownerAddress) {
-      setCustomError('Connect wallet first')
-      return
-    }
-    const name = rawInput.includes('.') ? rawInput : `${rawInput}.eth`
-    if (
-      v1Names.some((d) => d.name === name) ||
-      customDomains.some((d) => d.name === name)
-    ) {
-      setCustomError('Name already in the list')
-      return
-    }
-    try {
-      onAddCustomName({ name, tokenType: customTokenType })
-      setSelected((prev) => {
-        const next = new Set(prev).add(name)
-        onNamesChange([...next])
-        return next
-      })
-      setCustomNameInput('')
-    } catch (err) {
-      setCustomError(err instanceof Error ? err.message : 'Failed to add')
-    }
-  }, [
-    customNameInput,
-    customTokenType,
-    ownerAddress,
-    v1Names,
-    customDomains,
-    onAddCustomName,
-    onNamesChange,
-  ])
-
-  const handleRemoveCustomName = useCallback(
-    (name: string) => {
-      onRemoveCustomName(name)
-      setSelected((prev) => {
-        if (!prev.has(name)) return prev
-        const next = new Set(prev)
-        next.delete(name)
-        onNamesChange([...next])
-        return next
-      })
-    },
-    [onRemoveCustomName, onNamesChange],
-  )
-
   const totalSelected = selected.size
 
   return (
@@ -169,52 +98,6 @@ export const SelectNamesStep = ({
                 type="text"
                 value={search}
               />
-            </div>
-
-            {/* TEMP: dev-only custom name input — remove before prod */}
-            <div className="flex shrink-0 flex-col gap-1">
-              <div className="flex h-[42px] items-center gap-2 rounded-[20px] border border-ens-garnet-900/30 border-dashed bg-white/40 px-4 py-1.5">
-                <input
-                  aria-label="Custom name"
-                  className="flex-1 bg-transparent text-base text-ens-garnet-900 leading-[0.96] tracking-[-0.32px] placeholder:text-ens-garnet-900/40 focus:outline-none"
-                  onChange={(e) => {
-                    setCustomNameInput(e.target.value)
-                    setCustomError(null)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleAddCustomName()
-                    }
-                  }}
-                  placeholder="Custom name (e.g. foo, .eth auto-appended) — dev only"
-                  type="text"
-                  value={customNameInput}
-                />
-                <select
-                  aria-label="Custom name token type"
-                  className="rounded-[8px] bg-white/60 px-2 py-1 font-semi-mono text-ens-garnet-900 text-xs"
-                  onChange={(e) =>
-                    setCustomTokenType(e.target.value as CustomTokenType)
-                  }
-                  value={customTokenType}
-                >
-                  <option value="unwrapped">unwrapped</option>
-                  <option value="unlocked">unlocked</option>
-                  <option value="locked-2ld">locked-2ld</option>
-                </select>
-                <button
-                  className="rounded-[12px] bg-ens-garnet-900 px-3 py-1 font-semi-mono text-ens-garnet-50 text-xs uppercase tracking-[1.2px] disabled:opacity-50"
-                  disabled={!customNameInput.trim()}
-                  onClick={handleAddCustomName}
-                  type="button"
-                >
-                  Add
-                </button>
-              </div>
-              {customError && (
-                <p className="px-4 text-red-600 text-xs">{customError}</p>
-              )}
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden rounded-[20px] bg-white/40">
@@ -242,58 +125,41 @@ export const SelectNamesStep = ({
                       <>
                         {filtered.map((item) => {
                           const isSelected = selected.has(item.name)
-                          const isCustom = customNameSet.has(item.name)
                           return (
-                            <div
-                              className="flex items-center gap-3"
+                            <button
+                              aria-pressed={isSelected}
+                              className="flex cursor-pointer items-center gap-3"
                               key={item.id}
+                              onClick={() => toggleName(item.name)}
+                              type="button"
                             >
-                              <button
-                                aria-pressed={isSelected}
-                                className="flex flex-1 cursor-pointer items-center gap-3"
-                                onClick={() => toggleName(item.name)}
-                                type="button"
+                              <div
+                                className={cn(
+                                  'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
+                                  isSelected
+                                    ? 'bg-ens-garnet-900'
+                                    : 'border border-ens-garnet-900/30 bg-transparent',
+                                )}
                               >
-                                <div
+                                <Check
                                   className={cn(
-                                    'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
+                                    'size-5 transition-opacity',
                                     isSelected
-                                      ? 'bg-ens-garnet-900'
-                                      : 'border border-ens-garnet-900/30 bg-transparent',
+                                      ? 'text-white opacity-100'
+                                      : 'text-transparent opacity-0',
                                   )}
-                                >
-                                  <Check
-                                    className={cn(
-                                      'size-5 transition-opacity',
-                                      isSelected
-                                        ? 'text-white opacity-100'
-                                        : 'text-transparent opacity-0',
-                                    )}
-                                    strokeWidth={2.5}
-                                  />
-                                </div>
-                                <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                                  <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                                    {item.labelName?.[0]?.toUpperCase() ?? '?'}
-                                  </span>
-                                </div>
-                                <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
-                                  {item.name}
-                                </div>
-                              </button>
-                              {isCustom && (
-                                <button
-                                  aria-label={`Remove ${item.name}`}
-                                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-ens-garnet-900/50 transition-colors hover:bg-ens-garnet-900/10 hover:text-ens-garnet-900"
-                                  onClick={() =>
-                                    handleRemoveCustomName(item.name)
-                                  }
-                                  type="button"
-                                >
-                                  <X className="size-4" strokeWidth={2.5} />
-                                </button>
-                              )}
-                            </div>
+                                  strokeWidth={2.5}
+                                />
+                              </div>
+                              <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+                                <span className="font-semi-mono text-ens-garnet-900 text-xs">
+                                  {item.labelName?.[0]?.toUpperCase() ?? '?'}
+                                </span>
+                              </div>
+                              <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
+                                {item.name}
+                              </div>
+                            </button>
                           )
                         })}
 
