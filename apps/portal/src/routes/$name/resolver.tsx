@@ -353,7 +353,7 @@ const PermissionedResolverView = ({
     <>
       <ResolverBanner
         name="Permissioned Resolver"
-        docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/OwnedResolver.sol"
+        docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <SummaryCard
@@ -365,7 +365,7 @@ const PermissionedResolverView = ({
           icon={<FocusIcon className="size-5" />}
           label="Type"
           value="Permissioned Resolver"
-          valueHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/OwnedResolver.sol"
+          valueHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
         />
         <SummaryCard
           icon={<ShieldCheckIcon className="size-5 text-primary" />}
