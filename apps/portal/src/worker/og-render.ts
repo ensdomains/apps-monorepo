@@ -70,7 +70,7 @@ async function renderOgResponse(
 function renderOgHeader(): string {
   return `
     <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: flex-start;">
-      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="364" height="51" style="width: 364px; height: 51px;" />
+      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="370" height="51" style="width: 370px; height: 51px;" />
     </div>`
 }
 
