@@ -15,6 +15,7 @@ import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/Name
 import { Button } from '@/components/ui/button'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { Owner } from '@/features/profile/components/Owner'
+import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import {
   type GetTldDataReturnType,
@@ -23,11 +24,18 @@ import {
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import { queryClient } from '@/utils/queryClient'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
 
 export const Route = createFileRoute('/tld/$tld/')({
   component: TldOverview,
   notFoundComponent: () => <NotFoundMessage />,
+  loader: ({ params }) =>
+    params.tld !== 'eth'
+      ? queryClient.prefetchQuery(
+          getDnsSecEnabledQueryOptions({ tld: params.tld }),
+        )
+      : undefined,
 })
 
 const ParentRoot = ({
@@ -165,8 +173,44 @@ const HistorySection = ({ tld }: { tld: string }) => {
 
 function TldOverview() {
   const { tld } = Route.useParams()
+  const isEthTld = tld === 'eth'
 
-  const tldDataQuery = useQuery(getTldDataQueryOptions({ tld }))
+  const dnsSecQuery = useQuery(
+    getDnsSecEnabledQueryOptions({
+      tld,
+      enabled: !isEthTld,
+    }),
+  )
+  const isTldValid = isEthTld || dnsSecQuery.data === true
+
+  const tldDataQuery = useQuery({
+    ...getTldDataQueryOptions({ tld }),
+    enabled: isTldValid,
+  })
+
+  if (!isEthTld && dnsSecQuery.isLoading) return <LoadingMessage />
+
+  if (dnsSecQuery.error) {
+    return (
+      <ErrorMessage
+        title={dnsSecQuery.error.name}
+        description={dnsSecQuery.error.message}
+      />
+    )
+  }
+
+  if (!isTldValid) {
+    return (
+      <NotFoundMessage
+        title="TLD not found"
+        description={
+          <>
+            The TLD <strong>{tld}</strong> does not have any data in ENS yet.
+          </>
+        }
+      />
+    )
+  }
 
   if (tldDataQuery.isLoading) return <LoadingMessage />
 
