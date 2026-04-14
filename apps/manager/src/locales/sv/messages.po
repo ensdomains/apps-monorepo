@@ -64,6 +64,11 @@ msgstr ""
 msgid "{0} name(s) could not be migrated"
 msgstr ""
 
+#. placeholder {0}: skippedNames.length
+#: src/features/migration/components/SuccessModal.tsx:183
+msgid "{0} names not migrated"
+msgstr ""
+
 #. placeholder {0}: currentPage + 1
 #: src/features/dashboard/components/EducationCarousel.tsx:40
 msgid "{0} of {totalPages}"
@@ -79,7 +84,7 @@ msgstr ""
 msgid "{0}% off"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:102
+#: src/features/migration/components/SuccessModal.tsx:141
 msgid "{count} names migrated"
 msgstr ""
 
@@ -113,12 +118,12 @@ msgstr ""
 msgid "{label} theme (selected)"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:125
+#: src/features/migration/components/SuccessModal.tsx:164
 msgid "+{overflow} more"
 msgstr ""
 
 #. placeholder {0}: eligibleNames.length
-#: src/features/migration/components/SelectNamesStep.tsx:225
+#: src/features/migration/components/SelectNamesStep.tsx:169
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr ""
 
@@ -127,8 +132,12 @@ msgstr ""
 msgid "<0>Connection failed:</0> {0}"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:100
+#: src/features/migration/components/SuccessModal.tsx:139
 msgid "1 name migrated"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:181
+msgid "1 name not migrated"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:18
@@ -255,6 +264,7 @@ msgstr ""
 msgid "Almost there..."
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:29
 #: src/features/migration/pages/MigrationPage.tsx:46
 msgid "Already migrated to ENS v2"
 msgstr ""
@@ -434,10 +444,6 @@ msgstr ""
 
 #: src/features/profile/components/ProfileEdit.tsx:104
 msgid "Cannot save profile - resolver address is not available."
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx:197
-msgid "CANNOT_TRANSFER is burned — token cannot be moved"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:38
@@ -766,8 +772,7 @@ msgstr ""
 msgid "Domain transfer & expiry notifications"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:139
-#: src/features/migration/pages/MigrationPage.tsx:213
+#: src/features/migration/components/SuccessModal.tsx:213
 msgid "Done"
 msgstr ""
 
@@ -1099,10 +1104,12 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:27
 #: src/features/migration/pages/MigrationPage.tsx:28
 msgid "Has a frozen approval that prevents migration"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:44
 #: src/features/migration/pages/MigrationPage.tsx:44
 msgid "Has an irrevocable approval that blocks migration"
 msgstr ""
@@ -1147,6 +1154,7 @@ msgstr ""
 msgid "Invalid character"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:31
 #: src/features/migration/pages/MigrationPage.tsx:31
 msgid "Invalid migration data encoding"
 msgstr ""
@@ -1274,7 +1282,7 @@ msgstr ""
 msgid "Migration failed"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:235
+#: src/features/migration/components/SelectNamesStep.tsx:179
 msgid "Migration transfers ownership only. Records must be set manually on ENS v2 after migration."
 msgstr ""
 
@@ -1311,6 +1319,7 @@ msgstr "Namn (A-Ö)"
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
+#: src/features/migration/components/SuccessModal.tsx:33
 #: src/features/migration/pages/MigrationPage.tsx:33
 msgid "Name data does not match the migration receiver"
 msgstr ""
@@ -1321,10 +1330,12 @@ msgstr ""
 msgid "Name Expiry"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:36
 #: src/features/migration/pages/MigrationPage.tsx:36
 msgid "Name is locked and was sent to the wrong controller"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:39
 #: src/features/migration/pages/MigrationPage.tsx:39
 msgid "Name is not locked/emancipated and cannot use this controller"
 msgstr ""
@@ -1392,7 +1403,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:117
+#: src/features/migration/components/SelectNamesStep.tsx:111
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1409,7 +1420,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:114
+#: src/features/migration/components/SelectNamesStep.tsx:108
 msgid "No names match your search"
 msgstr ""
 
@@ -1418,6 +1429,10 @@ msgstr ""
 #: src/features/dashboard/components/MyNamesList.tsx:295
 msgid "No names to display"
 msgstr "Inga namn att visa"
+
+#: src/features/migration/components/SuccessModal.tsx:137
+msgid "No names were migrated"
+msgstr ""
 
 #: src/routes/payment/list.tsx:26
 msgid "No payment methods found."
@@ -1439,11 +1454,6 @@ msgstr ""
 msgid "Not a valid name format"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:171
-#: src/features/migration/components/SelectNamesStep.tsx:206
-msgid "Not eligible for migration"
-msgstr ""
-
 #: src/features/profile/components/view/ViewBioSection.tsx:33
 msgid "Not set"
 msgstr ""
@@ -1453,12 +1463,17 @@ msgstr ""
 msgid "Not supported"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:25
 #: src/features/migration/pages/MigrationPage.tsx:26
 msgid "Not yet premigrated in ENS v2"
 msgstr ""
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:83
 msgid "Nothing here yet!"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:129
+msgid "Nothing to migrate"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:97
@@ -1504,10 +1519,6 @@ msgstr ""
 
 #: src/features/not-found/pages/NotFoundPage.tsx:9
 msgid "Page not found"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx:203
-msgid "Parent name is unknown"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:107
@@ -1911,8 +1922,8 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:93
-#: src/features/migration/components/SelectNamesStep.tsx:97
+#: src/features/migration/components/SelectNamesStep.tsx:84
+#: src/features/migration/components/SelectNamesStep.tsx:88
 msgid "Search names"
 msgstr ""
 
@@ -2112,10 +2123,6 @@ msgstr ""
 msgid "Social Links"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:197
-msgid "Some names could not be migrated"
-msgstr ""
-
 #: src/features/wallet/components/EnableSessionModal.tsx:148
 msgid "Something went wrong. Please try again."
 msgstr ""
@@ -2187,10 +2194,6 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
 msgid "Submitting your ENS profile update. This may take a few moments."
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx:191
-msgid "Subname must be registered directly on ENS v2"
 msgstr ""
 
 #: src/routes/wallet.tsx:171
@@ -2325,6 +2328,7 @@ msgstr ""
 msgid "Transaction:"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:30
 #: src/features/migration/pages/MigrationPage.tsx:30
 msgid "Transfer reverted on-chain"
 msgstr ""
@@ -2363,7 +2367,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:248
+#: src/features/migration/components/SelectNamesStep.tsx:192
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2681,7 +2685,7 @@ msgstr ""
 msgid "You're all caught up!"
 msgstr ""
 
-#: src/features/migration/components/SuccessModal.tsx:96
+#: src/features/migration/components/SuccessModal.tsx:131
 msgid "You're on ENS v2!"
 msgstr ""
 
@@ -2722,7 +2726,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:86
+#: src/features/migration/components/SelectNamesStep.tsx:77
 msgid "Your names are ready to upgrade"
 msgstr ""
 

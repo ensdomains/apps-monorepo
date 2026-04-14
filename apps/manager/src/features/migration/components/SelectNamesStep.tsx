@@ -1,13 +1,11 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { AlertTriangle, Check, Info, Search } from 'lucide-react'
+import { Check, Info, Search } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
+import { useMigrationEligibility } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import {
-  classifyNames,
-  type IneligibleName,
-} from '@/features/migration/service/classifyNames'
+import { classifyNames } from '@/features/migration/service/classifyNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import { NameListSkeleton } from './NameListSkeleton'
@@ -27,22 +25,23 @@ export const SelectNamesStep = ({
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  const { eligibleNames, ineligibleNames } = useMemo(() => {
+  const classified = useMemo(() => {
     if (!ownerAddress || v1Names.length === 0) {
-      return {
-        eligibleNames: v1Names,
-        ineligibleNames: [] as IneligibleName[],
-      }
+      return [] as ReturnType<typeof classifyNames>['classified']
     }
-    const { classified, ineligible } = classifyNames(
-      v1Names,
-      ownerAddress as Address,
-    )
-    return {
-      eligibleNames: classified.map((c) => c.domain),
-      ineligibleNames: ineligible,
-    }
+    return classifyNames(v1Names, ownerAddress as Address).classified
   }, [v1Names, ownerAddress])
+
+  const { data: eligibility, isPending: isEligibilityPending } =
+    useMigrationEligibility(classified, ownerAddress)
+
+  const eligibleNames = useMemo(
+    () =>
+      eligibility
+        ? eligibility.eligible.map((c) => c.domain)
+        : classified.map((c) => c.domain),
+    [classified, eligibility],
+  )
 
   const searchLower = search.toLowerCase()
 
@@ -50,14 +49,6 @@ export const SelectNamesStep = ({
     () =>
       eligibleNames.filter((n) => n.name.toLowerCase().includes(searchLower)),
     [searchLower, eligibleNames],
-  )
-
-  const filteredIneligible = useMemo(
-    () =>
-      ineligibleNames.filter((n) =>
-        n.domain.name.toLowerCase().includes(searchLower),
-      ),
-    [searchLower, ineligibleNames],
   )
 
   const toggleName = useCallback(
@@ -103,7 +94,10 @@ export const SelectNamesStep = ({
             <div className="min-h-0 flex-1 overflow-hidden rounded-[20px] bg-white/40">
               <div className="h-full overflow-y-auto p-6 md:p-[42px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ens-garnet-dust [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[rgba(250,249,247,0.6)] [&::-webkit-scrollbar]:w-2">
                 <div className="flex flex-col gap-4">
-                  {match({ isPending, hasResults: filtered.length > 0 })
+                  {match({
+                    isPending: isPending || isEligibilityPending,
+                    hasResults: filtered.length > 0,
+                  })
                     .with({ isPending: true }, () => <NameListSkeleton />)
                     .with({ hasResults: false }, () => (
                       <div className="flex flex-col items-center gap-3 py-8">
@@ -121,97 +115,47 @@ export const SelectNamesStep = ({
                         </p>
                       </div>
                     ))
-                    .otherwise(() => (
-                      <>
-                        {filtered.map((item) => {
-                          const isSelected = selected.has(item.name)
-                          return (
-                            <button
-                              aria-pressed={isSelected}
-                              className="flex cursor-pointer items-center gap-3"
-                              key={item.id}
-                              onClick={() => toggleName(item.name)}
-                              type="button"
+                    .otherwise(() =>
+                      filtered.map((item) => {
+                        const isSelected = selected.has(item.name)
+                        return (
+                          <button
+                            aria-pressed={isSelected}
+                            className="flex cursor-pointer items-center gap-3"
+                            key={item.id}
+                            onClick={() => toggleName(item.name)}
+                            type="button"
+                          >
+                            <div
+                              className={cn(
+                                'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
+                                isSelected
+                                  ? 'bg-ens-garnet-900'
+                                  : 'border border-ens-garnet-900/30 bg-transparent',
+                              )}
                             >
-                              <div
+                              <Check
                                 className={cn(
-                                  'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
+                                  'size-5 transition-opacity',
                                   isSelected
-                                    ? 'bg-ens-garnet-900'
-                                    : 'border border-ens-garnet-900/30 bg-transparent',
+                                    ? 'text-white opacity-100'
+                                    : 'text-transparent opacity-0',
                                 )}
-                              >
-                                <Check
-                                  className={cn(
-                                    'size-5 transition-opacity',
-                                    isSelected
-                                      ? 'text-white opacity-100'
-                                      : 'text-transparent opacity-0',
-                                  )}
-                                  strokeWidth={2.5}
-                                />
-                              </div>
-                              <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                                <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                                  {item.labelName?.[0]?.toUpperCase() ?? '?'}
-                                </span>
-                              </div>
-                              <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
-                                {item.name}
-                              </div>
-                            </button>
-                          )
-                        })}
-
-                        {filteredIneligible.length > 0 && (
-                          <div className="mt-4 border-ens-garnet-900/10 border-t pt-4">
-                            <div className="mb-3 flex items-center gap-2">
-                              <AlertTriangle className="size-4 shrink-0 text-ens-garnet-900/50" />
-                              <p className="font-semi-mono text-ens-garnet-900/50 text-xs uppercase tracking-[0.12px]">
-                                <Trans>Not eligible for migration</Trans>
-                              </p>
+                                strokeWidth={2.5}
+                              />
                             </div>
-                            {filteredIneligible.map((item) => (
-                              <div
-                                className="flex items-center gap-3 py-1 opacity-50"
-                                key={item.domain.id}
-                              >
-                                <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                                  <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                                    {item.domain.labelName?.[0]?.toUpperCase() ??
-                                      '?'}
-                                  </span>
-                                </div>
-                                <div className="rounded-[2px] border border-[#595755]/20 bg-white/60 px-2 py-1 font-medium font-semi-mono text-[#595755]/60 text-base leading-[0.96] tracking-[-0.32px]">
-                                  {item.domain.name}
-                                </div>
-                                <span className="text-ens-garnet-900/40 text-xs">
-                                  {match(item.reason)
-                                    .with('unlocked-subname', () => (
-                                      <Trans>
-                                        Subname must be registered directly on
-                                        ENS v2
-                                      </Trans>
-                                    ))
-                                    .with('not-transferable', () => (
-                                      <Trans>
-                                        CANNOT_TRANSFER is burned — token cannot
-                                        be moved
-                                      </Trans>
-                                    ))
-                                    .with('missing-parent', () => (
-                                      <Trans>Parent name is unknown</Trans>
-                                    ))
-                                    .otherwise(() => (
-                                      <Trans>Not eligible for migration</Trans>
-                                    ))}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ))}
+                            <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+                              <span className="font-semi-mono text-ens-garnet-900 text-xs">
+                                {item.labelName?.[0]?.toUpperCase() ?? '?'}
+                              </span>
+                            </div>
+                            <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
+                              {item.name}
+                            </div>
+                          </button>
+                        )
+                      }),
+                    )}
                 </div>
               </div>
             </div>

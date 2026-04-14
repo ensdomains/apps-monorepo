@@ -19,6 +19,7 @@ export const NAME_WRAPPER_ABI = parseAbi([
 export const ETH_REGISTRY_V2_ABI = parseAbi([
   'function getSubregistry(string label) view returns (address)',
   'function getResolver(string label) view returns (address)',
+  'function getStatus(uint256 anyId) view returns (uint8)',
 ])
 
 export const PRE_MIGRATION_ABI = parseAbi([

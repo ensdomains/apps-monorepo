@@ -27,6 +27,8 @@ export type IneligibleReason =
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
+  | 'frozen-approval'
+  | 'already-migrated'
 
 export type IneligibleName = {
   readonly domain: V1Domain

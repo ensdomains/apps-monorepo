@@ -192,34 +192,19 @@ export const MigrationPage = () => {
           </ResultLayout>
         ))
         .with('partialSuccess', () => (
-          <ResultLayout>
-            <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
-              <Trans>Some names could not be migrated</Trans>
-            </p>
-
-            <SkippedNamesList skippedNames={skippedNames} />
-
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="flex gap-3"
-              initial={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.4, delay: 0.35 }}
-            >
-              <button
-                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
-                onClick={() => uiActor.send({ type: 'done' })}
-                type="button"
-              >
-                <Trans>Done</Trans>
-              </button>
-            </motion.div>
-          </ResultLayout>
+          <SuccessModal
+            migratedNames={migratedNames}
+            onClose={() => uiActor.send({ type: 'done' })}
+            open
+            skippedNames={skippedNames}
+          />
         ))
         .with('success', () => (
           <SuccessModal
             migratedNames={migratedNames}
             onClose={() => uiActor.send({ type: 'done' })}
             open
+            skippedNames={skippedNames}
           />
         ))
         .exhaustive()}

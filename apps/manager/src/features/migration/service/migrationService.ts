@@ -27,8 +27,6 @@ import {
   is2LD,
 } from './classifyNames'
 import {
-  filterAlreadyMigrated,
-  filterFrozenApprovals,
   filterNotReserved,
   type PreFlightResult,
   resolveParentRegistries,
@@ -163,39 +161,23 @@ export const executeMigration = async (params: {
     return { completed: 0, txHashes: [], skipped: [], ineligible }
   }
 
+  // Note: frozen-approval and already-migrated checks happen up-front in
+  // SelectNamesStep via useMigrationEligibility, so the names reaching this
+  // point are pre-filtered. The only preflight needed here is the v2-reservation
+  // check that decides whether to run the pre-migrate step.
   const preflight: PreFlightResult = ENABLE_PRE_MIGRATE
-    ? await (async () => {
-        const [frozenResult, migratedResult] = await Promise.all([
-          filterFrozenApprovals(publicClient, classified),
-          filterAlreadyMigrated(publicClient, classified, migrationOwner),
-        ])
-        const excluded = new Set<string>([
-          ...frozenResult.frozen.map((n) => n.domain.id),
-          ...migratedResult.alreadyMigrated.map((n) => n.domain.id),
-        ])
-        return {
-          valid: classified.filter((n) => !excluded.has(n.domain.id)),
-          notReserved: [] as ClassifiedName[],
-          frozen: frozenResult.frozen,
-          alreadyMigrated: migratedResult.alreadyMigrated,
-        }
-      })()
+    ? {
+        valid: classified,
+        notReserved: [] as ClassifiedName[],
+        frozen: [] as ClassifiedName[],
+        alreadyMigrated: [] as ClassifiedName[],
+      }
     : await runPreFlightChecks(publicClient, classified, migrationOwner)
 
-  const skipped: SkippedName[] = [
-    ...preflight.notReserved.map((n) => ({
-      name: n.domain.name,
-      reason: 'not-premigrated' as const,
-    })),
-    ...preflight.frozen.map((n) => ({
-      name: n.domain.name,
-      reason: 'frozen-approval' as const,
-    })),
-    ...preflight.alreadyMigrated.map((n) => ({
-      name: n.domain.name,
-      reason: 'already-migrated' as const,
-    })),
-  ]
+  const skipped: SkippedName[] = preflight.notReserved.map((n) => ({
+    name: n.domain.name,
+    reason: 'not-premigrated' as const,
+  }))
 
   if (preflight.valid.length === 0) {
     return {

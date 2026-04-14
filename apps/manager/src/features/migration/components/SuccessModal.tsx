@@ -1,5 +1,7 @@
 import { Trans } from '@lingui/react/macro'
+import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
+import { match } from 'ts-pattern'
 import {
   Dialog,
   DialogContent,
@@ -7,23 +9,53 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import type { SkippedName } from '@/features/migration/service/migrationService'
 
 type SuccessModalProps = {
   readonly open: boolean
   readonly migratedNames: readonly string[]
+  readonly skippedNames?: readonly SkippedName[]
   readonly onClose: () => void
 }
 
 const NAME_PREVIEW_LIMIT = 6
 
+const SkipReasonText = ({ reason }: { reason: SkippedName['reason'] }) =>
+  match(reason)
+    .with('not-premigrated', () => <Trans>Not yet premigrated in ENS v2</Trans>)
+    .with('frozen-approval', () => (
+      <Trans>Has a frozen approval that prevents migration</Trans>
+    ))
+    .with('already-migrated', () => <Trans>Already migrated to ENS v2</Trans>)
+    .with('transfer-failed', () => <Trans>Transfer reverted on-chain</Trans>)
+    .with('invalid-data', () => <Trans>Invalid migration data encoding</Trans>)
+    .with('name-data-mismatch', () => (
+      <Trans>Name data does not match the migration receiver</Trans>
+    ))
+    .with('name-is-locked', () => (
+      <Trans>Name is locked and was sent to the wrong controller</Trans>
+    ))
+    .with('name-not-locked', () => (
+      <Trans>
+        Name is not locked/emancipated and cannot use this controller
+      </Trans>
+    ))
+    .with('frozen-token-approval', () => (
+      <Trans>Has an irrevocable approval that blocks migration</Trans>
+    ))
+    .exhaustive()
+
 export const SuccessModal = ({
   open,
   migratedNames,
+  skippedNames = [],
   onClose,
 }: SuccessModalProps) => {
   const count = migratedNames.length
   const preview = migratedNames.slice(0, NAME_PREVIEW_LIMIT)
   const overflow = Math.max(0, count - NAME_PREVIEW_LIMIT)
+  const hasSkipped = skippedNames.length > 0
+  const allSkipped = count === 0 && hasSkipped
 
   return (
     <Dialog
@@ -93,14 +125,21 @@ export const SuccessModal = ({
             transition={{ duration: 0.4, delay: 0.25 }}
           >
             <DialogTitle className="text-center font-normal text-[32px] text-ens-garnet-900 leading-[1.05] tracking-[-0.64px]">
-              <Trans>You're on ENS v2!</Trans>
+              {allSkipped ? (
+                <Trans>Nothing to migrate</Trans>
+              ) : (
+                <Trans>You're on ENS v2!</Trans>
+              )}
             </DialogTitle>
             <DialogDescription className="text-center font-semi-mono text-[11px] text-ens-garnet-500 uppercase tracking-[0.16px]">
-              {count === 1 ? (
-                <Trans>1 name migrated</Trans>
-              ) : (
-                <Trans>{count} names migrated</Trans>
-              )}
+              {match({ count, allSkipped })
+                .with({ allSkipped: true }, () => (
+                  <Trans>No names were migrated</Trans>
+                ))
+                .with({ count: 1 }, () => <Trans>1 name migrated</Trans>)
+                .otherwise(() => (
+                  <Trans>{count} names migrated</Trans>
+                ))}
             </DialogDescription>
           </motion.div>
 
@@ -126,6 +165,41 @@ export const SuccessModal = ({
                 </li>
               )}
             </motion.ul>
+          )}
+
+          {hasSkipped && (
+            <motion.div
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full rounded-sm bg-ens-garnet-900/5 p-3"
+              initial={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+            >
+              <div className="mb-2 flex items-center gap-2">
+                <AlertTriangle className="size-4 shrink-0 text-ens-garnet-900/60" />
+                <p className="font-semi-mono text-[11px] text-ens-garnet-900/80 uppercase tracking-[0.12px]">
+                  {skippedNames.length === 1 ? (
+                    <Trans>1 name not migrated</Trans>
+                  ) : (
+                    <Trans>{skippedNames.length} names not migrated</Trans>
+                  )}
+                </p>
+              </div>
+              <ul className="flex max-h-[120px] flex-col gap-1 overflow-y-auto [scrollbar-width:thin]">
+                {skippedNames.map((skipped) => (
+                  <li
+                    className="flex flex-wrap items-start gap-1 text-[11px] leading-[1.4]"
+                    key={skipped.name}
+                  >
+                    <span className="shrink-0 font-medium text-ens-garnet-900/80">
+                      {skipped.name}
+                    </span>
+                    <span className="text-ens-garnet-900/50">
+                      &mdash; <SkipReasonText reason={skipped.reason} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
           )}
 
           <motion.button
