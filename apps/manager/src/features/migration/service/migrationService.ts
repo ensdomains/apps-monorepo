@@ -74,6 +74,7 @@ export type MigrationResult = {
   readonly txHashes: readonly Hex[]
   readonly skipped: readonly SkippedName[]
   readonly ineligible: readonly IneligibleName[]
+  readonly migratedNames: readonly string[]
 }
 
 export type MigrateBucket = 'unwrapped' | 'unlocked' | 'locked-2ld'
@@ -431,7 +432,13 @@ export const executeMigration = async (params: {
 
   const { classified, ineligible } = classifyNames(domains, migrationOwner)
   if (classified.length === 0) {
-    return { completed: 0, txHashes: [], skipped: [], ineligible }
+    return {
+      completed: 0,
+      txHashes: [],
+      skipped: [],
+      ineligible,
+      migratedNames: [],
+    }
   }
 
   const groups = groupClassifiedNames(classified)
@@ -453,6 +460,12 @@ export const executeMigration = async (params: {
   await waitForRootReceipts(ctx, root.hashes)
   const subnames = await migrateSubnames(ctx, groups)
 
+  const skipped = [...root.skipped, ...subnames.skipped]
+  const skippedSet = new Set(skipped.map((s) => s.name))
+  const migratedNames = classified
+    .map((c) => c.domain.name)
+    .filter((name) => !skippedSet.has(name))
+
   return {
     completed: root.completed + subnames.completed,
     txHashes: [
@@ -461,8 +474,9 @@ export const executeMigration = async (params: {
       ...root.hashes,
       ...subnames.hashes,
     ],
-    skipped: [...root.skipped, ...subnames.skipped],
+    skipped,
     ineligible,
+    migratedNames,
   }
 }
 

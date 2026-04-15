@@ -68,7 +68,6 @@ type Events =
   | {
       type: 'migration.complete'
       result: MigrationResult
-      migratedNames: string[]
     }
   | { type: 'migration.failed'; error: MigrationError }
   | { type: 'retry' }
@@ -125,11 +124,7 @@ export const migrationUiMachine = setup({
       })
         .then((result) => {
           if (cancelled) return
-          const skippedSet = new Set(result.skipped.map((s) => s.name))
-          const migratedNames = input.domains
-            .filter((d) => !skippedSet.has(d.name))
-            .map((d) => d.name)
-          sendBack({ type: 'migration.complete', result, migratedNames })
+          sendBack({ type: 'migration.complete', result })
         })
         .catch((err: unknown) => {
           if (cancelled) return
@@ -183,7 +178,10 @@ export const migrationUiMachine = setup({
       return {
         txHashes: event.result.txHashes,
         skippedNames: event.result.skipped,
-        migratedNames: [...context.migratedNames, ...event.migratedNames],
+        migratedNames: [
+          ...context.migratedNames,
+          ...event.result.migratedNames,
+        ],
       }
     }),
     setPreflightError: assign({

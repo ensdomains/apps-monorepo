@@ -179,6 +179,9 @@ export const runEligibilityChecks = async (
   checks.forEach((check, i) => {
     const r = results[i]
     if (!r || r.status === 'failure') {
+      // V1 BaseRegistrar.ownerOf reverts when the token no longer exists —
+      // the name was burned during migration or has expired. Network-level
+      // RPC failures throw from batchedMulticall and never reach here.
       if (check.type === 'ownership') migratedIds.add(check.domainId)
       return
     }
@@ -286,7 +289,7 @@ export const resolveParentRegistries = async (
   publicClient: PublicClient,
   childNames: ReadonlyMap<string, readonly ClassifiedName[]>,
 ): Promise<Map<string, Address>> => {
-  for (let attempt = 0; attempt <= PARENT_REGISTRY_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < PARENT_REGISTRY_RETRIES; attempt++) {
     const registries = await resolveParentRegistriesOnce(
       publicClient,
       childNames,
@@ -296,7 +299,7 @@ export const resolveParentRegistries = async (
       ([, addr]) => addr === zeroAddress,
     )
 
-    if (unresolved.length === 0 || attempt === PARENT_REGISTRY_RETRIES) {
+    if (unresolved.length === 0) {
       return registries
     }
 
