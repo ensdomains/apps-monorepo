@@ -67,11 +67,16 @@
 
   /* Syntax/entity colors — light mode values (higher contrast for light backgrounds) */
   --syntax-name: #0082bb;
-  --syntax-address: #0e8a30;
+  --syntax-address: #007c20;
   --syntax-contract: #e72a96;
   --syntax-tx: #984d1b;
   --entity-bg: transparent;
   --entity-border: transparent;
+  /* Entity fill colors — light mode per-variant backgrounds */
+  --entity-fill-name: #ebf7fd;
+  --entity-fill-address: #e8f6ef;
+  --entity-fill-contract: #fef0f6;
+  --entity-fill-tx: #fdf6ee;
   --icon-foreground: #191919;
 
   --avatar-placeholder-gradient: linear-gradient(
@@ -147,6 +152,10 @@
   --color-syntax-tx: var(--syntax-tx);
   --color-entity-bg: var(--entity-bg);
   --color-entity-border: var(--entity-border);
+  --color-entity-fill-name: var(--entity-fill-name);
+  --color-entity-fill-address: var(--entity-fill-address);
+  --color-entity-fill-contract: var(--entity-fill-contract);
+  --color-entity-fill-tx: var(--entity-fill-tx);
   --color-icon-foreground: var(--icon-foreground);
 }
 

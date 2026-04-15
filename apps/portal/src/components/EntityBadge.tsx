@@ -5,16 +5,16 @@ import { cn } from '@/lib/utils'
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
 
 const variantClass: Record<EntityVariant, string> = {
-  name: 'text-syntax-name',
-  address: 'text-syntax-address',
-  contract: 'text-syntax-contract',
-  tx: 'text-syntax-tx',
+  name: 'bg-entity-fill-name dark:bg-entity-bg text-syntax-name',
+  address: 'bg-entity-fill-address dark:bg-entity-bg text-syntax-address',
+  contract: 'bg-entity-fill-contract dark:bg-entity-bg text-syntax-contract',
+  tx: 'bg-entity-fill-tx dark:bg-entity-bg text-syntax-tx',
 }
 
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
-    'bg-entity-bg border-[0.5px] border-entity-border',
+    'border-[0.5px] border-entity-border',
     'font-mono text-sm font-medium tracking-tight whitespace-nowrap no-underline',
     variantClass[variant],
     className,
