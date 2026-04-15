@@ -24,6 +24,15 @@ export function extractAddrFromPath(pathname: string): string | null {
   return match ? match[1] : null
 }
 
+export function isTldRoute(pathname: string): boolean {
+  return pathname.startsWith('/tld/')
+}
+
+export function extractTldFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/tld\/([^/]+)/)
+  return match ? match[1] : null
+}
+
 export function extractNameFromPath(pathname: string): string | null {
   if (!pathname.startsWith('/')) return null
   const segments = pathname.slice(1).split('/')
@@ -36,6 +45,8 @@ export function extractNameFromPath(pathname: string): string | null {
   }
 
   if (name.includes('.') && !name.endsWith('.eth')) return null
+
+  if (name === 'tld') return null
 
   return name
 }
