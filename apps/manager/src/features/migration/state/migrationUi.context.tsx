@@ -53,11 +53,3 @@ export const createMigrationUiSelector =
   ) =>
   (uiActor: Actor<typeof migrationUiMachine>) =>
     useSelector(uiActor, selector, compare)
-
-export const useMigrationUiSelector = <T,>(
-  selector: (snapshot: MigrationUiSnapshot) => T,
-  compare?: (a: T, b: T) => boolean,
-) => {
-  const { uiActor } = useMigrationUiContext()
-  return useSelector(uiActor, selector, compare)
-}

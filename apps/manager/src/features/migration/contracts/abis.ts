@@ -5,7 +5,6 @@ export const BASE_REGISTRAR_ABI = parseAbi([
   'function ownerOf(uint256 tokenId) view returns (address)',
   'function isApprovedForAll(address owner, address operator) view returns (bool)',
   'function setApprovalForAll(address operator, bool approved)',
-  'function getApproved(uint256 tokenId) view returns (address)',
 ])
 
 export const NAME_WRAPPER_ABI = parseAbi([
@@ -28,6 +27,4 @@ export const PRE_MIGRATION_ABI = parseAbi([
 
 export const WRAPPER_REGISTRY_ABI = parseAbi([
   'function getSubregistry(string label) view returns (address)',
-  'function getWrappedNode() view returns (bytes32)',
-  'function getWrappedName() view returns (bytes)',
 ])

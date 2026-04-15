@@ -10,7 +10,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok, ResultAsync } from 'neverthrow'
 
-export class GetMigratedNamesCountError extends TaggedError(
+class GetMigratedNamesCountError extends TaggedError(
   'GetMigratedNamesCountError',
 )<{
   cause: unknown

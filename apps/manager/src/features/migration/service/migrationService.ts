@@ -35,12 +35,12 @@ import type { V1Domain } from './v1SubgraphClient'
 
 const TX_RECEIPT_TIMEOUT_MS = 5 * 60 * 1000
 
-export class MigrationError extends TaggedError('MigrationError')<{
+class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
   step?: string
 }> {}
 
-export class MigrationUserRejectedError extends TaggedError(
+class MigrationUserRejectedError extends TaggedError(
   'MigrationUserRejectedError',
 )<{
   step: string

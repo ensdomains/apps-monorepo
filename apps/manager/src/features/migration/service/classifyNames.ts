@@ -54,9 +54,6 @@ export const is2LD = (name: ClassifiedName): boolean =>
   name.tokenType === 'unlocked' ||
   name.tokenType === 'locked-2ld'
 
-export const isChildName = (name: ClassifiedName): boolean =>
-  name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
-
 type ClassifyResult =
   | { type: 'classified'; name: ClassifiedName }
   | { type: 'ineligible'; name: IneligibleName }
