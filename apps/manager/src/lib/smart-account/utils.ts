@@ -8,19 +8,6 @@ import type {
   TypedDataDefinition,
   WalletClient,
 } from 'viem'
-import { maxUint256 } from 'viem'
-
-/** Para’s viem integration may attach wallet IDs on the account; not part of viem’s public `Account` type */
-type ParaAccountExtensions = {
-  walletId?: string
-  _walletId?: string
-  _paraWalletId?: string
-}
-
-/** Matches `WalletClient.signTransaction`; viem’s `Account['signTransaction']` uses a wider union that doesn’t narrow cleanly when merged with `account`. */
-type WalletSignTransactionParameters = Parameters<
-  WalletClient['signTransaction']
->[0]
 
 /**
  * Error thrown when wallet client has no connected account
@@ -62,24 +49,24 @@ export function walletClientToAccount(walletClient: WalletClient): Account {
         typedData,
         primaryType
       >
-      const serializedTypedData: TypedDataDefinition<typedData, primaryType> = {
+      const signature = (
+        walletClient as unknown as {
+          signTypedData: (args: Record<string, unknown>) => Promise<Hex>
+        }
+      ).signTypedData({
+        account: address,
         ...def,
-        message: convertBigIntsToStrings(def.message) as Record<
-          string,
-          unknown
-        >,
-      }
-      return walletClient.signTypedData({
-        account: address,
-        ...serializedTypedData,
-      } as Parameters<WalletClient['signTypedData']>[0])
+      })
+      return signature
     },
-    async signTransaction(
-      transaction: WalletSignTransactionParameters,
-    ): Promise<Hex> {
-      return walletClient.signTransaction({
-        ...transaction,
+    async signTransaction(transaction: Record<string, unknown>): Promise<Hex> {
+      return (
+        walletClient as unknown as {
+          signTransaction: (args: Record<string, unknown>) => Promise<Hex>
+        }
+      ).signTransaction({
         account: address,
+        ...transaction,
       })
     },
   } as unknown as Account
@@ -117,12 +104,14 @@ export function wrapParaAccount(
   viemAccount: Account,
   walletId?: string,
 ): Account {
-  const paraAccount = viemAccount as Account & ParaAccountExtensions
   const effectiveWalletId =
-    walletId ?? paraAccount.walletId ?? paraAccount._walletId
+    walletId ||
+    (viemAccount as unknown as Record<string, unknown>).walletId ||
+    (viemAccount as unknown as Record<string, unknown>)._walletId
 
   if (effectiveWalletId) {
-    paraAccount._paraWalletId = effectiveWalletId
+    ;(viemAccount as unknown as Record<string, unknown>)._paraWalletId =
+      effectiveWalletId
   }
 
   return {
@@ -162,46 +151,6 @@ export function wrapParaAccount(
       ? viemAccount.signAuthorization.bind(viemAccount)
       : undefined,
   } as Account
-}
-
-const TWO_POW_256 = 2n ** 256n
-
-export function normalizeSessionDetailsForEip712Signing(sessionDetails: {
-  readonly nonces: readonly bigint[]
-  readonly hashesAndChainIds: readonly { chainId: bigint; sessionDigest: Hex }[]
-  readonly data: { message?: unknown }
-}): void {
-  const msg = sessionDetails.data.message
-  if (msg === null || msg === undefined || typeof msg !== 'object') {
-    return
-  }
-
-  const message = msg as {
-    sessionsAndChainIds?: Array<{
-      chainId?: unknown
-      session?: {
-        expires?: unknown
-        nonce?: unknown
-        [key: string]: unknown
-      }
-    }>
-  }
-
-  const rows = message.sessionsAndChainIds
-  if (!rows?.length) return
-
-  rows.forEach((row, i) => {
-    const digestRow = sessionDetails.hashesAndChainIds[i]
-    const nonceFromRpc = sessionDetails.nonces[i]
-
-    row.chainId = toChainSessionUint64(row.chainId, digestRow?.chainId)
-
-    const session = row.session
-    if (!session) return
-
-    session.expires = toSignedSessionExpires(session.expires)
-    session.nonce = toSignedSessionNonce(session.nonce, nonceFromRpc)
-  })
 }
 
 /**
@@ -246,62 +195,21 @@ function convertBigIntsToStrings<T>(value: T): T {
   return value
 }
 
-function toChainSessionUint64(
-  value: unknown,
-  fallback: bigint | undefined,
-): bigint {
-  if (typeof value === 'bigint') return value
-  if (typeof value === 'string') return BigInt(value)
-  if (typeof value === 'number' && Number.isSafeInteger(value)) {
-    return BigInt(value)
-  }
-  if (fallback !== undefined) return fallback
-  return 0n
-}
-
-function toSignedSessionExpires(value: unknown): bigint {
-  if (typeof value === 'bigint') {
-    if (value === TWO_POW_256) return maxUint256
-    return value
-  }
-  if (typeof value === 'string') return BigInt(value)
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value)) {
-      return maxUint256
-    }
-    return BigInt(value)
-  }
-  return maxUint256
-}
-
-function toSignedSessionNonce(
-  value: unknown,
-  fallback: bigint | undefined,
-): bigint {
-  if (typeof value === 'bigint') return value
-  if (typeof value === 'string') return BigInt(value)
-  if (typeof value === 'number' && Number.isSafeInteger(value)) {
-    return BigInt(value)
-  }
-  if (fallback !== undefined) return fallback
-  return 0n
-}
-
-export const getTxHashResult = (result: unknown): Hex | null => {
+export const getTxHashResult = (result: unknown) => {
   if (result && typeof result === 'object') {
-    const obj = result as Record<string, unknown>
-    if ('fill' in obj && obj.fill && typeof obj.fill === 'object') {
-      const fill = obj.fill as Record<string, unknown>
+    const r = result as Record<string, unknown>
+    if ('fill' in r && r.fill && typeof r.fill === 'object') {
+      const fill = r.fill as Record<string, unknown>
       if ('hash' in fill) {
-        return fill.hash as Hex
+        return fill.hash
       }
     }
     // legacy structure
-    if ('fillTransactionHash' in obj) {
-      return obj.fillTransactionHash as Hex
+    if ('fillTransactionHash' in r) {
+      return r.fillTransactionHash
     }
-    if ('transactionHash' in obj) {
-      return obj.transactionHash as Hex
+    if ('transactionHash' in r) {
+      return r.transactionHash
     }
   }
   return null

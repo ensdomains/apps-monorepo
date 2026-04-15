@@ -34,12 +34,15 @@ export type ResolverInput = {
   chainId: number
 }
 
+type StartUpdateEvent = Extract<ResolverEvent, { type: 'START_UPDATE' }>
+
 const startUpdateAssignment = {
-  name: ({ event }: any) => event.name,
-  newResolver: ({ event }: any) => event.resolver,
-  signer: ({ event }: any) => event.signer,
-  accountAddress: ({ event }: any) => event.accountAddress,
-  publicClient: ({ event }: any) => event.publicClient,
+  name: ({ event }: { event: StartUpdateEvent }) => event.name,
+  newResolver: ({ event }: { event: StartUpdateEvent }) => event.resolver,
+  signer: ({ event }: { event: StartUpdateEvent }) => event.signer,
+  accountAddress: ({ event }: { event: StartUpdateEvent }) =>
+    event.accountAddress,
+  publicClient: ({ event }: { event: StartUpdateEvent }) => event.publicClient,
 }
 
 export const resolverMachine = setup({
@@ -147,9 +150,13 @@ export const resolverMachine = setup({
         src: 'submitResolverUpdate',
         input: ({ context }) => ({
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           newResolver: context.newResolver!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           accountAddress: context.accountAddress!,
           chainId: context.chainId,
         }),
@@ -175,6 +182,7 @@ export const resolverMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.updateTxId! }),
         onDone: {
           target: 'success',

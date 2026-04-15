@@ -8,7 +8,7 @@ export type EmailTemplate<K extends SupportedNotifications<'email'>> = (
   payload: PersonalNotificationPayloads[K],
 ) => {
   templateId: string
-  dynamicData: Record<string, any>
+  dynamicData: Record<string, unknown>
   subject: string
 }
 

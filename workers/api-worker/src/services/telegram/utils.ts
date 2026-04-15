@@ -1,6 +1,7 @@
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import type {
   ApiMethods as ApiMethodsF,
+  InlineKeyboardButton,
   InlineKeyboardMarkup,
   Opts as OptsF,
   ReplyKeyboardMarkup,
@@ -221,12 +222,17 @@ export const createInlineKeyboard = (
           return {
             text: button.text,
             callback_data: button.callbackData,
-          } as any
+          } as InlineKeyboardButton.CallbackButton
         }
         if (button.url) {
-          return { text: button.text, url: button.url } as any
+          return {
+            text: button.text,
+            url: button.url,
+          } as InlineKeyboardButton.UrlButton
         }
-        return { text: button.text } as any
+        return {
+          text: button.text,
+        } as unknown as InlineKeyboardButton
       }),
     ),
   }

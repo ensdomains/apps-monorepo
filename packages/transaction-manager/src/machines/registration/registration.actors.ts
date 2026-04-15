@@ -218,9 +218,12 @@ function getSignerAddress(signer: Signer): Address {
     }
 
     // signer.account is a KernelAccountClient from @zerodev/sdk
-    const kernelClient = signer.account as any
-    if (kernelClient?.account?.address) {
-      return kernelClient.account.address as Address
+    const kernelClient = signer.account as unknown as Record<string, unknown>
+    const nestedAccount = kernelClient?.account as
+      | Record<string, unknown>
+      | undefined
+    if (nestedAccount?.address) {
+      return nestedAccount.address as Address
     }
     // Fallback: try to get address directly if it's a string
     if (typeof kernelClient?.address === 'string') {

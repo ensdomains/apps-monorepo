@@ -11,6 +11,7 @@ import { DEFAULT_REVERSE_REGISTRAR_ABI } from '../../contracts/abis/DefaultRever
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
+import type { TransactionRequest } from '../../types/transaction.types'
 
 /**
  * Request EOA signature for setNameForAddrWithSignature
@@ -81,6 +82,7 @@ export function requestEOASignatureActor(input: {
       // Request signature from EOA wallet
       // Using signMessage with raw bytes applies EIP-191 prefix automatically
       const signature = await walletClient.signMessage({
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         account: walletClient.account!,
         message: { raw: messageHash },
       })
@@ -149,7 +151,7 @@ export function submitPrimaryNameWithSignatureActor(input: {
         signatureExpiry: signatureExpiry.toString(),
       })
 
-      let request: any
+      let request: TransactionRequest
 
       if (signer.type === 'zerodev') {
         request = {
@@ -223,7 +225,7 @@ export function submitPrimaryNameUpdateActor(input: {
       })
 
       let fromAddress: Address
-      let request: any
+      let request: TransactionRequest
 
       if (input.signer.type === 'eoa') {
         fromAddress = input.accountAddress

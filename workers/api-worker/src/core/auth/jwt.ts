@@ -52,7 +52,12 @@ export const signJWT = (
   )
 }
 
-export const verifyJWT = <TSchema extends v.ObjectSchema<any, any>>(
+export const verifyJWT = <
+  TSchema extends v.ObjectSchema<
+    v.ObjectEntries,
+    v.ErrorMessage<v.ObjectIssue> | undefined
+  >,
+>(
   token: string,
   env: CloudflareBindings,
   schema: TSchema,

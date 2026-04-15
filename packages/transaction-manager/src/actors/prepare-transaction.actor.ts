@@ -63,7 +63,7 @@ export function prepareTransaction(input: {
       return errAsync(
         new TransactionPreparationError(
           intent,
-          `Unknown intent type: ${(intent as any).type}`,
+          `Unknown intent type: ${(intent as unknown as Record<string, unknown>).type}`,
         ),
       )
   }

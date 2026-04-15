@@ -20,7 +20,7 @@ export const customSepolia = {
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
 export type ViemClient =
-  ReturnType<typeof createEnsClient> extends Result<infer T, infer E>
+  ReturnType<typeof createEnsClient> extends Result<infer T, infer _E>
     ? T
     : never
 

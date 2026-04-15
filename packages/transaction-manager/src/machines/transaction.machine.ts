@@ -409,6 +409,7 @@ export const transactionMachine = setup({
       console.error('❌ [TRANSACTION] Error:', error)
     },
 
+    // biome-ignore lint/suspicious/noExplicitAny: XState action params require `any` for type inference compatibility
     logCritical: ({ context }, params: any) => {
       const error = params?.error || params || 'Unknown critical error'
       try {
@@ -445,6 +446,7 @@ export const transactionMachine = setup({
       (input.intent?.type === 'custom' ? input.intent.request : undefined)
 
     return {
+      // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
       publicClient: input.publicClient!,
       signer: input.signer,
       intent: input.intent,
@@ -548,8 +550,10 @@ export const transactionMachine = setup({
       invoke: {
         src: 'prepareTransaction',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           intent: context.intent!,
           publicClient: context.publicClient,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           chainId: context.chainId!,
           useSmartAccount: context.useSmartAccount,
         }),
@@ -670,6 +674,7 @@ export const transactionMachine = setup({
       invoke: {
         src: 'waitForReceipt',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           hash: context.hash!,
           options: context.options,
           publicClient: context.publicClient,
