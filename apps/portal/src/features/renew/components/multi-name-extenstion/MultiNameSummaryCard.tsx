@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -37,25 +37,35 @@ export const MultiNameSummaryCard = ({
       >
         <NameAvatar
           name={selectedName.name}
-          height="32px"
-          width="32px"
+          height="40px"
+          width="40px"
           rounded="rounded-md"
         />
-        <span className="flex-1 text-left text-sm font-medium text-quartz-900 truncate">
-          {selectedName.name}
-        </span>
-        <span className="text-sm text-quartz-350 shrink-0">
-          Subtotal: {subtotal}
-        </span>
-        {isOpen ? (
-          <ChevronUp className="size-4 text-quartz-350 shrink-0" />
-        ) : (
-          <ChevronDown className="size-4 text-quartz-350 shrink-0" />
-        )}
+        <div className="flex flex-col">
+          <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+            {selectedName.name}
+          </span>
+          <span className="text-base text-quartz-350 shrink-0">
+            Subtotal: {subtotal}
+          </span>
+        </div>
+        <ChevronDown
+          className={cn(
+            'size-4 text-quartz-350 shrink-0 ml-auto transition-transform duration-200',
+            isOpen && 'rotate-180',
+          )}
+        />
       </button>
 
-      {isOpen && (
-        <dl className="border-t border-border space-y-2 py-3">
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows] duration-200 ease-in-out',
+          isOpen
+            ? 'grid-rows-[1fr] border-t border-border py-3'
+            : 'grid-rows-[0fr]',
+        )}
+      >
+        <dl className="overflow-hidden space-y-2">
           <CardRow label="Extension:" value={registrationPeriod} />
           <CardRow
             label="New expiry:"
@@ -66,7 +76,7 @@ export const MultiNameSummaryCard = ({
           <CardRow label={priceLabel} value={priceValue} />
           <CardRow label="Subtotal:" value={subtotal} />
         </dl>
-      )}
+      </div>
     </div>
   )
 }
