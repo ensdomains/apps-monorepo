@@ -85,7 +85,7 @@ const TldRecordCount = ({ tld }: { tld: string }) => {
   return (
     <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
       <div className="w-full px-6 flex flex-row items-center gap-6">
-        <CardsStackIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
+        <CardsStackIcon className="size-8 shrink-0 text-icon-foreground" />
         <div className="flex-1">
           <span className="font-medium text-foreground">{recordCount}</span>{' '}
           <span className="text-muted-foreground">records set</span>
@@ -105,7 +105,7 @@ const TldRegistryCard = ({
   return (
     <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
       <div className="w-full px-6 flex flex-row items-center gap-6">
-        <HubIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
+        <HubIcon className="size-8 shrink-0 text-icon-foreground" />
         <div className="flex flex-col gap-1 min-w-0">
           <span className="text-sm text-muted-foreground">Registry</span>
           {hasRegistry ? (
@@ -127,7 +127,7 @@ const TldRegistryCard = ({
 const ProtocolCard = () => (
   <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
     <div className="w-full px-6 flex flex-row items-center gap-6">
-      <span className="size-8 shrink-0 flex items-center justify-center text-lg font-bold text-[#191919] dark:text-[#595755]">
+      <span className="size-8 shrink-0 flex items-center justify-center text-lg font-bold text-icon-foreground">
         #
       </span>
       <div className="flex flex-col gap-1">
