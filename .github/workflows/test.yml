@@ -30,9 +30,11 @@ jobs:
 
       - name: Determine base ref
         id: base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "ref=origin/${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+            echo "ref=origin/${BASE_REF}" >> $GITHUB_OUTPUT
           else
             echo "ref=origin/main" >> $GITHUB_OUTPUT
           fi
