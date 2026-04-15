@@ -35,12 +35,7 @@ export interface UseSessionManagerResult {
   /** Enable session - call this when user clicks "Enable" in modal */
   enableSession: () => Promise<void>
   /** Session client if session is active */
-  sessionClient: Awaited<ReturnType<typeof getSessionClient>> extends {
-    isOk: () => boolean
-    value: infer T
-  }
-    ? T | null
-    : null
+  sessionClient: KernelAccountClient | null
   /** Whether session is being created */
   isCreatingSession: boolean
   /** Error message if session creation failed */
@@ -70,7 +65,8 @@ export function useSessionManager(
 
   const [showEnableModal, setShowEnableModal] = useState(false)
   const [session, setSession] = useState<StoredSession | null>(null)
-  const [sessionClient, setSessionClient] = useState<any>(null)
+  const [sessionClient, setSessionClient] =
+    useState<KernelAccountClient | null>(null)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [hasSkippedSession, setHasSkippedSession] = useState(false)

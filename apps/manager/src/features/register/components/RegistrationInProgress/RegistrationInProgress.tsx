@@ -30,7 +30,7 @@ interface RegistrationInProgressProps {
  * Handles both simple string states and nested states (like error.submission)
  */
 function mapMachineStateToProgressStage(
-  stateValue: string | Record<string, any>,
+  stateValue: string | Record<string, unknown>,
 ): ProgressStage {
   // Handle nested error states
   if (typeof stateValue === 'object' && 'error' in stateValue) {
