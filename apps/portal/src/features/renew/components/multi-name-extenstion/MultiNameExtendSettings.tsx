@@ -1,37 +1,22 @@
 import { Button } from '@/components/ui/button'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { RegistrationDurationOrExpiryPicker } from '@/features/register/components/RegistrationDurationOrExpiryPicker'
-import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
-import type { SelectedName } from '../../hooks/useRenewalTransactions'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import { MultiNameSummaryCard } from './MultiNameSummaryCard'
 
 type MultiNameExtendSettingsProps = {
-  readonly selectedNames: readonly SelectedName[]
+  readonly pricingData: readonly NamePricingData[]
+  readonly total: number
+  readonly allLoaded: boolean
   readonly duration: number
   readonly setDuration: (duration: number) => void
   readonly onNext: () => void
 }
 
-type MultiNameSummaryCardProps = {
-  readonly selected: SelectedName
-  readonly duration: number
-}
-
-const MultiNameSummaryCard = ({
-  selected,
-  duration,
-}: MultiNameSummaryCardProps) => {
-  return (
-    <li key={selected.name} className="flex items-center gap-3">
-      <NameAvatar name={selected.name} height="40px" width="40px" />
-      <span className="text-base font-medium text-quartz-900">
-        {selected.name}
-      </span>
-    </li>
-  )
-}
-
 export const MultiNameExtendSettings = ({
-  selectedNames,
+  pricingData,
+  total,
+  allLoaded,
   duration,
   setDuration,
   onNext,
@@ -45,14 +30,19 @@ export const MultiNameExtendSettings = ({
       />
 
       <ul className="space-y-2">
-        {selectedNames.map((selected) => (
-          <MultiNameSummaryCard
-            key={selected.name}
-            selected={selected}
-            duration={duration}
-          />
+        {pricingData.map((item) => (
+          <li key={item.selectedName.name}>
+            <MultiNameSummaryCard pricingData={item} />
+          </li>
         ))}
       </ul>
+
+      <div className="flex items-baseline justify-between border-t border-border pt-4">
+        <span className="text-sm text-quartz-350">Total:</span>
+        <span className="text-xl font-semibold text-primary">
+          {allLoaded ? formatUsd(total) : '—'}
+        </span>
+      </div>
 
       <Button className="w-full" variant="secondary" onClick={onNext}>
         Next

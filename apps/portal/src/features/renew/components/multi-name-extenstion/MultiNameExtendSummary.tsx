@@ -5,19 +5,17 @@ import { MultiNameSummaryCard } from './MultiNameSummaryCard'
 
 type MultiNameExtendSummaryProps = {
   readonly pricingData: readonly NamePricingData[]
+  readonly total: number
+  readonly allLoaded: boolean
   readonly onNext: () => void
 }
 
 export const MultiNameExtendSummary = ({
   pricingData,
+  total,
+  allLoaded,
   onNext,
 }: MultiNameExtendSummaryProps) => {
-  const total = pricingData.reduce(
-    (sum, item) => (item.actualPrice != null ? sum + item.actualPrice : sum),
-    0,
-  )
-  const allLoaded = pricingData.every((item) => !item.isLoading)
-
   return (
     <div className="space-y-4 mt-2">
       <ul className="space-y-2">

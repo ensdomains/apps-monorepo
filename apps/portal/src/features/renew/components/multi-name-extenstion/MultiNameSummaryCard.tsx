@@ -13,20 +13,19 @@ export const MultiNameSummaryCard = ({
   pricingData,
 }: MultiNameSummaryCardProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const { selectedName, isLoading, display } = pricingData
+
+  if (isLoading || !display) {
+    return <MultiNameSummaryCardSkeleton name={selectedName.name} />
+  }
 
   const {
-    selectedName,
-    isLoading,
     registrationPeriod,
     newExpiryFormatted,
     priceLabel,
     priceValue,
     subtotal,
-  } = pricingData
-
-  if (isLoading || !subtotal) {
-    return <MultiNameSummaryCardSkeleton name={selectedName.name} />
-  }
+  } = display
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -64,7 +63,7 @@ export const MultiNameSummaryCard = ({
             valueClassName="font-semibold text-quartz-900"
           />
           <hr className="border-border" />
-          <CardRow label={priceLabel} value={priceValue ?? '—'} />
+          <CardRow label={priceLabel} value={priceValue} />
           <CardRow label="Subtotal:" value={subtotal} />
         </dl>
       )}
