@@ -15,7 +15,7 @@ export interface PersistedTransaction {
   id: string
   hash?: Hash
   state: string
-  context: any
+  context: unknown
   timestamp: number
   updatedAt: number
 }
@@ -176,6 +176,7 @@ class StorageManager {
     if (!this.storageType) {
       await this.init()
     }
+    // biome-ignore lint/style/noNonNullAssertion: storageType guaranteed to be set after init()
     return this.storageType!
   }
 

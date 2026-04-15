@@ -65,9 +65,12 @@ describe('wagmi/helpers', () => {
       }
       mockGetConnectorClient.mockResolvedValue(mockConnectorClient)
 
-      const result = await safeGetConnectorClient(mockConfig as any, {
-        chainId: 1,
-      })
+      const result = await safeGetConnectorClient(
+        mockConfig as unknown as Parameters<typeof safeGetConnectorClient>[0],
+        {
+          chainId: 1,
+        },
+      )
 
       expect(result.isOk()).toBe(true)
       if (result.isOk()) {
@@ -80,9 +83,12 @@ describe('wagmi/helpers', () => {
         new Error('No connector available'),
       )
 
-      const result = await safeGetConnectorClient(mockConfig as any, {
-        chainId: 1,
-      })
+      const result = await safeGetConnectorClient(
+        mockConfig as unknown as Parameters<typeof safeGetConnectorClient>[0],
+        {
+          chainId: 1,
+        },
+      )
 
       expect(result.isErr()).toBe(true)
       if (result.isErr()) {

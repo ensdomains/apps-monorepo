@@ -1,4 +1,5 @@
 import { mutationOptions } from '@tanstack/react-query'
+import type { SignTypedDataMutateAsync } from '@wagmi/core/query'
 import { sha256 } from 'viem'
 import type { EventFrom } from 'xstate'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
@@ -72,8 +73,7 @@ export interface UploadImageMutationOptionsArgs {
   isConnected: boolean
   address?: string
   chainId: number | undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  signTypedDataAsync: (args: any) => Promise<string>
+  signTypedDataAsync: SignTypedDataMutateAsync<unknown>
   onImageChange: (imageUrl: string) => void
   setOpen: (open: boolean) => void
   setUploadFile: (file: File | null) => void

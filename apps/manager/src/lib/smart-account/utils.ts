@@ -49,14 +49,22 @@ export function walletClientToAccount(walletClient: WalletClient): Account {
         typedData,
         primaryType
       >
-      const signature = (walletClient as any).signTypedData({
+      const signature = (
+        walletClient as unknown as {
+          signTypedData: (args: Record<string, unknown>) => Promise<Hex>
+        }
+      ).signTypedData({
         account: address,
         ...def,
       })
       return signature
     },
-    async signTransaction(transaction: any): Promise<Hex> {
-      return (walletClient as any).signTransaction({
+    async signTransaction(transaction: Record<string, unknown>): Promise<Hex> {
+      return (
+        walletClient as unknown as {
+          signTransaction: (args: Record<string, unknown>) => Promise<Hex>
+        }
+      ).signTransaction({
         account: address,
         ...transaction,
       })
@@ -97,10 +105,13 @@ export function wrapParaAccount(
   walletId?: string,
 ): Account {
   const effectiveWalletId =
-    walletId || (viemAccount as any).walletId || (viemAccount as any)._walletId
+    walletId ||
+    (viemAccount as unknown as Record<string, unknown>).walletId ||
+    (viemAccount as unknown as Record<string, unknown>)._walletId
 
   if (effectiveWalletId) {
-    ;(viemAccount as any)._paraWalletId = effectiveWalletId
+    ;(viemAccount as unknown as Record<string, unknown>)._paraWalletId =
+      effectiveWalletId
   }
 
   return {
@@ -184,19 +195,21 @@ function convertBigIntsToStrings<T>(value: T): T {
   return value
 }
 
-export const getTxHashResult = (result: any) => {
+export const getTxHashResult = (result: unknown) => {
   if (result && typeof result === 'object') {
-    if ('fill' in result && result.fill && typeof result.fill === 'object') {
-      if ('hash' in result.fill) {
-        return result.fill.hash
+    const r = result as Record<string, unknown>
+    if ('fill' in r && r.fill && typeof r.fill === 'object') {
+      const fill = r.fill as Record<string, unknown>
+      if ('hash' in fill) {
+        return fill.hash
       }
     }
     // legacy structure
-    if ('fillTransactionHash' in result) {
-      return result.fillTransactionHash
+    if ('fillTransactionHash' in r) {
+      return r.fillTransactionHash
     }
-    if ('transactionHash' in result) {
-      return result.transactionHash
+    if ('transactionHash' in r) {
+      return r.transactionHash
     }
   }
   return null

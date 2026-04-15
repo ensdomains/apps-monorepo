@@ -1,4 +1,4 @@
-import { ClientError } from 'graphql-request'
+import { ClientError, type GraphQLResponse } from 'graphql-request'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('graphql-request', async () => {
@@ -85,7 +85,7 @@ describe('fetchExpiringNamesPage', () => {
       {
         status: 400,
         headers: new Headers(),
-      } as any,
+      } as unknown as GraphQLResponse,
       { query: 'q', variables: {} },
     )
 
