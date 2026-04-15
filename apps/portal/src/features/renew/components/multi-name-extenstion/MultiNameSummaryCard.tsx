@@ -35,12 +35,14 @@ export const MultiNameSummaryCard = ({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
       >
-        <NameAvatar
-          name={selectedName.name}
-          height="40px"
-          width="40px"
-          rounded="rounded-md"
-        />
+        <div className="flex-1">
+          <NameAvatar
+            name={selectedName.name}
+            height="40px"
+            width="40px"
+            rounded="rounded-md"
+          />
+        </div>
         <div className="flex flex-col w-full">
           <div className="flex items-center justify-between">
             <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
@@ -48,7 +50,7 @@ export const MultiNameSummaryCard = ({
             </span>
             <ChevronDown
               className={cn(
-                'size-4 text-quartz-350 shrink-0 ml-auto transition-transform duration-200',
+                'size-4 text-quartz-900 shrink-0 ml-auto transition-transform duration-200',
                 isOpen && 'rotate-180',
               )}
             />
@@ -64,40 +66,61 @@ export const MultiNameSummaryCard = ({
             </span>
             <span className="text-base text-quartz-900">{subtotal}</span>
           </div>
+          <div
+            className={cn(
+              'grid transition-[grid-template-rows] duration-200 ease-in-out pt-1',
+              isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+            )}
+          >
+            <dl className="overflow-hidden space-y-1">
+              <CardRow
+                label="Extension:"
+                labelClassName="text-xs text-quartz-350"
+                value={registrationPeriod}
+                valueClassName="text-quartz-900"
+              />
+              <CardRow
+                label="New expiry:"
+                labelClassName="text-xs text-quartz-350"
+                value={newExpiryFormatted}
+                valueClassName="font-medium text-quartz-900"
+              />
+              <CardRow
+                label={priceLabel}
+                labelClassName="text-xs text-quartz-350"
+                value={priceValue}
+                valueClassName="text-quartz-900"
+              />
+              <hr className="border-border" />
+              <CardRow
+                label="Subtotal:"
+                labelClassName="text-base text-quartz-350"
+                value={subtotal}
+                valueClassName="text-quartz-900 text-base"
+              />
+            </dl>
+          </div>
         </div>
       </button>
-
-      <div
-        className={cn(
-          'grid transition-[grid-template-rows] duration-200 ease-in-out pl-13',
-          isOpen ? 'grid-rows-[1fr] pb-3' : 'grid-rows-[0fr]',
-        )}
-      >
-        <dl className="overflow-hidden space-y-2">
-          <CardRow label="Extension:" value={registrationPeriod} />
-          <CardRow
-            label="New expiry:"
-            value={newExpiryFormatted}
-            valueClassName="font-semibold text-quartz-900"
-          />
-          <hr className="border-border" />
-          <CardRow label={priceLabel} value={priceValue} />
-          <CardRow label="Subtotal:" value={subtotal} />
-        </dl>
-      </div>
     </div>
   )
 }
 
 type CardRowProps = {
   readonly label: string
+  readonly labelClassName?: string
   readonly value: string
   readonly valueClassName?: string
 }
 
-const CardRow = ({ label, value, valueClassName }: CardRowProps) => (
-  <div className="flex items-center justify-between px-4">
-    <dt className="text-sm text-quartz-350">{label}</dt>
+const CardRow = ({
+  label,
+  labelClassName,
+  value,
+  valueClassName,
+}: CardRowProps) => (
+  <div className="flex items-center justify-between">
+    <dt className={cn('text-sm text-quartz-350', labelClassName)}>{label}</dt>
     <dd className={cn('text-sm text-quartz-900 m-0', valueClassName)}>
       {value}
     </dd>
