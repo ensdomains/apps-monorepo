@@ -192,6 +192,11 @@
   --entity-bg: #242424;
   --entity-border: #383838;
   --icon-foreground: #595755;
+  /* Entity fill colors — dark mode per-variant backgrounds */
+  --entity-fill-name: #0e2130;
+  --entity-fill-address: #192a1e;
+  --entity-fill-contract: #2f2127;
+  --entity-fill-tx: rgba(231, 162, 89, 0.1);
   /* Syntax/entity colors — dark mode values (bright for dark pill bg) */
   --syntax-name: #39b4ea;
   --syntax-address: #1cbf46;

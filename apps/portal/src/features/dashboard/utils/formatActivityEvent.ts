@@ -22,63 +22,70 @@ const EVENT_DESCRIPTORS: Record<
     /** Extract a display entity from data when event.name is null */
     entityField?: string
     entityType?: 'address' | 'name'
+    /** Append a raw data field value to the text (e.g. text record key) */
+    textSuffixField?: string
   }
 > = {
   // Registration
   NameRegistered: {
-    text: 'registered by',
+    text: 'Registered by',
     actorField: 'owner',
     actorType: 'address',
   },
   LabelRegistered: {
-    text: 'registered by',
+    text: 'Registered by',
     actorField: 'owner',
     actorType: 'address',
   },
-  NameRenewed: { text: 'renewed' },
+  NameRenewed: { text: 'Name renewed' },
 
   // Ownership
   Transfer: {
-    text: 'ownership transferred to',
+    text: 'Ownership transferred to',
     actorField: 'to',
     actorType: 'address',
   },
   NewOwner: {
-    text: 'subname created by',
+    text: 'Subname created by',
     actorField: 'owner',
     actorType: 'address',
   },
 
   // Resolver
   ResolverUpdated: {
-    text: 'resolver updated to',
+    text: 'Resolver updated to',
     actorField: 'resolver',
     actorType: 'address',
   },
   AddrChanged: { text: 'ETH address updated' },
-  TextChanged: { text: 'text record updated' },
-  ContenthashChanged: { text: 'contenthash updated' },
-  VersionChanged: { text: 'resolver records cleared' },
+  AddressChanged: {
+    text: 'ETH address updated',
+    entityField: 'address',
+    entityType: 'address',
+  },
+  TextChanged: { text: 'Text record updated', textSuffixField: 'key' },
+  ContenthashChanged: { text: 'Contenthash updated' },
+  VersionChanged: { text: 'Resolver records cleared' },
 
   // Name / reverse resolution — name lives inside data.name
   NameChanged: {
-    text: 'primary name updated',
+    text: 'Primary name updated',
     entityField: 'name',
     entityType: 'name',
   },
 
   // Migration
-  NameWrapped: { text: 'migrated from ENSv1 to ENSv2' },
-  NameUnwrapped: { text: 'unwrapped from ENSv2' },
+  NameWrapped: { text: 'Migrated from ENSv1 to ENSv2' },
+  NameUnwrapped: { text: 'Unwrapped from ENSv2' },
 
   // Access control — account lives inside data.account
   EACRolesChanged: {
-    text: 'roles updated',
+    text: 'Roles updated',
     entityField: 'account',
     entityType: 'address',
   },
-  FusesSet: { text: 'fuses updated' },
-  ExpiryExtended: { text: 'expiry extended' },
+  FusesSet: { text: 'Fuses updated' },
+  ExpiryExtended: { text: 'Expiry extended' },
 }
 
 export const formatRelativeTime = (timestamp: number): string => {
@@ -104,7 +111,13 @@ export const formatActivityEvent = (
     // data field is not valid JSON
   }
 
-  const result: FormattedActivity = { text: descriptor.text }
+  let text = descriptor.text
+  if (descriptor.textSuffixField) {
+    const suffix = parsedData[descriptor.textSuffixField]
+    if (suffix) text = `${descriptor.text} (${suffix})`
+  }
+
+  const result: FormattedActivity = { text }
 
   if (descriptor.actorField) {
     const actorValue = parsedData[descriptor.actorField]

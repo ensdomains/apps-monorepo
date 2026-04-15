@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { match } from 'ts-pattern'
+import type { Hash } from 'viem'
+import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -36,54 +39,63 @@ export const RecentActivityTable = () => {
             ? { type: 'name' as const, value: resolvedName }
             : entityFromData
 
+          const txHash = event.transactionHash
+
           return (
             <div
-              key={event.transactionHash}
+              key={txHash}
               className="flex gap-6 items-center px-4 py-4 border-b border-border last:border-b-0"
             >
               <span className="font-mono text-sm text-muted-foreground w-24 shrink-0 tabular-nums">
                 {formatRelativeTime(event.timestamp)}
               </span>
               <div className="w-32 shrink-0">
-                {nameEntity &&
-                  (nameEntity.type === 'name' ? (
-                    <Link to="/$name" params={{ name: nameEntity.value }}>
-                      <EntityBadge variant="name">
-                        {nameEntity.value}
-                      </EntityBadge>
+                {match(nameEntity)
+                  .with({ type: 'name' }, ({ value }) => (
+                    <Link to="/$name" params={{ name: value }}>
+                      <EntityBadge variant="name">{value}</EntityBadge>
                     </Link>
-                  ) : (
-                    <Link to="/addr/$addr" params={{ addr: nameEntity.value }}>
+                  ))
+                  .with({ type: 'address' }, ({ value }) => (
+                    <Link to="/addr/$addr" params={{ addr: value }}>
                       <EntityBadge variant="address">
-                        {truncateAddress(nameEntity.value, 6, 4)}
+                        {truncateAddress(value, 6, 4)}
                       </EntityBadge>
                     </Link>
+                  ))
+                  .otherwise(() => (
+                    <BlockExplorerTxLink
+                      txHash={txHash as Hash}
+                      showCopy={false}
+                    />
                   ))}
               </div>
               <div className="flex flex-1 items-center gap-2 justify-end min-w-0 overflow-hidden">
                 <span className="text-sm text-muted-foreground truncate">
                   {text}
                 </span>
-                {actor &&
-                  (actor.type === 'address' ? (
+                {match(actor)
+                  .with({ type: 'address' }, ({ value }) => (
                     <Link
                       to="/addr/$addr"
-                      params={{ addr: actor.value }}
+                      params={{ addr: value }}
                       className="shrink-0"
                     >
                       <EntityBadge variant="address">
-                        {truncateAddress(actor.value, 6, 4)}
+                        {truncateAddress(value, 6, 4)}
                       </EntityBadge>
                     </Link>
-                  ) : (
+                  ))
+                  .with({ type: 'name' }, ({ value }) => (
                     <Link
                       to="/$name"
-                      params={{ name: actor.value }}
+                      params={{ name: value }}
                       className="shrink-0"
                     >
-                      <EntityBadge variant="name">{actor.value}</EntityBadge>
+                      <EntityBadge variant="name">{value}</EntityBadge>
                     </Link>
-                  ))}
+                  ))
+                  .otherwise(() => null)}
               </div>
             </div>
           )

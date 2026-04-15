@@ -5,18 +5,18 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-lg p-8 sm:min-w-96 xl:min-w-160 flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:bg-transparent **:data-[slot=button]:dark:bg-transparent **:data-[slot=button]:dark:hover:bg-black/10 **:data-[slot=button]:dark:border-current/40',
+  'rounded-2xl p-6 sm:min-w-96 xl:min-w-160 flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
   {
     variants: {
       variant: {
         primary:
-          'bg-lapis-100 **:data-[slot=icon]:text-lapis-500 **:data-[slot=title]:text-lapis-500 **:data-[slot=button]:text-lapis-500 **:data-[slot=button]:hover:text-lapis-500',
+          'bg-entity-fill-name **:data-[slot=icon]:text-syntax-name **:data-[slot=title]:text-syntax-name',
         success:
-          'bg-peridot-100 **:data-[slot=icon]:text-peridot-500 **:data-[slot=title]:text-peridot-500 **:data-[slot=button]:text-peridot-500 **:data-[slot=button]:hover:text-peridot-500',
+          'bg-entity-fill-address **:data-[slot=icon]:text-syntax-address **:data-[slot=title]:text-syntax-address',
         danger:
-          'bg-garnet-100 **:data-[slot=icon]:text-garnet-500 **:data-[slot=title]:text-garnet-500 **:data-[slot=button]:text-garnet-500 **:data-[slot=button]:hover:text-garnet-500',
+          'bg-entity-fill-contract **:data-[slot=icon]:text-syntax-contract **:data-[slot=title]:text-syntax-contract',
         warning:
-          'bg-citrine-100 **:data-[slot=icon]:text-citrine-500 **:data-[slot=title]:text-citrine-500 **:data-[slot=button]:text-citrine-500 **:data-[slot=button]:hover:text-citrine-500',
+          'bg-entity-fill-tx **:data-[slot=icon]:text-syntax-tx **:data-[slot=title]:text-syntax-tx',
       },
     },
     defaultVariants: {
@@ -77,14 +77,17 @@ export function MessageCard({
 
         <h2
           data-slot="title"
-          className={cn('text-2xl font-bold', titleClassName)}
+          className={cn(
+            'text-[34px] font-medium leading-[1.35]',
+            titleClassName,
+          )}
         >
           {title}
         </h2>
 
         <div
           className={cn(
-            'text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-quartz-900',
+            'text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-foreground',
             descriptionClassName,
           )}
         >

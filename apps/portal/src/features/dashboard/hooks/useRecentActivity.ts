@@ -26,7 +26,7 @@ const getRecentActivity = () =>
     graphqlIndexerClient.request<{ events: RecentActivityEvent[] }>(
       gql`
         query getRecentActivity {
-          events(first: 10) {
+          events(first: 15) {
             name
             type
             transactionHash

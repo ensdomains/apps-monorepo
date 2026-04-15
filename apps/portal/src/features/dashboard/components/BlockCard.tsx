@@ -1,3 +1,4 @@
+import { cva, type VariantProps } from 'class-variance-authority'
 import { ChevronRight } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { cn } from '@/lib/utils'
@@ -22,95 +23,93 @@ export const InfoBlockCard = ({
   </div>
 )
 
-type HoverColor = 'lapis' | 'peridot' | 'garnet'
+const linkCardBorder = cva('border-border', {
+  variants: {
+    hoverColor: {
+      lapis: 'hover:border-lapis-500 dark:hover:border-lapis-400',
+      peridot: 'hover:border-peridot-500 dark:hover:border-peridot-400',
+      garnet: 'hover:border-garnet-500 dark:hover:border-garnet-500',
+    },
+  },
+})
 
-const colorConfig: Record<
-  HoverColor,
-  {
-    border: string
-    title: string
-    chevronBg: string
-    chevronIcon: string
-  }
-> = {
-  lapis: {
-    border: 'border-border hover:border-lapis-500 dark:hover:border-lapis-400',
-    title:
-      'text-muted-foreground group-hover:text-lapis-500 dark:group-hover:text-lapis-400',
-    chevronBg:
-      'bg-secondary dark:bg-accent group-hover:bg-lapis-100 dark:group-hover:bg-lapis-900',
-    chevronIcon:
-      'text-muted-foreground/40 group-hover:text-lapis-500 dark:group-hover:text-lapis-400',
+const linkCardTitle = cva('text-muted-foreground', {
+  variants: {
+    hoverColor: {
+      lapis: 'group-hover:text-lapis-500 dark:group-hover:text-lapis-400',
+      peridot: 'group-hover:text-peridot-500 dark:group-hover:text-peridot-400',
+      garnet: 'group-hover:text-garnet-500 dark:group-hover:text-garnet-500',
+    },
   },
-  peridot: {
-    border:
-      'border-border hover:border-peridot-500 dark:hover:border-peridot-400',
-    title:
-      'text-muted-foreground group-hover:text-peridot-500 dark:group-hover:text-peridot-400',
-    chevronBg:
-      'bg-secondary dark:bg-accent group-hover:bg-peridot-100 dark:group-hover:bg-peridot-900',
-    chevronIcon:
-      'text-muted-foreground/40 group-hover:text-peridot-500 dark:group-hover:text-peridot-400',
+})
+
+const linkCardChevronBg = cva('bg-secondary dark:bg-accent', {
+  variants: {
+    hoverColor: {
+      lapis: 'group-hover:bg-lapis-100 dark:group-hover:bg-lapis-900',
+      peridot: 'group-hover:bg-peridot-100 dark:group-hover:bg-peridot-900',
+      garnet: 'group-hover:bg-garnet-100 dark:group-hover:bg-garnet-900',
+    },
   },
-  garnet: {
-    border:
-      'border-border hover:border-garnet-500 dark:hover:border-garnet-500',
-    title:
-      'text-muted-foreground group-hover:text-garnet-500 dark:group-hover:text-garnet-500',
-    chevronBg:
-      'bg-secondary dark:bg-accent group-hover:bg-garnet-100 dark:group-hover:bg-garnet-900',
-    chevronIcon:
-      'text-muted-foreground/40 group-hover:text-garnet-500 dark:group-hover:text-garnet-500',
+})
+
+const linkCardChevronIcon = cva('text-muted-foreground/40', {
+  variants: {
+    hoverColor: {
+      lapis: 'group-hover:text-lapis-500 dark:group-hover:text-lapis-400',
+      peridot: 'group-hover:text-peridot-500 dark:group-hover:text-peridot-400',
+      garnet: 'group-hover:text-garnet-500 dark:group-hover:text-garnet-500',
+    },
   },
-}
+})
+
+type LinkBlockCardProps = {
+  title: string
+  description?: string
+  href: string
+} & VariantProps<typeof linkCardBorder>
 
 export const LinkBlockCard = ({
   title,
   description,
   href,
   hoverColor,
-}: {
-  title: string
-  description?: string
-  href: string
-  hoverColor: HoverColor
-}) => {
-  const colors = colorConfig[hoverColor]
-
-  return (
-    <ExternalLink
-      href={href}
-      className={cn(
-        baseCardClass,
-        'bg-popover dark:bg-card border items-end justify-between',
-        colors.border,
-      )}
-    >
-      <div className="flex flex-col gap-7 items-start w-full">
-        <p
-          className={cn(
-            'font-medium text-base leading-snug w-full',
-            colors.title,
-          )}
-        >
-          {title}
-        </p>
-        {description && (
-          <p className="text-sm text-muted-foreground leading-snug w-full">
-            {description}
-          </p>
-        )}
-      </div>
-      <div
+}: LinkBlockCardProps) => (
+  <ExternalLink
+    href={href}
+    className={cn(
+      baseCardClass,
+      'bg-popover dark:bg-card border items-end justify-between',
+      linkCardBorder({ hoverColor }),
+    )}
+  >
+    <div className="flex flex-col gap-7 items-start w-full">
+      <p
         className={cn(
-          'flex items-center justify-center rounded-xs size-7 shrink-0 self-end transition-colors',
-          colors.chevronBg,
+          'font-medium text-base leading-snug w-full',
+          linkCardTitle({ hoverColor }),
         )}
       >
-        <ChevronRight
-          className={cn('size-4 transition-colors', colors.chevronIcon)}
-        />
-      </div>
-    </ExternalLink>
-  )
-}
+        {title}
+      </p>
+      {description && (
+        <p className="text-sm text-muted-foreground leading-snug w-full">
+          {description}
+        </p>
+      )}
+    </div>
+    <div
+      className={cn(
+        'flex items-center justify-center rounded-xs size-7 shrink-0 self-end transition-colors',
+        linkCardChevronBg({ hoverColor }),
+      )}
+    >
+      <ChevronRight
+        className={cn(
+          'size-4 transition-colors',
+          linkCardChevronIcon({ hoverColor }),
+        )}
+      />
+    </div>
+  </ExternalLink>
+)
