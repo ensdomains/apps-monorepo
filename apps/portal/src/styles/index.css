@@ -188,6 +188,7 @@
   --syntax-address: #1cbf46;
   --syntax-contract: #f569ab;
   --syntax-tx: #e7a259;
+  --icon-foreground: #595755;
 }
 
 @layer base {
