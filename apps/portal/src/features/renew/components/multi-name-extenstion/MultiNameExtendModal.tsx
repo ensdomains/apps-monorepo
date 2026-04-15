@@ -11,9 +11,9 @@ import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenDa
 import { useMultiNamePricing } from '../../hooks/useMultiNamePricing'
 import type { SelectedName } from '../../hooks/useRenewalTransactions'
 import { ExtendNameDisclaimer } from '../ExtendNameDisclaimer'
-import { MultiNameExtendConfirmation } from './MultiNameExtendConfirmation'
 import { MultiNameExtendSettings } from './MultiNameExtendSettings'
 import { MultiNameExtendSummary } from './MultiNameExtendSummary'
+import { MultiNameExtensionSuccess } from './MultiNameExtensionSuccess'
 
 type MultiRenewConfig = {
   readonly duration: number
@@ -31,7 +31,6 @@ export type MultiNameExtendModalStep =
   | 'disclaimer'
   | 'settings'
   | 'summary'
-  | 'confirm'
   | 'success'
 
 export const MultiNameExtendModal = ({
@@ -44,8 +43,6 @@ export const MultiNameExtendModal = ({
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
-  const [selectedToken, setSelectedToken] =
-    useState<TokenWithPriceAndBalance | null>(null)
 
   const { pricingData, total, totalDiscount, allLoaded } = useMultiNamePricing(
     selectedNames,
@@ -56,7 +53,6 @@ export const MultiNameExtendModal = ({
     .with('disclaimer', () => undefined)
     .with('settings', () => 'Extend names')
     .with('summary', () => 'Confirm extension')
-    .with('confirm', () => 'Confirm extension')
     .with('success', () => undefined)
     .exhaustive()
 
@@ -99,29 +95,14 @@ export const MultiNameExtendModal = ({
               duration={duration}
               onBack={() => setStep('settings')}
               onNext={(token) => {
-                setSelectedToken(token)
-                setStep('confirm')
+                onExtend({ duration, token })
+                setStep('success')
               }}
             />
           ))
-          .with('confirm', () =>
-            selectedToken ? (
-              <MultiNameExtendConfirmation
-                pricingData={pricingData}
-                total={total}
-                totalDiscount={totalDiscount}
-                allLoaded={allLoaded}
-                selectedToken={selectedToken}
-                onBack={() => setStep('summary')}
-                onConfirm={() => {
-                  onExtend({ duration, token: selectedToken })
-                  onClose()
-                }}
-                isConfirming={false}
-              />
-            ) : null,
-          )
-          .with('success', () => null)
+          .with('success', () => (
+            <MultiNameExtensionSuccess pricingData={pricingData} />
+          ))
           .exhaustive()}
       </DialogContent>
     </Dialog>
