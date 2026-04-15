@@ -33,8 +33,14 @@ export const RecentActivityTable = () => {
       ) : (
         data.map((event) => {
           const { text, actor, entityFromData } = formatActivityEvent(event)
-          const resolvedName =
+          const rawName =
             event.name?.trim() || event.domain?.name?.trim() || null
+          const resolvedName =
+            rawName &&
+            !rawName.startsWith('tokenId:') &&
+            !rawName.startsWith('canonicalId:')
+              ? rawName
+              : null
           const nameEntity = resolvedName
             ? { type: 'name' as const, value: resolvedName }
             : entityFromData
