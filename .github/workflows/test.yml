@@ -28,23 +28,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Determine base ref
+        id: base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=origin/${BASE_REF}" >> $GITHUB_OUTPUT
+          else
+            echo "ref=origin/main" >> $GITHUB_OUTPUT
+          fi
+
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
-          # "...[origin/main]" means changed packages plus their dependents.
-          pnpm --filter="...[origin/main]" typecheck || pnpm -r typecheck
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" typecheck || pnpm -r typecheck
 
       - name: Run Biome check on changed files
         run: |
           echo "🔍 Running Biome on changed packages..."
-          # "...[origin/main]" means changed packages plus their dependents.
-          pnpm --filter="...[origin/main]" check || pnpm check
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" check || pnpm check
 
       - name: Run tests with coverage on changed packages
         run: |
           echo "📊 Running coverage tests on changed packages..."
-          # "...[origin/main]" means changed packages plus their dependents.
-          pnpm --filter="...[origin/main]" test:coverage || pnpm -r test:coverage
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" test:coverage || pnpm -r test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
@@ -55,4 +63,4 @@ jobs:
       # - name: Run Knip on changed packages
       #   run: |
       #     echo "🧹 Checking for unused code in changed packages..."
-      #     pnpm --filter="...[origin/main]" knip --include files,dependencies || pnpm knip --include files,dependencies
+      #     pnpm --filter="...[${{ steps.base.outputs.ref }}]" knip --include files,dependencies || pnpm knip --include files,dependencies
