@@ -13,7 +13,12 @@ export const InfoBlockCard = ({
   title: string
   description: string
 }) => (
-  <div className={cn(baseCardClass, 'bg-secondary gap-3 items-start')}>
+  <div
+    className={cn(
+      baseCardClass,
+      'bg-secondary dark:bg-accent gap-3 items-start',
+    )}
+  >
     <p className="font-medium text-base text-foreground leading-snug">
       {title}
     </p>
@@ -23,7 +28,7 @@ export const InfoBlockCard = ({
   </div>
 )
 
-const linkCardBorder = cva('border-border', {
+const linkCardBorder = cva('border-border dark:border-[#2b2b2b]', {
   variants: {
     hoverColor: {
       lapis: 'hover:border-lapis-500 dark:hover:border-lapis-400',
@@ -79,7 +84,7 @@ export const LinkBlockCard = ({
     href={href}
     className={cn(
       baseCardClass,
-      'bg-popover dark:bg-card border items-end justify-between',
+      'bg-popover dark:bg-background border items-end justify-between',
       linkCardBorder({ hoverColor }),
     )}
   >

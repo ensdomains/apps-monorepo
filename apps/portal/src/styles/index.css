@@ -160,7 +160,7 @@
 }
 
 .dark {
-  --background: #2b2b2b;
+  --background: #191919;
   --foreground: #e1e1e0;
   --card: #383838;
   --card-foreground: #e1e1e0;
@@ -178,7 +178,7 @@
   --danger: var(--garnet-400);
   --success: var(--peridot-400);
   --warning: var(--citrine-400);
-  --border: rgba(255, 255, 255, 0.2);
+  --border: #383838;
   --input: #242424;
   --ring: var(--lapis-400);
   --sidebar: #242424;
@@ -193,7 +193,7 @@
   --entity-border: #383838;
   --icon-foreground: #595755;
   /* Entity fill colors — dark mode per-variant backgrounds */
-  --entity-fill-name: #0e2130;
+  --entity-fill-name: #1c292e;
   --entity-fill-address: #192a1e;
   --entity-fill-contract: #2f2127;
   --entity-fill-tx: rgba(231, 162, 89, 0.1);

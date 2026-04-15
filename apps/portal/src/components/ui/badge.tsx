@@ -25,7 +25,7 @@ const badgeVariants = cva(
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground border border-border',
         warning: 'bg-citrine-100 text-citrine-900 [a&]:hover:bg-citrine-100/90',
         accent:
-          'border-transparent bg-lapis-100 text-lapis-900 dark:bg-lapis-900 dark:text-lapis-400 [a&]:hover:bg-lapis-100/90',
+          'border-transparent bg-lapis-100 text-lapis-500 [a&]:hover:bg-lapis-100/90',
       },
     },
     defaultVariants: {

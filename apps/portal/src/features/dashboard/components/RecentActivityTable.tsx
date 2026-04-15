@@ -44,18 +44,44 @@ export const RecentActivityTable = () => {
           return (
             <div
               key={txHash}
-              className="flex gap-6 items-center px-4 py-4 border-b border-border last:border-b-0"
+              className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-4 px-4 border-b border-border last:border-b-0"
             >
-              <span className="font-mono text-sm text-muted-foreground w-24 shrink-0 tabular-nums">
-                {formatRelativeTime(event.timestamp)}
-              </span>
-              <div className="w-32 shrink-0">
-                {match(nameEntity)
-                  .with({ type: 'name' }, ({ value }) => (
-                    <Link to="/$name" params={{ name: value }}>
-                      <EntityBadge variant="name">{value}</EntityBadge>
-                    </Link>
-                  ))
+              {/* Mobile: top row — entity left, time right
+                  Desktop: sm:contents spreads children into parent flex */}
+              <div className="flex items-center justify-between pt-3 pb-1 sm:contents">
+                <div className="sm:order-2 sm:w-32 sm:shrink-0">
+                  {match(nameEntity)
+                    .with({ type: 'name' }, ({ value }) => (
+                      <Link to="/$name" params={{ name: value }}>
+                        <EntityBadge variant="name">{value}</EntityBadge>
+                      </Link>
+                    ))
+                    .with({ type: 'address' }, ({ value }) => (
+                      <Link to="/addr/$addr" params={{ addr: value }}>
+                        <EntityBadge variant="address">
+                          {truncateAddress(value, 6, 4)}
+                        </EntityBadge>
+                      </Link>
+                    ))
+                    .otherwise(() => (
+                      <BlockExplorerTxLink
+                        txHash={txHash as Hash}
+                        showCopy={false}
+                      />
+                    ))}
+                </div>
+                <span className="sm:order-1 font-mono text-xs sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">
+                  {formatRelativeTime(event.timestamp)}
+                </span>
+              </div>
+
+              {/* Mobile: bottom row — description + actor wrapping
+                  Desktop: right-aligned flex */}
+              <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0 sm:overflow-hidden">
+                <span className="text-sm text-muted-foreground sm:truncate">
+                  {text}
+                </span>
+                {match(actor)
                   .with({ type: 'address' }, ({ value }) => (
                     <Link to="/addr/$addr" params={{ addr: value }}>
                       <EntityBadge variant="address">
@@ -63,35 +89,8 @@ export const RecentActivityTable = () => {
                       </EntityBadge>
                     </Link>
                   ))
-                  .otherwise(() => (
-                    <BlockExplorerTxLink
-                      txHash={txHash as Hash}
-                      showCopy={false}
-                    />
-                  ))}
-              </div>
-              <div className="flex flex-1 items-center gap-2 justify-end min-w-0 overflow-hidden">
-                <span className="text-sm text-muted-foreground truncate">
-                  {text}
-                </span>
-                {match(actor)
-                  .with({ type: 'address' }, ({ value }) => (
-                    <Link
-                      to="/addr/$addr"
-                      params={{ addr: value }}
-                      className="shrink-0"
-                    >
-                      <EntityBadge variant="address">
-                        {truncateAddress(value, 6, 4)}
-                      </EntityBadge>
-                    </Link>
-                  ))
                   .with({ type: 'name' }, ({ value }) => (
-                    <Link
-                      to="/$name"
-                      params={{ name: value }}
-                      className="shrink-0"
-                    >
+                    <Link to="/$name" params={{ name: value }}>
                       <EntityBadge variant="name">{value}</EntityBadge>
                     </Link>
                   ))

@@ -25,7 +25,7 @@ function RouteComponent() {
           <br />
           for Ethereum Name Service
         </p>
-        <HomeSearchInput className="bg-card dark:bg-card w-91.75 max-w-full rounded-lg border-border shadow-none" />
+        <HomeSearchInput className="bg-card dark:bg-transparent w-91.75 max-w-full rounded-lg border-border shadow-none" />
       </section>
 
       <section className="flex flex-col gap-8 items-center w-full max-w-4xl">
