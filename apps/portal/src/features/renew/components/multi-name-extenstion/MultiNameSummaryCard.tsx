@@ -31,7 +31,7 @@ export const MultiNameSummaryCard = ({
     <div className="border-b border-border overflow-hidden">
       <button
         type="button"
-        className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
+        className="w-full flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
       >
@@ -41,28 +41,36 @@ export const MultiNameSummaryCard = ({
           width="40px"
           rounded="rounded-md"
         />
-        <div className="flex flex-col">
-          <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
-            {selectedName.name}
-          </span>
-          <span className="text-base text-quartz-350 shrink-0">
-            Subtotal: {subtotal}
-          </span>
+        <div className="flex flex-col w-full">
+          <div className="flex items-center justify-between">
+            <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+              {selectedName.name}
+            </span>
+            <ChevronDown
+              className={cn(
+                'size-4 text-quartz-350 shrink-0 ml-auto transition-transform duration-200',
+                isOpen && 'rotate-180',
+              )}
+            />
+          </div>
+          <div
+            className={cn(
+              'flex items-center justify-between',
+              isOpen && 'hidden',
+            )}
+          >
+            <span className="text-base text-quartz-350 shrink-0">
+              Subtotal:
+            </span>
+            <span className="text-base text-quartz-900">{subtotal}</span>
+          </div>
         </div>
-        <ChevronDown
-          className={cn(
-            'size-4 text-quartz-350 shrink-0 ml-auto transition-transform duration-200',
-            isOpen && 'rotate-180',
-          )}
-        />
       </button>
 
       <div
         className={cn(
-          'grid transition-[grid-template-rows] duration-200 ease-in-out',
-          isOpen
-            ? 'grid-rows-[1fr] border-t border-border py-3'
-            : 'grid-rows-[0fr]',
+          'grid transition-[grid-template-rows] duration-200 ease-in-out pl-13',
+          isOpen ? 'grid-rows-[1fr] pb-3' : 'grid-rows-[0fr]',
         )}
       >
         <dl className="overflow-hidden space-y-2">
