@@ -152,7 +152,7 @@ export const PaymentTokenSection = ({
 
   return (
     <section
-      className="border border-border rounded-lg bg-card p-5 space-y-4"
+      className="border border-border rounded-lg p-5 space-y-4"
       aria-labelledby="payment-heading"
     >
       <h2 id="payment-heading" className="text-base font-medium">
