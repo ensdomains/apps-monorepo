@@ -72,6 +72,7 @@
   --syntax-tx: #984d1b;
   --entity-bg: transparent;
   --entity-border: transparent;
+  --icon-foreground: #191919;
 
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
@@ -146,6 +147,7 @@
   --color-syntax-tx: var(--syntax-tx);
   --color-entity-bg: var(--entity-bg);
   --color-entity-border: var(--entity-border);
+  --color-icon-foreground: var(--icon-foreground);
 }
 
 .dark {
@@ -180,6 +182,7 @@
   --sidebar-ring: var(--lapis-400);
   --entity-bg: #242424;
   --entity-border: #383838;
+  --icon-foreground: #595755;
   /* Syntax/entity colors — dark mode values (bright for dark pill bg) */
   --syntax-name: #39b4ea;
   --syntax-address: #1cbf46;
