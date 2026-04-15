@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { LanguagesIcon } from 'lucide-react'
-import { NavBar } from '@/components/NavBar'
 import { MessageCard } from '@/components/ui/message-card'
 import { RegisterName } from '@/features/register/components'
+import { HomeHeader } from '../../features/dashboard/components'
 
 interface RegisterSearch {
   readonly name?: string
@@ -13,7 +13,9 @@ const RegisterPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <NavBar />
+      <div className="py-12">
+        <HomeHeader />
+      </div>
       {!name ? (
         <MessageCard
           icon={<LanguagesIcon className="size-8" strokeWidth={1.5} />}

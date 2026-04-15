@@ -85,7 +85,7 @@ export const RegisterNameCheckoutSummary = ({
         </Alert>
       )}
       <section
-        className="border border-border rounded-lg bg-card p-5"
+        className="border border-border rounded-lg p-5"
         aria-label="Checkout summary"
       >
         {match({ isLoading, isError, hasPrice })
@@ -145,12 +145,7 @@ const SummaryRow = ({
   valueClassName,
 }: SummaryRowProps) => (
   <div className={cn('flex items-center justify-between', className)}>
-    <dt
-      className={cn(
-        'text-base font-normal text-muted-foreground',
-        labelClassName,
-      )}
-    >
+    <dt className={cn('font-normal text-foreground', labelClassName)}>
       {label}
     </dt>
     <dd className={cn('m-0 font-normal text-foreground', valueClassName)}>
@@ -261,8 +256,8 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
           <SummaryRow
             label={`${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}):`}
             value={`-${formatUsd(discountAmount)}`}
-            valueClassName="flex items-center gap-1 m-0 text-success"
-            labelClassName="text-success"
+            valueClassName="flex items-center gap-1 m-0 text-success-text"
+            labelClassName="text-success-text"
           />
         )}
 
