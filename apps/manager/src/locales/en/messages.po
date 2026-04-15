@@ -55,7 +55,7 @@ msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
 #. placeholder {0}: skippedNames.length
-#: src/features/migration/pages/MigrationPage.tsx:40
+#: src/features/migration/pages/MigrationPage.tsx:41
 msgid "{0} name(s) could not be migrated"
 msgstr "{0} name(s) could not be migrated"
 
@@ -341,7 +341,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:156
+#: src/features/migration/pages/MigrationPage.tsx:163
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1280,7 +1280,7 @@ msgstr "Migrating {0} {1} name(s)"
 msgid "Migrating {0} subname(s) under {1}"
 msgstr "Migrating {0} subname(s) under {1}"
 
-#: src/features/migration/pages/MigrationPage.tsx:128
+#: src/features/migration/pages/MigrationPage.tsx:135
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1840,7 +1840,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:163
+#: src/features/migration/pages/MigrationPage.tsx:170
 msgid "Retry"
 msgstr "Retry"
 

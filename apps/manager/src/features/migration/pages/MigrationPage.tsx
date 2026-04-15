@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useNavigate } from '@tanstack/react-router'
 import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback } from 'react'
@@ -84,6 +85,7 @@ const formatMigrationError = (
 
 export const MigrationPage = () => {
   const { t } = useLingui()
+  const navigate = useNavigate()
   const { uiActor } = useMigrationUiContext()
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
@@ -92,6 +94,11 @@ export const MigrationPage = () => {
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
   const { ownerAddress } = useSmartAccountContext()
+
+  const handleSuccessClose = useCallback(() => {
+    uiActor.send({ type: 'done' })
+    navigate({ to: '/dashboard' })
+  }, [uiActor, navigate])
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
@@ -168,7 +175,7 @@ export const MigrationPage = () => {
         .with('partialSuccess', () => (
           <SuccessModal
             migratedNames={migratedNames}
-            onClose={() => uiActor.send({ type: 'done' })}
+            onClose={handleSuccessClose}
             open
             skippedNames={skippedNames}
           />
@@ -176,7 +183,7 @@ export const MigrationPage = () => {
         .with('success', () => (
           <SuccessModal
             migratedNames={migratedNames}
-            onClose={() => uiActor.send({ type: 'done' })}
+            onClose={handleSuccessClose}
             open
             skippedNames={skippedNames}
           />

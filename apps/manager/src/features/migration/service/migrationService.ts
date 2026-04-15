@@ -245,6 +245,7 @@ const approveMulticall3IfNeeded = async (
         args: [MULTICALL3_ADDRESS, true],
       }),
     )
+    ctx.tracker.emit('Approving Multicall3 to batch your unwrapped names', hash)
     await waitForTransactionReceipt(ctx.wagmiConfig, {
       hash,
       timeout: TX_RECEIPT_TIMEOUT_MS,
