@@ -5,10 +5,10 @@ import { cn } from '@/lib/utils'
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
 
 const variantClass: Record<EntityVariant, string> = {
-  name: 'bg-entity-fill-name dark:bg-entity-bg text-syntax-name',
-  address: 'bg-entity-fill-address dark:bg-entity-bg text-syntax-address',
-  contract: 'bg-entity-fill-contract dark:bg-entity-bg text-syntax-contract',
-  tx: 'bg-entity-fill-tx dark:bg-entity-bg text-syntax-tx',
+  name: 'bg-accent-fill dark:bg-entity-bg text-accent-text',
+  address: 'bg-success-fill dark:bg-entity-bg text-success-text',
+  contract: 'bg-danger-fill dark:bg-entity-bg text-danger-text',
+  tx: 'bg-warning-fill dark:bg-entity-bg text-warning-text',
 }
 
 const pillClass = (variant: EntityVariant, className?: string) =>

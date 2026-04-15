@@ -10,13 +10,13 @@ const messageCardVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-entity-fill-name **:data-[slot=icon]:text-syntax-name **:data-[slot=title]:text-syntax-name',
+          'bg-accent-fill **:data-[slot=icon]:text-accent-text **:data-[slot=title]:text-accent-text',
         success:
-          'bg-entity-fill-address **:data-[slot=icon]:text-syntax-address **:data-[slot=title]:text-syntax-address',
+          'bg-success-fill **:data-[slot=icon]:text-success-text **:data-[slot=title]:text-success-text',
         danger:
-          'bg-entity-fill-contract **:data-[slot=icon]:text-syntax-contract **:data-[slot=title]:text-syntax-contract',
+          'bg-danger-fill **:data-[slot=icon]:text-danger-text **:data-[slot=title]:text-danger-text',
         warning:
-          'bg-entity-fill-tx **:data-[slot=icon]:text-syntax-tx **:data-[slot=title]:text-syntax-tx',
+          'bg-warning-fill **:data-[slot=icon]:text-warning-text **:data-[slot=title]:text-warning-text',
       },
     },
     defaultVariants: {
