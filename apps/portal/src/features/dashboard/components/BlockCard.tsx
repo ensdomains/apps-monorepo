@@ -105,7 +105,7 @@ export const LinkBlockCard = ({
     </div>
     <div
       className={cn(
-        'flex items-center justify-center rounded-xs size-7 shrink-0 self-end transition-colors',
+        'flex items-center justify-center rounded-xs w-6 h-11.75 shrink-0 self-end transition-colors',
         linkCardChevronBg({ hoverColor }),
       )}
     >
