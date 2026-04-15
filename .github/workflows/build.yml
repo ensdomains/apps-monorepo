@@ -28,12 +28,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Determine base ref
+        id: base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=origin/${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          else
+            echo "ref=origin/main" >> $GITHUB_OUTPUT
+          fi
+
       - name: Detect changed packages
         id: changed
         run: |
           echo "🔍 Detecting changed packages..."
-          # "[origin/main]" means packages changed since the merge-base with origin/main.
-          CHANGED_PACKAGES=$(pnpm --filter="[origin/main]" list --depth=-1 --json | jq -r '.[].name' | tr '\n' ' ')
+          CHANGED_PACKAGES=$(pnpm --filter="[${{ steps.base.outputs.ref }}]" list --depth=-1 --json | jq -r '.[].name' | tr '\n' ' ')
           echo "Changed packages: $CHANGED_PACKAGES"
           echo "packages=$CHANGED_PACKAGES" >> $GITHUB_OUTPUT
 
@@ -47,15 +55,13 @@ jobs:
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
-          # "...[origin/main]" means changed packages plus their dependents.
-          pnpm --filter="...[origin/main]" --if-present typecheck
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" --if-present typecheck
 
       - name: Build changed apps
         if: steps.changed.outputs.has_apps == 'true'
         run: |
           echo "🏗️ Building changed apps and dependents..."
-          # "...[origin/main]" means changed packages plus their dependents.
-          pnpm --filter="...[origin/main]" --if-present build
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" --if-present build
 
       - name: Build all apps (fallback)
         if: steps.changed.outputs.has_apps == 'false'
