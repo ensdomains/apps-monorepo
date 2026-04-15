@@ -147,9 +147,12 @@ const HistorySection = ({ tld }: { tld: string }) => {
 
   if (v2HistoryQuery.error) {
     return (
-      <div className="text-sm text-destructive">
-        {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
-      </div>
+      <ErrorMessage
+        title={v2HistoryQuery.error.name}
+        description={
+          v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message
+        }
+      />
     )
   }
 
