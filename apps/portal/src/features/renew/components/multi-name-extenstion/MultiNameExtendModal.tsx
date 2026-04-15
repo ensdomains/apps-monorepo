@@ -36,7 +36,7 @@ export const MultiNameExtendModal = ({
     getDurationInSecondsFromYears(1),
   )
 
-  const { pricingData, total, allLoaded } = useMultiNamePricing(
+  const { pricingData, total, totalDiscount, allLoaded } = useMultiNamePricing(
     selectedNames,
     duration,
   )
@@ -71,6 +71,7 @@ export const MultiNameExtendModal = ({
             <MultiNameExtendSettings
               pricingData={pricingData}
               total={total}
+              totalDiscount={totalDiscount}
               allLoaded={allLoaded}
               duration={duration}
               setDuration={setDuration}
@@ -81,6 +82,7 @@ export const MultiNameExtendModal = ({
             <MultiNameExtendSummary
               pricingData={pricingData}
               total={total}
+              totalDiscount={totalDiscount}
               allLoaded={allLoaded}
               onNext={() => setStep('confirm')}
             />

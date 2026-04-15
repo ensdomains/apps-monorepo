@@ -1,12 +1,13 @@
 import { Button } from '@/components/ui/button'
 import { RegistrationDurationOrExpiryPicker } from '@/features/register/components/RegistrationDurationOrExpiryPicker'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import { MultiNamePricingFooter } from './MultiNamePricingFooter'
 import { MultiNameSummaryCard } from './MultiNameSummaryCard'
 
 type MultiNameExtendSettingsProps = {
   readonly pricingData: readonly NamePricingData[]
   readonly total: number
+  readonly totalDiscount: number
   readonly allLoaded: boolean
   readonly duration: number
   readonly setDuration: (duration: number) => void
@@ -16,6 +17,7 @@ type MultiNameExtendSettingsProps = {
 export const MultiNameExtendSettings = ({
   pricingData,
   total,
+  totalDiscount,
   allLoaded,
   duration,
   setDuration,
@@ -38,9 +40,12 @@ export const MultiNameExtendSettings = ({
           ))}
         </ul>
 
-        <div className="flex items-baseline justify-between p-4 text-lapis-500 font-medium">
-          <span className="text-xl">Total:</span>
-          <span className="text-xl">{allLoaded ? formatUsd(total) : '—'}</span>
+        <div className="p-4">
+          <MultiNamePricingFooter
+            total={total}
+            totalDiscount={totalDiscount}
+            allLoaded={allLoaded}
+          />
         </div>
       </div>
 

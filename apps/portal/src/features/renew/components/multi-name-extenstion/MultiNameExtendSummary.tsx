@@ -1,11 +1,12 @@
 import { Button } from '@/components/ui/button'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import { MultiNamePricingFooter } from './MultiNamePricingFooter'
 import { MultiNameSummaryCard } from './MultiNameSummaryCard'
 
 type MultiNameExtendSummaryProps = {
   readonly pricingData: readonly NamePricingData[]
   readonly total: number
+  readonly totalDiscount: number
   readonly allLoaded: boolean
   readonly onNext: () => void
 }
@@ -13,6 +14,7 @@ type MultiNameExtendSummaryProps = {
 export const MultiNameExtendSummary = ({
   pricingData,
   total,
+  totalDiscount,
   allLoaded,
   onNext,
 }: MultiNameExtendSummaryProps) => {
@@ -26,14 +28,11 @@ export const MultiNameExtendSummary = ({
         ))}
       </ul>
 
-      <div className="border-t border-border pt-4">
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm text-quartz-350">Total:</span>
-          <span className="text-xl font-semibold text-primary">
-            {allLoaded ? formatUsd(total) : '—'}
-          </span>
-        </div>
-      </div>
+      <MultiNamePricingFooter
+        total={total}
+        totalDiscount={totalDiscount}
+        allLoaded={allLoaded}
+      />
 
       <Button className="w-full" variant="secondary" onClick={onNext}>
         Next

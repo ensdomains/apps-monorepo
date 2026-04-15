@@ -28,6 +28,8 @@ export type NamePricingDisplay = {
   readonly total: string
   /** Raw USD amount (base only) for computing multi-name totals */
   readonly actualPrice: number
+  /** Raw USD discount amount for computing multi-name total savings */
+  readonly discountAmount: number
 }
 
 /**
@@ -47,11 +49,8 @@ export function computeNamePricingDisplay(
     : getStartOfToday()
   const newExpiryFormatted = formatExpiryDate(baseDate.add({ days }))
 
-  const { pricePerYear, years, discountPercent } = getPricingBreakdown(
-    selectedName.name,
-    price,
-    duration,
-  )
+  const { pricePerYear, years, discountAmount, discountPercent } =
+    getPricingBreakdown(selectedName.name, price, duration)
 
   const priceLabel =
     discountPercent > 0
@@ -71,5 +70,6 @@ export function computeNamePricingDisplay(
     subtotal: formatPriceDisplay(price.base, price.decimals),
     total: formatRegistrationTotal(price.base, price.premium, price.decimals),
     actualPrice: Number(price.base) / 10 ** price.decimals,
+    discountAmount,
   }
 }

@@ -18,6 +18,7 @@ export type NamePricingData = {
 export type MultiNamePricingResult = {
   readonly pricingData: readonly NamePricingData[]
   readonly total: number
+  readonly totalDiscount: number
   readonly allLoaded: boolean
 }
 
@@ -50,7 +51,11 @@ export function useMultiNamePricing(
     (sum, item) => (item.display ? sum + item.display.actualPrice : sum),
     0,
   )
+  const totalDiscount = pricingData.reduce(
+    (sum, item) => (item.display ? sum + item.display.discountAmount : sum),
+    0,
+  )
   const allLoaded = pricingData.every((item) => !item.isLoading)
 
-  return { pricingData, total, allLoaded }
+  return { pricingData, total, totalDiscount, allLoaded }
 }
