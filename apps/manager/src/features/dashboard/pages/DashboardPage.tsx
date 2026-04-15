@@ -60,7 +60,7 @@ export const DashboardPage = () => {
   const hasProfile = Boolean(defaultName)
 
   return (
-    <div className="mx-auto flex max-w-[1440px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-10">
+    <div className="mx-auto flex w-full max-w-[1280px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-10">
       <MigrationModal />
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
         <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>

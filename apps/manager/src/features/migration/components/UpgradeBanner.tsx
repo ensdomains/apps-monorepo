@@ -19,7 +19,7 @@ export const UpgradeBanner = () => {
   if ((migratedCount ?? 0) >= 1) return null
 
   return (
-    <div className="relative overflow-hidden rounded-sm bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-5 py-[22px]">
+    <div className="relative overflow-hidden bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-6 md:py-8">
       <GrainOverlay />
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
