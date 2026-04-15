@@ -100,11 +100,14 @@ export const MultiNamePaymentTokenPicker = ({
 
   if (isLoading) return <Skeleton />
 
-  const balances = (balancesQuery.data ?? []).map((balance) =>
-    balance.status === 'success' && balance.result !== undefined
-      ? BigInt(balance.result)
-      : 0n,
-  )
+  const rawBalances = balancesQuery.data
+  const balances = Array.isArray(rawBalances)
+    ? rawBalances.map((balance: { status: string; result: unknown }) =>
+        balance.status === 'success' && balance.result !== undefined
+          ? BigInt(balance.result as bigint)
+          : 0n,
+      )
+    : []
 
   // Sum totals per token as bigints to avoid float drift
   const usdcPrices = priceQueries.slice(0, names.length)

@@ -5,14 +5,9 @@ import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import {
-  ethRegistrarControllerRenewSnippet,
-  ethRegistrarControllerRentPriceSnippet,
-} from '@ensdomains/ensjs/contracts'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useCallback, useMemo, useState } from 'react'
 import { type Address, encodeFunctionData } from 'viem'
-import { readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
@@ -28,24 +23,35 @@ export type SelectedName = {
 
 export const RENEWAL_TX_IDS = {
   approve: 'renewal-approve',
-  v1Renew: (name: string) => `renewal-v1-renew-${name}`,
-  v2Renew: (name: string) => `renewal-v2-renew-${name}`,
+  renew: (name: string) => `renewal-renew-${name}`,
 } as const
 
 type SavedRenewalParams = {
   readonly name: SelectedName
   readonly duration: number
-  // V2 (ERC20)
-  readonly v2TokenAddress?: Address
-  readonly v2TokenPrice?: bigint
-  readonly v2TokenSymbol?: 'USDC' | 'DAI'
-  // V1 (ETH) — price fetched fresh per tx for accuracy
+  readonly tokenAddress: Address
+  readonly tokenPrice: bigint
+  readonly tokenSymbol: 'USDC' | 'DAI'
+}
+
+type MultiSavedRenewalParams = {
+  readonly names: SelectedName[]
+  readonly duration: number
+  readonly tokenAddress: Address
+  readonly tokenPrice: bigint
+  readonly tokenSymbol: 'USDC' | 'DAI'
 }
 
 export type StartFlowConfig = {
   readonly duration: number
-  readonly v2TokenAddress?: Address
-  readonly v2TokenPrice?: bigint
+  readonly tokenAddress: Address
+  readonly tokenPrice: bigint
+}
+
+export type StartMultiFlowConfig = {
+  readonly duration: number
+  readonly tokenAddress: Address
+  readonly tokenPrice: bigint
 }
 
 type ApproveParams = {
@@ -56,17 +62,10 @@ type ApproveParams = {
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
 }
 
-type V2RenewParams = {
+type RenewParams = {
   readonly name: string
   readonly duration: number
   readonly tokenAddress: Address
-  readonly from: Address
-  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
-}
-
-type V1RenewParams = {
-  readonly name: string
-  readonly duration: number
   readonly from: Address
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
 }
@@ -104,8 +103,8 @@ function buildApproveTransaction(
   )
 }
 
-function buildV2RenewTransaction(
-  params: V2RenewParams,
+function buildRenewTransaction(
+  params: RenewParams,
   signer: ReturnType<typeof createEOASigner>,
 ) {
   const label = params.name.replace('.eth', '')
@@ -134,48 +133,7 @@ function buildV2RenewTransaction(
     },
     signer,
     {
-      id: RENEWAL_TX_IDS.v2Renew(params.name),
-      publicClient: params.publicClient,
-      description: `Renew ${params.name}`,
-    },
-  )
-}
-
-async function buildV1RenewTransaction(
-  params: V1RenewParams,
-  signer: ReturnType<typeof createEOASigner>,
-) {
-  const label = params.name.replace('.eth', '')
-  const priceResult = await readContract(params.publicClient, {
-    address: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
-    abi: ethRegistrarControllerRentPriceSnippet,
-    functionName: 'rentPrice',
-    args: [label, BigInt(params.duration)],
-  })
-  const rawPrice = priceResult.base + priceResult.premium
-  const bufferedPrice = (rawPrice * 102n) / 100n
-
-  const renewData = encodeFunctionData({
-    abi: ethRegistrarControllerRenewSnippet,
-    functionName: 'renew',
-    args: [label, BigInt(params.duration)],
-  })
-
-  transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: params.from,
-        to: ENS_SEPOLIA_CONTRACTS.ETHRegistrarController,
-        data: renewData,
-        value: bufferedPrice,
-        chainId: sepolia.id,
-      },
-    },
-    signer,
-    {
-      id: RENEWAL_TX_IDS.v1Renew(params.name),
+      id: RENEWAL_TX_IDS.renew(params.name),
       publicClient: params.publicClient,
       description: `Renew ${params.name}`,
     },
@@ -190,6 +148,8 @@ export const useRenewalTransactions = () => {
   const [savedParams, setSavedParams] = useState<SavedRenewalParams | null>(
     null,
   )
+  const [multiSavedParams, setMultiSavedParams] =
+    useState<MultiSavedRenewalParams | null>(null)
 
   const getWallet = useCallback(async () => {
     if (!connection.address) throw new Error('No connected account')
@@ -208,8 +168,8 @@ export const useRenewalTransactions = () => {
 
   const handleApproveStart = useCallback(async () => {
     if (
-      !savedParams?.v2TokenAddress ||
-      !savedParams.v2TokenPrice ||
+      !savedParams?.tokenAddress ||
+      !savedParams.tokenPrice ||
       !connection.address ||
       !publicClient
     )
@@ -221,45 +181,27 @@ export const useRenewalTransactions = () => {
     buildApproveTransaction(
       {
         from: connection.address,
-        tokenAddress: savedParams.v2TokenAddress,
-        tokenPrice: savedParams.v2TokenPrice,
-        tokenSymbol: savedParams.v2TokenSymbol,
+        tokenAddress: savedParams.tokenAddress,
+        tokenPrice: savedParams.tokenPrice,
+        tokenSymbol: savedParams.tokenSymbol,
         publicClient,
       },
       signer,
     )
   }, [savedParams, connection, getWallet, publicClient])
 
-  const handleV2RenewStart = useCallback(async () => {
-    if (!savedParams?.v2TokenAddress || !connection.address || !publicClient)
+  const handleRenewStart = useCallback(async () => {
+    if (!savedParams?.tokenAddress || !connection.address || !publicClient)
       return
 
     const walletClient = await getWallet()
     const signer = createEOASigner(walletClient)
 
-    buildV2RenewTransaction(
+    buildRenewTransaction(
       {
         name: savedParams.name.name,
         duration: savedParams.duration,
-        tokenAddress: savedParams.v2TokenAddress,
-        from: connection.address,
-        publicClient,
-      },
-      signer,
-    )
-  }, [savedParams, connection, getWallet, publicClient])
-
-  const handleV1RenewStart = useCallback(async () => {
-    if (!connection.address || !publicClient) return
-
-    const walletClient = await getWallet()
-    const signer = createEOASigner(walletClient)
-
-    transactionManager.clear()
-    await buildV1RenewTransaction(
-      {
-        name: savedParams?.name.name ?? '',
-        duration: savedParams?.duration ?? 0,
+        tokenAddress: savedParams.tokenAddress,
         from: connection.address,
         publicClient,
       },
@@ -270,63 +212,118 @@ export const useRenewalTransactions = () => {
   const transactions: Transaction[] = useMemo(() => {
     if (!savedParams) return []
 
-    const { name, v2TokenAddress, v2TokenSymbol } = savedParams
-
-    if (name.isV2 && v2TokenAddress) {
-      return [
-        {
-          id: RENEWAL_TX_IDS.approve,
-          title: 'Approve payment',
-          transactionName: `Approve ${v2TokenSymbol ?? 'token'} for renewal`,
-          estimatedGasCost: 0.0003,
-          onStart: handleApproveStart,
-          onDone: handleV2RenewStart,
-        },
-        {
-          id: RENEWAL_TX_IDS.v2Renew(name.name),
-          title: `Extend ${name.name}`,
-          transactionName: `Extend ${name.name}`,
-          estimatedGasCost: 0.001,
-          onStart: handleV2RenewStart,
-          onDone: handleDone,
-        },
-      ]
-    }
+    const { name, tokenSymbol } = savedParams
 
     return [
       {
-        id: RENEWAL_TX_IDS.v1Renew(name.name),
+        id: RENEWAL_TX_IDS.approve,
+        title: 'Approve payment',
+        transactionName: `Approve ${tokenSymbol} for renewal`,
+        estimatedGasCost: 0.0003,
+        onStart: handleApproveStart,
+        onDone: handleRenewStart,
+      },
+      {
+        id: RENEWAL_TX_IDS.renew(name.name),
         title: `Extend ${name.name}`,
-        transactionName: `Extend ${name.name} (V1)`,
+        transactionName: `Extend ${name.name}`,
         estimatedGasCost: 0.001,
-        onStart: handleV1RenewStart,
+        onStart: handleRenewStart,
         onDone: handleDone,
       },
     ]
+  }, [savedParams, handleApproveStart, handleRenewStart, handleDone])
+
+  const multiTransactions: Transaction[] = useMemo(() => {
+    if (!multiSavedParams || !connection.address || !publicClient) return []
+
+    const from = connection.address
+    const client = publicClient
+    const { names, duration, tokenAddress, tokenSymbol, tokenPrice } =
+      multiSavedParams
+
+    const makeRenewFn = (name: SelectedName) => async () => {
+      const walletClient = await getWallet()
+      const signer = createEOASigner(walletClient)
+      buildRenewTransaction(
+        { name: name.name, duration, tokenAddress, from, publicClient: client },
+        signer,
+      )
+    }
+
+    const renewFns = names.map(makeRenewFn)
+
+    const approveTx: Transaction = {
+      id: RENEWAL_TX_IDS.approve,
+      title: 'Approve payment',
+      transactionName: `Approve ${tokenSymbol} for renewal`,
+      estimatedGasCost: 0.0003,
+      onStart: async () => {
+        const walletClient = await getWallet()
+        const signer = createEOASigner(walletClient)
+        buildApproveTransaction(
+          { from, tokenAddress, tokenPrice, tokenSymbol, publicClient: client },
+          signer,
+        )
+      },
+      onDone: renewFns[0],
+    }
+
+    const renewTxs: Transaction[] = names.map((name, i) => ({
+      id: RENEWAL_TX_IDS.renew(name.name),
+      title: `Extend ${name.name}`,
+      transactionName: `Extend ${name.name}`,
+      estimatedGasCost: 0.001,
+      onStart: renewFns[i],
+      onDone: i < names.length - 1 ? renewFns[i + 1] : handleDone,
+    }))
+
+    return [approveTx, ...renewTxs]
   }, [
-    savedParams,
-    handleApproveStart,
-    handleV2RenewStart,
-    handleV1RenewStart,
+    multiSavedParams,
+    connection.address,
+    publicClient,
+    getWallet,
     handleDone,
   ])
 
   const startFlow = useCallback(
     (name: SelectedName, flowConfig: StartFlowConfig) => {
-      const v2TokenSymbol = flowConfig.v2TokenAddress
-        ? getTokenMetadataWithAddress(flowConfig.v2TokenAddress).symbol
-        : undefined
+      const tokenSymbol = getTokenMetadataWithAddress(
+        flowConfig.tokenAddress,
+      ).symbol
 
       setSavedParams({
         name,
         duration: flowConfig.duration,
-        v2TokenAddress: flowConfig.v2TokenAddress,
-        v2TokenPrice: flowConfig.v2TokenPrice,
-        v2TokenSymbol,
+        tokenAddress: flowConfig.tokenAddress,
+        tokenPrice: flowConfig.tokenPrice,
+        tokenSymbol,
       })
     },
     [],
   )
 
-  return { transactions, startFlow }
+  const startMultiFlow = useCallback(
+    (names: SelectedName[], flowConfig: StartMultiFlowConfig) => {
+      const tokenSymbol = getTokenMetadataWithAddress(
+        flowConfig.tokenAddress,
+      ).symbol
+
+      setMultiSavedParams({
+        names,
+        duration: flowConfig.duration,
+        tokenAddress: flowConfig.tokenAddress,
+        tokenPrice: flowConfig.tokenPrice,
+        tokenSymbol,
+      })
+    },
+    [],
+  )
+
+  return {
+    transactions: multiSavedParams ? multiTransactions : transactions,
+    startFlow,
+    startMultiFlow,
+  }
 }

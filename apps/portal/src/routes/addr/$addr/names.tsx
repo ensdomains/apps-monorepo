@@ -134,8 +134,11 @@ function RouteComponent() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [extendModalOpen, setExtendModalOpen] = useState(false)
 
-  const { transactions: renewalTransactions, startFlow } =
-    useRenewalTransactions()
+  const {
+    transactions: renewalTransactions,
+    startFlow,
+    startMultiFlow,
+  } = useRenewalTransactions()
 
   const { openModal } = useTransactionModal()
 
@@ -371,11 +374,19 @@ function RouteComponent() {
       {selectedNames.length > 1 && (
         <MultiNameExtendModal
           open={extendModalOpen}
-          onClose={() => setExtendModalOpen(false)}
-          selectedNames={selectedNames}
-          onExtend={(_config) => {
+          onClose={() => {
             setExtendModalOpen(false)
-            // TODO: implement multi-name transaction flow
+            setRowSelection({})
+          }}
+          selectedNames={selectedNames}
+          onExtend={(config) => {
+            startMultiFlow(selectedNames, {
+              duration: config.duration,
+              tokenAddress: config.token.address,
+              tokenPrice: config.token.price.total,
+            })
+            setExtendModalOpen(false)
+            openModal()
           }}
         />
       )}

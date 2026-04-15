@@ -39,7 +39,7 @@ export const MultiNameExtendModal = ({
   selectedNames,
   onExtend,
 }: MultiNameExtendModalProps) => {
-  const [step, setStep] = useState<MultiNameExtendModalStep>('success')
+  const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )

@@ -89,8 +89,8 @@ export const ExtendNameModal = ({
                 onConfirm={(token) =>
                   onExtend({
                     duration,
-                    v2TokenAddress: token.address,
-                    v2TokenPrice: token.price.total,
+                    tokenAddress: token.address,
+                    tokenPrice: token.price.total,
                   })
                 }
                 isRegistering={false}
