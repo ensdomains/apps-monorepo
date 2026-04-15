@@ -39,7 +39,7 @@ export const MultiNameExtendModal = ({
   selectedNames,
   onExtend,
 }: MultiNameExtendModalProps) => {
-  const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
+  const [step, setStep] = useState<MultiNameExtendModalStep>('success')
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
@@ -101,7 +101,10 @@ export const MultiNameExtendModal = ({
             />
           ))
           .with('success', () => (
-            <MultiNameExtensionSuccess pricingData={pricingData} />
+            <MultiNameExtensionSuccess
+              pricingData={pricingData}
+              onClose={onClose}
+            />
           ))
           .exhaustive()}
       </DialogContent>

@@ -1,16 +1,24 @@
+import { CheckCircle2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
 
 type MultiNameExtensionSuccessProps = {
   readonly pricingData: readonly NamePricingData[]
+  readonly onClose: () => void
 }
 
 export const MultiNameExtensionSuccess = ({
   pricingData,
+  onClose,
 }: MultiNameExtensionSuccessProps) => {
   return (
-    <div>
+    <div className="space-y-6">
+      <div className="flex flex-col items-center gap-2">
+        <CheckCircle2 className="size-10" />
+        <h2 className="text-3xl font-medium">Extension complete</h2>
+      </div>
       <ul className="space-y-2">
         {pricingData.map((item) => (
           <li key={item.selectedName.name}>
@@ -18,6 +26,9 @@ export const MultiNameExtensionSuccess = ({
           </li>
         ))}
       </ul>
+      <Button className="w-full" variant="secondary" onClick={onClose}>
+        Done
+      </Button>
     </div>
   )
 }
@@ -38,8 +49,8 @@ export const MultiNameExtensionSuccessCard = ({
   const { newExpiryFormatted } = display
 
   return (
-    <div className="border-b border-border overflow-hidden">
-      <div className="w-full flex items-start gap-3 px-4 py-3">
+    <div className="border border-border rounded-lg overflow-hidden">
+      <div className="w-full flex items-center gap-3 px-4 py-3">
         <div className="flex-1">
           <NameAvatar
             name={selectedName.name}
