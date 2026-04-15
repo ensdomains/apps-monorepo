@@ -26,6 +26,17 @@ import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
 import { validateENSName } from '../utils'
 
+export interface TokenPriceInfo {
+  raw: bigint
+  formatted: string
+  address: Address
+  symbol: string
+  decimals: number
+  base: bigint
+  premium: bigint
+  total: bigint
+}
+
 const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
@@ -113,7 +124,7 @@ export const generateCommitment = async (
 // Real ENS registration functions using Rhinestone SDK
 export const commitToRegistration = async (
   commitment: Hex,
-  sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
+  sendTransaction: (calls: unknown[]) => Promise<RhinestoneTransactionResult>,
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   try {
     const commitData = encodeFunctionData({
@@ -175,7 +186,7 @@ export const approveTokenForRegistration = async (
   tokenAddress: Address,
   amount: bigint,
   ownerAddress: Address,
-  sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
+  sendTransaction: (calls: unknown[]) => Promise<RhinestoneTransactionResult>,
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force token address to lowercase to avoid Rhinestone SDK validation issues
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
@@ -242,7 +253,7 @@ export const registerDomain = async (
   secret: string,
   duration: number, // in years
   paymentToken: Address = SUPPORTED_TOKENS.USDC,
-  sendTransaction: (calls: any[]) => Promise<RhinestoneTransactionResult>,
+  sendTransaction: (calls: unknown[]) => Promise<RhinestoneTransactionResult>,
 ): Promise<Result<RhinestoneTransactionResult, NameChainContractError>> => {
   // Force payment token address to lowercase to avoid Rhinestone SDK validation issues
   const normalizedPaymentToken = paymentToken.toLowerCase() as Address
@@ -391,7 +402,7 @@ export const getENSNameInfo = ResultFn(async function* (
     )
 
     // Get pricing for the specific payment token
-    let _priceResult: any
+    let _priceResult: unknown
     try {
       _priceResult = yield* await fromPromise(
         readContract(publicClient, {
@@ -415,8 +426,9 @@ export const getENSNameInfo = ResultFn(async function* (
       )
     }
 
-    const basePrice = _priceResult[0]
-    const premium = _priceResult[1]
+    const priceArray = _priceResult as [bigint, bigint]
+    const basePrice = priceArray[0]
+    const premium = priceArray[1]
     const total = basePrice + premium
 
     return ok({
@@ -445,13 +457,12 @@ export const getTokenPrices = ResultFn(async function* (
   const durationInSeconds = durationYearsToSeconds(duration)
 
   try {
-    const prices: Record<string, any> = {}
+    const prices: Record<string, TokenPriceInfo> = {}
 
     // Get prices for each supported token
     for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
       try {
-        let priceResult: any
-        priceResult = yield* await fromPromise(
+        const priceResult: unknown = yield* await fromPromise(
           readContract(publicClient, {
             address: ETH_REGISTRAR,
             abi: l2EthRegistrarRentPriceSnippet,

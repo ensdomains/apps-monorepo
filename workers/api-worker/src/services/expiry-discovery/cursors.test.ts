@@ -86,6 +86,7 @@ describe('notification cursors', () => {
 
     const stored = kv.readRaw(KV_KEY.EXPIRY_DISCOVERY.CURSORS)
     expect(stored).toBeTruthy()
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stored verified truthy above
     expect(JSON.parse(stored!)).toEqual({
       '30d': { expiry_timestamp: 1 },
       '7d': { expiry_timestamp: 2 },

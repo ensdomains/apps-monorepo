@@ -17,6 +17,7 @@
       // Generated files
       "!**/*.gen.ts",
       "!**/*.gen.d.ts",
+      "!**/worker-configuration.d.ts",
 
       // Build & Temp files
       "!!**/dist",

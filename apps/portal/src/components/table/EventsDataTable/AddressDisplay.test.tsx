@@ -24,7 +24,7 @@ vi.mock('wagmi', () => ({
 
 vi.mock('@/components/CopyButton', () => ({
   CopyButton: ({ value }: { value: string }) => (
-    <button data-testid="copy-button" data-value={value}>
+    <button type="button" data-testid="copy-button" data-value={value}>
       Copy
     </button>
   ),
