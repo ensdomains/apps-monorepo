@@ -28,7 +28,7 @@ export const Owner = ({
     return (
       <div
         className={cn(
-          'h-21.5 px-6 flex flex-col rounded-sm border border-border hover:bg-muted',
+          'h-21.5 px-6 flex flex-col justify-center rounded-sm border border-border hover:bg-muted',
           className,
         )}
       >

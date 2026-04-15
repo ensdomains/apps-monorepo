@@ -1,19 +1,38 @@
-import { createFileRoute, Outlet, useParams } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useParams,
+} from '@tanstack/react-router'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { getDnsSecEnabled } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { isTLD } from '@/utils/ens/tldHelpers'
 import { queryClient } from '@/utils/queryClient'
+import { isValidEnsName } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 export const Route = createFileRoute('/$name')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   beforeLoad: async ({ params }) => {
+    const { name } = params
+
+    // Redirect valid TLDs to the dedicated /tld/$tld route
+    if (isValidEnsName(name) && isTLD(name)) {
+      const shouldRedirect =
+        name === 'eth' || (await getDnsSecEnabled(name)) === true
+      if (shouldRedirect) {
+        throw redirect({ to: '/tld/$tld', params: { tld: name } })
+      }
+    }
+
     const ownerData = await queryClient.fetchQuery(
-      getEnsOwnerQueryOptions({ name: params.name }),
+      getEnsOwnerQueryOptions({ name }),
     )
     return {
       protocolVersion: ownerData?.protocolVersion as

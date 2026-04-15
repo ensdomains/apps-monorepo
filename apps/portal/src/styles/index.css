@@ -191,7 +191,6 @@
   --sidebar-ring: var(--lapis-400);
   --entity-bg: #242424;
   --entity-border: #383838;
-  --icon-foreground: #595755;
   /* Semantic fill colors — dark mode per-variant backgrounds */
   --accent-fill: #1c292e;
   --success-fill: #192a1e;
@@ -202,6 +201,7 @@
   --success-text: #1cbf46;
   --danger-text: #f569ab;
   --warning-text: #e7a259;
+  --icon-foreground: #595755;
 }
 
 @layer base {
