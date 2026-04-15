@@ -66,10 +66,8 @@ export const deliverEmailNotification = ResultFn(async function* (
             email: deliveryJob.target,
           },
         ],
-        dynamic_template_data: templateData.dynamicData as Record<
-          string,
-          unknown
-        >,
+        // biome-ignore lint/suspicious/noExplicitAny: template data contains non-string values (numbers, booleans) that SendGrid handles at runtime, but its types expect Record<string, string>
+        dynamic_template_data: templateData.dynamicData as any,
       },
     ],
     from: { email: fromEmail },
