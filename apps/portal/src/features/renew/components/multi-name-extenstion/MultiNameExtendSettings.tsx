@@ -38,11 +38,9 @@ export const MultiNameExtendSettings = ({
           ))}
         </ul>
 
-        <div className="flex items-baseline justify-between p-4">
-          <span className="text-sm text-quartz-350">Total:</span>
-          <span className="text-xl font-semibold text-primary">
-            {allLoaded ? formatUsd(total) : '—'}
-          </span>
+        <div className="flex items-baseline justify-between p-4 text-lapis-500 font-medium">
+          <span className="text-xl">Total:</span>
+          <span className="text-xl">{allLoaded ? formatUsd(total) : '—'}</span>
         </div>
       </div>
 
