@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
-import type { Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -49,7 +48,7 @@ export const RecentActivityTable = () => {
 
           return (
             <div
-              key={txHash}
+              key={`${txHash}-${event.type}`}
               className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-4 px-4 border-b border-border last:border-b-0"
             >
               {/* Mobile: top row — entity left, time right
@@ -70,10 +69,7 @@ export const RecentActivityTable = () => {
                       </Link>
                     ))
                     .otherwise(() => (
-                      <BlockExplorerTxLink
-                        txHash={txHash as Hash}
-                        showCopy={false}
-                      />
+                      <BlockExplorerTxLink txHash={txHash} showCopy={false} />
                     ))}
                 </div>
                 <span className="sm:order-1 font-mono text-xs sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">

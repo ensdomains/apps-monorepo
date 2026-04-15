@@ -3,12 +3,13 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise } from 'neverthrow'
+import type { Hash } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 export type RecentActivityEvent = {
   readonly name: string | null
   readonly type: string
-  readonly transactionHash: string
+  readonly transactionHash: Hash
   readonly timestamp: number
   readonly blockNumber: number
   readonly contractAddress: string
