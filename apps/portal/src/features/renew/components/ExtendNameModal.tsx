@@ -75,6 +75,7 @@ export const ExtendNameModal = ({
               selectedName={selectedName}
               duration={duration}
               setDuration={setDuration}
+              onBack={() => setStep('disclaimer')}
               onNext={() => setStep('confirm')}
             />
           ))
@@ -84,6 +85,7 @@ export const ExtendNameModal = ({
                 selectedName={selectedName}
                 durationSeconds={duration}
                 price={price}
+                onBack={() => setStep('settings')}
                 onConfirm={(token) =>
                   onExtend({
                     duration,

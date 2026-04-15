@@ -75,6 +75,7 @@ export const MultiNameExtendModal = ({
               allLoaded={allLoaded}
               duration={duration}
               setDuration={setDuration}
+              onBack={() => setStep('disclaimer')}
               onNext={() => setStep('summary')}
             />
           ))
@@ -84,6 +85,7 @@ export const MultiNameExtendModal = ({
               total={total}
               totalDiscount={totalDiscount}
               allLoaded={allLoaded}
+              onBack={() => setStep('settings')}
               onNext={() => setStep('confirm')}
             />
           ))

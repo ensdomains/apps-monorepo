@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
 import { MultiNamePricingFooter } from './MultiNamePricingFooter'
@@ -8,6 +9,7 @@ type MultiNameExtendSummaryProps = {
   readonly total: number
   readonly totalDiscount: number
   readonly allLoaded: boolean
+  readonly onBack: () => void
   readonly onNext: () => void
 }
 
@@ -16,6 +18,7 @@ export const MultiNameExtendSummary = ({
   total,
   totalDiscount,
   allLoaded,
+  onBack,
   onNext,
 }: MultiNameExtendSummaryProps) => {
   return (
@@ -34,9 +37,14 @@ export const MultiNameExtendSummary = ({
         allLoaded={allLoaded}
       />
 
-      <Button className="w-full" variant="secondary" onClick={onNext}>
-        Next
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" size="icon" onClick={onBack}>
+          <ArrowLeft className="size-4" />
+        </Button>
+        <Button className="flex-1" variant="secondary" onClick={onNext}>
+          Next
+        </Button>
+      </div>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { RegistrationDurationOrExpiryPicker } from '@/features/register/components/RegistrationDurationOrExpiryPicker'
@@ -8,6 +9,7 @@ type ExtendNameSettingsProps = {
   readonly selectedName: SelectedName
   readonly duration: number
   readonly setDuration: (duration: number) => void
+  readonly onBack: () => void
   readonly onNext: () => void
 }
 
@@ -15,6 +17,7 @@ export const ExtendNameSettings = ({
   selectedName,
   duration,
   setDuration,
+  onBack,
   onNext,
 }: ExtendNameSettingsProps) => {
   return (
@@ -34,9 +37,14 @@ export const ExtendNameSettings = ({
         selectedName={selectedName}
         duration={duration}
       />
-      <Button className="w-full" variant="secondary" onClick={onNext}>
-        Next
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" size="icon" onClick={onBack}>
+          <ArrowLeft className="size-4" />
+        </Button>
+        <Button className="flex-1" variant="secondary" onClick={onNext}>
+          Next
+        </Button>
+      </div>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RegistrationDurationOrExpiryPicker } from '@/features/register/components/RegistrationDurationOrExpiryPicker'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
@@ -11,6 +12,7 @@ type MultiNameExtendSettingsProps = {
   readonly allLoaded: boolean
   readonly duration: number
   readonly setDuration: (duration: number) => void
+  readonly onBack: () => void
   readonly onNext: () => void
 }
 
@@ -21,6 +23,7 @@ export const MultiNameExtendSettings = ({
   allLoaded,
   duration,
   setDuration,
+  onBack,
   onNext,
 }: MultiNameExtendSettingsProps) => {
   return (
@@ -49,9 +52,14 @@ export const MultiNameExtendSettings = ({
         </div>
       </div>
 
-      <Button className="w-full" variant="secondary" onClick={onNext}>
-        Next
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" size="icon" onClick={onBack}>
+          <ArrowLeft className="size-4" />
+        </Button>
+        <Button className="flex-1" variant="secondary" onClick={onNext}>
+          Next
+        </Button>
+      </div>
     </div>
   )
 }
