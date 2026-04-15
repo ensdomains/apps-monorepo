@@ -99,7 +99,6 @@ export const IntegrationsSection = () => {
         <div className="mt-16 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {INTEGRATIONS.map((integration) => (
             <div
-              // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
               className="flex items-center gap-2 border-ens-lapis-dust border-t py-4"
               key={integration.name}
             >

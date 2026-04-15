@@ -3,46 +3,61 @@
  * Direct, minimal approach without complex hooks
  */
 
-import { RhinestoneSDK } from '@rhinestone/sdk'
-import type { Account } from 'viem'
+import {
+  type CallInput,
+  type RhinestoneAccount,
+  RhinestoneSDK,
+} from '@rhinestone/sdk'
+import type { Account, WalletClient } from 'viem'
 import { customSepolia } from '@/lib/wagmi'
 
-const createCustomAccount = (walletClient: any): Account => {
+const createCustomAccount = (walletClient: WalletClient): Account => {
+  const account = walletClient.account
+  if (!account) {
+    throw new Error(
+      'WalletClient must have an account to create a custom account',
+    )
+  }
+
   return {
-    address: walletClient.account.address,
+    address: account.address,
     type: 'json-rpc',
-    async signMessage({ message }: { message: any }) {
+    async signMessage({
+      message,
+    }: {
+      message: Parameters<WalletClient['signMessage']>[0]['message']
+    }) {
       return await walletClient.signMessage({
-        account: walletClient.account,
+        account,
         message,
       })
     },
-    async signTypedData(typedData: any) {
+    async signTypedData(typedData: Record<string, unknown>) {
       return await walletClient.signTypedData({
-        account: walletClient.account,
+        account,
         ...typedData,
-      })
+      } as Parameters<WalletClient['signTypedData']>[0])
     },
-    async signTransaction(transaction: any) {
+    async signTransaction(transaction: Record<string, unknown>) {
       return await walletClient.signTransaction({
-        account: walletClient.account,
+        account,
         ...transaction,
-      })
+      } as Parameters<WalletClient['signTransaction']>[0])
     },
   } as unknown as Account
 }
 
 export interface RhinestoneTransactionResult {
-  transaction: any
-  result: any
+  transaction: unknown
+  result: unknown
   fillTransactionHash: string | null
 }
 
 export class RhinestoneService {
-  private rhinestoneAccount: any = null
+  private rhinestoneAccount: RhinestoneAccount | null = null
   private accountAddress: string | null = null
 
-  async initialize(walletClient: any): Promise<void> {
+  async initialize(walletClient: WalletClient): Promise<void> {
     try {
       console.log('🔧 Initializing Rhinestone SDK...')
 
@@ -67,7 +82,9 @@ export class RhinestoneService {
     }
   }
 
-  async sendTransaction(calls: any[]): Promise<RhinestoneTransactionResult> {
+  async sendTransaction(
+    calls: CallInput[],
+  ): Promise<RhinestoneTransactionResult> {
     if (!this.rhinestoneAccount) {
       throw new Error('Rhinestone account not initialized')
     }
@@ -97,13 +114,13 @@ export class RhinestoneService {
       let txHash: string | null = null
       if (transactionResult && typeof transactionResult === 'object') {
         if ('fillTransactionHash' in transactionResult) {
-          txHash = transactionResult.fillTransactionHash
+          txHash = transactionResult.fillTransactionHash as string
         } else if ('transactionHash' in transactionResult) {
-          txHash = transactionResult.transactionHash
+          txHash = transactionResult.transactionHash as string
         } else if ('result' in transactionResult && transactionResult.result) {
-          const result = transactionResult.result as any
+          const result = transactionResult.result as Record<string, unknown>
           if (result.transactionHash) {
-            txHash = result.transactionHash
+            txHash = result.transactionHash as string
           }
         }
       }

@@ -127,7 +127,7 @@ msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selecte
 msgstr "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 
 #. placeholder {0}: getErrorMessage(error)
-#: src/routes/wallet.tsx:192
+#: src/routes/wallet.tsx:193
 msgid "<0>Connection failed:</0> {0}"
 msgstr "<0>Connection failed:</0> {0}"
 
@@ -337,7 +337,7 @@ msgstr "available"
 msgid "Available"
 msgstr "Available"
 
-#: src/routes/wallet.tsx:204
+#: src/routes/wallet.tsx:205
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
@@ -473,7 +473,7 @@ msgstr "Checking wallet connection..."
 msgid "Choose a color for your profile"
 msgstr "Choose a color for your profile"
 
-#: src/routes/wallet.tsx:207
+#: src/routes/wallet.tsx:208
 msgid "Choose a wallet to connect to the application"
 msgstr "Choose a wallet to connect to the application"
 
@@ -593,7 +593,7 @@ msgstr "Confirming transactions"
 msgid "Connect"
 msgstr "Connect"
 
-#: src/routes/wallet.tsx:151
+#: src/routes/wallet.tsx:152
 msgid "Connect a Wallet"
 msgstr "Connect a Wallet"
 
@@ -617,7 +617,7 @@ msgstr "Connect Wallet"
 msgid "Connect your wallet"
 msgstr "Connect your wallet"
 
-#: src/routes/wallet.tsx:301
+#: src/routes/wallet.tsx:302
 msgid "Connected via:"
 msgstr "Connected via:"
 
@@ -625,11 +625,11 @@ msgstr "Connected via:"
 msgid "Connected wallet"
 msgstr "Connected wallet"
 
-#: src/routes/wallet.tsx:159
+#: src/routes/wallet.tsx:160
 msgid "Connecting to {connectingConnector}... Please approve the connection in your wallet."
 msgstr "Connecting to {connectingConnector}... Please approve the connection in your wallet."
 
-#: src/routes/wallet.tsx:281
+#: src/routes/wallet.tsx:282
 msgid "Connection Details"
 msgstr "Connection Details"
 
@@ -713,7 +713,7 @@ msgid "Current"
 msgstr "Current"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:47
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:236
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
@@ -770,7 +770,7 @@ msgstr "Did You Know?"
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: src/routes/wallet.tsx:313
+#: src/routes/wallet.tsx:314
 msgid "Disconnect Wallet"
 msgstr "Disconnect Wallet"
 
@@ -866,7 +866,7 @@ msgid "Enter 6-digit code"
 msgstr "Enter 6-digit code"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:37
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:221
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
@@ -1239,7 +1239,7 @@ msgstr "MAIN MENU"
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr "Make sure the message starts with \"ENS would like you to ...\""
 
-#: src/routes/wallet.tsx:253
+#: src/routes/wallet.tsx:254
 msgid "Make sure you have a wallet extension installed"
 msgstr "Make sure you have a wallet extension installed"
 
@@ -1445,7 +1445,7 @@ msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY
 msgid "No recent searches"
 msgstr "No recent searches"
 
-#: src/routes/wallet.tsx:250
+#: src/routes/wallet.tsx:251
 msgid "No wallet connectors available"
 msgstr "No wallet connectors available"
 
@@ -2194,7 +2194,7 @@ msgstr "Submitting the registration transaction"
 msgid "Submitting your ENS profile update. This may take a few moments."
 msgstr "Submitting your ENS profile update. This may take a few moments."
 
-#: src/routes/wallet.tsx:171
+#: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
 msgstr "Successfully connected! You can now use the application."
 
@@ -2562,7 +2562,7 @@ msgstr "Waiting period"
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
-#: src/routes/wallet.tsx:292
+#: src/routes/wallet.tsx:293
 msgid "Wallet Address:"
 msgstr "Wallet Address:"
 
@@ -2570,7 +2570,7 @@ msgstr "Wallet Address:"
 msgid "Wallet client missing, please reconnect your wallet and try again."
 msgstr "Wallet client missing, please reconnect your wallet and try again."
 
-#: src/routes/wallet.tsx:274
+#: src/routes/wallet.tsx:275
 msgid "Wallet Connected"
 msgstr "Wallet Connected"
 
@@ -2621,7 +2621,7 @@ msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:108
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:263
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
 msgstr "years"
@@ -2739,7 +2739,7 @@ msgstr "Your profile changes have been confirmed on-chain."
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 
-#: src/routes/wallet.tsx:284
+#: src/routes/wallet.tsx:285
 msgid "Your wallet is successfully connected to the application"
 msgstr "Your wallet is successfully connected to the application"
 

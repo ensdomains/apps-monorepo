@@ -21,11 +21,15 @@ describe('expiry stages', () => {
     const nowSec = 1_700_000_000
     const byId = new Map(STAGES.map((stage) => [stage.id, stage]))
 
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
     expect(getUpperBoundForStage(byId.get('expired')!, nowSec)).toBe(nowSec)
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
     expect(getUpperBoundForStage(byId.get('1d')!, nowSec)).toBe(nowSec + 86_400)
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
     expect(getUpperBoundForStage(byId.get('7d')!, nowSec)).toBe(
       nowSec + 7 * 86_400,
     )
+    // biome-ignore lint/style/noNonNullAssertion: test assertion - stage IDs are known constants
     expect(getUpperBoundForStage(byId.get('30d')!, nowSec)).toBe(
       nowSec + 30 * 86_400,
     )

@@ -190,6 +190,7 @@ export const DurationSelector = ({
       })}
 
       {/* Custom Duration Row */}
+      {/* biome-ignore lint/a11y/useSemanticElements: container with custom input, not a simple button */}
       <div
         className={cn(
           'group relative',
@@ -205,6 +206,14 @@ export const DurationSelector = ({
             'cursor-not-allowed opacity-60 hover:border-ens-gray-three',
         )}
         onClick={() => customInputRef.current?.focus()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            customInputRef.current?.focus()
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
         {/* Left: Label */}
         <div className="flex items-center gap-3 md:gap-5">

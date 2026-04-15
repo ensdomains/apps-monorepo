@@ -29,11 +29,11 @@ export function makeMockDb(overrides?: {
     userSettings: overrides?.userSettings ?? [],
   }
 
-  const notificationsInsertValues: any[] = []
-  const deliveriesInsertValues: any[] = []
+  const notificationsInsertValues: unknown[] = []
+  const deliveriesInsertValues: unknown[] = []
 
   const notificationsInsertChain = {
-    values: vi.fn((values: any[]) => {
+    values: vi.fn((values: unknown[]) => {
       notificationsInsertValues.push(...values)
       return notificationsInsertChain
     }),
@@ -42,7 +42,7 @@ export function makeMockDb(overrides?: {
   }
 
   const deliveriesInsertChain = {
-    values: vi.fn(async (values: any[]) => {
+    values: vi.fn(async (values: unknown[]) => {
       deliveriesInsertValues.push(...values)
       return []
     }),

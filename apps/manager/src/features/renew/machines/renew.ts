@@ -84,7 +84,9 @@ export const renewMachine = setup({
       invoke: {
         src: 'getPrice',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
           name: context.name!,
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
           duration: context.duration!,
         }),
         onDone: {
@@ -114,8 +116,11 @@ export const renewMachine = setup({
           transactionRequest: renewNames.makeFunctionData(
             wagmiConfig.getClient(),
             {
+              // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
               nameOrNames: context.name!,
+              // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
               duration: context.duration!,
+              // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
               value: context.price!,
             },
           ),

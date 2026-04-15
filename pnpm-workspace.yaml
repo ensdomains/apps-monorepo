@@ -1,22 +1,24 @@
 packages:
   - apps/*
   - packages/*
-  - "workers/*"
+  - workers/*
+
+autoInstallPeers: false
 
 catalog:
+  '@ensdomains/ensjs': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f25cd40
+  '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f25cd40
   xstate: ^5.24.0
-  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f25cd40
+
+dedupeDirectDeps: true
 
 minimumReleaseAge: 1440
+
 minimumReleaseAgeExclude:
-  - "@lingui/*"
+  - '@lingui/*'
+
+resolutionMode: highest
 
 trustPolicy: no-downgrade
 
 trustPolicyIgnoreAfter: 1440
-
-autoInstallPeers: false
-
-resolutionMode: highest
-
-dedupeDirectDeps: true
