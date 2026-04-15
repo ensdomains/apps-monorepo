@@ -68,7 +68,7 @@ export const deliverEmailNotification = ResultFn(async function* (
         ],
         dynamic_template_data: templateData.dynamicData as Record<
           string,
-          string
+          unknown
         >,
       },
     ],

@@ -128,10 +128,8 @@ export const TransactionModal = ({
     isIdle && paymentOptions && paymentOptions.length > 0
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: backdrop overlay is not a button
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss via click; keyboard dismiss handled by Escape key
     <div
-      role="button"
-      tabIndex={0}
       style={{
         position: 'fixed',
         top: 0,
@@ -147,16 +145,13 @@ export const TransactionModal = ({
       }}
       onClick={onClose}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
+        if (e.key === 'Escape') {
           onClose?.()
         }
       }}
     >
-      {/* biome-ignore lint/a11y/useSemanticElements: modal container is not a button */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: stops click propagation to prevent backdrop dismissal */}
       <div
-        role="button"
-        tabIndex={0}
         style={{
           backgroundColor: 'white',
           borderRadius: '12px',
