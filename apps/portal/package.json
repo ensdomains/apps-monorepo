@@ -26,6 +26,7 @@
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.4",
     "@ensdomains/ensjs": "catalog:",
+    "@ensdomains/ensjs-abi": "catalog:",
     "@ensdomains/locales": "workspace:^",
     "@metamask/sdk": "~0.33.1",
     "@posthog/react": "^1.5.2",

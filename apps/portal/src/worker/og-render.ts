@@ -70,7 +70,7 @@ async function renderOgResponse(
 function renderOgHeader(): string {
   return `
     <div style="position: absolute; left: 48px; top: 46px; display: flex; align-items: flex-start;">
-      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="362" height="51" style="width: 362px; height: 51px;" />
+      <img src="data:image/svg+xml;base64,${btoa(ensLogoSvg)}" width="370" height="51" style="width: 370px; height: 51px;" />
     </div>`
 }
 
@@ -185,6 +185,34 @@ export async function renderDefaultOgImage(
         <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px; border-radius: 8px;" />
         <span style="font-size: 85px; font-weight: 500; font-family: 'OgSans', system-ui, sans-serif; color: black; line-height: 1;">ENS Explorer</span>
       </div>
+    </div>
+  `
+
+  return renderOgResponse(html, fonts)
+}
+
+export async function renderTldOgImage(
+  tld: string,
+  requestUrl: string,
+  env: Env,
+): Promise<Response> {
+  const fonts = await loadOgFonts(env, requestUrl)
+  const displayTld = tld.toUpperCase()
+  const headerHtml = renderOgHeader()
+
+  const html = `
+    <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; width: 100%;">
+        <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
+          <h1 style="margin: 0; font-size: 72px; line-height: 1; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace; overflow: hidden; max-height: 144px; word-break: break-all;">
+            ${escapeHtml(displayTld)}
+          </h1>
+          <p style="margin: 0; font-size: 36px; line-height: 1; font-weight: 500; font-family: 'OgMono', ui-monospace, monospace; white-space: nowrap; overflow: hidden;">
+            Top Level Domain
+          </p>
+        </div>
+      </div>
+      ${headerHtml}
     </div>
   `
 
