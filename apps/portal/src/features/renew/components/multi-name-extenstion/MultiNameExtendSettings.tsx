@@ -29,19 +29,21 @@ export const MultiNameExtendSettings = ({
         setDuration={setDuration}
       />
 
-      <ul className="space-y-2">
-        {pricingData.map((item) => (
-          <li key={item.selectedName.name}>
-            <MultiNameSummaryCard pricingData={item} />
-          </li>
-        ))}
-      </ul>
+      <div className="border border-border rounded-lg overflow-hidden">
+        <ul>
+          {pricingData.map((item) => (
+            <li key={item.selectedName.name}>
+              <MultiNameSummaryCard pricingData={item} />
+            </li>
+          ))}
+        </ul>
 
-      <div className="flex items-baseline justify-between border-t border-border pt-4">
-        <span className="text-sm text-quartz-350">Total:</span>
-        <span className="text-xl font-semibold text-primary">
-          {allLoaded ? formatUsd(total) : '—'}
-        </span>
+        <div className="flex items-baseline justify-between p-4">
+          <span className="text-sm text-quartz-350">Total:</span>
+          <span className="text-xl font-semibold text-primary">
+            {allLoaded ? formatUsd(total) : '—'}
+          </span>
+        </div>
       </div>
 
       <Button className="w-full" variant="secondary" onClick={onNext}>
