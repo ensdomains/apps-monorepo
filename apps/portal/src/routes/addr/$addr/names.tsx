@@ -373,6 +373,10 @@ function RouteComponent() {
           open={extendModalOpen}
           onClose={() => setExtendModalOpen(false)}
           selectedNames={selectedNames}
+          onExtend={(_config) => {
+            setExtendModalOpen(false)
+            // TODO: implement multi-name transaction flow
+          }}
         />
       )}
       <TransactionModal transactions={renewalTransactions} />

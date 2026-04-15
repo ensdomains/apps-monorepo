@@ -1,6 +1,9 @@
 import { ArrowLeft } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import { MultiNamePaymentTokenPicker } from './MultiNamePaymentTokenPicker'
 import { MultiNamePricingFooter } from './MultiNamePricingFooter'
 import { MultiNameSummaryCard } from './MultiNameSummaryCard'
 
@@ -9,8 +12,9 @@ type MultiNameExtendSummaryProps = {
   readonly total: number
   readonly totalDiscount: number
   readonly allLoaded: boolean
+  readonly duration: number
   readonly onBack: () => void
-  readonly onNext: () => void
+  readonly onNext: (token: TokenWithPriceAndBalance) => void
 }
 
 export const MultiNameExtendSummary = ({
@@ -18,9 +22,15 @@ export const MultiNameExtendSummary = ({
   total,
   totalDiscount,
   allLoaded,
+  duration,
   onBack,
   onNext,
 }: MultiNameExtendSummaryProps) => {
+  const [selectedToken, setSelectedToken] =
+    useState<TokenWithPriceAndBalance | null>(null)
+
+  const names = pricingData.map((item) => item.selectedName.name)
+
   return (
     <div className="space-y-4 mt-2">
       <ul className="space-y-2">
@@ -37,11 +47,22 @@ export const MultiNameExtendSummary = ({
         allLoaded={allLoaded}
       />
 
+      <MultiNamePaymentTokenPicker
+        names={names}
+        duration={duration}
+        onSelectionChange={setSelectedToken}
+      />
+
       <div className="flex gap-2">
         <Button variant="outline" size="icon" onClick={onBack}>
           <ArrowLeft className="size-4" />
         </Button>
-        <Button className="flex-1" variant="secondary" onClick={onNext}>
+        <Button
+          className="flex-1"
+          variant="secondary"
+          disabled={!selectedToken}
+          onClick={() => selectedToken && onNext(selectedToken)}
+        >
           Next
         </Button>
       </div>
