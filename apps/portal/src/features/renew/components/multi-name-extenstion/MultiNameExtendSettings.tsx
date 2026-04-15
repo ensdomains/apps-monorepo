@@ -43,13 +43,11 @@ export const MultiNameExtendSettings = ({
           ))}
         </ul>
 
-        <div className="p-4">
-          <MultiNamePricingFooter
-            total={total}
-            totalDiscount={totalDiscount}
-            allLoaded={allLoaded}
-          />
-        </div>
+        <MultiNamePricingFooter
+          total={total}
+          totalDiscount={totalDiscount}
+          allLoaded={allLoaded}
+        />
       </div>
 
       <div className="flex gap-2">

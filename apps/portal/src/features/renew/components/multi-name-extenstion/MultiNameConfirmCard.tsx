@@ -1,0 +1,96 @@
+import { Skeleton } from '@/components/ui/skeleton'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { cn } from '@/lib/utils'
+import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+
+type MultiNameConfirmCardProps = {
+  readonly pricingData: NamePricingData
+}
+
+export const MultiNameConfirmCard = ({
+  pricingData,
+}: MultiNameConfirmCardProps) => {
+  const { selectedName, isLoading, display } = pricingData
+
+  if (isLoading || !display) {
+    return <MultiNameConfirmCardSkeleton name={selectedName.name} />
+  }
+
+  const { newExpiryFormatted, subtotal } = display
+
+  return (
+    <div className="border-b border-border overflow-hidden">
+      <div className="w-full flex items-start gap-3 px-4 py-3">
+        <div className="flex-1">
+          <NameAvatar
+            name={selectedName.name}
+            height="40px"
+            width="40px"
+            rounded="rounded-md"
+          />
+        </div>
+        <div className="flex flex-col w-full gap-1">
+          <div className="flex items-center justify-between">
+            <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+              {selectedName.name}
+            </span>
+            <span className="text-base text-quartz-900 shrink-0 ml-2">
+              Expires {newExpiryFormatted}
+            </span>
+          </div>
+          <dl className="space-y-1 pt-1">
+            <CardRow
+              label="Subtotal:"
+              labelClassName="text-base text-quartz-350"
+              value={subtotal}
+              valueClassName="text-quartz-900 text-base"
+            />
+          </dl>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type CardRowProps = {
+  readonly label: string
+  readonly labelClassName?: string
+  readonly value: string
+  readonly valueClassName?: string
+}
+
+const CardRow = ({
+  label,
+  labelClassName,
+  value,
+  valueClassName,
+}: CardRowProps) => (
+  <div className="flex items-center justify-between">
+    <dt className={cn('text-sm text-quartz-350', labelClassName)}>{label}</dt>
+    <dd className={cn('text-sm text-quartz-900 m-0', valueClassName)}>
+      {value}
+    </dd>
+  </div>
+)
+
+type MultiNameConfirmCardSkeletonProps = {
+  readonly name: string
+}
+
+const MultiNameConfirmCardSkeleton = ({
+  name,
+}: MultiNameConfirmCardSkeletonProps) => (
+  <div className="border-b border-border px-4 py-3 flex items-center gap-3">
+    <NameAvatar name={name} height="40px" width="40px" rounded="rounded-md" />
+    <div className="flex flex-col flex-1 gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-quartz-900 truncate">
+          {name}
+        </span>
+        <Skeleton className="h-3 w-24" />
+      </div>
+      <Skeleton className="h-3 w-full" />
+      <Skeleton className="h-3 w-3/4" />
+    </div>
+  </div>
+)

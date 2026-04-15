@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import { MultiNameConfirmCard } from './MultiNameConfirmCard'
 import { MultiNamePaymentTokenPicker } from './MultiNamePaymentTokenPicker'
 import { MultiNamePricingFooter } from './MultiNamePricingFooter'
-import { MultiNameSummaryCard } from './MultiNameSummaryCard'
 
 type MultiNameExtendSummaryProps = {
   readonly pricingData: readonly NamePricingData[]
@@ -33,19 +33,21 @@ export const MultiNameExtendSummary = ({
 
   return (
     <div className="space-y-4 mt-2">
-      <ul className="space-y-2">
-        {pricingData.map((item) => (
-          <li key={item.selectedName.name}>
-            <MultiNameSummaryCard pricingData={item} />
-          </li>
-        ))}
-      </ul>
+      <div className="border border-border rounded-lg overflow-hidden">
+        <ul className="space-y-2">
+          {pricingData.map((item) => (
+            <li key={item.selectedName.name}>
+              <MultiNameConfirmCard pricingData={item} />
+            </li>
+          ))}
+        </ul>
 
-      <MultiNamePricingFooter
-        total={total}
-        totalDiscount={totalDiscount}
-        allLoaded={allLoaded}
-      />
+        <MultiNamePricingFooter
+          total={total}
+          totalDiscount={totalDiscount}
+          allLoaded={allLoaded}
+        />
+      </div>
 
       <MultiNamePaymentTokenPicker
         names={names}

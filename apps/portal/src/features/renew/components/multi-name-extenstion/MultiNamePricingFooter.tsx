@@ -14,7 +14,7 @@ export const MultiNamePricingFooter = ({
   const showDiscount = allLoaded && totalDiscount > 0
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 p-4">
       {showDiscount && (
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-quartz-350">Total discount:</span>
