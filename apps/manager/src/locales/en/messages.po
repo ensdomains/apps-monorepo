@@ -713,7 +713,7 @@ msgid "Current"
 msgstr "Current"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:47
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:229
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
@@ -866,7 +866,7 @@ msgid "Enter 6-digit code"
 msgstr "Enter 6-digit code"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:37
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:214
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
@@ -2621,7 +2621,7 @@ msgid "Wrong wallet connected"
 msgstr "Wrong wallet connected"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:108
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx:256
+#: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
 msgstr "years"
