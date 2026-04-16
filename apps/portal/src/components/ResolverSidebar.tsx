@@ -3,18 +3,17 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BookIcon,
   CircleQuestionMarkIcon,
-  ClockIcon,
   GridIcon,
-  IdCardLanyard,
   RefreshCwIcon,
   SettingsIcon,
   SplitIcon,
-  UserRoundCog,
 } from 'lucide-react'
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
-import { LogoWithTextSVG } from '@/assets/logo'
+import { HistoryIcon, ShieldIcon } from '@/assets/icons'
+import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
+import { CopyButton } from '@/components/CopyButton'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -43,22 +42,13 @@ import { WalletMenu } from './WalletMenu'
 
 type SidebarItemData = {
   title: string
-  icon: LucideIcon
+  icon: LucideIcon | React.ComponentType<{ className?: string }>
   disabled?: boolean
 }
 
 const defineResolverSidebarItem = createDefineLinkItem<SidebarItemData>()
 
 const getItems = (address: string) => [
-  defineResolverSidebarItem({
-    title: 'Overview',
-    icon: IdCardLanyard,
-    link: {
-      to: '/resolver/$address',
-      params: { address },
-      activeOptions: { exact: true },
-    },
-  }),
   defineResolverSidebarItem({
     title: 'Nodes',
     icon: GridIcon,
@@ -77,7 +67,7 @@ const getItems = (address: string) => [
   }),
   defineResolverSidebarItem({
     title: 'Roles',
-    icon: UserRoundCog,
+    icon: ShieldIcon,
     link: {
       to: '/resolver/$address/roles',
       params: { address },
@@ -85,7 +75,7 @@ const getItems = (address: string) => [
   }),
   defineResolverSidebarItem({
     title: 'History',
-    icon: ClockIcon,
+    icon: HistoryIcon,
     link: {
       to: '/resolver/$address/history',
       params: { address },
@@ -109,7 +99,16 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
             to="/"
             className="flex items-center group-data-[collapsible=icon]:hidden"
           >
-            <LogoWithTextSVG width={72} height="auto" />
+            <LogoSVG
+              width={35}
+              height={40}
+              className="sm:hidden text-foreground"
+            />
+            <LogoWithTextSVG
+              width={72}
+              height="auto"
+              className="hidden sm:block text-foreground"
+            />
           </Link>
           <SidebarTrigger className="shrink-0" />
         </div>
@@ -122,23 +121,32 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
       <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
       <SidebarContent>
-        <div className="group-data-[collapsible=icon]:hidden px-3 py-3 flex flex-col gap-2">
-          <div className="flex items-center gap-1 w-fit bg-garnet-100 dark:bg-garnet-900/30 rounded px-1.5 py-0.5">
-            <span className="text-xs text-garnet-500 font-medium">
-              Contract
-            </span>
+        <div className="px-3 py-3 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
+          <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between">
+            <div className="flex items-center gap-1 w-fit bg-garnet-100 dark:bg-garnet-900/30 rounded px-1.5 py-0.5">
+              <span className="text-xs text-garnet-500 font-medium">
+                Contract
+              </span>
+            </div>
+            <CopyButton
+              value={address}
+              className="bg-sidebar-accent hover:bg-sidebar-accent/80"
+            />
           </div>
-          <div className="flex items-center gap-2">
+          <Link
+            to="/resolver/$address"
+            params={{ address }}
+            activeProps={{ 'data-active': 'true' }}
+            className="flex items-center gap-2 hover:opacity-80"
+          >
             <div className="size-9 shrink-0 rounded bg-muted flex items-center justify-center">
               <RefreshCwIcon className="size-4 text-muted-foreground" />
             </div>
-            <span className="text-sm font-mono font-medium text-foreground break-all leading-tight">
+            <span className="group-data-[collapsible=icon]:hidden text-sm font-mono font-medium text-foreground break-all leading-tight">
               {truncateAddress(address, 6, 4, '...')}
             </span>
-          </div>
+          </Link>
         </div>
-
-        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
         <SidebarGroup>
           <SidebarGroupContent>

@@ -10,10 +10,12 @@ export const Owner = ({
   owner,
   label = 'Owner',
   className,
+  asRow,
 }: {
   owner?: Address
   label?: string
   className?: string
+  asRow?: boolean
 }) => {
   const {
     data: ownerName,
@@ -24,7 +26,16 @@ export const Owner = ({
   if (error) return <div>{error.message}</div>
   if (isLoading) return <div>Loading</div>
 
-  if (!owner)
+  if (!owner) {
+    if (asRow)
+      return (
+        <div className={cn('flex items-center gap-4 py-3', className)}>
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            {label}
+          </span>
+          <span className="text-sm text-muted-foreground">No data</span>
+        </div>
+      )
     return (
       <div
         className={cn(
@@ -36,8 +47,54 @@ export const Owner = ({
         <span>No data</span>
       </div>
     )
+  }
 
   const shortenedAddress = truncateAddress(owner, 6, 4, '...')
+
+  if (asRow) {
+    const rowContent = (
+      <>
+        <NameAvatar
+          width="20px"
+          height="20px"
+          name={ownerName || shortenedAddress}
+        />
+        <span className="text-sm text-muted-foreground w-24 shrink-0">
+          {label}
+        </span>
+        <EntityBadge variant={ownerName ? 'name' : 'address'}>
+          {ownerName || shortenedAddress}
+        </EntityBadge>
+      </>
+    )
+    if (ownerName) {
+      return (
+        <Link
+          to="/$name"
+          params={{ name: ownerName }}
+          className={cn(
+            'flex items-center gap-4 py-3 hover:bg-muted/50',
+            className,
+          )}
+        >
+          {rowContent}
+        </Link>
+      )
+    }
+    return (
+      <Link
+        to="/addr/$addr"
+        params={{ addr: owner }}
+        className={cn(
+          'flex items-center gap-4 py-3 hover:bg-muted/50',
+          className,
+        )}
+      >
+        {rowContent}
+      </Link>
+    )
+  }
+
   const cardClassName = cn(
     'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted',
     className,
