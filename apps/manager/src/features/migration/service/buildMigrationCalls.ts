@@ -1,49 +1,9 @@
-import { type Address, encodeFunctionData, type Hex, multicall3Abi } from 'viem'
+import type { ZeroDevCall } from '@ens-apps/transaction-manager'
+import { type Address, encodeFunctionData } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
-import {
-  MULTICALL3_ADDRESS,
-  V1_CONTRACTS,
-  V2_CONTRACTS,
-} from '../contracts/addresses'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import type { ClassifiedName } from './classifyNames'
-import {
-  createMigrationData,
-  encodeMigrationData,
-  encodeMigrationDataBatch,
-} from './encodeMigration'
-
-type UnwrappedMigrationCall = {
-  readonly type: 'unwrapped'
-  readonly name: ClassifiedName
-  readonly request: {
-    readonly address: Address
-    readonly abi: typeof BASE_REGISTRAR_ABI
-    readonly functionName: 'safeTransferFrom'
-    readonly args: readonly [Address, Address, bigint, Hex]
-  }
-}
-
-type WrappedSingleMigrationCall = {
-  readonly type: 'wrapped-single'
-  readonly name: ClassifiedName
-  readonly request: {
-    readonly address: Address
-    readonly abi: typeof NAME_WRAPPER_ABI
-    readonly functionName: 'safeTransferFrom'
-    readonly args: readonly [Address, Address, bigint, bigint, Hex]
-  }
-}
-
-type WrappedBatchMigrationCall = {
-  readonly type: 'wrapped-batch'
-  readonly names: readonly ClassifiedName[]
-  readonly request: {
-    readonly address: Address
-    readonly abi: typeof NAME_WRAPPER_ABI
-    readonly functionName: 'safeBatchTransferFrom'
-    readonly args: readonly [Address, Address, bigint[], bigint[], Hex]
-  }
-}
+import { createMigrationData, encodeMigrationData } from './encodeMigration'
 
 const getTokenId = (name: ClassifiedName): bigint =>
   name.tokenType === 'unwrapped'
@@ -53,13 +13,13 @@ const getTokenId = (name: ClassifiedName): bigint =>
 const resolverFor = (name: ClassifiedName, defaultResolver: Address): Address =>
   name.preservedResolver ?? defaultResolver
 
-export const buildUnwrappedCall = (params: {
+export const buildUnwrappedTransferCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
-}): UnwrappedMigrationCall => {
+}): ZeroDevCall => {
   const { name, migrationOwner, defaultResolver } = params
-  const data = encodeMigrationData(
+  const migrationData = encodeMigrationData(
     createMigrationData({
       label: name.label,
       owner: migrationOwner,
@@ -68,30 +28,29 @@ export const buildUnwrappedCall = (params: {
   )
 
   return {
-    type: 'unwrapped',
-    name,
-    request: {
-      address: V1_CONTRACTS.BaseRegistrar,
+    to: V1_CONTRACTS.BaseRegistrar,
+    data: encodeFunctionData({
       abi: BASE_REGISTRAR_ABI,
       functionName: 'safeTransferFrom',
       args: [
         name.tokenHolder,
         V2_CONTRACTS.UnlockedMigrationController,
         getTokenId(name),
-        data,
-      ] as const,
-    },
+        migrationData,
+      ],
+    }),
+    value: 0n,
   }
 }
 
-export const buildWrappedSingleCall = (params: {
+export const buildWrappedTransferCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
   target: Address
-}): WrappedSingleMigrationCall => {
+}): ZeroDevCall => {
   const { name, migrationOwner, defaultResolver, target } = params
-  const data = encodeMigrationData(
+  const migrationData = encodeMigrationData(
     createMigrationData({
       label: name.label,
       owner: migrationOwner,
@@ -100,97 +59,73 @@ export const buildWrappedSingleCall = (params: {
   )
 
   return {
-    type: 'wrapped-single',
-    name,
-    request: {
-      address: V1_CONTRACTS.NameWrapper,
+    to: V1_CONTRACTS.NameWrapper,
+    data: encodeFunctionData({
       abi: NAME_WRAPPER_ABI,
       functionName: 'safeTransferFrom',
-      args: [name.tokenHolder, target, getTokenId(name), 1n, data] as const,
-    },
-  }
-}
-
-export const buildWrappedBatchCall = (params: {
-  names: readonly ClassifiedName[]
-  migrationOwner: Address
-  defaultResolver: Address
-  target: Address
-}): WrappedBatchMigrationCall => {
-  const { names, migrationOwner, defaultResolver, target } = params
-
-  const first = names[0]
-  if (!first) throw new Error('Cannot build batch call with empty names array')
-
-  const holders = new Set(names.map((n) => n.tokenHolder))
-  if (holders.size > 1) {
-    throw new Error(
-      'Batch transfer requires all names to have the same token holder',
-    )
-  }
-
-  const migrationDataArray = names.map((name) =>
-    createMigrationData({
-      label: name.label,
-      owner: migrationOwner,
-      resolver: resolverFor(name, defaultResolver),
+      args: [name.tokenHolder, target, getTokenId(name), 1n, migrationData],
     }),
-  )
-
-  return {
-    type: 'wrapped-batch',
-    names,
-    request: {
-      address: V1_CONTRACTS.NameWrapper,
-      abi: NAME_WRAPPER_ABI,
-      functionName: 'safeBatchTransferFrom',
-      args: [
-        first.tokenHolder,
-        target,
-        names.map(getTokenId),
-        names.map(() => 1n),
-        encodeMigrationDataBatch(migrationDataArray),
-      ] as const,
-    },
+    value: 0n,
   }
 }
 
-export const buildUnwrappedMulticall = (params: {
-  names: readonly ClassifiedName[]
+export const buildAllTransferCalls = (params: {
+  classified: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
-}) => {
-  const { names, migrationOwner, defaultResolver } = params
+  parentRegistries: ReadonlyMap<string, Address>
+}): ZeroDevCall[] => {
+  const { classified, migrationOwner, defaultResolver, parentRegistries } =
+    params
+  const calls: ZeroDevCall[] = []
 
-  const calls = names.map((name) => {
-    const data = encodeMigrationData(
-      createMigrationData({
-        label: name.label,
-        owner: migrationOwner,
-        resolver: resolverFor(name, defaultResolver),
-      }),
-    )
-
-    return {
-      target: V1_CONTRACTS.BaseRegistrar,
-      allowFailure: false,
-      callData: encodeFunctionData({
-        abi: BASE_REGISTRAR_ABI,
-        functionName: 'safeTransferFrom',
-        args: [
-          name.tokenHolder,
-          V2_CONTRACTS.UnlockedMigrationController,
-          getTokenId(name),
-          data,
-        ],
-      }),
+  for (const name of classified) {
+    switch (name.tokenType) {
+      case 'unwrapped':
+        calls.push(
+          buildUnwrappedTransferCall({ name, migrationOwner, defaultResolver }),
+        )
+        break
+      case 'unlocked':
+        calls.push(
+          buildWrappedTransferCall({
+            name,
+            migrationOwner,
+            defaultResolver,
+            target: V2_CONTRACTS.UnlockedMigrationController,
+          }),
+        )
+        break
+      case 'locked-2ld':
+        calls.push(
+          buildWrappedTransferCall({
+            name,
+            migrationOwner,
+            defaultResolver,
+            target: V2_CONTRACTS.LockedMigrationController,
+          }),
+        )
+        break
+      case 'locked-child':
+      case 'detached-child': {
+        const parentRegistry = name.parentName
+          ? parentRegistries.get(name.parentName)
+          : undefined
+        if (!parentRegistry) {
+          throw new Error(`Parent registry not found for "${name.domain.name}"`)
+        }
+        calls.push(
+          buildWrappedTransferCall({
+            name,
+            migrationOwner,
+            defaultResolver,
+            target: parentRegistry,
+          }),
+        )
+        break
+      }
     }
-  })
-
-  return {
-    address: MULTICALL3_ADDRESS,
-    abi: multicall3Abi,
-    functionName: 'aggregate3' as const,
-    args: [calls] as const,
   }
+
+  return calls
 }

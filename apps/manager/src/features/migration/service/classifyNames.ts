@@ -44,6 +44,7 @@ export type ClassifiedName = {
   readonly tokenHolder: Address
   readonly v1ResolverAddress: string | null
   readonly preservedResolver: Address | null
+  readonly managerAddress: Address | null
 }
 
 export const hasFuse = (fuses: number, fuse: number): boolean =>
@@ -74,6 +75,13 @@ export const classifyName = (
     const registrant = domain.registrant
     if (registrant?.id.toLowerCase() !== addr) return null
     if (parentName !== 'eth') return null
+
+    const registryOwner = domain.owner.id.toLowerCase()
+    const managerAddress: Address | null =
+      registryOwner !== registrant.id.toLowerCase()
+        ? (domain.owner.id as Address)
+        : null
+
     return {
       type: 'classified',
       name: {
@@ -85,6 +93,7 @@ export const classifyName = (
         tokenHolder: registrant.id as Address,
         v1ResolverAddress,
         preservedResolver: null,
+        managerAddress,
       },
     }
   }
@@ -113,6 +122,7 @@ export const classifyName = (
             tokenHolder: wrappedHolder,
             v1ResolverAddress,
             preservedResolver: null,
+            managerAddress: null,
           },
         }
       }
@@ -132,6 +142,7 @@ export const classifyName = (
         tokenHolder: wrappedHolder,
         v1ResolverAddress,
         preservedResolver: null,
+        managerAddress: null,
       },
     }
   }
@@ -160,6 +171,7 @@ export const classifyName = (
         tokenHolder: wrappedHolder,
         v1ResolverAddress,
         preservedResolver,
+        managerAddress: null,
       },
     }
   }
@@ -175,6 +187,7 @@ export const classifyName = (
       tokenHolder: wrappedHolder,
       v1ResolverAddress,
       preservedResolver,
+      managerAddress: null,
     },
   }
 }

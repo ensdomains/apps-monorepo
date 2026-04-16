@@ -1,3 +1,4 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
@@ -49,6 +50,8 @@ type Context = {
   selectedNames: string[]
   domains: readonly V1Domain[]
   ownerAddress?: Address
+  signer?: Signer
+  accountAddress?: Address
   migratedNames: string[]
   txHashes: readonly Hex[]
   skippedNames: readonly SkippedName[]
@@ -63,6 +66,8 @@ type Events =
       type: 'migration.start'
       domains: readonly V1Domain[]
       ownerAddress: Address
+      signer: Signer
+      accountAddress: Address
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
@@ -105,6 +110,8 @@ export const migrationUiMachine = setup({
         wagmiConfig: WagmiConfig
         domains: readonly V1Domain[]
         ownerAddress: Address
+        signer: Signer
+        accountAddress: Address
       }
     >(({ input, sendBack }) => {
       let cancelled = false
@@ -120,6 +127,8 @@ export const migrationUiMachine = setup({
         defaultResolver: V2_CONTRACTS.ENSV2Resolver,
         wagmiConfig: input.wagmiConfig,
         publicClient: defaultPublicClient as PublicClient,
+        signer: input.signer,
+        accountAddress: input.accountAddress,
         onProgress,
       })
         .then((result) => {
@@ -162,6 +171,8 @@ export const migrationUiMachine = setup({
       return {
         domains: event.domains,
         ownerAddress: event.ownerAddress,
+        signer: event.signer,
+        accountAddress: event.accountAddress,
         stepDescriptors,
         progress: undefined,
         lastError: undefined,
@@ -250,6 +261,8 @@ export const migrationUiMachine = setup({
               wagmiConfig: context.wagmiConfig,
               domains: context.domains,
               ownerAddress: context.ownerAddress!,
+              signer: context.signer!,
+              accountAddress: context.accountAddress!,
             }),
           },
           on: {

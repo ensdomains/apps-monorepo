@@ -47,23 +47,13 @@ export const GameStep = () => {
     .with({ isConfirming: true }, () => `${t`Confirming transactions`}...`)
     .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
     .with(
-      { descriptor: { type: 'pre-migrate' } },
-      ({ descriptor }) => `${t`Pre-migrating ${descriptor.count} name(s)`}...`,
+      { descriptor: { type: 'approve-sca' } },
+      () => `${t`Approving smart account`}...`,
     )
     .with(
-      { descriptor: { type: 'approve-multicall3' } },
+      { descriptor: { type: 'migrate-all' } },
       ({ descriptor }) =>
-        `${t`Approving Multicall3 to batch ${descriptor.count} name(s)`}...`,
-    )
-    .with(
-      { descriptor: { type: 'migrate' } },
-      ({ descriptor }) =>
-        `${t`Migrating ${descriptor.count} ${descriptor.bucket} name(s)`}...`,
-    )
-    .with(
-      { descriptor: { type: 'migrate-subnames' } },
-      ({ descriptor }) =>
-        `${t`Migrating ${descriptor.count} subname(s) under ${descriptor.parentName}`}...`,
+        `${t`Upgrading ${descriptor.count} name(s) to v2`}...`,
     )
     .exhaustive()
 

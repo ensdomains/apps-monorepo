@@ -224,17 +224,6 @@ function createTransactionRequest(params: {
 }): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
 
-  if (signer.type === 'eoa') {
-    return {
-      type: 'eoa',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-    }
-  }
-
   if (signer.type === 'rhinestone') {
     return {
       type: 'rhinestone-intent',

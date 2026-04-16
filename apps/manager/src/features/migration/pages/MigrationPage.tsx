@@ -93,7 +93,8 @@ export const MigrationPage = () => {
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
-  const { ownerAddress } = useSmartAccountContext()
+  const smartAccount = useSmartAccountContext()
+  const { ownerAddress } = smartAccount
 
   const handleSuccessClose = useCallback(() => {
     uiActor.send({ type: 'done' })
@@ -106,7 +107,9 @@ export const MigrationPage = () => {
   )
 
   const handleBeginUpgrade = useCallback(() => {
-    if (!ownerAddress) return
+    if (!ownerAddress || !smartAccount.signer || !smartAccount.accountAddress)
+      return
+    const { signer, accountAddress } = smartAccount
     const selectedSet = new Set(selectedNames)
     const domains = v1Names.filter((d) => selectedSet.has(d.name))
     if (domains.length === 0) return
@@ -114,8 +117,10 @@ export const MigrationPage = () => {
       type: 'migration.start',
       domains,
       ownerAddress: ownerAddress as Address,
+      signer,
+      accountAddress: accountAddress as Address,
     })
-  }, [v1Names, ownerAddress, selectedNames, uiActor])
+  }, [v1Names, ownerAddress, smartAccount, selectedNames, uiActor])
 
   return (
     <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">

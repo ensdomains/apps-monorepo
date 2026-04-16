@@ -175,5 +175,6 @@ export type {
   TransactionResult,
   TransactionStep,
   TransactionType,
+  ZeroDevCall,
   ZeroDevTransactionRequest,
 } from './types/transaction.types'

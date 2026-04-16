@@ -291,14 +291,13 @@ msgstr "Approval allows registrar to charge"
 msgid "Approving"
 msgstr "Approving"
 
-#. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:56
-msgid "Approving Multicall3 to batch {0} name(s)"
-msgstr "Approving Multicall3 to batch {0} name(s)"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
 msgid "Approving payment token"
 msgstr "Approving payment token"
+
+#: src/features/migration/components/GameStep.tsx:51
+msgid "Approving smart account"
+msgstr "Approving smart account"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:80
 msgid "Approving the payment token"
@@ -341,7 +340,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:163
+#: src/features/migration/pages/MigrationPage.tsx:168
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1268,19 +1267,7 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#. placeholder {0}: descriptor.count
-#. placeholder {1}: descriptor.bucket
-#: src/features/migration/components/GameStep.tsx:61
-msgid "Migrating {0} {1} name(s)"
-msgstr "Migrating {0} {1} name(s)"
-
-#. placeholder {0}: descriptor.count
-#. placeholder {1}: descriptor.parentName
-#: src/features/migration/components/GameStep.tsx:66
-msgid "Migrating {0} subname(s) under {1}"
-msgstr "Migrating {0} subname(s) under {1}"
-
-#: src/features/migration/pages/MigrationPage.tsx:135
+#: src/features/migration/pages/MigrationPage.tsx:140
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1584,11 +1571,6 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
-#. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:51
-msgid "Pre-migrating {0} name(s)"
-msgstr "Pre-migrating {0} name(s)"
-
 #: src/features/notifications/settings/preferences.tsx:64
 #: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:30
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:51
@@ -1840,7 +1822,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:170
+#: src/features/migration/pages/MigrationPage.tsx:175
 msgid "Retry"
 msgstr "Retry"
 
@@ -2377,7 +2359,12 @@ msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profi
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:111
+#. placeholder {0}: descriptor.count
+#: src/features/migration/components/GameStep.tsx:56
+msgid "Upgrading {0} name(s) to v2"
+msgstr "Upgrading {0} name(s) to v2"
+
+#: src/features/migration/components/GameStep.tsx:101
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 
