@@ -1,4 +1,4 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'

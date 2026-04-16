@@ -5,11 +5,35 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts",
-    "./utils": "./src/utils/index.ts",
-    "./chains": "./src/chains.ts",
-    "./L2ReverseRegistrar": "./src/L2ReverseRegistrar.ts",
-    "./reverseRegistrarChainIds": "./src/reverseRegistrarChainIds.ts"
+    "./v1": "./src/v1/index.ts",
+    "./v2": "./src/v2/index.ts",
+    "./utils": "./src/utils/index.ts"
+  },
+  "typesVersions": {
+    "v1": {
+      "v1/*": [
+        "./src/v1/*"
+      ],
+      "v1": [
+        "./src/v1/index.ts"
+      ]
+    },
+    "v2": {
+      "v2/*": [
+        "./src/v2/*"
+      ],
+      "v2": [
+        "./src/v2/index.ts"
+      ]
+    },
+    "utils": {
+      "utils/*": [
+        "./src/utils/*"
+      ],
+      "utils": [
+        "./src/utils/index.ts"
+      ]
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

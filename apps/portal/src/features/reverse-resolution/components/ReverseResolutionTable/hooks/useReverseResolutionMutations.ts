@@ -1,10 +1,10 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import {
   createSetForwardResolutionRequest,
   createSetReverseNameRequest,
   type SetForwardResolutionRequest,
   type SetReverseNameRequest,
 } from '@ens-apps/l2-primary/utils'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import {
   type SetPrimaryNameWriteParametersReturnType,
   setPrimaryNameWriteParameters,
