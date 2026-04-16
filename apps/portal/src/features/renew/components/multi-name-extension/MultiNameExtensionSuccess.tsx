@@ -33,17 +33,17 @@ export const MultiNameExtensionSuccess = ({
   )
 }
 
-type MultiNameConfirmCardProps = {
+type MultiNameExtensionSuccessCardProps = {
   readonly pricingData: NamePricingData
 }
 
 export const MultiNameExtensionSuccessCard = ({
   pricingData,
-}: MultiNameConfirmCardProps) => {
+}: MultiNameExtensionSuccessCardProps) => {
   const { selectedName, isLoading, display } = pricingData
 
   if (isLoading || !display) {
-    return <MultiNameConfirmCardSkeleton name={selectedName.name} />
+    return <MultiNameExtensionSuccessCardSkeleton name={selectedName.name} />
   }
 
   const { newExpiryFormatted } = display
@@ -74,13 +74,13 @@ export const MultiNameExtensionSuccessCard = ({
   )
 }
 
-type MultiNameConfirmCardSkeletonProps = {
+type MultiNameExtensionSuccessCardSkeletonProps = {
   readonly name: string
 }
 
-const MultiNameConfirmCardSkeleton = ({
+const MultiNameExtensionSuccessCardSkeleton = ({
   name,
-}: MultiNameConfirmCardSkeletonProps) => (
+}: MultiNameExtensionSuccessCardSkeletonProps) => (
   <div className="border-b border-border px-4 py-3 flex items-center gap-3">
     <NameAvatar name={name} height="40px" width="40px" rounded="rounded-md" />
     <div className="flex flex-col flex-1 gap-2">

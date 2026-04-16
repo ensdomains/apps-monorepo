@@ -123,23 +123,25 @@ export function useMultiNamePricing(
     ),
   })
 
-  const pricingData: NamePricingData[] = renewalInputs.map((renewal, index) => {
-    const query = priceQueries[index]
-    const price = query?.data && isPriceResult(query.data) ? query.data : null
+  const pricingData: readonly NamePricingData[] = renewalInputs.map(
+    (renewal, index) => {
+      const query = priceQueries[index]
+      const price = query?.data && isPriceResult(query.data) ? query.data : null
 
-    return {
-      selectedName: renewal.selectedName,
-      duration: renewal.duration,
-      isLoading: query?.isLoading ?? true,
-      display: price
-        ? computeNamePricingDisplay(
-            renewal.selectedName,
-            price,
-            renewal.duration,
-          )
-        : null,
-    }
-  })
+      return {
+        selectedName: renewal.selectedName,
+        duration: renewal.duration,
+        isLoading: query?.isLoading ?? true,
+        display: price
+          ? computeNamePricingDisplay(
+              renewal.selectedName,
+              price,
+              renewal.duration,
+            )
+          : null,
+      }
+    },
+  )
 
   const total = pricingData.reduce(
     (sum, item) => (item.display ? sum + item.display.actualPrice : sum),

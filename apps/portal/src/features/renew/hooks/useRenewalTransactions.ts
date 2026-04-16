@@ -44,7 +44,7 @@ export type MultiRenewalEntry = {
 }
 
 type MultiSavedRenewalParams = {
-  readonly renewals: MultiRenewalEntry[]
+  readonly renewals: readonly MultiRenewalEntry[]
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
   readonly tokenSymbol: 'USDC' | 'DAI'
@@ -57,7 +57,7 @@ export type StartFlowConfig = {
 }
 
 export type StartMultiFlowConfig = {
-  readonly renewals: MultiRenewalEntry[]
+  readonly renewals: readonly MultiRenewalEntry[]
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
 }

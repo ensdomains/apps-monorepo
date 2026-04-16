@@ -23,14 +23,14 @@ import { MultiNameExtendSummary } from './MultiNameExtendSummary'
 import { MultiNameExtensionSuccess } from './MultiNameExtensionSuccess'
 
 type MultiRenewConfig = {
-  readonly renewals: MultiRenewalEntry[]
+  readonly renewals: readonly MultiRenewalEntry[]
   readonly token: TokenWithPriceAndBalance
 }
 
 type MultiNameExtendModalProps = {
   readonly open: boolean
   readonly onClose: () => void
-  readonly selectedNames: SelectedName[]
+  readonly selectedNames: readonly SelectedName[]
   readonly onExtend: (config: MultiRenewConfig) => void
   readonly transactionCompleted: boolean
   readonly onSuccessAcknowledged: () => void
@@ -62,7 +62,7 @@ export const MultiNameExtendModal = ({
     duration,
     address,
   )
-  const renewals: MultiRenewalEntry[] = pricingData.map((item) => ({
+  const renewals: readonly MultiRenewalEntry[] = pricingData.map((item) => ({
     selectedName: item.selectedName,
     duration: item.duration,
   }))

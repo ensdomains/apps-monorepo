@@ -255,7 +255,7 @@ function RouteComponent() {
   )
 
   const selectedNames = useMemo(
-    (): SelectedName[] =>
+    (): readonly SelectedName[] =>
       Object.keys(rowSelection)
         .map((idx) => filteredData[Number(idx)])
         .filter((row): row is NameRow => Boolean(row))
