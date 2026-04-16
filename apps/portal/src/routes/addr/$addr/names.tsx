@@ -307,6 +307,7 @@ function RouteComponent() {
             <Button
               variant="secondary"
               size="sm"
+              disabled={selectedNames.length !== 1}
               onClick={() => setExtendModalOpen(true)}
             >
               <FastForward className="size-4" />

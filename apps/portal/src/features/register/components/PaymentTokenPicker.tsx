@@ -157,7 +157,7 @@ export const PaymentTokenPicker = ({
           className="xl:min-w-none"
           titleClassName="text-base text-inherit font-medium"
           descriptionClassName="text-sm text-inherit"
-          description="You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
+          description={`You'll need to hold USDC or DAI in your connected wallet in order to complete the ${isRegistering ? 'registration' : 'extension'} of your ENS name.`}
         />
       ) : (
         <PaymentTokenList
