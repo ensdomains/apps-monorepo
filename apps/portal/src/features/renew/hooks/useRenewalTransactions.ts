@@ -332,6 +332,7 @@ export const useRenewalTransactions = ({
       flowConfig.tokenAddress,
     ).symbol
 
+    setMultiSavedParams(null)
     setSavedParams({
       name,
       duration: flowConfig.duration,
@@ -346,6 +347,7 @@ export const useRenewalTransactions = ({
       flowConfig.tokenAddress,
     ).symbol
 
+    setSavedParams(null)
     setMultiSavedParams({
       renewals: flowConfig.renewals,
       tokenAddress: flowConfig.tokenAddress,
@@ -354,9 +356,15 @@ export const useRenewalTransactions = ({
     })
   }
 
+  const clearIncompatibleRenewalState = (mode: 'single' | 'multi') => {
+    if (mode === 'single') setMultiSavedParams(null)
+    else setSavedParams(null)
+  }
+
   return {
     transactions: multiSavedParams ? multiTransactions : transactions,
     startFlow,
     startMultiFlow,
+    clearIncompatibleRenewalState,
   }
 }

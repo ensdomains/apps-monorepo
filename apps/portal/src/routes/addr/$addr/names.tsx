@@ -37,6 +37,7 @@ import {
   useRenewalTransactions,
 } from '@/features/renew/hooks/useRenewalTransactions'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
@@ -142,6 +143,7 @@ function RouteComponent() {
     transactions: renewalTransactions,
     startFlow,
     startMultiFlow,
+    clearIncompatibleRenewalState,
   } = useRenewalTransactions({
     onComplete: () => {
       void queryClient.invalidateQueries({
@@ -154,7 +156,8 @@ function RouteComponent() {
     },
   })
 
-  const { openModal } = useTransactionModal()
+  const activeTxState = useActiveTransactionState()
+  const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
 
   // Filter state
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
@@ -326,7 +329,17 @@ function RouteComponent() {
               variant="secondary"
               size="sm"
               disabled={rowCount < 1}
-              onClick={() => setExtendModalOpen(true)}
+              onClick={() => {
+                if (activeTxState) {
+                  openModal()
+                  return
+                }
+
+                clearIncompatibleRenewalState(
+                  rowCount === 1 ? 'single' : 'multi',
+                )
+                setExtendModalOpen(true)
+              }}
             >
               <FastForward className="size-4" />
               Extend
@@ -372,7 +385,7 @@ function RouteComponent() {
       </div>
       {selectedNames.length === 1 && (
         <ExtendNameModal
-          open={extendModalOpen}
+          open={extendModalOpen && !isTransactionModalOpen}
           onClose={() => {
             setExtendModalOpen(false)
             setRenewalSuccessFlow(null)
@@ -395,7 +408,7 @@ function RouteComponent() {
       )}
       {selectedNames.length > 1 && (
         <MultiNameExtendModal
-          open={extendModalOpen}
+          open={extendModalOpen && !isTransactionModalOpen}
           onClose={() => {
             setExtendModalOpen(false)
             setRenewalSuccessFlow(null)
