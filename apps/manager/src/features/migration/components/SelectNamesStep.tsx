@@ -11,6 +11,18 @@ type SelectNamesStepProps = {
   readonly onNext: () => void
 }
 
+function useAutoSelectAllNames(
+  eligibleNames: readonly { name: string }[],
+  selectedCount: number,
+  onSelect: (names: Set<string>) => void,
+) {
+  useEffect(() => {
+    if (eligibleNames.length > 0 && selectedCount === 0) {
+      onSelect(new Set(eligibleNames.map((n) => n.name)))
+    }
+  }, [eligibleNames, selectedCount, onSelect])
+}
+
 export const SelectNamesStep = ({
   onNamesChange,
   onNext,
@@ -22,13 +34,17 @@ export const SelectNamesStep = ({
 
   const eligibleNames = useMemo(() => eligible.map((c) => c.domain), [eligible])
 
-  useEffect(() => {
-    if (eligibleNames.length > 0 && selected.size === 0) {
-      const allNames = new Set(eligibleNames.map((n) => n.name))
-      setSelected(allNames)
-      onNamesChange([...allNames])
-    }
-  }, [eligibleNames, selected.size, onNamesChange])
+  useAutoSelectAllNames(
+    eligibleNames,
+    selected.size,
+    useCallback(
+      (names) => {
+        setSelected(names)
+        onNamesChange([...names])
+      },
+      [onNamesChange],
+    ),
+  )
 
   const searchLower = search.toLowerCase()
 

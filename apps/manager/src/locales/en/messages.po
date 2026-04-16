@@ -112,7 +112,7 @@ msgid "+{overflow} more"
 msgstr "+{overflow} more"
 
 #. placeholder {0}: eligibleNames.length
-#: src/features/migration/components/SelectNamesStep.tsx:156
+#: src/features/migration/components/SelectNamesStep.tsx:172
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 
@@ -355,7 +355,7 @@ msgstr "Backup Card"
 #. placeholder {0}: descriptor.batch
 #. placeholder {1}: descriptor.totalBatches
 #. placeholder {2}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:77
+#: src/features/migration/components/GameStep.tsx:75
 msgid "Batch {0}/{1}: upgrading {2} name(s)"
 msgstr "Batch {0}/{1}: upgrading {2} name(s)"
 
@@ -1244,7 +1244,7 @@ msgstr "Marking..."
 msgid "Migration failed"
 msgstr "Migration failed"
 
-#: src/features/migration/components/SelectNamesStep.tsx:166
+#: src/features/migration/components/SelectNamesStep.tsx:182
 msgid "Migration transfers ownership only. Records must be set manually on ENS v2 after migration."
 msgstr "Migration transfers ownership only. Records must be set manually on ENS v2 after migration."
 
@@ -1350,7 +1350,7 @@ msgstr "No coins found"
 msgid "No default payment method set."
 msgstr "No default payment method set."
 
-#: src/features/migration/components/SelectNamesStep.tsx:98
+#: src/features/migration/components/SelectNamesStep.tsx:114
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
@@ -1367,7 +1367,7 @@ msgstr "No more records to add"
 msgid "No names found"
 msgstr "No names found"
 
-#: src/features/migration/components/SelectNamesStep.tsx:95
+#: src/features/migration/components/SelectNamesStep.tsx:111
 msgid "No names match your search"
 msgstr "No names match your search"
 
@@ -1851,8 +1851,8 @@ msgstr "Search name, address..."
 msgid "Search name..."
 msgstr "Search name..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:71
-#: src/features/migration/components/SelectNamesStep.tsx:75
+#: src/features/migration/components/SelectNamesStep.tsx:87
+#: src/features/migration/components/SelectNamesStep.tsx:91
 msgid "Search names"
 msgstr "Search names"
 
@@ -2291,7 +2291,7 @@ msgstr "Update Resolver"
 msgid "Updating profile"
 msgstr "Updating profile"
 
-#: src/features/migration/components/SelectNamesStep.tsx:179
+#: src/features/migration/components/SelectNamesStep.tsx:195
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
@@ -2305,11 +2305,11 @@ msgid "Upgrade your name(s) to unlock your new ENS profile and claim your person
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:76
+#: src/features/migration/components/GameStep.tsx:74
 msgid "Upgrading {0} name(s) to v2"
 msgstr "Upgrading {0} name(s) to v2"
 
-#: src/features/migration/components/GameStep.tsx:122
+#: src/features/migration/components/GameStep.tsx:120
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 
@@ -2659,7 +2659,7 @@ msgstr "Your ENS name works across web3"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/migration/components/SelectNamesStep.tsx:64
+#: src/features/migration/components/SelectNamesStep.tsx:80
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 
