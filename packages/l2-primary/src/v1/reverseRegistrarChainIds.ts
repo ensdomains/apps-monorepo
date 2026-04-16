@@ -46,27 +46,33 @@ export const L2_REVERSE_REGISTRARS: Record<
   ReverseRegistrarChainId,
   { mainnet?: Address; sepolia?: Address }
 > = {
-  1: {},
-  60: {},
+  // ENSv1 ReverseRegistrar on L1
+  1: {
+    sepolia: '0x075703fd8f8ef6b1e8e593dacab2dd702fc28196',
+  },
+  60: {
+    sepolia: '0x075703fd8f8ef6b1e8e593dacab2dd702fc28196',
+  },
+  // ENSv1 L2ReverseRegistrar on L2 chains
   10: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
+    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
   },
   42161: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
+    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
   },
   8453: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
+    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
   },
   59144: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
+    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
   },
   534352: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
+    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
   },
 } as const satisfies Record<
   ReverseRegistrarChainId,
