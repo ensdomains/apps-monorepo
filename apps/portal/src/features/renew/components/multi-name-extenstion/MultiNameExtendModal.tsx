@@ -6,17 +6,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
-import { useMultiNamePricing } from '../../hooks/useMultiNamePricing'
-import type { SelectedName } from '../../hooks/useRenewalTransactions'
+import {
+  getLatestRenewalExpiry,
+  useMultiNamePricing,
+} from '../../hooks/useMultiNamePricing'
+import type {
+  MultiRenewalEntry,
+  SelectedName,
+} from '../../hooks/useRenewalTransactions'
 import { ExtendNameDisclaimer } from '../ExtendNameDisclaimer'
+import type { ExtensionSpanType } from '../ExtensionDurationOrExpiryPicker'
 import { MultiNameExtendSettings } from './MultiNameExtendSettings'
 import { MultiNameExtendSummary } from './MultiNameExtendSummary'
 import { MultiNameExtensionSuccess } from './MultiNameExtensionSuccess'
 
 type MultiRenewConfig = {
-  readonly duration: number
+  readonly renewals: MultiRenewalEntry[]
   readonly token: TokenWithPriceAndBalance
 }
 
@@ -40,14 +46,19 @@ export const MultiNameExtendModal = ({
   onExtend,
 }: MultiNameExtendModalProps) => {
   const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
-  const [duration, setDuration] = useState<number>(() =>
-    getDurationInSecondsFromYears(1),
-  )
+  const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
+  const [duration, setDuration] = useState<number>(1)
+  const latestExpiry = getLatestRenewalExpiry(selectedNames)
 
   const { pricingData, total, totalDiscount, allLoaded } = useMultiNamePricing(
     selectedNames,
+    spanType,
     duration,
   )
+  const renewals: MultiRenewalEntry[] = pricingData.map((item) => ({
+    selectedName: item.selectedName,
+    duration: item.duration,
+  }))
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -80,8 +91,11 @@ export const MultiNameExtendModal = ({
               total={total}
               totalDiscount={totalDiscount}
               allLoaded={allLoaded}
+              latestExpiry={latestExpiry}
               duration={duration}
               setDuration={setDuration}
+              spanType={spanType}
+              setSpanType={setSpanType}
               onBack={() => setStep('disclaimer')}
               onNext={() => setStep('summary')}
             />
@@ -92,10 +106,10 @@ export const MultiNameExtendModal = ({
               total={total}
               totalDiscount={totalDiscount}
               allLoaded={allLoaded}
-              duration={duration}
+              renewals={renewals}
               onBack={() => setStep('settings')}
               onNext={(token) => {
-                onExtend({ duration, token })
+                onExtend({ renewals, token })
                 setStep('success')
               }}
             />

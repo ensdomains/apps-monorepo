@@ -18,6 +18,7 @@ import {
 } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import type { MultiRenewalEntry } from '../../hooks/useRenewalTransactions'
 
 const PAYMENT_TOKENS = [
   {
@@ -45,21 +46,19 @@ const Skeleton = () => (
 )
 
 type MultiNamePaymentTokenPickerProps = {
-  readonly names: readonly string[]
-  readonly duration: number
+  readonly renewals: readonly MultiRenewalEntry[]
   readonly onSelectionChange: (token: TokenWithPriceAndBalance | null) => void
 }
 
 export const MultiNamePaymentTokenPicker = ({
-  names,
-  duration,
+  renewals,
   onSelectionChange,
 }: MultiNamePaymentTokenPickerProps) => {
   const config = useConfig()
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
 
-  // Fetch balances + prices for all names × both tokens
+  // Fetch balances + prices for all names × both tokens (using per-name durations)
   const [balancesQuery, ...priceQueries] = useQueries({
     queries: [
       {
@@ -74,20 +73,20 @@ export const MultiNamePaymentTokenPicker = ({
         }),
         enabled: Boolean(address),
       },
-      // USDC prices for all names
-      ...names.map((name) =>
+      // USDC prices for all names with per-name durations
+      ...renewals.map((renewal) =>
         getRegistrationPriceQueryOptions({
-          name,
-          duration,
+          name: renewal.selectedName.name,
+          duration: renewal.duration,
           token: SUPPORTED_TOKENS.USDC,
           owner: address,
         }),
       ),
-      // DAI prices for all names
-      ...names.map((name) =>
+      // DAI prices for all names with per-name durations
+      ...renewals.map((renewal) =>
         getRegistrationPriceQueryOptions({
-          name,
-          duration,
+          name: renewal.selectedName.name,
+          duration: renewal.duration,
           token: SUPPORTED_TOKENS.DAI,
           owner: address,
         }),
@@ -110,8 +109,8 @@ export const MultiNamePaymentTokenPicker = ({
     : []
 
   // Sum totals per token as bigints to avoid float drift
-  const usdcPrices = priceQueries.slice(0, names.length)
-  const daiPrices = priceQueries.slice(names.length)
+  const usdcPrices = priceQueries.slice(0, renewals.length)
+  const daiPrices = priceQueries.slice(renewals.length)
 
   const sumBase = (queries: typeof priceQueries): bigint =>
     queries.reduce((sum, q) => {

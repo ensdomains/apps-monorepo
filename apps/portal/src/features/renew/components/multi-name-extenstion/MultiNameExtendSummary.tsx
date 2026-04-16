@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import type { MultiRenewalEntry } from '../../hooks/useRenewalTransactions'
 import { MultiNameConfirmCard } from './MultiNameConfirmCard'
 import { MultiNamePaymentTokenPicker } from './MultiNamePaymentTokenPicker'
 import { MultiNamePricingFooter } from './MultiNamePricingFooter'
@@ -12,7 +13,7 @@ type MultiNameExtendSummaryProps = {
   readonly total: number
   readonly totalDiscount: number
   readonly allLoaded: boolean
-  readonly duration: number
+  readonly renewals: readonly MultiRenewalEntry[]
   readonly onBack: () => void
   readonly onNext: (token: TokenWithPriceAndBalance) => void
 }
@@ -22,14 +23,12 @@ export const MultiNameExtendSummary = ({
   total,
   totalDiscount,
   allLoaded,
-  duration,
+  renewals,
   onBack,
   onNext,
 }: MultiNameExtendSummaryProps) => {
   const [selectedToken, setSelectedToken] =
     useState<TokenWithPriceAndBalance | null>(null)
-
-  const names = pricingData.map((item) => item.selectedName.name)
 
   return (
     <div className="space-y-4 mt-2">
@@ -50,8 +49,7 @@ export const MultiNameExtendSummary = ({
       </div>
 
       <MultiNamePaymentTokenPicker
-        names={names}
-        duration={duration}
+        renewals={renewals}
         onSelectionChange={setSelectedToken}
       />
 

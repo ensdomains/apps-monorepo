@@ -138,7 +138,16 @@ function RouteComponent() {
     transactions: renewalTransactions,
     startFlow,
     startMultiFlow,
-  } = useRenewalTransactions()
+  } = useRenewalTransactions({
+    onComplete: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['get-names-for-address'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['get-v2-names-with-roles-for-address'],
+      })
+    },
+  })
 
   const { openModal } = useTransactionModal()
 
@@ -287,10 +296,6 @@ function RouteComponent() {
     selectedStatuses.length > 0 ||
     selectedLengths.length > 0
 
-  console.log({
-    renewalTransactions,
-  })
-
   return (
     <>
       <header className="bg-muted px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
@@ -380,8 +385,8 @@ function RouteComponent() {
           }}
           selectedNames={selectedNames}
           onExtend={(config) => {
-            startMultiFlow(selectedNames, {
-              duration: config.duration,
+            startMultiFlow({
+              renewals: config.renewals,
               tokenAddress: config.token.address,
               tokenPrice: config.token.price.total,
             })

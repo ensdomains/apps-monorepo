@@ -1,0 +1,127 @@
+import { CalendarIcon, HashIcon } from 'lucide-react'
+import { useMemo } from 'react'
+import { Button } from '@/components/ui/button'
+import { RegistrationDurationPicker } from '@/features/register/components/RegistrationDurationPicker'
+import { RegistrationExpiryDatePicker } from '@/features/register/components/RegistrationExpiryDatePicker'
+import {
+  getMaxExpiryDateForPicker,
+  getMinExpiryDateForPicker,
+  getStartOfToday,
+  plainDateToDate,
+} from '@/features/register/utils/registrationDuration'
+import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
+import { cn } from '@/lib/utils'
+import { dateToPlainDate } from '@/utils/temporal'
+
+export type ExtensionSpanType = 'years' | 'date'
+
+type ExtensionDurationOrExpiryPickerProps = {
+  readonly disabled?: boolean
+  readonly duration: number
+  readonly setDuration: (duration: number) => void
+  /** Base date for duration calculations (use name's current expiry for renewal) */
+  readonly expiryDate?: Date | null
+  readonly spanType: ExtensionSpanType
+  readonly setSpanType: (type: ExtensionSpanType) => void
+}
+
+export const ExtensionDurationOrExpiryPicker = ({
+  disabled = false,
+  duration,
+  setDuration,
+  expiryDate,
+  spanType,
+  setSpanType,
+}: ExtensionDurationOrExpiryPickerProps) => {
+  const baseDate = useMemo(
+    () => (expiryDate ? dateToPlainDate(expiryDate) : getStartOfToday()),
+    [expiryDate],
+  )
+  const targetDate = useMemo(() => {
+    if (spanType === 'years') {
+      return baseDate.add({ years: Math.max(1, Math.round(duration)) })
+    }
+
+    const candidate = new Date(duration)
+    if (Number.isNaN(candidate.getTime())) {
+      return baseDate.add({ years: 1 })
+    }
+    return dateToPlainDate(candidate)
+  }, [baseDate, duration, spanType])
+  const displayedYears = useMemo(
+    () =>
+      Math.min(
+        MAX_REGISTRATION_YEARS,
+        Math.max(
+          1,
+          Math.round(
+            spanType === 'years'
+              ? duration
+              : baseDate.until(targetDate, { largestUnit: 'years' }).years,
+          ),
+        ),
+      ),
+    [baseDate, duration, spanType, targetDate],
+  )
+
+  const handleSpanTypeToggle = () => {
+    if (spanType === 'years') {
+      setDuration(
+        plainDateToDate(baseDate.add({ years: displayedYears })).getTime(),
+      )
+      setSpanType('date')
+    } else {
+      setDuration(displayedYears)
+      setSpanType('years')
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-4 border border-border rounded-lg px-6 pb-6 pt-4',
+        disabled && 'opacity-50 pointer-events-none',
+      )}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <span className="text-base font-medium">
+            {spanType === 'years' ? 'For' : 'Until'}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSpanTypeToggle}
+            className="gap-1 text-primary"
+          >
+            <span className="text-xs font-normal">
+              Choose by {spanType === 'years' ? 'date' : 'years'}
+            </span>
+            {spanType === 'years' ? (
+              <CalendarIcon className="size-3" />
+            ) : (
+              <HashIcon className="size-3" />
+            )}
+          </Button>
+        </div>
+
+        {spanType === 'years' ? (
+          <RegistrationDurationPicker
+            value={displayedYears}
+            max={MAX_REGISTRATION_YEARS}
+            onChange={(years) => setDuration(years)}
+          />
+        ) : (
+          <RegistrationExpiryDatePicker
+            date={targetDate}
+            onDateChange={(date) =>
+              setDuration(plainDateToDate(date).getTime())
+            }
+            minDate={getMinExpiryDateForPicker(baseDate)}
+            maxDate={getMaxExpiryDateForPicker(baseDate)}
+          />
+        )}
+      </div>
+    </div>
+  )
+}

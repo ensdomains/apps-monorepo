@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import {
@@ -7,9 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
-import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { dateToPlainDate } from '@/utils/temporal'
+import { useNamePricing } from '../hooks/useNamePricing'
 import type {
   SelectedName,
   StartFlowConfig,
@@ -17,6 +15,7 @@ import type {
 import { ExtendNameConfirmation } from './ExtendNameConfirmation'
 import { ExtendNameDisclaimer } from './ExtendNameDisclaimer'
 import { ExtendNameSettings } from './ExtendNameSettings'
+import type { ExtensionSpanType } from './ExtensionDurationOrExpiryPicker'
 
 type ExtendNameModalProps = {
   readonly open: boolean
@@ -34,16 +33,18 @@ export const ExtendNameModal = ({
   onExtend,
 }: ExtendNameModalProps) => {
   const [step, setStep] = useState<ExtendNameModalStep>('disclaimer')
-  const [duration, setDuration] = useState<number>(() =>
-    getDurationInSecondsFromYears(1),
+  const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
+  const [duration, setDuration] = useState<number>(1)
+  const baseDate = selectedName.expiryDate
+    ? dateToPlainDate(selectedName.expiryDate)
+    : undefined
+  const { durationSeconds, price } = useNamePricing(
+    selectedName,
+    duration,
+    spanType,
+    baseDate,
+    open,
   )
-
-  const { data: priceData } = useQuery({
-    ...getRegistrationPriceQueryOptions({ name: selectedName.name, duration }),
-    enabled: open && duration > 0,
-  })
-
-  const price = priceData && isPriceResult(priceData) ? priceData : undefined
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -75,6 +76,9 @@ export const ExtendNameModal = ({
               selectedName={selectedName}
               duration={duration}
               setDuration={setDuration}
+              spanType={spanType}
+              setSpanType={setSpanType}
+              baseDate={baseDate}
               onBack={() => setStep('disclaimer')}
               onNext={() => setStep('confirm')}
             />
@@ -83,12 +87,12 @@ export const ExtendNameModal = ({
             price ? (
               <ExtendNameConfirmation
                 selectedName={selectedName}
-                durationSeconds={duration}
+                durationSeconds={durationSeconds}
                 price={price}
                 onBack={() => setStep('settings')}
                 onConfirm={(token) =>
                   onExtend({
-                    duration,
+                    duration: durationSeconds,
                     tokenAddress: token.address,
                     tokenPrice: token.price.total,
                   })
