@@ -116,7 +116,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      {data.registeredAt && (
+      {!!data.registeredAt && (
         <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-2xl">
           <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
             <CalendarIcon className="size-5 text-secondary-foreground" />
@@ -127,7 +127,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           </div>
         </div>
       )}
-      {data.expiry && (
+      {!!data.expiry && (
         <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-2xl">
           <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
             <ClockIcon className="size-5 text-secondary-foreground" />

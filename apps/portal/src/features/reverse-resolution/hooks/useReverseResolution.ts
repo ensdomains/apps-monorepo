@@ -1,9 +1,9 @@
-import { l2ReverseRegistrarNameForAddrSnippet } from '@ens-apps/l2-primary/L2ReverseRegistrar'
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import {
   getChainIdForReverseRegistrarChainId,
   getRegistrarAddress,
-} from '@ens-apps/l2-primary/reverseRegistrarChainIds'
+  l2ReverseRegistrarNameForAddrSnippet,
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
