@@ -7,7 +7,7 @@ import { fromPromise, ok } from 'neverthrow'
 import type { MulticallErrorType } from 'viem'
 import { multicall } from 'viem/actions'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
-import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
   readonly cause: MulticallErrorType
@@ -30,7 +30,7 @@ export const getOracleParamsQueryOptions = resultQueryOptions({
 const PRICE_DECIMALS = 12
 
 export const getOracleParams = ResultFn(async function* () {
-  const client = yield* safeGetNamechainSepoliaClient()
+  const client = yield* safeGetClient()
 
   const [premiumPriceInitial, premiumHalvingPeriod, premiumPeriod] =
     yield* fromPromise(

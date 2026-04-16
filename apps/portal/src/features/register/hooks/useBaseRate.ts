@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { ReadContractErrorType } from 'viem'
 import { readContract } from 'viem/actions'
-import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 
 export class GetBaseRatesError extends TaggedError('GetBaseRatesError')<{
@@ -25,7 +25,7 @@ export const getBaseRatesQueryOptions = resultQueryOptions({
 })
 
 export const getBaseRates = ResultFn(async function* () {
-  const client = yield* safeGetNamechainSepoliaClient()
+  const client = yield* safeGetClient()
 
   const rates = yield* fromPromise(
     readContract(client, {
