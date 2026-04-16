@@ -1,8 +1,8 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import {
   getChainIdForReverseRegistrarChainId,
   type NetworkKey,
-} from '@ens-apps/l2-primary/reverseRegistrarChainIds'
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
 import { useAccount, useSwitchChain } from 'wagmi'
 
 type UseNetworkSwitchingParams = {

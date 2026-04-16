@@ -1,10 +1,16 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { HubIcon } from '@/assets/icons'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { RegistryLocation } from './RegistryLocation'
 
-const v1EnsRegistry = sepoliaWithEns.contracts.ensRegistry.address
+const v2EnsRegistry = sepoliaWithEns.contracts.ensRegistry.address
+
+const v1EnsLegacyRegistry = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensLegacyRegistry',
+})
 
 export const RegistryCard = ({
   name,
@@ -13,7 +19,10 @@ export const RegistryCard = ({
   name: string
   registryAddress?: Address
 }) => {
-  const isCustomRegistry = registryAddress && registryAddress !== v1EnsRegistry
+  const isCustomRegistry =
+    registryAddress &&
+    registryAddress !== v2EnsRegistry &&
+    registryAddress !== v1EnsLegacyRegistry
 
   return (
     <Link
@@ -21,7 +30,7 @@ export const RegistryCard = ({
       params={{ name }}
       className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted"
     >
-      <HubIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
+      <HubIcon className="size-8 shrink-0 text-icon-foreground" />
       {isCustomRegistry ? (
         <RegistryLocation name={name} registryAddress={registryAddress} />
       ) : (

@@ -5,11 +5,11 @@ import type { Database } from '..'
 
 type SqlMatcher = (query: QueryWithTypings) => boolean
 
-type BasicQuery = QueryPromise<any> & SQLWrapper
+type BasicQuery = QueryPromise<unknown> & SQLWrapper
 
 interface MockEntry {
   match: SqlMatcher
-  result: any
+  result: unknown
 }
 
 const dialect = new PgDialect()
@@ -41,7 +41,7 @@ export function createDrizzleProxySqlMock(db: Database) {
   })
 
   /** Register a SQL matcher */
-  function when(matcher: SqlMatcher, result: any) {
+  function when(matcher: SqlMatcher, result: unknown) {
     mocks.push({ match: matcher, result })
     return api
   }
@@ -55,7 +55,7 @@ export function createDrizzleProxySqlMock(db: Database) {
 
   /** Wrap query builders so their execute() resolves through our mock */
   function wrapQuery<T>(query: T): T {
-    return new Proxy(query as any, {
+    return new Proxy(query as object, {
       get(target, prop) {
         if (prop === 'execute') return executeMock.bind(query)
         if (['then', 'catch', 'finally'].includes(String(prop))) {
@@ -65,7 +65,7 @@ export function createDrizzleProxySqlMock(db: Database) {
 
         const val = Reflect.get(target, prop)
         if (typeof val === 'function') {
-          return (...args: any[]) => {
+          return (...args: unknown[]) => {
             const result = val.apply(target, args)
             if (result && typeof result === 'object') {
               return wrapQuery(result)
@@ -75,7 +75,7 @@ export function createDrizzleProxySqlMock(db: Database) {
         }
         return val
       },
-    })
+    }) as T
   }
 
   /** Top-level db proxy */
@@ -84,8 +84,12 @@ export function createDrizzleProxySqlMock(db: Database) {
       const val = Reflect.get(target, prop, receiver)
 
       // Methods returning queries (select/update/etc.)
-      if (typeof val === 'function' && QUERY_METHODS.includes(prop as any)) {
-        return (...args: any[]) => wrapQuery(val.apply(target, args))
+      if (
+        typeof val === 'function' &&
+        typeof prop === 'string' &&
+        (QUERY_METHODS as ReadonlyArray<string>).includes(prop)
+      ) {
+        return (...args: unknown[]) => wrapQuery(val.apply(target, args))
       }
 
       // Relational query helpers (db.query.table.findFirst etc.)
@@ -98,7 +102,7 @@ export function createDrizzleProxySqlMock(db: Database) {
                 get(innerT, innerP) {
                   const innerVal = Reflect.get(innerT, innerP)
                   if (typeof innerVal === 'function') {
-                    return (...args: any[]) =>
+                    return (...args: unknown[]) =>
                       wrapQuery(innerVal.apply(innerT, args))
                   }
                   return innerVal

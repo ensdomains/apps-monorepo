@@ -1,19 +1,22 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import {
   createSetForwardResolutionRequest,
   createSetReverseNameRequest,
   type SetForwardResolutionRequest,
   type SetReverseNameRequest,
 } from '@ens-apps/l2-primary/utils'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
+import { L1_REGISTRARS } from '@ens-apps/l2-primary/v2'
 import {
   type SetPrimaryNameWriteParametersReturnType,
   setPrimaryNameWriteParameters,
 } from '@ensdomains/ensjs/wallet'
+import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection, useWalletClient } from 'wagmi'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -21,6 +24,7 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
   displayName: string | undefined
+  reverseNameInput: string | undefined
 }
 
 type ReverseResolutionWriteRequest =
@@ -29,18 +33,31 @@ type ReverseResolutionWriteRequest =
       request: SetPrimaryNameWriteParametersReturnType
     }
   | {
+      kind: 'l1-v1-direct'
+      request: {
+        address: Address
+        abi: typeof reverseRegistrarSetNameSnippet
+        functionName: 'setName'
+        args: readonly [name: string]
+      }
+    }
+  | {
       kind: 'l2'
       request: SetReverseNameRequest
+    }
+  | {
+      kind: 'unsupported'
+      reason: string
     }
 
 export function useReverseResolutionMutations({
   reverseRegistrarChainId,
   displayName,
+  reverseNameInput,
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
   const { chain } = useConnection()
 
-  // L1 means Ethereum (reverseRegistrarChainId 1 or 60). We only use Sepolia for L1 here.
   const isL1 = useMemo(
     () => isL1ReverseRegistrarChainId(reverseRegistrarChainId),
     [reverseRegistrarChainId],
@@ -48,7 +65,23 @@ export function useReverseResolutionMutations({
 
   const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
 
-  // Get resolver address from the correct registry (V1 or V2)
+  const { isLoading: isEnsOwnerLoading } = useQuery({
+    ...getEnsOwnerQueryOptions({ name: displayName }),
+    enabled: Boolean(displayName),
+  })
+
+  const isValidReverseInput =
+    // biome-ignore lint/style/noNonNullAssertion: guarded by Boolean check
+    Boolean(reverseNameInput) && reverseNameInput!.endsWith('.eth')
+
+  const { data: reverseInputOwner, isLoading: isReverseInputOwnerLoading } =
+    useQuery({
+      ...getEnsOwnerQueryOptions({ name: reverseNameInput }),
+      enabled: isValidReverseInput,
+    })
+
+  const reverseInputProtocolVersion = reverseInputOwner?.protocolVersion
+
   const { data: resolverAddress } = useQuery({
     ...getNameResolverAddressQueryOptions({
       name: displayName ?? '',
@@ -67,6 +100,25 @@ export function useReverseResolutionMutations({
           throw new Error('Sepolia wallet client not available')
         if (!l1WalletClient.account) throw new Error('No connected account')
 
+        if (reverseInputProtocolVersion === 'ENSv1') {
+          return {
+            kind: 'l1-v1-direct',
+            request: {
+              address: L1_REGISTRARS.ENSv1,
+              abi: reverseRegistrarSetNameSnippet,
+              functionName: 'setName',
+              args: [name] as const,
+            },
+          }
+        }
+
+        if (reverseInputProtocolVersion === undefined) {
+          return {
+            kind: 'unsupported',
+            reason: 'Name does not exist',
+          }
+        }
+
         return {
           kind: 'l1',
           request: setPrimaryNameWriteParameters(
@@ -79,6 +131,20 @@ export function useReverseResolutionMutations({
         }
       }
 
+      if (reverseInputProtocolVersion === 'ENSv2') {
+        return {
+          kind: 'unsupported',
+          reason: 'ENSv2 names do not support L2 primary names yet',
+        }
+      }
+
+      if (reverseInputProtocolVersion === undefined) {
+        return {
+          kind: 'unsupported',
+          reason: 'Name does not exist',
+        }
+      }
+
       return {
         kind: 'l2',
         request: createSetReverseNameRequest({
@@ -88,7 +154,13 @@ export function useReverseResolutionMutations({
         }),
       }
     },
-    [chain, isL1, l1WalletClient, reverseRegistrarChainId],
+    [
+      chain,
+      isL1,
+      l1WalletClient,
+      reverseInputProtocolVersion,
+      reverseRegistrarChainId,
+    ],
   )
 
   const getForwardResolutionRequest = useCallback(
@@ -112,5 +184,7 @@ export function useReverseResolutionMutations({
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     invalidateReverseResolutionQuery,
+    isEnsOwnerLoading,
+    isReverseInputOwnerLoading,
   }
 }

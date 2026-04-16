@@ -1,10 +1,8 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
-import { FAST_TEST_ETH_REGISTRAR_ABI } from '@ens-apps/transaction-manager/contracts/abis/FastTestETHRegistrar.abi'
-import {
-  ENS_SEPOLIA_CONTRACTS,
-  REFERER_ADDRESS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { type Address, encodeFunctionData } from 'viem'
@@ -14,6 +12,7 @@ import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLook
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 export type SelectedName = {
   readonly name: string
@@ -25,6 +24,11 @@ export const RENEWAL_TX_IDS = {
   approve: 'renewal-approve',
   renew: (name: string) => `renewal-renew-${name}`,
 } as const
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 type SavedRenewalParams = {
   readonly name: SelectedName
@@ -81,7 +85,7 @@ function buildApproveTransaction(
   const approveData = encodeFunctionData({
     abi: ERC20_ABI,
     functionName: 'approve',
-    args: [ENS_SEPOLIA_CONTRACTS.ETHRegistrar, params.tokenPrice * 2n],
+    args: [ethRegistrar, params.tokenPrice * 2n],
   })
 
   transactionManager.clear()
@@ -113,7 +117,7 @@ function buildRenewTransaction(
 ) {
   const label = params.name.replace('.eth', '')
   const renewData = encodeFunctionData({
-    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
     args: [
       label,
@@ -129,7 +133,7 @@ function buildRenewTransaction(
       request: {
         type: 'eoa',
         from: params.from,
-        to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+        to: ethRegistrar,
         data: renewData,
         value: 0n,
         chainId: sepolia.id,

@@ -210,7 +210,8 @@ export function generateDebugReport(
       ? data.transitions.filter(
           (t) =>
             t.metadata?.transactionHash === transactionId ||
-            (t.context as any).transactionId === transactionId,
+            (t.context as Record<string, unknown>).transactionId ===
+              transactionId,
         )
       : data.transitions.slice(-50)
 

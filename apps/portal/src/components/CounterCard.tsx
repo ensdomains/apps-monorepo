@@ -24,7 +24,7 @@ export const CounterCardRow = ({
   children: ReactNode
 }) => (
   <div className="w-full px-6 flex flex-row items-center gap-6">
-    <Icon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
+    <Icon className="size-8 shrink-0 text-icon-foreground" />
     <div className="flex-1">{children}</div>
   </div>
 )
