@@ -11,7 +11,7 @@ export function formatPriceDisplay(raw: bigint, decimals: number): string {
 }
 
 /**
- * Formats base + premium as USD total (rounded to nearest dollar).
+ * Formats base + premium as USD total without rounding to whole dollars.
  */
 export function formatRegistrationTotal(
   base: bigint,

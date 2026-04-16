@@ -111,7 +111,7 @@ export const RegistrationDurationPicker = ({
           <Plus className="size-4" strokeWidth={2} />
         </Button>
       </div>
-      {/* Currently we disabled discounts on contracts - Commenting this section out for now until we re-enable discounts */}
+      {/* Discounts disabled on contracts - uncomment once re-enabled */}
       {/* <RegistrationDurationPresets
         value={value}
         onSelect={handlePresetSelect}

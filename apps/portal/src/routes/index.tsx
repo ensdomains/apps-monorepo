@@ -16,14 +16,14 @@ export const Route = createFileRoute('/')({
 
 function RouteComponent() {
   return (
-    <main className="min-h-screen flex flex-col items-center gap-24 px-6 py-18">
+    <main className="min-h-screen flex flex-col items-center gap-24 px-6 pt-6 pb-18">
       <HomeHeader />
 
       <section className="flex flex-col gap-12 items-center w-full max-w-3xl">
-        <p className="font-serif text-[32px] font-[350] text-center leading-[1.35] text-foreground">
-          Explore the decentralized source of truth
+        <p className="font-serif text-[24px] sm:text-[36px] font-[350] text-center leading-[1.35] text-foreground">
+          Explore the source of truth for
           <br />
-          for Ethereum Name Service
+          Ethereum Name Service
         </p>
         <HomeSearchInput className="bg-card dark:bg-transparent w-91.75 max-w-full rounded-lg border-border shadow-none" />
       </section>
@@ -52,7 +52,9 @@ function RouteComponent() {
             hoverColor="garnet"
           />
         </div>
-        <RecentActivityTable />
+        <div className="w-full max-w-3xl">
+          <RecentActivityTable />
+        </div>
       </section>
     </main>
   )
