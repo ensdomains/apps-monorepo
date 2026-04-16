@@ -1,17 +1,20 @@
 import { CalendarIcon, HashIcon } from 'lucide-react'
-import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { RegistrationDurationPicker } from '@/features/register/components/RegistrationDurationPicker'
 import { RegistrationExpiryDatePicker } from '@/features/register/components/RegistrationExpiryDatePicker'
 import {
   getMaxExpiryDateForPicker,
   getMinExpiryDateForPicker,
-  getStartOfToday,
   plainDateToDate,
 } from '@/features/register/utils/registrationDuration'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
-import { dateToPlainDate } from '@/utils/temporal'
+import {
+  getExtensionBaseDate,
+  getExtensionDisplayedYears,
+  getExtensionDurationForToggledSpan,
+  getExtensionTargetDate,
+} from '../utils/extensionDurationPicker'
 
 export type ExtensionSpanType = 'years' | 'date'
 
@@ -33,47 +36,24 @@ export const ExtensionDurationOrExpiryPicker = ({
   spanType,
   setSpanType,
 }: ExtensionDurationOrExpiryPickerProps) => {
-  const baseDate = useMemo(
-    () => (expiryDate ? dateToPlainDate(expiryDate) : getStartOfToday()),
-    [expiryDate],
-  )
-  const targetDate = useMemo(() => {
-    if (spanType === 'years') {
-      return baseDate.add({ years: Math.max(1, Math.round(duration)) })
-    }
-
-    const candidate = new Date(duration)
-    if (Number.isNaN(candidate.getTime())) {
-      return baseDate.add({ years: 1 })
-    }
-    return dateToPlainDate(candidate)
-  }, [baseDate, duration, spanType])
-  const displayedYears = useMemo(
-    () =>
-      Math.min(
-        MAX_REGISTRATION_YEARS,
-        Math.max(
-          1,
-          Math.round(
-            spanType === 'years'
-              ? duration
-              : baseDate.until(targetDate, { largestUnit: 'years' }).years,
-          ),
-        ),
-      ),
-    [baseDate, duration, spanType, targetDate],
-  )
+  const baseDate = getExtensionBaseDate(expiryDate)
+  const targetDate = getExtensionTargetDate({ baseDate, duration, spanType })
+  const displayedYears = getExtensionDisplayedYears({
+    baseDate,
+    duration,
+    spanType,
+    targetDate,
+  })
 
   const handleSpanTypeToggle = () => {
-    if (spanType === 'years') {
-      setDuration(
-        plainDateToDate(baseDate.add({ years: displayedYears })).getTime(),
-      )
-      setSpanType('date')
-    } else {
-      setDuration(displayedYears)
-      setSpanType('years')
-    }
+    setDuration(
+      getExtensionDurationForToggledSpan({
+        baseDate,
+        displayedYears,
+        spanType,
+      }),
+    )
+    setSpanType(spanType === 'years' ? 'date' : 'years')
   }
 
   return (

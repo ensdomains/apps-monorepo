@@ -13,6 +13,7 @@ import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
+import { getExtensionTargetDate } from '../utils/extensionDurationPicker'
 import type { SelectedName } from './useRenewalTransactions'
 
 export type { NamePricingDisplay }
@@ -56,10 +57,11 @@ export const getRenewalDurationSeconds = ({
     return getDurationInSecondsFromYears(duration, baseDate)
   }
 
-  const candidate = new Date(duration)
-  const targetDate = Number.isNaN(candidate.getTime())
-    ? (dateModeReferenceDate ?? baseDate ?? getStartOfToday()).add({ years: 1 })
-    : dateToPlainDate(candidate)
+  const targetDate = getExtensionTargetDate({
+    baseDate: dateModeReferenceDate ?? baseDate ?? getStartOfToday(),
+    duration,
+    spanType: 'date',
+  })
 
   return getDurationFromPickerDate(targetDate, baseDate)
 }
