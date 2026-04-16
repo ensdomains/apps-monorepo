@@ -3,7 +3,6 @@ import { createFileRoute, useParams } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
-import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -209,38 +208,41 @@ const Profile = ({
 
   return (
     <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+      {/* Header */}
       <div className="flex flex-row justify-between items-center">
-        <h1 className="text-heading font-medium leading-none">{name}</h1>
-        <CopyButton value={name} />
+        <h1 className="text-4xl font-medium leading-none">{name}</h1>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {/* Profile + Expiry */}
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
-          <div className="*:h-full">
-            <NameProfileCard name={name} />
-          </div>
+      {/* Main section: profile | metadata rows | counters */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_2fr] gap-3">
+        {/* Left: avatar + bio + socials */}
+        <NameProfileCard name={name} stacked />
+
+        {/* Middle: metadata rows */}
+        <div className="flex flex-col flex-1">
           <ExpiryWithRegistrationData
             name={name}
             protocolVersion={resolvedProtocolVersion}
           />
-        </div>
-
-        {/* Owner / Parent / Resolver / Registry */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          <Owner owner={ownerQuery.data.owner} />
-          <ParentName name={name} />
+          <Owner owner={ownerQuery.data.owner} asRow />
+          <ParentName name={name} asRow />
           {resolverAddress && (
-            <ResolverCard name={name} resolverAddress={resolverAddress} />
+            <ResolverCard name={name} resolverAddress={resolverAddress} asRow />
           )}
           <RegistryCard
             name={name}
             registryAddress={ownerQuery.data.registryAddress}
+            asRow
           />
         </div>
 
-        {/* Counts */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Right: counter cards */}
+        <div className="flex flex-col gap-3 shrink-0">
+          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
+          <ProtocolVersionWithCounter
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
           {resolverAddress && (
             <RecordCount
               name={name}
@@ -248,15 +250,11 @@ const Profile = ({
               resolverAddress={resolverAddress}
             />
           )}
-          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
-          <ProtocolVersionWithCounter
-            name={name}
-            protocolVersion={resolvedProtocolVersion}
-          />
         </div>
-
-        {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
       </div>
+
+      {/* History */}
+      {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
     </div>
   )
 }

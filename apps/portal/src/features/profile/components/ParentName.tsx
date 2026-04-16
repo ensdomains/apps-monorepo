@@ -2,8 +2,39 @@ import { Link } from '@tanstack/react-router'
 import { EntityBadge } from '@/components/EntityBadge'
 import { NameAvatar } from './NameAvatar'
 
-export const ParentName = ({ name }: { name: string }) => {
+export const ParentName = ({
+  name,
+  asRow,
+}: {
+  name: string
+  asRow?: boolean
+}) => {
   const parent = name.slice(name.indexOf('.') + 1)
+
+  if (asRow) {
+    if (parent === name)
+      return (
+        <div className="flex items-center gap-4 py-3">
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            Parent
+          </span>
+          <span className="text-sm">Root</span>
+        </div>
+      )
+    return (
+      <Link
+        to="/$name"
+        params={{ name: parent }}
+        className="flex items-center gap-4 py-3 hover:bg-muted/50"
+      >
+        <NameAvatar width="20px" height="20px" name={parent} />
+        <span className="text-sm text-muted-foreground w-24 shrink-0">
+          Parent
+        </span>
+        <EntityBadge variant="name">{parent}</EntityBadge>
+      </Link>
+    )
+  }
 
   if (parent === name)
     return (

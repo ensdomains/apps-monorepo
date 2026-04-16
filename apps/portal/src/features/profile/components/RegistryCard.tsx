@@ -15,14 +15,36 @@ const v1EnsLegacyRegistry = getChainContractAddress({
 export const RegistryCard = ({
   name,
   registryAddress,
+  asRow,
 }: {
   name: string
   registryAddress?: Address
+  asRow?: boolean
 }) => {
   const isCustomRegistry =
     registryAddress &&
     registryAddress !== v2EnsRegistry &&
     registryAddress !== v1EnsLegacyRegistry
+
+  if (asRow) {
+    return (
+      <Link
+        to="/$name/registry"
+        params={{ name }}
+        className="flex items-center gap-4 py-3 hover:bg-muted/50"
+      >
+        <HubIcon className="size-4 shrink-0 text-icon-foreground" />
+        <span className="text-sm text-muted-foreground w-24 shrink-0">
+          Subregistry
+        </span>
+        {isCustomRegistry ? (
+          <RegistryLocation name={name} registryAddress={registryAddress} />
+        ) : (
+          <span className="text-sm text-muted-foreground">None set</span>
+        )}
+      </Link>
+    )
+  }
 
   return (
     <Link
