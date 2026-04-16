@@ -74,7 +74,6 @@ const getItems = (addr: string) => [
   defineAddrSidebarItem({
     title: 'Reverse Resolution',
     icon: CopySlashIcon,
-    upcoming: true,
     link: {
       to: '/addr/$addr/reverse-resolution',
       params: { addr },

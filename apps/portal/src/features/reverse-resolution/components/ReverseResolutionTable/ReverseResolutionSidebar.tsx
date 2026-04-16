@@ -1,4 +1,4 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -215,11 +215,16 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     reverseRegistrarChainId,
   })
 
-  const { getReverseResolutionRequest, getForwardResolutionRequest } =
-    useReverseResolutionMutations({
-      reverseRegistrarChainId,
-      displayName,
-    })
+  const {
+    getReverseResolutionRequest,
+    getForwardResolutionRequest,
+    isEnsOwnerLoading,
+    isReverseInputOwnerLoading,
+  } = useReverseResolutionMutations({
+    reverseRegistrarChainId,
+    displayName,
+    reverseNameInput: nameInput || undefined,
+  })
 
   const {
     openModal: openTransactionModal,
@@ -288,6 +293,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     if (!nameInput) return
     try {
       const reverseRequest = getReverseResolutionRequest(nameInput)
+      if (reverseRequest.kind === 'unsupported') {
+        toast.error(reverseRequest.reason)
+        return
+      }
       submitReverseResolution({
         name: nameInput,
         request: reverseRequest.request,
@@ -351,6 +360,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   variant="default"
                   disabled={
                     !isConnected ||
+                    isEnsOwnerLoading ||
                     isForwardResolutionPending ||
                     isSwitchingChain
                   }
@@ -434,6 +444,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       !nameInput ||
+                      isReverseInputOwnerLoading ||
                       isReverseResolutionPending ||
                       isSwitchingChain
                     }
