@@ -28,7 +28,7 @@ export const ResolverCard = ({
       params={{ name }}
       className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted"
     >
-      <ResolverIcon className="size-8 shrink-0 text-[#191919] dark:text-[#595755]" />
+      <ResolverIcon className="size-8 shrink-0 text-icon-foreground" />
       <div className="flex flex-col gap-1">
         <span className="text-sm text-muted-foreground">Resolver</span>
         {isLoading ? (

@@ -9,6 +9,7 @@ interface BlockExplorerTxLinkProps {
   readonly txHash: Hash
   readonly chainId?: number
   readonly className?: string
+  readonly showCopy?: boolean
 }
 
 /**
@@ -19,6 +20,7 @@ export const BlockExplorerTxLink = ({
   txHash,
   chainId,
   className,
+  showCopy = true,
 }: BlockExplorerTxLinkProps) => {
   const href = useBlockExplorerTxUrl(txHash, chainId)
 
@@ -27,7 +29,7 @@ export const BlockExplorerTxLink = ({
       <EntityBadge variant="tx" externalHref={href}>
         {truncateAddress(txHash)}
       </EntityBadge>
-      <CopyButton value={txHash} />
+      {showCopy && <CopyButton value={txHash} />}
     </div>
   )
 }

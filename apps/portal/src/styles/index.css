@@ -12,8 +12,8 @@
   --card-foreground: #191919;
   --popover: #ffffff;
   --popover-foreground: #191919;
-  --primary: var(--lapis-500);
-  --primary-foreground: #ffffff;
+  --primary: #191919;
+  --primary-foreground: #faf9f7;
   --secondary: #f2f2f2;
   --secondary-foreground: #191919;
   --muted: #f2f2f2;
@@ -65,13 +65,19 @@
   --quartz-500: #5d5751;
   --quartz-900: #191919;
 
-  /* Syntax/entity colors — light mode values (higher contrast for light backgrounds) */
-  --syntax-name: #0082bb;
-  --syntax-address: #0e8a30;
-  --syntax-contract: #e72a96;
-  --syntax-tx: #984d1b;
+  /* Semantic text colors — light mode values (higher contrast for light backgrounds) */
+  --accent-text: #0082bb;
+  --success-text: #007c20;
+  --danger-text: #e72a96;
+  --warning-text: #984d1b;
   --entity-bg: transparent;
   --entity-border: transparent;
+  /* Semantic fill colors — light mode per-variant backgrounds */
+  --accent-fill: #ebf7fd;
+  --success-fill: #e8f6ef;
+  --danger-fill: #fef0f6;
+  --warning-fill: #fdf6ee;
+  --icon-foreground: #191919;
 
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
@@ -140,22 +146,27 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-syntax-name: var(--syntax-name);
-  --color-syntax-address: var(--syntax-address);
-  --color-syntax-contract: var(--syntax-contract);
-  --color-syntax-tx: var(--syntax-tx);
+  --color-accent-text: var(--accent-text);
+  --color-success-text: var(--success-text);
+  --color-danger-text: var(--danger-text);
+  --color-warning-text: var(--warning-text);
   --color-entity-bg: var(--entity-bg);
   --color-entity-border: var(--entity-border);
+  --color-accent-fill: var(--accent-fill);
+  --color-success-fill: var(--success-fill);
+  --color-danger-fill: var(--danger-fill);
+  --color-warning-fill: var(--warning-fill);
+  --color-icon-foreground: var(--icon-foreground);
 }
 
 .dark {
-  --background: #2b2b2b;
+  --background: #191919;
   --foreground: #e1e1e0;
   --card: #383838;
   --card-foreground: #e1e1e0;
   --popover: #383838;
   --popover-foreground: #e1e1e0;
-  --primary: var(--lapis-400);
+  --primary: #e1e1e0;
   --primary-foreground: #191919;
   --secondary: #4f4f4f;
   --secondary-foreground: #e1e1e0;
@@ -167,24 +178,30 @@
   --danger: var(--garnet-400);
   --success: var(--peridot-400);
   --warning: var(--citrine-400);
-  --border: rgba(255, 255, 255, 0.2);
+  --border: #383838;
   --input: #242424;
   --ring: var(--lapis-400);
   --sidebar: #242424;
   --sidebar-foreground: #e1e1e0;
   --sidebar-primary: var(--lapis-400);
   --sidebar-primary-foreground: #191919;
-  --sidebar-accent: #242424;
+  --sidebar-accent: #2b2b2b;
   --sidebar-accent-foreground: #e1e1e0;
   --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: var(--lapis-400);
   --entity-bg: #242424;
   --entity-border: #383838;
-  /* Syntax/entity colors — dark mode values (bright for dark pill bg) */
-  --syntax-name: #39b4ea;
-  --syntax-address: #1cbf46;
-  --syntax-contract: #f569ab;
-  --syntax-tx: #e7a259;
+  /* Semantic fill colors — dark mode per-variant backgrounds */
+  --accent-fill: #1c292e;
+  --success-fill: #192a1e;
+  --danger-fill: #2f2127;
+  --warning-fill: rgba(231, 162, 89, 0.1);
+  /* Semantic text colors — dark mode values (bright for dark fill bg) */
+  --accent-text: #39b4ea;
+  --success-text: #1cbf46;
+  --danger-text: #f569ab;
+  --warning-text: #e7a259;
+  --icon-foreground: #595755;
 }
 
 @layer base {

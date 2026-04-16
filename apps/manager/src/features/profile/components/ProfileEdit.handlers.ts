@@ -207,7 +207,7 @@ export function handleSetPrimaryName(
     primaryNameActor.send({
       type: 'START_UPDATE',
       name,
-      signer: account.signer!,
+      signer: account.signer as NonNullable<typeof account.signer>,
       accountAddress: account.accountAddress as Address,
       publicClient,
       // Signature flow fields

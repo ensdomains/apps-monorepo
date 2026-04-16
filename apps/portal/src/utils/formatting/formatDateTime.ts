@@ -31,7 +31,7 @@ export const formatExpiryDate = (date: Temporal.PlainDate): string =>
  * Format: "MMM DD, YYYY, HH:MM AM/PM" (e.g., "Feb 17, 2029, 10:30 AM")
  */
 export const formatExpiryDateTimeLocal = (instant: Temporal.Instant): string =>
-  new Date(instant.epochMilliseconds).toLocaleString(undefined, {
+  new Date(instant.epochMilliseconds).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

@@ -54,8 +54,8 @@ export interface ZeroDevSigner {
  */
 export interface ERC4337Signer {
   type: 'erc4337'
-  userOpClient: any // Bundler client
-  account: any
+  userOpClient: unknown // Bundler client
+  account: unknown
 }
 
 /**
@@ -64,7 +64,7 @@ export interface ERC4337Signer {
  */
 export interface PrivySigner {
   type: 'privy'
-  privyClient: any
+  privyClient: unknown
   walletClient: WalletClient
 }
 
@@ -74,7 +74,7 @@ export interface PrivySigner {
  */
 export interface SafeSigner {
   type: 'safe'
-  safeClient: any
+  safeClient: unknown
   walletClient: WalletClient
 }
 

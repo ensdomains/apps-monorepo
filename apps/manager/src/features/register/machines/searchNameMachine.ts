@@ -90,7 +90,7 @@ export const registrationMachineMock = setup({
       invoke: {
         src: 'checkAvailability',
         input: ({ context }) => ({
-          name: context.name!,
+          name: context.name ?? '',
         }),
         onDone: {
           target: 'Result',

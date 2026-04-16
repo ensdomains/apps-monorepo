@@ -73,7 +73,9 @@ export async function initializePimlicoAccount(
 
   if (walletSource === 'external-wallet' && walletClient) {
     // Type assertion needed due to permissionless type definitions
-    ownerAccount = await toOwner({ owner: walletClient as any })
+    ownerAccount = await toOwner({
+      owner: walletClient as Parameters<typeof toOwner>[0]['owner'],
+    })
     eoaAddress = walletClient.account?.address ?? null
   } else if (walletSource === 'para-embedded' && paraClient) {
     const paraAccount = createParaAccount(paraClient)
