@@ -71,6 +71,7 @@ export function useReverseResolutionMutations({
   })
 
   const isValidReverseInput =
+    // biome-ignore lint/style/noNonNullAssertion: guarded by Boolean check
     Boolean(reverseNameInput) && reverseNameInput!.endsWith('.eth')
 
   const { data: reverseInputOwner, isLoading: isReverseInputOwnerLoading } =
