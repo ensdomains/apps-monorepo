@@ -15,12 +15,14 @@ import {
   pollTransactionStatusActor,
   submitApprovalActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { secondsInYear } from 'date-fns/constants'
 import { type Address, encodeFunctionData } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
 import { publicClient } from '@/lib/wagmi'
+import { getQueryClient } from '@/utils/router/root-context'
 
 type SubmissionData = {
   label: string
@@ -47,7 +49,6 @@ const startRenewalTransaction = async ({
   signer: Signer
   selectedToken: SUPPORTED_TOKEN
 }) => {
-  console.log('input', { label, duration, signer, selectedToken })
   const accountAddress = getSignerAddress(signer)
 
   if (!signer || !accountAddress) {
@@ -81,11 +82,6 @@ const startRenewalTransaction = async ({
 
   const txData = encodeFunctionData({
     abi: FAST_TEST_ETH_REGISTRAR_ABI,
-    functionName: 'renew',
-    args: [label, duration, normalizedPaymentToken, REFERER_ADDRESS],
-  })
-
-  console.log('txdata', {
     functionName: 'renew',
     args: [label, duration, normalizedPaymentToken, REFERER_ADDRESS],
   })
@@ -214,6 +210,19 @@ export const renewalUiMachine = setup({
             }
           : undefined,
     }),
+    invalidateNameQueries: ({ context }) => {
+      const name = context.submissionData?.label
+      const queryClient = getQueryClient()
+      if (!name || !queryClient) {
+        return
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: $qk({
+          name: `${name}.eth`,
+        }),
+      })
+    },
   },
 }).createMachine({
   id: 'renewalUi',
@@ -356,6 +365,7 @@ export const renewalUiMachine = setup({
         input: ({ context }) => ({ txId: context.renewalTxId! }),
         onDone: {
           target: 'success',
+          actions: ['invalidateNameQueries'],
         },
         onError: {
           target: 'failure',
