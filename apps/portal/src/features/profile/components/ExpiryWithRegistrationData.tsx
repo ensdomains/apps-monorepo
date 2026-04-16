@@ -103,7 +103,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Expires
           </span>
-          {new Date(Number(data.expiry) * 1000).toUTCString()}
+          <Timestamp timestamp={data.expiry} />
         </div>
       )}
 
@@ -113,7 +113,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Registered
           </span>
-          {new Date(Number(data.registeredAt) * 1000).toUTCString()}
+          <Timestamp timestamp={data.registeredAt} />
         </div>
       )}
 
@@ -123,7 +123,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Created
           </span>
-          {new Date(Number(data.createdAt) * 1000).toUTCString()}
+          <Timestamp timestamp={data.createdAt} />
         </div>
       )}
     </>

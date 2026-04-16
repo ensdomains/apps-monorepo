@@ -30,7 +30,7 @@ export const RecentActivityTable = () => {
           No recent activity
         </div>
       ) : (
-        data.map((event) => {
+        data.map((event, index) => {
           const { text, actor, entityFromData } = formatActivityEvent(event)
           const rawName =
             event.name?.trim() || event.domain?.name?.trim() || null
@@ -48,7 +48,7 @@ export const RecentActivityTable = () => {
 
           return (
             <div
-              key={`${txHash}-${event.type}`}
+              key={`${txHash}-${event.type}-${index}`}
               className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-4 px-4 border-b border-border last:border-b-0"
             >
               {/* Mobile: top row — entity left, time right
