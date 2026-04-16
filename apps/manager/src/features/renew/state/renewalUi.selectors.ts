@@ -7,9 +7,3 @@ export const useRenewalStep = createRenewalUiSelector((state) =>
     .with(P.string, (step) => step)
     .exhaustive(),
 )
-
-export const useRenewalPricingStep = createRenewalUiSelector((state) =>
-  match(state.value)
-    .with({ pricing: P.string }, (value) => value.pricing)
-    .otherwise(() => undefined),
-)
