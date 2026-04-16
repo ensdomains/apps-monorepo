@@ -8,7 +8,7 @@
 import { setAddrParameters } from '@ensdomains/ensjs/utils'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import type { ReverseRegistrarChainId } from '../reverseRegistrarChainIds'
+import type { ReverseRegistrarChainId } from '../v1/reverseRegistrarChainIds'
 
 export type SetForwardResolutionRequest = ReturnType<
   typeof createSetForwardResolutionRequest

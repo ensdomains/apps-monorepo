@@ -1,4 +1,4 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 
 const icons = {
   1: '/icons/eth.svg',
