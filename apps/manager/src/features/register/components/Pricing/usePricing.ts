@@ -132,7 +132,10 @@ export const usePricing = ({
   const customQuoteQuery = useQuery({
     queryKey: ['pricing', 'customQuote', domainName, debouncedCustomDuration],
     queryFn: async () => {
-      const result = await getTokenPrices(domainName, debouncedCustomDuration!)
+      const result = await getTokenPrices(
+        domainName,
+        debouncedCustomDuration as number,
+      )
 
       if (result.isErr()) {
         throw new Error('Failed to fetch custom quote')

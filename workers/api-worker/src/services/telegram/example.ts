@@ -4,6 +4,7 @@
  * and helper functions that add real value
  */
 
+import type { CallbackQuery, Message } from '@grammyjs/types'
 import {
   createInlineKeyboard,
   createNotificationMessage,
@@ -96,6 +97,7 @@ export async function handleWebhook(
         break
 
       case 'callback_query':
+        // biome-ignore lint/style/noNonNullAssertion: callback_query guaranteed by 'callback_query' case
         await handleCallbackQuery(token, update.callback_query!)
         break
 
@@ -111,9 +113,11 @@ export async function handleWebhook(
 }
 
 // Example: Handle text messages
-async function handleTextMessage(token: string, message: any) {
+async function handleTextMessage(token: string, message: Message) {
   const chatId = message.chat.id
   const text = message.text
+
+  if (!text) return
 
   if (text.startsWith('/start')) {
     const startParam = parseStartParam(text)
@@ -154,7 +158,10 @@ async function handleTextMessage(token: string, message: any) {
 }
 
 // Example: Handle callback queries
-async function handleCallbackQuery(token: string, callbackQuery: any) {
+async function handleCallbackQuery(
+  token: string,
+  callbackQuery: CallbackQuery,
+) {
   const chatId = callbackQuery.message?.chat.id
   const data = callbackQuery.data
   const queryId = callbackQuery.id
@@ -165,7 +172,7 @@ async function handleCallbackQuery(token: string, callbackQuery: any) {
     text: `You pressed: ${data}`,
   })
 
-  if (chatId) {
+  if (chatId && callbackQuery.message) {
     // Edit the original message
     await makeTelegramRequest(token, 'editMessageText', {
       chat_id: chatId,

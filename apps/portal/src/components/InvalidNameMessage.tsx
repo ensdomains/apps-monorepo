@@ -26,7 +26,7 @@ export function InvalidNameMessage({
   return (
     <MessageCard
       variant="danger"
-      icon={<AlertTriangle size={30} strokeWidth={1.5} />}
+      icon={<AlertTriangle size={48} strokeWidth={1.5} />}
       title={title}
       description={description || defaultDescription}
     />

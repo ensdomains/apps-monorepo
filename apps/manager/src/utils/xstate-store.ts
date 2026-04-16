@@ -47,8 +47,8 @@ type PersistOptions = {
   name: string
   /** Custom serializer for storing/retrieving data from localStorage */
   serde?: {
-    serialize: (value: any) => string
-    deserialize: (value: string) => any
+    serialize: (value: unknown) => string
+    deserialize: (value: string) => unknown
   }
   /** Custom storage */
   storage?: Storage
@@ -82,7 +82,7 @@ function loadPersistedState<TContext extends StoreContext>(
 
     // Validate that the persisted data has the expected structure
     if (persisted && typeof persisted === 'object' && 'context' in persisted) {
-      return persisted.context
+      return (persisted as { context: TContext }).context
     }
 
     return fallbackContext
@@ -154,7 +154,12 @@ export const persist = <
   TEmitted extends EventObject,
 >(
   options: PersistOptions,
-): StoreExtension<TContext, TEventPayloadMap, {}, TEmitted> => {
+): StoreExtension<
+  TContext,
+  TEventPayloadMap,
+  Record<string, never>,
+  TEmitted
+> => {
   const storage = options.storage ?? getDefaultStorage()
 
   return (logic) => {

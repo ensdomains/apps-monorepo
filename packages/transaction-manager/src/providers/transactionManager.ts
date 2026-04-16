@@ -154,7 +154,10 @@ class TransactionManager {
     if (!publicClient) {
       // Try to get from stored clients using chainId
       const resolvedChainId =
-        chainId || (request as any)?.chainId || (intent as any)?.chainId
+        chainId ||
+        request?.chainId ||
+        // biome-ignore lint/suspicious/noExplicitAny: runtime duck-typing to extract chainId from intent variants
+        (intent as any)?.chainId
       console.log(
         `🔍 [TRANSACTION MANAGER ${this.instanceId}] Resolving publicClient for chainId: ${resolvedChainId}`,
       )

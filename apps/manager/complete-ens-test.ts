@@ -37,7 +37,7 @@ import {
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 
 // ============================================================================
@@ -277,7 +277,7 @@ function sleep(ms: number): Promise<void> {
  * Send ETH to an address
  */
 async function sendEth(
-  fromAccount: any,
+  fromAccount: PrivateKeyAccount,
   toAddress: `0x${string}`,
   amountEth: string,
 ): Promise<string> {
@@ -304,7 +304,7 @@ async function sendEth(
  * Mint tokens to an address
  */
 async function mintTokens(
-  fromAccount: any,
+  fromAccount: PrivateKeyAccount,
   tokenAddress: `0x${string}`,
   toAddress: `0x${string}`,
   amount: string,
@@ -1044,7 +1044,9 @@ async function registerEnsDomain(
       }
     }
     try {
-      const ctx = (error as any)?._context
+      const ctx = (error as Record<string, unknown>)?._context as
+        | Record<string, unknown>
+        | undefined
       if (ctx) {
         console.log('🔎 Orchestrator context id:', ctx.id)
         console.dir(ctx.error, { depth: null })
