@@ -309,6 +309,15 @@ export const renewalUiMachine = setup({
         onDone: {
           target: 'submittingRenewal',
         },
+        onError: {
+          target: 'failure',
+          actions: assign({
+            lastErrorMessage: ({ event }) =>
+              event.error instanceof Error
+                ? event.error.message
+                : 'Token approval polling failed',
+          }),
+        },
       },
     },
     submittingRenewal: {
