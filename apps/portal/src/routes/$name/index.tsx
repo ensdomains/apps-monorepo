@@ -219,7 +219,7 @@ const Profile = ({
         <NameProfileCard name={name} stacked />
 
         {/* Middle: metadata rows */}
-        <div className="flex flex-col flex-1 ">
+        <div className="flex flex-col flex-1">
           <ExpiryWithRegistrationData
             name={name}
             protocolVersion={resolvedProtocolVersion}

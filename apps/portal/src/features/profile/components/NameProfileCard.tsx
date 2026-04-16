@@ -91,7 +91,7 @@ export const NameProfileCard = ({
     >
       <NameAvatar name={name} />
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-0.5 ">
+        <div className="flex flex-col gap-0.5">
           {!stacked && (
             <h2 className="text-2xl font-medium w-max">
               {linked ? (
