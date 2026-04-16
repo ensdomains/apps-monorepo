@@ -95,6 +95,13 @@ describe('formatRegistrationTotal', () => {
     expect(result).toBe('$3,840.00')
   })
 
+  it('preserves cents in the total', () => {
+    const base = 47_160_000n // 47.16 USDC
+    const premium = 0n
+    const result = formatRegistrationTotal(base, premium)
+    expect(result).toBe('$47.16')
+  })
+
   it('uses default decimals (USDC) when not specified', () => {
     const base = 10_000_000n
     const premium = 0n

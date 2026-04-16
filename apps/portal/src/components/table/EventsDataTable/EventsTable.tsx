@@ -27,9 +27,7 @@ export const EventsTable = <TEvent extends BaseEvent = BaseEvent>({
               <MobileHistoryCard<TEvent> key={row.id} row={row} table={table} />
             ))
         ) : (
-          <div className="px-6 py-24 text-center border border-border rounded-lg">
-            No history found.
-          </div>
+          <div className="px-6 py-24 text-center">No history found.</div>
         )}
       </div>
 

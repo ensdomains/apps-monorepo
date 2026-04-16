@@ -2,28 +2,31 @@
  * Premium decay calculation utilities for the v2 StandardRentPriceOracle.
  *
  * The temporary premium follows an exponential halving decay:
- *   price(t) = START_PRICE * FACTOR^(days) - OFFSET
+ *   price(t) = startPrice * 2^(-t / halvingPeriod) - offset
  *
- * Contract parameters (from StandardRentPriceOracle):
- *   - Premium period: 21 days (starts immediately at expiry, no grace period)
- *   - Halving period: 1 day (price halves daily)
- *   - Start price: 100,000,000 (base pricing units)
- *   - Offset: ensures curve reaches exactly 0 at the end of the premium period
+ * where offset ensures the curve reaches exactly 0 at the end of the premium period.
+ *
+ * All constants are fetched from the oracle via getOracleParamsQueryOptions.
  */
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
+export type PremiumDecayConfig = {
+  /** Starting premium price in USD. */
+  readonly startPriceUsd: number
+  /** Duration until the premium halves, in milliseconds. */
+  readonly halvingPeriodMs: number
+  /** Total premium window duration, in milliseconds. */
+  readonly periodMs: number
+}
 
-/** Total premium window duration (21 days) in milliseconds. */
-export const PREMIUM_PERIOD_MS = 21 * MS_PER_DAY
-
-/** Start price of the exponential decay (in display units, e.g. USD). */
-const START_PRICE = 100_000_000
-
-/** Offset subtracted so the curve reaches exactly 0 at the end of premium period. */
-const OFFSET = 47.6837158203125
-
-/** Decay factor per day — price halves daily. */
-const FACTOR = 0.5
+/**
+ * Computes the offset that ensures the premium curve reaches exactly 0
+ * at the end of the premium period.
+ *
+ *   offset = startPrice * 2^(-periodMs / halvingPeriodMs)
+ */
+function computeOffset(config: PremiumDecayConfig): number {
+  return config.startPriceUsd * 2 ** (-config.periodMs / config.halvingPeriodMs)
+}
 
 export type PremiumInstantRange = {
   start: Temporal.Instant
@@ -32,20 +35,24 @@ export type PremiumInstantRange = {
 
 /**
  * Calculates the premium window as a pair of Temporal.Instant values.
- * Use this in all business logic; convert to Date only at UI/library boundaries.
+ * Returns null if config is not yet loaded or premium is zero/negative.
  */
 export function getPremiumInstantRange(
   currentPremiumUsd: number,
   now: Temporal.Instant = Temporal.Now.instant(),
+  config?: PremiumDecayConfig,
 ): PremiumInstantRange | null {
-  if (currentPremiumUsd <= 0) return null
+  if (!config || currentPremiumUsd <= 0) return null
 
-  const days =
-    Math.log((currentPremiumUsd + OFFSET) / START_PRICE) / Math.log(FACTOR)
-  const elapsedMs = days * MS_PER_DAY
+  const offset = computeOffset(config)
+  // Invert: price(t) = startPrice * 2^(-t/halvingPeriod) - offset
+  //   t = -halvingPeriod * log2((price + offset) / startPrice)
+  const elapsedMs =
+    -config.halvingPeriodMs *
+    Math.log2((currentPremiumUsd + offset) / config.startPriceUsd)
 
   const startMs = Math.round(now.epochMilliseconds - elapsedMs)
-  const endMs = startMs + PREMIUM_PERIOD_MS
+  const endMs = startMs + config.periodMs
   return {
     start: Temporal.Instant.fromEpochMilliseconds(startMs),
     end: Temporal.Instant.fromEpochMilliseconds(endMs),
@@ -54,64 +61,80 @@ export function getPremiumInstantRange(
 
 /**
  * Derives the premium instant range from a registration price result.
- * Returns null if the price has no premium.
+ * Returns null if config is not yet loaded or the price has no premium.
  */
-export function getPremiumInstantRangeFromPrice(price: {
-  premium: bigint
-  decimals: number
-  hasPremium: boolean
-}): PremiumInstantRange | null {
-  if (!price.hasPremium) return null
+export function getPremiumInstantRangeFromPrice(
+  price: {
+    premium: bigint
+    decimals: number
+    hasPremium: boolean
+  },
+  config?: PremiumDecayConfig,
+): PremiumInstantRange | null {
+  if (!config || !price.hasPremium) return null
 
   const premiumUsd = Number(price.premium) / 10 ** price.decimals
-  return getPremiumInstantRange(premiumUsd)
+  return getPremiumInstantRange(premiumUsd, undefined, config)
 }
 
 /**
  * Calculates the premium price at a given instant.
+ * Returns 0 if config is not yet loaded.
  *
  * @param start  - When the premium period began (= name expiry).
  * @param target - The instant to calculate the price for.
- * @returns The premium price in USD, or 0 if outside the premium window.
+ * @param config - Oracle-derived decay parameters.
  */
 export function getPremiumPriceAtInstant(
   start: Temporal.Instant,
   target: Temporal.Instant,
+  config?: PremiumDecayConfig,
 ): number {
-  const elapsedMs = target.epochMilliseconds - start.epochMilliseconds
-  if (elapsedMs < 0) return START_PRICE - OFFSET
-  if (elapsedMs >= PREMIUM_PERIOD_MS) return 0
+  if (!config) return 0
 
-  const days = elapsedMs / MS_PER_DAY
-  return Math.max(START_PRICE * FACTOR ** days - OFFSET, 0)
+  const offset = computeOffset(config)
+  const elapsedMs = target.epochMilliseconds - start.epochMilliseconds
+  if (elapsedMs < 0) return config.startPriceUsd - offset
+  if (elapsedMs >= config.periodMs) return 0
+
+  return Math.max(
+    config.startPriceUsd * 2 ** (-elapsedMs / config.halvingPeriodMs) - offset,
+    0,
+  )
 }
 
 /**
  * Calculates the instant when the premium will reach a given target price.
+ * Only call this when config is available (e.g. inside the premium calculator UI).
  *
  * Inverts the decay formula:
- *   days = log((price + OFFSET) / START_PRICE) / log(FACTOR)
+ *   t = -halvingPeriod * log2((price + offset) / startPrice)
  *
  * @param start       - When the premium period began (= name expiry).
  * @param targetPrice - The desired premium price in USD.
+ * @param config      - Oracle-derived decay parameters.
  * @returns The Temporal.Instant when premium reaches that price, clamped to the premium window.
  */
 export function getInstantForPremiumPrice(
   start: Temporal.Instant,
   targetPrice: number,
+  config: PremiumDecayConfig,
 ): Temporal.Instant {
+  const offset = computeOffset(config)
   const startMs = start.epochMilliseconds
-  const endMs = startMs + PREMIUM_PERIOD_MS
+  const endMs = startMs + config.periodMs
 
-  if (targetPrice >= START_PRICE - OFFSET) {
+  if (targetPrice >= config.startPriceUsd - offset) {
     return Temporal.Instant.fromEpochMilliseconds(startMs)
   }
   if (targetPrice <= 0) {
     return Temporal.Instant.fromEpochMilliseconds(endMs)
   }
 
-  const days = Math.log((targetPrice + OFFSET) / START_PRICE) / Math.log(FACTOR)
-  const dateMs = startMs + days * MS_PER_DAY
+  const elapsedMs =
+    -config.halvingPeriodMs *
+    Math.log2((targetPrice + offset) / config.startPriceUsd)
+  const dateMs = startMs + elapsedMs
   const clamped = Math.round(Math.max(startMs, Math.min(dateMs, endMs)))
   return Temporal.Instant.fromEpochMilliseconds(clamped)
 }

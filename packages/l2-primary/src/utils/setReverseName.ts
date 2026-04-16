@@ -12,12 +12,12 @@ import type { Address, Chain } from 'viem'
 import {
   l2ReverseRegistrarSetNameForAddrSnippet,
   l2ReverseRegistrarSetNameSnippet,
-} from '../L2ReverseRegistrar'
+} from '../v1/L2ReverseRegistrar'
 import {
   getRegistrarAddress,
   type ReverseRegistrarChainId,
   resolveNetworkFromChain,
-} from '../reverseRegistrarChainIds'
+} from '../v1/reverseRegistrarChainIds'
 
 export type SetReverseNameRequest =
   | {
