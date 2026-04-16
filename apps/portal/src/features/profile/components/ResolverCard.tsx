@@ -11,9 +11,11 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 export const ResolverCard = ({
   name,
   resolverAddress,
+  asRow,
 }: {
   name: string
   resolverAddress: Address
+  asRow?: boolean
 }) => {
   const { data, isLoading, error } = useQuery({
     ...getUnderlyingAddressQueryOptions({ name, resolverAddress }),
@@ -21,6 +23,37 @@ export const ResolverCard = ({
   })
 
   const underlyingResolverAddress = data?.[0] || undefined
+
+  const value = isLoading ? (
+    <LoadingSpinner title="Loading..." />
+  ) : error ? (
+    <span className="text-muted-foreground">—</span>
+  ) : underlyingResolverAddress ? (
+    <div className="flex items-center gap-1">
+      <EntityBadge variant="contract">
+        {truncateAddress(underlyingResolverAddress, 6, 4, '...')}
+      </EntityBadge>
+      <CopyButton value={underlyingResolverAddress} />
+    </div>
+  ) : (
+    <span className="text-muted-foreground">No resolver</span>
+  )
+
+  if (asRow) {
+    return (
+      <Link
+        to="/$name/resolver"
+        params={{ name }}
+        className="flex items-center gap-4 py-3 hover:bg-muted/50"
+      >
+        <ResolverIcon className="size-4 shrink-0 text-icon-foreground" />
+        <span className="text-sm text-muted-foreground w-24 shrink-0">
+          Resolver
+        </span>
+        {value}
+      </Link>
+    )
+  }
 
   return (
     <Link
@@ -31,20 +64,7 @@ export const ResolverCard = ({
       <ResolverIcon className="size-8 shrink-0 text-icon-foreground" />
       <div className="flex flex-col gap-1">
         <span className="text-sm text-muted-foreground">Resolver</span>
-        {isLoading ? (
-          <LoadingSpinner title="Loading..." />
-        ) : error ? (
-          <span className="text-muted-foreground">—</span>
-        ) : underlyingResolverAddress ? (
-          <div className="flex items-center gap-1">
-            <EntityBadge variant="contract">
-              {truncateAddress(underlyingResolverAddress, 6, 4, '...')}
-            </EntityBadge>
-            <CopyButton value={underlyingResolverAddress} />
-          </div>
-        ) : (
-          <span className="text-muted-foreground">No resolver</span>
-        )}
+        {value}
       </div>
     </Link>
   )
