@@ -78,6 +78,14 @@ type RenewParams = {
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
 }
 
+type BuildMultiTransactionsParams = {
+  readonly multiSavedParams: MultiSavedRenewalParams
+  readonly from: Address
+  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  readonly getWallet: () => ReturnType<typeof getWalletClient>
+  readonly handleDone: () => void
+}
+
 function buildApproveTransaction(
   params: ApproveParams,
   signer: ReturnType<typeof createEOASigner>,
@@ -146,6 +154,68 @@ function buildRenewTransaction(
       description: `Renew ${params.name}`,
     },
   )
+}
+
+function buildMultiTransactions({
+  multiSavedParams,
+  from,
+  publicClient,
+  getWallet,
+  handleDone,
+}: BuildMultiTransactionsParams): Transaction[] {
+  const { renewals, tokenAddress, tokenSymbol, tokenPrice } = multiSavedParams
+
+  if (renewals.length === 0) return []
+
+  const makeRenewFn = (renewal: MultiRenewalEntry) => async () => {
+    const walletClient = await getWallet()
+    const signer = createEOASigner(walletClient)
+    buildRenewTransaction(
+      {
+        name: renewal.selectedName.name,
+        duration: renewal.duration,
+        tokenAddress,
+        from,
+        publicClient,
+      },
+      signer,
+    )
+  }
+
+  const renewFns = renewals.map((renewal) => makeRenewFn(renewal))
+
+  const approveTx: Transaction = {
+    id: RENEWAL_TX_IDS.approve,
+    title: 'Approve payment',
+    transactionName: `Approve ${tokenSymbol} for renewal`,
+    estimatedGasCost: 0.0003,
+    onStart: async () => {
+      const walletClient = await getWallet()
+      const signer = createEOASigner(walletClient)
+      buildApproveTransaction(
+        {
+          from,
+          tokenAddress,
+          tokenPrice,
+          tokenSymbol,
+          publicClient,
+        },
+        signer,
+      )
+    },
+    onDone: renewFns[0],
+  }
+
+  const renewTxs: Transaction[] = renewals.map((renewal, i) => ({
+    id: RENEWAL_TX_IDS.renew(renewal.selectedName.name),
+    title: `Extend ${renewal.selectedName.name}`,
+    transactionName: `Extend ${renewal.selectedName.name}`,
+    estimatedGasCost: 0.001,
+    onStart: renewFns[i],
+    onDone: i < renewals.length - 1 ? renewFns[i + 1] : handleDone,
+  }))
+
+  return [approveTx, ...renewTxs]
 }
 
 type UseRenewalTransactionsOptions = {
@@ -249,64 +319,13 @@ export const useRenewalTransactions = ({
   const multiTransactions: Transaction[] =
     !multiSavedParams || !connection.address || !publicClient
       ? []
-      : (() => {
-          const from = connection.address
-          const client = publicClient
-          const { renewals, tokenAddress, tokenSymbol, tokenPrice } =
-            multiSavedParams
-
-          if (renewals.length === 0) return []
-
-          const makeRenewFn = (renewal: MultiRenewalEntry) => async () => {
-            const walletClient = await getWallet()
-            const signer = createEOASigner(walletClient)
-            buildRenewTransaction(
-              {
-                name: renewal.selectedName.name,
-                duration: renewal.duration,
-                tokenAddress,
-                from,
-                publicClient: client,
-              },
-              signer,
-            )
-          }
-
-          const renewFns = renewals.map((renewal) => makeRenewFn(renewal))
-
-          const approveTx: Transaction = {
-            id: RENEWAL_TX_IDS.approve,
-            title: 'Approve payment',
-            transactionName: `Approve ${tokenSymbol} for renewal`,
-            estimatedGasCost: 0.0003,
-            onStart: async () => {
-              const walletClient = await getWallet()
-              const signer = createEOASigner(walletClient)
-              buildApproveTransaction(
-                {
-                  from,
-                  tokenAddress,
-                  tokenPrice,
-                  tokenSymbol,
-                  publicClient: client,
-                },
-                signer,
-              )
-            },
-            onDone: renewFns[0],
-          }
-
-          const renewTxs: Transaction[] = renewals.map((renewal, i) => ({
-            id: RENEWAL_TX_IDS.renew(renewal.selectedName.name),
-            title: `Extend ${renewal.selectedName.name}`,
-            transactionName: `Extend ${renewal.selectedName.name}`,
-            estimatedGasCost: 0.001,
-            onStart: renewFns[i],
-            onDone: i < renewals.length - 1 ? renewFns[i + 1] : handleDone,
-          }))
-
-          return [approveTx, ...renewTxs]
-        })()
+      : buildMultiTransactions({
+          multiSavedParams,
+          from: connection.address,
+          publicClient,
+          getWallet,
+          handleDone,
+        })
 
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
     const tokenSymbol = getTokenMetadataWithAddress(
