@@ -259,7 +259,7 @@ export const ResolverRolesTable = ({
 
       {/* Desktop view */}
       <div className="hidden md:block">
-        <div className="rounded-2xl overflow-hidden border border-border">
+        <div className="overflow-hidden">
           <Table className="relative border-separate border-spacing-0">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -269,8 +269,8 @@ export const ResolverRolesTable = ({
                       key={header.id}
                       className={cn(
                         'border-b border-b-border',
-                        header.column.id === 'expander' && 'w-[100px]',
-                        header.column.id === 'permissions' && 'min-w-[200px]',
+                        header.column.id === 'expander' && 'w-25',
+                        header.column.id === 'permissions' && 'min-w-50',
                       )}
                     >
                       {header.isPlaceholder
@@ -354,13 +354,13 @@ export const ResolverRolesTable = ({
                                 >
                                   <div className="flex flex-row gap-2">
                                     {perms?.admin && (
-                                      <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+                                      <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-6.5">
                                         <UserLockIcon width={16} height={16} />{' '}
                                         Admin
                                       </div>
                                     )}
                                     {perms?.manager && (
-                                      <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
+                                      <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-6.5">
                                         <UserIcon width={16} height={16} />{' '}
                                         Manager
                                       </div>

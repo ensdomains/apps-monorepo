@@ -108,7 +108,9 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
     return (
       <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
-          <h2 className="text-base font-normal">Recent activity</h2>
+          <h2 className="text-sm font-medium tracking-widest uppercase text-muted-foreground">
+            History
+          </h2>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/$name/history" params={{ name }}>
               <Clock className="size-4" />
@@ -116,9 +118,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
             </Link>
           </Button>
         </div>
-        <div className="p-6 border border-border rounded-lg">
-          No recent activity
-        </div>
+        <div className="p-6 border-t border-border">No recent activity</div>
       </div>
     )
   }
@@ -126,7 +126,9 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between items-center">
-        <h2 className="text-base font-normal">Recent activity</h2>
+        <h2 className="text-sm font-medium tracking-widest uppercase text-muted-foreground">
+          History
+        </h2>
         <Button variant="ghost" size="sm" asChild>
           <Link to="/$name/history" params={{ name }}>
             <Clock className="size-4" />
@@ -134,7 +136,7 @@ export const RecentActivity = ({ name }: RecentActivityProps) => {
           </Link>
         </Button>
       </div>
-      <div className="border border-border rounded-lg overflow-hidden">
+      <div>
         <RecentActivityTable
           name={name}
           events={[

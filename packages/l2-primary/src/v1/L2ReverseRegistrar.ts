@@ -1,10 +1,7 @@
 /**
- * L2 Reverse Registrar ABI Snippets
+ * L2 Reverse Registrar ABI Snippets (ENSv1)
  */
 
-/**
- * Read: Get the name for an address
- */
 export const l2ReverseRegistrarNameForAddrSnippet = [
   {
     inputs: [
@@ -27,9 +24,6 @@ export const l2ReverseRegistrarNameForAddrSnippet = [
   },
 ] as const
 
-/**
- * Write: Set name for caller's address
- */
 export const l2ReverseRegistrarSetNameSnippet = [
   {
     inputs: [
@@ -46,9 +40,6 @@ export const l2ReverseRegistrarSetNameSnippet = [
   },
 ] as const
 
-/**
- * Write: Set name for a specific address
- */
 export const l2ReverseRegistrarSetNameForAddrSnippet = [
   {
     inputs: [
