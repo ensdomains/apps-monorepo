@@ -58,7 +58,6 @@ export const MultiNamePaymentTokenPicker = ({
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
 
-  // Fetch balances + prices for all names × both tokens (using per-name durations)
   const [balancesQuery, ...priceQueries] = useQueries({
     queries: [
       {
@@ -73,7 +72,6 @@ export const MultiNamePaymentTokenPicker = ({
         }),
         enabled: Boolean(address),
       },
-      // USDC prices for all names with per-name durations
       ...renewals.map((renewal) =>
         getRegistrationPriceQueryOptions({
           name: renewal.selectedName.name,
@@ -82,7 +80,6 @@ export const MultiNamePaymentTokenPicker = ({
           owner: address,
         }),
       ),
-      // DAI prices for all names with per-name durations
       ...renewals.map((renewal) =>
         getRegistrationPriceQueryOptions({
           name: renewal.selectedName.name,
@@ -108,7 +105,6 @@ export const MultiNamePaymentTokenPicker = ({
       )
     : []
 
-  // Sum totals per token as bigints to avoid float drift
   const usdcPrices = priceQueries.slice(0, renewals.length)
   const daiPrices = priceQueries.slice(renewals.length)
 

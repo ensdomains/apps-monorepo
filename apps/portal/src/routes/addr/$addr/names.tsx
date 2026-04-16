@@ -31,7 +31,7 @@ import {
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
-import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extenstion/MultiNameExtendModal'
+import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
 import {
   type SelectedName,
   useRenewalTransactions,

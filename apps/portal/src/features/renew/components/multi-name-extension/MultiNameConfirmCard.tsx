@@ -1,7 +1,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { cn } from '@/lib/utils'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import { RenewalDetailRow } from './RenewalDetailRow'
 
 type MultiNameConfirmCardProps = {
   readonly pricingData: NamePricingData
@@ -39,7 +39,7 @@ export const MultiNameConfirmCard = ({
             </span>
           </div>
           <dl className="space-y-1 pt-1">
-            <CardRow
+            <RenewalDetailRow
               label="Subtotal:"
               labelClassName="text-base text-quartz-350"
               value={subtotal}
@@ -51,27 +51,6 @@ export const MultiNameConfirmCard = ({
     </div>
   )
 }
-
-type CardRowProps = {
-  readonly label: string
-  readonly labelClassName?: string
-  readonly value: string
-  readonly valueClassName?: string
-}
-
-const CardRow = ({
-  label,
-  labelClassName,
-  value,
-  valueClassName,
-}: CardRowProps) => (
-  <div className="flex items-center justify-between">
-    <dt className={cn('text-sm text-quartz-350', labelClassName)}>{label}</dt>
-    <dd className={cn('text-sm text-quartz-900 m-0', valueClassName)}>
-      {value}
-    </dd>
-  </div>
-)
 
 type MultiNameConfirmCardSkeletonProps = {
   readonly name: string

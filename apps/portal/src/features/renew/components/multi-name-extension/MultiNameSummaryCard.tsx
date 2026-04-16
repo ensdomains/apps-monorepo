@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
+import { RenewalDetailRow } from './RenewalDetailRow'
 
 type MultiNameSummaryCardProps = {
   readonly pricingData: NamePricingData
@@ -73,26 +74,26 @@ export const MultiNameSummaryCard = ({
             )}
           >
             <dl className="overflow-hidden space-y-1">
-              <CardRow
+              <RenewalDetailRow
                 label="Extension:"
                 labelClassName="text-xs text-quartz-350"
                 value={registrationPeriod}
                 valueClassName="text-quartz-900"
               />
-              <CardRow
+              <RenewalDetailRow
                 label="New expiry:"
                 labelClassName="text-xs text-quartz-350"
                 value={newExpiryFormatted}
                 valueClassName="font-medium text-quartz-900"
               />
-              <CardRow
+              <RenewalDetailRow
                 label={priceLabel}
                 labelClassName="text-xs text-quartz-350"
                 value={priceValue}
                 valueClassName="text-quartz-900"
               />
               <hr className="border-border" />
-              <CardRow
+              <RenewalDetailRow
                 label="Subtotal:"
                 labelClassName="text-base text-quartz-350"
                 value={subtotal}
@@ -105,27 +106,6 @@ export const MultiNameSummaryCard = ({
     </div>
   )
 }
-
-type CardRowProps = {
-  readonly label: string
-  readonly labelClassName?: string
-  readonly value: string
-  readonly valueClassName?: string
-}
-
-const CardRow = ({
-  label,
-  labelClassName,
-  value,
-  valueClassName,
-}: CardRowProps) => (
-  <div className="flex items-center justify-between">
-    <dt className={cn('text-sm text-quartz-350', labelClassName)}>{label}</dt>
-    <dd className={cn('text-sm text-quartz-900 m-0', valueClassName)}>
-      {value}
-    </dd>
-  </div>
-)
 
 type MultiNameSummaryCardSkeletonProps = {
   readonly name: string
