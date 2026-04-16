@@ -114,12 +114,28 @@ type MultiNameSummaryCardSkeletonProps = {
 export const MultiNameSummaryCardSkeleton = ({
   name,
 }: MultiNameSummaryCardSkeletonProps) => (
-  <div className="border border-border rounded-lg px-4 py-3 flex items-center gap-3">
-    <NameAvatar name={name} height="32px" width="32px" rounded="rounded-md" />
-    <span className="flex-1 text-sm font-medium text-quartz-900 truncate">
-      {name}
-    </span>
-    <Skeleton className="h-4 w-20" />
-    <ChevronDown className="size-4 text-quartz-350 shrink-0" />
+  <div className="border-b border-border overflow-hidden">
+    <div className="w-full flex items-start gap-3 px-4 py-3">
+      <div className="flex-1">
+        <NameAvatar
+          name={name}
+          height="40px"
+          width="40px"
+          rounded="rounded-md"
+        />
+      </div>
+      <div className="flex flex-col w-full">
+        <div className="flex items-center justify-between">
+          <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+            {name}
+          </span>
+          <ChevronDown className="size-4 text-quartz-900 shrink-0 ml-auto" />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-base text-quartz-350 shrink-0">Subtotal:</span>
+          <Skeleton className="h-5 w-20" />
+        </div>
+      </div>
+    </div>
   </div>
 )
