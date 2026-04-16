@@ -125,7 +125,7 @@ export const GlobalTransactionToasts = ({
 
           // Add toast
           setToasts((prev) => {
-            const newToasts = [...prev, toast!]
+            const newToasts = [...prev, toast]
             // Limit number of toasts
             return newToasts.slice(-maxToasts)
           })
@@ -194,6 +194,7 @@ export const GlobalTransactionToasts = ({
         >
           <span style={{ flex: 1, fontSize: 14 }}>{toast.message}</span>
           <button
+            type="button"
             onClick={() => handleDismiss(toast.id)}
             style={{
               background: 'transparent',

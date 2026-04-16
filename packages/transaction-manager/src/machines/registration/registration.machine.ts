@@ -362,8 +362,11 @@ export const registrationMachine = setup({
         src: 'deployResolver',
         input: ({ context }) => ({
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           sponsored: context.sponsored,
           id: REGISTRATION_TX_IDS.deployResolver,
@@ -400,6 +403,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'resolveResolverDeployment',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.resolverTxId! }),
         onDone: {
           target: 'preparingCommitment',
@@ -441,11 +445,14 @@ export const registrationMachine = setup({
 
           return {
             name: context.name,
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             owner: context.ownerAddress ?? context.accountAddress!,
             duration: context.duration,
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             publicClient: context.publicClient!,
             selectedToken: context.selectedToken,
             useFastRegistrar: context.useFastRegistrar,
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             resolverAddress: context.resolverAddress!,
           }
         },
@@ -481,10 +488,13 @@ export const registrationMachine = setup({
       invoke: {
         src: 'submitCommitment',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           name: context.name,
           duration: context.duration,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
@@ -521,6 +531,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.commitmentTxId! }),
         onDone: [
           {
@@ -561,7 +572,9 @@ export const registrationMachine = setup({
       invoke: {
         src: 'validateCommitment',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
         }),
@@ -623,7 +636,9 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           tokenPrice: context.tokenPrice,
           selectedToken: context.selectedToken,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
@@ -660,6 +675,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.approvalTxId! }),
         onDone: 'registeringDomain',
         onError: {
@@ -689,14 +705,19 @@ export const registrationMachine = setup({
         src: 'submitRegistration',
         input: ({ context }) => ({
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           duration: context.duration,
           selectedToken: context.selectedToken,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
           id: REGISTRATION_TX_IDS.register,
         }),
@@ -731,6 +752,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
         onDone: 'success',
         onError: {

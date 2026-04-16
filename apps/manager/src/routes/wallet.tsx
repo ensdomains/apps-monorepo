@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle, LoaderIcon, WalletIcon, XCircle } from 'lucide-react'
+import type { Connector } from 'wagmi'
 import { useConnect, useConnection, useDisconnect } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -34,13 +35,13 @@ const ConnectMenu = () => {
     variables,
   })
 
-  const handleConnect = (connector: any) => {
+  const handleConnect = (connector: Connector) => {
     console.log('Connecting to:', connector)
     connect({ connector })
   }
 
   // Enhanced error message handling
-  const getErrorMessage = (error: any) => {
+  const getErrorMessage = (error: Error | null) => {
     if (!error) return 'An unknown error occurred while connecting'
 
     // Handle specific wagmi error types
@@ -107,7 +108,7 @@ const ConnectMenu = () => {
     )
   }
 
-  const getErrorIcon = (error: any) => {
+  const getErrorIcon = (error: Error | null) => {
     if (!error) return <XCircle className="h-4 w-4 text-red-600" />
 
     // Different icons for different error types
@@ -126,7 +127,7 @@ const ConnectMenu = () => {
     return <XCircle className="h-4 w-4 text-red-600" />
   }
 
-  const getErrorVariant = (error: any) => {
+  const getErrorVariant = (error: Error | null) => {
     if (!error) return 'destructive'
 
     // Different alert variants for different error types

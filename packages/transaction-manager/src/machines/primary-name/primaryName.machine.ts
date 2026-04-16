@@ -48,13 +48,16 @@ export type PrimaryNameInput = {
   chainId: number
 }
 
+type StartUpdateEvent = Extract<PrimaryNameEvent, { type: 'START_UPDATE' }>
+
 const startUpdateAssignment = {
-  name: ({ event }: any) => event.name,
-  signer: ({ event }: any) => event.signer,
-  accountAddress: ({ event }: any) => event.accountAddress,
-  publicClient: ({ event }: any) => event.publicClient,
-  walletClient: ({ event }: any) => event.walletClient,
-  eoaAddress: ({ event }: any) => event.eoaAddress,
+  name: ({ event }: { event: StartUpdateEvent }) => event.name,
+  signer: ({ event }: { event: StartUpdateEvent }) => event.signer,
+  accountAddress: ({ event }: { event: StartUpdateEvent }) =>
+    event.accountAddress,
+  publicClient: ({ event }: { event: StartUpdateEvent }) => event.publicClient,
+  walletClient: ({ event }: { event: StartUpdateEvent }) => event.walletClient,
+  eoaAddress: ({ event }: { event: StartUpdateEvent }) => event.eoaAddress,
 }
 
 /**
@@ -217,9 +220,11 @@ export const primaryNameMachine = setup({
           )
           return {
             name: context.name,
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             eoaAddress: context.eoaAddress!,
             signatureExpiry,
             coinTypes: [ETH_COIN_TYPE],
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             walletClient: context.walletClient!,
             registrarAddress: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
           }
@@ -251,11 +256,16 @@ export const primaryNameMachine = setup({
         src: 'submitWithSignature',
         input: ({ context }) => ({
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           eoaAddress: context.eoaAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signature: context.signature!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signatureExpiry: context.signatureExpiry!,
           coinTypes: [ETH_COIN_TYPE],
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
         }),
@@ -283,8 +293,11 @@ export const primaryNameMachine = setup({
         src: 'submitPrimaryNameUpdate',
         input: ({ context }) => ({
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           accountAddress: context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
         }),
@@ -310,6 +323,7 @@ export const primaryNameMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.updateTxId! }),
         onDone: {
           target: 'success',
