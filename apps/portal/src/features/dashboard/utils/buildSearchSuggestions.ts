@@ -106,6 +106,11 @@ export const buildSearchSuggestions = ({
     dotCount >= 2 ||
     (dotCount === 1 && afterFirstDot !== '' && !isTldPrefix(afterFirstDot))
 
+  // Hide suggestions for non-subname searches when the label is under 3 chars.
+  // ENS names require a minimum of 3 characters; showing shorter names as
+  // "available" is misleading since they can't be registered.
+  if (!isSubname && [...labelBeforeFirstDot].length < 3) return []
+
   if (isSubname) {
     const lastDotIndex = lowercaseValue.lastIndexOf('.')
     const afterLastDot = lowercaseValue.slice(lastDotIndex + 1)

@@ -7,6 +7,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { V1Roles } from '@/utils/names/mergeNamesData'
+import { dateToPlainDate } from '@/utils/temporal'
 
 export type NameRow = {
   name: string | null
@@ -85,7 +86,7 @@ export const columns: ColumnDef<NameRow>[] = [
           </Badge>
         )
       }
-      return formatDateTime(expiryDate)
+      return formatDateTime(dateToPlainDate(expiryDate))
     },
   },
   {
