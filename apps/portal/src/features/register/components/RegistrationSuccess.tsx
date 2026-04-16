@@ -2,7 +2,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
-import { formatUnits } from 'viem'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -11,8 +10,7 @@ import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { getOracleDiscountText } from '@/features/register/utils/registrationPricing'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 type RegistrationSuccessProps = {
@@ -70,23 +68,7 @@ export const RegistrationSuccess = ({
     getRegistrationDisplayDates(durationSeconds)
 
   const totalCost = formatPriceDisplay(price.total, price.decimals)
-
-  // Discount = diff between undiscounted (baseRate × duration) and actual price
-  const basePriceNumber = Number(formatUnits(price.base, price.decimals))
-  const basePriceWithoutDiscount =
-    baseRate > 0n
-      ? Number(formatUnits(baseRate * BigInt(Math.round(durationSeconds)), 12))
-      : 0
-  const discountAmount = Math.max(basePriceWithoutDiscount - basePriceNumber, 0)
-  const discountPercentage =
-    basePriceWithoutDiscount > 0
-      ? Math.round((discountAmount / basePriceWithoutDiscount) * 100)
-      : 0
-  const years = durationSeconds / CONTRACT_SECONDS_PER_YEAR
-  const discountText =
-    discountAmount > 0 && discountPercentage > 0 && years >= 2
-      ? `${Math.floor(years)}+ years discount (${discountPercentage}%): -${formatUsd(discountAmount)}`
-      : undefined
+  const discountText = getOracleDiscountText(baseRate, price, durationSeconds)
 
   const handleRegisterAnother = () => {
     onRegisterAnother()
