@@ -8,7 +8,7 @@ import {
 } from '@ensdomains/ensjs/contracts'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { getWalletClient } from '@wagmi/core/actions'
-import { useCallback, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { type Address, encodeFunctionData } from 'viem'
 import { readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
@@ -200,7 +200,7 @@ export const useRenewalTransactions = () => {
     null,
   )
 
-  const getWallet = useCallback(async () => {
+  const getWallet = async () => {
     if (!connection.address) throw new Error('No connected account')
     const walletClient = await getWalletClient(config, {
       connector: connection.connector,
@@ -208,14 +208,14 @@ export const useRenewalTransactions = () => {
     })
     if (!walletClient) throw new Error('Failed to get wallet client')
     return walletClient
-  }, [config, connection])
+  }
 
-  const handleDone = useCallback(() => {
+  const handleDone = () => {
     closeModal()
     clearTransaction()
-  }, [closeModal, clearTransaction])
+  }
 
-  const handleApproveStart = useCallback(async () => {
+  const handleApproveStart = async () => {
     if (
       !savedParams?.v2TokenAddress ||
       !savedParams.v2TokenPrice ||
@@ -237,9 +237,9 @@ export const useRenewalTransactions = () => {
       },
       signer,
     )
-  }, [savedParams, connection, getWallet, publicClient])
+  }
 
-  const handleV2RenewStart = useCallback(async () => {
+  const handleV2RenewStart = async () => {
     if (!savedParams?.v2TokenAddress || !connection.address || !publicClient)
       return
 
@@ -256,9 +256,9 @@ export const useRenewalTransactions = () => {
       },
       signer,
     )
-  }, [savedParams, connection, getWallet, publicClient])
+  }
 
-  const handleV1RenewStart = useCallback(async () => {
+  const handleV1RenewStart = async () => {
     if (!connection.address || !publicClient) return
 
     const walletClient = await getWallet()
@@ -274,9 +274,9 @@ export const useRenewalTransactions = () => {
       },
       signer,
     )
-  }, [savedParams, connection, getWallet, publicClient])
+  }
 
-  const transactions: Transaction[] = useMemo(() => {
+  const transactions: Transaction[] = (() => {
     if (!savedParams) return []
 
     const { name, v2TokenAddress, v2TokenSymbol } = savedParams
@@ -312,30 +312,21 @@ export const useRenewalTransactions = () => {
         onDone: handleDone,
       },
     ]
-  }, [
-    savedParams,
-    handleApproveStart,
-    handleV2RenewStart,
-    handleV1RenewStart,
-    handleDone,
-  ])
+  })()
 
-  const startFlow = useCallback(
-    (name: SelectedName, flowConfig: StartFlowConfig) => {
-      const v2TokenSymbol = flowConfig.v2TokenAddress
-        ? getTokenMetadataWithAddress(flowConfig.v2TokenAddress).symbol
-        : undefined
+  const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
+    const v2TokenSymbol = flowConfig.v2TokenAddress
+      ? getTokenMetadataWithAddress(flowConfig.v2TokenAddress).symbol
+      : undefined
 
-      setSavedParams({
-        name,
-        duration: flowConfig.duration,
-        v2TokenAddress: flowConfig.v2TokenAddress,
-        v2TokenPrice: flowConfig.v2TokenPrice,
-        v2TokenSymbol,
-      })
-    },
-    [],
-  )
+    setSavedParams({
+      name,
+      duration: flowConfig.duration,
+      v2TokenAddress: flowConfig.v2TokenAddress,
+      v2TokenPrice: flowConfig.v2TokenPrice,
+      v2TokenSymbol,
+    })
+  }
 
   return { transactions, startFlow }
 }
