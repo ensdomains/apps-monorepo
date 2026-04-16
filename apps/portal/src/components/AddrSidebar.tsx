@@ -3,18 +3,18 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BookIcon,
   CircleQuestionMarkIcon,
-  ClockIcon,
   CopyIcon,
   CopySlashIcon,
   GripHorizontal,
-  IdCardLanyard,
   SettingsIcon,
   WalletIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
-import { LogoWithTextSVG } from '@/assets/logo'
+import { HistoryIcon } from '@/assets/icons'
+import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
+import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,7 +44,7 @@ import { WalletMenu } from './WalletMenu'
 
 type SidebarItemData = {
   title: string
-  icon: LucideIcon
+  icon: LucideIcon | React.ComponentType<{ className?: string }>
   disabled?: boolean
   upcoming?: boolean
 }
@@ -52,15 +52,6 @@ type SidebarItemData = {
 const defineAddrSidebarItem = createDefineLinkItem<SidebarItemData>()
 
 const getItems = (addr: string) => [
-  defineAddrSidebarItem({
-    title: 'Overview',
-    icon: IdCardLanyard,
-    link: {
-      to: '/addr/$addr',
-      params: { addr },
-      activeOptions: { exact: true },
-    },
-  }),
   defineAddrSidebarItem({
     title: 'Names',
     icon: GripHorizontal,
@@ -92,7 +83,7 @@ const getItems = (addr: string) => [
   }),
   defineAddrSidebarItem({
     title: 'History',
-    icon: ClockIcon,
+    icon: HistoryIcon,
     link: {
       to: '/addr/$addr/history',
       params: { addr },
@@ -116,7 +107,16 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
             to="/"
             className="flex items-center group-data-[collapsible=icon]:hidden"
           >
-            <LogoWithTextSVG width={72} height="auto" />
+            <LogoSVG
+              width={35}
+              height={40}
+              className="sm:hidden text-foreground"
+            />
+            <LogoWithTextSVG
+              width={72}
+              height="auto"
+              className="hidden sm:block text-foreground"
+            />
           </Link>
           <SidebarTrigger className="shrink-0" />
         </div>
@@ -129,23 +129,32 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
       <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
       <SidebarContent>
-        <div className="group-data-[collapsible=icon]:hidden px-3 py-3 flex flex-col gap-2">
-          <div className="flex items-center gap-1 w-fit bg-peridot-100 dark:bg-peridot-900/30 rounded px-1.5 py-0.5">
-            <span className="text-xs text-peridot-500 font-medium">
-              Address
-            </span>
+        <div className="px-3 py-3 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
+          <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between">
+            <div className="flex items-center gap-1 w-fit bg-peridot-100 dark:bg-peridot-900/30 rounded px-1.5 py-0.5">
+              <span className="text-xs text-peridot-500 font-medium">
+                Address
+              </span>
+            </div>
+            <CopyButton
+              value={addr}
+              className="bg-sidebar-accent hover:bg-sidebar-accent/80"
+            />
           </div>
-          <div className="flex items-center gap-2">
+          <Link
+            to="/addr/$addr"
+            params={{ addr }}
+            activeProps={{ 'data-active': 'true' }}
+            className="flex items-center gap-2 hover:opacity-80"
+          >
             <div className="size-9 shrink-0 rounded bg-muted flex items-center justify-center">
               <WalletIcon className="size-4 text-muted-foreground" />
             </div>
-            <span className="text-sm font-mono font-medium text-foreground break-all leading-tight">
+            <span className="group-data-[collapsible=icon]:hidden text-sm font-mono font-medium text-foreground break-all leading-tight">
               {truncateAddress(addr, 6, 4, '...')}
             </span>
-          </div>
+          </Link>
         </div>
-
-        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
         <SidebarGroup>
           <SidebarGroupContent>

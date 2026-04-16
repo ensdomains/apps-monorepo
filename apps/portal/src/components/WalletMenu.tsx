@@ -28,7 +28,11 @@ export const WalletMenu = () => {
   // const smartSessionsId = useId()
 
   if (!isConnected || !address) {
-    return <Button onClick={() => openConnectModal?.()}>Connect</Button>
+    return (
+      <Button size="sm" onClick={() => openConnectModal?.()}>
+        Connect
+      </Button>
+    )
   }
 
   const displayName = name ?? truncateAddress(address, 5, 3)

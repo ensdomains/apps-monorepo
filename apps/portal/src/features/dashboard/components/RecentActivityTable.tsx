@@ -15,7 +15,7 @@ export const RecentActivityTable = () => {
   const { data, isLoading } = useQuery(getRecentActivityQueryOptions())
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-border w-full">
+    <div className="flex flex-col overflow-hidden w-full">
       <div className="flex gap-2 h-12 items-center px-4 border-b border-border shrink-0">
         <span className="font-medium text-sm tracking-widest uppercase">
           Recent Activity
