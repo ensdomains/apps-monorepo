@@ -6,6 +6,7 @@ import {
   ethRegistrarControllerRenewSnippet,
   ethRegistrarControllerRentPriceSnippet,
 } from '@ensdomains/ensjs/contracts'
+import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useCallback, useMemo, useState } from 'react'
 import { type Address, encodeFunctionData } from 'viem'
@@ -39,21 +40,6 @@ const ethRegistrarController = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrarController',
 })
-
-const ethRegistrarRenewWithTokenSnippet = [
-  {
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'paymentToken', type: 'address' },
-      { name: 'referrer', type: 'bytes32' },
-    ],
-    name: 'renew',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
 
 type SavedRenewalParams = {
   readonly name: SelectedName
@@ -133,7 +119,7 @@ function buildV2RenewTransaction(
 ) {
   const label = params.name.replace('.eth', '')
   const renewData = encodeFunctionData({
-    abi: ethRegistrarRenewWithTokenSnippet,
+    abi: ethRegistrarRenewSnippet,
     functionName: 'renew',
     args: [
       label,
