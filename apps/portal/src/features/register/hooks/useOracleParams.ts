@@ -58,7 +58,7 @@ export const getOracleParams = ResultFn(async function* () {
     )
 
   const premiumDecay: PremiumDecayConfig = {
-    startPriceUsd: Number(premiumPriceInitial) / 10 ** PRICE_DECIMALS,
+    startPriceUsd: Number(premiumPriceInitial / 10n ** BigInt(PRICE_DECIMALS)),
     halvingPeriodMs: Number(premiumHalvingPeriod) * 1000,
     periodMs: Number(premiumPeriod) * 1000,
   }
