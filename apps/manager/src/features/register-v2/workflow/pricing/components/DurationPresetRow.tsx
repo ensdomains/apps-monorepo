@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { formatDuration } from 'date-fns'
 import { match, P } from 'ts-pattern'
 import { cn } from '@/lib/utils'
-import { formatUsdCeil } from '@/utils/formatting/formatUsdCeil'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { secondsToDuration } from '../../../utils/time'
 
 const getDiscountBadgeStyle = (discount: number) =>
@@ -59,7 +59,7 @@ export const DurationPresetRow = ({
         <div className="flex h-5 items-baseline gap-1 md:gap-1.5">
           <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
             {price ? (
-              formatUsdCeil(price)
+              formatUsd(price)
             ) : (
               <span className="animate-pulse">$...</span>
             )}

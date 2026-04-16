@@ -663,7 +663,6 @@ msgstr ""
 msgid "Current"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:47
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:227
 msgid "Custom duration in years"
 msgstr ""
@@ -800,7 +799,6 @@ msgstr ""
 msgid "Enter 6-digit code"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:37
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:212
 msgid "Enter custom duration"
 msgstr ""
@@ -854,9 +852,9 @@ msgstr "Går ut om {daysUntilExpiry} dagar"
 msgid "Expires:"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:48
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:31
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:62
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:48
 msgid "expiring on"
 msgstr ""
 
@@ -1543,6 +1541,10 @@ msgstr ""
 msgid "Reconnect Wallet"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:49
+msgid "Register to date"
+msgstr ""
+
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
@@ -1565,12 +1567,9 @@ msgstr ""
 msgid "Registering"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:25
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
 msgid "Registering for"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:42
-msgid "Registering for <0>{durationYears}</0> years"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:99
@@ -1681,6 +1680,10 @@ msgstr ""
 msgid "Renew Name"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:51
+msgid "Renew to date"
+msgstr ""
+
 #: src/features/renew/workflow/renewing/components/RenewalCompletionBanner.tsx:13
 msgid "Renewal Complete!"
 msgstr ""
@@ -1705,8 +1708,8 @@ msgstr ""
 msgid "Renewing"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:56
-msgid "Renewing for <0>{durationYears}</0> years"
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:42
+msgid "Renewing for"
 msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/TokenSection.tsx:42
@@ -2507,7 +2510,6 @@ msgstr ""
 msgid "Wrong wallet connected"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:108
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:254
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:113
 msgid "years"
