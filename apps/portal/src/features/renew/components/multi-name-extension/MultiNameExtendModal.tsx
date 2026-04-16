@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import {
@@ -32,6 +32,8 @@ type MultiNameExtendModalProps = {
   readonly onClose: () => void
   readonly selectedNames: SelectedName[]
   readonly onExtend: (config: MultiRenewConfig) => void
+  readonly transactionCompleted: boolean
+  readonly onSuccessAcknowledged: () => void
 }
 
 export type MultiNameExtendModalStep =
@@ -45,6 +47,8 @@ export const MultiNameExtendModal = ({
   onClose,
   selectedNames,
   onExtend,
+  transactionCompleted,
+  onSuccessAcknowledged,
 }: MultiNameExtendModalProps) => {
   const { address } = useConnection()
   const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
@@ -62,6 +66,12 @@ export const MultiNameExtendModal = ({
     selectedName: item.selectedName,
     duration: item.duration,
   }))
+
+  useEffect(() => {
+    if (open && transactionCompleted) {
+      setStep('success')
+    }
+  }, [open, transactionCompleted])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -113,14 +123,13 @@ export const MultiNameExtendModal = ({
               onBack={() => setStep('settings')}
               onNext={(token) => {
                 onExtend({ renewals, token })
-                setStep('success')
               }}
             />
           ))
           .with('success', () => (
             <MultiNameExtensionSuccess
               pricingData={pricingData}
-              onClose={onClose}
+              onClose={onSuccessAcknowledged}
             />
           ))
           .exhaustive()}

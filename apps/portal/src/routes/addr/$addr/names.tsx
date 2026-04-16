@@ -10,7 +10,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { FastForward, Search, XIcon } from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -133,6 +133,10 @@ function RouteComponent() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [extendModalOpen, setExtendModalOpen] = useState(false)
+  const [renewalSuccessFlow, setRenewalSuccessFlow] = useState<
+    'single' | 'multi' | null
+  >(null)
+  const activeRenewalFlowRef = useRef<'single' | 'multi' | null>(null)
 
   const {
     transactions: renewalTransactions,
@@ -146,6 +150,7 @@ function RouteComponent() {
       void queryClient.invalidateQueries({
         queryKey: ['get-v2-names-with-roles-for-address'],
       })
+      setRenewalSuccessFlow(activeRenewalFlowRef.current)
     },
   })
 
@@ -368,11 +373,22 @@ function RouteComponent() {
       {selectedNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen}
-          onClose={() => setExtendModalOpen(false)}
-          selectedName={selectedNames[0]}
-          onExtend={(config) => {
-            startFlow(selectedNames[0], config)
+          onClose={() => {
             setExtendModalOpen(false)
+            setRenewalSuccessFlow(null)
+            activeRenewalFlowRef.current = null
+          }}
+          selectedName={selectedNames[0]}
+          transactionCompleted={renewalSuccessFlow === 'single'}
+          onSuccessAcknowledged={() => {
+            setExtendModalOpen(false)
+            setRenewalSuccessFlow(null)
+            activeRenewalFlowRef.current = null
+          }}
+          onExtend={(config) => {
+            activeRenewalFlowRef.current = 'single'
+            setRenewalSuccessFlow(null)
+            startFlow(selectedNames[0], config)
             openModal()
           }}
         />
@@ -382,16 +398,24 @@ function RouteComponent() {
           open={extendModalOpen}
           onClose={() => {
             setExtendModalOpen(false)
-            setRowSelection({})
+            setRenewalSuccessFlow(null)
+            activeRenewalFlowRef.current = null
+          }}
+          transactionCompleted={renewalSuccessFlow === 'multi'}
+          onSuccessAcknowledged={() => {
+            setExtendModalOpen(false)
+            setRenewalSuccessFlow(null)
+            activeRenewalFlowRef.current = null
           }}
           selectedNames={selectedNames}
           onExtend={(config) => {
+            activeRenewalFlowRef.current = 'multi'
+            setRenewalSuccessFlow(null)
             startMultiFlow({
               renewals: config.renewals,
               tokenAddress: config.token.address,
               tokenPrice: config.token.price.total,
             })
-            setExtendModalOpen(false)
             openModal()
           }}
         />
