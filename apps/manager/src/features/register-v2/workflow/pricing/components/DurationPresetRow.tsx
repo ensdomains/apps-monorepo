@@ -31,13 +31,13 @@ export const DurationPresetRow = ({
     <button
       aria-pressed={isSelected}
       className={cn(
-        'group flex w-full cursor-pointer items-center justify-between rounded-lg border border-[#DEDEDF] bg-neutral-50 px-3 py-4 transition-all hover:border-ens-blue aria-pressed:border-ens-blue md:px-5 md:py-8',
+        'group flex w-full cursor-pointer items-center justify-between rounded-lg border-[#DEDEDF] border-[0.5px] bg-neutral-50 px-3 py-4 transition-all hover:border-ens-blue aria-pressed:border-ens-blue md:px-5 md:py-8',
       )}
       onClick={onSelect}
       type="button"
     >
       <div className="flex">
-        <span className="font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-2xl">
+        <span className="font-normal text-base text-ens-blue-dark leading-none tracking-tighter md:text-2xl">
           {formatDuration(secondsToDuration(duration))}
         </span>
       </div>

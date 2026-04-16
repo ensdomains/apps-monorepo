@@ -60,7 +60,7 @@ export const PaymentCardBase = ({
     <div
       className={tw(
         'flex flex-1 flex-col items-center justify-between gap-8',
-        'rounded-xl border border-[#DDDDDE] bg-white p-8',
+        'rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-8 shadow-temp-card',
       )}
     >
       <div className="space-y-3 text-center">

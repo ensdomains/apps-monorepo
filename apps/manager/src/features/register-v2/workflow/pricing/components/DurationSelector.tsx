@@ -79,7 +79,7 @@ export const DurationSelector = () => {
   )
 
   return (
-    <div className="flex h-full flex-col justify-between gap-1 rounded-xl border border-[#DDDDDE] bg-white p-1">
+    <div className="flex h-full flex-col justify-between gap-1 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-1 shadow-temp-card">
       {PRESET_DURATIONS.map((duration, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {
@@ -113,6 +113,7 @@ export const DurationSelector = () => {
           uiActor.send({ type: 'pricing.duration.set', duration })
         }
         selectedDuration={selectedDuration}
+        type="register"
       />
     </div>
   )
