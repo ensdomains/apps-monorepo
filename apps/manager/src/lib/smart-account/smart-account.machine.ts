@@ -274,7 +274,6 @@ export const smartAccountMachine = setup({
               error: () => null,
             }),
           },
-          { guard: 'wasSkipped', target: 'ready' },
           { target: 'promptingSession' },
         ],
         onError: { target: 'promptingSession' },

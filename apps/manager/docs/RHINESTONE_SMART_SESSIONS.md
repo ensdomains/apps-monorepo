@@ -92,13 +92,15 @@ This matches Rhinestone’s doc: install / prepare the smart-session validator a
    - `chain` — same chain used for enablement (e.g. Sepolia / `customSepolia`).
    - `actions: [{ policies: [{ type: 'sudo' }] }]` — **broad** permission today (align with Rhinestone security warnings; tighten later with concrete `target` / `selector` + policies).
 3. **`rhinestoneAccount.experimental_getSessionDetails([sdkSession])`** — digests + typed-data payload for enablement.
-4. **`rhinestoneAccount.experimental_signEnableSession(sessionDetails)`** — **owner** (master account) signs once; yields `enableSignature`.
-5. **On-chain install (new behavior):**
+4. **`rhinestoneAccount.experimental_signEnableSession(sessionDetails)`** — **owner** signs the **MultiChainSession** EIP-712 payload once; yields `enableSignature`.
+5. **On-chain install (“enable mode”, Rhinestone multi-chain session docs):**
    - If **`experimental_isSessionEnabled`** exists and returns `true` for `sdkSession` → **skip** (idempotent).
    - Else:
-     - **`experimental_enableSession(sdkSession, enableSignature, sessionDetails.hashesAndChainIds, sessionToEnableIndex)`** from **`@rhinestone/sdk/actions/smart-sessions`** — returns a **lazy call** (`LazyCallInput`) for the calls array.
-     - **`rhinestoneAccount.sendTransaction({ chain, calls: [enableCall], sponsored: true })`**
-     - **`rhinestoneAccount.waitForExecution(enableTransaction, false)`**
+     - **`experimental_enableSession(...)`** → lazy **`enableCall`** (same as the legacy `sendTransaction` path).
+     - **`rhinestoneAccount.prepareTransaction({ chain, calls: [enableCall], signers: { type: 'experimental_session', session: sdkSession, enableData: { userSignature, hashesAndChainIds, sessionToEnableIndex } }, sponsored: true })`**
+     - **`rhinestoneAccount.signTransaction(prepared)`** — session key signs the intent path (no second owner wallet prompt).
+     - **`rhinestoneAccount.submitTransaction(signed)`** then **`waitForExecution(result, false)`**
+   - This avoids the previous **`experimental_enableSession` lazy call + `sendTransaction`** path, which required a **second** owner signature (`SingleChainOps` / intent execution) on EOAs.
 6. **Persist** `RhinestoneStoredSession` (see §4).
 
 ### 3.2 Sequence diagram
@@ -107,20 +109,20 @@ This matches Rhinestone’s doc: install / prepare the smart-session validator a
 sequenceDiagram
   participant App as createRhinestoneSession
   participant Acc as RhinestoneAccount
-  participant SS as @rhinestone/sdk/actions/smart-sessions
 
   App->>App: generatePrivateKey + privateKeyToAccount
   App->>App: build sdkSession (owners, chain, sudo policies)
   App->>Acc: experimental_getSessionDetails([sdkSession])
   Acc-->>App: sessionDetails (hashesAndChainIds, …)
   App->>Acc: experimental_signEnableSession(sessionDetails)
-  Acc-->>App: enableSignature
+  Acc-->>App: enableSignature (owner EIP-712)
   App->>Acc: experimental_isSessionEnabled?(sdkSession)
   alt not enabled
-    App->>SS: experimental_enableSession(sdkSession, sig, hashes, 0)
-    SS-->>App: enableCall (LazyCallInput)
-    App->>Acc: sendTransaction({ chain, calls: [enableCall], sponsored: true })
-    App->>Acc: waitForExecution(tx, false)
+    App->>App: experimental_enableSession → enableCall (lazy)
+    App->>Acc: prepareTransaction(chain, calls: [enableCall], experimental_session + enableData, sponsored)
+    App->>Acc: signTransaction(prepared)
+    App->>Acc: submitTransaction(signed)
+    App->>Acc: waitForExecution(result, false)
   end
   App->>App: JSON-serialize hashesAndChainIds, build RhinestoneStoredSession
 ```
@@ -252,15 +254,15 @@ If session-signed `sendTransaction` fails at runtime for a given infra, treat it
 | Signer type | `packages/transaction-manager/src/types/signer.types.ts` — `RhinestoneSigner` |
 | Warp submit | `packages/transaction-manager/src/actors/warp-transport.actor.ts` — `submitWarpTransaction` |
 | Rhinestone submit | `packages/transaction-manager/src/actors/rhinestone-transport.actor.ts` — `submitRhinestoneTransaction` |
-| SDK enable action | `@rhinestone/sdk/actions/smart-sessions` — `experimental_enableSession` |
+| On-chain enable (manager) | `prepareTransaction` + `signTransaction` + `submitTransaction` with `experimental_session` + `enableData` (“enable mode”) |
 
 ---
 
 ## 11. Tests to consult
 
-- `apps/manager/src/lib/smart-account/sessions/rhinestone-session.test.ts` — mocks SDK + `experimental_enableSession`, asserts enable tx path and “already enabled” skip.
+- `apps/manager/src/lib/smart-account/sessions/rhinestone-session.test.ts` — mocks `prepareTransaction` / `signTransaction` / `submitTransaction`, asserts enable-mode path and “already enabled” skip.
 - `packages/transaction-manager/src/actors/warp-transport.actor.test.ts` — asserts `signers` forwarded when `sessionConfig` is set.
 
 ---
 
-*Last updated to match the smart-session flow with on-chain `experimental_enableSession` + transport `signers` passthrough.*
+*Last updated to match on-chain enable via Rhinestone “enable mode” (`prepareTransaction` + session-key signing) + transport `signers` passthrough.*

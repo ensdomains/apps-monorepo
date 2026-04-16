@@ -14,7 +14,7 @@ vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
   experimental_enableSession: vi.fn(() => ({
     resolve: async () => ({
       to: '0x0000000000000000000000000000000000000002' as Address,
-      data: '0x' as Hex,
+      data: '0xabcd' as Hex,
       value: 0n,
     }),
   })),
@@ -215,7 +215,7 @@ describe('rhinestone-session', () => {
           sourceChains: [MOCK_CHAIN],
           targetChain: MOCK_CHAIN,
           sponsored: true,
-          calls: expect.any(Array),
+          calls: [expect.objectContaining({ resolve: expect.any(Function) })],
         }),
       )
       expect(mockAccount.waitForExecution).toHaveBeenCalledWith(
@@ -224,7 +224,7 @@ describe('rhinestone-session', () => {
       )
     })
 
-    it('skips sendTransaction when experimental_isSessionEnabled is true', async () => {
+    it('skips on-chain enable when experimental_isSessionEnabled is true', async () => {
       vi.mocked(experimental_enableSession).mockClear()
       const mockAccount = createMockRhinestoneAccount()
       ;(

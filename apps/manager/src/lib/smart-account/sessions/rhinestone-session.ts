@@ -4,17 +4,20 @@
  * Pure functions for creating and restoring Rhinestone-based sessions.
  * Designed to be used from XState actors and other non-React contexts.
  *
- * Session creation performs the full Rhinestone SDK enablement flow:
+ * Session creation performs the Rhinestone SDK enablement flow:
  * 1. Generate session key pair
  * 2. Define Session with sudo policy
  * 3. experimental_getSessionDetails() — get on-chain validation data
- * 4. experimental_signEnableSession() — owner signs enablement
- * 5. experimental_enableSession() + sendTransaction — install session on-chain (doc flow)
- * 6. Store enableSignature + hashesAndChainIds for later use
+ * 4. experimental_signEnableSession() — owner signs MultiChainSession (one wallet prompt, done)
+ * 5. Store enableSignature + hashesAndChainIds for later use
+ *
+ * The session is NOT installed on-chain here. It is enabled lazily as part of
+ * the first real transaction, via enableData in the experimental_session signers.
+ *
+ * @see https://docs.rhinestone.dev — multi-chain session “enable mode”
  */
 
 import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
-import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
@@ -36,11 +39,11 @@ export interface CreateRhinestoneSessionParams {
 /**
  * Create a new Rhinestone session with on-chain enablement.
  *
- * Performs the full SDK session enablement flow:
+ * Performs the SDK session enablement flow:
  * - Generates a session key pair
- * - Calls experimental_getSessionDetails + experimental_signEnableSession
- * - Submits on-chain enable via experimental_enableSession + sendTransaction (skips if already enabled)
+ * - Calls experimental_getSessionDetails + experimental_signEnableSession (one wallet prompt)
  * - Stores enablement data (enableSignature, hashesAndChainIds) for future session-signed txs
+ * - Session is enabled on-chain lazily via enableData in the first real transaction's signers
  */
 export function createRhinestoneSession(
   params: CreateRhinestoneSessionParams,
@@ -82,34 +85,12 @@ export function createRhinestoneSession(
 
       normalizeSessionDetailsForEip712Signing(sessionDetails)
 
-      // 4. Sign enablement (one-time owner signature)
+      // 4. Sign enablement (owner EIP-712 — MultiChainSession)
       const enableSignature =
         await rhinestoneAccount.experimental_signEnableSession(sessionDetails)
 
-      // 5. Install session on-chain (Rhinestone Smart Sessions docs)
-      const sessionToEnableIndex = 0
-      const alreadyEnabled =
-        typeof rhinestoneAccount.experimental_isSessionEnabled === 'function'
-          ? await rhinestoneAccount.experimental_isSessionEnabled(sdkSession)
-          : false
-
-      if (!alreadyEnabled) {
-        const enableCall = experimental_enableSession(
-          sdkSession,
-          enableSignature,
-          sessionDetails.hashesAndChainIds,
-          sessionToEnableIndex,
-        )
-        const enableTransaction = await rhinestoneAccount.sendTransaction({
-          sourceChains: [chain],
-          targetChain: chain,
-          calls: [enableCall],
-          sponsored: true,
-        })
-        await rhinestoneAccount.waitForExecution(enableTransaction, false)
-      }
-
-      // 6. Serialize hashesAndChainIds for localStorage (bigint → string)
+      // 5. Serialize hashesAndChainIds for localStorage (bigint → string)
+      // Session is enabled lazily as part of the first real transaction via enableData in signers.
       const serializedHashes = JSON.stringify(
         sessionDetails.hashesAndChainIds.map(
           (h: { chainId: bigint; sessionDigest: Hex }) => ({
