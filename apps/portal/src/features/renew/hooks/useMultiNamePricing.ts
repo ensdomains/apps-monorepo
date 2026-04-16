@@ -1,5 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import type { Address } from 'viem'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import {
   getDurationFromPickerDate,
@@ -7,6 +8,7 @@ import {
   getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
 import {
@@ -70,6 +72,7 @@ export function useMultiNamePricing(
   selectedNames: readonly SelectedName[],
   spanType: ExtensionSpanType,
   duration: number,
+  owner?: Address,
 ): MultiNamePricingResult {
   const renewalInputs = useMemo(() => {
     const today = getStartOfToday()
@@ -114,6 +117,8 @@ export function useMultiNamePricing(
       getRegistrationPriceQueryOptions({
         name: renewal.selectedName.name,
         duration: renewal.duration,
+        token: SUPPORTED_TOKENS.USDC,
+        owner,
       }),
     ),
   })

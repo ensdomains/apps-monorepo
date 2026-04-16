@@ -10,6 +10,7 @@ import { DAIcon } from '@/assets/dai-icon'
 import { USDCIcon } from '@/assets/usdc-icon'
 import { MessageCard } from '@/components/ui/message-card'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import {
   DAI_DECIMALS,
@@ -57,8 +58,9 @@ export const MultiNamePaymentTokenPicker = ({
   const config = useConfig()
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
+  const hasAddress = Boolean(address)
 
-  const [balancesQuery, ...priceQueries] = useQueries({
+  const [balancesQuery] = useQueries({
     queries: [
       {
         ...readContractsQueryOptions(config, {
@@ -66,77 +68,91 @@ export const MultiNamePaymentTokenPicker = ({
             address: token.address,
             abi: ERC20_ABI,
             functionName: 'balanceOf',
-            args: address ? [address] : undefined,
+            args: [address as Address],
             chainId: sepoliaWithEns.id,
           })),
         }),
-        enabled: Boolean(address),
+        enabled: hasAddress,
       },
-      ...renewals.map((renewal) =>
-        getRegistrationPriceQueryOptions({
-          name: renewal.selectedName.name,
-          duration: renewal.duration,
-          token: SUPPORTED_TOKENS.USDC,
-          owner: address,
-        }),
-      ),
-      ...renewals.map((renewal) =>
-        getRegistrationPriceQueryOptions({
-          name: renewal.selectedName.name,
-          duration: renewal.duration,
-          token: SUPPORTED_TOKENS.DAI,
-          owner: address,
-        }),
-      ),
     ],
   })
 
+  const usdcPriceQueries = useQueries({
+    queries: renewals.map((renewal) => ({
+      ...getRegistrationPriceQueryOptions({
+        name: renewal.selectedName.name,
+        duration: renewal.duration,
+        token: SUPPORTED_TOKENS.USDC,
+        owner: address,
+      }),
+      enabled: hasAddress,
+    })),
+  })
+
+  const daiPriceQueries = useQueries({
+    queries: renewals.map((renewal) => ({
+      ...getRegistrationPriceQueryOptions({
+        name: renewal.selectedName.name,
+        duration: renewal.duration,
+        token: SUPPORTED_TOKENS.DAI,
+        owner: address,
+      }),
+      enabled: hasAddress,
+    })),
+  })
+
   const isLoading =
-    balancesQuery.isLoading || priceQueries.some((q) => q.isLoading)
+    balancesQuery.isLoading ||
+    usdcPriceQueries.some((q) => q.isLoading) ||
+    daiPriceQueries.some((q) => q.isLoading)
 
   if (isLoading) return <Skeleton />
 
   const rawBalances = balancesQuery.data
   const balances = Array.isArray(rawBalances)
-    ? rawBalances.map((balance: { status: string; result: unknown }) =>
+    ? rawBalances.map((balance) =>
         balance.status === 'success' && balance.result !== undefined
-          ? BigInt(balance.result as bigint)
+          ? BigInt(balance.result)
           : 0n,
       )
     : []
 
-  const usdcPrices = priceQueries.slice(0, renewals.length)
-  const daiPrices = priceQueries.slice(renewals.length)
+  const sumPrice = (queries: typeof usdcPriceQueries) =>
+    queries.reduce(
+      (sum, q) => {
+        if (!q.data || !isPriceResult(q.data)) return sum
+        return {
+          base: sum.base + q.data.base,
+          premium: sum.premium + q.data.premium,
+          total: sum.total + q.data.total,
+        }
+      },
+      { base: 0n, premium: 0n, total: 0n },
+    )
 
-  const sumBase = (queries: typeof priceQueries): bigint =>
-    queries.reduce((sum, q) => {
-      const data = q.data as { base?: bigint } | undefined
-      return data?.base != null ? sum + data.base : sum
-    }, 0n)
-
-  const usdcTotalBase = sumBase(usdcPrices)
-  const daiTotalBase = sumBase(daiPrices)
+  const usdcPrice = sumPrice(usdcPriceQueries)
+  const daiPrice = sumPrice(daiPriceQueries)
 
   const tokenData: TokenWithPriceAndBalance[] = [
     {
       ...PAYMENT_TOKENS[0],
       price: {
-        base: usdcTotalBase,
-        premium: 0n,
-        total: usdcTotalBase,
+        base: usdcPrice.base,
+        premium: usdcPrice.premium,
+        total: usdcPrice.total,
         decimals: USDC_DECIMALS,
-        hasPremium: false,
+        hasPremium: usdcPrice.premium > 0n,
       },
       balance: balances[0] ?? 0n,
     },
     {
       ...PAYMENT_TOKENS[1],
       price: {
-        base: daiTotalBase,
-        premium: 0n,
-        total: daiTotalBase,
+        base: daiPrice.base,
+        premium: daiPrice.premium,
+        total: daiPrice.total,
         decimals: DAI_DECIMALS,
-        hasPremium: false,
+        hasPremium: daiPrice.premium > 0n,
       },
       balance: balances[1] ?? 0n,
     },
