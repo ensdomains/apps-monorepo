@@ -10,25 +10,12 @@
     "./utils": "./src/utils/index.ts"
   },
   "typesVersions": {
-    "v1": {
-      "v1/*": [
-        "./src/v1/*"
-      ],
+    "*": {
       "v1": [
         "./src/v1/index.ts"
-      ]
-    },
-    "v2": {
-      "v2/*": [
-        "./src/v2/*"
       ],
       "v2": [
         "./src/v2/index.ts"
-      ]
-    },
-    "utils": {
-      "utils/*": [
-        "./src/utils/*"
       ],
       "utils": [
         "./src/utils/index.ts"
