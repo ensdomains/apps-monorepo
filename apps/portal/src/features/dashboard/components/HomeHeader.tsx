@@ -8,10 +8,7 @@ export const HomeHeader = () => (
     {/* Mobile: logo mark + connect as a justify-between row.
         Desktop: sm:contents spreads children into parent flex row. */}
     <div className="flex items-center justify-between sm:contents">
-      <Link
-        to="/"
-        className="flex items-center group-data-[collapsible=icon]:hidden sm:order-1"
-      >
+      <Link to="/" className="flex items-center sm:order-1">
         <LogoSVG width={35} height={40} className="sm:hidden text-foreground" />
         <LogoWithTextSVG
           width={97}

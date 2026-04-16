@@ -29,7 +29,7 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="flex items-center gap-4 py-3 ">
+    <div className="flex items-center gap-4 py-3">
       <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
       <span className="text-sm text-muted-foreground w-24 shrink-0">
         Registered
@@ -64,7 +64,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {expiry.data && (
-        <div className="flex items-center gap-4 py-3 ">
+        <div className="flex items-center gap-4 py-3">
           <ClockIcon className="size-4 text-muted-foreground shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Expires
@@ -98,7 +98,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {data.expiry !== null && (
-        <div className="flex items-center gap-4 py-3 ">
+        <div className="flex items-center gap-4 py-3">
           <ClockIcon className="size-4 text-muted-foreground shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Expires
@@ -108,7 +108,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       )}
 
       {data.registeredAt !== null && (
-        <div className="flex items-center gap-4 py-3 ">
+        <div className="flex items-center gap-4 py-3">
           <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Registered
@@ -118,7 +118,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       )}
 
       {data.createdAt !== null && (
-        <div className="flex items-center gap-4 py-3 ">
+        <div className="flex items-center gap-4 py-3">
           <PlusCircleIcon className="size-4 text-muted-foreground shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Created
