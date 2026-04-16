@@ -22,7 +22,7 @@ import { formatPriceForInput } from '@/features/register/utils/formatPriceForInp
 import {
   getInstantForPremiumPrice,
   getPremiumPriceAtInstant,
-  PREMIUM_PERIOD_MS,
+  type PremiumDecayConfig,
 } from '@/features/register/utils/premiumDecay'
 import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
@@ -35,16 +35,28 @@ function useSyncPremiumCalculatorOnOpen(
   setSelectedPrice: (price: number) => void,
   setSelectedInstant: (instant: Temporal.Instant) => void,
   setPriceInput: (value: string) => void,
+  premiumDecayConfig: PremiumDecayConfig,
 ) {
   useEffect(() => {
     if (open && premiumStart) {
       const now = Temporal.Now.instant()
-      const price = getPremiumPriceAtInstant(premiumStart, now)
+      const price = getPremiumPriceAtInstant(
+        premiumStart,
+        now,
+        premiumDecayConfig,
+      )
       setSelectedPrice(price)
       setSelectedInstant(now)
       setPriceInput(formatPriceForInput(price))
     }
-  }, [open, premiumStart, setSelectedPrice, setSelectedInstant, setPriceInput])
+  }, [
+    open,
+    premiumStart,
+    setSelectedPrice,
+    setSelectedInstant,
+    setPriceInput,
+    premiumDecayConfig,
+  ])
 }
 
 type TemporaryPremiumDrawerProps = {
@@ -52,6 +64,7 @@ type TemporaryPremiumDrawerProps = {
   readonly onOpenChange: (open: boolean) => void
   readonly currentPremium: string
   readonly premiumStart: Temporal.Instant | null
+  readonly premiumDecayConfig: PremiumDecayConfig
 }
 
 /**
@@ -63,15 +76,20 @@ export const TemporaryPremiumDrawer = ({
   onOpenChange,
   currentPremium,
   premiumStart,
+  premiumDecayConfig,
 }: TemporaryPremiumDrawerProps) => {
   const premiumEnd = premiumStart
     ? Temporal.Instant.fromEpochMilliseconds(
-        premiumStart.epochMilliseconds + PREMIUM_PERIOD_MS,
+        premiumStart.epochMilliseconds + premiumDecayConfig.periodMs,
       )
     : null
 
   const currentCalculatedPrice = premiumStart
-    ? getPremiumPriceAtInstant(premiumStart, Temporal.Now.instant())
+    ? getPremiumPriceAtInstant(
+        premiumStart,
+        Temporal.Now.instant(),
+        premiumDecayConfig,
+      )
     : 0
 
   const [selectedPrice, setSelectedPrice] = useState(0)
@@ -87,6 +105,7 @@ export const TemporaryPremiumDrawer = ({
     setSelectedPrice,
     setSelectedInstant,
     setPriceInput,
+    premiumDecayConfig,
   )
 
   function applyDateSelection(newInstant: Temporal.Instant) {
@@ -99,7 +118,11 @@ export const TemporaryPremiumDrawer = ({
     )
     const clamped = Temporal.Instant.fromEpochMilliseconds(clampedMs)
 
-    const price = getPremiumPriceAtInstant(premiumStart, clamped)
+    const price = getPremiumPriceAtInstant(
+      premiumStart,
+      clamped,
+      premiumDecayConfig,
+    )
     setSelectedPrice(price)
     setSelectedInstant(clamped)
     setPriceInput(formatPriceForInput(price))
@@ -115,7 +138,11 @@ export const TemporaryPremiumDrawer = ({
     if (Number.isNaN(parsed) || parsed < 0) parsed = 0
     if (parsed > currentCalculatedPrice) parsed = currentCalculatedPrice
 
-    const instant = getInstantForPremiumPrice(premiumStart, parsed)
+    const instant = getInstantForPremiumPrice(
+      premiumStart,
+      parsed,
+      premiumDecayConfig,
+    )
     setSelectedPrice(parsed)
     setSelectedInstant(instant)
   }
