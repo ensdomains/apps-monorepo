@@ -20,12 +20,6 @@ export const encodeMigrationData = (data: MigrationData): Hex =>
     [data],
   )
 
-export const encodeMigrationDataBatch = (data: readonly MigrationData[]): Hex =>
-  encodeAbiParameters(
-    [{ type: 'tuple[]', components: MIGRATION_DATA_COMPONENTS }],
-    [data],
-  )
-
 export const createMigrationData = (params: {
   label: string
   owner: Address

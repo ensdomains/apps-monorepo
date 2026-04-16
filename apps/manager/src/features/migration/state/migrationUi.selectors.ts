@@ -22,10 +22,6 @@ export const useMigrationStepDescriptors = createMigrationUiSelector(
   (state) => state.context.stepDescriptors,
 )
 
-export const useMigrationSkippedNames = createMigrationUiSelector(
-  (state) => state.context.skippedNames,
-)
-
 export const useMigrationMigratedNames = createMigrationUiSelector(
   (state) => state.context.migratedNames,
 )

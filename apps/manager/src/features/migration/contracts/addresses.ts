@@ -7,9 +7,6 @@ export const V1_CONTRACTS = {
   PublicResolver: '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address,
 } as const
 
-export const MULTICALL3_ADDRESS: Address =
-  '0xcA11bde05977b3631167028862bE2a173976CA11'
-
 export const V2_CONTRACTS = {
   ETHRegistry: '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address,
   UnlockedMigrationController:

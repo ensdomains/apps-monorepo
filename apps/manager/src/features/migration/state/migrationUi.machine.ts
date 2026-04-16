@@ -15,14 +15,11 @@ import {
   type MigrationProgress,
   type MigrationResult,
   type MigrationStepDescriptor,
-  type SkippedName,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
-export type MigrationError =
-  | { type: 'preflight-failure'; count: number }
-  | { type: 'generic'; message: string }
+export type MigrationError = { type: 'generic'; message: string }
 
 const SUCCESS_HOLD_MS = 3000
 const FAILURE_HOLD_MS = 1500
@@ -54,7 +51,6 @@ type Context = {
   accountAddress?: Address
   migratedNames: string[]
   txHashes: readonly Hex[]
-  skippedNames: readonly SkippedName[]
   progress?: MigrationProgress
   stepDescriptors: readonly MigrationStepDescriptor[]
   lastError?: MigrationError
@@ -86,7 +82,6 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   ownerAddress: undefined,
   migratedNames: [],
   txHashes: [],
-  skippedNames: [],
   progress: undefined,
   stepDescriptors: [],
   lastError: undefined,
@@ -152,10 +147,7 @@ export const migrationUiMachine = setup({
     hasSelection: ({ event }) =>
       event.type === 'migration.start' && event.domains.length > 0,
     isOnlyFailures: ({ event }) =>
-      event.type === 'migration.complete' &&
-      event.result.txHashes.length === 0 &&
-      event.result.skipped.some((s) => s.reason !== 'already-migrated'),
-    hasPartialFailures: ({ context }) => context.skippedNames.length > 0,
+      event.type === 'migration.complete' && event.result.txHashes.length === 0,
   },
   actions: {
     setSelection: assign({
@@ -177,7 +169,6 @@ export const migrationUiMachine = setup({
         progress: undefined,
         lastError: undefined,
         txHashes: [] as readonly Hex[],
-        skippedNames: [] as readonly SkippedName[],
       }
     }),
     setProgress: assign({
@@ -188,21 +179,11 @@ export const migrationUiMachine = setup({
       if (event.type !== 'migration.complete') return {}
       return {
         txHashes: event.result.txHashes,
-        skippedNames: event.result.skipped,
         migratedNames: [
           ...context.migratedNames,
           ...event.result.migratedNames,
         ],
       }
-    }),
-    setPreflightError: assign({
-      lastError: ({ event, context }) =>
-        event.type === 'migration.complete'
-          ? ({
-              type: 'preflight-failure',
-              count: event.result.skipped.length,
-            } as const)
-          : context.lastError,
     }),
     setError: assign({
       lastError: ({ event, context }) =>
@@ -218,7 +199,6 @@ export const migrationUiMachine = setup({
         : context.stepDescriptors
       return {
         lastError: undefined,
-        skippedNames: [] as readonly SkippedName[],
         txHashes: [] as readonly Hex[],
         progress: undefined,
         selectedNames: context.selectedNames.filter(
@@ -273,7 +253,7 @@ export const migrationUiMachine = setup({
               {
                 target: 'failing',
                 guard: 'isOnlyFailures',
-                actions: ['recordCompletion', 'setPreflightError'],
+                actions: 'recordCompletion',
               },
               {
                 target: 'succeeding',
@@ -289,15 +269,9 @@ export const migrationUiMachine = setup({
         succeeding: {
           tags: 'running',
           after: {
-            successHold: [
-              {
-                target: '#migrationUi.partialSuccess',
-                guard: 'hasPartialFailures',
-              },
-              {
-                target: '#migrationUi.success',
-              },
-            ],
+            successHold: {
+              target: '#migrationUi.success',
+            },
           },
         },
         failing: {
@@ -309,15 +283,6 @@ export const migrationUiMachine = setup({
       },
     },
     success: {
-      tags: 'result',
-      on: {
-        done: {
-          target: 'select',
-          actions: 'resetAll',
-        },
-      },
-    },
-    partialSuccess: {
       tags: 'result',
       on: {
         done: {

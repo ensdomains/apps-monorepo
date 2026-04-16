@@ -1,6 +1,5 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
-import { AlertTriangle } from 'lucide-react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback } from 'react'
 import { match } from 'ts-pattern'
@@ -8,57 +7,17 @@ import type { Address } from 'viem'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
-import { SkipReasonLabel } from '@/features/migration/components/SkipReasonLabel'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import type { SkippedName } from '@/features/migration/service/migrationService'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import type { MigrationError } from '@/features/migration/state/migrationUi.machine'
 import {
   useMigrationLastError,
   useMigrationMigratedNames,
   useMigrationSelectedNames,
-  useMigrationSkippedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
-
-const SkippedNamesList = ({
-  skippedNames,
-}: {
-  skippedNames: readonly SkippedName[]
-}) => {
-  return (
-    <motion.div
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-md rounded-sm bg-ens-garnet-900/5 p-4"
-      initial={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.4, delay: 0.25 }}
-    >
-      <div className="mb-2 flex items-center gap-2">
-        <AlertTriangle className="size-4 shrink-0 text-ens-garnet-900/60" />
-        <p className="font-semi-mono text-ens-garnet-900/80 text-xs uppercase tracking-[0.12px]">
-          <Trans>{skippedNames.length} name(s) could not be migrated</Trans>
-        </p>
-      </div>
-      <ul className="flex flex-col gap-1.5">
-        {skippedNames.map((skipped) => (
-          <li
-            className="flex flex-wrap items-start gap-1 text-xs leading-[1.4]"
-            key={skipped.name}
-          >
-            <span className="shrink-0 font-medium text-ens-garnet-900/80">
-              {skipped.name}
-            </span>
-            <span className="text-ens-garnet-900/50">
-              &mdash; <SkipReasonLabel reason={skipped.reason} />
-            </span>
-          </li>
-        ))}
-      </ul>
-    </motion.div>
-  )
-}
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -71,25 +30,13 @@ const ResultLayout = ({ children }: { children: ReactNode }) => (
   </motion.div>
 )
 
-const formatMigrationError = (
-  error: MigrationError,
-  t: ReturnType<typeof useLingui>['t'],
-) => {
-  switch (error.type) {
-    case 'preflight-failure':
-      return t`${error.count} name(s) could not be migrated due to pre-flight check failures.`
-    case 'generic':
-      return error.message
-  }
-}
+const formatMigrationError = (error: MigrationError) => error.message
 
 export const MigrationPage = () => {
-  const { t } = useLingui()
   const navigate = useNavigate()
   const { uiActor } = useMigrationUiContext()
   const step = useMigrationStep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
-  const skippedNames = useMigrationSkippedNames(uiActor)
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
@@ -146,13 +93,9 @@ export const MigrationPage = () => {
               transition={{ duration: 0.4, delay: 0.15 }}
             >
               <p className="whitespace-pre-wrap break-all font-mono text-ens-garnet-900/70 text-xs leading-normal">
-                {lastError && formatMigrationError(lastError, t)}
+                {lastError && formatMigrationError(lastError)}
               </p>
             </motion.div>
-
-            {skippedNames.length > 0 && (
-              <SkippedNamesList skippedNames={skippedNames} />
-            )}
 
             <motion.div
               animate={{ opacity: 1, y: 0 }}
@@ -177,20 +120,11 @@ export const MigrationPage = () => {
             </motion.div>
           </ResultLayout>
         ))
-        .with('partialSuccess', () => (
-          <SuccessModal
-            migratedNames={migratedNames}
-            onClose={handleSuccessClose}
-            open
-            skippedNames={skippedNames}
-          />
-        ))
         .with('success', () => (
           <SuccessModal
             migratedNames={migratedNames}
             onClose={handleSuccessClose}
             open
-            skippedNames={skippedNames}
           />
         ))
         .exhaustive()}

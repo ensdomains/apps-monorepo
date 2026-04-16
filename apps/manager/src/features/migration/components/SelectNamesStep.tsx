@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Info, Search } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { cn } from '@/lib/utils'
@@ -21,6 +21,14 @@ export const SelectNamesStep = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const eligibleNames = useMemo(() => eligible.map((c) => c.domain), [eligible])
+
+  useEffect(() => {
+    if (eligibleNames.length > 0 && selected.size === 0) {
+      const allNames = new Set(eligibleNames.map((n) => n.name))
+      setSelected(allNames)
+      onNamesChange([...allNames])
+    }
+  }, [eligibleNames, selected.size, onNamesChange])
 
   const searchLower = search.toLowerCase()
 

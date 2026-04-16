@@ -31,6 +31,8 @@ import {
 import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
+const MAX_NAMES_PER_BATCH = 50
+
 class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
   step?: string
@@ -49,33 +51,21 @@ export type MigrationProgress = {
   readonly txHash?: Hex
 }
 
-export type SkipReason =
-  | 'not-premigrated'
-  | 'frozen-approval'
-  | 'transfer-failed'
-  | 'invalid-data'
-  | 'name-data-mismatch'
-  | 'name-is-locked'
-  | 'name-not-locked'
-  | 'frozen-token-approval'
-  | 'already-migrated'
-
-export type SkippedName = {
-  readonly name: string
-  readonly reason: SkipReason
-}
-
 export type MigrationResult = {
   readonly completed: number
   readonly txHashes: readonly Hex[]
-  readonly skipped: readonly SkippedName[]
   readonly ineligible: readonly IneligibleName[]
   readonly migratedNames: readonly string[]
 }
 
 export type MigrationStepDescriptor =
   | { type: 'approve-sca'; count: number }
-  | { type: 'migrate-all'; count: number }
+  | {
+      type: 'migrate-batch'
+      batch: number
+      totalBatches: number
+      count: number
+    }
 
 type Tracker = {
   emit: (description: string, txHash?: Hex) => void
@@ -209,6 +199,8 @@ const buildSCARequest = (
   } as TransactionRequest
 }
 
+const PENDING_TX_HASH = '0x0' as Hex
+
 const submitBatchedUserOp = async (
   ctx: MigrationCtx,
   calls: ZeroDevCall[],
@@ -225,6 +217,8 @@ const submitBatchedUserOp = async (
     },
   )
 
+  ctx.tracker.emit(description, PENDING_TX_HASH)
+
   const result = await waitForTransaction(txId)
   return result.hash as Hex
 }
@@ -234,6 +228,17 @@ const needsSCAApproval = (groups: GroupedNames): boolean =>
   groups.unlocked.length > 0 ||
   groups.locked2ld.length > 0 ||
   groups.childNames.size > 0
+
+const getBatchCount = (nameCount: number): number =>
+  Math.ceil(nameCount / MAX_NAMES_PER_BATCH)
+
+const chunkArray = <T>(arr: readonly T[], size: number): T[][] => {
+  const chunks: T[][] = []
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size))
+  }
+  return chunks
+}
 
 const buildStepDescriptors = (
   classified: readonly ClassifiedName[],
@@ -245,7 +250,16 @@ const buildStepDescriptors = (
     descriptors.push({ type: 'approve-sca', count: classified.length })
   }
 
-  descriptors.push({ type: 'migrate-all', count: classified.length })
+  const totalBatches = getBatchCount(classified.length)
+  const chunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
+  for (let i = 0; i < chunks.length; i++) {
+    descriptors.push({
+      type: 'migrate-batch',
+      batch: i + 1,
+      totalBatches,
+      count: chunks[i]!.length,
+    })
+  }
 
   return descriptors
 }
@@ -276,7 +290,6 @@ export const executeMigration = async (params: {
     return {
       completed: 0,
       txHashes: [],
-      skipped: [],
       ineligible,
       migratedNames: [],
     }
@@ -298,13 +311,12 @@ export const executeMigration = async (params: {
 
   ctx.tracker.emit(`Preparing migration for ${classified.length} name(s)`)
 
-  const allCalls: ZeroDevCall[] = []
-
+  const notReservedSet = new Set<string>()
   const twoLDs = classified.filter(is2LD)
   if (twoLDs.length > 0) {
     const { notReserved } = await filterNotReserved(publicClient, [...twoLDs])
-    if (notReserved.length > 0) {
-      allCalls.push(...buildPreMigrateCalls(notReserved))
+    for (const name of notReserved) {
+      notReservedSet.add(name.domain.name)
     }
   }
 
@@ -325,46 +337,71 @@ export const executeMigration = async (params: {
     }
   }
 
-  allCalls.push(
-    ...buildAllTransferCalls({
-      classified,
-      migrationOwner,
-      defaultResolver,
-      parentRegistries,
-    }),
-  )
+  const nameChunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
+  const totalBatches = nameChunks.length
+  const allHashes: Hex[] = [...approvalHashes]
 
-  allCalls.push(...buildRoleGrantCalls(classified))
+  for (let i = 0; i < nameChunks.length; i++) {
+    const chunk = nameChunks[i]!
+    const batchNum = i + 1
 
-  ctx.tracker.emit(`Upgrading ${classified.length} name(s) to v2`)
-
-  try {
-    const hash = await submitBatchedUserOp(
-      ctx,
-      allCalls,
-      `Migrate ${classified.length} name(s) to ENS v2`,
+    ctx.tracker.emit(
+      `Upgrading batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
     )
 
-    ctx.tracker.next()
-    ctx.tracker.emit('Migration complete!', hash)
+    const batchCalls: ZeroDevCall[] = []
 
-    const migratedNames = classified.map((c) => c.domain.name)
+    const chunkTwoLDs = chunk.filter(
+      (n) => is2LD(n) && notReservedSet.has(n.domain.name),
+    )
+    if (chunkTwoLDs.length > 0) {
+      batchCalls.push(...buildPreMigrateCalls(chunkTwoLDs))
+    }
 
-    return {
-      completed: classified.length,
-      txHashes: [...approvalHashes, hash],
-      skipped: [],
-      ineligible,
-      migratedNames,
+    batchCalls.push(
+      ...buildAllTransferCalls({
+        classified: chunk,
+        migrationOwner,
+        defaultResolver,
+        parentRegistries,
+      }),
+    )
+
+    batchCalls.push(...buildRoleGrantCalls(chunk))
+
+    try {
+      const hash = await submitBatchedUserOp(
+        ctx,
+        batchCalls,
+        `Migrate batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
+      )
+
+      allHashes.push(hash)
+      ctx.tracker.next()
+      ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, hash)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
+        throw new MigrationUserRejectedError({
+          step: `Batch ${batchNum}/${totalBatches}`,
+        })
+      }
+      throw new MigrationError({
+        cause: error,
+        step: `Batch ${batchNum}/${totalBatches}`,
+      })
     }
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.toLowerCase().includes('user rejected')
-    ) {
-      throw new MigrationUserRejectedError({ step: 'Migration' })
-    }
-    throw new MigrationError({ cause: error, step: 'Migration' })
+  }
+
+  const migratedNames = classified.map((c) => c.domain.name)
+
+  return {
+    completed: classified.length,
+    txHashes: allHashes,
+    ineligible,
+    migratedNames,
   }
 }
 

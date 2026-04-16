@@ -9,7 +9,6 @@ export const BASE_REGISTRAR_ABI = parseAbi([
 
 export const NAME_WRAPPER_ABI = parseAbi([
   'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)',
-  'function safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)',
   'function isApprovedForAll(address account, address operator) view returns (bool)',
   'function setApprovalForAll(address operator, bool approved)',
   'function getData(uint256 id) view returns (address owner, uint32 fuses, uint64 expiry)',
