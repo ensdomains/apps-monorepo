@@ -413,8 +413,8 @@ describe('normalizeSessionDetailsForEip712Signing', () => {
       }
     ).sessionsAndChainIds
 
-    expect(row).toBeDefined()
-    const sess = row!.session
+    if (!row) throw new Error('sessionsAndChainIds row is missing')
+    const sess = row.session
 
     expect(sess.expires).toBe(maxUint256)
     expect(sess.nonce).toBe(9n)

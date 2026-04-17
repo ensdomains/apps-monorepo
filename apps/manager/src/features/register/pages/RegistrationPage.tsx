@@ -133,13 +133,14 @@ export const Registration = ({
     }
     // During long Rhinestone intents, smart-account context can briefly report
     // not ready; don't snap back to Pricing once registration has started or finished.
-    if (
-      mapped === RegistrationStep.COMMITTING ||
-      mapped === RegistrationStep.APPROVING ||
-      mapped === RegistrationStep.REGISTERING ||
-      mapped === RegistrationStep.SUCCESS ||
-      mapped === RegistrationStep.ERROR
-    ) {
+    const inFlightSteps = [
+      RegistrationStep.COMMITTING,
+      RegistrationStep.APPROVING,
+      RegistrationStep.REGISTERING,
+      RegistrationStep.SUCCESS,
+      RegistrationStep.ERROR,
+    ]
+    if (inFlightSteps.includes(mapped)) {
       return mapped
     }
     return RegistrationStep.PRICING
