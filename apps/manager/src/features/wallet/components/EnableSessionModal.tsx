@@ -158,25 +158,23 @@ export const EnableSessionModal = ({
         {/* Actions */}
         <div className="flex flex-col gap-2">
           {status !== 'success' && (
-            <>
-              <Button
-                className={cn(
-                  'h-11 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider',
-                  'hover:bg-ens-blue-hover',
-                  'disabled:cursor-not-allowed disabled:opacity-50',
-                )}
-                disabled={status === 'signing'}
-                onClick={handleEnable}
-              >
-                {status === 'signing' ? (
-                  <Trans>Enabling sessions…</Trans>
-                ) : status === 'error' ? (
-                  <Trans>Try Again</Trans>
-                ) : (
-                  <Trans>Enable Sessions</Trans>
-                )}
-              </Button>
-            </>
+            <Button
+              className={cn(
+                'h-11 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider',
+                'hover:bg-ens-blue-hover',
+                'disabled:cursor-not-allowed disabled:opacity-50',
+              )}
+              disabled={status === 'signing'}
+              onClick={handleEnable}
+            >
+              {status === 'signing' ? (
+                <Trans>Enabling sessions…</Trans>
+              ) : status === 'error' ? (
+                <Trans>Try Again</Trans>
+              ) : (
+                <Trans>Enable Sessions</Trans>
+              )}
+            </Button>
           )}
         </div>
 

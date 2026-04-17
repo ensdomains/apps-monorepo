@@ -602,7 +602,7 @@ export function App() {
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [logs])
+  }, [])
 
   useEffect(() => {
     if (sequenceStartedAt === null) {
@@ -1671,7 +1671,7 @@ export function App() {
                   ROOT@WARP:~ /SYSTEM.LOG
                 </span>
                 <div className="terminal-console-actions">
-                  <span>UTF-8 // SECURE_TTY</span>
+                  <span>{'UTF-8 // SECURE_TTY'}</span>
                   <button
                     className="terminal-clear-button"
                     onClick={() => setLogs(createInitialLogs())}
