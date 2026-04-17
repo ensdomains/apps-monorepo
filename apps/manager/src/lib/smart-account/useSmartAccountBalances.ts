@@ -3,11 +3,10 @@
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
-import { type Address, formatUnits } from 'viem'
+import { type Address, erc20Abi, formatUnits } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { publicClient } from '@/lib/wagmi'
-import { ERC20_ABI } from '../ens.abi'
 import type { EthBalance, SmartAccountType, StablecoinBalance } from './types'
 
 interface UseSmartAccountBalancesParams {
@@ -70,13 +69,13 @@ export function useSmartAccountBalances(
               const [balance, decimals] = await Promise.all([
                 readContract(publicClient, {
                   address: tokenAddress,
-                  abi: ERC20_ABI,
+                  abi: erc20Abi,
                   functionName: 'balanceOf',
                   args: [balanceAddress],
                 }),
                 readContract(publicClient, {
                   address: tokenAddress,
-                  abi: ERC20_ABI,
+                  abi: erc20Abi,
                   functionName: 'decimals',
                 }),
               ])
