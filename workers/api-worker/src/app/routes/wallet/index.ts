@@ -19,12 +19,12 @@ import { ethAddress } from '#utils/validation.js'
 
 const TOKENS = {
   USDC: {
-    address: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6',
+    address: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65',
     decimals: 6,
     mintAmount: parseUnits('1000', 6),
   },
   DAI: {
-    address: '0xd030a2465ee661338de1f02d05042bbf20d5d127',
+    address: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4',
     decimals: 18,
     mintAmount: parseUnits('1000', 18),
   },
