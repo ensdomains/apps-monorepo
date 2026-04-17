@@ -5,36 +5,15 @@ import { useState } from 'react'
 import type { Address } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
-import { DAIcon } from '@/assets/dai-icon'
-import { USDCIcon } from '@/assets/usdc-icon'
 import { MessageCard } from '@/components/ui/message-card'
 import { PaymentTokenList } from '@/features/register/components/PaymentTokenList'
+import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import {
-  DAI_DECIMALS,
-  SUPPORTED_TOKENS,
-  USDC_DECIMALS,
-} from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import {
   buildTokenData,
   type TokenWithPriceAndBalance,
 } from '../utils/tokenData'
-
-const PAYMENT_TOKENS = [
-  {
-    symbol: 'USDC' as const,
-    address: SUPPORTED_TOKENS.USDC,
-    decimals: USDC_DECIMALS,
-    Icon: USDCIcon,
-  },
-  {
-    symbol: 'DAI' as const,
-    address: SUPPORTED_TOKENS.DAI,
-    decimals: DAI_DECIMALS,
-    Icon: DAIcon,
-  },
-] as const
 
 const Skeleton = () => (
   <div className="space-y-4">
