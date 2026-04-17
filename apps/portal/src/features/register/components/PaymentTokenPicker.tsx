@@ -1,40 +1,19 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
-import { DAIcon } from '@/assets/dai-icon'
-import { USDCIcon } from '@/assets/usdc-icon'
 import { MessageCard } from '@/components/ui/message-card'
 import { PaymentTokenList } from '@/features/register/components/PaymentTokenList'
+import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import {
-  DAI_DECIMALS,
-  SUPPORTED_TOKENS,
-  USDC_DECIMALS,
-} from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import {
   buildTokenData,
   type TokenWithPriceAndBalance,
 } from '../utils/tokenData'
-
-const PAYMENT_TOKENS = [
-  {
-    symbol: 'USDC' as const,
-    address: SUPPORTED_TOKENS.USDC,
-    decimals: USDC_DECIMALS,
-    Icon: USDCIcon,
-  },
-  {
-    symbol: 'DAI' as const,
-    address: SUPPORTED_TOKENS.DAI,
-    decimals: DAI_DECIMALS,
-    Icon: DAIcon,
-  },
-] as const
 
 const Skeleton = () => (
   <div className="space-y-4">
@@ -63,45 +42,34 @@ export const PaymentTokenPicker = ({
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
 
-  const [balancesQuery, ...priceQueries] = useQueries({
-    queries: [
-      {
-        ...readContractsQueryOptions(config, {
-          contracts: PAYMENT_TOKENS.map((token) => ({
-            address: token.address,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [address as Address],
-            chainId: sepoliaWithEns.id,
-          })),
-        }),
-        enabled: Boolean(address),
-      },
-      {
-        ...getRegistrationPriceQueryOptions({
-          name,
-          duration,
-          token: PAYMENT_TOKENS[0].address,
-          owner: address,
-        }),
-        enabled: Boolean(address),
-      },
-      {
-        ...getRegistrationPriceQueryOptions({
-          name,
-          duration,
-          token: PAYMENT_TOKENS[1].address,
-          owner: address,
-        }),
-        enabled: Boolean(address),
-      },
-    ],
+  const balancesQuery = useQuery({
+    ...readContractsQueryOptions(config, {
+      contracts: PAYMENT_TOKENS.map((token) => ({
+        address: token.address,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address as Address],
+        chainId: sepoliaWithEns.id,
+      })),
+    }),
+    enabled: Boolean(address),
+  })
+
+  const priceQueries = useQueries({
+    queries: PAYMENT_TOKENS.map((token) => ({
+      ...getRegistrationPriceQueryOptions({
+        name,
+        duration,
+        token: token.address,
+        owner: address,
+      }),
+      enabled: Boolean(address),
+    })),
   })
 
   if (
     balancesQuery.isLoading ||
-    priceQueries[0].isLoading ||
-    priceQueries[1].isLoading
+    priceQueries.some((query) => query.isLoading)
   ) {
     return <Skeleton />
   }
@@ -131,7 +99,7 @@ export const PaymentTokenPicker = ({
 
   const tokenData = buildTokenData(
     PAYMENT_TOKENS,
-    [priceQueries[0].data, priceQueries[1].data],
+    priceQueries.map((query) => query.data),
     balances,
   )
 

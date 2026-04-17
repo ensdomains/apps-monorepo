@@ -1,5 +1,7 @@
-export const USDC_DECIMALS = 6
-export const DAI_DECIMALS = 18
+import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+
+export const USDC_DECIMALS = TOKENS.USDC.decimals
+export const DAI_DECIMALS = TOKENS.DAI.decimals
 
 export const SUPPORTED_TOKENS_SYMBOLS = {
   USDC: 'USDC',
@@ -10,6 +12,6 @@ export type SupportedTokenSymbol =
   (typeof SUPPORTED_TOKENS_SYMBOLS)[keyof typeof SUPPORTED_TOKENS_SYMBOLS]
 
 export const SUPPORTED_TOKENS = {
-  [SUPPORTED_TOKENS_SYMBOLS.USDC]: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65',
-  [SUPPORTED_TOKENS_SYMBOLS.DAI]: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4',
+  [SUPPORTED_TOKENS_SYMBOLS.USDC]: TOKENS.USDC.address,
+  [SUPPORTED_TOKENS_SYMBOLS.DAI]: TOKENS.DAI.address,
 } as const

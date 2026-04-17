@@ -62,6 +62,10 @@ export type StartMultiFlowConfig = {
   readonly tokenPrice: bigint
 }
 
+type UseRenewalTransactionsOptions = {
+  readonly onComplete: () => void
+}
+
 type ApproveParams = {
   readonly from: Address
   readonly tokenAddress: Address
@@ -82,8 +86,14 @@ type BuildMultiTransactionsParams = {
   readonly multiSavedParams: MultiSavedRenewalParams
   readonly from: Address
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
-  readonly getWallet: () => ReturnType<typeof getWalletClient>
+  readonly getSigner: () => Promise<ReturnType<typeof createEOASigner>>
   readonly handleDone: () => void
+}
+
+type RenewalRuntime = {
+  readonly from: Address
+  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  readonly signer: ReturnType<typeof createEOASigner>
 }
 
 function buildApproveTransaction(
@@ -160,7 +170,7 @@ function buildMultiTransactions({
   multiSavedParams,
   from,
   publicClient,
-  getWallet,
+  getSigner,
   handleDone,
 }: BuildMultiTransactionsParams): Transaction[] {
   const { renewals, tokenAddress, tokenSymbol, tokenPrice } = multiSavedParams
@@ -168,8 +178,7 @@ function buildMultiTransactions({
   if (renewals.length === 0) return []
 
   const makeRenewFn = (renewal: MultiRenewalEntry) => async () => {
-    const walletClient = await getWallet()
-    const signer = createEOASigner(walletClient)
+    const signer = await getSigner()
     buildRenewTransaction(
       {
         name: renewal.selectedName.name,
@@ -190,8 +199,7 @@ function buildMultiTransactions({
     transactionName: `Approve ${tokenSymbol} for renewal`,
     estimatedGasCost: 0.0003,
     onStart: async () => {
-      const walletClient = await getWallet()
-      const signer = createEOASigner(walletClient)
+      const signer = await getSigner()
       buildApproveTransaction(
         {
           from,
@@ -218,10 +226,6 @@ function buildMultiTransactions({
   return [approveTx, ...renewTxs]
 }
 
-type UseRenewalTransactionsOptions = {
-  readonly onComplete: () => void
-}
-
 export const useRenewalTransactions = ({
   onComplete,
 }: UseRenewalTransactionsOptions) => {
@@ -235,13 +239,26 @@ export const useRenewalTransactions = ({
   const [multiSavedParams, setMultiSavedParams] =
     useState<MultiSavedRenewalParams | null>(null)
 
-  const getWallet = async () => {
-    if (!connection.address) throw new Error('No connected account')
+  const getRuntime = async (): Promise<RenewalRuntime | null> => {
+    if (!connection.address || !publicClient) return null
+
     const walletClient = await getWalletClient(config, {
       account: connection.address,
     })
-    if (!walletClient) throw new Error('Failed to get wallet client')
-    return walletClient
+
+    if (!walletClient) return null
+
+    return {
+      from: connection.address,
+      publicClient,
+      signer: createEOASigner(walletClient),
+    }
+  }
+
+  const getSigner = async () => {
+    const runtime = await getRuntime()
+    if (!runtime) throw new Error('No connected wallet')
+    return runtime.signer
   }
 
   const handleDone = () => {
@@ -253,49 +270,42 @@ export const useRenewalTransactions = ({
   }
 
   const handleApproveStart = async () => {
-    if (
-      !savedParams?.tokenAddress ||
-      !savedParams.tokenPrice ||
-      !connection.address ||
-      !publicClient
-    )
-      return
+    if (!savedParams) return
 
-    const walletClient = await getWallet()
-    const signer = createEOASigner(walletClient)
+    const runtime = await getRuntime()
+    if (!runtime) return
 
     buildApproveTransaction(
       {
-        from: connection.address,
+        from: runtime.from,
         tokenAddress: savedParams.tokenAddress,
         tokenPrice: savedParams.tokenPrice,
         tokenSymbol: savedParams.tokenSymbol,
-        publicClient,
+        publicClient: runtime.publicClient,
       },
-      signer,
+      runtime.signer,
     )
   }
 
   const handleRenewStart = async () => {
-    if (!savedParams?.tokenAddress || !connection.address || !publicClient)
-      return
+    if (!savedParams) return
 
-    const walletClient = await getWallet()
-    const signer = createEOASigner(walletClient)
+    const runtime = await getRuntime()
+    if (!runtime) return
 
     buildRenewTransaction(
       {
         name: savedParams.name.name,
         duration: savedParams.duration,
         tokenAddress: savedParams.tokenAddress,
-        from: connection.address,
-        publicClient,
+        from: runtime.from,
+        publicClient: runtime.publicClient,
       },
-      signer,
+      runtime.signer,
     )
   }
 
-  const transactions: Transaction[] = !savedParams
+  const singleTransactions: Transaction[] = !savedParams
     ? []
     : [
         {
@@ -323,7 +333,7 @@ export const useRenewalTransactions = ({
           multiSavedParams,
           from: connection.address,
           publicClient,
-          getWallet,
+          getSigner,
           handleDone,
         })
 
@@ -362,7 +372,7 @@ export const useRenewalTransactions = ({
   }
 
   return {
-    transactions: multiSavedParams ? multiTransactions : transactions,
+    transactions: multiSavedParams ? multiTransactions : singleTransactions,
     startFlow,
     startMultiFlow,
     clearIncompatibleRenewalState,
