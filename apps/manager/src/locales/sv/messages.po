@@ -327,7 +327,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:111
+#: src/features/migration/pages/MigrationPage.tsx:141
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -360,7 +360,7 @@ msgstr ""
 #. placeholder {0}: descriptor.batch
 #. placeholder {1}: descriptor.totalBatches
 #. placeholder {2}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:75
+#: src/features/migration/components/GameStep.tsx:79
 msgid "Batch {0}/{1}: upgrading {2} name(s)"
 msgstr ""
 
@@ -1245,7 +1245,7 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:87
+#: src/features/migration/pages/MigrationPage.tsx:117
 msgid "Migration failed"
 msgstr ""
 
@@ -1776,7 +1776,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:118
+#: src/features/migration/pages/MigrationPage.tsx:148
 msgid "Retry"
 msgstr ""
 
@@ -1956,6 +1956,10 @@ msgstr "Anger ETH-adress..."
 
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:239
 msgid "Setting ETH address…"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:74
+msgid "Setting up your v2 resolver"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:381
@@ -2310,11 +2314,11 @@ msgid "Upgrade your name(s) to unlock your new ENS profile and claim your person
 msgstr ""
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:74
+#: src/features/migration/components/GameStep.tsx:78
 msgid "Upgrading {0} name(s) to v2"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:120
+#: src/features/migration/components/GameStep.tsx:124
 msgid "Upgrading your names..."
 msgstr ""
 

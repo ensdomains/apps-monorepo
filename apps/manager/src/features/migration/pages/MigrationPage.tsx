@@ -8,6 +8,7 @@ import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
+import { useMigrationPreflight } from '@/features/migration/hooks/useMigrationPreflight'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import type { MigrationError } from '@/features/migration/state/migrationUi.machine'
@@ -30,7 +31,28 @@ const ResultLayout = ({ children }: { children: ReactNode }) => (
   </motion.div>
 )
 
-const formatMigrationError = (error: MigrationError) => error.message
+const formatMigrationError = (error: MigrationError): ReactNode => {
+  switch (error.type) {
+    case 'generic':
+      return error.message
+    case 'resolver-deploy-failed':
+      return (
+        <>
+          <div>Couldn't set up your v2 resolver.</div>
+          <div>{error.message}</div>
+          <div>You can retry below.</div>
+        </>
+      )
+    case 'profile-fetch-failed':
+      return (
+        <>
+          <div>Couldn't read your current ENS records ({error.phase}).</div>
+          <div>{error.message}</div>
+          <div>You can retry below.</div>
+        </>
+      )
+  }
+}
 
 export const MigrationPage = () => {
   const navigate = useNavigate()
@@ -41,7 +63,14 @@ export const MigrationPage = () => {
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
   const smartAccount = useSmartAccountContext()
-  const { ownerAddress } = smartAccount
+  const { ownerAddress, accountAddress } = smartAccount
+  const selectedSet = new Set(selectedNames)
+  const selectedDomains = v1Names.filter((d) => selectedSet.has(d.name))
+  const { ensure: ensurePreflight } = useMigrationPreflight({
+    eoa: ownerAddress as Address | undefined,
+    scaAddress: accountAddress as Address | undefined,
+    domains: selectedDomains,
+  })
 
   const handleSuccessClose = useCallback(() => {
     uiActor.send({ type: 'done' })
@@ -53,21 +82,29 @@ export const MigrationPage = () => {
     [uiActor],
   )
 
-  const handleBeginUpgrade = useCallback(() => {
+  const handleBeginUpgrade = useCallback(async () => {
     if (!ownerAddress || !smartAccount.signer || !smartAccount.accountAddress)
       return
-    const { signer, accountAddress } = smartAccount
-    const selectedSet = new Set(selectedNames)
+    const { signer, accountAddress: sca } = smartAccount
     const domains = v1Names.filter((d) => selectedSet.has(d.name))
     if (domains.length === 0) return
+    const preflight = await ensurePreflight()
     uiActor.send({
       type: 'migration.start',
       domains,
       ownerAddress: ownerAddress as Address,
       signer,
-      accountAddress: accountAddress as Address,
+      accountAddress: sca as Address,
+      preflight,
     })
-  }, [v1Names, ownerAddress, smartAccount, selectedNames, uiActor])
+  }, [
+    v1Names,
+    ownerAddress,
+    smartAccount,
+    selectedSet,
+    uiActor,
+    ensurePreflight,
+  ])
 
   return (
     <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">
