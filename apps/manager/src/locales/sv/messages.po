@@ -886,12 +886,12 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:236
+#: src/lib/smart-account/SmartAccountContext.tsx:234
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:237
+#: src/lib/smart-account/SmartAccountContext.tsx:235
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -2390,7 +2390,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:225
+#: src/lib/smart-account/SmartAccountContext.tsx:223
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2406,7 +2406,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:224
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Wallet funded successfully"
 msgstr ""
 

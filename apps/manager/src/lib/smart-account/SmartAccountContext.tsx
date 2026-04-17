@@ -210,9 +210,7 @@ export const SmartAccountContextProvider = ({
         json: { address },
       })
       if (!response.ok) {
-        throw new Error(
-          `Failed to fund wallet: ${response.statusText} ${await response.text()}`,
-        )
+        throw new Error(`${response.status} ${response.statusText}`)
       }
       return response.json()
     },
