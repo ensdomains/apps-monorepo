@@ -62,7 +62,7 @@ vi.mock('./hca-registry', () => ({
   }),
 }))
 
-vi.mock('./utils', () => ({
+vi.mock('@rhinestone/sdk', () => ({
   wrapParaAccount: vi.fn().mockReturnValue({
     address: '0xParaAccountAddress1234567890123456789012345',
     signMessage: vi.fn(),
@@ -70,11 +70,11 @@ vi.mock('./utils', () => ({
 }))
 
 import { createParaAccount } from '@getpara/viem-v2-integration'
+import { wrapParaAccount } from '@rhinestone/sdk'
 import { toOwner } from 'permissionless/utils'
 
 import { registerHCAOwnership } from './hca-registry'
 import { initializePimlicoAccount } from './pimlico'
-import { wrapParaAccount } from './utils'
 
 describe('initializePimlicoAccount', () => {
   const mockWalletClient = {

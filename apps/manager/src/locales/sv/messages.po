@@ -82,7 +82,7 @@ msgstr ""
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:89
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:104
 msgid "{durationYears} years"
 msgstr ""
 
@@ -213,7 +213,7 @@ msgstr ""
 msgid "Address profile"
 msgstr "Adressprofil"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:157
+#: src/features/wallet/components/EnableSessionModal.tsx:148
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
 
@@ -249,16 +249,24 @@ msgstr ""
 msgid "Approval allows registrar to charge"
 msgstr ""
 
+#: src/features/wallet/components/EnableSessionModal.tsx:136
+msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Approving payment token"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:80
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:102
 msgid "Approving the payment token"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:80
+msgid "Approving the token and registering your name"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:283
@@ -472,7 +480,6 @@ msgid "Close"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:130
-#: src/features/wallet/components/EnableSessionModal.tsx:95
 msgid "Close dialog"
 msgstr ""
 
@@ -496,7 +503,7 @@ msgstr ""
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:151
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:166
 msgid "Complete your profile"
 msgstr ""
 
@@ -754,12 +761,17 @@ msgstr ""
 msgid "Enable"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:185
+#: src/features/wallet/components/EnableSessionModal.tsx:176
 msgid "Enable Sessions"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:91
+#: src/features/wallet/components/EnableSessionModal.tsx:74
 msgid "Enable Smart Sessions"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:133
+#: src/features/wallet/components/EnableSessionModal.tsx:172
+msgid "Enabling sessions…"
 msgstr ""
 
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
@@ -819,7 +831,7 @@ msgstr "Fel vid laddning av namn"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
 #: src/features/dashboard/components/PrimaryNameCard.tsx:135
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:135
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:150
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
 msgid "Expires"
 msgstr "Går ut"
@@ -874,16 +886,12 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:61
-msgid "Failed to enable session"
-msgstr ""
-
-#: src/lib/smart-account/SmartAccountContext.tsx:231
+#: src/lib/smart-account/SmartAccountContext.tsx:236
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:232
+#: src/lib/smart-account/SmartAccountContext.tsx:237
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -975,11 +983,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:200
+#: src/lib/smart-account/SmartAccountContext.tsx:205
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:201
+#: src/lib/smart-account/SmartAccountContext.tsx:206
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -1072,6 +1080,10 @@ msgstr ""
 msgid "Invalid character"
 msgstr ""
 
+#: src/features/wallet/components/EnableSessionModal.tsx:123
+msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
+msgstr ""
+
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:91
 msgid "Join the community"
 msgstr ""
@@ -1133,7 +1145,7 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 #: src/features/notifications/inbox/list.tsx:46
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:63
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:74
 msgid "Loading..."
 msgstr "Laddar..."
 
@@ -1187,7 +1199,7 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:116
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:131
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:102
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
@@ -1445,7 +1457,7 @@ msgstr ""
 msgid "Preferences updated"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:105
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:120
 msgid "Premium Fee"
 msgstr ""
 
@@ -1557,8 +1569,8 @@ msgstr ""
 msgid "Registering for <0>{durationYears}</0> years"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:99
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:122
 msgid "Registration complete"
 msgstr ""
 
@@ -1568,13 +1580,13 @@ msgstr ""
 msgid "Registration Complete!"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:80
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:95
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:73
 msgid "Registration Details"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:126
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:127
 msgid "Registration failed"
 msgstr ""
 
@@ -1583,17 +1595,17 @@ msgstr ""
 msgid "Registration Failed"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:95
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:110
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:92
 msgid "Registration Fee"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:110
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:131
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:132
 msgid "Registration in progress"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:86
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:101
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:79
 msgid "Registration Period"
 msgstr ""
@@ -1808,7 +1820,7 @@ msgstr ""
 msgid "Sending..."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:140
+#: src/features/wallet/components/EnableSessionModal.tsx:112
 msgid "Sessions enabled! You can now transact without signing each time."
 msgstr ""
 
@@ -1901,11 +1913,11 @@ msgstr ""
 msgid "Sign Message"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:106
+#: src/features/wallet/components/EnableSessionModal.tsx:78
 msgid "Sign once to enable gasless transactions for your ENS operations."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:154
+#: src/features/wallet/components/EnableSessionModal.tsx:145
 msgid "Sign once to enable seamless transactions."
 msgstr ""
 
@@ -1925,7 +1937,6 @@ msgid "Skip Anyway"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx:116
-#: src/features/wallet/components/EnableSessionModal.tsx:195
 msgid "Skip for now"
 msgstr ""
 
@@ -1933,7 +1944,7 @@ msgstr ""
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:128
+#: src/features/wallet/components/EnableSessionModal.tsx:100
 msgid "Smart Account"
 msgstr ""
 
@@ -1945,12 +1956,12 @@ msgstr ""
 msgid "Smart Session Disabled"
 msgstr ""
 
-#: src/features/profile/components/sections/SocialLinksSection.tsx:21
-msgid "Social Links"
+#: src/features/wallet/components/EnableSessionModal.tsx:120
+msgid "Smart sessions are required to use this app."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:148
-msgid "Something went wrong. Please try again."
+#: src/features/profile/components/sections/SocialLinksSection.tsx:21
+msgid "Social Links"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:148
@@ -2002,11 +2013,19 @@ msgstr ""
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
+msgid "Submitting approval and registration"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:56
 msgid "Submitting commitment transaction"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:89
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+msgid "Submitting registration bundle"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:111
 msgid "Submitting registration transaction"
 msgstr ""
 
@@ -2014,7 +2033,7 @@ msgstr ""
 msgid "Submitting the commitment transaction"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:90
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
 msgid "Submitting the registration transaction"
 msgstr ""
 
@@ -2100,7 +2119,7 @@ msgstr ""
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:204
+#: src/features/wallet/components/EnableSessionModal.tsx:187
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
@@ -2141,7 +2160,7 @@ msgstr ""
 msgid "TOTAL"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:126
+#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:141
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:112
 msgid "Total Paid"
 msgstr ""
@@ -2160,7 +2179,7 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/register-v2/workflow/result/FailureStep.tsx:58
-#: src/features/wallet/components/EnableSessionModal.tsx:183
+#: src/features/wallet/components/EnableSessionModal.tsx:174
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
 msgstr ""
@@ -2296,7 +2315,7 @@ msgstr "Visa profil"
 msgid "Waiting for approval"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:84
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:106
 msgid "Waiting for approval confirmation"
 msgstr ""
 
@@ -2316,7 +2335,9 @@ msgstr ""
 msgid "Waiting for registration"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:94
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:91
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
 msgid "Waiting for registration confirmation"
 msgstr ""
 
@@ -2333,11 +2354,10 @@ msgid "Waiting for signature"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:193
-#: src/features/wallet/components/EnableSessionModal.tsx:181
 msgid "Waiting for signature..."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:85
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:107
 msgid "Waiting for the approval confirmation"
 msgstr ""
 
@@ -2345,8 +2365,13 @@ msgstr ""
 msgid "Waiting for the commitment confirmation"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:95
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
 msgid "Waiting for the registration confirmation"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:92
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:97
+msgid "Waiting for the registration transaction"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:46
@@ -2365,7 +2390,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:220
+#: src/lib/smart-account/SmartAccountContext.tsx:225
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2381,7 +2406,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:219
+#: src/lib/smart-account/SmartAccountContext.tsx:224
 msgid "Wallet funded successfully"
 msgstr ""
 
@@ -2414,6 +2439,10 @@ msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
 #: src/features/dashboard/pages/DashboardPage.tsx:73
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
+
+#: src/features/wallet/components/EnableSessionModal.tsx:197
+msgid "What are smart sessions?"
+msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx:40
 msgid "What would you like to do?"
@@ -2525,7 +2554,7 @@ msgstr ""
 msgid "Your profile changes have been confirmed on-chain."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:38
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:45
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 

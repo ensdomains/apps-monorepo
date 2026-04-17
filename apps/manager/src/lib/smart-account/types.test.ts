@@ -51,7 +51,6 @@ const createZeroDevState = (
   isSessionClient: false,
   ecdsaValidator: null,
   isAccountReady: false,
-  setSessionData: () => {},
   ...overrides,
 })
 

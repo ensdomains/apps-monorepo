@@ -22,7 +22,7 @@ interface WalletSectionProps {
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { isSessionClient, walletSource, accountAddress, openSessionModal } =
+  const { isSessionClient, walletSource, accountAddress, promptSession } =
     useSmartAccountContext()
 
   const { copied, copy } = useCopyFeedback()
@@ -88,7 +88,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               )}
               onClick={() => {
                 if (!isSessionClient) {
-                  openSessionModal()
+                  promptSession()
                 }
 
                 onAction?.()
@@ -108,7 +108,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
                 disabled={isSessionClient}
                 onCheckedChange={() => {
                   if (!isSessionClient) {
-                    openSessionModal()
+                    promptSession()
                   }
 
                   onAction?.()

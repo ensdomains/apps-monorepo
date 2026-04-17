@@ -92,8 +92,6 @@ export interface ZeroDevAccountState extends BaseAccountState {
   ecdsaValidator: KernelValidator<'ECDSAValidator'> | null
   /** Whether the ZeroDev account is initialized and ready */
   isAccountReady: boolean
-  /** Update the session data (called when session is created) */
-  setSessionData: (session: StoredSession, client: KernelAccountClient) => void
 }
 
 /**
