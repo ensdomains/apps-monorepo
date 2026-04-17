@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
-import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { getOracleDiscountText } from '@/features/register/utils/registrationPricing'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 type RegistrationSuccessProps = {
@@ -30,6 +29,8 @@ export const RegistrationSuccess = ({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [isViewProfileLoading, setIsViewProfileLoading] = useState(false)
+
+  const baseRate = useBaseRate(domainName)
 
   const handleViewProfile = async () => {
     try {
@@ -67,14 +68,7 @@ export const RegistrationSuccess = ({
     getRegistrationDisplayDates(durationSeconds)
 
   const totalCost = formatPriceDisplay(price.total, price.decimals)
-
-  const { discountAmount, discountPercent, discountLabel } =
-    getPricingBreakdown(domainName, price, durationSeconds)
-
-  const discountText =
-    discountPercent > 0 && discountAmount > 0 && discountLabel
-      ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(discountAmount)}`
-      : undefined
+  const discountText = getOracleDiscountText(baseRate, price, durationSeconds)
 
   const handleRegisterAnother = () => {
     onRegisterAnother()

@@ -9,7 +9,6 @@ import {
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import {
-  BrowseIcon,
   CardsStackIcon,
   GraphIcon,
   HistoryIcon,
@@ -19,7 +18,7 @@ import {
   ShieldIcon,
   TollIcon,
 } from '@/assets/icons'
-import { LogoWithTextSVG } from '@/assets/logo'
+import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -58,15 +57,6 @@ type SidebarItemData = {
 const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 
 const getItems = (name: string) => [
-  defineProfileSidebarItem({
-    title: 'Overview',
-    icon: BrowseIcon,
-    link: {
-      to: '/$name',
-      params: { name },
-      activeOptions: { exact: true },
-    },
-  }),
   defineProfileSidebarItem({
     title: 'Records',
     icon: CardsStackIcon,
@@ -158,7 +148,16 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
             to="/"
             className="flex items-center group-data-[collapsible=icon]:hidden"
           >
-            <LogoWithTextSVG width={72} height="auto" />
+            <LogoSVG
+              width={35}
+              height={40}
+              className="sm:hidden text-foreground"
+            />
+            <LogoWithTextSVG
+              width={72}
+              height="auto"
+              className="hidden sm:block text-foreground"
+            />
           </Link>
           <SidebarTrigger className="shrink-0 bg-sidebar-accent hover:bg-sidebar-accent/80" />
         </div>
@@ -172,9 +171,9 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
       <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
       <SidebarContent>
-        {/* Name section — hidden when collapsed */}
-        <div className="group-data-[collapsible=icon]:hidden px-3 py-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+        {/* Name section */}
+        <div className="px-3 py-3 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
+          <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between">
             <div className="flex items-center gap-1">
               <div className="flex items-center justify-center bg-lapis-100 dark:bg-lapis-900/30 rounded-xs size-4 shrink-0">
                 <IdCardIcon className="size-2.5 text-lapis-500" />
@@ -186,20 +185,23 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
               className="bg-sidebar-accent hover:bg-sidebar-accent/80"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <Link
+            to="/$name"
+            params={{ name }}
+            activeProps={{ 'data-active': 'true' }}
+            className="flex items-center gap-2 hover:opacity-80"
+          >
             <NameAvatar
               name={name}
               height="36px"
               width="36px"
               rounded="rounded-xs"
             />
-            <span className="text-base font-medium text-foreground break-all leading-tight">
+            <span className="group-data-[collapsible=icon]:hidden text-base font-medium text-foreground break-all leading-tight">
               {name}
             </span>
-          </div>
+          </Link>
         </div>
-
-        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
 
         <SidebarGroup>
           <SidebarGroupContent>

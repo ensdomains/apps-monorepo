@@ -381,7 +381,7 @@ export const ResolverRolesSidebar = ({
                 <Button variant="outline">Cancel</Button>
               </DialogClose>
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() => {
                   setConfirmOpen(false)
                   handleRemoveUser()
