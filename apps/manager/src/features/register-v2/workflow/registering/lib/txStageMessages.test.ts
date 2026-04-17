@@ -21,4 +21,21 @@ describe('getRegistrationStageMessages', () => {
     expect(message.stageLabel.message).toBe('Registration complete')
     expect(message.progress).toBe(100)
   })
+
+  it('maps Rhinestone bundle stages (not otherwise / progress 0)', () => {
+    const submitting = getRegistrationStageMessages(
+      { value: 'submittingRhinestoneBundle' },
+      undefined,
+    )
+    expect(submitting.stageLabel.message).toBe(
+      'Submitting approval and registration',
+    )
+    expect(submitting.progress).toBe(55)
+
+    const waiting = getRegistrationStageMessages(
+      { value: 'waitingForRhinestoneBundle' },
+      'pending',
+    )
+    expect(waiting.progress).toBe(90)
+  })
 })

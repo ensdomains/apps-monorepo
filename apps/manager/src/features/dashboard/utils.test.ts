@@ -35,11 +35,13 @@ describe('dashboard utils', () => {
     })
 
     it('should format dates with different months correctly', () => {
-      expect(formatDashboardDate(new Date('2024-01-01'))).toBe(
+      expect(formatDashboardDate(new Date('2024-01-01T12:00:00Z'))).toBe(
         'January 1, 2024',
       )
-      expect(formatDashboardDate(new Date('2024-06-15'))).toBe('June 15, 2024')
-      expect(formatDashboardDate(new Date('2024-12-31'))).toBe(
+      expect(formatDashboardDate(new Date('2024-06-15T12:00:00Z'))).toBe(
+        'June 15, 2024',
+      )
+      expect(formatDashboardDate(new Date('2024-12-31T12:00:00Z'))).toBe(
         'December 31, 2024',
       )
     })

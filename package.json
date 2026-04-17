@@ -51,6 +51,7 @@
       "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
     },
     "overrides": {
+      "@rhinestone/sdk": "1.4.2",
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",
       "es-define-property": "npm:@socketregistry/es-define-property@^1",
       "for-each": "npm:@socketregistry/for-each@^1",
