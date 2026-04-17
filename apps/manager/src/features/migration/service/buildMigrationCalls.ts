@@ -10,20 +10,28 @@ const getTokenId = (name: ClassifiedName): bigint =>
     ? BigInt(name.domain.labelhash)
     : BigInt(name.domain.id)
 
-const resolverFor = (name: ClassifiedName, defaultResolver: Address): Address =>
-  name.preservedResolver ?? defaultResolver
+const resolverFor = (
+  name: ClassifiedName,
+  defaultResolver: Address,
+  ownedPermRes: Address | null,
+): Address => {
+  if (name.preservedResolver) return name.preservedResolver
+  if (ownedPermRes) return ownedPermRes
+  return defaultResolver
+}
 
 export const buildUnwrappedTransferCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
+  ownedPermRes: Address | null
 }): ZeroDevCall => {
-  const { name, migrationOwner, defaultResolver } = params
+  const { name, migrationOwner, defaultResolver, ownedPermRes } = params
   const migrationData = encodeMigrationData(
     createMigrationData({
       label: name.label,
       owner: migrationOwner,
-      resolver: resolverFor(name, defaultResolver),
+      resolver: resolverFor(name, defaultResolver, ownedPermRes),
     }),
   )
 
@@ -47,14 +55,15 @@ export const buildWrappedTransferCall = (params: {
   name: ClassifiedName
   migrationOwner: Address
   defaultResolver: Address
+  ownedPermRes: Address | null
   target: Address
 }): ZeroDevCall => {
-  const { name, migrationOwner, defaultResolver, target } = params
+  const { name, migrationOwner, defaultResolver, ownedPermRes, target } = params
   const migrationData = encodeMigrationData(
     createMigrationData({
       label: name.label,
       owner: migrationOwner,
-      resolver: resolverFor(name, defaultResolver),
+      resolver: resolverFor(name, defaultResolver, ownedPermRes),
     }),
   )
 
@@ -73,17 +82,28 @@ export const buildAllTransferCalls = (params: {
   classified: readonly ClassifiedName[]
   migrationOwner: Address
   defaultResolver: Address
+  ownedPermRes: Address | null
   parentRegistries: ReadonlyMap<string, Address>
 }): ZeroDevCall[] => {
-  const { classified, migrationOwner, defaultResolver, parentRegistries } =
-    params
+  const {
+    classified,
+    migrationOwner,
+    defaultResolver,
+    ownedPermRes,
+    parentRegistries,
+  } = params
   const calls: ZeroDevCall[] = []
 
   for (const name of classified) {
     switch (name.tokenType) {
       case 'unwrapped':
         calls.push(
-          buildUnwrappedTransferCall({ name, migrationOwner, defaultResolver }),
+          buildUnwrappedTransferCall({
+            name,
+            migrationOwner,
+            defaultResolver,
+            ownedPermRes,
+          }),
         )
         break
       case 'unlocked':
@@ -92,6 +112,7 @@ export const buildAllTransferCalls = (params: {
             name,
             migrationOwner,
             defaultResolver,
+            ownedPermRes,
             target: V2_CONTRACTS.UnlockedMigrationController,
           }),
         )
@@ -102,6 +123,7 @@ export const buildAllTransferCalls = (params: {
             name,
             migrationOwner,
             defaultResolver,
+            ownedPermRes,
             target: V2_CONTRACTS.LockedMigrationController,
           }),
         )
@@ -119,6 +141,7 @@ export const buildAllTransferCalls = (params: {
             name,
             migrationOwner,
             defaultResolver,
+            ownedPermRes,
             target: parentRegistry,
           }),
         )

@@ -69,6 +69,10 @@ export const GameStep = () => {
       { descriptor: { type: 'approve-sca' } },
       () => `${t`Approving smart account`}...`,
     )
+    .with(
+      { descriptor: { type: 'ensure-resolver' } },
+      () => `${t`Setting up your v2 resolver`}...`,
+    )
     .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) =>
       descriptor.totalBatches === 1
         ? `${t`Upgrading ${descriptor.count} name(s) to v2`}...`

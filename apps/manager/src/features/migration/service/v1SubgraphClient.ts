@@ -166,3 +166,77 @@ export const getV1NamesForAddress = ResultFn(async function* (address: string) {
 
   return ok(result)
 })
+
+const GET_PROFILES_QUERY = `
+query getProfilesForDomains($whereFilter: Domain_filter) {
+  domains(where: $whereFilter, first: 1000) {
+    id
+    resolver {
+      texts
+      coinTypes
+    }
+  }
+}
+`
+
+export type V1ProfileKeys = {
+  id: string
+  texts: readonly string[]
+  coinTypes: readonly number[]
+}
+
+class GetV1ProfilesError extends TaggedError('GetV1ProfilesError')<{
+  cause: unknown
+}> {}
+
+export const getV1ProfileKeys = ResultFn(async function* (
+  domainIds: readonly string[],
+) {
+  if (domainIds.length === 0) return ok([] as V1ProfileKeys[])
+
+  const result = yield* fromPromise(
+    (async () => {
+      const response = await fetch(V1_SUBGRAPH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: GET_PROFILES_QUERY,
+          variables: {
+            whereFilter: {
+              id_in: domainIds.map((id) => id.toLowerCase()),
+            },
+          },
+          operationName: 'getProfilesForDomains',
+        }),
+      })
+      if (!response.ok) {
+        throw new Error(`V1 subgraph request failed: ${response.status}`)
+      }
+      const json = (await response.json()) as {
+        data?: {
+          domains: readonly {
+            id: string
+            resolver: {
+              texts: readonly string[] | null
+              coinTypes: readonly number[] | null
+            } | null
+          }[]
+        }
+        errors?: readonly { message: string }[]
+      }
+      if (json.errors?.length && json.errors[0]) {
+        throw new Error(`V1 subgraph error: ${json.errors[0].message}`)
+      }
+      return (json.data?.domains ?? []).map(
+        (d): V1ProfileKeys => ({
+          id: d.id,
+          texts: d.resolver?.texts ?? [],
+          coinTypes: d.resolver?.coinTypes ?? [],
+        }),
+      )
+    })(),
+    (error) => new GetV1ProfilesError({ cause: error }),
+  )
+
+  return ok(result)
+})

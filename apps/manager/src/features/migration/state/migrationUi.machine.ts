@@ -9,17 +9,28 @@ import {
   setup,
 } from 'xstate'
 import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
+import { EMPTY_PREFLIGHT } from '@/features/migration/service/computeMigrationPreflight'
 import {
   executeMigration,
   getMigrationStepInfo,
+  type MigrationPreflight,
   type MigrationProgress,
   type MigrationResult,
   type MigrationStepDescriptor,
+  OwnedResolverDeployError,
+  ProfileFetchError,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
-export type MigrationError = { type: 'generic'; message: string }
+export type MigrationError =
+  | { type: 'generic'; message: string }
+  | { type: 'resolver-deploy-failed'; message: string }
+  | {
+      type: 'profile-fetch-failed'
+      phase: 'subgraph' | 'onchain'
+      message: string
+    }
 
 const SUCCESS_HOLD_MS = 3000
 const FAILURE_HOLD_MS = 1500
@@ -42,6 +53,23 @@ const extractErrorMessage = (err: unknown): string => {
   return err.message || 'Migration failed'
 }
 
+const toMigrationError = (err: unknown): MigrationError => {
+  if (err instanceof OwnedResolverDeployError) {
+    return {
+      type: 'resolver-deploy-failed',
+      message: extractErrorMessage(err),
+    }
+  }
+  if (err instanceof ProfileFetchError) {
+    return {
+      type: 'profile-fetch-failed',
+      phase: err.phase,
+      message: extractErrorMessage(err),
+    }
+  }
+  return { type: 'generic', message: extractErrorMessage(err) }
+}
+
 type Context = {
   wagmiConfig: WagmiConfig
   selectedNames: string[]
@@ -49,6 +77,7 @@ type Context = {
   ownerAddress?: Address
   signer?: Signer
   accountAddress?: Address
+  preflight: MigrationPreflight
   migratedNames: string[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
@@ -64,6 +93,7 @@ type Events =
       ownerAddress: Address
       signer: Signer
       accountAddress: Address
+      preflight: MigrationPreflight
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
@@ -80,6 +110,7 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   selectedNames: [],
   domains: [],
   ownerAddress: undefined,
+  preflight: EMPTY_PREFLIGHT,
   migratedNames: [],
   txHashes: [],
   progress: undefined,
@@ -107,6 +138,7 @@ export const migrationUiMachine = setup({
         ownerAddress: Address
         signer: Signer
         accountAddress: Address
+        preflight: MigrationPreflight
       }
     >(({ input, sendBack }) => {
       let cancelled = false
@@ -124,6 +156,7 @@ export const migrationUiMachine = setup({
         publicClient: defaultPublicClient as PublicClient,
         signer: input.signer,
         accountAddress: input.accountAddress,
+        preflight: input.preflight,
         onProgress,
       })
         .then((result) => {
@@ -132,10 +165,7 @@ export const migrationUiMachine = setup({
         })
         .catch((err: unknown) => {
           if (cancelled) return
-          sendBack({
-            type: 'migration.failed',
-            error: { type: 'generic', message: extractErrorMessage(err) },
-          })
+          sendBack({ type: 'migration.failed', error: toMigrationError(err) })
         })
 
       return () => {
@@ -159,12 +189,14 @@ export const migrationUiMachine = setup({
       const { stepDescriptors } = getMigrationStepInfo(
         [...event.domains],
         event.ownerAddress,
+        event.preflight,
       )
       return {
         domains: event.domains,
         ownerAddress: event.ownerAddress,
         signer: event.signer,
         accountAddress: event.accountAddress,
+        preflight: event.preflight,
         stepDescriptors,
         progress: undefined,
         lastError: undefined,
@@ -194,8 +226,11 @@ export const migrationUiMachine = setup({
         (d) => !context.migratedNames.includes(d.name),
       )
       const stepDescriptors = context.ownerAddress
-        ? getMigrationStepInfo([...remainingDomains], context.ownerAddress)
-            .stepDescriptors
+        ? getMigrationStepInfo(
+            [...remainingDomains],
+            context.ownerAddress,
+            context.preflight,
+          ).stepDescriptors
         : context.stepDescriptors
       return {
         lastError: undefined,
@@ -243,6 +278,7 @@ export const migrationUiMachine = setup({
               ownerAddress: context.ownerAddress!,
               signer: context.signer!,
               accountAddress: context.accountAddress!,
+              preflight: context.preflight,
             }),
           },
           on: {

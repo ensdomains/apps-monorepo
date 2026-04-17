@@ -13,12 +13,13 @@ import {
   writeContract,
 } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
-import { zeroAddress } from 'viem'
+import { namehash, zeroAddress } from 'viem'
 import { customSepolia } from '@/lib/wagmi'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { buildAllTransferCalls } from './buildMigrationCalls'
 import { buildPreMigrateCalls } from './buildPreMigrateCalls'
+import { buildProfileReplayCall } from './buildProfileReplayCalls'
 import { buildRoleGrantCalls } from './buildRoleGrantCalls'
 import {
   type ClassifiedName,
@@ -28,6 +29,12 @@ import {
   type IneligibleName,
   is2LD,
 } from './classifyNames'
+import {
+  EMPTY_PREFLIGHT,
+  type MigrationPreflight,
+} from './computeMigrationPreflight'
+import { ensureOwnedPermRes } from './ensureOwnedPermRes'
+import { fetchV1Profiles, type Profile } from './fetchV1Profiles'
 import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
@@ -43,6 +50,10 @@ class MigrationUserRejectedError extends TaggedError(
 )<{
   step: string
 }> {}
+
+export type { MigrationPreflight } from './computeMigrationPreflight'
+export { OwnedResolverDeployError } from './ensureOwnedPermRes'
+export { ProfileFetchError } from './fetchV1Profiles'
 
 export type MigrationProgress = {
   readonly currentStep: number
@@ -60,6 +71,7 @@ export type MigrationResult = {
 
 export type MigrationStepDescriptor =
   | { type: 'approve-sca'; count: number }
+  | { type: 'ensure-resolver' }
   | {
       type: 'migrate-batch'
       batch: number
@@ -243,11 +255,19 @@ const chunkArray = <T>(arr: readonly T[], size: number): T[][] => {
 const buildStepDescriptors = (
   classified: readonly ClassifiedName[],
   groups: GroupedNames,
+  preflight: MigrationPreflight,
 ): MigrationStepDescriptor[] => {
   const descriptors: MigrationStepDescriptor[] = []
 
-  if (needsSCAApproval(groups)) {
+  if (needsSCAApproval(groups) && !preflight.skipApprovalPhase) {
     descriptors.push({ type: 'approve-sca', count: classified.length })
+  }
+
+  const eligibleForOwnedRes = classified.filter(
+    (n) => n.preservedResolver === null,
+  )
+  if (eligibleForOwnedRes.length > 0 && !preflight.preExistingOwnedPermRes) {
+    descriptors.push({ type: 'ensure-resolver' })
   }
 
   const totalBatches = getBatchCount(classified.length)
@@ -272,6 +292,7 @@ export const executeMigration = async (params: {
   publicClient: PublicClient
   signer: Signer
   accountAddress: Address
+  preflight?: MigrationPreflight
   onProgress: (progress: MigrationProgress) => void
 }): Promise<MigrationResult> => {
   const {
@@ -282,6 +303,7 @@ export const executeMigration = async (params: {
     publicClient,
     signer,
     accountAddress,
+    preflight = EMPTY_PREFLIGHT,
     onProgress,
   } = params
 
@@ -296,7 +318,7 @@ export const executeMigration = async (params: {
   }
 
   const groups = groupClassifiedNames(classified)
-  const totalSteps = buildStepDescriptors(classified, groups).length
+  const totalSteps = buildStepDescriptors(classified, groups, preflight).length
   const ctx: MigrationCtx = {
     wagmiConfig,
     publicClient,
@@ -307,7 +329,35 @@ export const executeMigration = async (params: {
     tracker: createTracker(onProgress, totalSteps),
   }
 
-  const approvalHashes = await approveSCAIfNeeded(ctx, groups)
+  const approvalHashes = preflight.skipApprovalPhase
+    ? []
+    : await approveSCAIfNeeded(ctx, groups)
+
+  const eligibleForOwnedRes = classified.filter(
+    (n) => n.preservedResolver === null,
+  )
+
+  let ownedPermRes: Address | null = preflight.preExistingOwnedPermRes
+  if (eligibleForOwnedRes.length > 0 && !ownedPermRes) {
+    ctx.tracker.emit('Setting up your v2 resolver')
+    ownedPermRes = await ensureOwnedPermRes({
+      eoa: ctx.migrationOwner,
+      wagmiConfig: ctx.wagmiConfig,
+      publicClient: ctx.publicClient,
+    })
+    ctx.tracker.next()
+  }
+
+  let profiles = new Map<Hex, Profile>()
+  if (ownedPermRes && !preflight.skipFetchProfilesPhase) {
+    profiles = await fetchV1Profiles({
+      names: eligibleForOwnedRes.map((n) => ({
+        nodeHex: namehash(n.domain.name) as Hex,
+        v1ResolverAddress: n.v1ResolverAddress as Address,
+      })),
+      publicClient: ctx.publicClient,
+    })
+  }
 
   ctx.tracker.emit(`Preparing migration for ${classified.length} name(s)`)
 
@@ -358,14 +408,31 @@ export const executeMigration = async (params: {
       batchCalls.push(...buildPreMigrateCalls(chunkTwoLDs))
     }
 
-    batchCalls.push(
-      ...buildAllTransferCalls({
-        classified: chunk,
-        migrationOwner,
-        defaultResolver,
-        parentRegistries,
-      }),
-    )
+    const transferCalls = buildAllTransferCalls({
+      classified: chunk,
+      migrationOwner,
+      defaultResolver,
+      ownedPermRes,
+      parentRegistries,
+    })
+
+    let calls = transferCalls
+    if (ownedPermRes) {
+      const batchProfiles = new Map<Hex, Profile>()
+      for (const name of chunk) {
+        if (name.preservedResolver !== null) continue
+        const node = namehash(name.domain.name) as Hex
+        const entry = profiles.get(node.toLowerCase() as Hex)
+        if (entry) batchProfiles.set(node, entry)
+      }
+      const replay = buildProfileReplayCall({
+        myPermRes: ownedPermRes,
+        profiles: batchProfiles,
+      })
+      if (replay) calls = [...transferCalls, replay]
+    }
+
+    batchCalls.push(...calls)
 
     batchCalls.push(...buildRoleGrantCalls(chunk))
 
@@ -408,6 +475,7 @@ export const executeMigration = async (params: {
 export const getMigrationStepInfo = (
   domains: V1Domain[],
   ownerAddress: Address,
+  preflight: MigrationPreflight = EMPTY_PREFLIGHT,
 ): {
   stepCount: number
   stepDescriptors: MigrationStepDescriptor[]
@@ -415,7 +483,7 @@ export const getMigrationStepInfo = (
 } => {
   const { classified, ineligible } = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
-  const descriptors = buildStepDescriptors(classified, groups)
+  const descriptors = buildStepDescriptors(classified, groups, preflight)
 
   return {
     stepCount: descriptors.length,
