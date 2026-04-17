@@ -50,13 +50,10 @@ wait_for_service() {
 }
 
 wait_for_service "anvil" 60
-wait_for_service "alto"  90
-wait_for_service "paymaster" 90
 
-echo ""
-echo "=== All services healthy ==="
-
-# ---------- optional: fund account ----------
+# ---------- fund accounts as soon as Anvil is ready ----------
+# Funding only needs Anvil (mints tokens via cast). Do it early so the
+# smart account has ETH/USDC/DAI before the app tries to deploy or register.
 FUND_ADDRESS="${1:-}"
 if [[ -n "$FUND_ADDRESS" ]]; then
   echo ""
@@ -64,13 +61,29 @@ if [[ -n "$FUND_ADDRESS" ]]; then
   bash "$SCRIPT_DIR/fund-account.sh" "$FUND_ADDRESS"
 fi
 
+echo ""
+echo "=== Funding Rhinestone smart accounts ==="
+bash "$SCRIPT_DIR/fund-rhinestone-account.sh"
+
+# ---------- wait for remaining services ----------
+wait_for_service "alto"  90
+wait_for_service "paymaster" 90
+# Mockestrator health returns 503 (no /health endpoint) — wait briefly but don't block
+wait_for_service "mockestrator" 30 || echo "  ⚠️  mockestrator health check inconclusive (this is normal)"
+
 # ---------- print env ----------
 echo ""
 echo "=== Environment variables for the app ==="
 echo ""
+echo "  # Pimlico/ZeroDev path (default)"
 echo "  VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545"
 echo "  VITE_PIMLICO_BUNDLER_URL=/bundler   (Vite proxy → 127.0.0.1:4337)"
 echo "  VITE_PAYMASTER_URL=/paymaster       (Vite proxy → 127.0.0.1:3002)"
+echo ""
+echo "  # Rhinestone path (add these to use Rhinestone instead of Pimlico)"
+echo "  VITE_FF_RHINESTONE_SESSIONS=true"
+echo "  VITE_RHINESTONE_ENDPOINT_URL=/orchestrator   (Vite proxy → 127.0.0.1:3007)"
+echo '  VITE_RHINESTONE_CUSTOM_RPC_URLS={"11155111":"http://127.0.0.1:8545"}'
 echo ""
 echo "Copy these into your app's .env and (re)start the dev server so Vite picks them up."
 echo ""

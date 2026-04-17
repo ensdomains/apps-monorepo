@@ -283,7 +283,10 @@ export const SmartAccountContextProvider = ({
     if (!baseClient || !accountAddress) return null
 
     if (provider === 'rhinestone') {
-      const rhinestoneApiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+      const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+      const rhinestoneApiKey =
+        import.meta.env.VITE_RHINESTONE_API_KEY ||
+        (isLocalOrchestrator ? 'local-dev' : undefined)
       if (!rhinestoneApiKey) {
         logger.error('Rhinestone API key not configured - cannot create signer')
         return null

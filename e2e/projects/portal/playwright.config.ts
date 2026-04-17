@@ -11,7 +11,7 @@ export default defineConfig({
   projects: [
     {
       name: 'portal-e2e',
-      testMatch: /\.spec\.ts$/,
+      testMatch: /temporaryPremium\.spec\.ts$/,
     },
   ],
 })

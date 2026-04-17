@@ -45,7 +45,7 @@ async function dismissSiweModal(page: Page) {
       await signInBtn.click()
       // Wait for the signing to complete — the button changes to "Signing in..."
       // then the modal disappears once the SIWE session is established.
-      await signInBtn.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {})
+      await signInBtn.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => { })
     } else {
       await skipBtn.click()
     }
@@ -59,7 +59,7 @@ async function dismissSiweModal(page: Page) {
   // session is fully established (replaces "Connect or sign in")
   await page.getByRole('button', { name: /pay with stablecoins/i })
     .waitFor({ state: 'visible', timeout: 30_000 })
-    .catch(() => {})
+    .catch(() => { })
 }
 
 test.describe('Temporary Premium Names', () => {

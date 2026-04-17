@@ -90,6 +90,96 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  # Panoptes ENS Indexer: indexes ENS V2 events from the Anvil fork.
+  # Provides a GraphQL API on port 5655 for domain lookups, dashboard, etc.
+  panoptes-indexer:
+    image: ghcr.io/mdtanrikulu/panoptes:latest
+    networks:
+      e2e:
+        aliases:
+          - panoptes-indexer
+    command: ["/app/ensv2-indexer-l2"]
+    volumes:
+      - panoptes-data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/ens_v2.db
+      - RAINBOW_PATH=/app/data/ens_rainbow.db
+      - L2_RPC_URL=http://anvil:8545
+      - NETWORK_L2=sepolia
+      - BATCH_SIZE=10000
+      - POLL_INTERVAL=2
+      - RATE_LIMIT_PER_SECOND=100
+      - STATUS_PORT=3001
+      - WEBHOOKS_ENABLED=false
+    depends_on:
+      anvil:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: on-failure
+
+  panoptes-api:
+    image: ghcr.io/mdtanrikulu/panoptes:latest
+    networks:
+      e2e:
+        aliases:
+          - panoptes-api
+    command: ["/app/api-entrypoint.sh"]
+    ports:
+      - "5655:5655"
+    volumes:
+      - panoptes-data:/app/data:ro
+    environment:
+      - DATABASE_PATH=/app/data/ens_v2.db
+      - RAINBOW_PATH=/app/data/ens_rainbow.db
+      - DOWNLOAD_RAINBOW=false
+      - API_PORT=5655
+      - GRAPHQL_MAX_DEPTH=10
+      - GRAPHQL_MAX_COST=1000
+      - WEBHOOKS_ENABLED=false
+      - METRICS_ENABLED=false
+    depends_on:
+      - panoptes-indexer
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5655/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: on-failure
+
+  # Rhinestone mockestrator: local orchestrator for Rhinestone intent-based transactions.
+  # Only needed when running Rhinestone e2e tests (VITE_FF_RHINESTONE_SESSIONS=true).
+  mockestrator:
+    image: ghcr.io/ensdomains/mockestrator:latest
+    networks:
+      e2e:
+        aliases:
+          - mockestrator
+    ports:
+      - "3007:3000"
+    depends_on:
+      anvil:
+        condition: service_healthy
+    volumes:
+      - ./mockestrator/rpcs.json:/app/rpcs.json
+      - ./mockestrator/chains.json:/app/chains.json
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  panoptes-data:
+    driver: local
+
 networks:
   e2e:
     name: ens-e2e

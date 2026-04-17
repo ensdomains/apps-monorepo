@@ -28,6 +28,20 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/paymaster/, ''),
       },
+      // Local E2E: proxy Rhinestone orchestrator requests to mockestrator.
+      // Set VITE_RHINESTONE_ENDPOINT_URL=/orchestrator to activate.
+      '/orchestrator': {
+        target: 'http://127.0.0.1:3007',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/orchestrator/, ''),
+      },
+      // Local E2E: proxy indexer GraphQL requests to Panoptes API.
+      // Set VITE_INDEXER_GRAPHQL_URL=/indexer/graphql to activate.
+      '/indexer': {
+        target: 'http://127.0.0.1:5655',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/indexer/, ''),
+      },
     },
   },
   plugins: [
