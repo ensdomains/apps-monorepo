@@ -62,7 +62,10 @@ export async function initializeRhinestoneAccount(
     infrastructure = 'warp',
   } = params
 
-  const apiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+  const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+  const apiKey =
+    import.meta.env.VITE_RHINESTONE_API_KEY ||
+    (isLocalOrchestrator ? 'local-dev' : undefined)
   if (!apiKey) {
     throw new Error(
       'Rhinestone API key not configured in environment variables',
@@ -97,26 +100,69 @@ export async function initializeRhinestoneAccount(
     )
   }
 
-  const sdk = pimlicoApiKey
-    ? new RhinestoneSDK({
-        apiKey,
-        bundler: { type: 'pimlico', apiKey: pimlicoApiKey },
-      })
-    : new RhinestoneSDK({ apiKey })
+  // Local E2E: point SDK at mockestrator instead of production orchestrator.
+  // Set VITE_RHINESTONE_ENDPOINT_URL=/orchestrator (proxied via Vite to localhost:3007).
+  const endpointUrl = import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
 
+  // Build SDK options
+  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
+    apiKey,
+  }
+
+  if (pimlicoApiKey) {
+    sdkOptions.bundler = { type: 'pimlico', apiKey: pimlicoApiKey }
+  }
+
+  if (endpointUrl) {
+    sdkOptions.endpointUrl = endpointUrl
+  }
+
+  // Note: useDevContracts is NOT set even for local mode — the prod Rhinestone
+  // contracts (factory, intent executor, etc.) exist on the Sepolia fork.
+  // Setting useDevContracts causes a mismatch: SDK installs dev intent executor
+  // module on the account, but the mockestrator routes through the prod executor,
+  // causing signature verification to fail.
+
+  // Custom RPC provider for local Anvil forks (JSON map of chainId → rpcUrl).
+  // Example: VITE_RHINESTONE_CUSTOM_RPC_URLS='{"11155111":"http://127.0.0.1:8545"}'
+  const customRpcUrlsRaw = import.meta.env.VITE_RHINESTONE_CUSTOM_RPC_URLS
+  if (customRpcUrlsRaw) {
+    try {
+      const parsed = JSON.parse(customRpcUrlsRaw) as Record<string, string>
+      const urls: Record<number, string> = {}
+      for (const [chainId, url] of Object.entries(parsed)) {
+        urls[Number(chainId)] = url
+      }
+      sdkOptions.provider = { type: 'custom', urls }
+    } catch {
+      console.warn(
+        '[RHINESTONE] Failed to parse VITE_RHINESTONE_CUSTOM_RPC_URLS:',
+        customRpcUrlsRaw,
+      )
+    }
+  }
+
+  const sdk = new RhinestoneSDK(sdkOptions)
+
+  // Local mockestrator: disable experimental_sessions — the smart sessions module
+  // changes the validator and typed data structure in ways the mockestrator doesn't support.
+  // The ens-demo also creates accounts without sessions.
   const rhinestoneAccount = await sdk.createAccount({
     owners: {
       type: 'ecdsa' as const,
       accounts: [ownerAccount],
     },
-    experimental_sessions: { enabled: true },
+    ...(!isLocalOrchestrator && {
+      experimental_sessions: { enabled: true },
+    }),
   })
 
   const accountAddress = rhinestoneAccount.getAddress()
 
   // Deploy the smart account on-chain if not already deployed.
-  // Both Pimlico (ERC-4337) and Warp (intents) require the account to exist on-chain
-  // before sending transactions — the orchestrator simulates bundles against deployed state.
+  // Pre-deployment is required for the local mockestrator — the mockFill batch
+  // reverts when executeSinglechainOps runs signature verification against an
+  // account that was just deployed in the same batch (setupOps).
   const deployed = await rhinestoneAccount.isDeployed(customSepolia)
   if (!deployed) {
     console.log('🔧 [RHINESTONE] Deploying smart account on-chain...')
@@ -124,7 +170,26 @@ export async function initializeRhinestoneAccount(
     console.log('✅ [RHINESTONE] Smart account deployed:', accountAddress)
   }
 
-  // Register HCA ownership via smart account (sponsored) if requested
+  // Install any missing modules (intent executor, validators, etc.)
+  // For local mockestrator, setup() may fail if it tries to install modules
+  // via an unsupported path — treat as non-fatal.
+  try {
+    const setupResult = await rhinestoneAccount.setup(customSepolia)
+    if (setupResult) {
+      console.log('✅ [RHINESTONE] Modules installed via setup()')
+    } else {
+      console.log('✅ [RHINESTONE] All modules already installed')
+    }
+  } catch (setupError) {
+    console.warn(
+      '⚠️ [RHINESTONE] setup() failed (non-fatal):',
+      setupError instanceof Error ? setupError.message : setupError,
+    )
+  }
+
+  // Register HCA ownership via smart account (sponsored) if requested.
+  // Required for resolver authorization — the dedicated resolver checks
+  // getAccountOwner() on the HCA Factory to verify setText/setAddr callers.
   if (registerHCA) {
     const signer: RhinestoneSigner = {
       type: 'rhinestone' as const,

@@ -23,7 +23,6 @@ test.describe('Portal ENS name registration', () => {
     await connectWithHeadlessWallet(page, wallet)
 
     // ── 2. Navigate to registration page ───────────────────────────
-    const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
     await page.goto(
       `${PORTAL_APP_URL}/register?name=${DOMAIN_TO_REGISTER}`,
     )
@@ -33,35 +32,40 @@ test.describe('Portal ENS name registration', () => {
       timeout: 30_000,
     })
 
-    // ── 3. Click Continue to open payment token modal ──────────────
-    const continueButton = page.getByRole('button', { name: 'Register' })
-    await continueButton.waitFor({ state: 'visible', timeout: 30_000 })
-    await continueButton.click()
+    // ── 3. Select USDC in the payment modal ────────────────────────
+    const paymentDialog = page
+      .getByRole('dialog')
+      .filter({ hasText: 'Select payment method' })
 
-    // ── 4. Select USDC in the payment modal ────────────────────────
-    // Wait for the "Select payment token" dialog to appear
-    await expect(
-      page.getByText('Select payment token'),
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(paymentDialog).toBeVisible({ timeout: 10_000 })
 
-    // Click the USDC token option
-    const usdcOption = page.locator('button').filter({ hasText: 'USDC' }).first()
+    const usdcOption = paymentDialog.getByRole('button', { name: 'USDC' }).first()
     await usdcOption.waitFor({ state: 'visible', timeout: 10_000 })
     await usdcOption.click()
 
-    // Click "Continue with USDC"
-    const continueWithUsdc = page.getByRole('button', {
-      name: /continue with usdc/i,
+    const registerButton = paymentDialog.getByRole('button', {
+      name: /^Register$/i,
     })
-    await continueWithUsdc.waitFor({ state: 'visible', timeout: 10_000 })
-    await continueWithUsdc.click()
+    await registerButton.waitFor({ state: 'visible', timeout: 10_000 })
+    await registerButton.click()
 
-    // ── 5. Confirm purchase ────────────────────────────────────────
-    await expect(
-      page.getByText('Confirm purchase'),
-    ).toBeVisible({ timeout: 10_000 })
+    // ── 5. Review transaction steps and start registration ───────
+    const transactionDialog = page
+      .getByRole('dialog')
+      .filter({ hasText: 'Transaction flow' })
 
-    // Start console monitor before triggering transactions
+    await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
+
+    await Promise.all(
+      ['Deploy resolver', 'Submit commitment', 'Approve payment', 'Register name'].map(
+        async (stepTitle) => {
+          await expect(transactionDialog.getByText(stepTitle)).toBeVisible({
+            timeout: 30_000,
+          })
+        },
+      ),
+    )
+
     const monitor = createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
         console.log(
@@ -70,47 +74,49 @@ test.describe('Portal ENS name registration', () => {
       },
     })
 
-    // Click "Buy name"
-    const buyButton = page.getByRole('button', { name: /buy name/i })
-    await buyButton.waitFor({ state: 'visible', timeout: 10_000 })
-    await buyButton.click()
+    const startButton = transactionDialog.getByRole('button', {
+      name: /^Start$/i,
+    })
+    await startButton.waitFor({ state: 'visible', timeout: 10_000 })
+    await startButton.click()
 
-    // ── 6. Authorize transactions ──────────────────────────────────
-    // The registration flow involves multiple transactions:
-    // - Deploy resolver proxy
-    // - Commit transaction
-    // - Token approval
-    // - Register transaction
-    //
-    // `wallet.authorize(SendTransaction)` from the headless provider
-    // will wait for the next pending request if one doesn't exist yet,
-    // so we can pre-call authorize and it will auto-approve each tx
-    // as soon as it arrives.
-    //
-    // We run a continuous authorization loop concurrently with state monitoring.
-    let registrationDone = false
+    const transactionSteps = [
+      'Deploy resolver',
+      'Submit commitment',
+      'Approve payment',
+      'Register name',
+    ]
 
-    const authLoop = (async () => {
-      while (!registrationDone) {
-        try {
-          // Short timeout per iteration so we can check `registrationDone` promptly
-          await authorizeTransaction(wallet, 10_000)
-          console.log('[Portal E2E] Authorized a SendTransaction')
-        } catch {
-          // Timeout — no tx pending, loop again
-        }
+    for (const stepTitle of transactionSteps) {
+      await expect(transactionDialog.getByText(stepTitle)).toBeVisible({
+        timeout: 30_000,
+      })
+
+      const openWalletButton = transactionDialog.getByRole('button', {
+        name: /open wallet/i,
+      })
+      await openWalletButton.waitFor({ state: 'visible', timeout: 30_000 })
+      await openWalletButton.click()
+
+      await authorizeTransaction(wallet, 60_000)
+
+      const nextButton = transactionDialog.getByRole('button', {
+        name: /^(Next|Done)$/i,
+      })
+      await nextButton.waitFor({ state: 'visible', timeout: 120_000 })
+      await nextButton.click()
+
+      if (stepTitle !== 'Register name') {
+        const nextStartButton = transactionDialog.getByRole('button', {
+          name: /^Start$/i,
+        })
+        await nextStartButton.waitFor({ state: 'visible', timeout: 30_000 })
+        await nextStartButton.click()
       }
-    })()
-
-    // Wait for registration to complete or error out
-    try {
-      await monitor.waitForRegistrationComplete(240_000)
-    } finally {
-      registrationDone = true
     }
 
-    // Drain the auth loop
-    await authLoop.catch(() => { })
+    // Wait for registration to complete or error out
+    await monitor.waitForRegistrationComplete(240_000)
 
     // ── 7. Assert success ──────────────────────────────────────────
     expect(monitor.getLastState()).toBe('success')

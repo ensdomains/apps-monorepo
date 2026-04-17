@@ -135,6 +135,33 @@ MANAGER_APP_URL=https://staging.example.com pnpm e2e:manager
 
 ---
 
+## Test Suite: Registration (Rhinestone)
+
+**File**: `projects/manager/tests/registration-rhinestone.spec.ts`
+
+Same registration flow as the Pimlico test but exercises the Rhinestone provider path. The smart account is created via the Rhinestone SDK, and transactions go through the local mockestrator orchestrator instead of the Alto bundler.
+
+### Additional Infrastructure
+
+The mockestrator (`public.ecr.aws/rhinestone/mockestrator:latest`) is included in the e2e Docker stack. It simulates the Rhinestone orchestrator locally, using:
+- `e2e/infra/mockestrator/rpcs.json` — maps chain 11155111 to the Anvil fork
+- `e2e/infra/mockestrator/chains.json` — maps token symbols to our fork's MockUSDC/DAI addresses
+
+### Required Environment Variables
+
+Add these to the manager app's `.env` (in addition to the standard Pimlico vars):
+
+```
+VITE_FF_RHINESTONE_SESSIONS=true
+VITE_RHINESTONE_ENDPOINT_URL=/orchestrator
+VITE_RHINESTONE_USE_DEV_CONTRACTS=true
+VITE_RHINESTONE_CUSTOM_RPC_URLS={"11155111":"http://127.0.0.1:8545"}
+```
+
+The `/orchestrator` path is proxied by Vite to `http://127.0.0.1:3007` (mockestrator).
+
+---
+
 ## Known Limitations
 
 - **Single worker** (`workers: 1`) is required — tests share a Para wallet state

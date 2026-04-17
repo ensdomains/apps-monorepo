@@ -182,6 +182,8 @@ export const smartAccountMachine = setup({
     isParaEmbedded: ({ context }) => context.walletSource === 'para-embedded',
     isExternalWallet: ({ context }) =>
       context.walletSource === 'external-wallet',
+    /** Local mockestrator — sessions not supported, skip straight to ready. */
+    isLocalOrchestrator: () => !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL,
   },
 }).createMachine({
   id: 'smartAccount',
@@ -275,6 +277,8 @@ export const smartAccountMachine = setup({
             }),
           },
           { guard: 'wasSkipped', target: 'ready' },
+          // Local mockestrator doesn't support session enablement — skip to ready.
+          { guard: 'isLocalOrchestrator', target: 'ready' },
           { target: 'promptingSession' },
         ],
         onError: { target: 'promptingSession' },

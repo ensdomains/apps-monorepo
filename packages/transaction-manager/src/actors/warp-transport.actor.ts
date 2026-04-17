@@ -99,10 +99,20 @@ export function submitWarpTransaction(
         )
       }
 
+      console.log('📤 [WARP] SDK sendTransaction params:', {
+        sourceChains: [chain.name],
+        targetChain: chain.name,
+        callCount: calls.length,
+        tokenRequests: [],
+        sponsored: sponsored ?? true,
+        hasSessionSigners: !!sessionSigners,
+      })
+
       const transaction = await account.sendTransaction({
         sourceChains: [chain],
         targetChain: chain,
         calls,
+        tokenRequests: [],
         sponsored: sponsored ?? true,
         ...(sessionSigners ? { signers: sessionSigners } : {}),
       })
