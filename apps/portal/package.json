@@ -12,6 +12,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:coverage:open": "vitest run --coverage && open coverage/index.html",
+    "lint": "biome check",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "deploy:version": "wrangler versions upload",
