@@ -14,6 +14,8 @@ type GetV2NameHistoryErrorType = ClientError
 
 type GetV2NameHistoryParameters = {
   name: string
+  first?: number
+  orderDirection?: 'asc' | 'desc'
 }
 
 export type V2NameHistoryEvent = {
@@ -30,15 +32,17 @@ type V2DomainWithEvents = {
 
 const getV2NameHistory = ResultFn(async function* ({
   name,
+  first,
+  orderDirection,
 }: GetV2NameHistoryParameters) {
   const { domains } = yield* fromPromise(
     graphqlIndexerClient.request<{
       domains: V2DomainWithEvents[]
     }>(
       gql`
-        query getV2NameHistory($name: String!) {
+        query getV2NameHistory($name: String!, $first: Int, $orderDirection: OrderDirection) {
           domains(where: { name: $name }) {
-            events {
+            events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
               name
               type
               transactionHash
@@ -48,7 +52,7 @@ const getV2NameHistory = ResultFn(async function* ({
           }
         }
       `,
-      { name: name.toLowerCase() },
+      { name: name.toLowerCase(), first, orderDirection },
     ),
     (e) =>
       new GetV2NameHistoryError({
