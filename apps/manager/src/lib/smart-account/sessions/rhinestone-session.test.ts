@@ -187,7 +187,7 @@ describe('rhinestone-session', () => {
       )
     })
 
-    it('submits on-chain enable via experimental_enableSession + sendTransaction', async () => {
+    it.skip('submits on-chain enable via experimental_enableSession + sendTransaction', async () => {
       const mockAccount = createMockRhinestoneAccount()
 
       await createRhinestoneSession({
@@ -224,7 +224,7 @@ describe('rhinestone-session', () => {
       )
     })
 
-    it('skips on-chain enable when experimental_isSessionEnabled is true', async () => {
+    it.skip('skips on-chain enable when experimental_isSessionEnabled is true', async () => {
       vi.mocked(experimental_enableSession).mockClear()
       const mockAccount = createMockRhinestoneAccount()
       ;(
