@@ -4,9 +4,8 @@ import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
-import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
@@ -28,10 +27,9 @@ type column = MergedName
 const NameCell = ({ name }: { name: string }) => (
   <div className="flex flex-row gap-2 items-center">
     <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-    <Link to="/$name" params={{ name }}>
-      <EntityBadge variant="name">{name}</EntityBadge>
-    </Link>
-    <CopyButton value={name} size="sm" />
+    <EntityBadgeWithActions variant="name" name={name}>
+      {name}
+    </EntityBadgeWithActions>
   </div>
 )
 

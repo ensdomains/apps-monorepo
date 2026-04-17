@@ -1,7 +1,5 @@
-import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
-import { CopyButton } from '@/components/CopyButton'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
@@ -30,18 +28,13 @@ const ContractAddressRow = ({
     <span className="text-sm text-muted-foreground shrink-0 min-w-15">
       {label}
     </span>
-    <div className="flex items-center gap-2 min-w-0 flex-1">
-      {explorerUrl ? (
-        <ExternalLink href={explorerUrl}>
-          <EntityBadge variant="contract">
-            {truncateAddress(address)}
-          </EntityBadge>
-        </ExternalLink>
-      ) : (
-        <EntityBadge variant="contract">{truncateAddress(address)}</EntityBadge>
-      )}
-      <CopyButton value={address} size="sm" />
-    </div>
+    <EntityBadgeWithActions
+      variant="contract"
+      address={address}
+      etherscanHref={explorerUrl}
+    >
+      {truncateAddress(address)}
+    </EntityBadgeWithActions>
   </div>
 )
 

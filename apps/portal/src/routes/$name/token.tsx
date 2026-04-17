@@ -11,7 +11,7 @@ import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataRow } from '@/components/DataRow'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -73,12 +73,9 @@ const TokenInfoCard = ({
       </DataRow>
 
       <DataRow label="Contract" tooltip="The smart contract address">
-        <CopyableRecord
-          value={contractAddress}
-          displayValue={
-            <EntityBadge variant="contract">{contractAddress}</EntityBadge>
-          }
-        />
+        <EntityBadgeWithActions variant="contract" address={contractAddress}>
+          {contractAddress}
+        </EntityBadgeWithActions>
       </DataRow>
 
       <DataRow label="Token ID" tooltip="The token identifier">

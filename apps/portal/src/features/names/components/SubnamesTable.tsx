@@ -11,8 +11,7 @@ import {
 import { Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
-import { CopyButton } from '@/components/CopyButton'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,10 +40,9 @@ export interface SubnameRow {
 const OwnerCell = ({ owner }: { owner: Address }) => (
   <div className="flex flex-row gap-2 items-center">
     <NameAvatar name={owner} height="20px" width="20px" rounded="rounded-sm" />
-    <Link to="/addr/$addr" params={{ addr: owner }}>
-      <EntityBadge variant="address">{truncateAddress(owner)}</EntityBadge>
-    </Link>
-    <CopyButton value={owner} size="sm" />
+    <EntityBadgeWithActions variant="address" address={owner}>
+      {truncateAddress(owner)}
+    </EntityBadgeWithActions>
   </div>
 )
 
@@ -70,9 +68,9 @@ const columns: ColumnDef<SubnameRow>[] = [
             width="20px"
             rounded="rounded-sm"
           />
-          <Link to="/$name" params={{ name }}>
-            <EntityBadge variant="name">{name}</EntityBadge>
-          </Link>
+          <EntityBadgeWithActions variant="name" name={name}>
+            {name}
+          </EntityBadgeWithActions>
         </div>
       )
     },
@@ -167,17 +165,18 @@ export const SubnamesTable = ({
                   width="20px"
                   rounded="rounded-sm"
                 />
-                <Link to="/$name" params={{ name: row.original.name }}>
-                  <EntityBadge variant="name">{row.original.name}</EntityBadge>
-                </Link>
+                <EntityBadgeWithActions variant="name" name={row.original.name}>
+                  {row.original.name}
+                </EntityBadgeWithActions>
               </div>
               <div className="flex flex-row gap-2 items-center">
                 <span className="text-sm text-muted-foreground">Owner:</span>
-                <Link to="/addr/$addr" params={{ addr: row.original.owner }}>
-                  <EntityBadge variant="address">
-                    {truncateAddress(row.original.owner)}
-                  </EntityBadge>
-                </Link>
+                <EntityBadgeWithActions
+                  variant="address"
+                  address={row.original.owner}
+                >
+                  {truncateAddress(row.original.owner)}
+                </EntityBadgeWithActions>
               </div>
             </div>
           ))

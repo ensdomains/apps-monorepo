@@ -17,7 +17,7 @@ import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { CopyButton } from '@/components/CopyButton'
 import { DataRow } from '@/components/DataRow'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -169,17 +169,14 @@ const SummaryCard = ({
 
 const ResolverAddressValue = ({ address }: { address: Address }) => {
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <ExternalLink
-        href={`${sepoliaUrl}/address/${address}`}
-        className="min-w-0"
-      >
-        <EntityBadge variant="contract" className="max-w-full truncate">
-          {address}
-        </EntityBadge>
-      </ExternalLink>
-      <CopyButton value={address} size="sm" />
-    </div>
+    <EntityBadgeWithActions
+      variant="contract"
+      address={address}
+      etherscanHref={`${sepoliaUrl}/address/${address}`}
+      className="max-w-full truncate"
+    >
+      {address}
+    </EntityBadgeWithActions>
   )
 }
 
@@ -348,8 +345,6 @@ const PermissionedResolverView = ({
   ownerData: NonNullable<GetEnsOwnerReturnType>
   resolverAddress: Address
 }) => {
-  const ownerLabel = truncateAddress(ownerData.owner, 6, 4, '...')
-
   return (
     <>
       <ResolverBanner
@@ -360,7 +355,11 @@ const PermissionedResolverView = ({
         <SummaryCard
           icon={<NameAvatar name={name} height="24px" width="24px" />}
           label="Owner"
-          value={ownerLabel}
+          value={
+            <EntityBadgeWithActions variant="address" address={ownerData.owner}>
+              {truncateAddress(ownerData.owner, 6, 4, '...')}
+            </EntityBadgeWithActions>
+          }
         />
         <SummaryCard
           icon={<FocusIcon className="size-5" />}

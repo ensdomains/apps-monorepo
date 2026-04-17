@@ -1,7 +1,7 @@
-import { Link } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -17,6 +17,7 @@ export const Owner = ({
   className?: string
   asRow?: boolean
 }) => {
+  const navigate = useNavigate()
   const {
     data: ownerName,
     error,
@@ -50,10 +51,23 @@ export const Owner = ({
   }
 
   const shortenedAddress = truncateAddress(owner, 6, 4, '...')
+  const variant = ownerName ? 'name' : 'address'
 
   if (asRow) {
-    const rowContent = (
-      <>
+    const handleRowClick = () => {
+      if (ownerName) navigate({ to: '/$name', params: { name: ownerName } })
+      else navigate({ to: '/addr/$addr', params: { addr: owner } })
+    }
+
+    return (
+      <button
+        type="button"
+        className={cn(
+          'flex items-center gap-4 py-3 rounded hover:bg-muted/50 cursor-pointer w-full text-left',
+          className,
+        )}
+        onClick={handleRowClick}
+      >
         <NameAvatar
           width="20px"
           height="20px"
@@ -62,45 +76,29 @@ export const Owner = ({
         <span className="text-sm text-muted-foreground w-24 shrink-0">
           {label}
         </span>
-        <EntityBadge variant={ownerName ? 'name' : 'address'}>
-          {ownerName || shortenedAddress}
-        </EntityBadge>
-      </>
-    )
-    if (ownerName) {
-      return (
-        <Link
-          to="/$name"
-          params={{ name: ownerName }}
-          className={cn(
-            'flex items-center gap-4 py-3 hover:bg-muted/50',
-            className,
-          )}
+        <EntityBadgeWithActions
+          variant={variant}
+          name={ownerName ?? undefined}
+          address={owner}
         >
-          {rowContent}
-        </Link>
-      )
-    }
-    return (
-      <Link
-        to="/addr/$addr"
-        params={{ addr: owner }}
-        className={cn(
-          'flex items-center gap-4 py-3 hover:bg-muted/50',
-          className,
-        )}
-      >
-        {rowContent}
-      </Link>
+          {ownerName || shortenedAddress}
+        </EntityBadgeWithActions>
+      </button>
     )
   }
 
   const cardClassName = cn(
-    'p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted',
+    'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted cursor-pointer w-full text-left',
     className,
   )
-  const cardContent = (
-    <>
+
+  const handleCardClick = () => {
+    if (ownerName) navigate({ to: '/$name', params: { name: ownerName } })
+    else navigate({ to: '/addr/$addr', params: { addr: owner } })
+  }
+
+  return (
+    <button type="button" className={cardClassName} onClick={handleCardClick}>
       <NameAvatar
         width="40px"
         height="40px"
@@ -108,24 +106,14 @@ export const Owner = ({
       />
       <div className="flex flex-col gap-1">
         <span className="text-sm text-muted-foreground">{label}</span>
-        <EntityBadge variant={ownerName ? 'name' : 'address'}>
+        <EntityBadgeWithActions
+          variant={variant}
+          name={ownerName ?? undefined}
+          address={owner}
+        >
           {ownerName || shortenedAddress}
-        </EntityBadge>
+        </EntityBadgeWithActions>
       </div>
-    </>
-  )
-
-  if (ownerName) {
-    return (
-      <Link to="/$name" params={{ name: ownerName }} className={cardClassName}>
-        {cardContent}
-      </Link>
-    )
-  }
-
-  return (
-    <Link to="/addr/$addr" params={{ addr: owner }} className={cardClassName}>
-      {cardContent}
-    </Link>
+    </button>
   )
 }
