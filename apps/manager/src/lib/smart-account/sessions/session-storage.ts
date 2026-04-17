@@ -9,6 +9,7 @@ import type { Address } from 'viem'
 import type { StoredSession } from './types'
 
 const SESSION_STORAGE_KEY = 'ens-zerodev-sessions'
+const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**
  * Get all stored sessions from localStorage
@@ -138,6 +139,44 @@ export function clearAllSessions(): void {
     console.log('🗑️ All sessions cleared')
   } catch (error) {
     console.error('Failed to clear sessions:', error)
+  }
+}
+
+/**
+ * Read whether a user has skipped session creation.
+ */
+export function getSkippedStatus(ownerAddress: Address): boolean {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const value = localStorage.getItem(
+      `${SKIPPED_SESSION_KEY}-${ownerAddress.toLowerCase()}`,
+    )
+    return value === 'true'
+  } catch (error) {
+    console.error('Failed to read skipped session status:', error)
+    return false
+  }
+}
+
+/**
+ * Persist whether a user has skipped session creation.
+ */
+export function setSkippedStatus(
+  ownerAddress: Address,
+  skipped: boolean,
+): void {
+  if (typeof window === 'undefined') return
+
+  try {
+    const key = `${SKIPPED_SESSION_KEY}-${ownerAddress.toLowerCase()}`
+    if (skipped) {
+      localStorage.setItem(key, 'true')
+    } else {
+      localStorage.removeItem(key)
+    }
+  } catch (error) {
+    console.error('Failed to persist skipped session status:', error)
   }
 }
 
