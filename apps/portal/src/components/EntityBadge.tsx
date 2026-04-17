@@ -51,8 +51,12 @@ const CopyChip = ({
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    await navigator.clipboard.writeText(value)
-    setCopied(true)
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+    } catch {
+      // clipboard access denied or unavailable — silently ignore
+    }
   }
 
   useEffect(() => {
@@ -154,8 +158,7 @@ export const EntityBadgeWithActions = ({
     )
   }
 
-  const handleWrapperClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const triggerPrimaryAction = () => {
     if (variant === 'name' && name) {
       navigate({ to: '/$name', params: { name } })
     } else if (variant === 'address' && address) {
@@ -167,6 +170,18 @@ export const EntityBadgeWithActions = ({
     }
   }
 
+  const handleWrapperClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    triggerPrimaryAction()
+  }
+
+  const handleWrapperKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      triggerPrimaryAction()
+    }
+  }
+
   return (
     <button
       type="button"
@@ -175,6 +190,7 @@ export const EntityBadgeWithActions = ({
         hoverBgClass[variant],
       )}
       onClick={handleWrapperClick}
+      onKeyDown={handleWrapperKeyDown}
     >
       {/*
         Chips float above the badge.

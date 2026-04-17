@@ -67,6 +67,12 @@ export const Owner = ({
           className,
         )}
         onClick={handleRowClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleRowClick()
+          }
+        }}
       >
         <NameAvatar
           width="20px"
@@ -98,7 +104,18 @@ export const Owner = ({
   }
 
   return (
-    <button type="button" className={cardClassName} onClick={handleCardClick}>
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+    <button
+      type="button"
+      className={cardClassName}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardClick()
+        }
+      }}
+    >
       <NameAvatar
         width="40px"
         height="40px"

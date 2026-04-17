@@ -55,7 +55,7 @@ export const NameMobileCard = ({
           width="20px"
           rounded="rounded-sm"
         />
-        <EntityBadgeWithActions variant="name" name={name || ''}>
+        <EntityBadgeWithActions variant="name" name={name ?? undefined}>
           {name}
         </EntityBadgeWithActions>
       </div>
