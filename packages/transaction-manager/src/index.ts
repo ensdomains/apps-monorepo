@@ -1,5 +1,10 @@
 // Types
 
+// Actors
+export {
+  type SubmitWarpTransactionInput,
+  submitWarpTransaction,
+} from './actors/warp-transport.actor'
 export {
   GlobalTransactionToasts,
   type GlobalTransactionToastsProps,
@@ -144,17 +149,15 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
-  ERC4337Signer,
-  PrivySigner,
   RhinestoneSigner,
-  SafeSigner,
   Signer,
+  TransactionInfra,
   ZeroDevSigner,
 } from './types/signer.types'
 export {
   isEOASigner,
-  isERC4337Signer,
   isRhinestoneSigner,
+  isSessionSigner,
   isZeroDevSigner,
 } from './types/signer.types'
 export type {

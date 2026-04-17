@@ -75,6 +75,28 @@ export const getRegistrationStageMessages = (
       stageDescription: msg`Validating the commitment`,
       progress: 46,
     }))
+    .with({ stage: 'submittingRhinestoneBundle' }, () => ({
+      stageLabel: msg`Submitting approval and registration`,
+      stageDescription: msg`Approving the token and registering your name`,
+      progress: 55,
+    }))
+    .with(
+      { stage: 'waitingForRhinestoneBundle', txState: 'submitting' },
+      () => ({
+        stageLabel: msg`Submitting registration bundle`,
+        progress: 82,
+      }),
+    )
+    .with({ stage: 'waitingForRhinestoneBundle', txState: 'pending' }, () => ({
+      stageLabel: msg`Waiting for registration confirmation`,
+      stageDescription: msg`Waiting for the registration transaction`,
+      progress: 90,
+    }))
+    .with({ stage: 'waitingForRhinestoneBundle' }, () => ({
+      stageLabel: msg`Waiting for registration confirmation`,
+      stageDescription: msg`Waiting for the registration transaction`,
+      progress: 88,
+    }))
     .with({ stage: 'approvingToken' }, () => ({
       stageLabel: msg`Approving payment token`,
       stageDescription: msg`Approving the payment token`,

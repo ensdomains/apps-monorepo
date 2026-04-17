@@ -86,6 +86,9 @@ export interface SaveRecordsResult extends WaitForTransactionResult {
 
 function getSmartAccountAddress(signer: Signer): Address {
   if (signer.type === 'rhinestone') {
+    if (signer.config.accountAddress) {
+      return signer.config.accountAddress
+    }
     return signer.account.getAddress() as Address
   }
 
@@ -266,9 +269,8 @@ function createTransactionRequest(params: {
     } as ZeroDevTransactionRequest
   }
 
-  throw new Error(
-    `Unsupported signer type for transaction request: ${signer.type}`,
-  )
+  signer satisfies never
+  throw new Error('Unsupported signer type for transaction request')
 }
 
 async function buildRecordsUpdateRequest(params: {

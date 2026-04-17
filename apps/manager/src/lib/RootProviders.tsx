@@ -1,8 +1,11 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { ParaProvider } from '@getpara/react-sdk-lite'
 import { useRouteContext } from '@tanstack/react-router'
-import { SmartSessionProvider } from '@/features/wallet/components/SmartSessionProvider'
-import { SmartAccountContextProvider } from '@/lib/smart-account'
+import { EnableSessionModal } from '@/features/wallet/components/EnableSessionModal'
+import {
+  SmartAccountContextProvider,
+  useSmartAccountContext,
+} from '@/lib/smart-account'
 import '@getpara/react-sdk-lite/styles.css'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
@@ -129,11 +132,35 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           <PHProvider>
             <SmartAccountContextProvider>
               {children}
-              <SmartSessionProvider />
+              <SmartAccountSessionModal />
             </SmartAccountContextProvider>
           </PHProvider>
         </ParaProvider>
       </QueryClientProvider>
     </I18nProvider>
+  )
+}
+
+const SmartAccountSessionModal = () => {
+  const {
+    showSessionModal,
+    enableSession,
+    dismissSession,
+    accountAddress,
+    ownerAddress,
+  } = useSmartAccountContext()
+
+  return (
+    <EnableSessionModal
+      onEnableSession={enableSession}
+      onOpenChange={(open) => {
+        if (!open) {
+          dismissSession()
+        }
+      }}
+      open={showSessionModal}
+      smartAccountAddress={accountAddress ?? undefined}
+      walletAddress={ownerAddress ?? undefined}
+    />
   )
 }
