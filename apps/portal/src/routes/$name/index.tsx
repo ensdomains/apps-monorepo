@@ -254,7 +254,7 @@ const Profile = ({
       </div>
 
       {/* History */}
-      {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
+      <RecentActivity name={name} protocolVersion={resolvedProtocolVersion} />
     </div>
   )
 }
