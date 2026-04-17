@@ -10,16 +10,16 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        destructive:
-          'bg-carnelian-300 text-foreground hover:bg-carnelian-400 dark:bg-carnelian-800 dark:hover:bg-carnelian-700 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
+        danger:
+          'bg-button-danger-default text-foreground hover:bg-button-danger-hover focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
         outline:
           'border bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-secondary/50',
         success:
-          'bg-jade-300 text-foreground hover:bg-jade-400 dark:bg-jade-800 dark:hover:bg-jade-700',
+          'bg-button-success-default text-foreground hover:bg-button-success-hover',
         warning:
-          'bg-nephrite-300 text-foreground hover:bg-nephrite-400 dark:bg-nephrite-800 dark:hover:bg-nephrite-700',
+          'bg-button-warning-default text-foreground hover:bg-button-warning-hover',
         ghost:
           'hover:bg-accent text-primary hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',

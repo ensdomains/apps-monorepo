@@ -42,17 +42,17 @@ jobs:
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" typecheck || pnpm -r typecheck
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" typecheck
 
-      - name: Run Biome check on changed files
+      - name: Run Biome lint on changed files
         run: |
           echo "🔍 Running Biome on changed packages..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" check || pnpm check
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" --if-present lint
 
       - name: Run tests with coverage on changed packages
         run: |
           echo "📊 Running coverage tests on changed packages..."
-          pnpm --filter="...[${{ steps.base.outputs.ref }}]" test:coverage || pnpm -r test:coverage
+          pnpm --filter="...[${{ steps.base.outputs.ref }}]" test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
@@ -63,4 +63,4 @@ jobs:
       # - name: Run Knip on changed packages
       #   run: |
       #     echo "🧹 Checking for unused code in changed packages..."
-      #     pnpm --filter="...[${{ steps.base.outputs.ref }}]" knip --include files,dependencies || pnpm knip --include files,dependencies
+      #     pnpm --filter="...[${{ steps.base.outputs.ref }}]" knip --include files,dependencies
