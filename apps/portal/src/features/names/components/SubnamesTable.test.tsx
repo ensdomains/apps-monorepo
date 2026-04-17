@@ -16,6 +16,7 @@ vi.mock('@tanstack/react-router', () => ({
       {children}
     </a>
   ),
+  useNavigate: () => vi.fn(),
 }))
 
 vi.mock('@/components/CopyableRecord', () => ({

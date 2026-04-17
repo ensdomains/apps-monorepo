@@ -43,8 +43,8 @@ const CopyChip = ({
   value,
   label = 'Copy',
 }: {
-  value: string
-  label?: string
+  readonly value: string
+  readonly label?: string
 }) => {
   const [copied, setCopied] = useState(false)
 
