@@ -10,7 +10,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // ETH Registrar (V2)
   ETHRegistrar: '0x68586418353b771cf2425ed14a07512aa880c532' as const,
   // Fast Test ETH Registrar - same as ETHRegistrar on new deployment
-  FastTestETHRegistrar: '0x68586418353b771cf2425ed14a07512aa880c532' as const,
+  FastTestETHRegistrar: '0x3334f0ebcbc4b5b7067f3aff25c6da8973690d54' as const,
   // Dedicated Resolver Implementation
   DedicatedResolverImpl: '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as const,
   // Verifiable Factory
