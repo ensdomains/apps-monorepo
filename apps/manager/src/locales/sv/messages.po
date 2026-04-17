@@ -327,7 +327,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:141
+#: src/features/migration/pages/MigrationPage.tsx:148
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1245,7 +1245,7 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:117
+#: src/features/migration/pages/MigrationPage.tsx:124
 msgid "Migration failed"
 msgstr ""
 
@@ -1776,7 +1776,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:148
+#: src/features/migration/pages/MigrationPage.tsx:155
 msgid "Retry"
 msgstr ""
 

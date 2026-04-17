@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import {
@@ -33,29 +33,23 @@ export const useMigrationPreflight = (params: Params) => {
   const wagmiConfig = useConfig()
   const queryClient = useQueryClient()
 
-  const queryKey = buildQueryKey(params)
-
-  const fetch = async (): Promise<MigrationPreflight> => {
-    if (!params.eoa || !params.scaAddress || !publicClient)
-      return EMPTY_PREFLIGHT
-    return computeMigrationPreflight({
-      eoa: params.eoa,
-      scaAddress: params.scaAddress,
-      domains: params.domains,
-      wagmiConfig,
-      publicClient: publicClient as unknown as PublicClient,
+  const ensure = (): Promise<MigrationPreflight> => {
+    if (!params.eoa || !params.scaAddress || !publicClient) {
+      return Promise.resolve(EMPTY_PREFLIGHT)
+    }
+    return queryClient.ensureQueryData({
+      queryKey: buildQueryKey(params),
+      queryFn: () =>
+        computeMigrationPreflight({
+          eoa: params.eoa as Address,
+          scaAddress: params.scaAddress as Address,
+          domains: params.domains,
+          wagmiConfig,
+          publicClient: publicClient as unknown as PublicClient,
+        }),
+      staleTime: 60_000,
     })
   }
 
-  const query = useQuery({
-    queryKey,
-    enabled: !!params.eoa && !!params.scaAddress && !!publicClient,
-    queryFn: fetch,
-    staleTime: 60_000,
-  })
-
-  const ensure = (): Promise<MigrationPreflight> =>
-    queryClient.ensureQueryData({ queryKey, queryFn: fetch, staleTime: 60_000 })
-
-  return { ...query, ensure }
+  return { ensure }
 }
