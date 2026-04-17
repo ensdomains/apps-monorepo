@@ -117,7 +117,7 @@ msgid "+{overflow} more"
 msgstr ""
 
 #. placeholder {0}: eligibleNames.length
-#: src/features/migration/components/SelectNamesStep.tsx:172
+#: src/features/migration/components/SelectNamesStep.tsx:148
 msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
 msgstr ""
 
@@ -327,7 +327,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:148
+#: src/features/migration/pages/MigrationPage.tsx:146
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1245,11 +1245,11 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:124
+#: src/features/migration/pages/MigrationPage.tsx:122
 msgid "Migration failed"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:182
+#: src/features/migration/components/SelectNamesStep.tsx:158
 msgid "Migration transfers ownership only. Records must be set manually on ENS v2 after migration."
 msgstr ""
 
@@ -1355,7 +1355,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:114
+#: src/features/migration/components/SelectNamesStep.tsx:90
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1372,7 +1372,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:111
+#: src/features/migration/components/SelectNamesStep.tsx:87
 msgid "No names match your search"
 msgstr ""
 
@@ -1776,7 +1776,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:155
+#: src/features/migration/pages/MigrationPage.tsx:153
 msgid "Retry"
 msgstr ""
 
@@ -1856,8 +1856,8 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:87
-#: src/features/migration/components/SelectNamesStep.tsx:91
+#: src/features/migration/components/SelectNamesStep.tsx:63
+#: src/features/migration/components/SelectNamesStep.tsx:67
 msgid "Search names"
 msgstr ""
 
@@ -2300,7 +2300,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:195
+#: src/features/migration/components/SelectNamesStep.tsx:171
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2668,7 +2668,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:80
+#: src/features/migration/components/SelectNamesStep.tsx:56
 msgid "Your names are ready to upgrade"
 msgstr ""
 

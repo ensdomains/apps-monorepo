@@ -11,18 +11,6 @@ type SelectNamesStepProps = {
   readonly onNext: () => void
 }
 
-// function useAutoSelectAllNames(
-//   eligibleNames: readonly { name: string }[],
-//   selectedCount: number,
-//   onSelect: (names: Set<string>) => void,
-// ) {
-//   useEffect(() => {
-//     if (eligibleNames.length > 0 && selectedCount === 0) {
-//       onSelect(new Set(eligibleNames.map((n) => n.name)))
-//     }
-//   }, [eligibleNames, selectedCount, onSelect])
-// }
-
 export const SelectNamesStep = ({
   onNamesChange,
   onNext,
@@ -33,18 +21,6 @@ export const SelectNamesStep = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const eligibleNames = useMemo(() => eligible.map((c) => c.domain), [eligible])
-
-  // useAutoSelectAllNames(
-  //   eligibleNames,
-  //   selected.size,
-  //   useCallback(
-  //     (names) => {
-  //       setSelected(names)
-  //       onNamesChange([...names])
-  //     },
-  //     [onNamesChange],
-  //   ),
-  // )
 
   const searchLower = search.toLowerCase()
 

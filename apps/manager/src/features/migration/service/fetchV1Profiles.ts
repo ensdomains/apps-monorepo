@@ -31,13 +31,12 @@ export const fetchV1Profiles = async (params: {
   )
   const ids = [...byNode.keys()]
 
-  const keysResult = await getV1ProfileKeys(ids)
-  if (keysResult.isErr()) {
-    throw new ProfileFetchError({
-      cause: keysResult.error,
-      phase: 'subgraph',
-    })
-  }
+  const keyEntries = (await getV1ProfileKeys(ids)).match(
+    (value) => value,
+    (error) => {
+      throw new ProfileFetchError({ cause: error, phase: 'subgraph' })
+    },
+  )
 
   type Call =
     | { name: NameForFetch; kind: 'text'; key: string }
@@ -55,7 +54,7 @@ export const fetchV1Profiles = async (params: {
     args: readonly unknown[]
   }[] = []
 
-  for (const entry of keysResult.value) {
+  for (const entry of keyEntries) {
     const name = byNode.get(entry.id.toLowerCase() as Hex)
     if (!name) continue
     for (const key of entry.texts) {

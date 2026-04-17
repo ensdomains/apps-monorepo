@@ -10,6 +10,7 @@ import {
   type Hex,
   type PublicClient,
   parseAbiItem,
+  toEventSelector,
 } from 'viem'
 import { VERIFIABLE_FACTORY_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
@@ -25,22 +26,21 @@ export class OwnedResolverDeployError extends TaggedError(
 const proxyDeployedEvent = parseAbiItem(
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 )
+const PROXY_DEPLOYED_TOPIC: Hex = toEventSelector(proxyDeployedEvent)
 
 const parseProxyAddress = (
   logs: readonly { topics: readonly Hex[]; data: Hex }[],
 ): Address | null => {
   for (const log of logs) {
-    if (log.topics.length === 0) continue
-    try {
-      const decoded = decodeEventLog({
-        abi: VERIFIABLE_FACTORY_ABI,
-        data: log.data,
-        topics: log.topics as [Hex, ...Hex[]],
-      })
-      if (decoded.eventName === 'ProxyDeployed') {
-        return decoded.args.proxyAddress
-      }
-    } catch {}
+    if (log.topics[0] !== PROXY_DEPLOYED_TOPIC) continue
+    const decoded = decodeEventLog({
+      abi: VERIFIABLE_FACTORY_ABI,
+      data: log.data,
+      topics: log.topics as [Hex, ...Hex[]],
+    })
+    if (decoded.eventName === 'ProxyDeployed') {
+      return decoded.args.proxyAddress
+    }
   }
   return null
 }

@@ -64,12 +64,9 @@ export const MigrationPage = () => {
   const { data: v1Names = [] } = useV1Names()
   const smartAccount = useSmartAccountContext()
   const { ownerAddress, accountAddress } = smartAccount
-  const selectedSet = new Set(selectedNames)
-  const selectedDomains = v1Names.filter((d) => selectedSet.has(d.name))
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress as Address | undefined,
     scaAddress: accountAddress as Address | undefined,
-    domains: selectedDomains,
   })
 
   const handleSuccessClose = useCallback(() => {
@@ -86,9 +83,10 @@ export const MigrationPage = () => {
     if (!ownerAddress || !smartAccount.signer || !smartAccount.accountAddress)
       return
     const { signer, accountAddress: sca } = smartAccount
+    const selectedSet = new Set(selectedNames)
     const domains = v1Names.filter((d) => selectedSet.has(d.name))
     if (domains.length === 0) return
-    const preflight = await ensurePreflight()
+    const preflight = await ensurePreflight(domains)
     uiActor.send({
       type: 'migration.start',
       domains,
@@ -101,7 +99,7 @@ export const MigrationPage = () => {
     v1Names,
     ownerAddress,
     smartAccount,
-    selectedSet,
+    selectedNames,
     uiActor,
     ensurePreflight,
   ])
