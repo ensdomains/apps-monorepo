@@ -10,7 +10,7 @@
  *   - Manager app started with Rhinestone env vars:
  *       VITE_FF_RHINESTONE_SESSIONS=true
  *       VITE_RHINESTONE_ENDPOINT_URL=/orchestrator
- *       VITE_RHINESTONE_USE_DEV_CONTRACTS=true
+ *       VITE_RHINESTONE_CUSTOM_RPC_URLS='{"11155111":"http://127.0.0.1:8545"}'
  *       VITE_RHINESTONE_CUSTOM_RPC_URLS='{"11155111":"http://127.0.0.1:8545"}'
  */
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
