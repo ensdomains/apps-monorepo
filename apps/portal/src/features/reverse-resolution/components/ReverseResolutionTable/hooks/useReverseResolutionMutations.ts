@@ -4,12 +4,10 @@ import {
   type SetForwardResolutionRequest,
   type SetReverseNameRequest,
 } from '@ens-apps/l2-primary/utils'
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
-import { L1_REGISTRARS } from '@ens-apps/l2-primary/v2'
 import {
-  type SetPrimaryNameWriteParametersReturnType,
-  setPrimaryNameWriteParameters,
-} from '@ensdomains/ensjs/wallet'
+  getRegistrarAddress,
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
@@ -19,7 +17,6 @@ import { useConnection, useWalletClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
-import { sepoliaWithEns } from '@/lib/wagmi'
 
 type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
@@ -28,10 +25,6 @@ type UseReverseResolutionMutationsParams = {
 }
 
 type ReverseResolutionWriteRequest =
-  | {
-      kind: 'l1'
-      request: SetPrimaryNameWriteParametersReturnType
-    }
   | {
       kind: 'l1-v1-direct'
       request: {
@@ -100,18 +93,6 @@ export function useReverseResolutionMutations({
           throw new Error('Sepolia wallet client not available')
         if (!l1WalletClient.account) throw new Error('No connected account')
 
-        if (reverseInputProtocolVersion === 'ENSv1') {
-          return {
-            kind: 'l1-v1-direct',
-            request: {
-              address: L1_REGISTRARS.ENSv1,
-              abi: reverseRegistrarSetNameSnippet,
-              functionName: 'setName',
-              args: [name] as const,
-            },
-          }
-        }
-
         if (reverseInputProtocolVersion === undefined) {
           return {
             kind: 'unsupported',
@@ -119,15 +100,17 @@ export function useReverseResolutionMutations({
           }
         }
 
+        // Both ENSv1 and ENSv2 names use the ENSv1 reverse registrar on L1
+        // because the ENSv2 reverse registrar is not hooked to the registry root
         return {
-          kind: 'l1',
-          request: setPrimaryNameWriteParameters(
-            {
-              ...l1WalletClient,
-              chain: sepoliaWithEns,
-            },
-            { name },
-          ),
+          kind: 'l1-v1-direct',
+          request: {
+            // biome-ignore lint/style/noNonNullAssertion: coinType 60 always has a sepolia address
+            address: getRegistrarAddress(60)!,
+            abi: reverseRegistrarSetNameSnippet,
+            functionName: 'setName',
+            args: [name] as const,
+          },
         }
       }
 
