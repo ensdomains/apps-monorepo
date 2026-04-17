@@ -12,6 +12,7 @@
  * - Uses `waitForExecution` to get the fill receipt
  */
 
+import { logger } from '@ens-apps/utils/logger'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -80,7 +81,7 @@ export function submitWarpTransaction(
       const sendStart = nowMs()
 
       // Log raw call data before SDK processes it
-      console.log(
+      logger.debug(
         '📤 [WARP] Raw calls before SDK:',
         JSON.stringify(
           calls,
@@ -88,13 +89,13 @@ export function submitWarpTransaction(
           2,
         ),
       )
-      console.log('📤 [WARP] Account address:', account.getAddress?.())
-      console.log('📤 [WARP] Chain:', chain.name, chain.id)
-      console.log('📤 [WARP] Sponsored:', sponsored ?? true)
+      logger.debug('📤 [WARP] Account address:', account.getAddress?.())
+      logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
+      logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
       const sessionSigners = config.sessionConfig?.signers
       if (sessionSigners) {
-        console.log(
+        logger.debug(
           '📤 [WARP] Using experimental_session signers from sessionConfig',
         )
       }
@@ -108,7 +109,7 @@ export function submitWarpTransaction(
       })
       const sendLatencyMs = nowMs() - sendStart
 
-      console.log(
+      logger.debug(
         '📤 [WARP] sendTransaction latency (ms):',
         sendLatencyMs.toFixed(1),
       )
@@ -119,11 +120,11 @@ export function submitWarpTransaction(
       const waitLatencyMs = nowMs() - waitStart
       const totalLatencyMs = nowMs() - overallStart
 
-      console.log(
+      logger.debug(
         '📥 [WARP] waitForExecution latency (ms):',
         waitLatencyMs.toFixed(1),
       )
-      console.log(
+      logger.debug(
         '✅ [WARP] Total submission latency (ms):',
         totalLatencyMs.toFixed(1),
       )

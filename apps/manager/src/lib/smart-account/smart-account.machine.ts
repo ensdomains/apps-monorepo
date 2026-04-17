@@ -182,6 +182,8 @@ export const smartAccountMachine = setup({
     isParaEmbedded: ({ context }) => context.walletSource === 'para-embedded',
     isExternalWallet: ({ context }) =>
       context.walletSource === 'external-wallet',
+    canCreateSession: ({ context }) =>
+      context.provider === 'rhinestone' || context.ecdsaValidator !== null,
   },
 }).createMachine({
   id: 'smartAccount',
@@ -274,9 +276,23 @@ export const smartAccountMachine = setup({
               error: () => null,
             }),
           },
-          { target: 'promptingSession' },
+          {
+            guard: 'wasSkipped',
+            target: 'ready',
+          },
+          {
+            guard: 'canCreateSession',
+            target: 'promptingSession',
+          },
+          { target: 'ready' },
         ],
-        onError: { target: 'promptingSession' },
+        onError: [
+          {
+            guard: 'canCreateSession',
+            target: 'promptingSession',
+          },
+          { target: 'ready' },
+        ],
       },
     },
 
@@ -295,10 +311,17 @@ export const smartAccountMachine = setup({
             error: () => null,
           }),
         },
-        onError: {
-          target: 'promptingSession',
-          actions: assign({ session: () => null }),
-        },
+        onError: [
+          {
+            guard: 'canCreateSession',
+            target: 'promptingSession',
+            actions: assign({ session: () => null }),
+          },
+          {
+            target: 'ready',
+            actions: assign({ session: () => null }),
+          },
+        ],
       },
     },
 

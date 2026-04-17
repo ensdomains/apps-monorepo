@@ -699,13 +699,18 @@ export const registrationMachine = setup({
           tokenPrice: context.tokenPrice,
           selectedToken: context.selectedToken,
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           duration: context.duration,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
         }),
         onDone: {
@@ -738,6 +743,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
         onDone: 'success',
         onError: {

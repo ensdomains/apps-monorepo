@@ -353,7 +353,9 @@ describe('rhinestone-session', () => {
     })
 
     it('succeeds for session with future validUntil', async () => {
-      const session = createSession({ validUntil: Date.now() + 3600_000 })
+      const session = createSession({
+        validUntil: Math.floor(Date.now() / 1000) + 3600,
+      })
 
       const result = await restoreRhinestoneSession({ session })
 
@@ -361,7 +363,9 @@ describe('rhinestone-session', () => {
     })
 
     it('returns SessionError for expired session', async () => {
-      const session = createSession({ validUntil: Date.now() - 3600_000 })
+      const session = createSession({
+        validUntil: Math.floor(Date.now() / 1000) - 3600,
+      })
 
       const result = await restoreRhinestoneSession({ session })
 
@@ -413,8 +417,8 @@ describe('normalizeSessionDetailsForEip712Signing', () => {
       }
     ).sessionsAndChainIds
 
-    expect(row).toBeDefined()
-    const sess = row!.session
+    if (!row) throw new Error('sessionsAndChainIds row is missing')
+    const sess = row.session
 
     expect(sess.expires).toBe(maxUint256)
     expect(sess.nonce).toBe(9n)

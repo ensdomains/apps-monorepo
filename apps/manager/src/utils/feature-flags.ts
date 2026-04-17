@@ -146,10 +146,6 @@ export function getTransactionInfra(
  * Resolves which infrastructure to use for a transaction.
  * Priority: explicit override > signer default > feature flag
  */
-/**
- * Resolves which infrastructure to use for a transaction.
- * Priority: explicit override > signer default > feature flag
- */
 export function resolveInfrastructure(
   options?: { infrastructure?: TransactionInfra },
   signerDefaultInfra?: TransactionInfra,

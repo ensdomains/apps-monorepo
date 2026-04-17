@@ -144,7 +144,7 @@ export function restoreRhinestoneSession(
 
   return fromPromise(
     (async () => {
-      if (session.validUntil && Date.now() > session.validUntil) {
+      if (session.validUntil && Date.now() > session.validUntil * 1000) {
         throw new Error('Session has expired')
       }
     })(),
