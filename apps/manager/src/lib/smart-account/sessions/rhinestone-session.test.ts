@@ -353,7 +353,9 @@ describe('rhinestone-session', () => {
     })
 
     it('succeeds for session with future validUntil', async () => {
-      const session = createSession({ validUntil: Date.now() + 3600_000 })
+      const session = createSession({
+        validUntil: Math.floor(Date.now() / 1000) + 3600,
+      })
 
       const result = await restoreRhinestoneSession({ session })
 
@@ -361,7 +363,9 @@ describe('rhinestone-session', () => {
     })
 
     it('returns SessionError for expired session', async () => {
-      const session = createSession({ validUntil: Date.now() - 3600_000 })
+      const session = createSession({
+        validUntil: Math.floor(Date.now() / 1000) - 3600,
+      })
 
       const result = await restoreRhinestoneSession({ session })
 
