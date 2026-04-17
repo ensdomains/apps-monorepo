@@ -290,8 +290,6 @@ class TransactionManager {
           this.notifyTelemetryListeners(payload)
         }
       }
-
-      this.notifyListeners()
     })
 
     // Add to active transactions
