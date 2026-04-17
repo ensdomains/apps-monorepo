@@ -106,21 +106,21 @@ export const EntityBadge = ({
 }
 
 interface EntityBadgeWithActionsProps {
-  children: ReactNode
-  variant: EntityVariant
-  className?: string
+  readonly children: ReactNode
+  readonly variant: EntityVariant
+  readonly className?: string
   /** ENS name — enables Name chip (→ /$name) + Copy chip */
-  name?: string
+  readonly name?: string
   /** Owner ENS name — enables Owner chip (→ /$ownerName) */
-  ownerName?: string
+  readonly ownerName?: string
   /** Owner address — enables Owner chip (→ /addr/$ownerAddress) when ownerName is absent */
-  ownerAddress?: string
+  readonly ownerAddress?: string
   /** Address — enables Address chip (→ /addr/$address) */
-  address?: string
+  readonly address?: string
   /** Block explorer URL — enables Etherscan chip */
-  etherscanHref?: string
+  readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
-  copyValue?: string
+  readonly copyValue?: string
 }
 
 export const EntityBadgeWithActions = ({
