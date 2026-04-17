@@ -83,7 +83,6 @@ echo ""
 echo "  # Rhinestone path (add these to use Rhinestone instead of Pimlico)"
 echo "  VITE_FF_RHINESTONE_SESSIONS=true"
 echo "  VITE_RHINESTONE_ENDPOINT_URL=/orchestrator   (Vite proxy → 127.0.0.1:3007)"
-echo "  VITE_RHINESTONE_USE_DEV_CONTRACTS=true"
 echo '  VITE_RHINESTONE_CUSTOM_RPC_URLS={"11155111":"http://127.0.0.1:8545"}'
 echo ""
 echo "Copy these into your app's .env and (re)start the dev server so Vite picks them up."
