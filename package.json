@@ -24,13 +24,7 @@
     "test:manager:ui": "pnpm -r --filter=manager test:ui",
     "test:manager:cov": "pnpm -r --filter=manager test:coverage",
     "test:manager:cov:open": "pnpm -r --filter=manager test:coverage:open",
-    "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev",
-    "e2e": "pnpm --filter @ens-apps/e2e test:manager",
-    "e2e:manager": "pnpm --filter @ens-apps/e2e test:manager",
-    "e2e:portal": "pnpm --filter @ens-apps/e2e test:portal",
-    "e2e:cross-app": "pnpm --filter @ens-apps/e2e test:cross-app",
-    "e2e:infra:up": "pnpm --filter @ens-apps/e2e infra:up",
-    "e2e:infra:down": "pnpm --filter @ens-apps/e2e infra:down"
+    "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev"
   },
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
@@ -54,11 +48,10 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch",
-      "@ensdomains/headless-web3-provider": "patches/@ensdomains__headless-web3-provider.patch"
+      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
     },
     "overrides": {
-      "@rhinestone/sdk": "1.2.17",
+      "@rhinestone/sdk": "1.4.2",
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",
       "es-define-property": "npm:@socketregistry/es-define-property@^1",
       "for-each": "npm:@socketregistry/for-each@^1",

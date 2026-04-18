@@ -8,6 +8,6 @@ package-lock.json
 *.workspace
 .mcp.json
 .dev.vars
-.secrets
 .pnpm-store/
 opencode.json
+e2e/test-results/*

@@ -101,7 +101,6 @@ export async function initializeRhinestoneAccount(
   }
 
   // Local E2E: point SDK at mockestrator instead of production orchestrator.
-  // Set VITE_RHINESTONE_ENDPOINT_URL=/orchestrator (proxied via Vite to localhost:3007).
   const endpointUrl = import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
 
   // Build SDK options
@@ -117,14 +116,7 @@ export async function initializeRhinestoneAccount(
     sdkOptions.endpointUrl = endpointUrl
   }
 
-  // Note: useDevContracts is NOT set even for local mode — the prod Rhinestone
-  // contracts (factory, intent executor, etc.) exist on the Sepolia fork.
-  // Setting useDevContracts causes a mismatch: SDK installs dev intent executor
-  // module on the account, but the mockestrator routes through the prod executor,
-  // causing signature verification to fail.
-
   // Custom RPC provider for local Anvil forks (JSON map of chainId → rpcUrl).
-  // Example: VITE_RHINESTONE_CUSTOM_RPC_URLS='{"11155111":"http://127.0.0.1:8545"}'
   const customRpcUrlsRaw = import.meta.env.VITE_RHINESTONE_CUSTOM_RPC_URLS
   if (customRpcUrlsRaw) {
     try {
@@ -146,7 +138,6 @@ export async function initializeRhinestoneAccount(
 
   // Local mockestrator: disable experimental_sessions — the smart sessions module
   // changes the validator and typed data structure in ways the mockestrator doesn't support.
-  // The ens-demo also creates accounts without sessions.
   const rhinestoneAccount = await sdk.createAccount({
     owners: {
       type: 'ecdsa' as const,
@@ -160,9 +151,8 @@ export async function initializeRhinestoneAccount(
   const accountAddress = rhinestoneAccount.getAddress()
 
   // Deploy the smart account on-chain if not already deployed.
-  // Pre-deployment is required for the local mockestrator — the mockFill batch
-  // reverts when executeSinglechainOps runs signature verification against an
-  // account that was just deployed in the same batch (setupOps).
+  // Both Pimlico (ERC-4337) and Warp (intents) require the account to exist on-chain
+  // before sending transactions — the orchestrator simulates bundles against deployed state.
   const deployed = await rhinestoneAccount.isDeployed(customSepolia)
   if (!deployed) {
     console.log('🔧 [RHINESTONE] Deploying smart account on-chain...')
@@ -187,9 +177,7 @@ export async function initializeRhinestoneAccount(
     )
   }
 
-  // Register HCA ownership via smart account (sponsored) if requested.
-  // Required for resolver authorization — the dedicated resolver checks
-  // getAccountOwner() on the HCA Factory to verify setText/setAddr callers.
+  // Register HCA ownership
   if (registerHCA) {
     const signer: RhinestoneSigner = {
       type: 'rhinestone' as const,

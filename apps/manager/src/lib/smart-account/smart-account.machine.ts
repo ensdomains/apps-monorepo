@@ -276,7 +276,6 @@ export const smartAccountMachine = setup({
               error: () => null,
             }),
           },
-          { guard: 'wasSkipped', target: 'ready' },
           // Local mockestrator doesn't support session enablement — skip to ready.
           { guard: 'isLocalOrchestrator', target: 'ready' },
           { target: 'promptingSession' },

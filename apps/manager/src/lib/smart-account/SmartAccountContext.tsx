@@ -28,7 +28,6 @@ import { useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
-import { isLocalBundler } from './bundler-url'
 import type { RhinestoneConfig } from './rhinestone'
 import {
   selectIsCreatingSession,
@@ -244,7 +243,6 @@ export const SmartAccountContextProvider = ({
   const { isIdle: isFundingIdle, mutate: fundWallet } = autoFundingMutation
 
   useEffect(() => {
-    if (isLocalBundler()) return // local E2E — fund via script instead
     if (
       !addressToFund ||
       isLoading ||
@@ -348,8 +346,8 @@ export const SmartAccountContextProvider = ({
       }
     }
 
-    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY ?? ''
-    if (!isLocalBundler() && !pimlicoApiKey) {
+    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
+    if (!pimlicoApiKey) {
       logger.error('Pimlico API key not configured - cannot create signer')
       return null
     }

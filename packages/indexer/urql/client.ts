@@ -65,7 +65,9 @@ function getIndexerClient() {
 // This ensures the client picks up the correct URL based on the runtime context.
 const indexerClient = new Proxy({} as ReturnType<typeof createIndexerClient>, {
   get(_, prop) {
-    return (getIndexerClient() as Record<string | symbol, unknown>)[prop]
+    return (getIndexerClient() as unknown as Record<string | symbol, unknown>)[
+      prop
+    ]
   },
 })
 
