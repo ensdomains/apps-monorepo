@@ -90,7 +90,8 @@ function createTransactionRequest(params: {
     }
   }
 
-  throw new Error(`Unsupported signer type for resolver update: ${signer.type}`)
+  signer satisfies never
+  throw new Error('Unsupported signer type for resolver update')
 }
 
 export function submitResolverUpdateActor(input: {

@@ -15,6 +15,7 @@ dedupeDirectDeps: true
 minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
+  - "@rhinestone/sdk"
   - '@lingui/*'
 
 resolutionMode: highest
