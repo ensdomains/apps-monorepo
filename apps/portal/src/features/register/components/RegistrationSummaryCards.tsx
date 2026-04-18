@@ -32,7 +32,11 @@ export const RegistrationSummaryCards = ({
     baseDate ? dateToPlainDate(baseDate) : undefined,
   )
 
-  const totalCost = formatPriceDisplay(price.total, price.decimals)
+  // Renewal only charges `base` (ETHRegistrar.renew). Registration charges base + premium.
+  const totalCost = formatPriceDisplay(
+    isExtension ? price.base : price.total,
+    price.decimals,
+  )
 
   const { discountAmount, discountPercent, discountLabel } =
     getPricingBreakdown(domainName, price, durationSeconds)

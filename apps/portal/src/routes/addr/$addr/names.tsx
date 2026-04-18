@@ -98,10 +98,16 @@ const getNameStatus = (expiryDate: Date | null | undefined): string => {
   return 'registered'
 }
 
-// V2 has no grace period: ETHRegistrar.renew reverts once expiry <= now.
-const isExtendable2LD = ({ name, isV2, expiryDate }: SelectedName): boolean =>
-  /^[^.]+\.eth$/.test(name) &&
-  !(isV2 && !!expiryDate && expiryDate.getTime() <= Date.now())
+// V2: ETHRegistrar.renew reverts once expiry <= now (no grace period).
+// V1: ETHRegistrarController.renew reverts once past grace (in premium window).
+const isExtendable2LD = ({ name, isV2, expiryDate }: SelectedName): boolean => {
+  if (!/^[^.]+\.eth$/.test(name)) return false
+  if (!expiryDate) return true
+  const cutoff = isV2
+    ? expiryDate.getTime()
+    : expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY
+  return cutoff > Date.now()
+}
 
 const getNameLength = (name: string | null): string => {
   if (!name) return '5+'
