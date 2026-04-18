@@ -87,11 +87,16 @@ jobs:
           cp apps/portal/.env.ci apps/portal/.env
           cp e2e/.env.ci e2e/.env
 
-      # ── fund test accounts (mint USDC/DAI for portal headless wallet) ──
-      - name: Fund test accounts
+      # ── fund test accounts ──────────────────────────────────────
+      - name: Fund portal test accounts
         if: matrix.project == 'portal'
         run: |
           bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+      - name: Fund Rhinestone smart accounts
+        if: matrix.project == 'manager'
+        run: |
+          bash e2e/infra/scripts/fund-rhinestone-account.sh
 
       # ── run e2e tests ─────────────────────────────────────────────
       - name: Run E2E tests (${{ matrix.project }})
