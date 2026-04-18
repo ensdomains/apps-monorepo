@@ -89,6 +89,7 @@ export const ExtendNameModal = ({
                     duration,
                     v2TokenAddress: token.address,
                     v2TokenPrice: token.price.base,
+                    v2TokenAllowance: token.allowance,
                   })
                 }
                 isRegistering={false}

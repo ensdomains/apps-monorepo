@@ -47,6 +47,7 @@ type SavedRenewalParams = {
   // V2 (ERC20)
   readonly v2TokenAddress?: Address
   readonly v2TokenPrice?: bigint
+  readonly v2TokenAllowance?: bigint
   readonly v2TokenSymbol?: SupportedTokenSymbol
   // V1 (ETH) — price fetched fresh per tx for accuracy
 }
@@ -55,6 +56,7 @@ export type StartFlowConfig = {
   readonly duration: number
   readonly v2TokenAddress?: Address
   readonly v2TokenPrice?: bigint
+  readonly v2TokenAllowance?: bigint
 }
 
 type ApproveParams = {
@@ -207,12 +209,22 @@ type RenewalActionHandlers = {
 const buildRenewalFlowTransactions = (
   savedParams: SavedRenewalParams | null,
   handlers: RenewalActionHandlers,
+  hasSufficientAllowance: boolean,
 ): Transaction[] => {
   if (!savedParams) return []
 
   const { name, v2TokenAddress, v2TokenSymbol } = savedParams
 
   if (name.isV2 && v2TokenAddress) {
+    const renewTx: Transaction = {
+      id: RENEWAL_TX_IDS.v2Renew(name.name),
+      title: `Extend ${name.name}`,
+      transactionName: `Extend ${name.name}`,
+      estimatedGasCost: 0.001,
+      onStart: handlers.onV2RenewStart,
+      onDone: handlers.onDone,
+    }
+    if (hasSufficientAllowance) return [renewTx]
     return [
       {
         id: RENEWAL_TX_IDS.approve,
@@ -222,14 +234,7 @@ const buildRenewalFlowTransactions = (
         onStart: handlers.onApproveStart,
         onDone: handlers.onV2RenewStart,
       },
-      {
-        id: RENEWAL_TX_IDS.v2Renew(name.name),
-        title: `Extend ${name.name}`,
-        transactionName: `Extend ${name.name}`,
-        estimatedGasCost: 0.001,
-        onStart: handlers.onV2RenewStart,
-        onDone: handlers.onDone,
-      },
+      renewTx,
     ]
   }
 
@@ -330,12 +335,21 @@ export const useRenewalTransactions = () => {
     )
   }
 
-  const transactions = buildRenewalFlowTransactions(savedParams, {
-    onApproveStart: handleApproveStart,
-    onV2RenewStart: handleV2RenewStart,
-    onV1RenewStart: handleV1RenewStart,
-    onDone: handleDone,
-  })
+  const hasSufficientAllowance =
+    savedParams?.v2TokenPrice !== undefined &&
+    savedParams.v2TokenAllowance !== undefined &&
+    savedParams.v2TokenAllowance >= savedParams.v2TokenPrice
+
+  const transactions = buildRenewalFlowTransactions(
+    savedParams,
+    {
+      onApproveStart: handleApproveStart,
+      onV2RenewStart: handleV2RenewStart,
+      onV1RenewStart: handleV1RenewStart,
+      onDone: handleDone,
+    },
+    hasSufficientAllowance,
+  )
 
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
     const v2TokenSymbol = flowConfig.v2TokenAddress
@@ -347,6 +361,7 @@ export const useRenewalTransactions = () => {
       duration: flowConfig.duration,
       v2TokenAddress: flowConfig.v2TokenAddress,
       v2TokenPrice: flowConfig.v2TokenPrice,
+      v2TokenAllowance: flowConfig.v2TokenAllowance,
       v2TokenSymbol,
     })
   }
