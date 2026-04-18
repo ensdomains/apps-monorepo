@@ -6,8 +6,8 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  '@ensdomains/ensjs': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@2d1d13d
-  '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@2d1d13d
+  '@ensdomains/ensjs': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@27cd75b
+  '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@27cd75b
   xstate: ^5.24.0
 
 dedupeDirectDeps: true
