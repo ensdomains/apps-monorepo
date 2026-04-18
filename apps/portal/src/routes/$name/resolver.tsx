@@ -82,7 +82,7 @@ const EditButtons = ({ address, name, resolverAddress }: EditButtonsProps) => {
   const label = name.split('.')[0]
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
-      registryAddress: currentNameRegistry ?? zeroAddress,
+      registryAddress: currentNameRegistry,
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: address,
@@ -559,7 +559,7 @@ const NoResolverSet = ({
       registryAddress,
       label,
       roles: ['ROLE_SET_RESOLVER'],
-      account: account ?? zeroAddress,
+      account,
     }),
     enabled: !!account,
   })
@@ -647,7 +647,10 @@ function RouteComponent() {
 
   const resolverAddress = resolverQuery.data
 
-  if (!resolverAddress || resolverAddress === zeroAddress) {
+  if (
+    (!resolverAddress || resolverAddress === zeroAddress) &&
+    ownerQuery.data.registryAddress
+  ) {
     return (
       <NoResolverSet
         name={name}
