@@ -23,7 +23,7 @@ const getBurnedFuseCount = ResultFn(async function* ({
 }: BurnedFuseCountParameters) {
   const wrapperData = yield* getNameWrapperData({ name })
 
-  if (!wrapperData) return ok(0)
+  if (!wrapperData) return ok(null)
 
   const { fuses } = wrapperData
 
