@@ -1,8 +1,8 @@
-import { Trans, useLingui } from '@lingui/react/macro'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { Search } from 'lucide-react'
