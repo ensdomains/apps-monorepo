@@ -58,8 +58,8 @@ export const ExtendNameModal = ({
       onOpenChange={(open) => {
         if (!open) {
           onClose()
+          setStep('disclaimer')
         }
-        setStep('disclaimer')
       }}
     >
       <DialogContent className="sm:max-w-[460px]">
@@ -88,7 +88,7 @@ export const ExtendNameModal = ({
                   onExtend({
                     duration,
                     v2TokenAddress: token.address,
-                    v2TokenPrice: token.price.total,
+                    v2TokenPrice: token.price.base,
                   })
                 }
                 isRegistering={false}

@@ -37,6 +37,8 @@ export const ExtendNameConfirmation = ({
         domainName={selectedName.name}
         durationSeconds={durationSeconds}
         price={price}
+        baseDate={selectedName.expiryDate ?? undefined}
+        isExtension
       />
       <PaymentTokenPicker
         name={selectedName.name}

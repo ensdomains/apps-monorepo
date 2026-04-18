@@ -4,20 +4,33 @@ import { getRegistrationDisplayDates } from '@/features/register/utils/registrat
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import { dateToPlainDate } from '@/utils/temporal'
 
 type RegistrationSummaryCardsProps = {
   readonly domainName: string
   readonly durationSeconds: number
   readonly price: RegistrationPriceResult
+  /** Anchor date for expiry calc; defaults to today. Pass current expiry for extensions. */
+  readonly baseDate?: Date
+  readonly isExtension?: boolean
 }
 
 export const RegistrationSummaryCards = ({
   domainName,
   durationSeconds,
   price,
+  baseDate,
+  isExtension = false,
 }: RegistrationSummaryCardsProps) => {
-  const { registrationPeriod, registrationDays, expiresFormatted } =
-    getRegistrationDisplayDates(durationSeconds)
+  const {
+    registrationPeriod,
+    registrationDays,
+    daysUntilExpiry,
+    expiresFormatted,
+  } = getRegistrationDisplayDates(
+    durationSeconds,
+    baseDate ? dateToPlainDate(baseDate) : undefined,
+  )
 
   const totalCost = formatPriceDisplay(price.total, price.decimals)
 
@@ -32,7 +45,7 @@ export const RegistrationSummaryCards = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
       <div className="rounded-xl border border-border bg-card p-4 text-center">
-        <p className="text-sm">Registration</p>
+        <p className="text-sm">{isExtension ? 'Extension' : 'Registration'}</p>
         <p className="text-foreground text-base font-medium mt-1">
           {registrationPeriod}
         </p>
@@ -41,12 +54,12 @@ export const RegistrationSummaryCards = ({
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4 text-center">
-        <p className="text-sm">Expires</p>
+        <p className="text-sm">{isExtension ? 'New expiry' : 'Expires'}</p>
         <p className="text-foreground text-base font-medium mt-1">
           {expiresFormatted}
         </p>
         <p className="text-muted-foreground text-xs mt-0.5">
-          in {registrationDays} days
+          in {daysUntilExpiry} days
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4 text-center">

@@ -98,6 +98,11 @@ const getNameStatus = (expiryDate: Date | null | undefined): string => {
   return 'registered'
 }
 
+// V2 has no grace period: ETHRegistrar.renew reverts once expiry <= now.
+const isExtendable2LD = ({ name, isV2, expiryDate }: SelectedName): boolean =>
+  /^[^.]+\.eth$/.test(name) &&
+  !(isV2 && !!expiryDate && expiryDate.getTime() <= Date.now())
+
 const getNameLength = (name: string | null): string => {
   if (!name) return '5+'
   // Remove the TLD (e.g., .eth)
@@ -247,6 +252,11 @@ function RouteComponent() {
     [rowSelection, filteredData],
   )
 
+  const canExtendSelection =
+    rowCount === 1 && selectedNames.length === 1
+      ? isExtendable2LD(selectedNames[0])
+      : false
+
   const searchNamesId = useId()
 
   if (v1NamesQuery.isLoading) {
@@ -307,7 +317,7 @@ function RouteComponent() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={rowCount !== 1}
+              disabled={!canExtendSelection}
               onClick={() => setExtendModalOpen(true)}
             >
               <FastForward className="size-4" />

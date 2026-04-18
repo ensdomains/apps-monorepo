@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
+import { dateToPlainDate } from '@/utils/temporal'
 import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
@@ -21,6 +22,8 @@ type RegistrationDurationOrExpiryPickerProps = {
   readonly disabled?: boolean
   readonly duration: number
   readonly setDuration: (duration: number) => void
+  /** Anchor for picker date math; defaults to today. Pass current expiry for extensions. */
+  readonly baseDate?: Date
 }
 
 export const RegistrationDurationOrExpiryPicker = ({
@@ -28,7 +31,9 @@ export const RegistrationDurationOrExpiryPicker = ({
   disabled = false,
   duration,
   setDuration,
+  baseDate,
 }: RegistrationDurationOrExpiryPickerProps) => {
+  const anchor = baseDate ? dateToPlainDate(baseDate) : undefined
   const [registrationSpanType, setRegistrationSpanType] =
     useState<RegistrationSpanType>('years')
 
@@ -85,12 +90,12 @@ export const RegistrationDurationOrExpiryPicker = ({
           />
         ) : (
           <RegistrationExpiryDatePicker
-            date={getExpiryDateForPicker(duration)}
+            date={getExpiryDateForPicker(duration, anchor)}
             onDateChange={(date) =>
-              setDuration(getDurationFromPickerDate(date))
+              setDuration(getDurationFromPickerDate(date, anchor))
             }
-            minDate={getMinExpiryDateForPicker()}
-            maxDate={getMaxExpiryDateForPicker()}
+            minDate={getMinExpiryDateForPicker(anchor)}
+            maxDate={getMaxExpiryDateForPicker(anchor)}
           />
         )}
       </div>
