@@ -233,6 +233,7 @@ const Profile = ({
             name={name}
             registryAddress={ownerQuery.data.registryAddress}
             asRow
+            protocolVersion={resolvedProtocolVersion}
           />
         </div>
 

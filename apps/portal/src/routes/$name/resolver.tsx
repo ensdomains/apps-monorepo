@@ -72,9 +72,10 @@ const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
 interface EditButtonsProps {
   address: Address
   name: string
+  resolverAddress?: Address
 }
 
-const EditButtons = ({ address, name }: EditButtonsProps) => {
+const EditButtons = ({ address, name, resolverAddress }: EditButtonsProps) => {
   const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
   const registryQuery = useQuery(getNameRegistriesQueryOptions({ name }))
   const currentNameRegistry = registryQuery.data?.registries?.[1]
@@ -94,6 +95,8 @@ const EditButtons = ({ address, name }: EditButtonsProps) => {
   const canChangeResolver = isOwner || hasSetResolverRole
 
   if (!canChangeResolver) return null
+
+  if (!resolverAddress || resolverAddress === zeroAddress) return null
 
   return (
     <Button variant="secondary" className="flex items-center gap-2" asChild>
@@ -512,7 +515,13 @@ const ResolverView = ({
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-heading font-medium">Resolver</h1>
-        {address ? <EditButtons address={address} name={name} /> : null}
+        {address ? (
+          <EditButtons
+            address={address}
+            name={name}
+            resolverAddress={resolverAddress}
+          />
+        ) : null}
       </div>
 
       {permissionedResolverQuery.data ? (
@@ -531,6 +540,63 @@ const ResolverView = ({
       )}
 
       <HistorySection name={name} protocolVersion={ownerData.protocolVersion} />
+    </div>
+  )
+}
+
+const NoResolverSet = ({
+  name,
+  registryAddress,
+}: {
+  name: string
+  registryAddress: Address
+}) => {
+  const { address: account } = useConnection()
+  const label = name.split('.')[0]
+
+  const { data: hasSetResolverRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress,
+      label,
+      roles: ['ROLE_SET_RESOLVER'],
+      account: account ?? zeroAddress,
+    }),
+    enabled: !!account,
+  })
+
+  if (!hasSetResolverRole) {
+    return (
+      <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
+        <h1 className="text-heading font-medium">Resolver</h1>
+        <div className="flex items-center gap-4 rounded-2xl bg-blue-50 p-6">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
+            <InfoIcon className="size-5 text-lapis-500" />
+          </div>
+          <p className="flex-1 text-base text-lapis-900">
+            This name does not have a resolver set.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
+      <h1 className="text-heading font-medium">Resolver</h1>
+      <div className="flex items-center gap-4 rounded-2xl bg-blue-50 p-6">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
+          <InfoIcon className="size-5 text-lapis-500" />
+        </div>
+        <p className="flex-1 text-base text-lapis-900">
+          This name does not have a resolver set.
+        </p>
+        <Button variant="secondary" className="flex items-center gap-2" asChild>
+          <Link to="/$name/change-resolver" params={{ name }}>
+            <EditIcon className="size-4" />
+            Set resolver
+          </Link>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -579,19 +645,22 @@ function RouteComponent() {
       />
     )
 
-  if (!resolverQuery.data)
+  const resolverAddress = resolverQuery.data
+
+  if (!resolverAddress || resolverAddress === zeroAddress) {
     return (
-      <ErrorMessage
-        title="Resolver not found"
-        description="Could not find resolver address."
+      <NoResolverSet
+        name={name}
+        registryAddress={ownerQuery.data.registryAddress}
       />
     )
+  }
 
   return (
     <ResolverView
       name={name}
       ownerData={ownerQuery.data}
-      resolverAddress={resolverQuery.data}
+      resolverAddress={resolverAddress}
     />
   )
 }
