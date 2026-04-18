@@ -564,22 +564,6 @@ const NoResolverSet = ({
     enabled: !!account,
   })
 
-  if (!hasSetResolverRole) {
-    return (
-      <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
-        <h1 className="text-heading font-medium">Resolver</h1>
-        <div className="flex items-center gap-4 rounded-2xl bg-blue-50 p-6">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
-            <InfoIcon className="size-5 text-lapis-500" />
-          </div>
-          <p className="flex-1 text-base text-lapis-900">
-            This name does not have a resolver set.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
       <h1 className="text-heading font-medium">Resolver</h1>
@@ -590,12 +574,18 @@ const NoResolverSet = ({
         <p className="flex-1 text-base text-lapis-900">
           This name does not have a resolver set.
         </p>
-        <Button variant="secondary" className="flex items-center gap-2" asChild>
-          <Link to="/$name/change-resolver" params={{ name }}>
-            <EditIcon className="size-4" />
-            Set resolver
-          </Link>
-        </Button>
+        {hasSetResolverRole && (
+          <Button
+            variant="secondary"
+            className="flex items-center gap-2"
+            asChild
+          >
+            <Link to="/$name/change-resolver" params={{ name }}>
+              <EditIcon className="size-4" />
+              Set resolver
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   )
