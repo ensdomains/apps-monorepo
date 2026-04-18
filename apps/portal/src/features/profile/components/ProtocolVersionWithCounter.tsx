@@ -70,10 +70,12 @@ const FuseCount = ({ name }: { name: string }) => {
     )
   if (isLoading) return <LoadingSpinner />
 
+  if (data === null) return null
+
   return (
     <CounterCard to="/$name/fuses" params={{ name }}>
       <CounterCardRow icon={ShieldIcon}>
-        <span className="font-medium text-foreground">{data || 0}</span>{' '}
+        <span className="font-medium text-foreground">{data}</span>{' '}
         <span className="text-muted-foreground">fuses burned</span>
       </CounterCardRow>
     </CounterCard>
