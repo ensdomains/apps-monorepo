@@ -1,6 +1,6 @@
-import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
+import { erc20Abi } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -22,7 +22,7 @@ export function useAutoFundOnLowBalance() {
   } = useReadContracts({
     contracts: PAYMENT_TOKENS.map((token) => ({
       address: token.address,
-      abi: ERC20_ABI,
+      abi: erc20Abi,
       functionName: 'balanceOf',
       args: address ? [address] : undefined,
       chainId: sepoliaWithEns.id,

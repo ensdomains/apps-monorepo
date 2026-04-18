@@ -29,6 +29,7 @@ export const ExtendNameSettings = ({
         labelPrefix="Extend"
         duration={duration}
         setDuration={setDuration}
+        baseDate={selectedName.expiryDate ?? undefined}
       />
       <ExtendNameCheckoutSummary
         selectedName={selectedName}
