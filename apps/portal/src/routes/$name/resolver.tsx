@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
-import { type Address, zeroAddress } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
@@ -492,8 +492,10 @@ const ResolverView = ({
     getIsPermissionedResolverQueryOptions({ resolverAddress }),
   )
 
-  const isOfficialPublicResolver =
-    resolverAddress === officialPublicResolverAddress
+  const isOfficialPublicResolver = isAddressEqual(
+    resolverAddress,
+    officialPublicResolverAddress,
+  )
 
   if (permissionedResolverQuery.isLoading) {
     return <LoadingSpinner title="Loading resolver info..." />
@@ -676,5 +678,10 @@ function RouteComponent() {
     )
   }
 
-  return null
+  return (
+    <ErrorMessage
+      title="Unable to load resolver"
+      description="Could not find resolver address."
+    />
+  )
 }
