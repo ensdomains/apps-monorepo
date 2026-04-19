@@ -28,9 +28,26 @@ export type AnvilSnapshotFixture = {
 export const anvilSnapshotFixture = {
   anvilSnapshot: [
     async ({}, use: (value: void) => Promise<void>) => {
-      const snapshotId = await testClient.snapshot()
+      let snapshotId: `0x${string}` | undefined
+      try {
+        snapshotId = await testClient.snapshot()
+      } catch {
+        // Anvil not reachable — skip snapshot isolation.
+        // Tests that need Anvil will fail with their own errors.
+        console.warn(
+          '[anvilSnapshot] Could not take snapshot (Anvil unreachable?) — skipping isolation',
+        )
+      }
+
       await use()
-      await testClient.revert({ id: snapshotId })
+
+      if (snapshotId) {
+        try {
+          await testClient.revert({ id: snapshotId })
+        } catch {
+          console.warn('[anvilSnapshot] Could not revert snapshot')
+        }
+      }
     },
     { auto: true },
   ] as const,
