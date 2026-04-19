@@ -27,6 +27,7 @@
     "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev",
     "e2e": "pnpm --filter @ens-apps/e2e test:manager",
     "e2e:manager": "pnpm --filter @ens-apps/e2e test:manager",
+    "e2e:manager-premium": "pnpm --filter @ens-apps/e2e test:manager-premium",
     "e2e:portal": "pnpm --filter @ens-apps/e2e test:portal",
     "e2e:cross-app": "pnpm --filter @ens-apps/e2e test:cross-app",
     "e2e:infra:up": "pnpm --filter @ens-apps/e2e infra:up",

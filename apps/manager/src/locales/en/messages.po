@@ -756,7 +756,7 @@ msgstr "Email Verified!"
 msgid "Enable"
 msgstr "Enable"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:176
+#: src/features/wallet/components/EnableSessionModal.tsx:175
 msgid "Enable Sessions"
 msgstr "Enable Sessions"
 
@@ -765,7 +765,7 @@ msgid "Enable Smart Sessions"
 msgstr "Enable Smart Sessions"
 
 #: src/features/wallet/components/EnableSessionModal.tsx:133
-#: src/features/wallet/components/EnableSessionModal.tsx:172
+#: src/features/wallet/components/EnableSessionModal.tsx:171
 msgid "Enabling sessions…"
 msgstr "Enabling sessions…"
 
@@ -2114,7 +2114,7 @@ msgstr "This name is already registered or not available for registration."
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr "This page can only verify your email when opened from the link in the verification email."
 
-#: src/features/wallet/components/EnableSessionModal.tsx:187
+#: src/features/wallet/components/EnableSessionModal.tsx:185
 msgid "This signature is free and doesn't cost any gas."
 msgstr "This signature is free and doesn't cost any gas."
 
@@ -2174,7 +2174,7 @@ msgstr "Transfer your name to any wallet"
 
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/register-v2/workflow/result/FailureStep.tsx:58
-#: src/features/wallet/components/EnableSessionModal.tsx:174
+#: src/features/wallet/components/EnableSessionModal.tsx:173
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
 msgstr "Try Again"
@@ -2435,7 +2435,7 @@ msgstr "Welcome to the public alpha of the ENS app"
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:197
+#: src/features/wallet/components/EnableSessionModal.tsx:195
 msgid "What are smart sessions?"
 msgstr "What are smart sessions?"
 

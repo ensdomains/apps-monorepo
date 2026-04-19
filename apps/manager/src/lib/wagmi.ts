@@ -6,14 +6,26 @@ import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 
 // Single source of truth for Sepolia RPC URL.
-// Set VITE_SEPOLIA_RPC_URL to point the app at a local Anvil fork (e.g. http://127.0.0.1:8545).
+// In CI the browser uses a Vite proxy (/rpc) while SSR uses the direct URL.
+// Set VITE_SEPOLIA_RPC_URL for the client and VITE_SEPOLIA_RPC_URL_SERVER for SSR.
 const DEFAULT_SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
 
-export const SEPOLIA_RPC_URL: string =
-  (typeof import.meta !== 'undefined' &&
-    import.meta.env?.VITE_SEPOLIA_RPC_URL) ||
-  DEFAULT_SEPOLIA_RPC_URL
+const resolveRpcUrl = (): string => {
+  if (typeof import.meta === 'undefined') return DEFAULT_SEPOLIA_RPC_URL
+  const envUrl = import.meta.env?.VITE_SEPOLIA_RPC_URL
+  if (!envUrl) return DEFAULT_SEPOLIA_RPC_URL
+  // Relative paths (like /rpc) only work in the browser.
+  // During SSR use the server-specific URL or fall back to the default.
+  if (envUrl.startsWith('/') && typeof window === 'undefined') {
+    return (
+      import.meta.env?.VITE_SEPOLIA_RPC_URL_SERVER || DEFAULT_SEPOLIA_RPC_URL
+    )
+  }
+  return envUrl
+}
+
+export const SEPOLIA_RPC_URL: string = resolveRpcUrl()
 
 // Create a custom Sepolia chain with working RPC
 export const customSepolia = {

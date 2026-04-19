@@ -16,6 +16,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      // Local E2E: proxy RPC to Anvil fork.
+      // Set VITE_SEPOLIA_RPC_URL=/rpc to route browser RPC calls through Vite.
+      '/rpc': {
+        target: 'http://127.0.0.1:8545',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/rpc/, ''),
+      },
       // Local E2E: proxy bundler + paymaster to avoid CORS.
       // Set VITE_PIMLICO_BUNDLER_URL=/bundler and VITE_PAYMASTER_URL=/paymaster
       '/bundler': {
