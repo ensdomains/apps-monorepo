@@ -57,9 +57,24 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       # ── local blockchain stack ────────────────────────────────────
-      - name: Start E2E stack (Anvil + Alto + Paymaster)
+      # Only start the services each job needs to reduce memory pressure.
+      # Anvil on a GitHub Actions runner (7 GB RAM) can OOM (exit 139)
+      # when too many containers run alongside Node + Chromium.
+      - name: Start E2E stack
         run: |
-          docker compose -f e2e/infra/docker-compose.yml up -d
+          COMPOSE="docker compose -f e2e/infra/docker-compose.yml"
+
+          # Core services needed by every job
+          SERVICES="anvil alto paymaster"
+
+          # Rhinestone jobs also need the mockestrator
+          if [[ "${{ matrix.project }}" == "manager-premium" ]]; then
+            SERVICES="$SERVICES mockestrator"
+          fi
+
+          echo "Starting: $SERVICES"
+          $COMPOSE up -d $SERVICES
+
           echo "Waiting for Anvil..."
           timeout 60 bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
             -H "Content-Type: application/json" \
