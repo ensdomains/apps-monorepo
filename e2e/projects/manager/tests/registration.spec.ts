@@ -3,6 +3,7 @@
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { fillParaOtpInput, clickParaSignInButton } from '../../../helpers/para-auth.js'
+import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const PARA_EMAIL = process.env.PARA_E2E_EMAIL ?? 'test1@test.getpara.com'
@@ -18,8 +19,7 @@ test.describe('ENS name registration', () => {
   }) => {
     // ===== registration flow =====
     const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
-    const searchInput = page.getByPlaceholder("Search name, address...").first()
-    await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
+    const searchInput = await findSearchInput(page)
     await searchInput.click()
     await searchInput.fill(nameOnly)
     await page.getByText(DOMAIN_TO_REGISTER).click()

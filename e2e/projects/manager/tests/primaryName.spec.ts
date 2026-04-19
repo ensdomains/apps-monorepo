@@ -1,9 +1,9 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
+import { findSearchInput } from '../../../helpers/search-input.js'
 
 async function viewProfile(page: Page) {
-  const searchInput = page.getByPlaceholder('Search name, address...').first()
-  await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
+  const searchInput = await findSearchInput(page)
   await searchInput.click()
   await searchInput.fill('primetest.eth')
   await page

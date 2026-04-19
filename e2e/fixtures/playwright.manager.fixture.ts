@@ -88,6 +88,13 @@ export const test = base.extend<ManagerFixtures>({
       pin: PARA_PIN,
     })
 
+    // Wait for any post-auth modal overlays (Enable Sessions, SIWE, etc.)
+    // to fully close before handing the page to the test.
+    const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+    await overlay
+      .waitFor({ state: 'hidden', timeout: 30_000 })
+      .catch(() => {})
+
     await use(page)
   },
 

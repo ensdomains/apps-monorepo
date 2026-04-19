@@ -14,6 +14,7 @@
  */
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
+import { findSearchInput } from '../../../helpers/search-input.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 
@@ -22,10 +23,7 @@ test.describe('ENS name registration (Rhinestone)', () => {
     authenticatedPage: page,
   }) => {
     const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
-    const searchInput = page
-      .getByPlaceholder('Search name, address...')
-      .first()
-    await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
+    const searchInput = await findSearchInput(page)
     await searchInput.click()
     await searchInput.fill(nameOnly)
     await page.getByText(DOMAIN_TO_REGISTER).click()
