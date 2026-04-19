@@ -118,6 +118,7 @@ jobs:
           exit $TEST_EXIT
         env:
           CI: "true"
+          TZ: "UTC"
 
       # ── debug failed tests ─────────────────────────────────────────
       - name: Show failure context

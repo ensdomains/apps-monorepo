@@ -49,6 +49,20 @@ wait_for_service() {
   return 1
 }
 
+# Check that a container is running (for services without a Docker healthcheck).
+check_running() {
+  local service="$1"
+  local state
+  state=$(docker compose -f "$COMPOSE_FILE" ps --format json "$service" 2>/dev/null \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('State',''))" 2>/dev/null || echo "")
+  if [[ "$state" == "running" ]]; then
+    echo "  ✅ $service is running"
+    return 0
+  fi
+  echo "  ❌ $service is not running (state: ${state:-unknown})"
+  return 1
+}
+
 wait_for_service "anvil" 60
 
 # ---------- fund accounts as soon as Anvil is ready ----------
@@ -67,9 +81,10 @@ bash "$SCRIPT_DIR/fund-rhinestone-account.sh"
 
 # ---------- wait for remaining services ----------
 wait_for_service "alto"  90
-wait_for_service "paymaster" 90
-# Mockestrator health returns 503 (no /health endpoint) — wait briefly but don't block
-wait_for_service "mockestrator" 30 || echo "  ⚠️  mockestrator health check inconclusive (this is normal)"
+# paymaster has no Docker healthcheck — just confirm the container is up
+check_running "paymaster"
+# mockestrator /health returns 503 — just confirm the container is up
+check_running "mockestrator"
 
 # ---------- print env ----------
 echo ""

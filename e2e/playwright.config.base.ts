@@ -22,6 +22,7 @@ export const baseConfig: PlaywrightTestConfig = {
     screenshot: 'only-on-failure',
     ...(process.env.CI
       ? {
+          timezoneId: 'UTC',
           launchOptions: {
             args: [
               '--no-sandbox',

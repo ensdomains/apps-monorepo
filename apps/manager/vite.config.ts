@@ -57,6 +57,12 @@ export default defineConfig({
     lingui(),
     tailwindcss(),
   ],
+  optimizeDeps: {
+    // Pre-bundle deps that Vite discovers late (during route navigation).
+    // Without this, Vite re-optimises mid-session and triggers a full page
+    // reload, which can crash React (especially in headless CI browsers).
+    include: ['buffer'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

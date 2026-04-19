@@ -18,6 +18,10 @@ import {
   connectWithHeadlessWallet,
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
+import {
+  anvilSnapshotFixture,
+  type AnvilSnapshotFixture,
+} from './anvilSnapshot.js'
 import { createMakeName } from './makeName.js'
 import { createTime, type Time } from './time.js'
 
@@ -98,7 +102,8 @@ type PortalFixtures = {
   makeName: ReturnType<typeof createMakeName>
 }
 
-export const test = base.extend<PortalFixtures>({
+export const test = base.extend<PortalFixtures & AnvilSnapshotFixture>({
+  ...anvilSnapshotFixture,
   accounts: async ({ }, use) => {
     await use(createAccounts())
   },
