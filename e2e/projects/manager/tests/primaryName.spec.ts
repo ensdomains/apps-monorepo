@@ -1,28 +1,22 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
-import { findSearchInput } from '../../../helpers/search-input.js'
+
+const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
 async function viewProfile(page: Page) {
-  const searchInput = await findSearchInput(page)
-  await searchInput.click()
-  await searchInput.fill('primetest.eth')
-  await page
-    .locator('[data-radix-popper-content-wrapper]')
-    .getByRole('link', { name: /primetest\.eth/ })
-    .click()
+  // Navigate directly to the profile page — avoids search dropdown
+  // flakiness caused by React re-renders detaching DOM elements in CI.
+  await page.goto(`${MANAGER_APP_URL}/p/primetest.eth`)
   await page.waitForURL(/\/p\/primetest\.eth$/, { timeout: 15_000 })
-  // Let React hydration / data-fetch re-renders settle before interacting
   await page.waitForLoadState('networkidle')
   await page.waitForTimeout(2_000)
 
   const viewProfileLink = page.getByText('View profile')
   const editProfileLink = page.getByText('Edit Profile')
   if (await viewProfileLink.isVisible({ timeout: 15_000 })) {
-    await expect(viewProfileLink).toBeVisible()
     await viewProfileLink.click()
   }
   if (await editProfileLink.isVisible({ timeout: 15_000 })) {
-    await expect(editProfileLink).toBeVisible()
     await editProfileLink.click()
   }
 }

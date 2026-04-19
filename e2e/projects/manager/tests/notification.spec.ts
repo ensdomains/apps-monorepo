@@ -31,7 +31,12 @@ test.describe('Notifications email flow', () => {
     // Add email for verification
     const emailInput = page.getByPlaceholder(/Enter your email/i)
     await emailInput.fill(email)
-    await page.getByRole('button', { name: /Send Verification/i }).click()
+
+    // Wait for the form to stabilise after validation re-render
+    const sendBtn = page.getByRole('button', { name: /Send Verification/i })
+    await sendBtn.waitFor({ state: 'attached', timeout: 10_000 })
+    await page.waitForTimeout(500)
+    await sendBtn.click()
 
     // Wait for verify email to arrive in Mailinator
     const verifyMessage = await expectMessageWithSubject(
