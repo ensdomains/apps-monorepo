@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import type { RefObject } from 'react'
 import { match } from 'ts-pattern'
 import { AddressSuggestionItem, NameSuggestionItem } from './SuggestionItem'
 import { searchHistoryStore } from './useSearchHistory'
@@ -7,11 +8,13 @@ import { useSearchSuggestions } from './useSearchSuggestions'
 interface SearchSuggestionsProps {
   searchValue: string
   onNavigate?: () => void
+  containerRef?: RefObject<HTMLDivElement | null>
 }
 
 export const SearchSuggestions = ({
   searchValue,
   onNavigate,
+  containerRef,
 }: SearchSuggestionsProps) => {
   const suggestions = useSearchSuggestions(searchValue)
   const isShowingHistory = !searchValue.trim()
@@ -28,7 +31,7 @@ export const SearchSuggestions = ({
   }
 
   return (
-    <div>
+    <div ref={containerRef}>
       {isShowingHistory && (
         <div className="flex items-center justify-between px-3 py-2">
           <span className="font-medium text-slate-500 text-xs">

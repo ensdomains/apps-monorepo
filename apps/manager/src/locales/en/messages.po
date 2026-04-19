@@ -224,7 +224,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:122
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:156
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -453,12 +453,12 @@ msgstr "Choose Primary Name"
 msgid "Claim your"
 msgstr "Claim your"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:42
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:45
 msgid "Clear"
 msgstr "Clear"
 
 #: src/components/molecules/SearchField/SearchField.tsx:93
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:60
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -1311,7 +1311,7 @@ msgstr "No payment methods found."
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:26
 msgid "No recent searches"
 msgstr "No recent searches"
 
@@ -1328,7 +1328,7 @@ msgid "Not set"
 msgstr "Not set"
 
 #: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:148
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:145
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:179
 msgid "Not supported"
 msgstr "Not supported"
 
@@ -1522,7 +1522,7 @@ msgstr "Receive crypto from any chain"
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:38
 msgid "Recent"
 msgstr "Recent"
 
@@ -1748,7 +1748,7 @@ msgstr "Search"
 msgid "Search coins"
 msgstr "Search coins"
 
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:52
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
@@ -1761,7 +1761,7 @@ msgid "Search name or address"
 msgstr "Search name or address"
 
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:73
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
@@ -2004,7 +2004,7 @@ msgstr "Sort names by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:274
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:308
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
