@@ -111,7 +111,8 @@ jobs:
             APP_PORT=3000
           fi
 
-          pnpm --filter "$APP_FILTER" dev > /tmp/app-dev.log 2>&1 &
+          # Enable Vite dep optimization logging to catch late-discovered deps
+          DEBUG=vite:deps pnpm --filter "$APP_FILTER" dev > /tmp/app-dev.log 2>&1 &
           APP_PID=$!
           timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
           echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
@@ -139,8 +140,11 @@ jobs:
       - name: Show failure context
         if: failure()
         run: |
-          echo "=== App dev server log (last 50 lines) ==="
-          tail -50 /tmp/app-dev.log 2>/dev/null || echo "(no app dev log)"
+          echo "=== App dev server log (last 100 lines) ==="
+          tail -100 /tmp/app-dev.log 2>/dev/null || echo "(no app dev log)"
+          echo ""
+          echo "=== Vite dep optimization events ==="
+          grep -i 'optimized\|reloading\|new dependencies\|deps' /tmp/app-dev.log 2>/dev/null || echo "(none)"
           echo ""
           echo "=== Error context files ==="
           find e2e/test-results -name 'error-context.md' -exec echo "--- {} ---" \; -exec cat {} \; 2>/dev/null || echo "(none)"
