@@ -11,7 +11,7 @@ export default defineConfig({
   projects: [
     {
       name: 'manager-premium-e2e',
-      testMatch: /registration-rhinestone\.spec\.ts$/,
+      testMatch: /temporaryPremium\.spec\.ts$/,
     },
   ],
 })

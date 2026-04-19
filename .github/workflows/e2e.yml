@@ -64,11 +64,11 @@ jobs:
         run: |
           COMPOSE="docker compose -f e2e/infra/docker-compose.yml"
 
-          # Core services needed by every job
+          # Core services — no Panoptes (saves ~1 GB RAM, prevents Anvil OOM)
           SERVICES="anvil alto paymaster"
 
-          # Rhinestone jobs also need the mockestrator
-          if [[ "${{ matrix.project }}" == "manager-premium" ]]; then
+          # Manager jobs use Rhinestone and need the mockestrator
+          if [[ "${{ matrix.project }}" != "portal" ]]; then
             SERVICES="$SERVICES mockestrator"
           fi
 
