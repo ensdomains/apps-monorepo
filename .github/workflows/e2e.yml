@@ -29,6 +29,7 @@ jobs:
       matrix:
         project:
           - manager
+          - manager-premium
           - portal
           # - cross-app    # Enable when cross-app tests are added
 
@@ -94,23 +95,26 @@ jobs:
           bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       - name: Fund Rhinestone smart accounts
-        if: matrix.project == 'manager'
+        if: matrix.project == 'manager' || matrix.project == 'manager-premium'
         run: |
           bash e2e/infra/scripts/fund-rhinestone-account.sh
 
       # ── run e2e tests ─────────────────────────────────────────────
       - name: Run E2E tests (${{ matrix.project }})
         run: |
-          # Start the app under test (manager on :3000, portal on :3001)
-          pnpm --filter ${{ matrix.project }} dev > /tmp/app-dev.log 2>&1 &
-          APP_PID=$!
+          # Resolve the app filter and port (manager-premium reuses the manager app)
           if [[ "${{ matrix.project }}" == "portal" ]]; then
+            APP_FILTER=portal
             APP_PORT=3001
           else
+            APP_FILTER=manager
             APP_PORT=3000
           fi
+
+          pnpm --filter "$APP_FILTER" dev > /tmp/app-dev.log 2>&1 &
+          APP_PID=$!
           timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
-          echo "✅ ${{ matrix.project }} dev server on :${APP_PORT} (PID $APP_PID)"
+          echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
 
           pnpm e2e:${{ matrix.project }}
           TEST_EXIT=$?

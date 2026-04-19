@@ -7,10 +7,6 @@ import type { Address, Hash } from 'viem'
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
 import { bytesToHex } from 'viem'
 import { authenticateWithPara } from '../helpers/para-auth.js'
-import {
-  anvilSnapshotFixture,
-  type AnvilSnapshotFixture,
-} from './anvilSnapshot.js'
 import { createMakeName } from './makeName.js'
 import { createTime, type Time } from './time.js'
 
@@ -77,8 +73,7 @@ type ManagerFixtures = {
  * Para wallet login using frameLocator() + native shadow DOM piercing,
  * plus `time` and `makeName` for chain-level test setup.
  */
-export const test = base.extend<ManagerFixtures & AnvilSnapshotFixture>({
-  ...anvilSnapshotFixture,
+export const test = base.extend<ManagerFixtures>({
   authenticatedPage: async ({ page }, use) => {
     const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
     await page.goto(baseURL)

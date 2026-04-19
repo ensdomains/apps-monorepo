@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test:manager": "playwright test --config=projects/manager/playwright.config.ts",
+    "test:manager-premium": "playwright test --config=projects/manager/playwright.premium.config.ts",
     "test:portal": "playwright test --config=projects/portal/playwright.config.ts",
     "test:cross-app": "playwright test --config=projects/cross-app/playwright.config.ts",
     "infra:up": "bash infra/scripts/start-local-env.sh",

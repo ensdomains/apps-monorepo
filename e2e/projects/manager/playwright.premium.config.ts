@@ -10,9 +10,8 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'manager-e2e',
-      testMatch: /\.spec\.ts$/,
-      testIgnore: /temporaryPremium/,
+      name: 'manager-premium-e2e',
+      testMatch: /temporaryPremium\.spec\.ts$/,
     },
   ],
 })
