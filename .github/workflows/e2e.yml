@@ -116,6 +116,17 @@ jobs:
           timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
           echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
 
+          # Verify Anvil is still reachable and the app's env is correct
+          echo "Verifying Anvil RPC..."
+          curl -sf -X POST http://127.0.0.1:8545 \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+            && echo " ✅ Anvil RPC OK" || echo " ❌ Anvil RPC FAILED"
+
+          # Check what RPC URL the app is using (grep the served JS bundle)
+          echo "Checking app RPC URL..."
+          curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
+
           pnpm e2e:${{ matrix.project }}
           TEST_EXIT=$?
           kill $APP_PID 2>/dev/null || true
