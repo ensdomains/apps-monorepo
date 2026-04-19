@@ -458,7 +458,7 @@ msgid "Clear"
 msgstr "Clear"
 
 #: src/components/molecules/SearchField/SearchField.tsx:93
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:53
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -1748,7 +1748,7 @@ msgstr "Search"
 msgid "Search coins"
 msgstr "Search coins"
 
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:45
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
@@ -1761,7 +1761,7 @@ msgid "Search name or address"
 msgstr "Search name or address"
 
 #: src/features/dashboard/components/DashboardSidebarSearch.tsx:199
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
+#: src/features/navigation/Header/SearchSection/SearchSection.tsx:66
 msgid "Search name, address..."
 msgstr "Search name, address..."
 

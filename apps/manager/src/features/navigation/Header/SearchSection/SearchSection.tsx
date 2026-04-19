@@ -1,6 +1,6 @@
 import { useLingui } from '@lingui/react/macro'
 import { Loader2Icon, Search, X } from 'lucide-react'
-import { useState } from 'react'
+import { type KeyboardEvent, useRef, useState } from 'react'
 import * as Drawer from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import * as Popover from '@/components/ui/popover'
@@ -18,17 +18,27 @@ interface SearchInputProps {
   searchValue: string
   setSearchValue: (value: string) => void
   onFocus: () => void
+  onEnter: () => void
   isLoading?: boolean
 }
 
-// TODO: Trigger first result on enter
 const SearchInput = ({
   searchValue,
   setSearchValue,
   onFocus,
+  onEnter,
   isLoading = false,
 }: SearchInputProps) => {
   const { t } = useLingui()
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return
+    if (event.nativeEvent.isComposing) return
+
+    event.preventDefault()
+    onEnter()
+  }
+
   return (
     <div className="relative flex-1">
       <Input
@@ -52,6 +62,7 @@ const SearchInput = ({
         id={SEARCH_INPUT_ID}
         onChange={(event) => setSearchValue(event.target.value)}
         onFocus={onFocus}
+        onKeyDown={handleKeyDown}
         placeholder={t`Search name, address...`}
         size="default"
         startIcon={<Search className="size-[18px] text-muted-foreground" />}
@@ -66,9 +77,19 @@ export const HeaderSearchSection = ({
 }: HeaderSearchSectionProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const suggestionsContainerRef = useRef<HTMLDivElement>(null)
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
     delay: 500,
   })
+
+  const handleEnterSearch = () => {
+    const firstSuggestionLink =
+      suggestionsContainerRef.current?.querySelector<HTMLAnchorElement>(
+        'a[href]',
+      )
+
+    firstSuggestionLink?.click()
+  }
 
   if (isDesktop) {
     return (
@@ -78,6 +99,7 @@ export const HeaderSearchSection = ({
             <div className="flex max-w-sm flex-1">
               <SearchInput
                 isLoading={debouncedSearchValue !== searchValue}
+                onEnter={handleEnterSearch}
                 onFocus={() => setIsOpen(true)}
                 searchValue={searchValue}
                 setSearchValue={setSearchValue}
@@ -100,13 +122,15 @@ export const HeaderSearchSection = ({
             side="bottom"
             sideOffset={4}
           >
-            <SearchSuggestions
-              onNavigate={() => {
-                setIsOpen(false)
-                setSearchValue('')
-              }}
-              searchValue={debouncedSearchValue}
-            />
+            <div ref={suggestionsContainerRef}>
+              <SearchSuggestions
+                onNavigate={() => {
+                  setIsOpen(false)
+                  setSearchValue('')
+                }}
+                searchValue={debouncedSearchValue}
+              />
+            </div>
           </Popover.PopoverContent>
         </Popover.Popover>
       </div>
@@ -123,12 +147,16 @@ export const HeaderSearchSection = ({
         <div className="flex items-center gap-2">
           <SearchInput
             isLoading={debouncedSearchValue !== searchValue}
+            onEnter={handleEnterSearch}
             onFocus={() => setIsOpen(true)}
             searchValue={searchValue}
             setSearchValue={setSearchValue}
           />
         </div>
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div
+          className="max-h-[60vh] overflow-y-auto"
+          ref={suggestionsContainerRef}
+        >
           <SearchSuggestions
             onNavigate={() => {
               setIsOpen(false)
