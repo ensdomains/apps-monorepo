@@ -761,7 +761,7 @@ msgstr ""
 msgid "Enable"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:175
+#: src/features/wallet/components/EnableSessionModal.tsx:176
 msgid "Enable Sessions"
 msgstr ""
 
@@ -770,7 +770,7 @@ msgid "Enable Smart Sessions"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx:133
-#: src/features/wallet/components/EnableSessionModal.tsx:171
+#: src/features/wallet/components/EnableSessionModal.tsx:172
 msgid "Enabling sessions…"
 msgstr ""
 
@@ -886,12 +886,12 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:236
+#: src/lib/smart-account/SmartAccountContext.tsx:237
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:237
+#: src/lib/smart-account/SmartAccountContext.tsx:238
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -983,11 +983,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:205
+#: src/lib/smart-account/SmartAccountContext.tsx:206
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:206
+#: src/lib/smart-account/SmartAccountContext.tsx:207
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -2119,7 +2119,7 @@ msgstr ""
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:185
+#: src/features/wallet/components/EnableSessionModal.tsx:187
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
@@ -2179,7 +2179,7 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/register-v2/workflow/result/FailureStep.tsx:58
-#: src/features/wallet/components/EnableSessionModal.tsx:173
+#: src/features/wallet/components/EnableSessionModal.tsx:174
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
 msgstr ""
@@ -2390,7 +2390,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:225
+#: src/lib/smart-account/SmartAccountContext.tsx:226
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2406,7 +2406,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:224
+#: src/lib/smart-account/SmartAccountContext.tsx:225
 msgid "Wallet funded successfully"
 msgstr ""
 
@@ -2440,7 +2440,7 @@ msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
 msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
 msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:195
+#: src/features/wallet/components/EnableSessionModal.tsx:197
 msgid "What are smart sessions?"
 msgstr ""
 
