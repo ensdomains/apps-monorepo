@@ -68,7 +68,17 @@ export default defineConfig({
     // Pre-bundle deps that Vite discovers late (during route navigation).
     // Without this, Vite re-optimises mid-session and triggers a full page
     // reload, which can crash React (especially in headless CI browsers).
-    include: ['buffer'],
+    // The Rhinestone SDK tree pulls in several deps that need pre-bundling.
+    include: [
+      'buffer',
+      '@rhinestone/sdk',
+      '@rhinestone/sdk/actions/smart-sessions',
+      '@rhinestone/sdk/errors',
+      'permissionless',
+      'permissionless/accounts',
+      'permissionless/clients/pimlico',
+      'permissionless/utils',
+    ],
   },
   resolve: {
     alias: {
