@@ -1270,10 +1270,6 @@ msgstr ""
 msgid "Migration failed"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:179
-msgid "Migration transfers ownership only. Records must be set manually on ENS v2 after migration."
-msgstr ""
-
 #: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
 msgstr ""
@@ -1569,7 +1565,7 @@ msgstr ""
 msgid "Preparing the commitment"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:193
+#: src/features/migration/components/SelectNamesStep.tsx:192
 msgid "Preparing..."
 msgstr ""
 
@@ -2333,7 +2329,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:195
+#: src/features/migration/components/SelectNamesStep.tsx:194
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2721,6 +2717,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:45
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:179
+msgid "Your text records and addresses will be migrated automatically."
 msgstr ""
 
 #: src/routes/wallet.tsx:285

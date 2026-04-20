@@ -177,8 +177,7 @@ export const SelectNamesStep = ({
             <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
               <Info className="size-3 shrink-0" />
               <Trans>
-                Migration transfers ownership only. Records must be set manually
-                on ENS v2 after migration.
+                Your text records and addresses will be migrated automatically.
               </Trans>
             </p>
           )}
