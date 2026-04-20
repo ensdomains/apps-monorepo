@@ -145,7 +145,17 @@ function RouteComponent() {
   const [extendModalOpen, setExtendModalOpen] = useState(false)
 
   const { transactions: renewalTransactions, startFlow } =
-    useRenewalTransactions()
+    useRenewalTransactions({
+      onComplete: () => {
+        setRowSelection({})
+        void queryClient.invalidateQueries({
+          queryKey: ['get-names-for-address'],
+        })
+        void queryClient.invalidateQueries({
+          queryKey: ['get-v2-names-with-roles-for-address'],
+        })
+      },
+    })
 
   const { openModal } = useTransactionModal()
 
