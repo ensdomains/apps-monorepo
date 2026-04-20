@@ -181,8 +181,8 @@ describe('fetchV1Profiles', () => {
     ])
   })
 
-  it('chunks multicall args into batches of 500 to avoid RPC payload limits', async () => {
-    const keys = Array.from({ length: 501 }, (_, i) => `text-${i}`)
+  it('chunks multicall args into batches of 200 with batchSize:0 and calls sequentially', async () => {
+    const keys = Array.from({ length: 201 }, (_, i) => `text-${i}`)
     getV1ProfileKeysMock.mockReturnValueOnce(
       ok([{ id: NODE_A, texts: keys, coinTypes: [] }]) as never,
     )
@@ -199,12 +199,18 @@ describe('fetchV1Profiles', () => {
     })
 
     expect(multicallSpy).toHaveBeenCalledTimes(2)
-    expect(
-      (multicallSpy.mock.calls[0]![0] as { contracts: unknown[] }).contracts,
-    ).toHaveLength(500)
-    expect(
-      (multicallSpy.mock.calls[1]![0] as { contracts: unknown[] }).contracts,
-    ).toHaveLength(1)
+    const firstCall = multicallSpy.mock.calls[0]![0] as {
+      contracts: unknown[]
+      batchSize?: number
+    }
+    const secondCall = multicallSpy.mock.calls[1]![0] as {
+      contracts: unknown[]
+      batchSize?: number
+    }
+    expect(firstCall.contracts).toHaveLength(200)
+    expect(firstCall.batchSize).toBe(0)
+    expect(secondCall.contracts).toHaveLength(1)
+    expect(secondCall.batchSize).toBe(0)
   })
 
   it('populates separate buckets per node', async () => {

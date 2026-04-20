@@ -1,7 +1,7 @@
 import type { ClassifiedName, GroupedNames } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 
-export const MAX_NAMES_PER_BATCH = 50
+export const MAX_NAMES_PER_BATCH = 15
 
 export type MigrationStepDescriptor =
   | { type: 'approve-sca'; count: number }
