@@ -2,6 +2,7 @@ import {
   type TransactionMachineState,
   useActiveTransactions,
 } from '@ens-apps/transaction-manager'
+import { useSyncExternalStore } from 'react'
 
 export type ActiveTransactionState = {
   readonly txId: string
@@ -12,8 +13,9 @@ export type ActiveTransactionState = {
 
 /**
  * Derives the state of the most recent active transaction from the transaction
- * manager. Single source of truth - no duplicated state. Uses useSyncExternalStore
- * to subscribe to actor updates and re-read on each render.
+ * manager. Subscribes to the active actor so state transitions (pending →
+ * success / error) trigger a re-render — the transactions Map itself only
+ * notifies on add/remove.
  */
 export function useActiveTransactionState():
   | ActiveTransactionState
@@ -24,11 +26,17 @@ export function useActiveTransactionState():
   const lastEntry = entries[entries.length - 1]
   const [txId, actor] = lastEntry ?? []
 
-  if (!actor || !txId) {
-    return undefined
-  }
+  const snapshot = useSyncExternalStore(
+    (onChange) => {
+      if (!actor) return () => {}
+      const sub = actor.subscribe(() => onChange())
+      return () => sub.unsubscribe()
+    },
+    () => (actor ? actor.getSnapshot() : undefined),
+    () => undefined,
+  )
 
-  const snapshot = actor.getSnapshot()
+  if (!actor || !txId || !snapshot) return undefined
 
   return {
     txId,

@@ -136,16 +136,26 @@ export const getRegistrationExpiryDateFromSeconds = (
 /**
  * Returns display values for a registration duration (period, expiry date, days).
  * Shared by checkout summary and success screens.
+ *
+ * Pass `baseDate` (default: today) to anchor the expiry on an existing date —
+ * used by the extend flow so `expiresFormatted` reflects `currentExpiry + duration`.
  */
-export function getRegistrationDisplayDates(durationSeconds: number) {
+export function getRegistrationDisplayDates(
+  durationSeconds: number,
+  baseDate: Temporal.PlainDate = getStartOfToday(),
+) {
   const startOfToday = getStartOfToday()
   const expiryDate = getRegistrationExpiryDateFromSeconds(
-    startOfToday,
+    baseDate,
     durationSeconds,
   )
+  const daysUntilExpiry = startOfToday.until(expiryDate, {
+    largestUnit: 'days',
+  }).days
   return {
-    registrationPeriod: formatRegistrationDuration(startOfToday, expiryDate),
+    registrationPeriod: formatRegistrationDuration(baseDate, expiryDate),
     registrationDays: Math.floor(durationSeconds / 86400),
+    daysUntilExpiry,
     expiresFormatted: formatExpiryDate(expiryDate),
   }
 }
