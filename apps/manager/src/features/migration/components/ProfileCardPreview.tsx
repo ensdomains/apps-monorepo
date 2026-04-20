@@ -1,4 +1,5 @@
 import { SiFarcaster, SiX } from '@icons-pack/react-simple-icons'
+import { Trans } from '@lingui/react/macro'
 import { ArrowUpRight, Calendar, Copy, Mail } from 'lucide-react'
 
 export const ProfileCardPreview = () => (
@@ -49,21 +50,27 @@ export const ProfileCardPreview = () => (
       <div className="flex items-center gap-0.5 text-ens-garnet-500">
         <Calendar className="size-2.5 shrink-0 opacity-60" strokeWidth={1.5} />
         <p className="text-[9px] leading-tight">
-          <span className="opacity-60">Registered</span>{' '}
-          <span className="font-semibold">August 28, 2024</span>
+          <span className="opacity-60">
+            <Trans>Registered</Trans>
+          </span>{' '}
+          <span className="font-semibold">
+            <Trans>August 28, 2024</Trans>
+          </span>
         </p>
       </div>
 
       <p className="text-[11px] text-ens-garnet-900/45 leading-[1.5]">
-        A scrappy generalist builder with taste. Senior Product Designer and
-        Researcher at ENS Labs, dedicated to making web3 feel straightforward to
-        newcomers.
+        <Trans>
+          A scrappy generalist builder with taste. Senior Product Designer and
+          Researcher at ENS Labs, dedicated to making web3 feel straightforward
+          to newcomers.
+        </Trans>
       </p>
 
       <div className="h-px bg-ens-garnet-500/8" />
 
       <p className="font-semibold text-[9px] text-ens-garnet-500 leading-tight">
-        links
+        <Trans>links</Trans>
       </p>
       <div className="flex flex-wrap gap-1">
         <span className="inline-flex items-center gap-px rounded-full bg-ens-garnet-500/[0.06] px-1 py-px text-[9px] text-ens-garnet-500">

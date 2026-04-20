@@ -115,6 +115,9 @@ importers:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@2d1d13d(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@ensdomains/ensjs-abi':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@2d1d13d
       '@getpara/evm-wallet-connectors':
         specifier: 2.12.0
         version: 2.12.0(@tanstack/react-query@5.90.12(react@19.2.4))(@types/react@19.2.7)(bufferutil@4.0.9)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(utf-8-validate@5.0.10)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(wagmi@3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.4))(@types/react@19.2.7)(immer@10.2.0)(react@19.2.4)(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)))(zod@4.1.13)
@@ -1256,7 +1259,7 @@ packages:
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@2d1d13d':
-    resolution: {integrity: sha512-HfYdZarrc15fFAMoVTCFDhorIM4nSK7LZzwP2rnfcE5GzXtgCt1nlrq/UVmp6/IJeVBDx3t9duhGuZtcFf5XTQ==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@2d1d13d}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@2d1d13d}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
@@ -1266,7 +1269,7 @@ packages:
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@2d1d13d':
-    resolution: {integrity: sha512-LtddvD9WIBMNfCRhQyH5GNOKP+wgs/u4rTYQj2oyc/fNvR7GLflk74UDttxYNyOAkiJSjfTNRvqj4oBlJ76Xgw==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@2d1d13d}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@2d1d13d}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:

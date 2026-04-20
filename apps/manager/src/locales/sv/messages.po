@@ -142,6 +142,10 @@ msgstr ""
 msgid "60-second wait prevents attacks"
 msgstr ""
 
+#: src/features/migration/components/ProfileCardPreview.tsx:63
+msgid "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
+msgstr ""
+
 #: src/features/register/pages/CheckDomainPage.tsx:36
 #: src/routes/index.tsx:37
 msgid "A simple, portable identity that you control"
@@ -286,12 +290,12 @@ msgstr ""
 msgid "Approving payment token"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:102
-msgid "Approving the payment token"
-msgstr ""
-
 #: src/features/migration/components/GameStep.tsx:70
 msgid "Approving smart account"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:102
+msgid "Approving the payment token"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:80
@@ -308,6 +312,10 @@ msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx:124
 msgid "Are you sure?"
+msgstr ""
+
+#: src/features/migration/components/ProfileCardPreview.tsx:57
+msgid "August 28, 2024"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:61
@@ -545,6 +553,14 @@ msgstr ""
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr ""
 
+#: src/features/migration/components/MigrationProgressBanner.tsx:69
+msgid "Complete Upgrade"
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx:58
+msgid "Complete upgrade and receive a collectible marking your place in ENS history."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:166
 msgid "Complete your profile"
 msgstr ""
@@ -774,7 +790,7 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:403
+#: src/features/dashboard/components/MyNamesList.tsx:325
 msgid "Eligible for upgrade"
 msgstr ""
 
@@ -883,7 +899,7 @@ msgstr ""
 msgid "Enter your email"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:244
+#: src/features/dashboard/components/MyNamesList.tsx:172
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
@@ -903,7 +919,7 @@ msgstr ""
 msgid "expires {expiryDateString}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:433
+#: src/features/dashboard/components/MyNamesList.tsx:355
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -916,15 +932,15 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:318
+#: src/features/dashboard/components/MyNamesList.tsx:246
 msgid "Expiry"
 msgstr "Utgång"
 
-#: src/features/dashboard/components/MyNamesList.tsx:273
+#: src/features/dashboard/components/MyNamesList.tsx:201
 msgid "Expiry date (Earliest)"
 msgstr "Utgångsdatum (tidigast)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:276
+#: src/features/dashboard/components/MyNamesList.tsx:204
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
@@ -1169,6 +1185,7 @@ msgid "Link copied to clipboard"
 msgstr ""
 
 #: src/features/landing/components/ProfileCard.tsx:142
+#: src/features/migration/components/ProfileCardPreview.tsx:73
 msgid "links"
 msgstr ""
 
@@ -1275,18 +1292,18 @@ msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:203
-#: src/features/dashboard/components/MyNamesList.tsx:299
+#: src/features/dashboard/components/MyNamesList.tsx:227
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:171
-#: src/features/dashboard/components/MyNamesList.tsx:267
+#: src/features/dashboard/components/MyNamesList.tsx:195
 msgid "Name (A-Z)"
 msgstr "Namn (A-Ö)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:174
-#: src/features/dashboard/components/MyNamesList.tsx:270
+#: src/features/dashboard/components/MyNamesList.tsx:198
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
@@ -1337,7 +1354,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:297
-#: src/features/dashboard/components/MyNamesList.tsx:458
+#: src/features/dashboard/components/MyNamesList.tsx:380
 #: src/features/profile/components/view/AddressProfileView.tsx:275
 msgid "Next page"
 msgstr ""
@@ -1382,7 +1399,7 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:234
 #: src/features/dashboard/components/FavoritesList.tsx:245
-#: src/features/dashboard/components/MyNamesList.tsx:349
+#: src/features/dashboard/components/MyNamesList.tsx:277
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1570,7 +1587,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:288
-#: src/features/dashboard/components/MyNamesList.tsx:449
+#: src/features/dashboard/components/MyNamesList.tsx:371
 #: src/features/profile/components/view/AddressProfileView.tsx:266
 msgid "Previous page"
 msgstr ""
@@ -1628,6 +1645,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
+#: src/features/migration/components/ProfileCardPreview.tsx:54
 #: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:164
 msgid "Registered"
 msgstr "Registrerad"
@@ -1991,7 +2009,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:468
+#: src/features/dashboard/components/MyNamesList.tsx:390
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -2047,6 +2065,11 @@ msgstr ""
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr ""
 
+#. placeholder {0}: i + 1
+#: src/features/migration/components/MigrationModal.tsx:114
+msgid "Slide {0}"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx:100
 msgid "Smart Account"
 msgstr ""
@@ -2068,34 +2091,34 @@ msgid "Social Links"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:148
-#: src/features/dashboard/components/MyNamesList.tsx:255
+#: src/features/dashboard/components/MyNamesList.tsx:183
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:307
+#: src/features/dashboard/components/MyNamesList.tsx:235
 msgid "Sort by expiry, currently ascending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:308
+#: src/features/dashboard/components/MyNamesList.tsx:236
 msgid "Sort by expiry, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:309
+#: src/features/dashboard/components/MyNamesList.tsx:237
 msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:192
-#: src/features/dashboard/components/MyNamesList.tsx:288
+#: src/features/dashboard/components/MyNamesList.tsx:216
 msgid "Sort by name, currently ascending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:193
-#: src/features/dashboard/components/MyNamesList.tsx:289
+#: src/features/dashboard/components/MyNamesList.tsx:217
 msgid "Sort by name, currently descending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:194
-#: src/features/dashboard/components/MyNamesList.tsx:290
+#: src/features/dashboard/components/MyNamesList.tsx:218
 msgid "Sort by name, currently unsorted"
 msgstr ""
 
@@ -2103,7 +2126,7 @@ msgstr ""
 msgid "Sort favorites by"
 msgstr "Sortera favoriter efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:258
+#: src/features/dashboard/components/MyNamesList.tsx:186
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
