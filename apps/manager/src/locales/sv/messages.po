@@ -108,10 +108,6 @@ msgstr ""
 msgid "{label} theme (selected)"
 msgstr ""
 
-#: src/features/migration/components/MigrationProgressBanner.tsx:35
-msgid "{migrated} out of {total} names upgraded"
-msgstr ""
-
 #: src/features/migration/components/SuccessModal.tsx:126
 msgid "+{overflow} more"
 msgstr ""
@@ -551,14 +547,6 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:69
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
-msgstr ""
-
-#: src/features/migration/components/MigrationProgressBanner.tsx:69
-msgid "Complete Upgrade"
-msgstr ""
-
-#: src/features/migration/components/MigrationProgressBanner.tsx:58
-msgid "Complete upgrade and receive a collectible marking your place in ENS history."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:166
@@ -1114,7 +1102,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:74
+#: src/features/dashboard/pages/DashboardPage.tsx:73
 msgid "Hello"
 msgstr "Hej"
 
@@ -1950,7 +1938,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:95
+#: src/features/dashboard/pages/DashboardPage.tsx:94
 msgid "Set primary name"
 msgstr ""
 
@@ -2660,10 +2648,6 @@ msgstr ""
 
 #: src/features/notifications/inbox/list.tsx:108
 msgid "You're all caught up!"
-msgstr ""
-
-#: src/features/migration/components/MigrationProgressBanner.tsx:55
-msgid "You're almost there!"
 msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx:97
