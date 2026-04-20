@@ -2,20 +2,35 @@ name: Claude Style Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, ready_for_review]
+    paths-ignore:
+      - '**/*.md'
+      - '**/translations/**'
+      - '**/locales/**'
+      - '**/*.po'
+      - 'crowdin.yml'
+      - '.github/**'
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   review:
+    if: |
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      !contains(github.event.pull_request.title, 'New Crowdin translations')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
       issues: write
-      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -25,35 +40,37 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
 
-            Review this pull request against the project's STYLEGUIDE.md.
+            Review this pull request against the project's coding standards.
 
             STEP 1 - Check previous comments:
-            First, fetch any existing review comments on this PR using: gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments
+            Fetch any existing review comments on this PR using:
+            gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments
             Note which issues have already been flagged to avoid duplicate comments.
 
             To get thread IDs for resolving comments, use:
-            gh api graphql -f query='query { repository(owner:"ensdomains", name:"apps-monorepo") { pullRequest(number:${{ github.event.pull_request.number || github.event.issue.number }}) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { body path line } } } } } } }'
+            gh api graphql -f query='query { repository(owner:"${{ github.repository_owner }}", name:"${{ github.event.repository.name }}") { pullRequest(number:${{ github.event.pull_request.number || github.event.issue.number }}) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { body path line } } } } } } }'
 
-            STEP 2 - Read the style guide:
-            Read the STYLEGUIDE.md file to understand the project's coding standards.
+            STEP 2 - Read the review configuration:
+            Read REVIEW.md for review-specific instructions (severity mapping, comment style, what to skip).
+            Then read STYLEGUIDE.md in full — every rule in it matters and should be checked against the PR.
+            Also read any CLAUDE.md files relevant to the changed paths (e.g. packages/transaction-manager/CLAUDE.md
+            if the PR touches that package).
 
             STEP 3 - Review changes:
-            Review the PR changes and check for violations of those standards.
+            Review the PR changes and check for violations of STYLEGUIDE.md, applying the severity
+            mapping defined in REVIEW.md.
 
-            Focus on:
-            - Rule violations marked as 🔴 Must (these are critical)
-            - Rule violations marked as 🟡 Default (flag these but they may have valid exceptions)
-            - 🟢 Guidelines are suggestions only
-
-            IMPORTANT - Comment guidelines:
+            IMPORTANT - Comment guidelines (also in REVIEW.md):
             - ONLY use inline comments for NEW issues that need fixing. Do NOT duplicate comments that already exist.
             - Never post positive/praise inline comments.
-            - For each issue, reference the specific rule from STYLEGUIDE.md, explain what's wrong, and suggest how to fix it.
+            - For each issue, reference the specific STYLEGUIDE.md section, explain what's wrong, and suggest how to fix it.
+            - Before flagging a 🟡 Default or 🟢 Guideline violation, check whether the author left a justifying
+              code comment per the STYLEGUIDE.md "Breaking the Rules" section.
             - If a previous comment's issue has been FIXED in the current code, resolve that thread using:
               gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "THREAD_ID"}) { thread { id } } }'
             - In your summary comment, note which previous issues you resolved.
             - Positive observations about the PR may be included in the summary only.
 
           claude_args: |
-            --model claude-opus-4-5-20251101
+            --model claude-opus-4-7
             --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr review:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*)"
