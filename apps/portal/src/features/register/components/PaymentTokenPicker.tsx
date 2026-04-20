@@ -1,8 +1,8 @@
-import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
-import type { Address } from 'viem'
+import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
@@ -14,6 +14,11 @@ import {
   buildTokenData,
   type TokenWithPriceAndBalance,
 } from '../utils/tokenData'
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 const Skeleton = () => (
   <div className="space-y-4">
@@ -46,9 +51,22 @@ export const PaymentTokenPicker = ({
     ...readContractsQueryOptions(config, {
       contracts: PAYMENT_TOKENS.map((token) => ({
         address: token.address,
-        abi: ERC20_ABI,
+        abi: erc20Abi,
         functionName: 'balanceOf',
         args: [address as Address],
+        chainId: sepoliaWithEns.id,
+      })),
+    }),
+    enabled: Boolean(address),
+  })
+
+  const allowancesQuery = useQuery({
+    ...readContractsQueryOptions(config, {
+      contracts: PAYMENT_TOKENS.map((token) => ({
+        address: token.address,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [address as Address, ethRegistrar],
         chainId: sepoliaWithEns.id,
       })),
     }),
@@ -69,6 +87,7 @@ export const PaymentTokenPicker = ({
 
   if (
     balancesQuery.isLoading ||
+    allowancesQuery.isLoading ||
     priceQueries.some((query) => query.isLoading)
   ) {
     return <Skeleton />
@@ -97,10 +116,17 @@ export const PaymentTokenPicker = ({
       : 0n,
   )
 
+  const allowances = (allowancesQuery.data ?? []).map((allowance) =>
+    allowance.status === 'success' && allowance.result !== undefined
+      ? BigInt(allowance.result)
+      : 0n,
+  )
+
   const tokenData = buildTokenData(
     PAYMENT_TOKENS,
     priceQueries.map((query) => query.data),
     balances,
+    allowances,
   )
 
   const noSupportedTokenHasSufficientBalance = tokenData.every(
