@@ -22,7 +22,12 @@ import { buildPreMigrateCalls } from './buildPreMigrateCalls'
 import { buildProfileReplayCall } from './buildProfileReplayCalls'
 import { buildRoleGrantCalls } from './buildRoleGrantCalls'
 import {
-  type ClassifiedName,
+  buildStepDescriptors,
+  MAX_NAMES_PER_BATCH,
+  type MigrationStepDescriptor,
+} from './buildStepDescriptors'
+import { chunkArray } from './chunkArray'
+import {
   classifyNames,
   type GroupedNames,
   groupClassifiedNames,
@@ -38,7 +43,7 @@ import { fetchV1Profiles, type Profile } from './fetchV1Profiles'
 import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
-const MAX_NAMES_PER_BATCH = 50
+export type { MigrationStepDescriptor } from './buildStepDescriptors'
 
 class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -68,16 +73,6 @@ export type MigrationResult = {
   readonly ineligible: readonly IneligibleName[]
   readonly migratedNames: readonly string[]
 }
-
-export type MigrationStepDescriptor =
-  | { type: 'approve-sca'; count: number }
-  | { type: 'ensure-resolver' }
-  | {
-      type: 'migrate-batch'
-      batch: number
-      totalBatches: number
-      count: number
-    }
 
 type Tracker = {
   emit: (description: string, txHash?: Hex) => void
@@ -239,55 +234,6 @@ const submitBatchedUserOp = async (
 
   const result = await waitForTransaction(txId)
   return result.hash as Hex
-}
-
-const needsSCAApproval = (groups: GroupedNames): boolean =>
-  groups.unwrapped.length > 0 ||
-  groups.unlocked.length > 0 ||
-  groups.locked2ld.length > 0 ||
-  groups.childNames.size > 0
-
-const getBatchCount = (nameCount: number): number =>
-  Math.ceil(nameCount / MAX_NAMES_PER_BATCH)
-
-const chunkArray = <T>(arr: readonly T[], size: number): T[][] => {
-  const chunks: T[][] = []
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size))
-  }
-  return chunks
-}
-
-const buildStepDescriptors = (
-  classified: readonly ClassifiedName[],
-  groups: GroupedNames,
-  preflight: MigrationPreflight,
-): MigrationStepDescriptor[] => {
-  const descriptors: MigrationStepDescriptor[] = []
-
-  if (needsSCAApproval(groups) && !preflight.skipApprovalPhase) {
-    descriptors.push({ type: 'approve-sca', count: classified.length })
-  }
-
-  const needsOwnedPermRes = classified.some(
-    (n) => n.resolverStrategy === 'to-owned-permres',
-  )
-  if (needsOwnedPermRes && !preflight.preExistingOwnedPermRes) {
-    descriptors.push({ type: 'ensure-resolver' })
-  }
-
-  const totalBatches = getBatchCount(classified.length)
-  const chunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
-  for (let i = 0; i < chunks.length; i++) {
-    descriptors.push({
-      type: 'migrate-batch',
-      batch: i + 1,
-      totalBatches,
-      count: chunks[i]!.length,
-    })
-  }
-
-  return descriptors
 }
 
 export const executeMigration = async (params: {

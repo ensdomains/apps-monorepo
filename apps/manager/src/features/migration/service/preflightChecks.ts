@@ -1,6 +1,6 @@
 import type { Address, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
-import { multicall, readContract } from 'viem/actions'
+import { readContract } from 'viem/actions'
 import {
   BASE_REGISTRAR_ABI,
   ETH_REGISTRY_V2_ABI,
@@ -8,67 +8,8 @@ import {
   WRAPPER_REGISTRY_ABI,
 } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
-
-const PREFLIGHT_TIMEOUT_MS = 15000
-const MULTICALL_BATCH_SIZE = 500
-
-type MulticallFailure = {
-  status: 'failure'
-  error: Error
-  result: undefined
-}
-
-const preflightTimeoutError = (ms: number): Error =>
-  Object.assign(new Error(`Pre-flight RPC call timed out after ${ms}ms`), {
-    name: 'PreflightTimeoutError',
-    timeoutMs: ms,
-  })
-
-const withTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T> => {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(preflightTimeoutError(ms)), ms)
-      }),
-    ])
-  } finally {
-    if (timer) clearTimeout(timer)
-  }
-}
-
-const batchedMulticall = async <T>(
-  publicClient: PublicClient,
-  contracts: Parameters<typeof multicall>[1]['contracts'],
-): Promise<({ status: 'success'; result: T } | MulticallFailure)[]> => {
-  const chunks: (typeof contracts)[] = []
-  for (let i = 0; i < contracts.length; i += MULTICALL_BATCH_SIZE) {
-    chunks.push(contracts.slice(i, i + MULTICALL_BATCH_SIZE))
-  }
-
-  const chunkResults = await Promise.all(
-    chunks.map((chunk) =>
-      withTimeout(
-        multicall(publicClient, {
-          contracts: chunk,
-          allowFailure: true,
-          batchSize: 0,
-        }),
-        PREFLIGHT_TIMEOUT_MS,
-      ),
-    ),
-  )
-
-  return chunkResults.flat() as (
-    | {
-        status: 'success'
-        result: T
-      }
-    | MulticallFailure
-  )[]
-}
 
 export const filterNotReserved = async (
   publicClient: PublicClient,
