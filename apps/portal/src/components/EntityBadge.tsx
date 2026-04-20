@@ -1,14 +1,13 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  CheckIcon,
-  CopyIcon,
-  ExternalLinkIcon,
-  IdCardIcon,
-  WalletIcon,
-} from 'lucide-react'
+import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
-import { Button } from '@/components/ui/button'
+import {
+  ChipCopyIcon,
+  ChipLinkIcon,
+  ChipNameIcon,
+  ChipWalletIcon,
+} from '@/assets/icons'
 import { cn } from '@/lib/utils'
 
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
@@ -21,23 +20,28 @@ const variantClass: Record<EntityVariant, string> = {
 }
 
 export const hoverBgClass: Record<EntityVariant, string> = {
-  name: 'hover:bg-accent-fill dark:hover:bg-accent-fill/40',
-  address: 'hover:bg-success-fill dark:hover:bg-success-fill/40',
-  contract: 'hover:bg-danger-fill dark:hover:bg-danger-fill/40',
-  tx: 'hover:bg-warning-fill dark:hover:bg-warning-fill/40',
+  name: 'hover:bg-accent-fill dark:hover:bg-entity-bg',
+  address: 'hover:bg-success-fill dark:hover:bg-entity-bg',
+  contract: 'hover:bg-danger-fill dark:hover:bg-entity-bg',
+  tx: 'hover:bg-warning-fill dark:hover:bg-entity-bg',
 }
 
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
-    'border-[0.5px] border-entity-border',
+    'border-[0.5px] border-entity-border group-hover/entity:border-transparent',
     'font-mono text-sm font-medium tracking-tight whitespace-nowrap no-underline',
     variantClass[variant],
     className,
   )
 
-const chipClass =
-  'h-6 px-2 gap-1 text-[11px] font-normal cursor-pointer no-underline'
+const chipClass = cn(
+  'inline-flex items-center cursor-pointer transition-colors',
+  'h-7 px-2 gap-1 rounded-sm',
+  'border border-border bg-popover text-popover-foreground',
+  'hover:bg-accent hover:text-accent-foreground',
+  'text-[11px] font-normal no-underline',
+)
 
 const CopyChip = ({
   value,
@@ -67,19 +71,14 @@ const CopyChip = ({
   }, [copied])
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className={chipClass}
-      onClick={handleCopy}
-    >
+    <button type="button" className={chipClass} onClick={handleCopy}>
       {copied ? (
         <CheckIcon className="size-3.25" />
       ) : (
-        <CopyIcon className="size-3.25" />
+        <ChipCopyIcon className="size-3.25" />
       )}
       {label}
-    </Button>
+    </button>
   )
 }
 
@@ -139,6 +138,7 @@ export const EntityBadgeWithActions = ({
   copyValue,
 }: EntityBadgeWithActionsProps) => {
   const navigate = useNavigate()
+
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
 
@@ -158,120 +158,107 @@ export const EntityBadgeWithActions = ({
     )
   }
 
+  const hasPrimaryAction =
+    (variant === 'name' && !!name) ||
+    (variant === 'address' && !!address) ||
+    ((variant === 'contract' || variant === 'tx') && !!etherscanHref)
+
   const triggerPrimaryAction = () => {
     if (variant === 'name' && name) {
       navigate({ to: '/$name', params: { name } })
-    } else if (variant === 'address' && address) {
-      navigate({ to: '/addr/$addr', params: { addr: address } })
-    } else if (variant === 'contract' && etherscanHref) {
-      window.open(etherscanHref, '_blank', 'noopener,noreferrer')
-    } else if (variant === 'tx' && etherscanHref) {
-      window.open(etherscanHref, '_blank', 'noopener,noreferrer')
+      return
     }
-  }
 
-  const handleWrapperClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    triggerPrimaryAction()
-  }
+    if (variant === 'address' && address) {
+      navigate({ to: '/addr/$addr', params: { addr: address } })
+      return
+    }
 
-  const handleWrapperKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      triggerPrimaryAction()
+    if ((variant === 'contract' || variant === 'tx') && etherscanHref) {
+      window.open(etherscanHref, '_blank', 'noopener,noreferrer')
     }
   }
 
   return (
-    <button
-      type="button"
-      className={cn(
-        'relative group/entity inline-flex rounded transition-colors cursor-pointer px-1.5 py-1',
-        hoverBgClass[variant],
-      )}
-      onClick={handleWrapperClick}
-      onKeyDown={handleWrapperKeyDown}
-    >
+    <div className="relative group/entity inline-flex">
       {/*
         Chips float above the badge.
         pb-2 creates an invisible 8px bridge at the bottom of this container,
         so hovering from badge upward to chips doesn't break the hover state.
       */}
       <div className="absolute bottom-full left-0 pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50">
-        {/* Name chip */}
         {variant === 'name' && name && (
-          <Button variant="outline" size="sm" className={chipClass} asChild>
-            <Link
-              to="/$name"
-              params={{ name }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <IdCardIcon className="size-3.25" />
-              Name
-            </Link>
-          </Button>
+          <Link to="/$name" params={{ name }} className={chipClass}>
+            <ChipNameIcon className="size-3.25" />
+            Name
+          </Link>
         )}
 
-        {/* Owner chip — prefer ENS name, fall back to address */}
         {variant === 'name' && ownerName && (
-          <Button variant="outline" size="sm" className={chipClass} asChild>
-            <Link
-              to="/$name"
-              params={{ name: ownerName }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <WalletIcon className="size-3.25" />
-              Owner
-            </Link>
-          </Button>
+          <Link to="/$name" params={{ name: ownerName }} className={chipClass}>
+            <ChipWalletIcon className="size-3.25" />
+            Owner
+          </Link>
         )}
+
         {variant === 'name' && !ownerName && ownerAddress && (
-          <Button variant="outline" size="sm" className={chipClass} asChild>
-            <Link
-              to="/addr/$addr"
-              params={{ addr: ownerAddress }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <WalletIcon className="size-3.25" />
-              Owner
-            </Link>
-          </Button>
+          <Link
+            to="/addr/$addr"
+            params={{ addr: ownerAddress }}
+            className={chipClass}
+          >
+            <ChipWalletIcon className="size-3.25" />
+            Owner
+          </Link>
         )}
 
-        {/* Address chip */}
         {variant === 'address' && address && (
-          <Button variant="outline" size="sm" className={chipClass} asChild>
-            <Link
-              to="/addr/$addr"
-              params={{ addr: address }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <WalletIcon className="size-3.25" />
-              Address
-            </Link>
-          </Button>
+          <Link
+            to="/addr/$addr"
+            params={{ addr: address }}
+            className={chipClass}
+          >
+            <ChipWalletIcon className="size-3.25" />
+            Address
+          </Link>
         )}
 
-        {/* Copy chip */}
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
 
-        {/* Etherscan chip */}
         {etherscanHref && (
-          <Button variant="outline" size="sm" className={chipClass} asChild>
-            <ExternalLink
-              href={etherscanHref}
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <ExternalLinkIcon className="size-3.25" />
-              Etherscan
-            </ExternalLink>
-          </Button>
+          <a
+            href={etherscanHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={chipClass}
+          >
+            <ChipLinkIcon className="size-3.25" />
+            Etherscan
+          </a>
         )}
       </div>
 
-      <EntityBadge variant={variant} className={className}>
-        {children}
-      </EntityBadge>
-    </button>
+      {hasPrimaryAction ? (
+        <button
+          type="button"
+          className={cn(
+            'inline-flex rounded transition-colors cursor-pointer px-1.5 py-1',
+            hoverBgClass[variant],
+          )}
+          onClick={triggerPrimaryAction}
+        >
+          <span className={pillClass(variant, className)}>{children}</span>
+        </button>
+      ) : (
+        <div
+          className={cn(
+            'inline-flex rounded transition-colors px-1.5 py-1',
+            hoverBgClass[variant],
+          )}
+        >
+          <span className={pillClass(variant, className)}>{children}</span>
+        </div>
+      )}
+    </div>
   )
 }
