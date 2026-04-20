@@ -7,7 +7,6 @@ import {
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
-  readContract,
   type Config as WagmiConfig,
   waitForTransactionReceipt,
   writeContract,
@@ -26,8 +25,10 @@ import {
   MAX_NAMES_PER_BATCH,
   type MigrationStepDescriptor,
 } from './buildStepDescriptors'
+import { approvalNeedsFor, checkSCAApprovals } from './checkSCAApprovals'
 import { chunkArray } from './chunkArray'
 import {
+  type ClassifiedName,
   classifyNames,
   type GroupedNames,
   groupClassifiedNames,
@@ -39,11 +40,12 @@ import {
   type MigrationPreflight,
 } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
-import { fetchV1Profiles, type Profile } from './fetchV1Profiles'
+import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
 import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
 export type { MigrationStepDescriptor } from './buildStepDescriptors'
+export type { MigrationPreflight } from './computeMigrationPreflight'
 
 class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -56,9 +58,15 @@ class MigrationUserRejectedError extends TaggedError(
   step: string
 }> {}
 
-export type { MigrationPreflight } from './computeMigrationPreflight'
-export { OwnedResolverDeployError } from './ensureOwnedPermRes'
-export { ProfileFetchError } from './fetchV1Profiles'
+const isUserRejection = (error: unknown): boolean => {
+  let cur: unknown = error
+  while (cur instanceof Error) {
+    if (cur.name === 'UserRejectedRequestError') return true
+    if (/user rejected/i.test(cur.message)) return true
+    cur = (cur as { cause?: unknown }).cause
+  }
+  return false
+}
 
 export type MigrationProgress = {
   readonly currentStep: number
@@ -104,69 +112,56 @@ type MigrationCtx = {
   tracker: Tracker
 }
 
-const approveSCAIfNeeded = async (
+const PENDING_TX_HASH = '0x0' as Hex
+const APPROVAL_RECEIPT_TIMEOUT_MS = 300_000
+
+const ensureApprovals = async (
   ctx: MigrationCtx,
   groups: GroupedNames,
 ): Promise<Hex[]> => {
   const hashes: Hex[] = []
-  const hasUnwrapped = groups.unwrapped.length > 0
-  const hasWrapped =
-    groups.unlocked.length > 0 ||
-    groups.locked2ld.length > 0 ||
-    groups.childNames.size > 0
+  const needs = approvalNeedsFor(groups)
+  const approvals = await checkSCAApprovals({
+    eoa: ctx.migrationOwner,
+    scaAddress: ctx.accountAddress,
+    needs,
+    wagmiConfig: ctx.wagmiConfig,
+  })
 
-  if (hasUnwrapped) {
-    const isApproved = (await readContract(ctx.wagmiConfig, {
+  if (needs.hasUnwrapped && !approvals.baseRegistrarApproved) {
+    ctx.tracker.emit(
+      'Approving your smart account on BaseRegistrar',
+      PENDING_TX_HASH,
+    )
+    const hash = await writeContract(ctx.wagmiConfig, {
       address: V1_CONTRACTS.BaseRegistrar,
       abi: BASE_REGISTRAR_ABI,
-      functionName: 'isApprovedForAll',
-      args: [ctx.migrationOwner, ctx.accountAddress],
-    })) as boolean
-
-    if (!isApproved) {
-      ctx.tracker.emit(
-        'Approving your smart account on BaseRegistrar',
-        PENDING_TX_HASH,
-      )
-      const hash = await writeContract(ctx.wagmiConfig, {
-        address: V1_CONTRACTS.BaseRegistrar,
-        abi: BASE_REGISTRAR_ABI,
-        functionName: 'setApprovalForAll',
-        args: [ctx.accountAddress, true],
-      })
-      await waitForTransactionReceipt(ctx.wagmiConfig, {
-        hash,
-        timeout: 300_000,
-      })
-      hashes.push(hash)
-    }
+      functionName: 'setApprovalForAll',
+      args: [ctx.accountAddress, true],
+    })
+    await waitForTransactionReceipt(ctx.wagmiConfig, {
+      hash,
+      timeout: APPROVAL_RECEIPT_TIMEOUT_MS,
+    })
+    hashes.push(hash)
   }
 
-  if (hasWrapped) {
-    const isApproved = (await readContract(ctx.wagmiConfig, {
+  if (needs.hasWrapped && !approvals.nameWrapperApproved) {
+    ctx.tracker.emit(
+      'Approving your smart account on NameWrapper',
+      PENDING_TX_HASH,
+    )
+    const hash = await writeContract(ctx.wagmiConfig, {
       address: V1_CONTRACTS.NameWrapper,
       abi: NAME_WRAPPER_ABI,
-      functionName: 'isApprovedForAll',
-      args: [ctx.migrationOwner, ctx.accountAddress],
-    })) as boolean
-
-    if (!isApproved) {
-      ctx.tracker.emit(
-        'Approving your smart account on NameWrapper',
-        PENDING_TX_HASH,
-      )
-      const hash = await writeContract(ctx.wagmiConfig, {
-        address: V1_CONTRACTS.NameWrapper,
-        abi: NAME_WRAPPER_ABI,
-        functionName: 'setApprovalForAll',
-        args: [ctx.accountAddress, true],
-      })
-      await waitForTransactionReceipt(ctx.wagmiConfig, {
-        hash,
-        timeout: 300_000,
-      })
-      hashes.push(hash)
-    }
+      functionName: 'setApprovalForAll',
+      args: [ctx.accountAddress, true],
+    })
+    await waitForTransactionReceipt(ctx.wagmiConfig, {
+      hash,
+      timeout: APPROVAL_RECEIPT_TIMEOUT_MS,
+    })
+    hashes.push(hash)
   }
 
   ctx.tracker.next()
@@ -174,6 +169,96 @@ const approveSCAIfNeeded = async (
     ctx.tracker.emit('Smart account approved')
   }
   return hashes
+}
+
+const ensureResolver = async (
+  ctx: MigrationCtx,
+  classified: readonly ClassifiedName[],
+  preflight: MigrationPreflight,
+): Promise<Address | null> => {
+  const namesToOwnedPermRes = classified.filter(
+    (n) => n.resolverStrategy === 'to-owned-permres',
+  )
+  if (namesToOwnedPermRes.length === 0) return preflight.preExistingOwnedPermRes
+
+  if (preflight.preExistingOwnedPermRes)
+    return preflight.preExistingOwnedPermRes
+
+  ctx.tracker.emit('Setting up your v2 resolver', PENDING_TX_HASH)
+  const resolver = await ensureOwnedPermRes({
+    eoa: ctx.migrationOwner,
+    wagmiConfig: ctx.wagmiConfig,
+    publicClient: ctx.publicClient,
+  })
+  ctx.tracker.next()
+  return resolver
+}
+
+const fetchProfilesIfNeeded = async (
+  ctx: MigrationCtx,
+  classified: readonly ClassifiedName[],
+  preflight: MigrationPreflight,
+): Promise<Map<Hex, Profile>> => {
+  const namesToOwnedPermRes = classified.filter(
+    (n) => n.resolverStrategy === 'to-owned-permres',
+  )
+  if (namesToOwnedPermRes.length === 0 || preflight.skipFetchProfilesPhase) {
+    return new Map()
+  }
+  return fetchV1Profiles({
+    names: namesToOwnedPermRes
+      .filter((n) => n.v1ResolverAddress)
+      .map((n) => ({
+        nodeHex: namehash(n.domain.name) as Hex,
+        v1ResolverAddress: n.v1ResolverAddress as Address,
+      })),
+    publicClient: ctx.publicClient,
+  })
+}
+
+const computeNotReservedSet = async (
+  publicClient: PublicClient,
+  classified: readonly ClassifiedName[],
+): Promise<Set<string>> => {
+  const twoLDs = classified.filter(is2LD)
+  if (twoLDs.length === 0) return new Set()
+  const notReserved = await filterNotReserved(publicClient, twoLDs)
+  const out = new Set<string>()
+  for (const name of notReserved) out.add(name.domain.name)
+  return out
+}
+
+const validateSubnameParents = async (
+  publicClient: PublicClient,
+  groups: GroupedNames,
+): Promise<Map<string, Address>> => {
+  if (groups.childNames.size === 0) return new Map()
+
+  const parentRegistries = await resolveParentRegistries(
+    publicClient,
+    groups.childNames,
+  )
+
+  const unresolvedParents: string[] = []
+  for (const [parentName] of groups.childNames) {
+    const registry = parentRegistries.get(parentName) ?? zeroAddress
+    if (registry === zeroAddress) unresolvedParents.push(parentName)
+  }
+  if (unresolvedParents.length === 0) return parentRegistries
+
+  const total = groups.childNames.size
+  const resolved = total - unresolvedParents.length
+  const preview = unresolvedParents.slice(0, 3).join(', ')
+  const suffix =
+    unresolvedParents.length > 3
+      ? ` (+${unresolvedParents.length - 3} more)`
+      : ''
+  throw new MigrationError({
+    cause: new Error(
+      `${unresolvedParents.length}/${total} parent registries unresolved after retries: ${preview}${suffix}. Migrate the parent name(s) first, or retry once the indexer catches up.`,
+    ),
+    step: `Subnames (${resolved}/${total} parents ready)`,
+  })
 }
 
 const buildSCARequest = (
@@ -212,8 +297,6 @@ const buildSCARequest = (
   } as TransactionRequest
 }
 
-const PENDING_TX_HASH = '0x0' as Hex
-
 const submitBatchedUserOp = async (
   ctx: MigrationCtx,
   calls: ZeroDevCall[],
@@ -234,6 +317,108 @@ const submitBatchedUserOp = async (
 
   const result = await waitForTransaction(txId)
   return result.hash as Hex
+}
+
+const buildBatchCalls = (params: {
+  ctx: MigrationCtx
+  chunk: readonly ClassifiedName[]
+  notReservedSet: ReadonlySet<string>
+  ownedPermRes: Address | null
+  profiles: ReadonlyMap<Hex, Profile>
+  parentRegistries: ReadonlyMap<string, Address>
+}): ZeroDevCall[] => {
+  const {
+    ctx,
+    chunk,
+    notReservedSet,
+    ownedPermRes,
+    profiles,
+    parentRegistries,
+  } = params
+  const batchCalls: ZeroDevCall[] = []
+
+  const chunkTwoLDs = chunk.filter(
+    (n) => is2LD(n) && notReservedSet.has(n.domain.name),
+  )
+  if (chunkTwoLDs.length > 0) {
+    batchCalls.push(...buildPreMigrateCalls(chunkTwoLDs))
+  }
+
+  const transferCalls = buildAllTransferCalls({
+    classified: chunk,
+    migrationOwner: ctx.migrationOwner,
+    defaultResolver: ctx.defaultResolver,
+    ownedPermRes,
+    parentRegistries,
+  })
+
+  let calls = transferCalls
+  if (ownedPermRes) {
+    const batchProfiles = new Map<Hex, Profile>()
+    for (const name of chunk) {
+      if (name.resolverStrategy !== 'to-owned-permres') continue
+      const node = namehash(name.domain.name) as Hex
+      const entry = profiles.get(profileMapKey(node))
+      if (entry) batchProfiles.set(node, entry)
+    }
+    const replay = buildProfileReplayCall({
+      resolver: ownedPermRes,
+      profiles: batchProfiles,
+    })
+    if (replay) calls = [...transferCalls, replay]
+  }
+
+  batchCalls.push(...calls)
+  batchCalls.push(...buildRoleGrantCalls(chunk))
+  return batchCalls
+}
+
+const submitBatches = async (params: {
+  ctx: MigrationCtx
+  classified: readonly ClassifiedName[]
+  notReservedSet: ReadonlySet<string>
+  ownedPermRes: Address | null
+  profiles: ReadonlyMap<Hex, Profile>
+  parentRegistries: ReadonlyMap<string, Address>
+}): Promise<Hex[]> => {
+  const { ctx, classified } = params
+  const nameChunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
+  const totalBatches = nameChunks.length
+  const hashes: Hex[] = []
+
+  for (let i = 0; i < nameChunks.length; i++) {
+    const chunk = nameChunks[i]!
+    const batchNum = i + 1
+
+    ctx.tracker.emit(
+      `Upgrading batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
+    )
+
+    const batchCalls = buildBatchCalls({ ...params, chunk })
+
+    try {
+      const hash = await submitBatchedUserOp(
+        ctx,
+        batchCalls,
+        `Migrate batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
+      )
+      hashes.push(hash)
+      ctx.tracker.next()
+      ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, hash)
+    } catch (error) {
+      if (isUserRejection(error)) {
+        throw new MigrationUserRejectedError({
+          step: `Batch ${batchNum}/${totalBatches}`,
+        })
+      }
+      throw new MigrationError({
+        cause: error,
+        step: `Batch ${batchNum}/${totalBatches}`,
+      })
+    }
+  }
+
+  return hashes
 }
 
 export const executeMigration = async (params: {
@@ -261,12 +446,7 @@ export const executeMigration = async (params: {
 
   const { classified, ineligible } = classifyNames(domains, migrationOwner)
   if (classified.length === 0) {
-    return {
-      completed: 0,
-      txHashes: [],
-      ineligible,
-      migratedNames: [],
-    }
+    return { completed: 0, txHashes: [], ineligible, migratedNames: [] }
   }
 
   const groups = groupClassifiedNames(classified)
@@ -283,146 +463,30 @@ export const executeMigration = async (params: {
 
   const approvalHashes = preflight.skipApprovalPhase
     ? []
-    : await approveSCAIfNeeded(ctx, groups)
+    : await ensureApprovals(ctx, groups)
 
-  const namesToOwnedPermRes = classified.filter(
-    (n) => n.resolverStrategy === 'to-owned-permres',
-  )
-
-  let ownedPermRes: Address | null = preflight.preExistingOwnedPermRes
-  if (namesToOwnedPermRes.length > 0 && !ownedPermRes) {
-    ctx.tracker.emit('Setting up your v2 resolver', PENDING_TX_HASH)
-    ownedPermRes = await ensureOwnedPermRes({
-      eoa: ctx.migrationOwner,
-      wagmiConfig: ctx.wagmiConfig,
-      publicClient: ctx.publicClient,
-    })
-    ctx.tracker.next()
-  }
-
-  let profiles = new Map<Hex, Profile>()
-  if (namesToOwnedPermRes.length > 0 && !preflight.skipFetchProfilesPhase) {
-    profiles = await fetchV1Profiles({
-      names: namesToOwnedPermRes
-        .filter((n) => n.v1ResolverAddress)
-        .map((n) => ({
-          nodeHex: namehash(n.domain.name) as Hex,
-          v1ResolverAddress: n.v1ResolverAddress as Address,
-        })),
-      publicClient: ctx.publicClient,
-    })
-  }
+  const ownedPermRes = await ensureResolver(ctx, classified, preflight)
+  const profiles = await fetchProfilesIfNeeded(ctx, classified, preflight)
 
   ctx.tracker.emit(`Preparing migration for ${classified.length} name(s)`)
 
-  const notReservedSet = new Set<string>()
-  const twoLDs = classified.filter(is2LD)
-  if (twoLDs.length > 0) {
-    const { notReserved } = await filterNotReserved(publicClient, [...twoLDs])
-    for (const name of notReserved) {
-      notReservedSet.add(name.domain.name)
-    }
-  }
+  const notReservedSet = await computeNotReservedSet(publicClient, classified)
+  const parentRegistries = await validateSubnameParents(publicClient, groups)
 
-  const parentRegistries =
-    groups.childNames.size > 0
-      ? await resolveParentRegistries(publicClient, groups.childNames)
-      : new Map<string, Address>()
-
-  for (const [parentName, _children] of groups.childNames) {
-    const registry = parentRegistries.get(parentName) ?? zeroAddress
-    if (registry === zeroAddress) {
-      throw new MigrationError({
-        cause: new Error(
-          `Parent "${parentName}" has not been migrated yet. Migrate the parent first.`,
-        ),
-        step: `Subnames under ${parentName}`,
-      })
-    }
-  }
-
-  const nameChunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
-  const totalBatches = nameChunks.length
-  const allHashes: Hex[] = [...approvalHashes]
-
-  for (let i = 0; i < nameChunks.length; i++) {
-    const chunk = nameChunks[i]!
-    const batchNum = i + 1
-
-    ctx.tracker.emit(
-      `Upgrading batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
-    )
-
-    const batchCalls: ZeroDevCall[] = []
-
-    const chunkTwoLDs = chunk.filter(
-      (n) => is2LD(n) && notReservedSet.has(n.domain.name),
-    )
-    if (chunkTwoLDs.length > 0) {
-      batchCalls.push(...buildPreMigrateCalls(chunkTwoLDs))
-    }
-
-    const transferCalls = buildAllTransferCalls({
-      classified: chunk,
-      migrationOwner,
-      defaultResolver,
-      ownedPermRes,
-      parentRegistries,
-    })
-
-    let calls = transferCalls
-    if (ownedPermRes) {
-      const batchProfiles = new Map<Hex, Profile>()
-      for (const name of chunk) {
-        if (name.resolverStrategy !== 'to-owned-permres') continue
-        const node = namehash(name.domain.name) as Hex
-        const entry = profiles.get(node.toLowerCase() as Hex)
-        if (entry) batchProfiles.set(node, entry)
-      }
-      const replay = buildProfileReplayCall({
-        resolver: ownedPermRes,
-        profiles: batchProfiles,
-      })
-      if (replay) calls = [...transferCalls, replay]
-    }
-
-    batchCalls.push(...calls)
-
-    batchCalls.push(...buildRoleGrantCalls(chunk))
-
-    try {
-      const hash = await submitBatchedUserOp(
-        ctx,
-        batchCalls,
-        `Migrate batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
-      )
-
-      allHashes.push(hash)
-      ctx.tracker.next()
-      ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, hash)
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.toLowerCase().includes('user rejected')
-      ) {
-        throw new MigrationUserRejectedError({
-          step: `Batch ${batchNum}/${totalBatches}`,
-        })
-      }
-      throw new MigrationError({
-        cause: error,
-        step: `Batch ${batchNum}/${totalBatches}`,
-      })
-    }
-  }
-
-  const migratedNames = classified.map((c) => c.domain.name)
+  const batchHashes = await submitBatches({
+    ctx,
+    classified,
+    notReservedSet,
+    ownedPermRes,
+    profiles,
+    parentRegistries,
+  })
 
   return {
     completed: classified.length,
-    txHashes: allHashes,
+    txHashes: [...approvalHashes, ...batchHashes],
     ineligible,
-    migratedNames,
+    migratedNames: classified.map((c) => c.domain.name),
   }
 }
 

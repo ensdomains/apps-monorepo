@@ -51,6 +51,21 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           <div>You can retry below.</div>
         </>
       )
+    case 'user-rejected':
+      return (
+        <>
+          <div>You rejected the request in your wallet.</div>
+          <div>You can retry below.</div>
+        </>
+      )
+    case 'preflight-timeout':
+      return (
+        <>
+          <div>Pre-flight checks timed out.</div>
+          <div>{error.message}</div>
+          <div>You can retry below.</div>
+        </>
+      )
   }
 }
 

@@ -9,6 +9,8 @@ export type MigrationError =
       phase: 'subgraph' | 'onchain'
       message: string
     }
+  | { type: 'user-rejected' }
+  | { type: 'preflight-timeout'; message: string; timeoutMs?: number }
 
 export const extractErrorMessage = (err: unknown): string => {
   if (!(err instanceof Error)) return String(err)
@@ -28,12 +30,51 @@ export const extractErrorMessage = (err: unknown): string => {
   return err.message || 'Migration failed'
 }
 
-export const decodeMigrationError = (err: unknown): MigrationError => {
-  if (err instanceof OwnedResolverDeployError) {
-    return {
-      type: 'resolver-deploy-failed',
-      message: extractErrorMessage(err),
+const walkCauseChain = (err: unknown): Error[] => {
+  const chain: Error[] = []
+  let cur: unknown = err
+  while (cur instanceof Error) {
+    chain.push(cur)
+    cur = (cur as { cause?: unknown }).cause
+  }
+  return chain
+}
+
+const isUserRejection = (err: unknown): boolean => {
+  if (err instanceof Error && err.name === 'MigrationUserRejectedError') {
+    return true
+  }
+  return walkCauseChain(err).some(
+    (e) =>
+      e.name === 'UserRejectedRequestError' || /user rejected/i.test(e.message),
+  )
+}
+
+const findTimeoutError = (
+  err: unknown,
+): (Error & { timeoutMs?: number }) | null => {
+  for (const e of walkCauseChain(err)) {
+    if (e.name === 'PreflightTimeoutError') {
+      return e as Error & { timeoutMs?: number }
     }
+  }
+  return null
+}
+
+export const decodeMigrationError = (err: unknown): MigrationError => {
+  if (isUserRejection(err)) return { type: 'user-rejected' }
+
+  const timeout = findTimeoutError(err)
+  if (timeout) {
+    return {
+      type: 'preflight-timeout',
+      message: extractErrorMessage(timeout),
+      timeoutMs: timeout.timeoutMs,
+    }
+  }
+
+  if (err instanceof OwnedResolverDeployError) {
+    return { type: 'resolver-deploy-failed', message: extractErrorMessage(err) }
   }
   if (err instanceof ProfileFetchError) {
     return {

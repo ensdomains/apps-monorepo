@@ -111,4 +111,62 @@ describe('decodeMigrationError', () => {
       message: 'User rejected the request.',
     })
   })
+
+  it('maps viem UserRejectedRequestError by .name', () => {
+    const err = Object.assign(new Error('request denied'), {
+      name: 'UserRejectedRequestError',
+    })
+    expect(decodeMigrationError(err)).toEqual({ type: 'user-rejected' })
+  })
+
+  it('maps a user rejection wrapped in a cause chain', () => {
+    const deepest = Object.assign(new Error('Request rejected'), {
+      name: 'UserRejectedRequestError',
+    })
+    const middle = new Error('wrapped', { cause: deepest })
+    const outer = new Error('outermost', { cause: middle })
+    expect(decodeMigrationError(outer)).toEqual({ type: 'user-rejected' })
+  })
+
+  it('maps errors whose message contains "user rejected"', () => {
+    const err = new Error('MetaMask Tx Signature: user rejected transaction')
+    expect(decodeMigrationError(err)).toEqual({ type: 'user-rejected' })
+  })
+
+  it('maps PreflightTimeoutError to preflight-timeout with timeoutMs', () => {
+    const timeout = Object.assign(
+      new Error('Pre-flight RPC call timed out after 15000ms'),
+      { name: 'PreflightTimeoutError', timeoutMs: 15000 },
+    )
+    expect(decodeMigrationError(timeout)).toEqual({
+      type: 'preflight-timeout',
+      message: 'Pre-flight RPC call timed out after 15000ms',
+      timeoutMs: 15000,
+    })
+  })
+
+  it('finds PreflightTimeoutError wrapped deep in a cause chain', () => {
+    const timeout = Object.assign(new Error('timed out'), {
+      name: 'PreflightTimeoutError',
+      timeoutMs: 5000,
+    })
+    const outer = new Error('preflight failed', { cause: timeout })
+    expect(decodeMigrationError(outer)).toEqual({
+      type: 'preflight-timeout',
+      message: 'timed out',
+      timeoutMs: 5000,
+    })
+  })
+
+  it('user-rejection takes precedence over preflight-timeout when both are in the chain', () => {
+    const timeout = Object.assign(new Error('timed out'), {
+      name: 'PreflightTimeoutError',
+      timeoutMs: 5000,
+    })
+    const rejection = Object.assign(new Error('user rejected'), {
+      name: 'UserRejectedRequestError',
+      cause: timeout,
+    })
+    expect(decodeMigrationError(rejection)).toEqual({ type: 'user-rejected' })
+  })
 })

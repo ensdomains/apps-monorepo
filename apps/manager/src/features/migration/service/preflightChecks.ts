@@ -13,13 +13,10 @@ import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
 
 export const filterNotReserved = async (
   publicClient: PublicClient,
-  names: ClassifiedName[],
-): Promise<{ valid: ClassifiedName[]; notReserved: ClassifiedName[] }> => {
+  names: readonly ClassifiedName[],
+): Promise<ClassifiedName[]> => {
   const twoLDs = names.filter(is2LD)
-
-  if (twoLDs.length === 0) {
-    return { valid: names, notReserved: [] }
-  }
+  if (twoLDs.length === 0) return []
 
   const results = await batchedMulticall<Address>(
     publicClient,
@@ -31,19 +28,11 @@ export const filterNotReserved = async (
     })),
   )
 
-  const notReserved = twoLDs.filter((_, i) => {
+  return twoLDs.filter((_, i) => {
     const r = results[i]
     if (!r || r.status === 'failure') return false
     return r.result === zeroAddress
   })
-
-  if (notReserved.length === 0) {
-    return { valid: names, notReserved: [] }
-  }
-
-  const notReservedIds = new Set(notReserved.map((n) => n.domain.id))
-  const valid = names.filter((n) => !notReservedIds.has(n.domain.id))
-  return { valid, notReserved }
 }
 
 export type EligibilityResult = {
@@ -54,6 +43,132 @@ export type EligibilityResult = {
 
 const V2_STATUS_REGISTERED = 2
 
+export const checkOwnership = async (
+  publicClient: PublicClient,
+  names: readonly ClassifiedName[],
+  migrationOwner: Address,
+): Promise<Set<string>> => {
+  const ids = new Set<string>()
+  if (names.length === 0) return ids
+
+  type Contract = Parameters<typeof batchedMulticall>[1][number]
+  const contracts: Contract[] = names.map((name) =>
+    name.tokenType === 'unwrapped'
+      ? {
+          address: V1_CONTRACTS.BaseRegistrar,
+          abi: BASE_REGISTRAR_ABI,
+          functionName: 'ownerOf' as const,
+          args: [BigInt(name.domain.labelhash)] as const,
+        }
+      : {
+          address: V1_CONTRACTS.NameWrapper,
+          abi: NAME_WRAPPER_ABI,
+          functionName: 'getData' as const,
+          args: [BigInt(name.domain.id)] as const,
+        },
+  )
+
+  const results = await batchedMulticall<
+    Address | readonly [Address, number, bigint]
+  >(publicClient, contracts)
+
+  const expected = migrationOwner.toLowerCase()
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i]!
+    const r = results[i]
+    if (!r || r.status === 'failure') {
+      ids.add(name.domain.id)
+      continue
+    }
+    const result = r.result
+    const currentOwner = typeof result === 'string' ? result : result[0]
+    if (currentOwner.toLowerCase() !== expected) {
+      ids.add(name.domain.id)
+    }
+  }
+
+  return ids
+}
+
+export const checkV2Status = async (
+  publicClient: PublicClient,
+  twoLDs: readonly ClassifiedName[],
+): Promise<Set<string>> => {
+  const ids = new Set<string>()
+  if (twoLDs.length === 0) return ids
+
+  const results = await batchedMulticall<number>(
+    publicClient,
+    twoLDs.map((name) => ({
+      address: V2_CONTRACTS.ETHRegistry,
+      abi: ETH_REGISTRY_V2_ABI,
+      functionName: 'getStatus' as const,
+      args: [BigInt(name.domain.labelhash)] as const,
+    })),
+  )
+
+  for (let i = 0; i < twoLDs.length; i++) {
+    const name = twoLDs[i]!
+    const r = results[i]
+    if (!r || r.status === 'failure') {
+      console.warn(
+        `[migration] v2-status check failed for ${name.domain.id}; treating as already migrated`,
+      )
+      ids.add(name.domain.id)
+      continue
+    }
+    if (r.result === V2_STATUS_REGISTERED) {
+      ids.add(name.domain.id)
+    }
+  }
+
+  return ids
+}
+
+export const checkFrozenApproval = async (
+  publicClient: PublicClient,
+  candidates: readonly ClassifiedName[],
+): Promise<Set<string>> => {
+  const ids = new Set<string>()
+  if (candidates.length === 0) return ids
+
+  const results = await batchedMulticall<Address>(
+    publicClient,
+    candidates.map((name) => ({
+      address: V1_CONTRACTS.NameWrapper,
+      abi: NAME_WRAPPER_ABI,
+      functionName: 'getApproved' as const,
+      args: [BigInt(name.domain.id)] as const,
+    })),
+  )
+
+  for (let i = 0; i < candidates.length; i++) {
+    const name = candidates[i]!
+    const r = results[i]
+    if (!r || r.status === 'failure') {
+      console.warn(
+        `[migration] frozen-approval check failed for ${name.domain.id}; treating as frozen`,
+      )
+      ids.add(name.domain.id)
+      continue
+    }
+    if (r.result !== zeroAddress) {
+      ids.add(name.domain.id)
+    }
+  }
+
+  return ids
+}
+
+const frozenApprovalCandidates = (
+  names: readonly ClassifiedName[],
+): ClassifiedName[] =>
+  names.filter(
+    (n) =>
+      (n.tokenType === 'locked-2ld' || n.tokenType === 'locked-child') &&
+      hasFuse(n.fuses, FUSES.CANNOT_APPROVE),
+  )
+
 export const runEligibilityChecks = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
@@ -63,90 +178,16 @@ export const runEligibilityChecks = async (
     return { eligible: [], frozen: [], alreadyMigrated: [] }
   }
 
-  type Check =
-    | { type: 'ownership'; domainId: string }
-    | { type: 'v2-status'; domainId: string }
-    | { type: 'frozen'; domainId: string }
+  const twoLDs = names.filter(is2LD)
+  const frozenCandidates = frozenApprovalCandidates(names)
 
-  const checks: Check[] = []
-  type Contract = Parameters<typeof batchedMulticall>[1][number]
-  const contracts: Contract[] = []
+  const [ownershipMigrated, v2Migrated, frozenIds] = await Promise.all([
+    checkOwnership(publicClient, names, migrationOwner),
+    checkV2Status(publicClient, twoLDs),
+    checkFrozenApproval(publicClient, frozenCandidates),
+  ])
 
-  for (const name of names) {
-    checks.push({ type: 'ownership', domainId: name.domain.id })
-    if (name.tokenType === 'unwrapped') {
-      contracts.push({
-        address: V1_CONTRACTS.BaseRegistrar,
-        abi: BASE_REGISTRAR_ABI,
-        functionName: 'ownerOf' as const,
-        args: [BigInt(name.domain.labelhash)] as const,
-      })
-    } else {
-      contracts.push({
-        address: V1_CONTRACTS.NameWrapper,
-        abi: NAME_WRAPPER_ABI,
-        functionName: 'getData' as const,
-        args: [BigInt(name.domain.id)] as const,
-      })
-    }
-
-    if (is2LD(name)) {
-      checks.push({ type: 'v2-status', domainId: name.domain.id })
-      contracts.push({
-        address: V2_CONTRACTS.ETHRegistry,
-        abi: ETH_REGISTRY_V2_ABI,
-        functionName: 'getStatus' as const,
-        args: [BigInt(name.domain.labelhash)] as const,
-      })
-    }
-
-    const isLocked =
-      name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
-    if (isLocked && hasFuse(name.fuses, FUSES.CANNOT_APPROVE)) {
-      checks.push({ type: 'frozen', domainId: name.domain.id })
-      contracts.push({
-        address: V1_CONTRACTS.NameWrapper,
-        abi: NAME_WRAPPER_ABI,
-        functionName: 'getApproved' as const,
-        args: [BigInt(name.domain.id)] as const,
-      })
-    }
-  }
-
-  const results = await batchedMulticall<
-    Address | number | readonly [Address, number, bigint]
-  >(publicClient, contracts)
-
-  const frozenIds = new Set<string>()
-  const migratedIds = new Set<string>()
-  const expectedOwner = migrationOwner.toLowerCase()
-
-  checks.forEach((check, i) => {
-    const r = results[i]
-    if (!r || r.status === 'failure') {
-      // V1 BaseRegistrar.ownerOf reverts when the token no longer exists —
-      // the name was burned during migration or has expired. Network-level
-      // RPC failures throw from batchedMulticall and never reach here.
-      if (check.type === 'ownership') migratedIds.add(check.domainId)
-      return
-    }
-    if (check.type === 'ownership') {
-      const ownerResult = r.result as
-        | Address
-        | readonly [Address, number, bigint]
-      const currentOwner =
-        typeof ownerResult === 'string' ? ownerResult : ownerResult[0]
-      if (currentOwner.toLowerCase() !== expectedOwner) {
-        migratedIds.add(check.domainId)
-      }
-    } else if (check.type === 'v2-status') {
-      if ((r.result as number) === V2_STATUS_REGISTERED) {
-        migratedIds.add(check.domainId)
-      }
-    } else if (check.type === 'frozen') {
-      if (r.result !== zeroAddress) frozenIds.add(check.domainId)
-    }
-  })
+  const migratedIds = new Set<string>([...ownershipMigrated, ...v2Migrated])
 
   return {
     eligible: names.filter(
@@ -234,19 +275,13 @@ export const resolveParentRegistries = async (
   publicClient: PublicClient,
   childNames: ReadonlyMap<string, readonly ClassifiedName[]>,
 ): Promise<Map<string, Address>> => {
-  for (let attempt = 0; attempt < PARENT_REGISTRY_RETRIES; attempt++) {
-    const registries = await resolveParentRegistriesOnce(
-      publicClient,
-      childNames,
-    )
+  let registries = await resolveParentRegistriesOnce(publicClient, childNames)
 
+  for (let attempt = 1; attempt < PARENT_REGISTRY_RETRIES; attempt++) {
     const unresolved = [...registries.entries()].filter(
       ([, addr]) => addr === zeroAddress,
     )
-
-    if (unresolved.length === 0) {
-      return registries
-    }
+    if (unresolved.length === 0) return registries
 
     console.warn(
       `[migration] ${unresolved.length} parent registries unresolved, retrying in ${PARENT_REGISTRY_RETRY_DELAY}ms (attempt ${attempt + 1}/${PARENT_REGISTRY_RETRIES})`,
@@ -254,7 +289,8 @@ export const resolveParentRegistries = async (
     await new Promise((resolve) =>
       setTimeout(resolve, PARENT_REGISTRY_RETRY_DELAY),
     )
+    registries = await resolveParentRegistriesOnce(publicClient, childNames)
   }
 
-  return resolveParentRegistriesOnce(publicClient, childNames)
+  return registries
 }

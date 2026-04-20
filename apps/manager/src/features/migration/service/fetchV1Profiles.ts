@@ -18,6 +18,8 @@ type NameForFetch = {
   v1ResolverAddress: Address
 }
 
+export const profileMapKey = (nodeHex: Hex): Hex => nodeHex.toLowerCase() as Hex
+
 export const fetchV1Profiles = async (params: {
   names: readonly NameForFetch[]
   publicClient: PublicClient
@@ -27,7 +29,7 @@ export const fetchV1Profiles = async (params: {
   if (names.length === 0) return out
 
   const byNode = new Map<Hex, NameForFetch>(
-    names.map((n) => [n.nodeHex.toLowerCase() as Hex, n]),
+    names.map((n) => [profileMapKey(n.nodeHex), n]),
   )
   const ids = [...byNode.keys()]
 
@@ -55,7 +57,7 @@ export const fetchV1Profiles = async (params: {
   }[] = []
 
   for (const entry of keyEntries) {
-    const name = byNode.get(entry.id.toLowerCase() as Hex)
+    const name = byNode.get(profileMapKey(entry.id as Hex))
     if (!name) continue
     for (const key of entry.texts) {
       calls.push({ name, kind: 'text', key })
@@ -103,7 +105,7 @@ export const fetchV1Profiles = async (params: {
     const call = calls[i]!
     const res = results[i]
     if (!res || res.status !== 'success') continue
-    const bucket = out.get(call.name.nodeHex.toLowerCase() as Hex)!
+    const bucket = out.get(profileMapKey(call.name.nodeHex))!
     if (call.kind === 'text') {
       const value = res.result as string
       if (value && value.length > 0) {

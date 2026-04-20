@@ -94,10 +94,10 @@ describe('buildPreMigrateCall', () => {
     )
   })
 
-  it('throws when neither expiry is available', () => {
+  it('throws with a specific message including the domain name when neither expiry is available', () => {
     expect(() =>
       buildPreMigrateCall(makeClassified({ label: 'alice' })),
-    ).toThrow(/No expiry/)
+    ).toThrow(/No expiry found for alice\.eth/)
   })
 })
 

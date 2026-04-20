@@ -106,6 +106,19 @@ describe('classifyName', () => {
         ),
       ).toBeNull()
     })
+
+    it('returns null when the registrant id is not a valid Address', () => {
+      const bogus = makeDomain({ registrantId: 'not-an-address' })
+      expect(classifyName(bogus, OWNER)).toBeNull()
+    })
+
+    it('returns null when the wrappedOwner id is not a valid Address', () => {
+      const bogus = makeDomain({
+        isWrapped: true,
+        wrappedOwnerId: 'not-an-address',
+      })
+      expect(classifyName(bogus, OWNER)).toBeNull()
+    })
   })
 
   describe('unwrapped 2LD', () => {

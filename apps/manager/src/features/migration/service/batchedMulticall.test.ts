@@ -134,10 +134,34 @@ describe('batchedMulticall', () => {
     expect(result[2]!.status).toBe('success')
   })
 
-  it('propagates errors thrown by multicall', async () => {
+  it('converts a chunk-level rejection into per-item failure entries instead of throwing', async () => {
     multicallMock.mockRejectedValueOnce(new Error('rpc down'))
-    await expect(
-      batchedMulticall<number>(publicClient, fakeContracts(1)),
-    ).rejects.toThrow('rpc down')
+    const result = await batchedMulticall<number>(
+      publicClient,
+      fakeContracts(3),
+    )
+    expect(result).toHaveLength(3)
+    for (const entry of result) {
+      expect(entry.status).toBe('failure')
+      if (entry.status === 'failure') {
+        expect(entry.error.message).toBe('rpc down')
+      }
+    }
+  })
+
+  it('preserves peer chunk results when one chunk rejects', async () => {
+    multicallMock.mockRejectedValueOnce(new Error('chunk 1 down'))
+    multicallMock.mockResolvedValueOnce([ok(500)])
+
+    const result = await batchedMulticall<number>(
+      publicClient,
+      fakeContracts(501),
+    )
+
+    expect(result).toHaveLength(501)
+    for (let i = 0; i < 500; i++) {
+      expect(result[i]!.status).toBe('failure')
+    }
+    expect(result[500]!.status).toBe('success')
   })
 })

@@ -1,5 +1,5 @@
 import type { ZeroDevCall } from '@ens-apps/transaction-manager'
-import { type Address, encodeFunctionData } from 'viem'
+import { type Address, encodeFunctionData, zeroAddress } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import type { ClassifiedName } from './classifyNames'
@@ -10,17 +10,25 @@ const getTokenId = (name: ClassifiedName): bigint =>
     ? BigInt(name.domain.labelhash)
     : BigInt(name.domain.id)
 
-const resolverFor = (
+export const resolverFor = (
   name: ClassifiedName,
   defaultResolver: Address,
   ownedPermRes: Address | null,
 ): Address => {
-  switch (name.resolverStrategy) {
-    case 'keep-v1':
-      return (name.v1ResolverAddress ?? defaultResolver) as Address
-    case 'to-owned-permres':
-      return ownedPermRes ?? defaultResolver
+  const resolver: Address = (() => {
+    switch (name.resolverStrategy) {
+      case 'keep-v1':
+        return (name.v1ResolverAddress ?? defaultResolver) as Address
+      case 'to-owned-permres':
+        return ownedPermRes ?? defaultResolver
+    }
+  })()
+  if (resolver === zeroAddress) {
+    throw new Error(
+      `Resolver for "${name.domain.name}" resolved to the zero address (strategy=${name.resolverStrategy})`,
+    )
   }
+  return resolver
 }
 
 export const buildUnwrappedTransferCall = (params: {

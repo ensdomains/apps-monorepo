@@ -79,4 +79,23 @@ describe('encodeMigrationData', () => {
     })
     expect(a).not.toBe(b)
   })
+
+  it('encodes a custom subregistry distinctly from zeroAddress', () => {
+    const zeroSub = encodeMigrationData({
+      label: 'alice',
+      owner: OWNER,
+      subregistry: zeroAddress,
+      resolver: RESOLVER,
+    })
+    const customSub = encodeMigrationData({
+      label: 'alice',
+      owner: OWNER,
+      subregistry: SUBREGISTRY,
+      resolver: RESOLVER,
+    })
+    expect(customSub).not.toBe(zeroSub)
+
+    const [decoded] = decodeAbiParameters(TUPLE, customSub) as [MigrationData]
+    expect(decoded.subregistry.toLowerCase()).toBe(SUBREGISTRY.toLowerCase())
+  })
 })

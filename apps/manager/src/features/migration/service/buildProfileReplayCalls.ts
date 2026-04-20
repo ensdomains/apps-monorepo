@@ -1,5 +1,5 @@
 import type { ZeroDevCall } from '@ens-apps/transaction-manager'
-import { type Address, encodeFunctionData, type Hex } from 'viem'
+import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
@@ -8,6 +8,11 @@ export const buildProfileReplayCall = (params: {
   profiles: Map<Hex, Profile>
 }): ZeroDevCall | null => {
   const { resolver, profiles } = params
+  if (resolver === zeroAddress) {
+    throw new Error(
+      'buildProfileReplayCall: resolver must not be the zero address',
+    )
+  }
   const innerCalls: Hex[] = []
 
   for (const [nodeHex, profile] of profiles) {

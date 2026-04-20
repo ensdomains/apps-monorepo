@@ -1,7 +1,9 @@
-import { readContract, type Config as WagmiConfig } from '@wagmi/core'
-import { type Address, erc721Abi, type PublicClient } from 'viem'
-import { NAME_WRAPPER_ABI } from '@/features/migration/contracts/abis'
-import { V1_CONTRACTS } from '@/features/migration/contracts/addresses'
+import type { Config as WagmiConfig } from '@wagmi/core'
+import type { Address, PublicClient } from 'viem'
+import {
+  approvalNeedsFor,
+  checkSCAApprovals,
+} from '@/features/migration/service/checkSCAApprovals'
 import {
   classifyNames,
   groupClassifiedNames,
@@ -34,42 +36,22 @@ export const computeMigrationPreflight = async (params: {
   const { classified } = classifyNames([...domains], eoa)
   const groups = groupClassifiedNames(classified)
 
-  const hasUnwrapped = groups.unwrapped.length > 0
-  const hasWrapped =
-    groups.unlocked.length > 0 ||
-    groups.locked2ld.length > 0 ||
-    groups.childNames.size > 0
+  const needs = approvalNeedsFor(groups)
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
   )
   const needsOwnedPermRes = namesToOwnedPermRes.length > 0
 
-  const [existingPermRes, baseRegistrarApproved, nameWrapperApproved] =
-    await Promise.all([
-      needsOwnedPermRes
-        ? findExistingPermRes({ eoa, publicClient })
-        : Promise.resolve(null),
-      hasUnwrapped
-        ? (readContract(wagmiConfig, {
-            address: V1_CONTRACTS.BaseRegistrar,
-            abi: erc721Abi,
-            functionName: 'isApprovedForAll',
-            args: [eoa, scaAddress],
-          }) as Promise<boolean>)
-        : Promise.resolve(true),
-      hasWrapped
-        ? (readContract(wagmiConfig, {
-            address: V1_CONTRACTS.NameWrapper,
-            abi: NAME_WRAPPER_ABI,
-            functionName: 'isApprovedForAll',
-            args: [eoa, scaAddress],
-          }) as Promise<boolean>)
-        : Promise.resolve(true),
-    ])
+  const [existingPermRes, approvals] = await Promise.all([
+    needsOwnedPermRes
+      ? findExistingPermRes({ eoa, publicClient })
+      : Promise.resolve(null),
+    checkSCAApprovals({ eoa, scaAddress, needs, wagmiConfig }),
+  ])
 
   const skipApprovalPhase =
-    (!hasUnwrapped || baseRegistrarApproved) &&
-    (!hasWrapped || nameWrapperApproved)
+    (!needs.hasUnwrapped || approvals.baseRegistrarApproved) &&
+    (!needs.hasWrapped || approvals.nameWrapperApproved)
 
   let skipFetchProfilesPhase = false
   if (namesToOwnedPermRes.length === 0) {

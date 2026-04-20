@@ -5,15 +5,13 @@ import { withTimeout } from './withTimeout'
 const PREFLIGHT_TIMEOUT_MS = 15000
 const MULTICALL_BATCH_SIZE = 500
 
-export type MulticallFailure = {
+type MulticallFailure = {
   status: 'failure'
   error: Error
   result: undefined
 }
 
-export type MulticallResult<T> =
-  | { status: 'success'; result: T }
-  | MulticallFailure
+type MulticallResult<T> = { status: 'success'; result: T } | MulticallFailure
 
 export const batchedMulticall = async <T>(
   publicClient: PublicClient,
@@ -24,7 +22,7 @@ export const batchedMulticall = async <T>(
     chunks.push(contracts.slice(i, i + MULTICALL_BATCH_SIZE))
   }
 
-  const chunkResults = await Promise.all(
+  const settled = await Promise.allSettled(
     chunks.map((chunk) =>
       withTimeout(
         multicall(publicClient, {
@@ -37,5 +35,21 @@ export const batchedMulticall = async <T>(
     ),
   )
 
-  return chunkResults.flat() as MulticallResult<T>[]
+  const out: MulticallResult<T>[] = []
+  for (let i = 0; i < settled.length; i++) {
+    const r = settled[i]!
+    const chunkLen = chunks[i]!.length
+    if (r.status === 'fulfilled') {
+      for (const entry of r.value) {
+        out.push(entry as MulticallResult<T>)
+      }
+      continue
+    }
+    const error =
+      r.reason instanceof Error ? r.reason : new Error(String(r.reason))
+    for (let j = 0; j < chunkLen; j++) {
+      out.push({ status: 'failure', error, result: undefined })
+    }
+  }
+  return out
 }

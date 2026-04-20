@@ -1,6 +1,11 @@
-import type { Address } from 'viem'
+import { type Address, isAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import type { V1Domain } from './v1SubgraphClient'
+
+const toAddress = (s: string | null | undefined): Address | null => {
+  if (!s) return null
+  return isAddress(s) ? (s as Address) : null
+}
 
 export const FUSES = {
   CAN_DO_EVERYTHING: 0,
@@ -101,10 +106,14 @@ export const classifyName = (
     if (registrant?.id.toLowerCase() !== addr) return null
     if (parentName !== 'eth') return null
 
-    const registryOwner = domain.owner.id.toLowerCase()
+    const tokenHolder = toAddress(registrant.id)
+    if (!tokenHolder) return null
+
+    const registryOwnerAddress = toAddress(domain.owner.id)
     const managerAddress: Address | null =
-      registryOwner !== registrant.id.toLowerCase()
-        ? (domain.owner.id as Address)
+      registryOwnerAddress &&
+      registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
+        ? registryOwnerAddress
         : null
 
     return {
@@ -115,7 +124,7 @@ export const classifyName = (
         label,
         parentName,
         fuses: 0,
-        tokenHolder: registrant.id as Address,
+        tokenHolder,
         v1ResolverAddress,
         resolverStrategy: resolverStrategyFor({
           tokenType: 'unwrapped',
@@ -130,7 +139,8 @@ export const classifyName = (
   if (domain.wrappedOwner?.id.toLowerCase() !== addr) return null
 
   const fuses = domain.wrappedDomain.fuses
-  const wrappedHolder = domain.wrappedOwner.id as Address
+  const wrappedHolder = toAddress(domain.wrappedOwner.id)
+  if (!wrappedHolder) return null
 
   if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
     if (parentName !== 'eth') {
