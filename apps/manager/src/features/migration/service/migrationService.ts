@@ -18,7 +18,7 @@ import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { buildAllTransferCalls } from './buildMigrationCalls'
 import { buildPreMigrateCalls } from './buildPreMigrateCalls'
-import { buildProfileReplayCall } from './buildProfileReplayCalls'
+import { buildChunkedProfileReplayCalls } from './buildProfileReplayCalls'
 import { buildRoleGrantCalls } from './buildRoleGrantCalls'
 import {
   buildStepDescriptors,
@@ -313,22 +313,14 @@ const submitBatchedUserOp = async (
   return result.hash as Hex
 }
 
-const buildBatchCalls = (params: {
+const buildTransferBatchCalls = (params: {
   ctx: MigrationCtx
   chunk: readonly ClassifiedName[]
   notReservedSet: ReadonlySet<string>
   ownedPermRes: Address | null
-  profiles: ReadonlyMap<Hex, Profile>
   parentRegistries: ReadonlyMap<string, Address>
 }): ZeroDevCall[] => {
-  const {
-    ctx,
-    chunk,
-    notReservedSet,
-    ownedPermRes,
-    profiles,
-    parentRegistries,
-  } = params
+  const { ctx, chunk, notReservedSet, ownedPermRes, parentRegistries } = params
   const batchCalls: ZeroDevCall[] = []
 
   const chunkTwoLDs = chunk.filter(
@@ -338,33 +330,42 @@ const buildBatchCalls = (params: {
     batchCalls.push(...buildPreMigrateCalls(chunkTwoLDs))
   }
 
-  const transferCalls = buildAllTransferCalls({
-    classified: chunk,
-    migrationOwner: ctx.migrationOwner,
-    defaultResolver: ctx.defaultResolver,
-    ownedPermRes,
-    parentRegistries,
-  })
+  batchCalls.push(
+    ...buildAllTransferCalls({
+      classified: chunk,
+      migrationOwner: ctx.migrationOwner,
+      defaultResolver: ctx.defaultResolver,
+      ownedPermRes,
+      parentRegistries,
+    }),
+  )
 
-  let calls = transferCalls
-  if (ownedPermRes) {
-    const batchProfiles = new Map<Hex, Profile>()
-    for (const name of chunk) {
-      if (name.resolverStrategy !== 'to-owned-permres') continue
-      const node = namehash(name.domain.name) as Hex
-      const entry = profiles.get(profileMapKey(node))
-      if (entry) batchProfiles.set(node, entry)
-    }
-    const replay = buildProfileReplayCall({
-      resolver: ownedPermRes,
-      profiles: batchProfiles,
-    })
-    if (replay) calls = [...transferCalls, replay]
-  }
-
-  batchCalls.push(...calls)
   batchCalls.push(...buildRoleGrantCalls(chunk))
   return batchCalls
+}
+
+const collectChunkProfiles = (
+  chunk: readonly ClassifiedName[],
+  profiles: ReadonlyMap<Hex, Profile>,
+): Map<Hex, Profile> => {
+  const out = new Map<Hex, Profile>()
+  for (const name of chunk) {
+    if (name.resolverStrategy !== 'to-owned-permres') continue
+    const node = namehash(name.domain.name) as Hex
+    const entry = profiles.get(profileMapKey(node))
+    if (entry) out.set(node, entry)
+  }
+  return out
+}
+
+const wrapBatchError = (
+  error: unknown,
+  step: string,
+): MigrationUserRejectedError | MigrationError => {
+  if (isUserRejection(error)) {
+    return new MigrationUserRejectedError({ step })
+  }
+  return new MigrationError({ cause: error, step })
 }
 
 const submitBatches = async (params: {
@@ -375,7 +376,7 @@ const submitBatches = async (params: {
   profiles: ReadonlyMap<Hex, Profile>
   parentRegistries: ReadonlyMap<string, Address>
 }): Promise<Hex[]> => {
-  const { ctx, classified } = params
+  const { ctx, classified, ownedPermRes, profiles } = params
   const nameChunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
   const totalBatches = nameChunks.length
   const hashes: Hex[] = []
@@ -383,33 +384,51 @@ const submitBatches = async (params: {
   for (let i = 0; i < nameChunks.length; i++) {
     const chunk = nameChunks[i]!
     const batchNum = i + 1
+    const batchLabel = `Batch ${batchNum}/${totalBatches}`
 
     ctx.tracker.emit(
       `Upgrading batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
     )
 
-    const batchCalls = buildBatchCalls({ ...params, chunk })
-
+    const transferCalls = buildTransferBatchCalls({ ...params, chunk })
+    let lastHash: Hex
     try {
-      const hash = await submitBatchedUserOp(
+      lastHash = await submitBatchedUserOp(
         ctx,
-        batchCalls,
+        transferCalls,
         `Migrate batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
       )
-      hashes.push(hash)
-      ctx.tracker.next()
-      ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, hash)
+      hashes.push(lastHash)
     } catch (error) {
-      if (isUserRejection(error)) {
-        throw new MigrationUserRejectedError({
-          step: `Batch ${batchNum}/${totalBatches}`,
-        })
-      }
-      throw new MigrationError({
-        cause: error,
-        step: `Batch ${batchNum}/${totalBatches}`,
-      })
+      throw wrapBatchError(error, batchLabel)
     }
+
+    if (ownedPermRes) {
+      const replayCalls = buildChunkedProfileReplayCalls({
+        resolver: ownedPermRes,
+        profiles: collectChunkProfiles(chunk, profiles),
+      })
+      for (let r = 0; r < replayCalls.length; r++) {
+        const replayLabel = `Restoring records ${r + 1}/${replayCalls.length} for ${batchLabel}`
+        ctx.tracker.emit(replayLabel)
+        try {
+          lastHash = await submitBatchedUserOp(
+            ctx,
+            [replayCalls[r]!],
+            replayLabel,
+          )
+          hashes.push(lastHash)
+        } catch (error) {
+          throw wrapBatchError(
+            error,
+            `Records ${r + 1}/${replayCalls.length} for ${batchLabel}`,
+          )
+        }
+      }
+    }
+
+    ctx.tracker.next()
+    ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, lastHash)
   }
 
   return hashes

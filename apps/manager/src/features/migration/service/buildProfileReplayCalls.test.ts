@@ -1,7 +1,10 @@
 import { type Address, decodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
-import { buildProfileReplayCall } from './buildProfileReplayCalls'
+import {
+  buildChunkedProfileReplayCalls,
+  buildProfileReplayCall,
+} from './buildProfileReplayCalls'
 import type { Profile } from './fetchV1Profiles'
 
 const RESOLVER: Address = '0x000000000000000000000000000000000000d002'
@@ -70,5 +73,93 @@ describe('buildProfileReplayCall', () => {
     })
     expect(setAddr.functionName).toBe('setAddr')
     expect((setAddr.args as [Hex, bigint, Hex])[1]).toBe(60n)
+  })
+})
+
+describe('buildChunkedProfileReplayCalls', () => {
+  it('returns empty when there are no records', () => {
+    const calls = buildChunkedProfileReplayCalls({
+      resolver: RESOLVER,
+      profiles: new Map(),
+    })
+    expect(calls).toEqual([])
+  })
+
+  it('throws on zero-address resolver', () => {
+    expect(() =>
+      buildChunkedProfileReplayCalls({
+        resolver: zeroAddress,
+        profiles: new Map(),
+      }),
+    ).toThrow(/zero address/i)
+  })
+
+  it('emits a single UserOp call when records fit within maxRecordsPerOp', () => {
+    const profile: Profile = {
+      texts: [
+        { key: 'a', value: '1' },
+        { key: 'b', value: '2' },
+      ],
+      addresses: [],
+    }
+    const calls = buildChunkedProfileReplayCalls({
+      resolver: RESOLVER,
+      profiles: new Map<Hex, Profile>([[NODE, profile]]),
+      maxRecordsPerOp: 10,
+    })
+    expect(calls).toHaveLength(1)
+  })
+
+  it('splits records across multiple UserOp calls when exceeding maxRecordsPerOp', () => {
+    const texts = Array.from({ length: 21 }, (_, i) => ({
+      key: `k${i}`,
+      value: `v${i}`,
+    }))
+    const calls = buildChunkedProfileReplayCalls({
+      resolver: RESOLVER,
+      profiles: new Map<Hex, Profile>([[NODE, { texts, addresses: [] }]]),
+      maxRecordsPerOp: 10,
+    })
+    expect(calls).toHaveLength(3)
+
+    const counts = calls.map((call) => {
+      const { args } = decodeFunctionData({
+        abi: PERMISSIONED_RESOLVER_ABI,
+        data: call.data,
+      })
+      return (args as [readonly Hex[]])[0].length
+    })
+    expect(counts).toEqual([10, 10, 1])
+  })
+
+  it('flattens text + addr records together for chunking', () => {
+    const profile: Profile = {
+      texts: Array.from({ length: 3 }, (_, i) => ({
+        key: `t${i}`,
+        value: `v${i}`,
+      })),
+      addresses: Array.from({ length: 4 }, (_, i) => ({
+        coinType: BigInt(i),
+        value: `0x${i.toString(16).padStart(40, '0')}` as Hex,
+      })),
+    }
+    const calls = buildChunkedProfileReplayCalls({
+      resolver: RESOLVER,
+      profiles: new Map<Hex, Profile>([[NODE, profile]]),
+      maxRecordsPerOp: 3,
+    })
+    expect(calls).toHaveLength(3)
+  })
+
+  it('defaults maxRecordsPerOp to 50', () => {
+    const texts = Array.from({ length: 60 }, (_, i) => ({
+      key: `k${i}`,
+      value: 'v',
+    }))
+    const calls = buildChunkedProfileReplayCalls({
+      resolver: RESOLVER,
+      profiles: new Map<Hex, Profile>([[NODE, { texts, addresses: [] }]]),
+    })
+    expect(calls).toHaveLength(2)
   })
 })
