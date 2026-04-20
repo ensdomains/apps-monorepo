@@ -10,6 +10,7 @@ import {
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { ProfileCardPreview } from '@/features/migration/components/ProfileCardPreview'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
+import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -29,8 +30,13 @@ export const MigrationModal = () => {
   const { isConnected } = useSmartAccountContext()
   const migrationEnabled = isFeatureEnabled('NAME_MIGRATION')
   const { data: v1Names } = useV1Names()
-  const hasV1Names = migrationEnabled && (v1Names?.length ?? 0) > 0
-  const { open, dismiss } = useOpenModalOnFirstVisit(isConnected, hasV1Names)
+  const { data: migratedCount } = useMigratedNamesCount()
+  const hasUnstartedMigration =
+    migrationEnabled && (v1Names?.length ?? 0) > 0 && (migratedCount ?? 0) === 0
+  const { open, dismiss } = useOpenModalOnFirstVisit(
+    isConnected,
+    hasUnstartedMigration,
+  )
   const [activeSlide, setActiveSlide] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 

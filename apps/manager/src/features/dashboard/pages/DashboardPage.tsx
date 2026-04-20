@@ -9,6 +9,7 @@ import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
+import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -114,6 +115,7 @@ export const DashboardPage = () => {
             <NamesTable primaryLabel={defaultName} />
           </div>
         </motion.div>
+        <MigrationProgressBanner />
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
           {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}

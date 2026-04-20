@@ -108,6 +108,10 @@ msgstr ""
 msgid "{label} theme (selected)"
 msgstr ""
 
+#: src/features/migration/components/MigrationProgressBanner.tsx:35
+msgid "{migrated} out of {total} names upgraded"
+msgstr ""
+
 #: src/features/migration/components/SuccessModal.tsx:126
 msgid "+{overflow} more"
 msgstr ""
@@ -517,7 +521,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:86
+#: src/features/migration/components/MigrationModal.tsx:94
 msgid "Close"
 msgstr ""
 
@@ -529,7 +533,7 @@ msgstr ""
 msgid "Coming Soon"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:39
+#: src/features/migration/components/MigrationModal.tsx:47
 msgid "Commemorative NFT"
 msgstr ""
 
@@ -547,6 +551,14 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:69
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx:69
+msgid "Complete Upgrade"
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx:58
+msgid "Complete upgrade and receive a collectible marking your place in ENS history."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:166
@@ -709,7 +721,7 @@ msgstr ""
 msgid "Custom duration in years"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:38
+#: src/features/migration/components/MigrationModal.tsx:46
 msgid "Custom Profiles"
 msgstr ""
 
@@ -854,7 +866,7 @@ msgstr ""
 msgid "ENS names can be up to 255 characters"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:40
+#: src/features/migration/components/MigrationModal.tsx:48
 msgid "ENS v2 Names"
 msgstr ""
 
@@ -1102,7 +1114,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:73
+#: src/features/dashboard/pages/DashboardPage.tsx:74
 msgid "Hello"
 msgstr "Hej"
 
@@ -1325,7 +1337,7 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:41
+#: src/features/migration/components/MigrationModal.tsx:49
 msgid "New Experience"
 msgstr ""
 
@@ -1938,7 +1950,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:94
+#: src/features/dashboard/pages/DashboardPage.tsx:95
 msgid "Set primary name"
 msgstr ""
 
@@ -2050,7 +2062,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr ""
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:114
+#: src/features/migration/components/MigrationModal.tsx:122
 msgid "Slide {0}"
 msgstr ""
 
@@ -2322,7 +2334,7 @@ msgstr ""
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:95
+#: src/features/migration/components/MigrationModal.tsx:103
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
@@ -2568,7 +2580,7 @@ msgstr ""
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:92
+#: src/features/migration/components/MigrationModal.tsx:100
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
@@ -2611,7 +2623,7 @@ msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/MigrationModal.tsx:159
+#: src/features/migration/components/MigrationModal.tsx:167
 msgid "You have <0>{0}</0> names that are eligible for upgrade"
 msgstr ""
 
@@ -2648,6 +2660,10 @@ msgstr ""
 
 #: src/features/notifications/inbox/list.tsx:108
 msgid "You're all caught up!"
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx:55
+msgid "You're almost there!"
 msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx:97
