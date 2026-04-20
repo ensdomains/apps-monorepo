@@ -224,14 +224,15 @@ const buildRenewalFlowTransactions = (
       onStart: handlers.onV2RenewStart,
       onDone: handlers.onDone,
     }
-    if (hasSufficientAllowance) return [renewTx]
     return [
       {
         id: RENEWAL_TX_IDS.approve,
         title: 'Approve payment',
         transactionName: `Approve ${v2TokenSymbol ?? 'token'} for renewal`,
         estimatedGasCost: 0.0003,
-        onStart: handlers.onApproveStart,
+        onStart: hasSufficientAllowance
+          ? handlers.onV2RenewStart
+          : handlers.onApproveStart,
         onDone: handlers.onV2RenewStart,
       },
       renewTx,
