@@ -3,6 +3,42 @@ import type { Address, Hex, PublicClient } from 'viem'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
+const PROFILE_MULTICALL_CHUNK = 500
+
+type ProfileMulticallResult = {
+  status: 'success' | 'failure'
+  result?: unknown
+}
+
+const executeMulticallChunks = async (
+  publicClient: PublicClient,
+  args: {
+    address: Address
+    abi: typeof PERMISSIONED_RESOLVER_ABI
+    functionName: 'text' | 'addr'
+    args: readonly unknown[]
+  }[],
+): Promise<ProfileMulticallResult[]> => {
+  const chunks: (typeof args)[] = []
+  for (let i = 0; i < args.length; i += PROFILE_MULTICALL_CHUNK) {
+    chunks.push(args.slice(i, i + PROFILE_MULTICALL_CHUNK))
+  }
+  try {
+    const results = await Promise.all(
+      chunks.map(
+        (chunk) =>
+          publicClient.multicall({
+            contracts: chunk,
+            allowFailure: true,
+          }) as Promise<ProfileMulticallResult[]>,
+      ),
+    )
+    return results.flat()
+  } catch (cause) {
+    throw new ProfileFetchError({ cause, phase: 'onchain' })
+  }
+}
+
 export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
   cause: unknown
   phase: 'subgraph' | 'onchain'
@@ -82,23 +118,15 @@ export const fetchV1Profiles = async (params: {
 
   if (multicallArgs.length === 0) {
     for (const [, name] of byNode) {
-      out.set(name.nodeHex.toLowerCase() as Hex, { texts: [], addresses: [] })
+      out.set(profileMapKey(name.nodeHex), { texts: [], addresses: [] })
     }
     return out
   }
 
-  let results: readonly { status: 'success' | 'failure'; result?: unknown }[]
-  try {
-    results = (await publicClient.multicall({
-      contracts: multicallArgs,
-      allowFailure: true,
-    })) as typeof results
-  } catch (cause) {
-    throw new ProfileFetchError({ cause, phase: 'onchain' })
-  }
+  const results = await executeMulticallChunks(publicClient, multicallArgs)
 
   for (const [, name] of byNode) {
-    out.set(name.nodeHex.toLowerCase() as Hex, { texts: [], addresses: [] })
+    out.set(profileMapKey(name.nodeHex), { texts: [], addresses: [] })
   }
 
   for (let i = 0; i < calls.length; i++) {

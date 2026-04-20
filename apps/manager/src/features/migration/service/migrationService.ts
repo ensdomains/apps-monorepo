@@ -173,12 +173,9 @@ const ensureApprovals = async (
 
 const ensureResolver = async (
   ctx: MigrationCtx,
-  classified: readonly ClassifiedName[],
+  namesToOwnedPermRes: readonly ClassifiedName[],
   preflight: MigrationPreflight,
 ): Promise<Address | null> => {
-  const namesToOwnedPermRes = classified.filter(
-    (n) => n.resolverStrategy === 'to-owned-permres',
-  )
   if (namesToOwnedPermRes.length === 0) return preflight.preExistingOwnedPermRes
 
   if (preflight.preExistingOwnedPermRes)
@@ -196,12 +193,9 @@ const ensureResolver = async (
 
 const fetchProfilesIfNeeded = async (
   ctx: MigrationCtx,
-  classified: readonly ClassifiedName[],
+  namesToOwnedPermRes: readonly ClassifiedName[],
   preflight: MigrationPreflight,
 ): Promise<Map<Hex, Profile>> => {
-  const namesToOwnedPermRes = classified.filter(
-    (n) => n.resolverStrategy === 'to-owned-permres',
-  )
   if (namesToOwnedPermRes.length === 0 || preflight.skipFetchProfilesPhase) {
     return new Map()
   }
@@ -465,13 +459,19 @@ export const executeMigration = async (params: {
     ? []
     : await ensureApprovals(ctx, groups)
 
-  const ownedPermRes = await ensureResolver(ctx, classified, preflight)
-  const profiles = await fetchProfilesIfNeeded(ctx, classified, preflight)
+  const namesToOwnedPermRes = classified.filter(
+    (n) => n.resolverStrategy === 'to-owned-permres',
+  )
+
+  const ownedPermRes = await ensureResolver(ctx, namesToOwnedPermRes, preflight)
 
   ctx.tracker.emit(`Preparing migration for ${classified.length} name(s)`)
 
-  const notReservedSet = await computeNotReservedSet(publicClient, classified)
-  const parentRegistries = await validateSubnameParents(publicClient, groups)
+  const [profiles, notReservedSet, parentRegistries] = await Promise.all([
+    fetchProfilesIfNeeded(ctx, namesToOwnedPermRes, preflight),
+    computeNotReservedSet(publicClient, classified),
+    validateSubnameParents(publicClient, groups),
+  ])
 
   const batchHashes = await submitBatches({
     ctx,

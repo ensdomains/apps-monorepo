@@ -192,4 +192,35 @@ describe('getV1ProfileKeys', () => {
     assert(result.isErr())
     expect(result.error._tag).toBe('GetV1ProfilesError')
   })
+
+  it('chunks large id_in arrays into batches of 500 and merges results', async () => {
+    const ids = Array.from({ length: 501 }, (_, i) => `0x${i.toString(16)}`)
+    const firstChunk = Array.from({ length: 500 }, (_, i) => ({
+      id: `0x${i.toString(16)}`,
+      resolver: { texts: [], coinTypes: [] },
+    }))
+    const secondChunk = [
+      {
+        id: '0x1f4',
+        resolver: { texts: ['email'], coinTypes: [] },
+      },
+    ]
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: { domains: firstChunk } }))
+      .mockResolvedValueOnce(jsonResponse({ data: { domains: secondChunk } }))
+
+    const result = await getV1ProfileKeys(ids)
+    assert(result.isOk())
+    expect(result.value).toHaveLength(501)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    const body0 = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as { body: string }).body,
+    )
+    const body1 = JSON.parse(
+      (fetchMock.mock.calls[1]![1] as { body: string }).body,
+    )
+    expect(body0.variables.whereFilter.id_in).toHaveLength(500)
+    expect(body1.variables.whereFilter.id_in).toHaveLength(1)
+  })
 })

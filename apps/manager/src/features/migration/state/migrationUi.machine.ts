@@ -183,8 +183,9 @@ export const migrationUiMachine = setup({
         event.type === 'migration.failed' ? event.error : context.lastError,
     }),
     resetForRetry: assign(({ context }) => {
+      const migratedSet = new Set(context.migratedNames)
       const remainingDomains = context.domains.filter(
-        (d) => !context.migratedNames.includes(d.name),
+        (d) => !migratedSet.has(d.name),
       )
       const stepDescriptors = context.ownerAddress
         ? getMigrationStepInfo(
@@ -197,9 +198,7 @@ export const migrationUiMachine = setup({
         lastError: undefined,
         txHashes: [] as readonly Hex[],
         progress: undefined,
-        selectedNames: context.selectedNames.filter(
-          (n) => !context.migratedNames.includes(n),
-        ),
+        selectedNames: context.selectedNames.filter((n) => !migratedSet.has(n)),
         domains: remainingDomains,
         stepDescriptors,
       }

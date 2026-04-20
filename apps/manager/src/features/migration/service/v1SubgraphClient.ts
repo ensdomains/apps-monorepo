@@ -189,6 +189,47 @@ class GetV1ProfilesError extends TaggedError('GetV1ProfilesError')<{
   cause: unknown
 }> {}
 
+const PROFILE_KEYS_CHUNK = 500
+
+const fetchProfileKeysChunk = async (
+  ids: readonly string[],
+): Promise<V1ProfileKeys[]> => {
+  const response = await fetch(V1_SUBGRAPH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: GET_PROFILES_QUERY,
+      variables: { whereFilter: { id_in: ids } },
+      operationName: 'getProfilesForDomains',
+    }),
+  })
+  if (!response.ok) {
+    throw new Error(`V1 subgraph request failed: ${response.status}`)
+  }
+  const json = (await response.json()) as {
+    data?: {
+      domains: readonly {
+        id: string
+        resolver: {
+          texts: readonly string[] | null
+          coinTypes: readonly number[] | null
+        } | null
+      }[]
+    }
+    errors?: readonly { message: string }[]
+  }
+  if (json.errors?.length && json.errors[0]) {
+    throw new Error(`V1 subgraph error: ${json.errors[0].message}`)
+  }
+  return (json.data?.domains ?? []).map(
+    (d): V1ProfileKeys => ({
+      id: d.id,
+      texts: d.resolver?.texts ?? [],
+      coinTypes: d.resolver?.coinTypes ?? [],
+    }),
+  )
+}
+
 export const getV1ProfileKeys = ResultFn(async function* (
   domainIds: readonly string[],
 ) {
@@ -196,44 +237,13 @@ export const getV1ProfileKeys = ResultFn(async function* (
 
   const result = yield* fromPromise(
     (async () => {
-      const response = await fetch(V1_SUBGRAPH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: GET_PROFILES_QUERY,
-          variables: {
-            whereFilter: {
-              id_in: domainIds.map((id) => id.toLowerCase()),
-            },
-          },
-          operationName: 'getProfilesForDomains',
-        }),
-      })
-      if (!response.ok) {
-        throw new Error(`V1 subgraph request failed: ${response.status}`)
+      const lowered = domainIds.map((id) => id.toLowerCase())
+      const chunks: string[][] = []
+      for (let i = 0; i < lowered.length; i += PROFILE_KEYS_CHUNK) {
+        chunks.push(lowered.slice(i, i + PROFILE_KEYS_CHUNK))
       }
-      const json = (await response.json()) as {
-        data?: {
-          domains: readonly {
-            id: string
-            resolver: {
-              texts: readonly string[] | null
-              coinTypes: readonly number[] | null
-            } | null
-          }[]
-        }
-        errors?: readonly { message: string }[]
-      }
-      if (json.errors?.length && json.errors[0]) {
-        throw new Error(`V1 subgraph error: ${json.errors[0].message}`)
-      }
-      return (json.data?.domains ?? []).map(
-        (d): V1ProfileKeys => ({
-          id: d.id,
-          texts: d.resolver?.texts ?? [],
-          coinTypes: d.resolver?.coinTypes ?? [],
-        }),
-      )
+      const chunkResults = await Promise.all(chunks.map(fetchProfileKeysChunk))
+      return chunkResults.flat()
     })(),
     (error) => new GetV1ProfilesError({ cause: error }),
   )

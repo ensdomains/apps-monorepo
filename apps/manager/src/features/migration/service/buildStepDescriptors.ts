@@ -1,4 +1,3 @@
-import { chunkArray } from './chunkArray'
 import type { ClassifiedName, GroupedNames } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 
@@ -42,13 +41,16 @@ export const buildStepDescriptors = (
   }
 
   const totalBatches = getBatchCount(classified.length)
-  const chunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
-  for (let i = 0; i < chunks.length; i++) {
+  const lastCount =
+    classified.length === 0
+      ? 0
+      : classified.length - (totalBatches - 1) * MAX_NAMES_PER_BATCH
+  for (let i = 0; i < totalBatches; i++) {
     descriptors.push({
       type: 'migrate-batch',
       batch: i + 1,
       totalBatches,
-      count: chunks[i]!.length,
+      count: i === totalBatches - 1 ? lastCount : MAX_NAMES_PER_BATCH,
     })
   }
 

@@ -20,8 +20,8 @@ export const useEligibleV1Names = () => {
   const { data: eligibility, isPending: isEligibilityPending } =
     useMigrationEligibility(classified, ownerAddress)
 
-  const eligible = useMemo<ClassifiedName[]>(
-    () => (eligibility ? [...eligibility.eligible] : classified),
+  const eligible = useMemo<readonly ClassifiedName[]>(
+    () => eligibility?.eligible ?? classified,
     [eligibility, classified],
   )
 

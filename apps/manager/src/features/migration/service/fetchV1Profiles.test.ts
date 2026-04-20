@@ -181,6 +181,32 @@ describe('fetchV1Profiles', () => {
     ])
   })
 
+  it('chunks multicall args into batches of 500 to avoid RPC payload limits', async () => {
+    const keys = Array.from({ length: 501 }, (_, i) => `text-${i}`)
+    getV1ProfileKeysMock.mockReturnValueOnce(
+      ok([{ id: NODE_A, texts: keys, coinTypes: [] }]) as never,
+    )
+    const multicallSpy = vi.fn(async (opts: { contracts: unknown[] }) =>
+      opts.contracts.map(() => call.ok('v')),
+    )
+    const publicClient = {
+      multicall: multicallSpy,
+    } as unknown as PublicClient
+
+    await fetchV1Profiles({
+      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
+      publicClient,
+    })
+
+    expect(multicallSpy).toHaveBeenCalledTimes(2)
+    expect(
+      (multicallSpy.mock.calls[0]![0] as { contracts: unknown[] }).contracts,
+    ).toHaveLength(500)
+    expect(
+      (multicallSpy.mock.calls[1]![0] as { contracts: unknown[] }).contracts,
+    ).toHaveLength(1)
+  })
+
   it('populates separate buckets per node', async () => {
     getV1ProfileKeysMock.mockReturnValueOnce(
       ok([

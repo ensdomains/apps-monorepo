@@ -202,7 +202,7 @@ const getParentLabels = (name: ClassifiedName): string[] =>
   name.domain.name.split('.').slice(1, -1).reverse()
 
 const PARENT_REGISTRY_RETRIES = 3
-const PARENT_REGISTRY_RETRY_DELAY = 4000
+const PARENT_REGISTRY_RETRY_DELAYS_MS = [500, 4000] as const
 
 const walkDeepRegistry = async (
   publicClient: PublicClient,
@@ -283,12 +283,15 @@ export const resolveParentRegistries = async (
     )
     if (unresolved.length === 0) return registries
 
+    const delay =
+      PARENT_REGISTRY_RETRY_DELAYS_MS[attempt - 1] ??
+      PARENT_REGISTRY_RETRY_DELAYS_MS[
+        PARENT_REGISTRY_RETRY_DELAYS_MS.length - 1
+      ]!
     console.warn(
-      `[migration] ${unresolved.length} parent registries unresolved, retrying in ${PARENT_REGISTRY_RETRY_DELAY}ms (attempt ${attempt + 1}/${PARENT_REGISTRY_RETRIES})`,
+      `[migration] ${unresolved.length} parent registries unresolved, retrying in ${delay}ms (attempt ${attempt + 1}/${PARENT_REGISTRY_RETRIES})`,
     )
-    await new Promise((resolve) =>
-      setTimeout(resolve, PARENT_REGISTRY_RETRY_DELAY),
-    )
+    await new Promise((resolve) => setTimeout(resolve, delay))
     registries = await resolveParentRegistriesOnce(publicClient, childNames)
   }
 
