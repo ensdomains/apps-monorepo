@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Check, Info, Search } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { cn } from '@/lib/utils'
@@ -8,7 +8,7 @@ import { NameListSkeleton } from './NameListSkeleton'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
-  readonly onNext: () => void
+  readonly onNext: () => void | Promise<void>
 }
 
 export const SelectNamesStep = ({
@@ -19,8 +19,18 @@ export const SelectNamesStep = ({
   const { eligible, isPending } = useEligibleV1Names()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [isStarting, setIsStarting] = useState(false)
 
   const eligibleNames = useMemo(() => eligible.map((c) => c.domain), [eligible])
+
+  const didSeed = useRef(false)
+  useEffect(() => {
+    if (didSeed.current || isPending || eligibleNames.length === 0) return
+    didSeed.current = true
+    const all = new Set(eligibleNames.map((n) => n.name))
+    setSelected(all)
+    onNamesChange([...all])
+  }, [isPending, eligibleNames, onNamesChange])
 
   const searchLower = search.toLowerCase()
 
@@ -47,6 +57,17 @@ export const SelectNamesStep = ({
   )
 
   const totalSelected = selected.size
+
+  const handleUpgrade = useCallback(async () => {
+    if (isStarting) return
+    setIsStarting(true)
+    try {
+      await onNext()
+    } catch (error) {
+      setIsStarting(false)
+      throw error
+    }
+  }, [isStarting, onNext])
 
   return (
     <div className="relative z-10 flex h-full flex-col">
@@ -164,11 +185,15 @@ export const SelectNamesStep = ({
         </div>
         <button
           className="h-[46px] w-full min-w-[160px] overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
-          disabled={totalSelected === 0 || isPending}
-          onClick={onNext}
+          disabled={totalSelected === 0 || isPending || isStarting}
+          onClick={handleUpgrade}
           type="button"
         >
-          <Trans>Upgrade Names</Trans>
+          {isStarting ? (
+            <Trans>Preparing...</Trans>
+          ) : (
+            <Trans>Upgrade Names</Trans>
+          )}
         </button>
       </div>
     </div>

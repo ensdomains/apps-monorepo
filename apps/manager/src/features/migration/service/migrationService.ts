@@ -1,3 +1,10 @@
+import {
+  type Signer,
+  type TransactionRequest,
+  transactionManager,
+  waitForTransaction,
+  type ZeroDevCall,
+} from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   readContract,
@@ -6,17 +13,14 @@ import {
   writeContract,
 } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
-import { zeroAddress } from 'viem'
-import { BASE_REGISTRAR_ABI } from '../contracts/abis'
-import {
-  MULTICALL3_ADDRESS,
-  V1_CONTRACTS,
-  V2_CONTRACTS,
-} from '../contracts/addresses'
-import {
-  buildPreMigrateCall,
-  buildPreMigrateMulticall,
-} from './buildPreMigrateCalls'
+import { namehash, zeroAddress } from 'viem'
+import { customSepolia } from '@/lib/wagmi'
+import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
+import { V1_CONTRACTS } from '../contracts/addresses'
+import { buildAllTransferCalls } from './buildMigrationCalls'
+import { buildPreMigrateCalls } from './buildPreMigrateCalls'
+import { buildProfileReplayCall } from './buildProfileReplayCalls'
+import { buildRoleGrantCalls } from './buildRoleGrantCalls'
 import {
   type ClassifiedName,
   classifyNames,
@@ -25,15 +29,16 @@ import {
   type IneligibleName,
   is2LD,
 } from './classifyNames'
-import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import {
-  isUserRejection,
-  signUnwrappedTxs,
-  signWrappedTxs,
-} from './signTransactions'
+  EMPTY_PREFLIGHT,
+  type MigrationPreflight,
+} from './computeMigrationPreflight'
+import { ensureOwnedPermRes } from './ensureOwnedPermRes'
+import { fetchV1Profiles, type Profile } from './fetchV1Profiles'
+import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
-const TX_RECEIPT_TIMEOUT_MS = 5 * 60 * 1000
+const MAX_NAMES_PER_BATCH = 50
 
 class MigrationError extends TaggedError('MigrationError')<{
   cause: unknown
@@ -46,6 +51,10 @@ class MigrationUserRejectedError extends TaggedError(
   step: string
 }> {}
 
+export type { MigrationPreflight } from './computeMigrationPreflight'
+export { OwnedResolverDeployError } from './ensureOwnedPermRes'
+export { ProfileFetchError } from './fetchV1Profiles'
+
 export type MigrationProgress = {
   readonly currentStep: number
   readonly totalSteps: number
@@ -53,91 +62,22 @@ export type MigrationProgress = {
   readonly txHash?: Hex
 }
 
-export type SkipReason =
-  | 'not-premigrated'
-  | 'frozen-approval'
-  | 'transfer-failed'
-  | 'invalid-data'
-  | 'name-data-mismatch'
-  | 'name-is-locked'
-  | 'name-not-locked'
-  | 'frozen-token-approval'
-  | 'already-migrated'
-
-export type SkippedName = {
-  readonly name: string
-  readonly reason: SkipReason
-}
-
 export type MigrationResult = {
   readonly completed: number
   readonly txHashes: readonly Hex[]
-  readonly skipped: readonly SkippedName[]
   readonly ineligible: readonly IneligibleName[]
   readonly migratedNames: readonly string[]
 }
 
-export type MigrateBucket = 'unwrapped' | 'unlocked' | 'locked-2ld'
-
 export type MigrationStepDescriptor =
-  | { type: 'pre-migrate'; count: number }
-  | { type: 'approve-multicall3'; count: number }
-  | { type: 'migrate'; count: number; bucket: MigrateBucket }
-  | { type: 'migrate-subnames'; count: number; parentName: string }
-
-const needsMulticall3Approval = (groups: GroupedNames): boolean =>
-  groups.unwrapped.length >= 2
-
-const buildStepDescriptors = (
-  classified: readonly ClassifiedName[],
-  groups: GroupedNames,
-): MigrationStepDescriptor[] => {
-  const descriptors: MigrationStepDescriptor[] = []
-
-  const twoLDCount = classified.filter(is2LD).length
-  if (twoLDCount > 0) {
-    descriptors.push({ type: 'pre-migrate', count: twoLDCount })
-  }
-
-  if (needsMulticall3Approval(groups)) {
-    descriptors.push({
-      type: 'approve-multicall3',
-      count: groups.unwrapped.length,
-    })
-  }
-
-  if (groups.unwrapped.length > 0) {
-    descriptors.push({
-      type: 'migrate',
-      count: groups.unwrapped.length,
-      bucket: 'unwrapped',
-    })
-  }
-  if (groups.unlocked.length > 0) {
-    descriptors.push({
-      type: 'migrate',
-      count: groups.unlocked.length,
-      bucket: 'unlocked',
-    })
-  }
-  if (groups.locked2ld.length > 0) {
-    descriptors.push({
-      type: 'migrate',
-      count: groups.locked2ld.length,
-      bucket: 'locked-2ld',
-    })
-  }
-
-  for (const [parentName, children] of groups.childNames) {
-    descriptors.push({
-      type: 'migrate-subnames',
-      count: children.length,
-      parentName,
-    })
-  }
-
-  return descriptors
-}
+  | { type: 'approve-sca'; count: number }
+  | { type: 'ensure-resolver' }
+  | {
+      type: 'migrate-batch'
+      batch: number
+      totalBatches: number
+      count: number
+    }
 
 type Tracker = {
   emit: (description: string, txHash?: Hex) => void
@@ -159,258 +99,195 @@ const createTracker = (
   }
 }
 
-const wrapTxStep = async <T>(
-  step: string,
-  fn: () => Promise<T>,
-): Promise<T> => {
-  try {
-    return await fn()
-  } catch (error) {
-    if (isUserRejection(error)) {
-      throw new MigrationUserRejectedError({ step })
-    }
-    throw new MigrationError({ cause: error, step })
-  }
-}
-
 type MigrationCtx = {
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
+  signer: Signer
+  accountAddress: Address
   migrationOwner: Address
   defaultResolver: Address
   tracker: Tracker
 }
 
-type PhaseResult = {
-  hashes: Hex[]
-  skipped: SkippedName[]
-  completed: number
-}
-
-const runPreMigrateStep = async (
-  ctx: MigrationCtx,
-  twoLDs: readonly ClassifiedName[],
-): Promise<Hex[]> => {
-  if (twoLDs.length === 0) return []
-
-  const { notReserved } = await filterNotReserved(ctx.publicClient, [...twoLDs])
-
-  if (notReserved.length === 0) {
-    ctx.tracker.next()
-    ctx.tracker.emit('Pre-migration not needed')
-    return []
-  }
-
-  ctx.tracker.emit(`Pre-migrating ${notReserved.length} name(s)`)
-
-  const hash = await wrapTxStep('Pre-migrate', () => {
-    const only = notReserved[0]
-    if (notReserved.length === 1 && only) {
-      return writeContract(ctx.wagmiConfig, buildPreMigrateCall(only))
-    }
-    return writeContract(ctx.wagmiConfig, buildPreMigrateMulticall(notReserved))
-  })
-
-  ctx.tracker.emit('Reserving your names on ENS v2!', hash)
-  await waitForTransactionReceipt(ctx.wagmiConfig, {
-    hash,
-    timeout: TX_RECEIPT_TIMEOUT_MS,
-  })
-
-  ctx.tracker.next()
-  ctx.tracker.emit('Pre-migration complete', hash)
-  return [hash]
-}
-
-const approveMulticall3IfNeeded = async (
+const approveSCAIfNeeded = async (
   ctx: MigrationCtx,
   groups: GroupedNames,
 ): Promise<Hex[]> => {
-  if (!needsMulticall3Approval(groups)) return []
+  const hashes: Hex[] = []
+  const hasUnwrapped = groups.unwrapped.length > 0
+  const hasWrapped =
+    groups.unlocked.length > 0 ||
+    groups.locked2ld.length > 0 ||
+    groups.childNames.size > 0
 
-  const isApproved = (await readContract(ctx.wagmiConfig, {
-    address: V1_CONTRACTS.BaseRegistrar,
-    abi: BASE_REGISTRAR_ABI,
-    functionName: 'isApprovedForAll',
-    args: [ctx.migrationOwner, MULTICALL3_ADDRESS],
-  })) as boolean
+  if (hasUnwrapped) {
+    const isApproved = (await readContract(ctx.wagmiConfig, {
+      address: V1_CONTRACTS.BaseRegistrar,
+      abi: BASE_REGISTRAR_ABI,
+      functionName: 'isApprovedForAll',
+      args: [ctx.migrationOwner, ctx.accountAddress],
+    })) as boolean
 
-  let hash: Hex | undefined
-  if (!isApproved) {
-    ctx.tracker.emit('Approving Multicall3 to batch your unwrapped names')
-    hash = await wrapTxStep('Multicall3 approval', () =>
-      writeContract(ctx.wagmiConfig, {
+    if (!isApproved) {
+      ctx.tracker.emit(
+        'Approving your smart account on BaseRegistrar',
+        PENDING_TX_HASH,
+      )
+      const hash = await writeContract(ctx.wagmiConfig, {
         address: V1_CONTRACTS.BaseRegistrar,
         abi: BASE_REGISTRAR_ABI,
         functionName: 'setApprovalForAll',
-        args: [MULTICALL3_ADDRESS, true],
-      }),
-    )
-    ctx.tracker.emit('Approving Multicall3 to batch your unwrapped names', hash)
-    await waitForTransactionReceipt(ctx.wagmiConfig, {
-      hash,
-      timeout: TX_RECEIPT_TIMEOUT_MS,
-    })
+        args: [ctx.accountAddress, true],
+      })
+      await waitForTransactionReceipt(ctx.wagmiConfig, {
+        hash,
+        timeout: 300_000,
+      })
+      hashes.push(hash)
+    }
+  }
+
+  if (hasWrapped) {
+    const isApproved = (await readContract(ctx.wagmiConfig, {
+      address: V1_CONTRACTS.NameWrapper,
+      abi: NAME_WRAPPER_ABI,
+      functionName: 'isApprovedForAll',
+      args: [ctx.migrationOwner, ctx.accountAddress],
+    })) as boolean
+
+    if (!isApproved) {
+      ctx.tracker.emit(
+        'Approving your smart account on NameWrapper',
+        PENDING_TX_HASH,
+      )
+      const hash = await writeContract(ctx.wagmiConfig, {
+        address: V1_CONTRACTS.NameWrapper,
+        abi: NAME_WRAPPER_ABI,
+        functionName: 'setApprovalForAll',
+        args: [ctx.accountAddress, true],
+      })
+      await waitForTransactionReceipt(ctx.wagmiConfig, {
+        hash,
+        timeout: 300_000,
+      })
+      hashes.push(hash)
+    }
   }
 
   ctx.tracker.next()
-  ctx.tracker.emit('Multicall3 approved', hash)
-  return hash ? [hash] : []
+  if (hashes.length > 0) {
+    ctx.tracker.emit('Smart account approved')
+  }
+  return hashes
 }
 
-const migrateRootBuckets = async (
+const buildSCARequest = (
   ctx: MigrationCtx,
-  groups: GroupedNames,
-): Promise<PhaseResult> => {
-  const { wagmiConfig, migrationOwner, defaultResolver } = ctx
-  const result: PhaseResult = { hashes: [], skipped: [], completed: 0 }
+  calls: ZeroDevCall[],
+): TransactionRequest => {
+  const firstCall = calls[0]
+  if (!firstCall) throw new Error('No calls to submit')
 
-  const buckets = [
-    {
-      step: 'Unwrapped names',
-      label: 'unwrapped',
-      names: groups.unwrapped,
-      sign: () =>
-        signUnwrappedTxs({
-          wagmiConfig,
-          names: groups.unwrapped,
-          migrationOwner,
-          defaultResolver,
-        }),
-    },
-    {
-      step: 'Unlocked names',
-      label: 'unlocked',
-      names: groups.unlocked,
-      sign: () =>
-        signWrappedTxs({
-          wagmiConfig,
-          names: groups.unlocked,
-          migrationOwner,
-          defaultResolver,
-          target: V2_CONTRACTS.UnlockedMigrationController,
-        }),
-    },
-    {
-      step: 'Locked names',
-      label: 'locked',
-      names: groups.locked2ld,
-      sign: () =>
-        signWrappedTxs({
-          wagmiConfig,
-          names: groups.locked2ld,
-          migrationOwner,
-          defaultResolver,
-          target: V2_CONTRACTS.LockedMigrationController,
-        }),
-    },
-  ]
-
-  for (const bucket of buckets) {
-    if (bucket.names.length === 0) continue
-
-    ctx.tracker.emit(`Migrating ${bucket.names.length} ${bucket.label} name(s)`)
-    const bucketResult = await wrapTxStep(bucket.step, bucket.sign)
-
-    result.skipped.push(...bucketResult.skipped)
-    result.completed += bucket.names.length - bucketResult.skipped.length
-    result.hashes.push(...bucketResult.hashes)
-
-    if (bucketResult.hashes.length > 0) {
-      ctx.tracker.emit(
-        'Your names are on their way to v2!',
-        bucketResult.hashes[0],
-      )
-    }
-    ctx.tracker.next()
+  if (ctx.signer.type === 'zerodev') {
+    return {
+      type: 'zerodev',
+      from: ctx.accountAddress,
+      to: firstCall.to,
+      data: firstCall.data,
+      value: 0n,
+      chainId: customSepolia.id,
+      zerodevParams: {
+        calls,
+        sponsored: true,
+      },
+    } as TransactionRequest
   }
 
-  return result
+  return {
+    type: 'rhinestone-intent',
+    from: ctx.accountAddress,
+    to: firstCall.to,
+    data: firstCall.data,
+    value: 0n,
+    chainId: customSepolia.id,
+    rhinestoneParams: {
+      calls,
+      sponsored: true,
+    },
+  } as TransactionRequest
 }
 
-const waitForRootReceipts = async (
-  ctx: MigrationCtx,
-  hashes: readonly Hex[],
-): Promise<void> => {
-  if (hashes.length === 0) return
+const PENDING_TX_HASH = '0x0' as Hex
 
-  ctx.tracker.emit(
-    `Confirming ${hashes.length} transaction(s)...`,
-    hashes[hashes.length - 1],
+const submitBatchedUserOp = async (
+  ctx: MigrationCtx,
+  calls: ZeroDevCall[],
+  description: string,
+): Promise<Hex> => {
+  const request = buildSCARequest(ctx, calls)
+
+  const txId = transactionManager.startTransaction(
+    { type: 'custom', request },
+    ctx.signer,
+    {
+      description,
+      publicClient: ctx.publicClient,
+    },
   )
-  await Promise.all(
-    hashes.map((hash) =>
-      waitForTransactionReceipt(ctx.wagmiConfig, {
-        hash,
-        timeout: TX_RECEIPT_TIMEOUT_MS,
-      }),
-    ),
-  )
+
+  ctx.tracker.emit(description, PENDING_TX_HASH)
+
+  const result = await waitForTransaction(txId)
+  return result.hash as Hex
 }
 
-const migrateSubnames = async (
-  ctx: MigrationCtx,
+const needsSCAApproval = (groups: GroupedNames): boolean =>
+  groups.unwrapped.length > 0 ||
+  groups.unlocked.length > 0 ||
+  groups.locked2ld.length > 0 ||
+  groups.childNames.size > 0
+
+const getBatchCount = (nameCount: number): number =>
+  Math.ceil(nameCount / MAX_NAMES_PER_BATCH)
+
+const chunkArray = <T>(arr: readonly T[], size: number): T[][] => {
+  const chunks: T[][] = []
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size))
+  }
+  return chunks
+}
+
+const buildStepDescriptors = (
+  classified: readonly ClassifiedName[],
   groups: GroupedNames,
-): Promise<PhaseResult> => {
-  const result: PhaseResult = { hashes: [], skipped: [], completed: 0 }
-  if (groups.childNames.size === 0) return result
+  preflight: MigrationPreflight,
+): MigrationStepDescriptor[] => {
+  const descriptors: MigrationStepDescriptor[] = []
 
-  const parentRegistries = await resolveParentRegistries(
-    ctx.publicClient,
-    groups.childNames,
-  )
-
-  for (const [parentName, children] of groups.childNames) {
-    ctx.tracker.emit(`Migrating subnames under ${parentName}`)
-
-    const wrapperRegistry = parentRegistries.get(parentName) ?? zeroAddress
-    if (wrapperRegistry === zeroAddress) {
-      throw new MigrationError({
-        cause: new Error(
-          `Parent "${parentName}" has not been migrated yet. Migrate the parent first.`,
-        ),
-        step: `Subnames under ${parentName}`,
-      })
-    }
-
-    const step = `Subnames under ${parentName}`
-    const bucketResult = await wrapTxStep(step, () =>
-      signWrappedTxs({
-        wagmiConfig: ctx.wagmiConfig,
-        names: children,
-        migrationOwner: ctx.migrationOwner,
-        defaultResolver: ctx.defaultResolver,
-        target: wrapperRegistry,
-      }),
-    )
-
-    result.skipped.push(...bucketResult.skipped)
-    result.completed += children.length - bucketResult.skipped.length
-    result.hashes.push(...bucketResult.hashes)
-
-    if (bucketResult.hashes.length > 0) {
-      ctx.tracker.emit(
-        `Subnames joining ${parentName} in v2!`,
-        bucketResult.hashes[0],
-      )
-      await Promise.all(
-        bucketResult.hashes.map((hash) =>
-          waitForTransactionReceipt(ctx.wagmiConfig, {
-            hash,
-            timeout: TX_RECEIPT_TIMEOUT_MS,
-          }),
-        ),
-      )
-    }
-
-    ctx.tracker.next()
-    ctx.tracker.emit(
-      `Subnames under ${parentName} migrated`,
-      bucketResult.hashes[bucketResult.hashes.length - 1],
-    )
+  if (needsSCAApproval(groups) && !preflight.skipApprovalPhase) {
+    descriptors.push({ type: 'approve-sca', count: classified.length })
   }
 
-  return result
+  const needsOwnedPermRes = classified.some(
+    (n) => n.resolverStrategy === 'to-owned-permres',
+  )
+  if (needsOwnedPermRes && !preflight.preExistingOwnedPermRes) {
+    descriptors.push({ type: 'ensure-resolver' })
+  }
+
+  const totalBatches = getBatchCount(classified.length)
+  const chunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
+  for (let i = 0; i < chunks.length; i++) {
+    descriptors.push({
+      type: 'migrate-batch',
+      batch: i + 1,
+      totalBatches,
+      count: chunks[i]!.length,
+    })
+  }
+
+  return descriptors
 }
 
 export const executeMigration = async (params: {
@@ -419,6 +296,9 @@ export const executeMigration = async (params: {
   defaultResolver: Address
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
+  signer: Signer
+  accountAddress: Address
+  preflight?: MigrationPreflight
   onProgress: (progress: MigrationProgress) => void
 }): Promise<MigrationResult> => {
   const {
@@ -427,6 +307,9 @@ export const executeMigration = async (params: {
     defaultResolver,
     wagmiConfig,
     publicClient,
+    signer,
+    accountAddress,
+    preflight = EMPTY_PREFLIGHT,
     onProgress,
   } = params
 
@@ -435,46 +318,163 @@ export const executeMigration = async (params: {
     return {
       completed: 0,
       txHashes: [],
-      skipped: [],
       ineligible,
       migratedNames: [],
     }
   }
 
   const groups = groupClassifiedNames(classified)
-  const totalSteps = buildStepDescriptors(classified, groups).length
+  const totalSteps = buildStepDescriptors(classified, groups, preflight).length
   const ctx: MigrationCtx = {
     wagmiConfig,
     publicClient,
+    signer,
+    accountAddress,
     migrationOwner,
     defaultResolver,
     tracker: createTracker(onProgress, totalSteps),
   }
 
-  const preMigrateHashes = await runPreMigrateStep(
-    ctx,
-    classified.filter(is2LD),
-  )
-  const approvalHashes = await approveMulticall3IfNeeded(ctx, groups)
-  const root = await migrateRootBuckets(ctx, groups)
-  await waitForRootReceipts(ctx, root.hashes)
-  const subnames = await migrateSubnames(ctx, groups)
+  const approvalHashes = preflight.skipApprovalPhase
+    ? []
+    : await approveSCAIfNeeded(ctx, groups)
 
-  const skipped = [...root.skipped, ...subnames.skipped]
-  const skippedSet = new Set(skipped.map((s) => s.name))
-  const migratedNames = classified
-    .map((c) => c.domain.name)
-    .filter((name) => !skippedSet.has(name))
+  const namesToOwnedPermRes = classified.filter(
+    (n) => n.resolverStrategy === 'to-owned-permres',
+  )
+
+  let ownedPermRes: Address | null = preflight.preExistingOwnedPermRes
+  if (namesToOwnedPermRes.length > 0 && !ownedPermRes) {
+    ctx.tracker.emit('Setting up your v2 resolver', PENDING_TX_HASH)
+    ownedPermRes = await ensureOwnedPermRes({
+      eoa: ctx.migrationOwner,
+      wagmiConfig: ctx.wagmiConfig,
+      publicClient: ctx.publicClient,
+    })
+    ctx.tracker.next()
+  }
+
+  let profiles = new Map<Hex, Profile>()
+  if (namesToOwnedPermRes.length > 0 && !preflight.skipFetchProfilesPhase) {
+    profiles = await fetchV1Profiles({
+      names: namesToOwnedPermRes
+        .filter((n) => n.v1ResolverAddress)
+        .map((n) => ({
+          nodeHex: namehash(n.domain.name) as Hex,
+          v1ResolverAddress: n.v1ResolverAddress as Address,
+        })),
+      publicClient: ctx.publicClient,
+    })
+  }
+
+  ctx.tracker.emit(`Preparing migration for ${classified.length} name(s)`)
+
+  const notReservedSet = new Set<string>()
+  const twoLDs = classified.filter(is2LD)
+  if (twoLDs.length > 0) {
+    const { notReserved } = await filterNotReserved(publicClient, [...twoLDs])
+    for (const name of notReserved) {
+      notReservedSet.add(name.domain.name)
+    }
+  }
+
+  const parentRegistries =
+    groups.childNames.size > 0
+      ? await resolveParentRegistries(publicClient, groups.childNames)
+      : new Map<string, Address>()
+
+  for (const [parentName, _children] of groups.childNames) {
+    const registry = parentRegistries.get(parentName) ?? zeroAddress
+    if (registry === zeroAddress) {
+      throw new MigrationError({
+        cause: new Error(
+          `Parent "${parentName}" has not been migrated yet. Migrate the parent first.`,
+        ),
+        step: `Subnames under ${parentName}`,
+      })
+    }
+  }
+
+  const nameChunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
+  const totalBatches = nameChunks.length
+  const allHashes: Hex[] = [...approvalHashes]
+
+  for (let i = 0; i < nameChunks.length; i++) {
+    const chunk = nameChunks[i]!
+    const batchNum = i + 1
+
+    ctx.tracker.emit(
+      `Upgrading batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
+    )
+
+    const batchCalls: ZeroDevCall[] = []
+
+    const chunkTwoLDs = chunk.filter(
+      (n) => is2LD(n) && notReservedSet.has(n.domain.name),
+    )
+    if (chunkTwoLDs.length > 0) {
+      batchCalls.push(...buildPreMigrateCalls(chunkTwoLDs))
+    }
+
+    const transferCalls = buildAllTransferCalls({
+      classified: chunk,
+      migrationOwner,
+      defaultResolver,
+      ownedPermRes,
+      parentRegistries,
+    })
+
+    let calls = transferCalls
+    if (ownedPermRes) {
+      const batchProfiles = new Map<Hex, Profile>()
+      for (const name of chunk) {
+        if (name.resolverStrategy !== 'to-owned-permres') continue
+        const node = namehash(name.domain.name) as Hex
+        const entry = profiles.get(node.toLowerCase() as Hex)
+        if (entry) batchProfiles.set(node, entry)
+      }
+      const replay = buildProfileReplayCall({
+        resolver: ownedPermRes,
+        profiles: batchProfiles,
+      })
+      if (replay) calls = [...transferCalls, replay]
+    }
+
+    batchCalls.push(...calls)
+
+    batchCalls.push(...buildRoleGrantCalls(chunk))
+
+    try {
+      const hash = await submitBatchedUserOp(
+        ctx,
+        batchCalls,
+        `Migrate batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
+      )
+
+      allHashes.push(hash)
+      ctx.tracker.next()
+      ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, hash)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
+        throw new MigrationUserRejectedError({
+          step: `Batch ${batchNum}/${totalBatches}`,
+        })
+      }
+      throw new MigrationError({
+        cause: error,
+        step: `Batch ${batchNum}/${totalBatches}`,
+      })
+    }
+  }
+
+  const migratedNames = classified.map((c) => c.domain.name)
 
   return {
-    completed: root.completed + subnames.completed,
-    txHashes: [
-      ...preMigrateHashes,
-      ...approvalHashes,
-      ...root.hashes,
-      ...subnames.hashes,
-    ],
-    skipped,
+    completed: classified.length,
+    txHashes: allHashes,
     ineligible,
     migratedNames,
   }
@@ -483,6 +483,7 @@ export const executeMigration = async (params: {
 export const getMigrationStepInfo = (
   domains: V1Domain[],
   ownerAddress: Address,
+  preflight: MigrationPreflight = EMPTY_PREFLIGHT,
 ): {
   stepCount: number
   stepDescriptors: MigrationStepDescriptor[]
@@ -490,7 +491,7 @@ export const getMigrationStepInfo = (
 } => {
   const { classified, ineligible } = classifyNames(domains, ownerAddress)
   const groups = groupClassifiedNames(classified)
-  const descriptors = buildStepDescriptors(classified, groups)
+  const descriptors = buildStepDescriptors(classified, groups, preflight)
 
   return {
     stepCount: descriptors.length,

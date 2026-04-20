@@ -11,6 +11,8 @@ import {
 } from '@/features/migration/state/migrationUi.selectors'
 import { cn } from '@/lib/utils'
 
+const VISIBLE_PLANKS = 6
+
 export const GameStep = () => {
   const { t } = useLingui()
   const { ref: trackRef, width: trackWidth } = useElementWidth()
@@ -25,10 +27,31 @@ export const GameStep = () => {
 
   const totalSteps = Math.max(stepDescriptors.length, 1)
   const completedSteps = progress?.currentStep ?? 0
+  const needsScroll = totalSteps > VISIBLE_PLANKS
+  const plankWidth =
+    trackWidth > 0 ? trackWidth / Math.min(totalSteps, VISIBLE_PLANKS) : 0
+  const totalBridgeWidth = plankWidth * totalSteps
 
-  const plankIndex = Math.min(completedSteps, totalSteps - 1)
-  const frensX =
-    trackWidth > 0 ? ((plankIndex + 0.5) / totalSteps) * trackWidth : 0
+  const midPlank = Math.floor(VISIBLE_PLANKS / 2)
+  const scrollStart = midPlank
+  const scrollEnd = totalSteps - (VISIBLE_PLANKS - midPlank)
+
+  let scrollOffset = 0
+  let frensX = 0
+
+  if (!needsScroll || trackWidth === 0) {
+    frensX = ((completedSteps + 0.5) / totalSteps) * trackWidth
+  } else if (completedSteps < scrollStart) {
+    frensX = (completedSteps + 0.5) * plankWidth
+    scrollOffset = 0
+  } else if (completedSteps >= scrollEnd) {
+    scrollOffset = (scrollEnd - scrollStart) * plankWidth
+    const stepsFromEnd = totalSteps - completedSteps
+    frensX = trackWidth - (stepsFromEnd - 0.5) * plankWidth
+  } else {
+    frensX = (midPlank + 0.5) * plankWidth
+    scrollOffset = (completedSteps - scrollStart) * plankWidth
+  }
 
   const isExcited = !!progress?.txHash && !done && !hasCollapsed
 
@@ -36,34 +59,24 @@ export const GameStep = () => {
     | MigrationStepDescriptor
     | undefined
 
-  const isConfirming = progress?.description?.startsWith('Confirming') ?? false
-
   const descriptionText = match({
     done,
-    isConfirming,
     descriptor: nextDescriptor,
   })
     .with({ done: true }, () => t`Almost there...`)
-    .with({ isConfirming: true }, () => `${t`Confirming transactions`}...`)
     .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
     .with(
-      { descriptor: { type: 'pre-migrate' } },
-      ({ descriptor }) => `${t`Pre-migrating ${descriptor.count} name(s)`}...`,
+      { descriptor: { type: 'approve-sca' } },
+      () => `${t`Approving smart account`}...`,
     )
     .with(
-      { descriptor: { type: 'approve-multicall3' } },
-      ({ descriptor }) =>
-        `${t`Approving Multicall3 to batch ${descriptor.count} name(s)`}...`,
+      { descriptor: { type: 'ensure-resolver' } },
+      () => `${t`Setting up your v2 resolver`}...`,
     )
-    .with(
-      { descriptor: { type: 'migrate' } },
-      ({ descriptor }) =>
-        `${t`Migrating ${descriptor.count} ${descriptor.bucket} name(s)`}...`,
-    )
-    .with(
-      { descriptor: { type: 'migrate-subnames' } },
-      ({ descriptor }) =>
-        `${t`Migrating ${descriptor.count} subname(s) under ${descriptor.parentName}`}...`,
+    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) =>
+      descriptor.totalBatches === 1
+        ? `${t`Upgrading ${descriptor.count} name(s) to v2`}...`
+        : `${t`Batch ${descriptor.batch}/${descriptor.totalBatches}: upgrading ${descriptor.count} name(s)`}...`,
     )
     .exhaustive()
 
@@ -130,6 +143,18 @@ export const GameStep = () => {
             </motion.span>
           </AnimatePresence>
         </motion.div>
+
+        {totalSteps > 1 && (
+          <motion.div
+            animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+            className="mt-1 flex h-4 shrink-0 items-center"
+            transition={{ duration: 0.3 }}
+          >
+            <span className="font-semi-mono text-[10px] text-ens-garnet-400 uppercase tabular-nums tracking-[0.12px]">
+              {completedSteps}/{totalSteps}
+            </span>
+          </motion.div>
+        )}
 
         <div className="relative mt-2 h-[280px] w-full shrink-0">
           <motion.div
@@ -257,92 +282,103 @@ export const GameStep = () => {
                   ? { y: 300, opacity: 0, rotate: 3 }
                   : { y: 0, opacity: 1, rotate: 0 }
               }
-              className="absolute right-[90px] bottom-[10px] left-0 origin-bottom"
+              className="absolute right-[90px] bottom-[10px] left-0 origin-bottom overflow-hidden"
               transition={hasCollapsed ? collapseTransition : { duration: 0 }}
             >
               <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
 
-              <div className="flex items-stretch gap-1.5">
+              <div className="overflow-hidden">
                 <motion.div
-                  animate={
-                    hasCollapsed
-                      ? { y: 20, rotate: -8, opacity: 0 }
-                      : { y: 0, rotate: 0, opacity: 1 }
-                  }
-                  className="w-1 rounded-sm bg-ens-garnet-900/40"
-                  transition={
-                    hasCollapsed
-                      ? { ...collapseTransition, delay: 0 }
-                      : { duration: 0 }
-                  }
-                />
-                {stepIds.map((id, i) => {
-                  const stepDone = i < completedSteps
-                  return (
-                    <motion.div
-                      animate={
-                        hasCollapsed
-                          ? {
-                              y: 40 + i * 15,
-                              rotate: i % 2 === 0 ? 12 : -10,
-                              opacity: 0,
-                            }
-                          : { y: 0, rotate: 0, opacity: 1 }
-                      }
-                      className="flex flex-1 items-stretch"
-                      key={id}
-                      transition={
-                        hasCollapsed
-                          ? {
-                              ...collapseTransition,
-                              delay: 0.05 + i * 0.06,
-                            }
-                          : { duration: 0 }
-                      }
-                    >
-                      <motion.div
-                        animate={
-                          stepDone ? { scaleX: 1, opacity: 1 } : undefined
-                        }
-                        className={cn(
-                          'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
-                          stepDone
-                            ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
-                            : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
-                        )}
-                        initial={
-                          stepDone ? { scaleX: 0, opacity: 0 } : undefined
-                        }
-                        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-                      />
+                  animate={{ x: -scrollOffset }}
+                  className="flex items-stretch gap-1.5"
+                  style={{ width: totalBridgeWidth || '100%' }}
+                  transition={{ type: 'spring', stiffness: 80, damping: 18 }}
+                >
+                  <motion.div
+                    animate={
+                      hasCollapsed
+                        ? { y: 20, rotate: -8, opacity: 0 }
+                        : { y: 0, rotate: 0, opacity: 1 }
+                    }
+                    className="w-1 shrink-0 rounded-sm bg-ens-garnet-900/40"
+                    transition={
+                      hasCollapsed
+                        ? { ...collapseTransition, delay: 0 }
+                        : { duration: 0 }
+                    }
+                  />
+                  {stepIds.map((id, i) => {
+                    const stepDone = i < completedSteps
+                    return (
                       <motion.div
                         animate={
                           hasCollapsed
                             ? {
-                                y: 30 + i * 10,
-                                rotate: i % 2 === 0 ? -15 : 8,
+                                y: 40 + (i % VISIBLE_PLANKS) * 15,
+                                rotate: i % 2 === 0 ? 12 : -10,
                                 opacity: 0,
                               }
                             : { y: 0, rotate: 0, opacity: 1 }
                         }
-                        className={cn(
-                          'ml-1.5 w-1 rounded-sm',
-                          stepDone
-                            ? 'bg-ens-garnet-900/40'
-                            : 'bg-ens-garnet-900/10',
-                        )}
+                        className="flex items-stretch"
+                        key={id}
+                        style={{ width: plankWidth - 6 }}
                         transition={
                           hasCollapsed
                             ? {
                                 ...collapseTransition,
-                                delay: 0.08 + i * 0.06,
+                                delay: 0.05 + (i % VISIBLE_PLANKS) * 0.06,
                               }
                             : { duration: 0 }
                         }
-                      />
-                    </motion.div>
-                  )
-                })}
+                      >
+                        <motion.div
+                          animate={
+                            stepDone ? { scaleX: 1, opacity: 1 } : undefined
+                          }
+                          className={cn(
+                            'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
+                            stepDone
+                              ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
+                              : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
+                          )}
+                          initial={
+                            stepDone ? { scaleX: 0, opacity: 0 } : undefined
+                          }
+                          transition={{
+                            duration: 0.5,
+                            ease: [0.4, 0, 0.2, 1],
+                          }}
+                        />
+                        <motion.div
+                          animate={
+                            hasCollapsed
+                              ? {
+                                  y: 30 + (i % VISIBLE_PLANKS) * 10,
+                                  rotate: i % 2 === 0 ? -15 : 8,
+                                  opacity: 0,
+                                }
+                              : { y: 0, rotate: 0, opacity: 1 }
+                          }
+                          className={cn(
+                            'ml-1.5 w-1 shrink-0 rounded-sm',
+                            stepDone
+                              ? 'bg-ens-garnet-900/40'
+                              : 'bg-ens-garnet-900/10',
+                          )}
+                          transition={
+                            hasCollapsed
+                              ? {
+                                  ...collapseTransition,
+                                  delay: 0.08 + (i % VISIBLE_PLANKS) * 0.06,
+                                }
+                              : { duration: 0 }
+                          }
+                        />
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
               </div>
 
               <div className="mt-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />

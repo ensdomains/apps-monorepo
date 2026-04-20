@@ -5,7 +5,7 @@ import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import { runEligibilityChecks } from '@/features/migration/service/preflightChecks'
 import { publicClient } from '@/lib/wagmi'
 
-const ELIGIBILITY_STALE_MS = 5 * 60 * 1000
+const ELIGIBILITY_STALE_MS = 30 * 60 * 1000
 
 export const useMigrationEligibility = (
   names: readonly ClassifiedName[],

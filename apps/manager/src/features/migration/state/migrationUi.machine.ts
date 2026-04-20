@@ -1,3 +1,4 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
@@ -8,20 +9,28 @@ import {
   setup,
 } from 'xstate'
 import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
+import { EMPTY_PREFLIGHT } from '@/features/migration/service/computeMigrationPreflight'
 import {
   executeMigration,
   getMigrationStepInfo,
+  type MigrationPreflight,
   type MigrationProgress,
   type MigrationResult,
   type MigrationStepDescriptor,
-  type SkippedName,
+  OwnedResolverDeployError,
+  ProfileFetchError,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
 export type MigrationError =
-  | { type: 'preflight-failure'; count: number }
   | { type: 'generic'; message: string }
+  | { type: 'resolver-deploy-failed'; message: string }
+  | {
+      type: 'profile-fetch-failed'
+      phase: 'subgraph' | 'onchain'
+      message: string
+    }
 
 const SUCCESS_HOLD_MS = 3000
 const FAILURE_HOLD_MS = 1500
@@ -44,14 +53,33 @@ const extractErrorMessage = (err: unknown): string => {
   return err.message || 'Migration failed'
 }
 
+const toMigrationError = (err: unknown): MigrationError => {
+  if (err instanceof OwnedResolverDeployError) {
+    return {
+      type: 'resolver-deploy-failed',
+      message: extractErrorMessage(err),
+    }
+  }
+  if (err instanceof ProfileFetchError) {
+    return {
+      type: 'profile-fetch-failed',
+      phase: err.phase,
+      message: extractErrorMessage(err),
+    }
+  }
+  return { type: 'generic', message: extractErrorMessage(err) }
+}
+
 type Context = {
   wagmiConfig: WagmiConfig
   selectedNames: string[]
   domains: readonly V1Domain[]
   ownerAddress?: Address
+  signer?: Signer
+  accountAddress?: Address
+  preflight: MigrationPreflight
   migratedNames: string[]
   txHashes: readonly Hex[]
-  skippedNames: readonly SkippedName[]
   progress?: MigrationProgress
   stepDescriptors: readonly MigrationStepDescriptor[]
   lastError?: MigrationError
@@ -63,6 +91,9 @@ type Events =
       type: 'migration.start'
       domains: readonly V1Domain[]
       ownerAddress: Address
+      signer: Signer
+      accountAddress: Address
+      preflight: MigrationPreflight
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
@@ -79,9 +110,9 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   selectedNames: [],
   domains: [],
   ownerAddress: undefined,
+  preflight: EMPTY_PREFLIGHT,
   migratedNames: [],
   txHashes: [],
-  skippedNames: [],
   progress: undefined,
   stepDescriptors: [],
   lastError: undefined,
@@ -105,6 +136,9 @@ export const migrationUiMachine = setup({
         wagmiConfig: WagmiConfig
         domains: readonly V1Domain[]
         ownerAddress: Address
+        signer: Signer
+        accountAddress: Address
+        preflight: MigrationPreflight
       }
     >(({ input, sendBack }) => {
       let cancelled = false
@@ -120,6 +154,9 @@ export const migrationUiMachine = setup({
         defaultResolver: V2_CONTRACTS.ENSV2Resolver,
         wagmiConfig: input.wagmiConfig,
         publicClient: defaultPublicClient as PublicClient,
+        signer: input.signer,
+        accountAddress: input.accountAddress,
+        preflight: input.preflight,
         onProgress,
       })
         .then((result) => {
@@ -128,10 +165,7 @@ export const migrationUiMachine = setup({
         })
         .catch((err: unknown) => {
           if (cancelled) return
-          sendBack({
-            type: 'migration.failed',
-            error: { type: 'generic', message: extractErrorMessage(err) },
-          })
+          sendBack({ type: 'migration.failed', error: toMigrationError(err) })
         })
 
       return () => {
@@ -143,10 +177,7 @@ export const migrationUiMachine = setup({
     hasSelection: ({ event }) =>
       event.type === 'migration.start' && event.domains.length > 0,
     isOnlyFailures: ({ event }) =>
-      event.type === 'migration.complete' &&
-      event.result.txHashes.length === 0 &&
-      event.result.skipped.some((s) => s.reason !== 'already-migrated'),
-    hasPartialFailures: ({ context }) => context.skippedNames.length > 0,
+      event.type === 'migration.complete' && event.result.txHashes.length === 0,
   },
   actions: {
     setSelection: assign({
@@ -158,15 +189,18 @@ export const migrationUiMachine = setup({
       const { stepDescriptors } = getMigrationStepInfo(
         [...event.domains],
         event.ownerAddress,
+        event.preflight,
       )
       return {
         domains: event.domains,
         ownerAddress: event.ownerAddress,
+        signer: event.signer,
+        accountAddress: event.accountAddress,
+        preflight: event.preflight,
         stepDescriptors,
         progress: undefined,
         lastError: undefined,
         txHashes: [] as readonly Hex[],
-        skippedNames: [] as readonly SkippedName[],
       }
     }),
     setProgress: assign({
@@ -177,21 +211,11 @@ export const migrationUiMachine = setup({
       if (event.type !== 'migration.complete') return {}
       return {
         txHashes: event.result.txHashes,
-        skippedNames: event.result.skipped,
         migratedNames: [
           ...context.migratedNames,
           ...event.result.migratedNames,
         ],
       }
-    }),
-    setPreflightError: assign({
-      lastError: ({ event, context }) =>
-        event.type === 'migration.complete'
-          ? ({
-              type: 'preflight-failure',
-              count: event.result.skipped.length,
-            } as const)
-          : context.lastError,
     }),
     setError: assign({
       lastError: ({ event, context }) =>
@@ -202,12 +226,14 @@ export const migrationUiMachine = setup({
         (d) => !context.migratedNames.includes(d.name),
       )
       const stepDescriptors = context.ownerAddress
-        ? getMigrationStepInfo([...remainingDomains], context.ownerAddress)
-            .stepDescriptors
+        ? getMigrationStepInfo(
+            [...remainingDomains],
+            context.ownerAddress,
+            context.preflight,
+          ).stepDescriptors
         : context.stepDescriptors
       return {
         lastError: undefined,
-        skippedNames: [] as readonly SkippedName[],
         txHashes: [] as readonly Hex[],
         progress: undefined,
         selectedNames: context.selectedNames.filter(
@@ -250,6 +276,9 @@ export const migrationUiMachine = setup({
               wagmiConfig: context.wagmiConfig,
               domains: context.domains,
               ownerAddress: context.ownerAddress!,
+              signer: context.signer!,
+              accountAddress: context.accountAddress!,
+              preflight: context.preflight,
             }),
           },
           on: {
@@ -260,7 +289,7 @@ export const migrationUiMachine = setup({
               {
                 target: 'failing',
                 guard: 'isOnlyFailures',
-                actions: ['recordCompletion', 'setPreflightError'],
+                actions: 'recordCompletion',
               },
               {
                 target: 'succeeding',
@@ -276,15 +305,9 @@ export const migrationUiMachine = setup({
         succeeding: {
           tags: 'running',
           after: {
-            successHold: [
-              {
-                target: '#migrationUi.partialSuccess',
-                guard: 'hasPartialFailures',
-              },
-              {
-                target: '#migrationUi.success',
-              },
-            ],
+            successHold: {
+              target: '#migrationUi.success',
+            },
           },
         },
         failing: {
@@ -296,15 +319,6 @@ export const migrationUiMachine = setup({
       },
     },
     success: {
-      tags: 'result',
-      on: {
-        done: {
-          target: 'select',
-          actions: 'resetAll',
-        },
-      },
-    },
-    partialSuccess: {
       tags: 'result',
       on: {
         done: {

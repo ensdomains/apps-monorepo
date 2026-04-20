@@ -7,8 +7,7 @@ export const V1_CONTRACTS = {
   PublicResolver: '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address,
 } as const
 
-export const MULTICALL3_ADDRESS: Address =
-  '0xcA11bde05977b3631167028862bE2a173976CA11'
+export const V2_DEPLOY_BLOCK = 10462885n
 
 export const V2_CONTRACTS = {
   ETHRegistry: '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address,
@@ -19,4 +18,7 @@ export const V2_CONTRACTS = {
   ENSV2Resolver: '0x18cb116a1c88531a4bb2996e4fef136a31e11a80' as Address,
   PreMigrationController:
     '0xee63749b063c08dedee9478504177c27bf9193d7' as Address,
+  VerifiableFactory: '0x9240c5f31d747d60b3d9aed2f57995094342b1ed' as Address,
+  PermissionedResolverImpl:
+    '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as Address,
 } as const

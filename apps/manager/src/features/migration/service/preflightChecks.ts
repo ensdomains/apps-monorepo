@@ -10,8 +10,8 @@ import {
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
 
-const PREFLIGHT_TIMEOUT_MS = 8000
-const MULTICALL_BATCH_SIZE = 100
+const PREFLIGHT_TIMEOUT_MS = 15000
+const MULTICALL_BATCH_SIZE = 500
 
 type MulticallFailure = {
   status: 'failure'
@@ -51,7 +51,11 @@ const batchedMulticall = async <T>(
   const chunkResults = await Promise.all(
     chunks.map((chunk) =>
       withTimeout(
-        multicall(publicClient, { contracts: chunk, allowFailure: true }),
+        multicall(publicClient, {
+          contracts: chunk,
+          allowFailure: true,
+          batchSize: 0,
+        }),
         PREFLIGHT_TIMEOUT_MS,
       ),
     ),

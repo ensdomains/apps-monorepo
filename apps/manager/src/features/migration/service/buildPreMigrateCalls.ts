@@ -1,10 +1,7 @@
-import { type Address, encodeFunctionData, multicall3Abi } from 'viem'
+import type { ZeroDevCall } from '@ens-apps/transaction-manager'
+import { type Address, encodeFunctionData } from 'viem'
 import { PRE_MIGRATION_ABI } from '../contracts/abis'
-import {
-  MULTICALL3_ADDRESS,
-  V1_CONTRACTS,
-  V2_CONTRACTS,
-} from '../contracts/addresses'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import type { ClassifiedName } from './classifyNames'
 
 const getPreMigrateParams = (name: ClassifiedName) => ({
@@ -20,39 +17,19 @@ const getPreMigrateParams = (name: ClassifiedName) => ({
   resolver: (name.v1ResolverAddress || V1_CONTRACTS.PublicResolver) as Address,
 })
 
-export const buildPreMigrateCall = (name: ClassifiedName) => {
+export const buildPreMigrateCall = (name: ClassifiedName): ZeroDevCall => {
   const params = getPreMigrateParams(name)
   return {
-    address: V2_CONTRACTS.PreMigrationController,
-    abi: PRE_MIGRATION_ABI,
-    functionName: 'preMigrate' as const,
-    args: [
-      params.label,
-      params.expiry,
-      params.registry,
-      params.resolver,
-    ] as const,
+    to: V2_CONTRACTS.PreMigrationController,
+    data: encodeFunctionData({
+      abi: PRE_MIGRATION_ABI,
+      functionName: 'preMigrate',
+      args: [params.label, params.expiry, params.registry, params.resolver],
+    }),
+    value: 0n,
   }
 }
 
-export const buildPreMigrateMulticall = (names: readonly ClassifiedName[]) => {
-  const calls = names.map((name) => {
-    const params = getPreMigrateParams(name)
-    return {
-      target: V2_CONTRACTS.PreMigrationController,
-      allowFailure: false,
-      callData: encodeFunctionData({
-        abi: PRE_MIGRATION_ABI,
-        functionName: 'preMigrate',
-        args: [params.label, params.expiry, params.registry, params.resolver],
-      }),
-    }
-  })
-
-  return {
-    address: MULTICALL3_ADDRESS,
-    abi: multicall3Abi,
-    functionName: 'aggregate3' as const,
-    args: [calls] as const,
-  }
-}
+export const buildPreMigrateCalls = (
+  names: readonly ClassifiedName[],
+): ZeroDevCall[] => names.map(buildPreMigrateCall)
