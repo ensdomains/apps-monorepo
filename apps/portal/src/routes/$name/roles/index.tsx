@@ -176,8 +176,8 @@ function RouteComponent() {
   } else
     return (
       <ErrorMessage
-        title="This is not a Namechain name"
-        description="Role editing is supported only for Namechain names at the moment."
+        title="This is not an ENSv2 name"
+        description="Role editing is supported only for ENSv2 names at the moment."
       />
     )
 }
