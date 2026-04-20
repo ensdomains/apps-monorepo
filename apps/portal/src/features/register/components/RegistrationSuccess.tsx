@@ -6,12 +6,9 @@ import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
-import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
-import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
-import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { getOracleDiscountText } from '@/features/register/utils/registrationPricing'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { RegistrationSummaryCards } from './RegistrationSummaryCards'
 
 type RegistrationSuccessProps = {
   readonly domainName: string
@@ -29,8 +26,6 @@ export const RegistrationSuccess = ({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [isViewProfileLoading, setIsViewProfileLoading] = useState(false)
-
-  const baseRate = useBaseRate(domainName)
 
   const handleViewProfile = async () => {
     try {
@@ -64,12 +59,6 @@ export const RegistrationSuccess = ({
     }
   }
 
-  const { registrationPeriod, registrationDays, expiresFormatted } =
-    getRegistrationDisplayDates(durationSeconds)
-
-  const totalCost = formatPriceDisplay(price.total, price.decimals)
-  const discountText = getOracleDiscountText(baseRate, price, durationSeconds)
-
   const handleRegisterAnother = () => {
     onRegisterAnother()
     navigate({ to: '/register' })
@@ -87,35 +76,11 @@ export const RegistrationSuccess = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
-        <div className="rounded-xl border border-border bg-card p-4 text-center">
-          <p className="text-sm">Registration</p>
-          <p className="text-foreground text-base font-medium mt-1">
-            {registrationPeriod}
-          </p>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {registrationDays} days
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 text-center">
-          <p className="text-sm">Expires</p>
-          <p className="text-foreground text-base font-medium mt-1">
-            {expiresFormatted}
-          </p>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            in {registrationDays} days
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 text-center">
-          <p className="text-sm">Total cost</p>
-          <p className="text-foreground text-base font-medium mt-1">
-            {totalCost}
-          </p>
-          {discountText ? (
-            <p className="text-success text-xs mt-0.5">{discountText}</p>
-          ) : null}
-        </div>
-      </div>
+      <RegistrationSummaryCards
+        domainName={domainName}
+        durationSeconds={durationSeconds}
+        price={price}
+      />
 
       <div className="grid grid-cols-2 gap-4">
         <Button variant="ghost" onClick={handleRegisterAnother}>
