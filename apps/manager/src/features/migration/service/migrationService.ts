@@ -129,7 +129,10 @@ const approveSCAIfNeeded = async (
     })) as boolean
 
     if (!isApproved) {
-      ctx.tracker.emit('Approving your smart account on BaseRegistrar')
+      ctx.tracker.emit(
+        'Approving your smart account on BaseRegistrar',
+        PENDING_TX_HASH,
+      )
       const hash = await writeContract(ctx.wagmiConfig, {
         address: V1_CONTRACTS.BaseRegistrar,
         abi: BASE_REGISTRAR_ABI,
@@ -153,7 +156,10 @@ const approveSCAIfNeeded = async (
     })) as boolean
 
     if (!isApproved) {
-      ctx.tracker.emit('Approving your smart account on NameWrapper')
+      ctx.tracker.emit(
+        'Approving your smart account on NameWrapper',
+        PENDING_TX_HASH,
+      )
       const hash = await writeContract(ctx.wagmiConfig, {
         address: V1_CONTRACTS.NameWrapper,
         abi: NAME_WRAPPER_ABI,
@@ -263,10 +269,10 @@ const buildStepDescriptors = (
     descriptors.push({ type: 'approve-sca', count: classified.length })
   }
 
-  const eligibleForOwnedRes = classified.filter(
-    (n) => n.preservedResolver === null,
+  const needsOwnedPermRes = classified.some(
+    (n) => n.resolverStrategy === 'to-owned-permres',
   )
-  if (eligibleForOwnedRes.length > 0 && !preflight.preExistingOwnedPermRes) {
+  if (needsOwnedPermRes && !preflight.preExistingOwnedPermRes) {
     descriptors.push({ type: 'ensure-resolver' })
   }
 
@@ -333,13 +339,13 @@ export const executeMigration = async (params: {
     ? []
     : await approveSCAIfNeeded(ctx, groups)
 
-  const eligibleForOwnedRes = classified.filter(
-    (n) => n.preservedResolver === null,
+  const namesToOwnedPermRes = classified.filter(
+    (n) => n.resolverStrategy === 'to-owned-permres',
   )
 
   let ownedPermRes: Address | null = preflight.preExistingOwnedPermRes
-  if (eligibleForOwnedRes.length > 0 && !ownedPermRes) {
-    ctx.tracker.emit('Setting up your v2 resolver')
+  if (namesToOwnedPermRes.length > 0 && !ownedPermRes) {
+    ctx.tracker.emit('Setting up your v2 resolver', PENDING_TX_HASH)
     ownedPermRes = await ensureOwnedPermRes({
       eoa: ctx.migrationOwner,
       wagmiConfig: ctx.wagmiConfig,
@@ -349,12 +355,14 @@ export const executeMigration = async (params: {
   }
 
   let profiles = new Map<Hex, Profile>()
-  if (ownedPermRes && !preflight.skipFetchProfilesPhase) {
+  if (namesToOwnedPermRes.length > 0 && !preflight.skipFetchProfilesPhase) {
     profiles = await fetchV1Profiles({
-      names: eligibleForOwnedRes.map((n) => ({
-        nodeHex: namehash(n.domain.name) as Hex,
-        v1ResolverAddress: n.v1ResolverAddress as Address,
-      })),
+      names: namesToOwnedPermRes
+        .filter((n) => n.v1ResolverAddress)
+        .map((n) => ({
+          nodeHex: namehash(n.domain.name) as Hex,
+          v1ResolverAddress: n.v1ResolverAddress as Address,
+        })),
       publicClient: ctx.publicClient,
     })
   }
@@ -420,13 +428,13 @@ export const executeMigration = async (params: {
     if (ownedPermRes) {
       const batchProfiles = new Map<Hex, Profile>()
       for (const name of chunk) {
-        if (name.preservedResolver !== null) continue
+        if (name.resolverStrategy !== 'to-owned-permres') continue
         const node = namehash(name.domain.name) as Hex
         const entry = profiles.get(node.toLowerCase() as Hex)
         if (entry) batchProfiles.set(node, entry)
       }
       const replay = buildProfileReplayCall({
-        myPermRes: ownedPermRes,
+        resolver: ownedPermRes,
         profiles: batchProfiles,
       })
       if (replay) calls = [...transferCalls, replay]

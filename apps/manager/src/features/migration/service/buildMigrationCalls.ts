@@ -15,9 +15,12 @@ const resolverFor = (
   defaultResolver: Address,
   ownedPermRes: Address | null,
 ): Address => {
-  if (name.preservedResolver) return name.preservedResolver
-  if (ownedPermRes) return ownedPermRes
-  return defaultResolver
+  switch (name.resolverStrategy) {
+    case 'keep-v1':
+      return (name.v1ResolverAddress ?? defaultResolver) as Address
+    case 'to-owned-permres':
+      return ownedPermRes ?? defaultResolver
+  }
 }
 
 export const buildUnwrappedTransferCall = (params: {

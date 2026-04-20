@@ -39,13 +39,16 @@ export const computeMigrationPreflight = async (params: {
     groups.unlocked.length > 0 ||
     groups.locked2ld.length > 0 ||
     groups.childNames.size > 0
-  const eligibleForOwnedRes = classified.filter(
-    (n) => n.preservedResolver === null,
+  const namesToOwnedPermRes = classified.filter(
+    (n) => n.resolverStrategy === 'to-owned-permres',
   )
+  const needsOwnedPermRes = namesToOwnedPermRes.length > 0
 
   const [existingPermRes, baseRegistrarApproved, nameWrapperApproved] =
     await Promise.all([
-      findExistingPermRes({ eoa, publicClient }),
+      needsOwnedPermRes
+        ? findExistingPermRes({ eoa, publicClient })
+        : Promise.resolve(null),
       hasUnwrapped
         ? (readContract(wagmiConfig, {
             address: V1_CONTRACTS.BaseRegistrar,
@@ -69,11 +72,11 @@ export const computeMigrationPreflight = async (params: {
     (!hasWrapped || nameWrapperApproved)
 
   let skipFetchProfilesPhase = false
-  if (eligibleForOwnedRes.length === 0) {
+  if (namesToOwnedPermRes.length === 0) {
     skipFetchProfilesPhase = true
   } else {
     const keysResult = await getV1ProfileKeys(
-      eligibleForOwnedRes.map((n) => n.domain.id),
+      namesToOwnedPermRes.map((n) => n.domain.id),
     )
     if (keysResult.isOk()) {
       const anyKeys = keysResult.value.some(

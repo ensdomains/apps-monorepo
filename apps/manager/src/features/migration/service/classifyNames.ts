@@ -1,4 +1,5 @@
 import type { Address } from 'viem'
+import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import type { V1Domain } from './v1SubgraphClient'
 
 export const FUSES = {
@@ -35,6 +36,8 @@ export type IneligibleName = {
   readonly reason: IneligibleReason
 }
 
+type ResolverStrategy = 'keep-v1' | 'to-owned-permres'
+
 export type ClassifiedName = {
   readonly domain: V1Domain
   readonly tokenType: MigrationTokenType
@@ -43,7 +46,7 @@ export type ClassifiedName = {
   readonly fuses: number
   readonly tokenHolder: Address
   readonly v1ResolverAddress: string | null
-  readonly preservedResolver: Address | null
+  readonly resolverStrategy: ResolverStrategy
   readonly managerAddress: Address | null
 }
 
@@ -54,6 +57,28 @@ export const is2LD = (name: ClassifiedName): boolean =>
   name.tokenType === 'unwrapped' ||
   name.tokenType === 'unlocked' ||
   name.tokenType === 'locked-2ld'
+
+const resolverStrategyFor = (params: {
+  tokenType: MigrationTokenType
+  fuses: number
+  v1ResolverAddress: string | null
+}): ResolverStrategy => {
+  const { tokenType, fuses, v1ResolverAddress } = params
+
+  const cannotSetResolverLocked =
+    (tokenType === 'locked-2ld' || tokenType === 'locked-child') &&
+    hasFuse(fuses, FUSES.CANNOT_SET_RESOLVER)
+
+  if (cannotSetResolverLocked && v1ResolverAddress) {
+    return 'keep-v1'
+  }
+
+  if (v1ResolverAddress && !isKnownPublicResolver(v1ResolverAddress)) {
+    return 'keep-v1'
+  }
+
+  return 'to-owned-permres'
+}
 
 type ClassifyResult =
   | { type: 'classified'; name: ClassifiedName }
@@ -92,7 +117,11 @@ export const classifyName = (
         fuses: 0,
         tokenHolder: registrant.id as Address,
         v1ResolverAddress,
-        preservedResolver: null,
+        resolverStrategy: resolverStrategyFor({
+          tokenType: 'unwrapped',
+          fuses: 0,
+          v1ResolverAddress,
+        }),
         managerAddress,
       },
     }
@@ -121,7 +150,11 @@ export const classifyName = (
             fuses,
             tokenHolder: wrappedHolder,
             v1ResolverAddress,
-            preservedResolver: null,
+            resolverStrategy: resolverStrategyFor({
+              tokenType: 'detached-child',
+              fuses,
+              v1ResolverAddress,
+            }),
             managerAddress: null,
           },
         }
@@ -141,7 +174,11 @@ export const classifyName = (
         fuses,
         tokenHolder: wrappedHolder,
         v1ResolverAddress,
-        preservedResolver: null,
+        resolverStrategy: resolverStrategyFor({
+          tokenType: 'unlocked',
+          fuses,
+          v1ResolverAddress,
+        }),
         managerAddress: null,
       },
     }
@@ -154,39 +191,24 @@ export const classifyName = (
     return { type: 'ineligible', name: { domain, reason: 'missing-parent' } }
   }
 
-  const preservedResolver: Address | null =
-    hasFuse(fuses, FUSES.CANNOT_SET_RESOLVER) && v1ResolverAddress
-      ? (v1ResolverAddress as Address)
-      : null
-
-  if (parentName === 'eth') {
-    return {
-      type: 'classified',
-      name: {
-        domain,
-        tokenType: 'locked-2ld',
-        label,
-        parentName,
-        fuses,
-        tokenHolder: wrappedHolder,
-        v1ResolverAddress,
-        preservedResolver,
-        managerAddress: null,
-      },
-    }
-  }
+  const lockedTokenType: MigrationTokenType =
+    parentName === 'eth' ? 'locked-2ld' : 'locked-child'
 
   return {
     type: 'classified',
     name: {
       domain,
-      tokenType: 'locked-child',
+      tokenType: lockedTokenType,
       label,
       parentName,
       fuses,
       tokenHolder: wrappedHolder,
       v1ResolverAddress,
-      preservedResolver,
+      resolverStrategy: resolverStrategyFor({
+        tokenType: lockedTokenType,
+        fuses,
+        v1ResolverAddress,
+      }),
       managerAddress: null,
     },
   }

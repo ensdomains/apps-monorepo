@@ -4,10 +4,10 @@ import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
 export const buildProfileReplayCall = (params: {
-  myPermRes: Address
+  resolver: Address
   profiles: Map<Hex, Profile>
 }): ZeroDevCall | null => {
-  const { myPermRes, profiles } = params
+  const { resolver, profiles } = params
   const innerCalls: Hex[] = []
 
   for (const [nodeHex, profile] of profiles) {
@@ -34,7 +34,7 @@ export const buildProfileReplayCall = (params: {
   if (innerCalls.length === 0) return null
 
   return {
-    to: myPermRes,
+    to: resolver,
     data: encodeFunctionData({
       abi: PERMISSIONED_RESOLVER_ABI,
       functionName: 'multicall',

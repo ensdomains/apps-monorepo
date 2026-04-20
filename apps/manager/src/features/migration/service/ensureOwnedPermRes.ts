@@ -13,7 +13,7 @@ import {
   toEventSelector,
 } from 'viem'
 import { VERIFIABLE_FACTORY_ABI } from '../contracts/abis'
-import { V2_CONTRACTS } from '../contracts/addresses'
+import { V2_CONTRACTS, V2_DEPLOY_BLOCK } from '../contracts/addresses'
 import {
   computeOwnedResolverSalt,
   getOwnedPermResInitCalldata,
@@ -50,19 +50,20 @@ export const findExistingPermRes = async (params: {
   publicClient: PublicClient
 }): Promise<Address | null> => {
   const { eoa, publicClient } = params
+  const expectedSalt = computeOwnedResolverSalt(eoa, 0n)
+  const impl = V2_CONTRACTS.PermissionedResolverImpl.toLowerCase()
   const logs = await publicClient.getLogs({
     address: V2_CONTRACTS.VerifiableFactory,
     event: proxyDeployedEvent,
     args: { sender: eoa },
-    fromBlock: 0n,
+    fromBlock: V2_DEPLOY_BLOCK,
     toBlock: 'latest',
   })
-  const impl = V2_CONTRACTS.PermissionedResolverImpl.toLowerCase()
   for (let i = logs.length - 1; i >= 0; i--) {
     const log = logs[i]!
-    if (log.args.implementation?.toLowerCase() === impl) {
-      return log.args.proxyAddress as Address
-    }
+    if (log.args.implementation?.toLowerCase() !== impl) continue
+    if (log.args.salt !== expectedSalt) continue
+    return log.args.proxyAddress as Address
   }
   return null
 }
