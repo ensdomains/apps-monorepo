@@ -11,64 +11,22 @@ import {
 import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
 import { EMPTY_PREFLIGHT } from '@/features/migration/service/computeMigrationPreflight'
 import {
+  decodeMigrationError,
+  type MigrationError,
+} from '@/features/migration/service/decodeMigrationError'
+import {
   executeMigration,
   getMigrationStepInfo,
   type MigrationPreflight,
   type MigrationProgress,
   type MigrationResult,
   type MigrationStepDescriptor,
-  OwnedResolverDeployError,
-  ProfileFetchError,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
-export type MigrationError =
-  | { type: 'generic'; message: string }
-  | { type: 'resolver-deploy-failed'; message: string }
-  | {
-      type: 'profile-fetch-failed'
-      phase: 'subgraph' | 'onchain'
-      message: string
-    }
-
 const SUCCESS_HOLD_MS = 3000
 const FAILURE_HOLD_MS = 1500
-
-const extractErrorMessage = (err: unknown): string => {
-  if (!(err instanceof Error)) return String(err)
-
-  let deepest = err
-  while ('cause' in deepest && deepest.cause instanceof Error) {
-    deepest = deepest.cause
-  }
-
-  const short =
-    (err as unknown as Record<string, unknown>).shortMessage ??
-    (deepest as unknown as Record<string, unknown>).shortMessage
-
-  if (typeof short === 'string') return short
-  if (deepest !== err && deepest.message) return deepest.message
-
-  return err.message || 'Migration failed'
-}
-
-const toMigrationError = (err: unknown): MigrationError => {
-  if (err instanceof OwnedResolverDeployError) {
-    return {
-      type: 'resolver-deploy-failed',
-      message: extractErrorMessage(err),
-    }
-  }
-  if (err instanceof ProfileFetchError) {
-    return {
-      type: 'profile-fetch-failed',
-      phase: err.phase,
-      message: extractErrorMessage(err),
-    }
-  }
-  return { type: 'generic', message: extractErrorMessage(err) }
-}
 
 type Context = {
   wagmiConfig: WagmiConfig
@@ -165,7 +123,10 @@ export const migrationUiMachine = setup({
         })
         .catch((err: unknown) => {
           if (cancelled) return
-          sendBack({ type: 'migration.failed', error: toMigrationError(err) })
+          sendBack({
+            type: 'migration.failed',
+            error: decodeMigrationError(err),
+          })
         })
 
       return () => {

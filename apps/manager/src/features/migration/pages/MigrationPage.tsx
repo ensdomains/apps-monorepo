@@ -10,8 +10,8 @@ import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useMigrationPreflight } from '@/features/migration/hooks/useMigrationPreflight'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
+import type { MigrationError } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
-import type { MigrationError } from '@/features/migration/state/migrationUi.machine'
 import {
   useMigrationLastError,
   useMigrationMigratedNames,

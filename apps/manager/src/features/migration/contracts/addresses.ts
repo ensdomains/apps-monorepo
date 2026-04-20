@@ -9,6 +9,9 @@ export const V1_CONTRACTS = {
 
 export const V2_DEPLOY_BLOCK = 10462885n
 
+// TODO(ensjs): these ENS v2 Sepolia deployment addresses should live in a
+// shared `@ensdomains/ensjs` export so every consumer uses one source of
+// truth. Remove this local table once the upstream addresses export lands.
 export const V2_CONTRACTS = {
   ETHRegistry: '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address,
   UnlockedMigrationController:
