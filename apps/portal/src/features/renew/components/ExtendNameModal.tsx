@@ -72,8 +72,8 @@ export const ExtendNameModal = ({
       onOpenChange={(open) => {
         if (!open) {
           onClose()
+          setStep('disclaimer')
         }
-        setStep('disclaimer')
       }}
     >
       <DialogContent className="sm:max-w-[460px]">

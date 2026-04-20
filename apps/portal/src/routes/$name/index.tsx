@@ -233,6 +233,7 @@ const Profile = ({
             name={name}
             registryAddress={ownerQuery.data.registryAddress}
             asRow
+            protocolVersion={resolvedProtocolVersion}
           />
         </div>
 
@@ -254,7 +255,7 @@ const Profile = ({
       </div>
 
       {/* History */}
-      {resolvedProtocolVersion === 'ENSv1' && <RecentActivity name={name} />}
+      <RecentActivity name={name} protocolVersion={resolvedProtocolVersion} />
     </div>
   )
 }

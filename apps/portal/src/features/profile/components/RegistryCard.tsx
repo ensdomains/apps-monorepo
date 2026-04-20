@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { HubIcon } from '@/assets/icons'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import type { ProtocolVersion } from '@/utils/types'
 import { RegistryLocation } from './RegistryLocation'
 
 const v2EnsRegistry = sepoliaWithEns.contracts.ensRegistry.address
@@ -16,17 +17,22 @@ export const RegistryCard = ({
   name,
   registryAddress,
   asRow,
+  protocolVersion,
 }: {
   name: string
   registryAddress?: Address
   asRow?: boolean
+  protocolVersion?: ProtocolVersion
 }) => {
   const isCustomRegistry =
     registryAddress &&
     registryAddress !== v2EnsRegistry &&
     registryAddress !== v1EnsLegacyRegistry
 
+  const isV1 = protocolVersion === 'ENSv1'
+
   if (asRow) {
+    if (isV1) return null
     return (
       <Link
         to="/$name/registry"
@@ -40,11 +46,13 @@ export const RegistryCard = ({
         {isCustomRegistry ? (
           <RegistryLocation name={name} registryAddress={registryAddress} />
         ) : (
-          <span className="text-sm text-muted-foreground">None set</span>
+          <span className="text-muted-foreground">None set</span>
         )}
       </Link>
     )
   }
+
+  if (isV1) return null
 
   return (
     <Link

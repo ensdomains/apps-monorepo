@@ -37,7 +37,7 @@ describe('buildTokenData', () => {
     const prices = [validPrice, { ...validPrice, total: 10_000_000n }]
     const balances = [100_000_000n, 50_000_000_000_000_000_000n]
 
-    const result = buildTokenData(tokens, prices, balances)
+    const result = buildTokenData(tokens, prices, balances, [])
 
     expect(result).toHaveLength(2)
     expect(result[0]).toMatchObject({
@@ -56,7 +56,7 @@ describe('buildTokenData', () => {
     const tokens = [mockToken('USDC', SUPPORTED_TOKENS.USDC, USDC_DECIMALS)]
     const balances = [100n]
 
-    const result = buildTokenData(tokens, [], balances)
+    const result = buildTokenData(tokens, [], balances, [])
 
     expect(result[0].price).toEqual(DEFAULT_PRICE)
     expect(result[0].balance).toBe(100n)
@@ -67,7 +67,7 @@ describe('buildTokenData', () => {
     const prices = [validPrice]
     const balances = [] as bigint[]
 
-    const result = buildTokenData(tokens, prices, balances)
+    const result = buildTokenData(tokens, prices, balances, [])
 
     expect(result[0].price).toEqual(validPrice)
     expect(result[0].balance).toBe(0n)
@@ -78,13 +78,13 @@ describe('buildTokenData', () => {
     const prices = [{ foo: 'bar' } as unknown as typeof validPrice]
     const balances = [100n]
 
-    const result = buildTokenData(tokens, prices, balances)
+    const result = buildTokenData(tokens, prices, balances, [])
 
     expect(result[0].price).toEqual(DEFAULT_PRICE)
   })
 
   it('handles empty tokens array', () => {
-    const result = buildTokenData([], [], [])
+    const result = buildTokenData([], [], [], [])
 
     expect(result).toEqual([])
   })
@@ -94,7 +94,7 @@ describe('buildTokenData', () => {
     const prices = [validPrice]
     const balances = [] as bigint[]
 
-    const result = buildTokenData(tokens, prices, balances)
+    const result = buildTokenData(tokens, prices, balances, [])
 
     expect(result[0].balance).toBe(0n)
   })

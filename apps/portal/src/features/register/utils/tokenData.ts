@@ -28,6 +28,7 @@ type TokenInput = {
 export type TokenWithPriceAndBalance = TokenInput & {
   readonly price: TokenPrice
   readonly balance: bigint
+  readonly allowance: bigint
 }
 
 function isTokenPrice(value: TokenPrice | undefined): value is TokenPrice {
@@ -46,6 +47,7 @@ export function buildTokenData(
   tokens: readonly TokenInput[],
   prices: readonly (TokenPrice | undefined)[],
   balances: readonly bigint[],
+  allowances: readonly bigint[],
 ): TokenWithPriceAndBalance[] {
   return tokens.map((token, i) => {
     const price = prices[i]
@@ -53,6 +55,7 @@ export function buildTokenData(
       ...token,
       price: isTokenPrice(price) ? price : DEFAULT_PRICE,
       balance: typeof balances[i] === 'bigint' ? balances[i] : 0n,
+      allowance: typeof allowances[i] === 'bigint' ? allowances[i] : 0n,
     }
   })
 }

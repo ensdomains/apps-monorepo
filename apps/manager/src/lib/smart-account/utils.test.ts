@@ -206,6 +206,71 @@ describe('walletClientToAccount', () => {
     expect(walletClient.signTypedData).toHaveBeenCalledWith({
       account: '0x1234567890123456789012345678901234567890',
       ...typedData,
+      message: { value: '123' },
+    })
+  })
+
+  it('converts nested BigInt values in signTypedData payloads to strings', async () => {
+    const expectedSignature =
+      '0xsignature123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890' as Hex
+    const walletClient = {
+      account: {
+        address: '0x1234567890123456789012345678901234567890' as const,
+      },
+      signMessage: vi.fn(),
+      signTypedData: vi.fn().mockResolvedValue(expectedSignature),
+      signTransaction: vi.fn(),
+    }
+
+    const account = walletClientToAccount(walletClient as any)
+
+    const typedData = {
+      domain: { name: 'SmartSessionEmissary', version: '1' },
+      types: {
+        SignedSession: [
+          { name: 'expires', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+        ],
+        ChainSession: [
+          { name: 'chainId', type: 'uint64' },
+          { name: 'session', type: 'SignedSession' },
+        ],
+        MultiChainSession: [
+          { name: 'sessionsAndChainIds', type: 'ChainSession[]' },
+        ],
+      },
+      primaryType: 'MultiChainSession' as const,
+      message: {
+        sessionsAndChainIds: [
+          {
+            chainId: 11155111n,
+            session: {
+              expires:
+                115792089237316195423570985008687907853269984665640564039457584007913129639935n,
+              nonce: 9n,
+            },
+          },
+        ],
+      },
+    }
+
+    await account.signTypedData?.(typedData as any)
+
+    expect(walletClient.signTypedData).toHaveBeenCalledWith({
+      account: '0x1234567890123456789012345678901234567890',
+      ...typedData,
+      message: {
+        sessionsAndChainIds: [
+          {
+            chainId: '11155111',
+            session: {
+              expires:
+                '115792089237316195423570985008687907853269984665640564039457584007913129639935',
+              nonce: '9',
+            },
+          },
+        ],
+      },
     })
   })
 

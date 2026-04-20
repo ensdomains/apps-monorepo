@@ -1,11 +1,10 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
-import { type Address, encodeFunctionData } from 'viem'
+import { type Address, encodeFunctionData, erc20Abi } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
@@ -101,7 +100,7 @@ function buildApproveTransaction(
   signer: ReturnType<typeof createEOASigner>,
 ) {
   const approveData = encodeFunctionData({
-    abi: ERC20_ABI,
+    abi: erc20Abi,
     functionName: 'approve',
     args: [ethRegistrar, params.tokenPrice * 2n],
   })

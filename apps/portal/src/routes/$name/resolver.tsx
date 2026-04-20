@@ -1,5 +1,5 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import {
   ClockIcon,
@@ -11,9 +11,10 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
-import { type Address, zeroAddress } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useConnection, useEnsResolver } from 'wagmi'
+import { useConnection } from 'wagmi'
+import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { CopyButton } from '@/components/CopyButton'
 import { DataRow } from '@/components/DataRow'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -29,7 +30,6 @@ import {
 } from '@/features/profile/hooks/useEnsOwner'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import {
@@ -39,7 +39,7 @@ import {
 } from '@/lib/constants/resolverInterfaceIds'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
@@ -72,28 +72,29 @@ const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
 interface EditButtonsProps {
   address: Address
   name: string
+  resolverAddress?: Address
+  registryAddress: Address
 }
 
-const EditButtons = ({ address, name }: EditButtonsProps) => {
-  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
-  const registryQuery = useQuery(getNameRegistriesQueryOptions({ name }))
-  const currentNameRegistry = registryQuery.data?.registries?.[1]
+const EditButtons = ({
+  address,
+  name,
+  resolverAddress,
+  registryAddress,
+}: EditButtonsProps) => {
   const label = name.split('.')[0]
-  const roleQuery = useQuery({
+  const { data: hasSetResolverRole } = useQuery({
     ...getHasRolesQueryOptions({
-      registryAddress: currentNameRegistry ?? zeroAddress,
+      registryAddress,
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: address,
     }),
-    enabled: !!address && !!currentNameRegistry,
   })
 
-  const isOwner = ownerData?.owner === address
-  const hasSetResolverRole = roleQuery.data === true
-  const canChangeResolver = isOwner || hasSetResolverRole
+  if (!hasSetResolverRole) return null
 
-  if (!canChangeResolver) return null
+  if (!resolverAddress || resolverAddress === zeroAddress) return null
 
   return (
     <Button variant="secondary" className="flex items-center gap-2" asChild>
@@ -491,9 +492,10 @@ const ResolverView = ({
     getIsPermissionedResolverQueryOptions({ resolverAddress }),
   )
 
-  const isOfficialPublicResolver =
-    resolverAddress.toLowerCase() ===
-    officialPublicResolverAddress.toLowerCase()
+  const isOfficialPublicResolver = isAddressEqual(
+    resolverAddress,
+    officialPublicResolverAddress,
+  )
 
   if (permissionedResolverQuery.isLoading) {
     return <LoadingSpinner title="Loading resolver info..." />
@@ -512,7 +514,14 @@ const ResolverView = ({
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-heading font-medium">Resolver</h1>
-        {address ? <EditButtons address={address} name={name} /> : null}
+        {address ? (
+          <EditButtons
+            address={address}
+            name={name}
+            resolverAddress={resolverAddress}
+            registryAddress={ownerData.registryAddress}
+          />
+        ) : null}
       </div>
 
       {permissionedResolverQuery.data ? (
@@ -535,13 +544,81 @@ const ResolverView = ({
   )
 }
 
+const SetResolverButton = ({
+  account,
+  registryAddress,
+  name,
+}: {
+  account: Address
+  registryAddress: Address
+  name: string
+}) => {
+  const label = name.split('.')[0]
+  const { data: hasSetResolverRole } = useQuery(
+    getHasRolesQueryOptions({
+      registryAddress,
+      label,
+      roles: ['ROLE_SET_RESOLVER'],
+      account,
+    }),
+  )
+
+  if (!hasSetResolverRole) {
+    return null
+  }
+
+  return (
+    <Button variant="secondary" className="flex items-center gap-2" asChild>
+      <Link to="/$name/change-resolver" params={{ name }}>
+        <EditIcon className="size-4" />
+        Set resolver
+      </Link>
+    </Button>
+  )
+}
+
+const NoResolverSet = ({
+  name,
+  registryAddress,
+}: {
+  name: string
+  registryAddress: Address
+}) => {
+  const { address: account } = useConnection()
+
+  return (
+    <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
+      <h1 className="text-heading font-medium">Resolver</h1>
+      <div className="flex items-center gap-4 rounded-2xl bg-blue-50 p-6">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
+          <InfoIcon className="size-5 text-lapis-500" />
+        </div>
+        <p className="flex-1 text-base text-lapis-900">
+          This name does not have a resolver set.
+        </p>
+        {account && (
+          <SetResolverButton
+            name={name}
+            account={account}
+            registryAddress={registryAddress}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/resolver' })
 
-  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const resolverQuery = useEnsResolver({
-    name,
-    universalResolverAddress,
+  const [ownerQuery, resolverQuery] = useQueries({
+    queries: [
+      getEnsOwnerQueryOptions({ name }),
+      getEnsResolverQueryOptions(wagmiConfig, {
+        name,
+        universalResolverAddress,
+      }),
+    ],
   })
 
   if (ownerQuery.error) {
@@ -564,7 +641,9 @@ function RouteComponent() {
     )
   }
 
-  if (ownerQuery.isLoading || resolverQuery.isLoading) return <LoadingMessage />
+  if (ownerQuery.isLoading) return <LoadingMessage title="Loading owner data" />
+  if (resolverQuery.isLoading)
+    return <LoadingMessage title="Loading resolver address" />
 
   if (!ownerQuery.data)
     return (
@@ -579,19 +658,30 @@ function RouteComponent() {
       />
     )
 
-  if (!resolverQuery.data)
+  const resolverAddress = resolverQuery.data
+
+  if (resolverAddress) {
+    if (resolverAddress === zeroAddress) {
+      return (
+        <NoResolverSet
+          name={name}
+          registryAddress={ownerQuery.data.registryAddress}
+        />
+      )
+    }
     return (
-      <ErrorMessage
-        title="Resolver not found"
-        description="Could not find resolver address."
+      <ResolverView
+        name={name}
+        ownerData={ownerQuery.data}
+        resolverAddress={resolverAddress}
       />
     )
+  }
 
   return (
-    <ResolverView
-      name={name}
-      ownerData={ownerQuery.data}
-      resolverAddress={resolverQuery.data}
+    <ErrorMessage
+      title="Unable to load resolver"
+      description="Could not find resolver address."
     />
   )
 }

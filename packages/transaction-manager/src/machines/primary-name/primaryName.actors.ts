@@ -281,9 +281,8 @@ export function submitPrimaryNameUpdateActor(input: {
             },
           }
         } else {
-          throw new Error(
-            `Unsupported signer type for primary name update: ${input.signer.type}`,
-          )
+          input.signer satisfies never
+          throw new Error('Unsupported signer type for primary name update')
         }
       }
 

@@ -17,6 +17,7 @@ catalogs:
       version: 5.24.0
 
 overrides:
+  '@rhinestone/sdk': 1.4.2
   available-typed-arrays: npm:@socketregistry/available-typed-arrays@^1
   es-define-property: npm:@socketregistry/es-define-property@^1
   for-each: npm:@socketregistry/for-each@^1
@@ -83,7 +84,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.12.3
-        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)(wrangler@4.63.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)
       vite:
         specifier: ^7.1.5
         version: 7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
@@ -178,8 +179,8 @@ importers:
         specifier: ^2.2.8
         version: 2.2.10(@tanstack/react-query@5.90.12(react@19.2.4))(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(wagmi@3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.4))(@types/react@19.2.7)(immer@10.2.0)(react@19.2.4)(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)))
       '@rhinestone/sdk':
-        specifier: 1.0.34
-        version: 1.0.34(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)
+        specifier: 1.4.2
+        version: 1.4.2(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)
       '@tailwindcss/vite':
         specifier: ^4.1.13
         version: 4.1.17(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
@@ -297,7 +298,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.23.1
-        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)(wrangler@4.63.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)
       '@crowdin/cli':
         specifier: ^4.14.0
         version: 4.14.0
@@ -568,7 +569,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.15.3
-        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)(wrangler@4.63.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)
       '@ensdomains/vite-plugin-i18next-loader':
         specifier: ^4.0.3
         version: 4.0.3(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
@@ -698,8 +699,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@rhinestone/sdk':
-        specifier: 1.0.34
-        version: 1.0.34(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)
+        specifier: 1.4.2
+        version: 1.4.2(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)
       '@xstate/react':
         specifier: ^4.0.0-beta.12
         version: 4.1.3(@types/react@19.2.7)(react@19.2.4)(xstate@5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5))
@@ -816,7 +817,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.12.3
-        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)(wrangler@4.63.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.10.5
         version: 0.10.14(@vitest/runner@3.2.4)(@vitest/snapshot@3.2.4)(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.10.2)(happy-dom@18.0.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
@@ -1123,7 +1124,6 @@ packages:
     resolution: {integrity: sha512-TnE2+U0xM8QWQBC5SlthtIPyit9j6RD7YB0I61jRj28fU4beBH3zYoNXcmHjnhSVU6Y//gIg2xrGV4jXIvdwXw==}
     peerDependencies:
       vite: ^6.1.0 || ^7.0.0
-      wrangler: ^4.63.0
 
   '@cloudflare/vitest-pool-workers@0.10.14':
     resolution: {integrity: sha512-RUUEuCbSnX7V+h/7yXDXQXaOmCST9ZkZcD0jtavt6/tIHcRfRDLY2FUNrKfZBM3b3ECpLTsAok8jHABfmh29Pw==}
@@ -4151,16 +4151,16 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/sdk@1.0.34':
-    resolution: {integrity: sha512-kGfvKZtl/GXmIo0xRvapzibL5rIxrieDtCuCCvZ3SZw11bZGb4T3crcBPtKoQMqVQ5W4l2icbvfX/ndWJbYTwQ==}
+  '@rhinestone/sdk@1.4.2':
+    resolution: {integrity: sha512-7p/tCYYWvOD8gpCrYn5ZrfjeHnysx17AX/qvlwThI54GH4QR7qVZMzHQlSRC3hkeaDFhc2QIAQRb6VED+YIKrA==}
     peerDependencies:
       viem: ^2.38.0
 
-  '@rhinestone/shared-configs@1.4.46':
-    resolution: {integrity: sha512-NBQHnPcHYQvcR2h+602W4dZDguIyCJ0hl1HUHy/BAyLIdVDLFXYcmqPzMjS7LyKgdvTBZ+3UCLEyxq7SVvqskA==}
+  '@rhinestone/shared-configs@1.4.139':
+    resolution: {integrity: sha512-ogN9gBu76BcmYMSZ5oymPonUsPDi6uT+EG6kxQt7h94jSNcpuA1WeKZq3AipJEMjVUl48Fpa4ubwhFk8mRw+Ig==}
     peerDependencies:
       typescript: ^5
-      viem: ^2.38.0
+      viem: ^2.40.1
 
   '@rolldown/pluginutils@1.0.0-beta.40':
     resolution: {integrity: sha512-s3GeJKSQOwBlzdUrj4ISjJj5SfSh+aqn0wjOar4Bx95iV1ETI7F6S/5hLcfAxZ9kXDcyrAkxPlqmd1ZITttf+w==}
@@ -5417,8 +5417,8 @@ packages:
       zod:
         optional: true
 
-  abitype@1.2.1:
-    resolution: {integrity: sha512-AhkAWBE5QqzSuaPi6B9w5scl5739iBknQdFFAbY/CybASOBVWtVmPavUYW1OrDRX/iZWB/Je80xhJMZz2G4G1Q==}
+  abitype@1.2.3:
+    resolution: {integrity: sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==}
     peerDependencies:
       typescript: '>=5.0.4'
       zod: ^3.22.0 || ^4.0.0
@@ -7522,8 +7522,8 @@ packages:
     resolution: {integrity: sha512-lBX72MWFduWEf7v7uWf5DHp9Jn5BI8bNPGuFgtXMmr2uDz2Gz2749y3am3agSDdkhHPHYmmxEGSKH85ZLGzgXw==}
     engines: {node: '>=20'}
 
-  ox@0.9.17:
-    resolution: {integrity: sha512-rKAnhzhRU3Xh3hiko+i1ZxywZ55eWQzeS/Q4HRKLx2PqfHOolisZHErSsJVipGlmQKHW5qwOED/GighEw9dbLg==}
+  ox@0.11.3:
+    resolution: {integrity: sha512-1bWYGk/xZel3xro3l8WGg6eq4YEKlaqvyMtVhfMFpbJzK2F6rj4EDRtqDCWVEJMkzcmEi9uW2QxsqELokOlarw==}
     peerDependencies:
       typescript: '>=5.4.0'
     peerDependenciesMeta:
@@ -8248,6 +8248,11 @@ packages:
 
   srvx@0.11.4:
     resolution: {integrity: sha512-m/2p87bqWZ94xpRN06qNBwh0xq/D0dXajnvPDSHFqrTogxuTWYNP1UHz6Cf+oY7D+NPLY35TJAp4ESIKn0WArQ==}
+    engines: {node: '>=20.16.0'}
+    hasBin: true
+
+  srvx@0.11.8:
+    resolution: {integrity: sha512-2n9t0YnAXPJjinytvxccNgs7rOA5gmE7Wowt/8Dy2dx2fDC6sBhfBpbrCvjYKALlVukPS/Uq3QwkolKNa7P/2Q==}
     engines: {node: '>=20.16.0'}
     hasBin: true
 
@@ -9462,7 +9467,7 @@ snapshots:
     optionalDependencies:
       workerd: 1.20251202.0
 
-  '@cloudflare/vite-plugin@1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)(wrangler@4.63.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))':
+  '@cloudflare/vite-plugin@1.23.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.2)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260205.0)':
     dependencies:
       '@cloudflare/unenv-preset': 2.12.0(unenv@2.0.0-rc.24)(workerd@1.20260205.0)
       miniflare: 4.20260205.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -9471,6 +9476,7 @@ snapshots:
       wrangler: 4.63.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
+      - '@cloudflare/workers-types'
       - bufferutil
       - utf-8-validate
       - workerd
@@ -12877,17 +12883,17 @@ snapshots:
       tslib: 2.8.1
       viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)
 
-  '@rhinestone/sdk@1.0.34(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)':
+  '@rhinestone/sdk@1.4.2(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)':
     dependencies:
-      '@rhinestone/shared-configs': 1.4.46(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
-      ox: 0.9.17(typescript@5.9.3)(zod@4.1.13)
+      '@rhinestone/shared-configs': 1.4.139(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      ox: 0.11.3(typescript@5.9.3)(zod@4.1.13)
       solady: 0.1.26
       viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)
     transitivePeerDependencies:
       - typescript
       - zod
 
-  '@rhinestone/shared-configs@1.4.46(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+  '@rhinestone/shared-configs@1.4.139(typescript@5.9.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
       typescript: 5.9.3
       viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.13)
@@ -14586,12 +14592,12 @@ snapshots:
       typescript: 5.9.3
       zod: 4.1.13
 
-  abitype@1.2.1(typescript@5.9.3)(zod@3.22.4):
+  abitype@1.2.3(typescript@5.9.3)(zod@3.22.4):
     optionalDependencies:
       typescript: 5.9.3
       zod: 3.22.4
 
-  abitype@1.2.1(typescript@5.9.3)(zod@4.1.13):
+  abitype@1.2.3(typescript@5.9.3)(zod@4.1.13):
     optionalDependencies:
       typescript: 5.9.3
       zod: 4.1.13
@@ -15890,7 +15896,7 @@ snapshots:
   h3@2.0.1-rc.14:
     dependencies:
       rou3: 0.7.12
-      srvx: 0.11.4
+      srvx: 0.11.8
 
   happy-dom@18.0.1:
     dependencies:
@@ -16649,7 +16655,7 @@ snapshots:
       stdin-discarder: 0.3.1
       string-width: 8.1.0
 
-  ox@0.9.17(typescript@5.9.3)(zod@4.1.13):
+  ox@0.11.3(typescript@5.9.3)(zod@4.1.13):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -16657,7 +16663,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.1(typescript@5.9.3)(zod@4.1.13)
+      abitype: 1.2.3(typescript@5.9.3)(zod@4.1.13)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 5.9.3
@@ -16672,7 +16678,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.1(typescript@5.9.3)(zod@4.1.13)
+      abitype: 1.2.3(typescript@5.9.3)(zod@4.1.13)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 5.9.3
@@ -16687,7 +16693,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.1(typescript@5.9.3)(zod@3.22.4)
+      abitype: 1.2.3(typescript@5.9.3)(zod@3.22.4)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 5.9.3
@@ -16702,7 +16708,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.1(typescript@5.9.3)(zod@4.1.13)
+      abitype: 1.2.3(typescript@5.9.3)(zod@4.1.13)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 5.9.3
@@ -17578,6 +17584,8 @@ snapshots:
       tslib: 2.8.1
 
   srvx@0.11.4: {}
+
+  srvx@0.11.8: {}
 
   stackback@0.0.2: {}
 
