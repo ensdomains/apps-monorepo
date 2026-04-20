@@ -257,8 +257,9 @@ function createTransactionRequest(params: {
     } as ZeroDevTransactionRequest
   }
 
-  signer satisfies never
-  throw new Error('Unsupported signer type for transaction request')
+  throw new Error(
+    `Unsupported signer type for transaction request: ${(signer as { type: string }).type}`,
+  )
 }
 
 async function buildRecordsUpdateRequest(params: {
