@@ -39,7 +39,7 @@ export const Owner = ({
     return (
       <div
         className={cn(
-          'h-21.5 px-6 flex flex-col justify-center rounded-sm border border-border hover:bg-muted',
+          'p-6 flex flex-col justify-center rounded-2xl border border-border hover:bg-muted',
           className,
         )}
       >
@@ -96,7 +96,7 @@ export const Owner = ({
   }
 
   const cardClassName = cn(
-    'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted',
+    'p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted',
     className,
   )
   const cardContent = (

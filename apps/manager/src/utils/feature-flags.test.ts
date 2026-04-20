@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FEATURE_FLAGS,
   type FeatureFlag,
+  getSessionProvider,
+  getTransactionInfra,
   isFeatureEnabled,
+  resolveInfrastructure,
 } from './feature-flags'
 
 type MutableFeatureFlags = Record<
@@ -247,6 +250,73 @@ describe('feature-flags', () => {
           delete mutableFlags[key]
         }
       }
+    })
+  })
+
+  describe('provider and infra helpers', () => {
+    it('getSessionProvider returns zerodev when flag is disabled', () => {
+      const original = FEATURE_FLAGS.RHINESTONE_SESSIONS
+      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
+      mutableFlags.RHINESTONE_SESSIONS = { enabled: false }
+
+      expect(getSessionProvider()).toBe('zerodev')
+
+      mutableFlags.RHINESTONE_SESSIONS =
+        original as unknown as MutableFeatureFlags[string]
+    })
+
+    it('getSessionProvider returns rhinestone when flag is enabled', () => {
+      const original = FEATURE_FLAGS.RHINESTONE_SESSIONS
+      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
+      mutableFlags.RHINESTONE_SESSIONS = { enabled: true }
+
+      expect(getSessionProvider()).toBe('rhinestone')
+
+      mutableFlags.RHINESTONE_SESSIONS =
+        original as unknown as MutableFeatureFlags[string]
+    })
+
+    it('getTransactionInfra returns pimlico when flag is disabled', () => {
+      const original = FEATURE_FLAGS.USE_WARP_INFRA
+      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
+      mutableFlags.USE_WARP_INFRA = { enabled: false }
+
+      expect(getTransactionInfra()).toBe('pimlico')
+
+      mutableFlags.USE_WARP_INFRA =
+        original as unknown as MutableFeatureFlags[string]
+    })
+
+    it('getTransactionInfra returns warp when flag is enabled', () => {
+      const original = FEATURE_FLAGS.USE_WARP_INFRA
+      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
+      mutableFlags.USE_WARP_INFRA = { enabled: true }
+
+      expect(getTransactionInfra()).toBe('warp')
+
+      mutableFlags.USE_WARP_INFRA =
+        original as unknown as MutableFeatureFlags[string]
+    })
+
+    it('resolveInfrastructure prioritizes explicit override', () => {
+      expect(resolveInfrastructure({ infrastructure: 'warp' }, 'pimlico')).toBe(
+        'warp',
+      )
+    })
+
+    it('resolveInfrastructure prioritizes signer default over flag', () => {
+      expect(resolveInfrastructure(undefined, 'warp')).toBe('warp')
+    })
+
+    it('resolveInfrastructure falls back to feature flag default', () => {
+      const original = FEATURE_FLAGS.USE_WARP_INFRA
+      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
+      mutableFlags.USE_WARP_INFRA = { enabled: false }
+
+      expect(resolveInfrastructure()).toBe('pimlico')
+
+      mutableFlags.USE_WARP_INFRA =
+        original as unknown as MutableFeatureFlags[string]
     })
   })
 })

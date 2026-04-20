@@ -8,20 +8,19 @@
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import './SmartAccountContext.mocks'
 
 import { useClient, useWallet } from '@getpara/react-sdk-lite'
 import { useWalletClient } from 'wagmi'
-import { initializePimlicoAccount } from './pimlico'
+import { initializeRhinestoneAccount } from './rhinestone'
 import {
   SmartAccountContextProvider,
   useSmartAccountContext,
   useSmartAccountContextSafe,
 } from './SmartAccountContext'
-import { initializeZeroDevAccount } from './zerodev/kernel'
 
 i18n.loadAndActivate({ locale: 'en', messages: {} })
 
@@ -110,7 +109,7 @@ describe('SmartAccountContext', () => {
       expect(result.current.accountAddress).toBeNull()
     })
 
-    it('initializes ZeroDev for external wallet', async () => {
+    it('initializes Rhinestone for external wallet', async () => {
       vi.mocked(useWallet).mockReturnValue({
         data: { isExternal: true },
         isPending: false,
@@ -129,11 +128,11 @@ describe('SmartAccountContext', () => {
         expect(result.current.isAccountReady).toBe(true)
       })
 
-      expect(initializeZeroDevAccount).toHaveBeenCalled()
+      expect(initializeRhinestoneAccount).toHaveBeenCalled()
       expect(result.current.walletSource).toBe('external-wallet')
     })
 
-    it('initializes Pimlico for Para embedded wallet', async () => {
+    it('initializes Rhinestone for Para embedded wallet', async () => {
       vi.mocked(useWallet).mockReturnValue({
         data: { isExternal: false },
         isPending: false,
@@ -148,52 +147,8 @@ describe('SmartAccountContext', () => {
         expect(result.current.isAccountReady).toBe(true)
       })
 
-      expect(initializePimlicoAccount).toHaveBeenCalled()
+      expect(initializeRhinestoneAccount).toHaveBeenCalled()
       expect(result.current.walletSource).toBe('para-embedded')
-    })
-  })
-
-  describe('session management', () => {
-    it('setSessionData updates session state for external wallets', async () => {
-      vi.mocked(useWallet).mockReturnValue({
-        data: { isExternal: true },
-        isPending: false,
-      } as any)
-      vi.mocked(useWalletClient).mockReturnValue({
-        data: {
-          account: { address: '0xExternalWallet12345678901234567890123456' },
-        },
-      } as any)
-
-      const { result } = renderHook(() => useSmartAccountContext(), {
-        wrapper: createWrapper(),
-      })
-
-      await waitFor(() => {
-        expect(result.current.isAccountReady).toBe(true)
-      })
-
-      const mockSession = {
-        id: 'session-123',
-        sessionKeyAddress: '0xSessionKey' as const,
-        smartAccountAddress: '0xSmartAccount' as const,
-        ownerAddress: '0xOwner' as const,
-        createdAt: Date.now(),
-        chainId: 11155111,
-        serializedSessionAccount: 'data',
-        sessionPrivateKey: '0xkey' as const,
-      }
-
-      const mockSessionClient = { account: { address: '0xSession' } } as any
-
-      act(() => {
-        result.current.setSessionData(mockSession, mockSessionClient)
-      })
-
-      await waitFor(() => {
-        expect(result.current.session).toEqual(mockSession)
-        expect(result.current.isSessionClient).toBe(true)
-      })
     })
   })
 
@@ -218,7 +173,7 @@ describe('SmartAccountContext', () => {
       })
 
       expect(result.current.signer).not.toBeNull()
-      expect(result.current.signer?.type).toBe('zerodev')
+      expect(result.current.signer?.type).toBe('rhinestone')
     })
 
     it('returns null signer when not initialized', () => {
