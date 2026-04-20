@@ -103,10 +103,15 @@ const SummaryRow = ({
   valueClassName,
 }: SummaryRowProps) => (
   <div className={cn('flex items-center justify-between px-5', className)}>
-    <dt className={cn('text-base font-normal text-quartz-350', labelClassName)}>
+    <dt
+      className={cn(
+        'text-base font-normal text-muted-foreground',
+        labelClassName,
+      )}
+    >
       {label}
     </dt>
-    <dd className={cn('m-0 font-normal text-quartz-900', valueClassName)}>
+    <dd className={cn('m-0 font-normal text-foreground', valueClassName)}>
       {value}
     </dd>
   </div>
