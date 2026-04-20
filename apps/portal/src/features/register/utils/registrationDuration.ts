@@ -194,7 +194,7 @@ export const getExpiryDateForPicker = (
 
 /**
  * Converts a date picker selection (PlainDate) to duration in seconds.
- * Treats the selected date as end of that day (adds 86399 s for 23:59:59).
+ * Returns exact whole-day seconds so the on-chain expiry lands on the chosen date.
  * Pass `startOfToday` for deterministic testing.
  */
 export const getDurationFromPickerDate = (
@@ -205,8 +205,7 @@ export const getDurationFromPickerDate = (
   const capped =
     Temporal.PlainDate.compare(date, maxExpiry) > 0 ? maxExpiry : date
   const days = startOfToday.until(capped, { largestUnit: 'days' }).days
-  // Include end-of-day offset (23:59:59) so the picker date round-trips correctly.
-  return Math.max(days * 86400 + 86399, MIN_REGISTRATION_DURATION)
+  return Math.max(days * 86400, MIN_REGISTRATION_DURATION)
 }
 
 /**
