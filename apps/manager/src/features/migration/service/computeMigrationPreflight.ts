@@ -65,6 +65,11 @@ export const computeMigrationPreflight = async (params: {
         (k) => k.texts.length > 0 || k.coinTypes.length > 0,
       )
       skipFetchProfilesPhase = !anyKeys
+    } else {
+      console.warn(
+        '[migration] getV1ProfileKeys failed, defaulting to full profile fetch:',
+        keysResult.error,
+      )
     }
   }
 

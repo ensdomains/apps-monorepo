@@ -184,6 +184,12 @@ export const migrationUiMachine = setup({
   id: 'migrationUi',
   context: ({ input }) => initialContext(input.wagmiConfig),
   initial: 'select',
+  on: {
+    'migration.failed': {
+      target: '.failure',
+      actions: 'setError',
+    },
+  },
   states: {
     select: {
       on: {

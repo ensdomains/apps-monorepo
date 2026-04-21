@@ -12,7 +12,10 @@ import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useMigrationPreflight } from '@/features/migration/hooks/useMigrationPreflight'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { buildMigrationPlan } from '@/features/migration/service/buildMigrationPlan'
-import type { MigrationError } from '@/features/migration/service/decodeMigrationError'
+import {
+  decodeMigrationError,
+  type MigrationError,
+} from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
   useMigrationLastError,
@@ -108,21 +111,28 @@ export const MigrationPage = () => {
     const domains = v1Names.filter((d) => selectedSet.has(d.name))
     if (domains.length === 0) return
 
-    const preflight = await ensurePreflight(domains)
-    const plan = await buildMigrationPlan({
-      domains,
-      migrationOwner: ownerAddress as Address,
-      wagmiConfig,
-      publicClient: publicClient as unknown as PublicClient,
-      preflight,
-    })
+    try {
+      const preflight = await ensurePreflight(domains)
+      const plan = await buildMigrationPlan({
+        domains,
+        migrationOwner: ownerAddress as Address,
+        wagmiConfig,
+        publicClient: publicClient as unknown as PublicClient,
+        preflight,
+      })
 
-    uiActor.send({
-      type: 'migration.start',
-      plan,
-      signer,
-      accountAddress: sca as Address,
-    })
+      uiActor.send({
+        type: 'migration.start',
+        plan,
+        signer,
+        accountAddress: sca as Address,
+      })
+    } catch (err) {
+      uiActor.send({
+        type: 'migration.failed',
+        error: decodeMigrationError(err),
+      })
+    }
   }, [
     v1Names,
     ownerAddress,

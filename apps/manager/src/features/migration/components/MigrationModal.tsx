@@ -18,12 +18,7 @@ import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const AUTO_SCROLL_INTERVAL_MS = 5000
 
-const SLIDE_DATA = [
-  { id: 'profiles' },
-  { id: 'nft', image: '/migration/slide-nft.png' },
-  { id: 'v2', image: '/migration/slide-v2.png' },
-  { id: 'experience', image: '/migration/slide-experience.png' },
-]
+const SLIDE_DATA = [{ id: 'profiles' }] as const
 
 export const MigrationModal = () => {
   const { t } = useLingui()
@@ -62,7 +57,7 @@ export const MigrationModal = () => {
   }, [])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || SLIDE_DATA.length <= 1) return
     const timer = setInterval(() => {
       scrollToSlide((activeSlide + 1) % SLIDE_DATA.length)
     }, AUTO_SCROLL_INTERVAL_MS)
@@ -104,24 +99,26 @@ export const MigrationModal = () => {
             </Trans>
           </DialogDescription>
 
-          <div className="flex items-center gap-0.5">
-            {SLIDE_DATA.map((slide, i) => (
-              <button
-                className={`h-1.5 rounded-full transition-all ${
-                  i === activeSlide
-                    ? 'w-[19px] bg-ens-garnet-500'
-                    : 'w-[7px] bg-ens-garnet-500/50'
-                }`}
-                key={slide.id}
-                onClick={() => scrollToSlide(i)}
-                type="button"
-              >
-                <span className="sr-only">
-                  <Trans>Slide {i + 1}</Trans>
-                </span>
-              </button>
-            ))}
-          </div>
+          {SLIDE_DATA.length > 1 && (
+            <div className="flex items-center gap-0.5">
+              {SLIDE_DATA.map((slide, i) => (
+                <button
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === activeSlide
+                      ? 'w-[19px] bg-ens-garnet-500'
+                      : 'w-[7px] bg-ens-garnet-500/50'
+                  }`}
+                  key={slide.id}
+                  onClick={() => scrollToSlide(i)}
+                  type="button"
+                >
+                  <span className="sr-only">
+                    <Trans>Slide {i + 1}</Trans>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="w-full overflow-hidden">
             <div
@@ -134,17 +131,7 @@ export const MigrationModal = () => {
                   className="flex w-full shrink-0 snap-center flex-col items-center gap-4 px-5"
                   key={slide.id}
                 >
-                  {slide.id === 'profiles' ? (
-                    <ProfileCardPreview />
-                  ) : (
-                    <div className="overflow-hidden rounded-2xl border-[0.1px] border-[rgba(25,87,128,0.2)] shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.3)]">
-                      <img
-                        alt={slideLabels[slide.id] ?? ''}
-                        className="h-[320px] w-[228px] object-cover"
-                        src={slide.image}
-                      />
-                    </div>
-                  )}
+                  <ProfileCardPreview />
                   <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
                     {slideLabels[slide.id]}
                   </p>

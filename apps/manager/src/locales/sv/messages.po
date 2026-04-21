@@ -343,7 +343,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:176
+#: src/features/migration/pages/MigrationPage.tsx:186
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -521,7 +521,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:92
+#: src/features/migration/components/MigrationModal.tsx:87
 msgid "Close"
 msgstr ""
 
@@ -533,7 +533,7 @@ msgstr ""
 msgid "Coming Soon"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:45
+#: src/features/migration/components/MigrationModal.tsx:40
 msgid "Commemorative NFT"
 msgstr ""
 
@@ -721,7 +721,7 @@ msgstr ""
 msgid "Custom duration in years"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:44
+#: src/features/migration/components/MigrationModal.tsx:39
 msgid "Custom Profiles"
 msgstr ""
 
@@ -866,7 +866,7 @@ msgstr ""
 msgid "ENS names can be up to 255 characters"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:46
+#: src/features/migration/components/MigrationModal.tsx:41
 msgid "ENS v2 Names"
 msgstr ""
 
@@ -1266,7 +1266,7 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:152
+#: src/features/migration/pages/MigrationPage.tsx:162
 msgid "Migration failed"
 msgstr ""
 
@@ -1337,7 +1337,7 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:47
+#: src/features/migration/components/MigrationModal.tsx:42
 msgid "New Experience"
 msgstr ""
 
@@ -1798,7 +1798,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:183
+#: src/features/migration/pages/MigrationPage.tsx:193
 msgid "Retry"
 msgstr ""
 
@@ -2062,7 +2062,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr ""
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:120
+#: src/features/migration/components/MigrationModal.tsx:116
 msgid "Slide {0}"
 msgstr ""
 
@@ -2334,7 +2334,7 @@ msgstr ""
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:101
+#: src/features/migration/components/MigrationModal.tsx:96
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
@@ -2580,7 +2580,7 @@ msgstr ""
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:98
+#: src/features/migration/components/MigrationModal.tsx:93
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
@@ -2623,7 +2623,7 @@ msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/MigrationModal.tsx:165
+#: src/features/migration/components/MigrationModal.tsx:152
 msgid "You have <0>{0}</0> names that are eligible for upgrade"
 msgstr ""
 
