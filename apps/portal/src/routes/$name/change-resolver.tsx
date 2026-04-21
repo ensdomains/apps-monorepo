@@ -38,15 +38,11 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
 
-  const registryQuery = useQuery(
-    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-  )
+  const registryQuery = useQuery(getNameRegistriesQueryOptions({ name }))
 
   const label = name.split('.')[0]
   // Use registries[1] to get the parent registry that manages this name
   const currentNameRegistry = registryQuery.data?.registries[1]
-
-  const network = registryQuery.data?.network ?? 'sepolia'
 
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
@@ -54,7 +50,6 @@ function RouteComponent() {
       label,
       roles: ['ROLE_SET_RESOLVER'],
       account: connectedAddress ?? zeroAddress,
-      network,
     }),
     enabled: !!connectedAddress && !!currentNameRegistry,
   })
@@ -129,7 +124,7 @@ function RouteComponent() {
           description={
             <>
               You don't have the required{' '}
-              <code className="font-mono text-sm bg-quartz-50 px-1 py-0.5 rounded">
+              <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
                 ROLE_SET_RESOLVER
               </code>{' '}
               permission to change the resolver for <strong>{name}</strong>.

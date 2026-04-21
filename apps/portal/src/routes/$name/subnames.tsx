@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { AlertCircle, Info } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -57,17 +57,16 @@ const NoSubregistryMessage = ({
 
 interface V2SubnamesContentProps {
   readonly name: string
-  readonly network: 'namechainSepolia'
 }
 
-const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
+const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const { address: connectedAccount } = useAccount()
 
   const {
     data: registriesData,
     isLoading: registriesLoading,
     error: registriesError,
-  } = useQuery(getNameRegistriesQueryOptions({ name, network }))
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
 
   // The subregistry is always the first element (index 0) in the registries array
   // For 2LD "foo.eth": [subregistry, ethRegistry, root]
@@ -83,7 +82,6 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: '',
       roles: ['ROLE_REGISTRAR'],
       account: connectedAccount as Address,
-      network,
     }),
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
@@ -97,7 +95,6 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
       label: firstLabel,
       roles: ['ROLE_SET_SUBREGISTRY'],
       account: connectedAccount as Address,
-      network,
     }),
     enabled:
       Boolean(parentRegistryAddress) &&
@@ -110,7 +107,7 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
     isLoading: subnamesLoading,
     error: subnamesError,
   } = useQuery({
-    ...getSubnamesQueryOptions({ name, network }),
+    ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
     enabled: Boolean(hasSubregistry),
   })
 
@@ -165,20 +162,35 @@ const V2SubnamesContent = ({ name, network }: V2SubnamesContentProps) => {
   )
 }
 
-const V1SubnamesMessage = () => (
-  <MessageCard
-    icon={<Info size={30} strokeWidth={1.5} />}
-    title="ENSv1 Name"
-    description={
-      <>
-        <p>This page is only for ENSv2 names.</p>
-        <p className="text-quartz-500 text-sm mt-2">
-          ENSv1 subnames are managed differently.
-        </p>
-      </>
-    }
-  />
-)
+interface V1SubnamesContentProps {
+  readonly name: string
+}
+
+const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
+  const {
+    data: subnames,
+    isLoading,
+    error,
+  } = useQuery(getSubnamesQueryOptions({ name, protocolVersion: 'ENSv1' }))
+
+  if (isLoading) return <LoadingMessage title="Loading subnames..." />
+
+  if (error) {
+    return (
+      <ErrorMessage
+        title="Failed to load subnames"
+        description={error.cause?.message || error.message}
+      />
+    )
+  }
+
+  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
+    name: subname.name || '',
+    owner: subname.owner,
+  }))
+
+  return <SubnamesTable subnames={subnameRows} name={name} />
+}
 
 function RouteComponent() {
   const { name } = Route.useParams()
@@ -203,14 +215,24 @@ function RouteComponent() {
   }
 
   if (!ownerData) {
-    return <NotFoundMessage />
+    return (
+      <NotFoundMessage
+        title="Name not registered"
+        description={
+          <>
+            <strong>{name}</strong> is not registered, so there are no subnames
+            to display.
+          </>
+        }
+      />
+    )
   }
 
-  // V1 names (sepolia network) - show message
-  if (ownerData.network === 'sepolia') {
-    return <V1SubnamesMessage />
+  // V1 names - show their subnames
+  if (ownerData.protocolVersion === 'ENSv1') {
+    return <V1SubnamesContent name={name} />
   }
 
-  // V2 names (namechainSepolia network)
-  return <V2SubnamesContent name={name} network={ownerData.network} />
+  // V2 names
+  return <V2SubnamesContent name={name} />
 }

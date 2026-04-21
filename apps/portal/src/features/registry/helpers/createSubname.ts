@@ -11,7 +11,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import type { Address, Hex, WalletClient } from 'viem'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import { prepareCreateSubnameTransaction } from '../utils/create-subname.helpers'
 
 export type CreateSubnameParameters = {
@@ -29,8 +29,8 @@ export type CreateSubnameParameters = {
   readonly signer: Signer
   /** Chain ID */
   readonly chainId: number
-  /** ENS network (for query invalidation) */
-  readonly network: EnsNetworkName
+  /** ENS protocol version (for query invalidation) */
+  readonly protocolVersion: ProtocolVersion
   /** Parent name (for description) */
   readonly parentName: string
   /** Transaction ID for tracking */

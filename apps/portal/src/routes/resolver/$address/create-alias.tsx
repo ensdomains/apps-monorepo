@@ -25,7 +25,7 @@ import {
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-alias')({
@@ -49,7 +49,7 @@ const PageHeader = ({ address }: PageHeaderProps) => (
     <Link to="/resolver/$address/aliases" params={{ address }}>
       <Button
         variant="ghost"
-        className="flex items-center gap-1 -ml-2 text-quartz-500"
+        className="flex items-center gap-1 -ml-2 text-muted-foreground"
       >
         <ArrowLeftIcon className="size-6" />
         Back
@@ -80,7 +80,7 @@ function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
   const { address: accountAddress, isConnected } = useConnection()
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
 
@@ -98,7 +98,6 @@ function RouteComponent() {
       resolverAddress: address as Address,
       roles: ['ROLE_SET_ALIAS'],
       account: accountAddress as Address,
-      network: 'namechainSepolia',
     }),
     enabled: !!accountAddress,
   })
@@ -154,7 +153,7 @@ function RouteComponent() {
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader address={address} />
-        <p className="text-quartz-500">
+        <p className="text-muted-foreground">
           This resolver has no nodes. A node must exist before an alias can be
           created.
         </p>
@@ -191,7 +190,7 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedFromNode && (
-            <div className="flex items-center gap-3 p-3 bg-quartz-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
               <NameAvatar
                 name={selectedFromNode.name}
                 width="40px"
@@ -245,7 +244,7 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedToNode && (
-            <div className="flex items-center gap-3 p-3 bg-quartz-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
               <NameAvatar
                 name={selectedToNode.name}
                 width="40px"

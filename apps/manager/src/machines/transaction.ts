@@ -81,6 +81,7 @@ export const transactionMachine = setup({
       invoke: {
         src: 'waitForReceipt',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
           transactionHash: context.transactionHash!,
         }),
         onDone: {
@@ -95,10 +96,12 @@ export const transactionMachine = setup({
     },
     Success: {
       type: 'final',
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
       output: ({ context }) => ok(context.receipt!),
     },
     Error: {
       type: 'final',
+      // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
       output: ({ context }) => err(context.error!),
     },
   },

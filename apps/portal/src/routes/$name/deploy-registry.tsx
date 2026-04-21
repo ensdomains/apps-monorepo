@@ -1,3 +1,4 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
@@ -17,14 +18,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import {
-  namechainUserRegistryAddress,
-  sepoliaUserRegistryAddress,
-} from '@/lib/constants/userRegistry'
-import {
-  namechainVerifiableFactory,
-  sepoliaVerifiableFactory,
-} from '@/lib/constants/verifiableFactory'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 const DEPLOY_SUBREGISTRY_TX_ID = 'tx-deploy-subregistry'
 const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
@@ -52,12 +46,7 @@ function RouteComponent() {
     data: registryData,
     isLoading,
     error: registryError,
-  } = useQuery(
-    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-  )
-
-  const network = registryData?.network ?? 'sepolia'
-  const isNamechain = network === 'namechainSepolia'
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
 
   const label = name.split('.')[0]
   const parentRegistry = registryData?.registries.at(1) ?? null
@@ -69,18 +58,19 @@ function RouteComponent() {
         label,
         roles: ['ROLE_SET_SUBREGISTRY'],
         account: connectedAddress ?? zeroAddress,
-        network,
       }),
       enabled: !!connectedAddress && !!parentRegistry && !isLoading,
     })
 
-  const factoryAddress = isNamechain
-    ? namechainVerifiableFactory
-    : sepoliaVerifiableFactory
+  const factoryAddress = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensVerifiableFactory',
+  })
 
-  const implAddress = isNamechain
-    ? namechainUserRegistryAddress
-    : sepoliaUserRegistryAddress
+  const implAddress = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensUserRegistryImpl',
+  })
 
   const customSubregistryAddress =
     useCustomRegistry && isAddress(contractAddress)
@@ -96,7 +86,6 @@ function RouteComponent() {
     hasWallet: hasDeployWallet,
   } = useDeploySubregistry({
     name,
-    network,
     factoryAddress,
     implAddress,
   })
@@ -107,7 +96,6 @@ function RouteComponent() {
     hasWallet: hasSetWallet,
   } = useSetSubregistry({
     name,
-    network,
     label,
     parentRegistry: parentRegistry ?? zeroAddress,
     id: SET_SUBREGISTRY_TX_ID,
@@ -227,7 +215,7 @@ function RouteComponent() {
           description={
             <>
               You don't have the required{' '}
-              <code className="font-mono text-sm bg-quartz-50 px-1 py-0.5 rounded">
+              <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
                 ROLE_SET_SUBREGISTRY
               </code>{' '}
               permission to change the registry for <strong>{name}</strong>.

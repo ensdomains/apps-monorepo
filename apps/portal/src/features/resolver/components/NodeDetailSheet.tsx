@@ -80,7 +80,7 @@ export const NodeDetailSheet = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[640px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-[640px] bg-card p-0 flex flex-col h-dvh"
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader className="p-0 flex flex-row items-center justify-between">
@@ -101,7 +101,7 @@ export const NodeDetailSheet = ({
           {node ? (
             <div className="flex flex-col gap-0">
               {isInactive && (
-                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-lg bg-garnet-100 p-6 text-sm text-danger">
+                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-lg bg-garnet-100 p-6 text-sm text-garnet-900">
                   This node is inactive. The records and roles are read only.
                 </div>
               )}
@@ -166,8 +166,8 @@ export const NodeDetailSheet = ({
                           <TableRow
                             key={`${role.account}-${role.roleBitmap}`}
                             className={cn(
-                              'hover:bg-quartz-50',
-                              tableView.strippedRows && 'odd:bg-quartz-50',
+                              'hover:bg-muted',
+                              tableView.strippedRows && 'odd:bg-muted',
                             )}
                           >
                             <TableCell
@@ -192,7 +192,7 @@ export const NodeDetailSheet = ({
               </section>
             </div>
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No node selected
             </div>
           )}

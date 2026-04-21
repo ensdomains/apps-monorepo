@@ -37,7 +37,10 @@ describe('getSubnames', () => {
     ]
     mockEnsjsGetSubnames.mockResolvedValue(mockSubnames)
 
-    const result = await getSubnames({ name: 'test.eth', network: 'sepolia' })
+    const result = await getSubnames({
+      name: 'test.eth',
+      protocolVersion: 'ENSv1',
+    })
 
     expect(result._unsafeUnwrap()).toEqual(mockSubnames)
     expect(mockEnsjsGetSubnames).toHaveBeenCalledWith(mockClient, {
@@ -64,7 +67,7 @@ describe('getSubnames', () => {
 
     const result = await getSubnames({
       name: 'test.eth',
-      network: 'namechainSepolia',
+      protocolVersion: 'ENSv2',
     })
 
     expect(result._unsafeUnwrap()).toEqual([
@@ -85,7 +88,7 @@ describe('getSubnames', () => {
 
     const result = await getSubnames({
       name: 'empty.eth',
-      network: 'namechainSepolia',
+      protocolVersion: 'ENSv2',
     })
 
     expect(result._unsafeUnwrap()).toEqual([])

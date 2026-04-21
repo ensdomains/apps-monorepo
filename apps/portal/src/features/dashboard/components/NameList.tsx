@@ -4,8 +4,9 @@ import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
@@ -14,7 +15,6 @@ import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
-import type { WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
@@ -23,28 +23,25 @@ interface NameListProps {
   readonly limit?: number
 }
 
-type column = WithEnsNetwork<MergedName>
+type column = MergedName
+
+const NameCell = ({ name }: { name: string }) => (
+  <div className="flex flex-row gap-2 items-center">
+    <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
+    <Link to="/$name" params={{ name }}>
+      <EntityBadge variant="name">{name}</EntityBadge>
+    </Link>
+    <CopyButton value={name} size="sm" />
+  </div>
+)
 
 const columns: ColumnDef<column>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
-    cell(cell) {
-      const name = cell.getValue() as NameWithRelation['name']
-
-      if (!name) return null
-
-      return (
-        <div className="flex flex-row gap-1 items-center w-max">
-          <NameAvatar
-            name={name}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <CopyableRecord href={`/${name}`} value={name} />
-        </div>
-      )
+    cell: ({ getValue }) => {
+      const name = getValue() as NameWithRelation['name']
+      return name ? <NameCell name={name} /> : null
     },
   },
   {
@@ -149,7 +146,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
       <Link
         to="/addr/$addr/names"
         params={{ addr: address }}
-        className="flex items-center justify-center gap-1 bg-quartz-50 p-4 text-sm font-medium hover:bg-quartz-100 transition-colors"
+        className="flex items-center justify-center gap-1 bg-muted p-4 text-sm font-medium hover:bg-muted transition-colors"
       >
         <GripHorizontal className="size-4" />
         Go to full list ({allData.length})

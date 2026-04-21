@@ -8,4 +8,5 @@ package-lock.json
 *.workspace
 .mcp.json
 .dev.vars
+.pnpm-store/
 opencode.json

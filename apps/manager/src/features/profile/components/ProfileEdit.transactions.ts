@@ -1,9 +1,9 @@
 /**
  * Pure async function to save profile records
  *
- * Uses ensjs's setRecordsWriteParameters which supports both:
- * - Public Resolver (V1): multicall(calls)
- * - Dedicated Resolver (V2): multicallWithNodeCheck(node, calls)
+ * Uses ensjs's setRecordsWriteParameters which encodes resolver calls
+ * via `multicall(calls)`, compatible with both PublicResolver and
+ * the V2 PermissionedResolver (which share the same setter ABI).
  */
 
 import {
@@ -75,7 +75,6 @@ export interface SaveRecordsParams {
   publicClient: PublicClient
   chainId: number
   resolverAddress: Address
-  resolverType?: 'public' | 'dedicated'
 }
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
@@ -86,6 +85,9 @@ export interface SaveRecordsResult extends WaitForTransactionResult {
 
 function getSmartAccountAddress(signer: Signer): Address {
   if (signer.type === 'rhinestone') {
+    if (signer.config.accountAddress) {
+      return signer.config.accountAddress
+    }
     return signer.account.getAddress() as Address
   }
 
@@ -266,9 +268,8 @@ function createTransactionRequest(params: {
     } as ZeroDevTransactionRequest
   }
 
-  throw new Error(
-    `Unsupported signer type for transaction request: ${signer.type}`,
-  )
+  signer satisfies never
+  throw new Error('Unsupported signer type for transaction request')
 }
 
 async function buildRecordsUpdateRequest(params: {
@@ -280,7 +281,6 @@ async function buildRecordsUpdateRequest(params: {
   publicClient: PublicClient
   chainId: number
   resolverAddress: Address
-  resolverType?: 'public' | 'dedicated'
 }): Promise<{ request: TransactionRequest; description: string }> {
   const {
     name,
@@ -291,7 +291,6 @@ async function buildRecordsUpdateRequest(params: {
     publicClient,
     chainId,
     resolverAddress,
-    resolverType = 'dedicated',
   } = params
 
   const changes = computeRecordChanges(before, after)
@@ -328,7 +327,6 @@ async function buildRecordsUpdateRequest(params: {
   const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
     name,
     resolverAddress,
-    resolverType,
   }
 
   if (changes.texts.length > 0) {
@@ -422,7 +420,7 @@ async function buildRecordsUpdateRequest(params: {
  * Save profile records to the blockchain
  *
  * Uses ensjs's setRecordsWriteParameters to encode resolver calls,
- * supporting both Public Resolver (V1) and Dedicated Resolver (V2).
+ * compatible with both PublicResolver (V1) and PermissionedResolver (V2).
  *
  * @throws RecordsValidationError if record validation fails (invalid URLs, etc.)
  * @throws Error if no changes to apply, transaction not found, or transaction fails

@@ -7,16 +7,53 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
 import type { Hash } from 'viem'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Button } from '@/components/ui/button'
-import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
+import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
+import {
+  groupEventsByTransactionId,
+  type SubgraphEvent,
+} from '@/utils/history/groupEventsByTransactionId'
+import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
+import type { ProtocolVersion } from '@/utils/types'
 import { LoadingMessage } from '../../../components/LoadingMessage'
 import { useBlockTimestamps } from '../hooks/useBlockTimestamps'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 import { useTransactionSenders } from '../hooks/useTransactionSenders'
+import { getV2NameHistoryQueryOptions } from '../hooks/useV2NameHistory'
 
-const RecentActivityTable = ({
+const RecentActivityShell = ({
+  name,
+  children,
+}: {
+  name: string
+  children: React.ReactNode
+}) => (
+  <div className="flex flex-col gap-4 w-full">
+    <div className="flex flex-row justify-between items-center">
+      <h2 className="text-sm font-medium tracking-widest uppercase text-muted-foreground">
+        History
+      </h2>
+      <Button variant="ghost" size="sm" asChild>
+        <Link to="/$name/history" params={{ name }}>
+          <Clock className="size-4" />
+          Full history
+        </Link>
+      </Button>
+    </div>
+    {children}
+  </div>
+)
+
+const NoRecentActivity = ({ name }: { name: string }) => (
+  <RecentActivityShell name={name}>
+    <div className="p-6 border-t border-border">No recent activity</div>
+  </RecentActivityShell>
+)
+
+const V1RecentActivityTable = ({
   events,
   name,
 }: {
@@ -50,18 +87,24 @@ const RecentActivityTable = ({
   }
 
   if (timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+    return (
+      <ErrorMessage
+        title="Error loading timestamps"
+        description={timestampsError.cause?.message}
+      />
+    )
   }
   if (sendersError) {
     return (
-      <div>
-        Error loading transaction senders: {sendersError.cause?.message}
-      </div>
+      <ErrorMessage
+        title="Error loading transaction senders"
+        description={sendersError.cause?.message}
+      />
     )
   }
 
   if (!timestampsData || !sendersData) {
-    return <div>No data available</div>
+    return <ErrorMessage title="No data available" />
   }
 
   const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
@@ -83,67 +126,132 @@ const RecentActivityTable = ({
   )
 }
 
-interface RecentActivityProps {
+const V2RecentActivityTable = ({
+  events,
+  name,
+}: {
+  events: SubgraphEvent[]
   name: string
+}) => {
+  const groupedData = groupEventsByTransactionId(events, 'resolver')
+
+  const {
+    data: sendersData,
+    isLoading: isLoadingSenders,
+    error: sendersError,
+  } = useTransactionSenders({
+    transactionHashes: groupedData.map((tx) => tx.transactionID as Hash),
+  })
+
+  if (isLoadingSenders) {
+    return <LoadingMessage title="Loading transaction senders" />
+  }
+  if (sendersError) {
+    return (
+      <ErrorMessage
+        title="Error loading transaction senders"
+        description={sendersError.cause?.message}
+      />
+    )
+  }
+  if (!sendersData) {
+    return <ErrorMessage title="No sender data available" />
+  }
+
+  // V2 events already have timestamps from the indexer
+  const timestampsData = new Map(
+    // biome-ignore lint/style/noNonNullAssertion: V2 events always include timestamps
+    events.map((event) => [BigInt(event.blockNumber), event.timestamp!]),
+  )
+
+  const dataWithTimestampsAndSenders = enrichEventsWithMetadata(
+    groupedData,
+    timestampsData,
+    sendersData,
+  )
+
+  return (
+    <EventsDataTable
+      enableTransactionCount={false}
+      enableFilters={false}
+      enableSearch={false}
+      enableSidebar={false}
+      enableNetwork={false}
+      name={name}
+      data={dataWithTimestampsAndSenders}
+    />
+  )
 }
 
-export const RecentActivity = ({ name }: RecentActivityProps) => {
-  const {
-    data: events,
-    isLoading,
-    error,
-  } = useQuery(
+const V1RecentActivity = ({ name }: { name: string }) => {
+  const { data, isLoading, error } = useQuery(
     getNameHistoryQueryOptions({ name, first: 3, orderDirection: 'desc' }),
   )
 
-  if (isLoading) {
-    return <LoadingSpinner title="Loading..." />
-  }
-
-  if (error) {
-    return <div>Name History Error: {error.cause?.message}</div>
-  }
-
-  if (!events) {
+  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (error)
     return (
-      <div className="flex flex-col gap-4 w-full">
-        <div className="flex flex-row justify-between items-center">
-          <h2 className="text-2xl font-medium">History</h2>
-          <Button variant="secondary" size="sm" asChild>
-            <Link to="/$name/history" params={{ name }}>
-              <Clock className="size-4" />
-              Full history
-            </Link>
-          </Button>
-        </div>
-        <div className="p-6 border border-border rounded-lg">
-          No recent activity
-        </div>
-      </div>
+      <ErrorMessage
+        title="Error loading history"
+        description={error.cause?.message}
+      />
     )
-  }
+  if (!data) return <NoRecentActivity name={name} />
 
   return (
-    <div className="flex flex-col gap-4 w-full">
-      <div className="flex flex-row justify-between items-center">
-        <h2 className="text-2xl font-medium">History</h2>
-        <Button variant="secondary" size="sm" asChild>
-          <Link to="/$name/history" params={{ name }}>
-            <Clock className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
-      <div className="border border-border rounded-lg overflow-hidden">
-        <RecentActivityTable
+    <RecentActivityShell name={name}>
+      <div>
+        <V1RecentActivityTable
           name={name}
           events={[
-            ...events.domainEvents,
-            ...(events.registrationEvents || []),
-            ...(events.resolverEvents || []),
+            ...data.domainEvents,
+            ...(data.registrationEvents || []),
+            ...(data.resolverEvents || []),
           ]}
         />
       </div>
-    </div>
+    </RecentActivityShell>
   )
 }
+
+const V2RecentActivity = ({ name }: { name: string }) => {
+  const { data, isLoading, error } = useQuery(
+    getV2NameHistoryQueryOptions({ name, first: 3, orderDirection: 'desc' }),
+  )
+
+  if (isLoading) return <LoadingSpinner title="Loading..." />
+  if (error)
+    return (
+      <ErrorMessage
+        title="Error loading history"
+        description={error.cause?.message}
+      />
+    )
+  if (!data || data.length === 0) return <NoRecentActivity name={name} />
+
+  return (
+    <RecentActivityShell name={name}>
+      <div>
+        <V2RecentActivityTable
+          name={name}
+          events={transformV2EventsToSubgraphFormat(data)}
+        />
+      </div>
+    </RecentActivityShell>
+  )
+}
+
+interface RecentActivityProps {
+  name: string
+  protocolVersion: ProtocolVersion
+}
+
+export const RecentActivity = ({
+  name,
+  protocolVersion,
+}: RecentActivityProps) =>
+  protocolVersion === 'ENSv2' ? (
+    <V2RecentActivity name={name} />
+  ) : (
+    <V1RecentActivity name={name} />
+  )

@@ -37,7 +37,9 @@ function hasDirectAddress(client: unknown): client is { address: Address } {
  */
 export function getSmartAccountAddress(signer: Signer): Address {
   if (signer.type === 'rhinestone') {
-    // Rhinestone SDK account - use getAddress method
+    if (signer.config.accountAddress) {
+      return signer.config.accountAddress
+    }
     return signer.account.getAddress() as Address
   }
 

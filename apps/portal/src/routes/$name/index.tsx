@@ -15,8 +15,9 @@ import { ParentName } from '@/features/profile/components/ParentName'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
+import { RegistryCard } from '@/features/profile/components/RegistryCard'
+import { ResolverCard } from '@/features/profile/components/ResolverCard'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
-import { TokenLocation } from '@/features/profile/components/TokenLocation'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -35,12 +36,10 @@ import { isValidEnsName } from '@/utils/token/isNormalized'
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params, context: { network } }) => {
+  loader: ({ params }) => {
     const tld = getTLD(params.name)
     return Promise.all([
-      queryClient.prefetchQuery(
-        getProfileQueryOptions({ name: params.name, network }),
-      ),
+      queryClient.prefetchQuery(getProfileQueryOptions({ name: params.name })),
       ...(tld !== 'eth'
         ? [queryClient.prefetchQuery(getDnsSecEnabledQueryOptions({ tld }))]
         : []),
@@ -59,8 +58,12 @@ const Profile = ({
   const isEthTld = tld === 'eth'
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const { network } = Route.useRouteContext()
-  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
+  const profileQuery = useQuery(
+    getProfileQueryOptions({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion,
+    }),
+  )
 
   // Check DNSSEC for non-.eth TLDs to verify they're valid
   const dnsSecQuery = useQuery(
@@ -201,36 +204,58 @@ const Profile = ({
     console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
   }
 
-  const resolvedNetwork = ownerQuery.data.network || 'sepolia'
+  const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full max-w-360 mx-auto">
-      <div className="flex flex-row justify-between items-baseline">
-        <h1 className="text-heading font-medium leading-none">Overview</h1>
+    <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+      {/* Header */}
+      <div className="flex flex-row justify-between items-center">
+        <h1 className="text-4xl font-medium leading-none">{name}</h1>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 xl:col-span-2 *:h-full">
-          <NameProfileCard name={name} />
-        </div>
-        <ExpiryWithRegistrationData name={name} network={resolvedNetwork} />
-        <Owner owner={ownerQuery.data.owner} />
-        <ParentName name={name} />
-        <TokenLocation name={name} network={resolvedNetwork} />
-        {resolverAddress && (
-          <RecordCount
+
+      {/* Main section: profile | metadata rows | counters */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_2fr] gap-3">
+        {/* Left: avatar + bio + socials */}
+        <NameProfileCard name={name} stacked />
+
+        {/* Middle: metadata rows */}
+        <div className="flex flex-col flex-1">
+          <ExpiryWithRegistrationData
             name={name}
-            records={profileQuery.data?.records}
-            resolverAddress={resolverAddress}
+            protocolVersion={resolvedProtocolVersion}
           />
-        )}
-        <SubnameCount
-          name={name}
-          registryAddress={ownerQuery.data.registryAddress}
-          network={resolvedNetwork}
-        />
-        <ProtocolVersionWithCounter name={name} network={resolvedNetwork} />
+          <Owner owner={ownerQuery.data.owner} asRow />
+          <ParentName name={name} asRow />
+          {resolverAddress && (
+            <ResolverCard name={name} resolverAddress={resolverAddress} asRow />
+          )}
+          <RegistryCard
+            name={name}
+            registryAddress={ownerQuery.data.registryAddress}
+            asRow
+            protocolVersion={resolvedProtocolVersion}
+          />
+        </div>
+
+        {/* Right: counter cards */}
+        <div className="flex flex-col gap-3 shrink-0">
+          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
+          <ProtocolVersionWithCounter
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
+          {resolverAddress && (
+            <RecordCount
+              name={name}
+              records={profileQuery.data?.records}
+              resolverAddress={resolverAddress}
+            />
+          )}
+        </div>
       </div>
-      {resolvedNetwork === 'sepolia' && <RecentActivity name={name} />}
+
+      {/* History */}
+      <RecentActivity name={name} protocolVersion={resolvedProtocolVersion} />
     </div>
   )
 }

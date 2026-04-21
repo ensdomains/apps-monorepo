@@ -1,27 +1,49 @@
-import { createFileRoute, Outlet, useParams } from '@tanstack/react-router'
-import { NavBar } from '@/components/NavBar'
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useParams,
+} from '@tanstack/react-router'
+import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { getDnsSecEnabled } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { isTLD } from '@/utils/ens/tldHelpers'
 import { queryClient } from '@/utils/queryClient'
-import type { EnsNetworkName } from '@/utils/types'
+import { isValidEnsName } from '@/utils/token/isNormalized'
+import type { ProtocolVersion } from '@/utils/types'
 
 export const Route = createFileRoute('/$name')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
   beforeLoad: async ({ params }) => {
+    const { name } = params
+
+    // Redirect valid TLDs to the dedicated /tld/$tld route
+    if (isValidEnsName(name) && isTLD(name)) {
+      const shouldRedirect =
+        name === 'eth' || (await getDnsSecEnabled(name)) === true
+      if (shouldRedirect) {
+        throw redirect({ to: '/tld/$tld', params: { tld: name } })
+      }
+    }
+
     const ownerData = await queryClient.fetchQuery(
-      getEnsOwnerQueryOptions({ name: params.name }),
+      getEnsOwnerQueryOptions({ name }),
     )
-    return { network: ownerData?.network as EnsNetworkName | undefined }
+    return {
+      protocolVersion: ownerData?.protocolVersion as
+        | ProtocolVersion
+        | undefined,
+    }
   },
-  loader: ({ params, context: { network } }) =>
+  loader: ({ params }) =>
     queryClient.prefetchQuery(
       getNameRegistriesQueryOptions({
         name: params.name,
-        network: network ?? 'namechainSepolia',
       }),
     ),
 })
@@ -29,16 +51,12 @@ export const Route = createFileRoute('/$name')({
 function RouteComponent() {
   const { name } = useParams({ from: '/$name' })
   return (
-    <div className="[--header-height:calc(--spacing(16))]">
-      <SidebarProvider className="flex flex-col">
-        <NavBar />
-        <div className="flex flex-1">
-          <ProfileSidebar name={name} />
-          <SidebarInset className="w-full min-w-0">
-            <Outlet />
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+    <SidebarProvider>
+      <ProfileSidebar name={name} />
+      <SidebarInset className="w-full min-w-0">
+        <MobileHeader />
+        <Outlet />
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

@@ -37,7 +37,7 @@ import {
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 
 // ============================================================================
@@ -56,8 +56,8 @@ const ENS_CONTRACTS = {
 
 // Supported payment tokens on Sepolia ENS
 const SUPPORTED_TOKENS = {
-  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as `0x${string}`, // MockUSDC
-  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as `0x${string}`, // MockDAI
+  USDC: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as `0x${string}`, // MockUSDC
+  DAI: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as `0x${string}`, // MockDAI
 }
 
 const PIMLICO_API_KEY = ''
@@ -277,7 +277,7 @@ function sleep(ms: number): Promise<void> {
  * Send ETH to an address
  */
 async function sendEth(
-  fromAccount: any,
+  fromAccount: PrivateKeyAccount,
   toAddress: `0x${string}`,
   amountEth: string,
 ): Promise<string> {
@@ -304,7 +304,7 @@ async function sendEth(
  * Mint tokens to an address
  */
 async function mintTokens(
-  fromAccount: any,
+  fromAccount: PrivateKeyAccount,
   tokenAddress: `0x${string}`,
   toAddress: `0x${string}`,
   amount: string,
@@ -1044,7 +1044,9 @@ async function registerEnsDomain(
       }
     }
     try {
-      const ctx = (error as any)?._context
+      const ctx = (error as Record<string, unknown>)?._context as
+        | Record<string, unknown>
+        | undefined
       if (ctx) {
         console.log('🔎 Orchestrator context id:', ctx.id)
         console.dir(ctx.error, { depth: null })

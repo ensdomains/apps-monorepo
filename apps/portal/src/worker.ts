@@ -5,12 +5,15 @@ import {
   renderAddressOgImage,
   renderDefaultOgImage,
   renderOgImage,
+  renderTldOgImage,
 } from './worker/og-render'
 import {
   extractAddrFromPath,
   extractNameFromPath,
+  extractTldFromPath,
   isAddressRoute,
   isAddrSubpage,
+  isTldRoute,
   truncateAddress,
 } from './worker/routing'
 
@@ -47,6 +50,12 @@ export default {
         const address = addrOgMatch[1]
         const subpage = addrOgMatch[2] ?? null
         return renderAddressOgImage(address, request.url, env, subpage)
+      }
+      // TLD OG image: /og/tld/:tld.png
+      const tldOgMatch = decoded.match(/^tld\/(.+)$/)
+      if (tldOgMatch) {
+        const tld = tldOgMatch[1]
+        return renderTldOgImage(tld, request.url, env)
       }
       // Name OG image with optional subpage: /og/name/subpage.png
       const nameParts = decoded.split('/')
@@ -150,6 +159,42 @@ export default {
       return new HTMLRewriter()
         .on('head', new MetaTagInjector(metaTags))
         .on('title', new TitleRewriter(profileTitle))
+        .transform(response)
+    }
+
+    // TLD page: inject meta tags
+    if (isTldRoute(pathname)) {
+      const tld = extractTldFromPath(pathname)
+      if (!tld) {
+        return env.ASSETS.fetch(request)
+      }
+      const decodedTld = decodeURIComponent(tld)
+      const accept = request.headers.get('Accept') ?? ''
+
+      if (!accept.includes('text/html') && !accept.includes('*/*')) {
+        return env.ASSETS.fetch(request)
+      }
+
+      const response = await env.ASSETS.fetch(request)
+      const host = url.host
+      const ogImageUrl = `https://${host}/og/tld/${encodeURIComponent(decodedTld)}.png`
+      const pageTitle = `${decodedTld} — ENS Explorer App`
+      const desc = `ENS Top Level Domain ${decodedTld}`
+
+      const metaTags = [
+        `<meta property="og:title" content="${escapeHtml(pageTitle)}" />`,
+        `<meta property="og:description" content="${escapeHtml(desc)}" />`,
+        `<meta property="og:image" content="${escapeHtml(ogImageUrl)}" />`,
+        `<meta property="og:type" content="website" />`,
+        `<meta name="twitter:card" content="summary_large_image" />`,
+        `<meta name="twitter:title" content="${escapeHtml(pageTitle)}" />`,
+        `<meta name="twitter:description" content="${escapeHtml(desc)}" />`,
+        `<meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />`,
+      ].join('\n')
+
+      return new HTMLRewriter()
+        .on('head', new MetaTagInjector(metaTags))
+        .on('title', new TitleRewriter(pageTitle))
         .transform(response)
     }
 

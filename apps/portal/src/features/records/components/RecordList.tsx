@@ -20,20 +20,20 @@ import {
 import { columns } from '@/features/records/components/RecordsTable/columns'
 import { RecordsTable } from '@/features/records/components/RecordsTable/RecordsTable'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
 export const RecordList = ({
   name,
   records: rawRecords,
   canEdit = false,
-  network,
+  protocolVersion,
 }: {
   name: string
   records: GetRecordsReturnType
   /** Whether the connected user can edit records (owner check) */
   canEdit?: boolean
-  /** The network where the name is registered */
-  network?: EnsNetworkName
+  /** The protocol version of the name */
+  protocolVersion?: ProtocolVersion
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
@@ -70,7 +70,7 @@ export const RecordList = ({
 
   return (
     <>
-      <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4">
+      <header className="bg-muted border-b border-border px-8 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
           <h1 className="text-heading font-medium">{recordCount} Records</h1>
           {canEdit && (
@@ -111,7 +111,7 @@ export const RecordList = ({
             </div>*/}
           </div>
         ) : (
-          <InputGroup className="bg-white rounded-sm">
+          <InputGroup className="bg-background rounded-sm">
             <InputGroupInput
               id={searchRecordsId}
               className="w-full"
@@ -128,7 +128,7 @@ export const RecordList = ({
         <RecordsTable
           name={name}
           table={table}
-          network={network}
+          protocolVersion={protocolVersion}
           {...{ rowSelection, setRowSelection }}
         />
       </div>

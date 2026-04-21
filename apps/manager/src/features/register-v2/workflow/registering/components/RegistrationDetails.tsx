@@ -13,14 +13,29 @@ const useDetails = RegisterV2Context.createSelector(
   (state) => state.context.confirmedData,
 )
 
-const useIsCompleted = RegisterV2Context.createSelector((state) =>
+/** Top-level `success` (post-registering step) */
+const useIsTopLevelSuccess = RegisterV2Context.createSelector((state) =>
   state.matches('success'),
 )
 
+const useIsRegisteringTransactionSuccess = RegisterV2Context.createSelector(
+  (state) => state.matches({ registering: { transaction: 'success' } }),
+)
+
+const useIsChildRegistrationSuccess = RegisterV2Context.createTxSelector(
+  (state) =>
+    state !== undefined &&
+    (state.value === 'success' || state.status === 'done'),
+)
+
 export const RegistrationDetails = () => {
-  const { uiActor, label } = RegisterV2Context.use()
+  const { uiActor, label, registrationActor } = RegisterV2Context.use()
   const details = useDetails(uiActor)
-  const isCompleted = useIsCompleted(uiActor)
+  const topSuccess = useIsTopLevelSuccess(uiActor)
+  const registeringTxSuccess = useIsRegisteringTransactionSuccess(uiActor)
+  const childRegSuccess = useIsChildRegistrationSuccess(registrationActor)
+  const showCompleteProfileCta =
+    topSuccess || registeringTxSuccess || childRegSuccess
   const baseRate = useBaseRate(label)
 
   const expirationDate = useMemo(
@@ -118,7 +133,7 @@ export const RegistrationDetails = () => {
             </div>
           </div>
 
-          {isCompleted && (
+          {showCompleteProfileCta && (
             <LinkButton
               params={{ name: `${details.label}.eth` }}
               size="xl"

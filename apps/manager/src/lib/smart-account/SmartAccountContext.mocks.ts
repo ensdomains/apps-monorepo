@@ -1,10 +1,19 @@
 import { vi } from 'vitest'
 
 vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
+vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
 
 // Mock transaction-manager to avoid import issues
 vi.mock('@ens-apps/transaction-manager', () => ({
   Signer: {},
+}))
+
+vi.mock('@getpara/viem-v2-integration', () => ({
+  createParaAccount: vi.fn().mockReturnValue({
+    address: '0xParaAddress123456789012345678901234567890' as const,
+    signMessage: vi.fn(),
+    signTypedData: vi.fn(),
+  }),
 }))
 
 // Mock all external dependencies
@@ -66,6 +75,25 @@ vi.mock('./zerodev/kernel', () => ({
       pimlicoApiKey: 'key',
     },
     ecdsaValidator: { type: 'ECDSAValidator' },
+  }),
+}))
+
+vi.mock('./rhinestone', () => ({
+  initializeRhinestoneAccount: vi.fn().mockResolvedValue({
+    client: {
+      getAddress: vi
+        .fn()
+        .mockReturnValue('0xSmartAccount123456789012345678901234567890'),
+      sendTransaction: vi.fn(),
+      waitForExecution: vi.fn(),
+    },
+    address: '0xSmartAccount123456789012345678901234567890',
+    ownerAddress: '0xOwner12345678901234567890123456789012345678',
+    config: {
+      chain: { id: 11155111 },
+      accountType: 'hca',
+      rhinestoneApiKey: 'test-rhinestone-key',
+    },
   }),
 }))
 

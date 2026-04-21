@@ -131,7 +131,7 @@ export const SocialRecord = ({ record }: { record: SocialRecordType }) => {
     <span>
       <ExternalLink
         href={`https://${baseUrls[record.key]}/${record.value}`}
-        className="decoration-dotted decoration-2 underline flex flex-row gap-1 items-center hover:text-quartz-500"
+        className="decoration-dotted decoration-2 underline flex flex-row gap-1 items-center hover:text-muted-foreground"
       >
         <Icon record={record} /> {record.value}
       </ExternalLink>

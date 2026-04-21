@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useDebouncedValue } from '@/hooks/useDebounce'
+import { cn } from '@/lib/utils'
 import { useSearchResults } from '../hooks/useSearchResults'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 import { SearchModalContent } from './SearchModalContent'
@@ -28,9 +29,9 @@ import { SearchResultsList } from './SearchResultsList'
 
 const SEARCH_DEBOUNCE_MS = 300
 
-export const HomeSearchInput = () => {
+export const HomeSearchInput = ({ className }: { className?: string }) => {
   const listboxId = useId()
-  const navigate = useNavigate({ from: '/' })
+  const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
@@ -192,7 +193,10 @@ export const HomeSearchInput = () => {
         <PopoverTrigger asChild>
           <InputGroup
             ref={triggerRef}
-            className="bg-white rounded-sm max-w-3xl w-full"
+            className={cn(
+              'bg-sidebar-accent dark:bg-sidebar-accent rounded-sm max-w-3xl w-full',
+              className,
+            )}
             onClick={(e) => e.preventDefault()}
           >
             <InputGroupInput

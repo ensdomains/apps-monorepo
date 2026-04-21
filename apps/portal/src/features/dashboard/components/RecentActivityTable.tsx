@@ -1,0 +1,107 @@
+import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { match } from 'ts-pattern'
+import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
+import { EntityBadge } from '@/components/EntityBadge'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getRecentActivityQueryOptions } from '../hooks/useRecentActivity'
+import {
+  formatActivityEvent,
+  formatRelativeTime,
+} from '../utils/formatActivityEvent'
+
+export const RecentActivityTable = () => {
+  const { data, isLoading } = useQuery(getRecentActivityQueryOptions())
+
+  return (
+    <div className="flex flex-col overflow-hidden w-full">
+      <div className="flex gap-2 h-12 items-center px-4 border-b border-border shrink-0">
+        <span className="font-medium text-sm tracking-widest uppercase">
+          Recent Activity
+        </span>
+      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <LoadingSpinner title="Loading recent activity..." />
+        </div>
+      ) : !data?.length ? (
+        <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+          No recent activity
+        </div>
+      ) : (
+        data.map((event, index) => {
+          const { text, actor, entityFromData } = formatActivityEvent(event)
+          const rawName =
+            event.name?.trim() || event.domain?.name?.trim() || null
+          const resolvedName =
+            rawName &&
+            !rawName.startsWith('tokenId:') &&
+            !rawName.startsWith('canonicalId:')
+              ? rawName
+              : null
+          const nameEntity = resolvedName
+            ? { type: 'name' as const, value: resolvedName }
+            : entityFromData
+
+          const txHash = event.transactionHash
+
+          return (
+            <div
+              key={`${txHash}-${event.type}-${index}`}
+              className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-4 px-4 border-b border-border last:border-b-0"
+            >
+              {/* Mobile: top row — entity left, time right
+                  Desktop: sm:contents spreads children into parent flex */}
+              <div className="flex items-center justify-between pt-3 pb-1 sm:contents">
+                <div className="sm:order-2 sm:w-32 sm:shrink-0">
+                  {match(nameEntity)
+                    .with({ type: 'name' }, ({ value }) => (
+                      <Link to="/$name" params={{ name: value }}>
+                        <EntityBadge variant="name">{value}</EntityBadge>
+                      </Link>
+                    ))
+                    .with({ type: 'address' }, ({ value }) => (
+                      <Link to="/addr/$addr" params={{ addr: value }}>
+                        <EntityBadge variant="address">
+                          {truncateAddress(value, 6, 4)}
+                        </EntityBadge>
+                      </Link>
+                    ))
+                    .otherwise(() => (
+                      <BlockExplorerTxLink txHash={txHash} showCopy={false} />
+                    ))}
+                </div>
+                <span className="sm:order-1 font-mono text-xs sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">
+                  {formatRelativeTime(event.timestamp)}
+                </span>
+              </div>
+
+              {/* Mobile: bottom row — description + actor wrapping
+                  Desktop: right-aligned flex */}
+              <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0 sm:overflow-hidden">
+                <span className="text-sm text-muted-foreground sm:truncate">
+                  {text}
+                </span>
+                {match(actor)
+                  .with({ type: 'address' }, ({ value }) => (
+                    <Link to="/addr/$addr" params={{ addr: value }}>
+                      <EntityBadge variant="address">
+                        {truncateAddress(value, 6, 4)}
+                      </EntityBadge>
+                    </Link>
+                  ))
+                  .with({ type: 'name' }, ({ value }) => (
+                    <Link to="/$name" params={{ name: value }}>
+                      <EntityBadge variant="name">{value}</EntityBadge>
+                    </Link>
+                  ))
+                  .otherwise(() => null)}
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+}

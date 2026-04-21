@@ -7,7 +7,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import { RecordDetails } from '../RecordDetails'
 import type { NameRecord } from './columns'
 
@@ -17,9 +17,9 @@ export const RecordSidebar: FC<
     name: string
     open: boolean
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
-    network?: EnsNetworkName
+    protocolVersion?: ProtocolVersion
   }>
-> = ({ children, row, name, open, setOpen, network }) => {
+> = ({ children, row, name, open, setOpen, protocolVersion }) => {
   const isMobile = useIsMobile()
 
   return (
@@ -27,7 +27,7 @@ export const RecordSidebar: FC<
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-[880px] bg-card p-0 flex flex-col h-dvh"
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
@@ -42,10 +42,10 @@ export const RecordSidebar: FC<
             <RecordDetails
               record={row.original}
               name={name}
-              network={network}
+              protocolVersion={protocolVersion}
             />
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No record selected
             </div>
           )}

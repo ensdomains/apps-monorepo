@@ -8,6 +8,8 @@ import type {
   WalletClient,
 } from 'viem'
 
+import type { TransactionInfra } from './signer.types'
+
 export type TransactionType =
   | 'eoa'
   | 'erc4337'
@@ -140,8 +142,10 @@ export interface TransactionOptions {
   description?: string
   modal?: Partial<TransactionModalState>
   id?: string
-  publicClient?: PublicClient // PublicClient from viem
-  walletClient?: WalletClient // WalletClient from viem
+  publicClient?: PublicClient
+  walletClient?: WalletClient
+  /** Override the infrastructure for this transaction (warp or pimlico) */
+  infrastructure?: TransactionInfra
 }
 
 export interface TransactionResult {

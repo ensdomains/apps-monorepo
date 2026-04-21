@@ -68,8 +68,8 @@ export const DataTable = <TData, TValue>({
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
               className={cn(
-                'hover:bg-quartz-50',
-                tableView.strippedRows && 'odd:bg-quartz-50',
+                'hover:bg-muted',
+                tableView.strippedRows && 'odd:bg-muted',
               )}
             >
               {row.getVisibleCells().map((cell) => (

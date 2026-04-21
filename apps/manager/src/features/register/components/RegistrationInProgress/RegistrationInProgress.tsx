@@ -30,7 +30,7 @@ interface RegistrationInProgressProps {
  * Handles both simple string states and nested states (like error.submission)
  */
 function mapMachineStateToProgressStage(
-  stateValue: string | Record<string, any>,
+  stateValue: string | Record<string, unknown>,
 ): ProgressStage {
   // Handle nested error states
   if (typeof stateValue === 'object' && 'error' in stateValue) {
@@ -52,7 +52,9 @@ function mapMachineStateToProgressStage(
       return 'name-registering'
     case 'approvingToken':
     case 'waitingForApproval':
+    case 'submittingRhinestoneBundle':
       return 'approving'
+    case 'waitingForRhinestoneBundle':
     case 'registeringDomain':
     case 'waitingForRegistration':
       return 'registering'
@@ -78,27 +80,9 @@ export const RegistrationInProgress = ({
   showRegistrationDetails = false,
 }: RegistrationInProgressProps) => {
   // Get the raw state value (can be string or object for nested states)
-  const stateValue = useSelector(actor, (state) => {
-    console.log('🔍 [REGISTRATION IN PROGRESS] Current state:', {
-      value: state.value,
-      valueType: typeof state.value,
-      hasError: !!state.context.error,
-      errorMessage: state.context.error?.message,
-    })
-    return state.value
-  })
+  const stateValue = useSelector(actor, (state) => state.value)
 
-  const error = useSelector(actor, (state) => {
-    const error = state.context.error
-    if (error) {
-      console.log('❌ [REGISTRATION IN PROGRESS] Error detected:', {
-        message: error.message,
-        name: error.name,
-        state: state.value,
-      })
-    }
-    return error
-  })
+  const error = useSelector(actor, (state) => state.context.error)
 
   const progressStage = mapMachineStateToProgressStage(stateValue)
   const isRegistrationComplete = stateValue === 'success'
@@ -113,13 +97,6 @@ export const RegistrationInProgress = ({
     onNotificationSkip?.()
   }
 
-  console.log('🎯 [REGISTRATION IN PROGRESS] Current stage:', {
-    stateValue,
-    progressStage,
-    hasError: !!error,
-    isComplete: isRegistrationComplete,
-  })
-
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-0 pt-10 pb-6 md:px-6">
       <ProgressBar
@@ -129,7 +106,7 @@ export const RegistrationInProgress = ({
       />
 
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        {showRegistrationDetails ? (
+        {showRegistrationDetails || isRegistrationComplete ? (
           <RegistrationDetails
             discountAmount={discountAmount}
             domainName={domainName}

@@ -18,7 +18,7 @@ import {
   setup,
 } from 'xstate'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
-import type { SmartAccountState } from '@/lib/smart-account/types'
+import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
@@ -68,7 +68,7 @@ type Events =
       token: SUPPORTED_TOKEN
       /** Price in token units */
       totalPrice: bigint
-      account: SmartAccountState
+      account: SmartAccountContextValue
 
       /** Formatted base price */
       basePriceNumber: number

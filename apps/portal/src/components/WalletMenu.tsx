@@ -4,6 +4,7 @@ import { ChevronRight, Power, Wallet } from 'lucide-react'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
@@ -27,17 +28,21 @@ export const WalletMenu = () => {
   // const smartSessionsId = useId()
 
   if (!isConnected || !address) {
-    return <Button onClick={() => openConnectModal?.()}>Connect</Button>
+    return (
+      <Button size="sm" onClick={() => openConnectModal?.()}>
+        Connect
+      </Button>
+    )
   }
 
-  const displayName = name ?? truncateAddress(address)
+  const displayName = name ?? truncateAddress(address, 5, 3)
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xs"
           aria-label={`Wallet menu for ${displayName}`}
         >
           {name ? (
@@ -45,12 +50,12 @@ export const WalletMenu = () => {
               name={name}
               height="32px"
               width="32px"
-              rounded="rounded-full"
+              rounded="rounded-xs"
             />
           ) : (
-            <div className="size-8 rounded-full [background:var(--avatar-placeholder-gradient)]" />
+            <div className="size-8 rounded-xs [background:var(--avatar-placeholder-gradient)]" />
           )}
-          <span className="font-medium text-sm hidden md:inline">
+          <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">
             {displayName}
           </span>
         </button>
@@ -92,6 +97,8 @@ export const WalletMenu = () => {
             onCheckedChange={setSmartSessionsEnabled}
           />
         </DropdownMenuItem> */}
+        <DropdownMenuSeparator />
+        <ThemeToggle />
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => disconnect()}>
           <Power className="size-4 text-foreground" />

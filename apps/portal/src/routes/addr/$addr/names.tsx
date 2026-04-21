@@ -9,7 +9,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Search, XIcon } from 'lucide-react'
+import { FastForward, Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -17,6 +17,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
+import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
@@ -29,6 +30,13 @@ import {
   type NameRow,
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
+import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
+import {
+  type SelectedName,
+  useRenewalTransactions,
+} from '@/features/renew/hooks/useRenewalTransactions'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
@@ -90,6 +98,17 @@ const getNameStatus = (expiryDate: Date | null | undefined): string => {
   return 'registered'
 }
 
+// V2: ETHRegistrar.renew reverts once expiry <= now (no grace period).
+// V1: ETHRegistrarController.renew reverts once past grace (in premium window).
+const isExtendable2LD = ({ name, isV2, expiryDate }: SelectedName): boolean => {
+  if (!/^[^.]+\.eth$/.test(name)) return false
+  if (!expiryDate) return true
+  const cutoff = isV2
+    ? expiryDate.getTime()
+    : expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY
+  return cutoff > Date.now()
+}
+
 const getNameLength = (name: string | null): string => {
   if (!name) return '5+'
   // Remove the TLD (e.g., .eth)
@@ -123,6 +142,22 @@ function RouteComponent() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [extendModalOpen, setExtendModalOpen] = useState(false)
+
+  const { transactions: renewalTransactions, startFlow } =
+    useRenewalTransactions({
+      onComplete: () => {
+        setRowSelection({})
+        void queryClient.invalidateQueries({
+          queryKey: ['get-names-for-address'],
+        })
+        void queryClient.invalidateQueries({
+          queryKey: ['get-v2-names-with-roles-for-address'],
+        })
+      },
+    })
+
+  const { openModal } = useTransactionModal()
 
   // Filter state
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
@@ -219,6 +254,25 @@ function RouteComponent() {
     [rowSelection],
   )
 
+  const selectedNames = useMemo(
+    (): SelectedName[] =>
+      Object.keys(rowSelection)
+        .map((idx) => filteredData[Number(idx)])
+        .filter((row): row is NameRow => Boolean(row))
+        .filter((row): row is NameRow & { name: string } => row.name !== null)
+        .map((row) => ({
+          name: row.name,
+          isV2: row.v1Roles === null,
+          expiryDate: row.expiryDate,
+        })),
+    [rowSelection, filteredData],
+  )
+
+  const canExtendSelection =
+    rowCount === 1 && selectedNames.length === 1
+      ? isExtendable2LD(selectedNames[0])
+      : false
+
   const searchNamesId = useId()
 
   if (v1NamesQuery.isLoading) {
@@ -257,7 +311,7 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-muted px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row justify-between">
           <h1 className="text-heading font-medium">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
@@ -276,10 +330,19 @@ function RouteComponent() {
               </button>
               {rowCount} selected
             </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!canExtendSelection}
+              onClick={() => setExtendModalOpen(true)}
+            >
+              <FastForward className="size-4" />
+              Extend
+            </Button>
           </div>
         ) : (
           <>
-            <InputGroup className="bg-white rounded-sm">
+            <InputGroup className="bg-background rounded-sm">
               <InputGroupInput
                 id={searchNamesId}
                 className="w-full"
@@ -315,6 +378,19 @@ function RouteComponent() {
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
+      {selectedNames.length === 1 && (
+        <ExtendNameModal
+          open={extendModalOpen}
+          onClose={() => setExtendModalOpen(false)}
+          selectedName={selectedNames[0]}
+          onExtend={(config) => {
+            startFlow(selectedNames[0], config)
+            setExtendModalOpen(false)
+            openModal()
+          }}
+        />
+      )}
+      <TransactionModal transactions={renewalTransactions} />
     </>
   )
 }

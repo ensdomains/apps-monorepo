@@ -11,6 +11,7 @@ import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataRow } from '@/components/DataRow'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -33,7 +34,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getRegistryNameDataQueryOptions } from '@/features/registry/hooks/useRegistryNameData'
+import { getTokenIdQueryOptions } from '@/features/profile/hooks/useTokenId'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
 import { useContractAddress } from '@/hooks/useContractAddress'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,7 @@ import { asciiEncode } from '@/utils/token/ascii'
 import { dnsEncodeName } from '@/utils/token/dnsEncodeName'
 import { escapeUnicode } from '@/utils/token/escapeUnicode'
 import { isNormalized } from '@/utils/token/isNormalized'
+import type { ProtocolVersion } from '@/utils/types'
 
 export const Route = createFileRoute('/$name/token')({
   component: RouteComponent,
@@ -52,16 +54,18 @@ const TokenInfoCard = ({
   tokenId,
   hex,
   tokenStandard,
+  protocolVersion,
 }: {
   contractAddress: Address
   tokenId: string
   hex: Hex
   tokenStandard: 'ERC-1155' | 'ERC-721'
+  protocolVersion: ProtocolVersion
 }) => {
   return (
     <div className="flex border border-border rounded-2xl w-full p-6 flex-col gap-4">
       <DataRow label="Protocol" tooltip="The ENS protocol version">
-        <span className="text-base">ENSv2</span>
+        <span className="text-base">{protocolVersion}</span>
       </DataRow>
 
       <DataRow label="Token Standard" tooltip="The token standard used">
@@ -69,7 +73,12 @@ const TokenInfoCard = ({
       </DataRow>
 
       <DataRow label="Contract" tooltip="The smart contract address">
-        <CopyableRecord value={contractAddress} />
+        <CopyableRecord
+          value={contractAddress}
+          displayValue={
+            <EntityBadge variant="contract">{contractAddress}</EntityBadge>
+          }
+        />
       </DataRow>
 
       <DataRow label="Token ID" tooltip="The token identifier">
@@ -109,8 +118,8 @@ const TokenInfoCard = ({
                   </DataRow>
                 </div>
 
-                <div className="bg-quartz-50 rounded-lg p-3 flex gap-2 items-start">
-                  <InfoIcon className="size-6 text-quartz-500 shrink-0 mt-0.5" />
+                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
+                  <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-base">
                     The Token ID will change anytime the roles are updated.
                   </p>
@@ -132,7 +141,7 @@ const TokenInfoCard = ({
                         <TableRow>
                           <TableCell
                             colSpan={4}
-                            className="text-center py-8 text-quartz-500"
+                            className="text-center py-8 text-muted-foreground"
                           >
                             No history available
                           </TableCell>
@@ -181,34 +190,55 @@ const TokenV1Name = ({ name }: { name: string }) => {
   const hex = isWrapped ? namehash(name) : labelhash(name.split('.')[0])
   const tokenId = BigInt(hex).toString(10)
 
-  return <TokenInfoCard {...{ contractAddress, tokenId, hex, tokenStandard }} />
+  return (
+    <TokenInfoCard
+      {...{ contractAddress, tokenId, hex, tokenStandard }}
+      protocolVersion="ENSv1"
+    />
+  )
 }
 
-const TokenV2Name = ({ name }: { name: string }) => {
+const TokenV2Name = ({
+  name,
+  registryAddress,
+}: {
+  name: string
+  registryAddress: Address
+}) => {
   const label = name.split('.')[0]
 
-  const hex = labelhash(label)
-
-  const { data, error, isLoading } = useQuery(
-    getRegistryNameDataQueryOptions({
-      label,
-      registryAddress: '0x5fb63bbd34de21688c8aa8131be1c3b4a477109c',
-    }),
-  )
+  const {
+    data: tokenId,
+    error,
+    isLoading,
+  } = useQuery(getTokenIdQueryOptions({ label, registryAddress }))
 
   if (error)
-    return <div>Error loading registry data: {error.cause?.message}</div>
+    return (
+      <ErrorMessage
+        title="Error loading token data"
+        description={error.cause?.message || error.message}
+      />
+    )
 
-  if (isLoading) return <LoadingSpinner title="Loading owner data" />
+  if (isLoading) return <LoadingMessage />
 
-  if (!data) return null
+  const hex =
+    tokenId != null
+      ? (`0x${tokenId.toString(16).padStart(64, '0')}` as Hex)
+      : labelhash(label)
+  const tokenIdStr =
+    tokenId != null
+      ? tokenId.toString(10)
+      : BigInt(labelhash(label)).toString(10)
 
   return (
     <TokenInfoCard
       tokenStandard="ERC-1155"
-      tokenId={data[0].toString(10)}
+      tokenId={tokenIdStr}
       hex={hex}
-      contractAddress="0x5fb63bbd34de21688c8aa8131be1c3b4a477109c"
+      contractAddress={registryAddress}
+      protocolVersion="ENSv2"
     />
   )
 }
@@ -244,11 +274,11 @@ function RouteComponent() {
         <h1 className="text-[30px] font-medium leading-tight">Token Info</h1>
       </header>
 
-      {data?.network === 'sepolia' ? (
+      {data?.protocolVersion === 'ENSv1' ? (
         <TokenV1Name name={name} />
-      ) : (
-        <TokenV2Name name={name} />
-      )}
+      ) : data?.protocolVersion === 'ENSv2' ? (
+        <TokenV2Name name={name} registryAddress={data.registryAddress} />
+      ) : null}
 
       {/* Normalization Section */}
       <h2 className="font-medium text-2xl">Normalization</h2>
@@ -282,14 +312,14 @@ function RouteComponent() {
                 )}
               >
                 {normalized ? (
-                  <CheckCircleIcon className="size-4 text-success" />
+                  <CheckCircleIcon className="size-4 text-peridot-500" />
                 ) : (
-                  <XCircleIcon className="size-4 text-danger" />
+                  <XCircleIcon className="size-4 text-garnet-500" />
                 )}
                 <span
                   className={cn(
                     'text-xs font-medium',
-                    normalized ? 'text-success' : 'text-danger',
+                    normalized ? 'text-peridot-900' : 'text-garnet-900',
                   )}
                 >
                   {normalized ? 'Normalized' : 'Not Normalized'}

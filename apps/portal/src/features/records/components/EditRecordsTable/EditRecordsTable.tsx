@@ -73,7 +73,7 @@ const EditableValueCell = memo(function EditableValueCell({
       <Input
         ref={inputRef}
         defaultValue={record.value}
-        className={`font-mono bg-quartz-50 ${
+        className={`font-mono bg-muted ${
           error
             ? 'border-red-500 focus-visible:ring-red-500/50'
             : 'border-border'
@@ -178,7 +178,7 @@ export const EditRecordsTable = ({
             return (
               <span className="flex flex-row items-center gap-2 font-mono">
                 {row.original.id}{' '}
-                <span className="font-sans text-quartz-500 uppercase">
+                <span className="font-sans text-muted-foreground uppercase">
                   {row.original.key}
                 </span>
               </span>
@@ -284,8 +284,8 @@ export const EditRecordsTable = ({
                 <TableRow
                   data-state={row.getIsSelected() && 'selected'}
                   className={cn(
-                    'hover:bg-quartz-50',
-                    tableView.strippedRows && 'odd:bg-quartz-50',
+                    'hover:bg-muted',
+                    tableView.strippedRows && 'odd:bg-muted',
                   )}
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -304,7 +304,7 @@ export const EditRecordsTable = ({
                   ))}
                 </TableRow>
                 {isPendingDelete && (
-                  <TableRow className="bg-quartz-50 hover:bg-quartz-50">
+                  <TableRow className="bg-muted hover:bg-muted">
                     <TableCell
                       colSpan={editColumns.length}
                       className="px-4 sm:px-6 py-3"

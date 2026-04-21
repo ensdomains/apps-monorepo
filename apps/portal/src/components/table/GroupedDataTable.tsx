@@ -41,7 +41,7 @@ type GroupedDataTableProps<
   itemsWrapper?: (rowData: TData) => ReactNode
   name: string
   canManageRoles: boolean
-  registryAddress?: Address
+  registryAddress: Address
 }
 
 export const GroupedDataTable = <
@@ -141,140 +141,145 @@ export const GroupedDataTable = <
       canManageRoles={canManageRoles}
       registryAddress={registryAddress}
     >
-      <Table className="relative border border-border rounded-2xl border-separate border-spacing-0">
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className={cn(
-                    'border-b border-b-border',
-                    header.column.id === 'expander' && 'w-[100px]',
-                    header.column.id === 'permissions' && 'min-w-[200px]',
-                  )}
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <Fragment key={row.id}>
-                <TableRow
-                  className={cn(
-                    'hover:bg-quartz-50',
-                    tableView.strippedRows && 'odd:bg-quartz-50',
-                  )}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        'px-6',
-                        tableView.compact ? 'py-2' : 'py-4',
-                      )}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                {row.getIsExpanded() &&
-                  (() => {
-                    const permissions = roleToPermissions(row.original.items)
-                    const permissionEntries = Array.from(permissions.entries())
+      <div className="overflow-hidden">
+        <Table className="relative border-separate border-spacing-0">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    className={cn(
+                      'border-b border-b-border',
+                      header.column.id === 'expander' && 'w-25',
+                      header.column.id === 'permissions' && 'min-w-50',
+                    )}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <Fragment key={row.id}>
+                  <TableRow
+                    className={cn(
+                      'hover:bg-muted',
+                      tableView.strippedRows && 'odd:bg-muted',
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          'px-6',
+                          tableView.compact ? 'py-2' : 'py-4',
+                        )}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getIsExpanded() &&
+                    (() => {
+                      const permissions = roleToPermissions(row.original.items)
+                      const permissionEntries = Array.from(
+                        permissions.entries(),
+                      )
 
-                    return permissionEntries.map(
-                      ([role, { admin, manager }], index) => {
-                        const roleLabel = role
-                          .replaceAll('_', ' ')
-                          .toLowerCase()
-                        const isLast = index === permissionEntries.length - 1
+                      return permissionEntries.map(
+                        ([role, { admin, manager }], index) => {
+                          const roleLabel = role
+                            .replaceAll('_', ' ')
+                            .toLowerCase()
+                          const isLast = index === permissionEntries.length - 1
 
-                        return (
-                          <TableRow key={role}>
-                            {/* Expander column - empty */}
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            />
-                            {/* Role column */}
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            >
-                              <CopyableRecord
-                                className="capitalize"
-                                displayValue={roleLabel}
-                                value={role}
+                          return (
+                            <TableRow key={role}>
+                              {/* Expander column - empty */}
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
+                                )}
                               />
-                            </TableCell>
-                            {/* Permission column */}
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            >
-                              <div className="flex flex-row gap-2">
-                                {admin && (
-                                  <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
-                                    <UserLockIcon width={16} height={16} />{' '}
-                                    Admin
-                                  </div>
+                              {/* Role column */}
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
                                 )}
-                                {manager && (
-                                  <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
-                                    <UserIcon width={16} height={16} /> Manager
-                                  </div>
+                              >
+                                <CopyableRecord
+                                  className="capitalize"
+                                  displayValue={roleLabel}
+                                  value={role}
+                                />
+                              </TableCell>
+                              {/* Permission column */}
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
                                 )}
-                              </div>
-                            </TableCell>
-                            {/* More column - empty */}
-                            <TableCell
-                              className={cn(
-                                'px-6',
-                                tableView.compact ? 'py-2' : 'py-4',
-                                !isLast && 'border-b border-b-border',
-                              )}
-                            />
-                          </TableRow>
-                        )
-                      },
-                    )
-                  })()}
-              </Fragment>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell
-                colSpan={table.getVisibleLeafColumns().length}
-                className="h-24 text-center"
-              >
-                No data found.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+                              >
+                                <div className="flex flex-row gap-2">
+                                  {admin && (
+                                    <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-6.5">
+                                      <UserLockIcon width={16} height={16} />{' '}
+                                      Admin
+                                    </div>
+                                  )}
+                                  {manager && (
+                                    <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-6.5">
+                                      <UserIcon width={16} height={16} />{' '}
+                                      Manager
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              {/* More column - empty */}
+                              <TableCell
+                                className={cn(
+                                  'px-6',
+                                  tableView.compact ? 'py-2' : 'py-4',
+                                  !isLast && 'border-b border-b-border',
+                                )}
+                              />
+                            </TableRow>
+                          )
+                        },
+                      )
+                    })()}
+                </Fragment>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={table.getVisibleLeafColumns().length}
+                  className="h-24 text-center"
+                >
+                  No data found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </RolesSidebar>
   )
 }

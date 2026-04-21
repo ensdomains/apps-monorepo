@@ -5,6 +5,7 @@ import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
+import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import { submitZeroDevTransaction } from '../actors/zerodev-transport.actor'
 import {
   EthCallFallbackError,
@@ -117,29 +118,28 @@ export const transactionMachine = setup({
     /**
      * Submit Transaction Actor
      *
-     * Routes to the appropriate transport actor based on request.type:
+     * Routes to the appropriate transport actor based on signer type
+     * and resolved infrastructure:
      * - eoa → submitEOATransaction
-     * - rhinestone-intent → submitRhinestoneTransaction
-     * - erc4337 → (not yet implemented)
+     * - rhinestone + warp → submitWarpTransaction
+     * - rhinestone + pimlico → submitRhinestoneTransaction
+     * - zerodev → submitZeroDevTransaction (always Pimlico)
      */
     submitTransaction: fromResultAsync(
       ({
         request,
         signer,
+        options,
         publicClient,
       }: {
         request?: TransactionRequest
         signer?: Signer
+        options?: TransactionOptions
         publicClient: PublicClient
       }): ResultAsync<
         Hash,
         TransactionSubmissionError | TransactionUserRejectedError
       > => {
-        console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
-          requestType: request?.type,
-          signerType: signer?.type,
-        })
-
         if (!request) {
           return errAsync(
             new TransactionSubmissionError(
@@ -158,43 +158,105 @@ export const transactionMachine = setup({
           )
         }
 
-        // Route to transport actor based on signer type
-        switch (signer.type) {
-          case 'eoa':
-            return submitEOATransaction({ request, signer })
+        const nowMs = (): number =>
+          typeof performance !== 'undefined' &&
+          typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
 
-          case 'rhinestone':
-            return submitRhinestoneTransaction({
-              request,
-              signer,
-              publicClient,
-            })
+        const resolvedInfrastructure =
+          signer.type === 'rhinestone'
+            ? (options?.infrastructure ??
+              signer.config.defaultInfra ??
+              'pimlico')
+            : undefined
 
-          case 'zerodev':
-            return submitZeroDevTransaction({
-              request,
-              signer,
-              publicClient,
-            })
+        const submitStart = nowMs()
 
-          case 'erc4337':
-            return errAsync(
-              new TransactionSubmissionError(
+        const getSubmitResult = (): ResultAsync<
+          Hash,
+          TransactionSubmissionError | TransactionUserRejectedError
+        > => {
+          console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
+            requestType: request.type,
+            signerType: signer.type,
+            infrastructure: resolvedInfrastructure ?? options?.infrastructure,
+          })
+
+          // Route to transport actor based on signer type + infrastructure
+          switch (signer.type) {
+            case 'eoa':
+              return submitEOATransaction({ request, signer })
+
+            case 'rhinestone': {
+              const infra =
+                resolvedInfrastructure ??
+                signer.config.defaultInfra ??
+                'pimlico'
+
+              if (infra === 'warp') {
+                return submitWarpTransaction({ request, signer })
+              }
+              return submitRhinestoneTransaction({
                 request,
-                new Error('ERC-4337 transactions not yet implemented'),
-              ),
-            )
+                signer,
+                publicClient,
+              })
+            }
 
-          default:
-            return errAsync(
-              new TransactionSubmissionError(
+            case 'zerodev':
+              return submitZeroDevTransaction({
                 request,
-                new Error(
-                  `Unknown signer type: ${(signer as { type?: string }).type || 'unknown'}`,
+                signer,
+                publicClient,
+              })
+
+            default:
+              return errAsync(
+                new TransactionSubmissionError(
+                  request,
+                  new Error(
+                    `Unknown signer type: ${(signer as { type?: string }).type || 'unknown'}`,
+                  ),
                 ),
-              ),
-            )
+              )
+          }
         }
+
+        const result = getSubmitResult()
+
+        return result
+          .map((hash) => {
+            const elapsedMs = nowMs() - submitStart
+            console.log(
+              '⏱️ [TRANSACTION] submitTransaction latency (ms):',
+              elapsedMs.toFixed(1),
+              {
+                requestType: request.type,
+                signerType: signer.type,
+                infrastructure:
+                  resolvedInfrastructure ?? options?.infrastructure,
+                hash,
+              },
+            )
+            return hash
+          })
+          .mapErr((error) => {
+            const elapsedMs = nowMs() - submitStart
+            console.error(
+              '⏱️ [TRANSACTION] submitTransaction failed after (ms):',
+              elapsedMs.toFixed(1),
+              {
+                requestType: request.type,
+                signerType: signer.type,
+                infrastructure:
+                  resolvedInfrastructure ?? options?.infrastructure,
+                errorName: (error as Error).name,
+                errorMessage: (error as Error).message,
+              },
+            )
+            return error
+          })
       },
     ),
 
@@ -347,6 +409,7 @@ export const transactionMachine = setup({
       console.error('❌ [TRANSACTION] Error:', error)
     },
 
+    // biome-ignore lint/suspicious/noExplicitAny: XState action params require `any` for type inference compatibility
     logCritical: ({ context }, params: any) => {
       const error = params?.error || params || 'Unknown critical error'
       try {
@@ -383,6 +446,7 @@ export const transactionMachine = setup({
       (input.intent?.type === 'custom' ? input.intent.request : undefined)
 
     return {
+      // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
       publicClient: input.publicClient!,
       signer: input.signer,
       intent: input.intent,
@@ -486,8 +550,10 @@ export const transactionMachine = setup({
       invoke: {
         src: 'prepareTransaction',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           intent: context.intent!,
           publicClient: context.publicClient,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           chainId: context.chainId!,
           useSmartAccount: context.useSmartAccount,
         }),
@@ -538,6 +604,7 @@ export const transactionMachine = setup({
         input: ({ context }) => ({
           request: context.request,
           signer: context.signer,
+          options: context.options,
           publicClient: context.publicClient,
         }),
         onDone: {
@@ -607,6 +674,7 @@ export const transactionMachine = setup({
       invoke: {
         src: 'waitForReceipt',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           hash: context.hash!,
           options: context.options,
           publicClient: context.publicClient,

@@ -10,7 +10,6 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { getRegistryNameData } from '@ensdomains/ensjs/public/v2'
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
 import { grantRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
@@ -21,7 +20,6 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
 
 // ============================================================================
 // Types
@@ -35,7 +33,7 @@ export type GrantRolesParameters = {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly chainId: number
-  readonly registryAddress?: Address
+  readonly registryAddress: Address
   readonly id: string
 }
 
@@ -59,7 +57,7 @@ export async function grantRoles(
     publicClient,
     signer,
     chainId,
-    registryAddress = namechainEthRegistryAddress,
+    registryAddress,
     id,
   } = params
 
@@ -72,13 +70,7 @@ export async function grantRoles(
   }
 
   const { label } = makeLabelNodeAndParent(name)
-
-  const [, entry] = await getRegistryNameData(publicClient, {
-    label,
-    registryAddress,
-  })
-
-  const resource = labelToCanonicalId(label) | BigInt(entry.eacVersionId)
+  const resource = labelToCanonicalId(label)
 
   const writeParams = grantRolesWriteParameters(
     walletClient as Parameters<typeof grantRolesWriteParameters>[0],

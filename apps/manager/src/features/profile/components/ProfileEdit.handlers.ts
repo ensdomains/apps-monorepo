@@ -12,7 +12,7 @@ import type { FormEvent } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { isAddress } from 'viem'
 import type { ActorRefFrom } from 'xstate'
-import type { SmartAccountState } from '@/lib/smart-account'
+import type { SmartAccountContextValue } from '@/lib/smart-account'
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { ProfileRecords } from '../types'
 
@@ -43,7 +43,7 @@ export interface ProfileUpdateParams {
 }
 
 export interface ProfileUpdateOptions {
-  account: SmartAccountState
+  account: SmartAccountContextValue
   publicClient: PublicClient
 }
 
@@ -53,7 +53,7 @@ export interface ResolverUpdateParams {
 }
 
 export interface ResolverUpdateOptions {
-  account: SmartAccountState
+  account: SmartAccountContextValue
   resolverActor: ActorRefFrom<typeof resolverMachine>
   publicClient: PublicClient
 }
@@ -207,7 +207,7 @@ export function handleSetPrimaryName(
     primaryNameActor.send({
       type: 'START_UPDATE',
       name,
-      signer: account.signer!,
+      signer: account.signer as NonNullable<typeof account.signer>,
       accountAddress: account.accountAddress as Address,
       publicClient,
       // Signature flow fields

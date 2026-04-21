@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { Signer } from '../types/signer.types'
 import {
   createRunTelemetryService,
   estimateTelemetryBytes,
@@ -43,7 +44,7 @@ describe('run telemetry service v2', () => {
         to: '0xto',
         data: '0x12345678abcdef',
       },
-      signer: { type: 'eoa' } as any,
+      signer: { type: 'eoa' } as unknown as Signer,
       options: {
         retryCount: 3,
       },
@@ -71,7 +72,7 @@ describe('run telemetry service v2', () => {
         data: '0x12345678abcdef',
         value: 2n,
       },
-      signer: { type: 'zerodev' } as any,
+      signer: { type: 'zerodev' } as unknown as Signer,
       useSmartAccount: true,
       options: {
         retryCount: 3,
@@ -106,7 +107,7 @@ describe('run telemetry service v2', () => {
         from: '0xfrom',
         to: '0xto',
       },
-      signer: { type: 'eoa' } as any,
+      signer: { type: 'eoa' } as unknown as Signer,
     })
 
     service.recordSnapshot(
@@ -135,7 +136,7 @@ describe('run telemetry service v2', () => {
         from: '0xfrom',
         to: '0xto',
       },
-      signer: { type: 'eoa' } as any,
+      signer: { type: 'eoa' } as unknown as Signer,
     })
 
     const retryEvent = service.recordSnapshot(
@@ -167,7 +168,7 @@ describe('run telemetry service v2', () => {
         from: '0xfrom',
         to: '0xto',
       },
-      signer: { type: 'eoa' } as any,
+      signer: { type: 'eoa' } as unknown as Signer,
     })
 
     for (let i = 0; i < 5000; i += 1) {

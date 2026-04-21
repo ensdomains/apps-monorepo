@@ -1,8 +1,7 @@
-// @ts-nocheck - TODO: Fix imports or remove machine if no longer needed
+// @ts-nocheck - TODO: Rewrite for ENSv2 or remove — renewNames is v1-only (ensEthRegistrarController)
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-// Broken import since ENSJS update. Machine is currently unused
-import { getPrice } from '@ensdomains/ensjs/public'
+import { getPrice } from '@ensdomains/ensjs/public/v2'
 import { renewNames } from '@ensdomains/ensjs/wallet'
 import { fromPromise, ok } from 'neverthrow'
 import type { TransactionReceipt } from 'viem'
@@ -85,7 +84,9 @@ export const renewMachine = setup({
       invoke: {
         src: 'getPrice',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
           name: context.name!,
+          // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
           duration: context.duration!,
         }),
         onDone: {
@@ -115,8 +116,11 @@ export const renewMachine = setup({
           transactionRequest: renewNames.makeFunctionData(
             wagmiConfig.getClient(),
             {
+              // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
               nameOrNames: context.name!,
+              // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
               duration: context.duration!,
+              // biome-ignore lint/style/noNonNullAssertion: guaranteed by machine state
               value: context.price!,
             },
           ),

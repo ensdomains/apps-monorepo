@@ -18,8 +18,8 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
     <>
       <TableRow
         className={cn(
-          'hover:bg-quartz-50',
-          tableView.strippedRows && 'odd:bg-quartz-50',
+          'hover:bg-muted',
+          tableView.strippedRows && 'odd:bg-muted',
         )}
       >
         {row.getVisibleCells().map((cell) => (
@@ -46,7 +46,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
           return (
             <TableRow
               key={`${row.original.transactionID}-${event.id}-${eventIndex}`}
-              className="hover:bg-quartz-50"
+              className="hover:bg-muted"
             >
               <TableCell colSpan={2} className={cellClassName} />
 

@@ -16,14 +16,16 @@ const badgeVariants = cva(
         ghost:
           'bg-accent text-foreground [a&]:hover:bg-accent/90 [a&]:hover:text-accent-foreground/90',
         destructive:
-          'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
+          'border-transparent bg-danger-fill text-syntax-contract [a&]:hover:bg-danger-fill/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
         success:
-          'border-transparent bg-peridot-100 text-success [a&]:hover:bg-peridot-100/90',
+          'border-transparent bg-success-fill text-syntax-address [a&]:hover:bg-success-fill/90',
         danger:
-          'border-transparent bg-garnet-100 text-danger [a&]:hover:bg-garnet-100/90',
+          'border-transparent bg-danger-fill text-syntax-contract [a&]:hover:bg-danger-fill/90',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground border border-border',
         warning: 'bg-citrine-100 text-citrine-900 [a&]:hover:bg-citrine-100/90',
+        accent:
+          'border-transparent bg-accent-fill text-accent-text [a&]:hover:bg-accent-fill/90',
       },
     },
     defaultVariants: {

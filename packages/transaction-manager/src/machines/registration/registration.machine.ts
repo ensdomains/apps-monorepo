@@ -8,6 +8,7 @@ import {
   pollTransactionStatusActor,
   resolveResolverDeploymentActor,
   submitApprovalActor,
+  submitApprovalAndRegistrationActor,
   submitCommitmentActor,
   submitRegistrationActor,
   submitResolverDeploymentActor,
@@ -75,6 +76,7 @@ export type RegistrationContext = {
   approvalTxId?: string
   registrationTxId?: string
   registerReadyTimestamp?: number
+  registrationStartedAt?: number
 
   // Error state
   error?: Error
@@ -204,6 +206,23 @@ export const registrationMachine = setup({
         return submitRegistrationActor(input)
       },
     ),
+    submitApprovalAndRegistration: fromResultAsync(
+      (input: {
+        tokenPrice: bigint
+        selectedToken: 'USDC' | 'DAI'
+        name: string
+        commitment: CommitmentData
+        signer: Signer
+        duration: bigint
+        owner: Address
+        publicClient: PublicClient
+        useFastRegistrar: boolean
+        sponsored?: boolean
+        resolverAddress: Address
+      }) => {
+        return submitApprovalAndRegistrationActor(input)
+      },
+    ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
@@ -222,6 +241,10 @@ export const registrationMachine = setup({
         return validateCommitmentActor(input)
       },
     ),
+  },
+
+  guards: {
+    isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
   },
 
   actions: {
@@ -273,21 +296,45 @@ export const registrationMachine = setup({
       registerReadyTimestamp: () => undefined,
     }),
 
-    resetRegistration: assign({
-      signer: undefined,
-      accountAddress: undefined,
-      ownerAddress: undefined,
-      publicClient: undefined,
-      name: '',
-      duration: 0n,
-      selectedToken: 'USDC',
-      tokenPrice: 0n,
-      registerReadyTimestamp: undefined,
-      useFastRegistrar: false,
-      resolverAddress: undefined,
-      resolverTxId: undefined,
-      resolverSalt: undefined,
-    }),
+    logRegistrationDuration: ({ context }) => {
+      if (
+        !context.registrationStartedAt ||
+        context.signer?.type !== 'rhinestone'
+      ) {
+        return
+      }
+
+      const totalMs = Date.now() - context.registrationStartedAt
+      const totalSeconds = totalMs / 1000
+
+      console.log('✅ [REGISTRATION] START_REGISTRATION elapsed:', {
+        name: context.name,
+        signerType: context.signer?.type,
+        elapsedMs: totalMs,
+        elapsedSeconds: Number(totalSeconds.toFixed(2)),
+      })
+    },
+
+    logRegistrationFailureDuration: ({ context }) => {
+      if (
+        !context.registrationStartedAt ||
+        context.signer?.type !== 'rhinestone'
+      ) {
+        return
+      }
+
+      const totalMs = Date.now() - context.registrationStartedAt
+      const totalSeconds = totalMs / 1000
+
+      console.error('❌ [REGISTRATION] START_REGISTRATION elapsed:', {
+        name: context.name,
+        signerType: context.signer?.type,
+        elapsedMs: totalMs,
+        elapsedSeconds: Number(totalSeconds.toFixed(2)),
+        error: context.error?.message,
+        errorName: context.error?.name,
+      })
+    },
   },
 
   // Note: Persistence will be handled via inspect option (see export at bottom)
@@ -305,6 +352,7 @@ export const registrationMachine = setup({
     duration: 0n,
     selectedToken: 'USDC',
     tokenPrice: 0n,
+    registrationStartedAt: undefined,
     registerReadyTimestamp: undefined,
     useFastRegistrar: false,
     resolverAddress: undefined,
@@ -324,6 +372,8 @@ export const registrationMachine = setup({
             tokenPrice: ({ event }) => event.price,
             signer: ({ event }) => event.signer,
             accountAddress: ({ event }) => event.accountAddress,
+            registrationStartedAt: ({ event }) =>
+              event.signer.type === 'rhinestone' ? Date.now() : undefined,
             ownerAddress: ({ event }) =>
               event.ownerAddress ?? event.accountAddress, // Default to accountAddress if not provided
             publicClient: ({ event }) => event.publicClient,
@@ -362,8 +412,11 @@ export const registrationMachine = setup({
         src: 'deployResolver',
         input: ({ context }) => ({
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           sponsored: context.sponsored,
           id: REGISTRATION_TX_IDS.deployResolver,
@@ -400,6 +453,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'resolveResolverDeployment',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.resolverTxId! }),
         onDone: {
           target: 'preparingCommitment',
@@ -441,11 +495,14 @@ export const registrationMachine = setup({
 
           return {
             name: context.name,
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             owner: context.ownerAddress ?? context.accountAddress!,
             duration: context.duration,
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             publicClient: context.publicClient!,
             selectedToken: context.selectedToken,
             useFastRegistrar: context.useFastRegistrar,
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             resolverAddress: context.resolverAddress!,
           }
         },
@@ -481,10 +538,13 @@ export const registrationMachine = setup({
       invoke: {
         src: 'submitCommitment',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           name: context.name,
           duration: context.duration,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
@@ -521,6 +581,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.commitmentTxId! }),
         onDone: [
           {
@@ -561,11 +622,19 @@ export const registrationMachine = setup({
       invoke: {
         src: 'validateCommitment',
         input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
         }),
-        onDone: 'approvingToken',
+        onDone: [
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'submittingRhinestoneBundle',
+          },
+          { target: 'approvingToken' },
+        ],
         onError: {
           target: 'error',
           actions: [
@@ -598,13 +667,98 @@ export const registrationMachine = setup({
           const delayMs = Math.max(0, targetTimestamp - Date.now())
           return { delayMs }
         },
-        onDone: 'approvingToken',
+        onDone: [
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'submittingRhinestoneBundle',
+          },
+          { target: 'approvingToken' },
+        ],
         onError: {
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
             retryTarget: () => 'committingTransaction' as const,
           }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    submittingRhinestoneBundle: {
+      entry: [
+        'logTransition',
+        'recordTransition',
+        'clearRegisterReadyTimestamp',
+      ],
+      invoke: {
+        src: 'submitApprovalAndRegistration',
+        input: ({ context }) => ({
+          tokenPrice: context.tokenPrice,
+          selectedToken: context.selectedToken,
+          name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          duration: context.duration,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+          sponsored: context.sponsored,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          resolverAddress: context.resolverAddress!,
+        }),
+        onDone: {
+          target: 'waitingForRhinestoneBundle',
+          actions: assign({
+            registrationTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Approve+register bundle submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForRhinestoneBundle: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+        input: ({ context }) => ({ txId: context.registrationTxId! }),
+        onDone: 'success',
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Approve+register bundle failed:',
+                event.error,
+              )
+            },
+          ],
         },
       },
       on: {
@@ -623,7 +777,9 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           tokenPrice: context.tokenPrice,
           selectedToken: context.selectedToken,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
@@ -660,6 +816,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.approvalTxId! }),
         onDone: 'registeringDomain',
         onError: {
@@ -689,14 +846,19 @@ export const registrationMachine = setup({
         src: 'submitRegistration',
         input: ({ context }) => ({
           name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.commitment!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           duration: context.duration,
           selectedToken: context.selectedToken,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
           id: REGISTRATION_TX_IDS.register,
         }),
@@ -731,6 +893,7 @@ export const registrationMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
         onDone: 'success',
         onError: {
@@ -755,11 +918,17 @@ export const registrationMachine = setup({
     },
 
     success: {
-      entry: ['logTransition', 'recordTransition', 'clearSnapshot'],
+      // Not `type: 'final'` so `CANCEL` can return to `idle` for a new registration
+      // (e.g. register-v2 after another name); `START_REGISTRATION` only runs from `idle`.
+      entry: [
+        'logTransition',
+        'recordTransition',
+        'logRegistrationDuration',
+        'clearSnapshot',
+      ],
       on: {
         CANCEL: {
           target: 'idle',
-          actions: 'resetRegistration',
         },
       },
     },
@@ -768,6 +937,7 @@ export const registrationMachine = setup({
       entry: [
         'logTransition',
         'recordTransition',
+        'logRegistrationFailureDuration',
         ({ context }) => {
           console.error('❌ [REGISTRATION MACHINE] Entered error state:', {
             error: context.error?.message,

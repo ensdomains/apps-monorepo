@@ -3,7 +3,7 @@ import { sign, verify } from 'hono/jwt'
 import { err, fromAsyncThrowable, ok } from 'neverthrow'
 import * as v from 'valibot'
 
-const JWT_EXPIRATION = 60 * 60 * 3 // 3 hours
+const JWT_EXPIRATION = 60 * 60 * 24 * 7 // 7 days
 
 export const AuthPayload = v.object({
   user_id: v.string(),
@@ -52,7 +52,12 @@ export const signJWT = (
   )
 }
 
-export const verifyJWT = <TSchema extends v.ObjectSchema<any, any>>(
+export const verifyJWT = <
+  TSchema extends v.ObjectSchema<
+    v.ObjectEntries,
+    v.ErrorMessage<v.ObjectIssue> | undefined
+  >,
+>(
   token: string,
   env: CloudflareBindings,
   schema: TSchema,
