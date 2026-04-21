@@ -81,7 +81,7 @@ export const TransactionsOverviewContent = ({
               </h2>
             </div>
           ) : null}
-          <div className="space-y-2 pt-4">
+          <div className="space-y-2">
             {transactions.map((transaction) => {
               const activeTxSnapshot = activeTransactionsMap
                 .get(transaction.id)
