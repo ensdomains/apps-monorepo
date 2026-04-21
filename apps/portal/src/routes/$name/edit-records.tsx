@@ -311,7 +311,7 @@ const EditRecordsContent = ({
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <header className="bg-muted border-b border-border px-8 pb-6 pt-6">
+      <header className="border-b border-border px-8 pb-6 pt-6">
         <Link to="/$name/records" params={{ name }}>
           <Button variant="ghost" className="flex items-center gap-2 -ml-2">
             <ArrowLeftIcon className="size-4" />

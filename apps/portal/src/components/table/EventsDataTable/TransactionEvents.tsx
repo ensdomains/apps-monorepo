@@ -58,7 +58,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
       {showDecoded ? (
         <div className="border rounded-lg overflow-auto">
           <table className="w-full">
-            <thead className="bg-muted">
+            <thead>
               <tr>
                 <th className="px-4 py-2 text-left text-sm font-medium text-foreground w-12">
                   #

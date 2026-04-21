@@ -319,10 +319,7 @@ export const ResolverEventsTable = ({
                     ))}
                   </TableRow>
                   {row.getIsExpanded() && (
-                    <TableRow
-                      key={`${row.id}-expanded`}
-                      className="hover:bg-muted"
-                    >
+                    <TableRow key={`${row.id}-expanded`}>
                       <TableCell colSpan={2} className={cellClassName} />
                       <TableCell className={cellClassName}>
                         <span>{row.original.type}</span>
