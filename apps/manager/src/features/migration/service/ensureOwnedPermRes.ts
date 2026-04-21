@@ -68,6 +68,28 @@ export const findExistingPermRes = async (params: {
   return null
 }
 
+export const predictOwnedPermResAddress = async (params: {
+  eoa: Address
+  publicClient: PublicClient
+}): Promise<Address> => {
+  const { eoa, publicClient } = params
+  const existing = await findExistingPermRes({ eoa, publicClient })
+  if (existing) return existing
+  const salt = computeOwnedResolverSalt(eoa, 0n)
+  const { result } = await publicClient.simulateContract({
+    address: V2_CONTRACTS.VerifiableFactory,
+    abi: VERIFIABLE_FACTORY_ABI,
+    functionName: 'deployProxy',
+    args: [
+      V2_CONTRACTS.PermissionedResolverImpl,
+      salt,
+      getOwnedPermResInitCalldata(eoa),
+    ],
+    account: eoa,
+  })
+  return result
+}
+
 export const ensureOwnedPermRes = async (params: {
   eoa: Address
   wagmiConfig: WagmiConfig

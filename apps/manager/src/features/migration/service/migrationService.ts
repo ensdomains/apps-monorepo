@@ -12,36 +12,20 @@ import {
   writeContract,
 } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
-import { namehash, zeroAddress } from 'viem'
 import { customSepolia } from '@/lib/wagmi'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
-import { V1_CONTRACTS } from '../contracts/addresses'
-import { buildAllTransferCalls } from './buildMigrationCalls'
-import { buildPreMigrateCall } from './buildPreMigrateCalls'
-import { buildProfileReplayCall } from './buildProfileReplayCalls'
-import { buildRoleGrantCall } from './buildRoleGrantCalls'
-import {
-  buildStepDescriptors,
-  type MigrationStepDescriptor,
-} from './buildStepDescriptors'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import type { MigrationPlan, NameBundle } from './buildMigrationPlan'
 import { approvalNeedsFor, checkSCAApprovals } from './checkSCAApprovals'
-import {
-  type ClassifiedName,
-  classifyNames,
-  type GroupedNames,
-  groupClassifiedNames,
-  type IneligibleName,
-  is2LD,
+import type {
+  ClassifiedName,
+  GroupedNames,
+  IneligibleName,
 } from './classifyNames'
-import {
-  EMPTY_PREFLIGHT,
-  type MigrationPreflight,
-} from './computeMigrationPreflight'
+import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
-import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
-import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
-import type { V1Domain } from './v1SubgraphClient'
 
+export type { MigrationPlan, NameBundle } from './buildMigrationPlan'
 export type { MigrationStepDescriptor } from './buildStepDescriptors'
 export type { MigrationPreflight } from './computeMigrationPreflight'
 
@@ -83,28 +67,19 @@ export type MigrationResult = {
 type Tracker = {
   emit: (description: string, txHash?: Hex) => void
   next: () => void
-  getCurrentStep: () => number
-  setTotalSteps: (nextTotal: number) => void
 }
 
 const createTracker = (
   onProgress: (progress: MigrationProgress) => void,
-  initialTotalSteps: number,
+  totalSteps: number,
 ): Tracker => {
   let currentStep = 0
-  let totalSteps = initialTotalSteps
   return {
     emit(description, txHash) {
       onProgress({ currentStep, totalSteps, description, txHash })
     },
     next() {
       currentStep++
-    },
-    getCurrentStep() {
-      return currentStep
-    },
-    setTotalSteps(nextTotal) {
-      totalSteps = nextTotal
     },
   }
 }
@@ -198,70 +173,6 @@ const ensureResolver = async (
   return resolver
 }
 
-const fetchProfilesIfNeeded = async (
-  ctx: MigrationCtx,
-  namesToOwnedPermRes: readonly ClassifiedName[],
-  preflight: MigrationPreflight,
-): Promise<Map<Hex, Profile>> => {
-  if (namesToOwnedPermRes.length === 0 || preflight.skipFetchProfilesPhase) {
-    return new Map()
-  }
-  return fetchV1Profiles({
-    names: namesToOwnedPermRes
-      .filter((n) => n.v1ResolverAddress)
-      .map((n) => ({
-        nodeHex: namehash(n.domain.name) as Hex,
-        v1ResolverAddress: n.v1ResolverAddress as Address,
-      })),
-    publicClient: ctx.publicClient,
-  })
-}
-
-const computeNotReservedSet = async (
-  publicClient: PublicClient,
-  classified: readonly ClassifiedName[],
-): Promise<Set<string>> => {
-  const twoLDs = classified.filter(is2LD)
-  if (twoLDs.length === 0) return new Set()
-  const notReserved = await filterNotReserved(publicClient, twoLDs)
-  const out = new Set<string>()
-  for (const name of notReserved) out.add(name.domain.name)
-  return out
-}
-
-const validateSubnameParents = async (
-  publicClient: PublicClient,
-  groups: GroupedNames,
-): Promise<Map<string, Address>> => {
-  if (groups.childNames.size === 0) return new Map()
-
-  const parentRegistries = await resolveParentRegistries(
-    publicClient,
-    groups.childNames,
-  )
-
-  const unresolvedParents: string[] = []
-  for (const [parentName] of groups.childNames) {
-    const registry = parentRegistries.get(parentName) ?? zeroAddress
-    if (registry === zeroAddress) unresolvedParents.push(parentName)
-  }
-  if (unresolvedParents.length === 0) return parentRegistries
-
-  const total = groups.childNames.size
-  const resolved = total - unresolvedParents.length
-  const preview = unresolvedParents.slice(0, 3).join(', ')
-  const suffix =
-    unresolvedParents.length > 3
-      ? ` (+${unresolvedParents.length - 3} more)`
-      : ''
-  throw new MigrationError({
-    cause: new Error(
-      `${unresolvedParents.length}/${total} parent registries unresolved after retries: ${preview}${suffix}. Migrate the parent name(s) first, or retry once the indexer catches up.`,
-    ),
-    step: `Subnames (${resolved}/${total} parents ready)`,
-  })
-}
-
 const buildSCARequest = (
   ctx: MigrationCtx,
   calls: ZeroDevCall[],
@@ -320,104 +231,6 @@ const submitBatchedUserOp = async (
   return result.hash as Hex
 }
 
-export const MAX_BATCH_RAW_BYTES = 500_000
-
-type NameBundle = {
-  name: ClassifiedName
-  calls: ZeroDevCall[]
-  bytes: number
-}
-
-const calcBundleBytes = (calls: readonly ZeroDevCall[]): number => {
-  let total = 0
-  for (const c of calls) {
-    total += Math.max(0, (c.data.length - 2) / 2)
-    total += 64
-  }
-  return total
-}
-
-const buildNameBundle = (params: {
-  name: ClassifiedName
-  migrationOwner: Address
-  defaultResolver: Address
-  ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
-  parentRegistries: ReadonlyMap<string, Address>
-  profiles: ReadonlyMap<Hex, Profile>
-}): NameBundle => {
-  const {
-    name,
-    migrationOwner,
-    defaultResolver,
-    ownedPermRes,
-    notReservedSet,
-    parentRegistries,
-    profiles,
-  } = params
-  const calls: ZeroDevCall[] = []
-
-  if (is2LD(name) && notReservedSet.has(name.domain.name)) {
-    calls.push(buildPreMigrateCall(name))
-  }
-
-  calls.push(
-    ...buildAllTransferCalls({
-      classified: [name],
-      migrationOwner,
-      defaultResolver,
-      ownedPermRes,
-      parentRegistries,
-    }),
-  )
-
-  if (name.managerAddress) {
-    calls.push(buildRoleGrantCall(name))
-  }
-
-  if (ownedPermRes && name.resolverStrategy === 'to-owned-permres') {
-    const node = namehash(name.domain.name) as Hex
-    const profile = profiles.get(profileMapKey(node))
-    if (profile && (profile.texts.length > 0 || profile.addresses.length > 0)) {
-      const replayCall = buildProfileReplayCall({
-        resolver: ownedPermRes,
-        profiles: new Map<Hex, Profile>([[node, profile]]),
-      })
-      if (replayCall) calls.push(replayCall)
-    }
-  }
-
-  return { name, calls, bytes: calcBundleBytes(calls) }
-}
-
-export const packNamesByPayload = (params: {
-  names: readonly ClassifiedName[]
-  migrationOwner: Address
-  defaultResolver: Address
-  ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
-  parentRegistries: ReadonlyMap<string, Address>
-  profiles: ReadonlyMap<Hex, Profile>
-  maxBatchBytes?: number
-}): NameBundle[][] => {
-  const { names, maxBatchBytes = MAX_BATCH_RAW_BYTES } = params
-  const bundles = names.map((name) => buildNameBundle({ ...params, name }))
-  const batches: NameBundle[][] = []
-  let current: NameBundle[] = []
-  let running = 0
-  for (const b of bundles) {
-    if (current.length > 0 && running + b.bytes > maxBatchBytes) {
-      batches.push(current)
-      current = []
-      running = 0
-    }
-    current.push(b)
-    running += b.bytes
-  }
-  if (current.length > 0) batches.push(current)
-  return batches
-}
-
 const wrapBatchError = (
   error: unknown,
   step: string,
@@ -428,37 +241,11 @@ const wrapBatchError = (
   return new MigrationError({ cause: error, step })
 }
 
-const submitBatches = async (params: {
-  ctx: MigrationCtx
-  classified: readonly ClassifiedName[]
-  notReservedSet: ReadonlySet<string>
-  ownedPermRes: Address | null
-  profiles: ReadonlyMap<Hex, Profile>
-  parentRegistries: ReadonlyMap<string, Address>
-}): Promise<Hex[]> => {
-  const {
-    ctx,
-    classified,
-    notReservedSet,
-    ownedPermRes,
-    profiles,
-    parentRegistries,
-  } = params
-
-  const batches = packNamesByPayload({
-    names: classified,
-    migrationOwner: ctx.migrationOwner,
-    defaultResolver: ctx.defaultResolver,
-    ownedPermRes,
-    notReservedSet,
-    parentRegistries,
-    profiles,
-  })
-
+const submitBatches = async (
+  ctx: MigrationCtx,
+  batches: readonly NameBundle[][],
+): Promise<Hex[]> => {
   const totalBatches = batches.length
-  const preBatchSteps = ctx.tracker.getCurrentStep()
-  ctx.tracker.setTotalSteps(preBatchSteps + totalBatches)
-
   const hashes: Hex[] = []
 
   for (let i = 0; i < batches.length; i++) {
@@ -493,43 +280,47 @@ const submitBatches = async (params: {
 }
 
 export const executeMigration = async (params: {
-  domains: V1Domain[]
-  migrationOwner: Address
-  defaultResolver: Address
+  plan: MigrationPlan
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signer: Signer
   accountAddress: Address
-  preflight?: MigrationPreflight
   onProgress: (progress: MigrationProgress) => void
 }): Promise<MigrationResult> => {
   const {
-    domains,
-    migrationOwner,
-    defaultResolver,
+    plan,
     wagmiConfig,
     publicClient,
     signer,
     accountAddress,
-    preflight = EMPTY_PREFLIGHT,
     onProgress,
   } = params
+  const {
+    classified,
+    ineligible,
+    groups,
+    preflight,
+    batches,
+    stepDescriptors,
+  } = plan
 
-  const { classified, ineligible } = classifyNames(domains, migrationOwner)
   if (classified.length === 0) {
-    return { completed: 0, txHashes: [], ineligible, migratedNames: [] }
+    return {
+      completed: 0,
+      txHashes: [],
+      ineligible: [...ineligible],
+      migratedNames: [],
+    }
   }
 
-  const groups = groupClassifiedNames(classified)
-  const totalSteps = buildStepDescriptors(classified, groups, preflight).length
   const ctx: MigrationCtx = {
     wagmiConfig,
     publicClient,
     signer,
     accountAddress,
-    migrationOwner,
-    defaultResolver,
-    tracker: createTracker(onProgress, totalSteps),
+    migrationOwner: plan.migrationOwner,
+    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
+    tracker: createTracker(onProgress, stepDescriptors.length),
   }
 
   const approvalHashes = preflight.skipApprovalPhase
@@ -539,50 +330,14 @@ export const executeMigration = async (params: {
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
   )
+  await ensureResolver(ctx, namesToOwnedPermRes, preflight)
 
-  const ownedPermRes = await ensureResolver(ctx, namesToOwnedPermRes, preflight)
-
-  ctx.tracker.emit(`Preparing migration for ${classified.length} name(s)`)
-
-  const [profiles, notReservedSet, parentRegistries] = await Promise.all([
-    fetchProfilesIfNeeded(ctx, namesToOwnedPermRes, preflight),
-    computeNotReservedSet(publicClient, classified),
-    validateSubnameParents(publicClient, groups),
-  ])
-
-  const batchHashes = await submitBatches({
-    ctx,
-    classified,
-    notReservedSet,
-    ownedPermRes,
-    profiles,
-    parentRegistries,
-  })
+  const batchHashes = await submitBatches(ctx, batches)
 
   return {
     completed: classified.length,
     txHashes: [...approvalHashes, ...batchHashes],
-    ineligible,
+    ineligible: [...ineligible],
     migratedNames: classified.map((c) => c.domain.name),
-  }
-}
-
-export const getMigrationStepInfo = (
-  domains: V1Domain[],
-  ownerAddress: Address,
-  preflight: MigrationPreflight = EMPTY_PREFLIGHT,
-): {
-  stepCount: number
-  stepDescriptors: MigrationStepDescriptor[]
-  ineligible: IneligibleName[]
-} => {
-  const { classified, ineligible } = classifyNames(domains, ownerAddress)
-  const groups = groupClassifiedNames(classified)
-  const descriptors = buildStepDescriptors(classified, groups, preflight)
-
-  return {
-    stepCount: descriptors.length,
-    stepDescriptors: descriptors,
-    ineligible,
   }
 }

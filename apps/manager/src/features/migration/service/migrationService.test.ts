@@ -21,6 +21,9 @@ vi.mock('@wagmi/core', async (importOriginal) => {
 vi.mock('./ensureOwnedPermRes', () => ({
   ensureOwnedPermRes: vi.fn(),
   findExistingPermRes: vi.fn(),
+  predictOwnedPermResAddress: vi.fn(() =>
+    Promise.resolve('0x000000000000000000000000000000000000d002'),
+  ),
   OwnedResolverDeployError: class OwnedResolverDeployError extends Error {
     name = 'OwnedResolverDeployError'
   },
@@ -61,7 +64,9 @@ vi.mock('./checkSCAApprovals', () => ({
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import { writeContract } from '@wagmi/core'
+import { buildMigrationPlan } from './buildMigrationPlan'
 import { checkSCAApprovals } from './checkSCAApprovals'
+import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
 import { fetchV1Profiles } from './fetchV1Profiles'
 import { executeMigration, type MigrationProgress } from './migrationService'
@@ -77,7 +82,6 @@ const filterNotReservedMock = vi.mocked(filterNotReserved)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
-const DEFAULT_RESOLVER: Address = '0x000000000000000000000000000000000000d001'
 const V1_RESOLVER: Address = '0x000000000000000000000000000000000000d003'
 const PERM_RES: Address = '0x000000000000000000000000000000000000d002'
 
@@ -104,20 +108,32 @@ const unwrappedDomain = (id: string): V1Domain =>
     wrappedDomain: null,
   }) as V1Domain
 
+const DEFAULT_PREFLIGHT: MigrationPreflight = {
+  preExistingOwnedPermRes: null,
+  skipApprovalPhase: false,
+  skipFetchProfilesPhase: false,
+}
+
 const runExecute = async (
-  overrides: Partial<Parameters<typeof executeMigration>[0]> = {},
+  overrides: { domains?: V1Domain[]; preflight?: MigrationPreflight } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
-  const result = await executeMigration({
-    domains: [unwrappedDomain('alice')],
+  const domains = overrides.domains ?? [unwrappedDomain('alice')]
+  const preflight = overrides.preflight ?? DEFAULT_PREFLIGHT
+  const plan = await buildMigrationPlan({
+    domains,
     migrationOwner: OWNER,
-    defaultResolver: DEFAULT_RESOLVER,
+    wagmiConfig: WAGMI,
+    publicClient: PUBLIC_CLIENT,
+    preflight,
+  })
+  const result = await executeMigration({
+    plan,
     wagmiConfig: WAGMI,
     publicClient: PUBLIC_CLIENT,
     signer: SIGNER,
     accountAddress: SCA,
     onProgress: (p) => progressEvents.push(p),
-    ...overrides,
   })
   return { result, progressEvents }
 }

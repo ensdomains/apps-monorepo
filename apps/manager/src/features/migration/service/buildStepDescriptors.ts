@@ -26,6 +26,7 @@ export const buildStepDescriptors = (
   classified: readonly ClassifiedName[],
   groups: GroupedNames,
   preflight: MigrationPreflight,
+  batchSizes?: readonly number[],
 ): MigrationStepDescriptor[] => {
   const descriptors: MigrationStepDescriptor[] = []
 
@@ -38,6 +39,19 @@ export const buildStepDescriptors = (
   )
   if (needsOwnedPermRes && !preflight.preExistingOwnedPermRes) {
     descriptors.push({ type: 'ensure-resolver' })
+  }
+
+  if (batchSizes) {
+    const totalBatches = batchSizes.length
+    for (let i = 0; i < totalBatches; i++) {
+      descriptors.push({
+        type: 'migrate-batch',
+        batch: i + 1,
+        totalBatches,
+        count: batchSizes[i]!,
+      })
+    }
+    return descriptors
   }
 
   const totalBatches = getBatchCount(classified.length)

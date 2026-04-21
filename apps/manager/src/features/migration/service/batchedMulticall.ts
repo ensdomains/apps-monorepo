@@ -3,7 +3,7 @@ import { multicall } from 'viem/actions'
 import { withTimeout } from './withTimeout'
 
 const PREFLIGHT_TIMEOUT_MS = 15000
-const MULTICALL_BATCH_SIZE = 500
+const MULTICALL_BATCH_SIZE = 5000
 
 type MulticallFailure = {
   status: 'failure'

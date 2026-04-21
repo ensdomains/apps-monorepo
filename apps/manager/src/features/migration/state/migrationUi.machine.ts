@@ -8,21 +8,20 @@ import {
   type SnapshotFrom,
   setup,
 } from 'xstate'
-import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
-import { EMPTY_PREFLIGHT } from '@/features/migration/service/computeMigrationPreflight'
+import {
+  adjustPlanForRetry,
+  type MigrationPlan,
+} from '@/features/migration/service/buildMigrationPlan'
 import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
 import {
   executeMigration,
-  getMigrationStepInfo,
-  type MigrationPreflight,
   type MigrationProgress,
   type MigrationResult,
   type MigrationStepDescriptor,
 } from '@/features/migration/service/migrationService'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
 const SUCCESS_HOLD_MS = 3000
@@ -31,11 +30,9 @@ const FAILURE_HOLD_MS = 1500
 type Context = {
   wagmiConfig: WagmiConfig
   selectedNames: string[]
-  domains: readonly V1Domain[]
-  ownerAddress?: Address
+  plan?: MigrationPlan
   signer?: Signer
   accountAddress?: Address
-  preflight: MigrationPreflight
   migratedNames: string[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
@@ -47,11 +44,9 @@ type Events =
   | { type: 'selection.set'; names: string[] }
   | {
       type: 'migration.start'
-      domains: readonly V1Domain[]
-      ownerAddress: Address
+      plan: MigrationPlan
       signer: Signer
       accountAddress: Address
-      preflight: MigrationPreflight
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
@@ -66,9 +61,7 @@ type Events =
 const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   wagmiConfig,
   selectedNames: [],
-  domains: [],
-  ownerAddress: undefined,
-  preflight: EMPTY_PREFLIGHT,
+  plan: undefined,
   migratedNames: [],
   txHashes: [],
   progress: undefined,
@@ -92,11 +85,9 @@ export const migrationUiMachine = setup({
       Events,
       {
         wagmiConfig: WagmiConfig
-        domains: readonly V1Domain[]
-        ownerAddress: Address
+        plan: MigrationPlan
         signer: Signer
         accountAddress: Address
-        preflight: MigrationPreflight
       }
     >(({ input, sendBack }) => {
       let cancelled = false
@@ -107,14 +98,11 @@ export const migrationUiMachine = setup({
       }
 
       executeMigration({
-        domains: [...input.domains],
-        migrationOwner: input.ownerAddress,
-        defaultResolver: V2_CONTRACTS.ENSV2Resolver,
+        plan: input.plan,
         wagmiConfig: input.wagmiConfig,
         publicClient: defaultPublicClient as PublicClient,
         signer: input.signer,
         accountAddress: input.accountAddress,
-        preflight: input.preflight,
         onProgress,
       })
         .then((result) => {
@@ -136,7 +124,7 @@ export const migrationUiMachine = setup({
   },
   guards: {
     hasSelection: ({ event }) =>
-      event.type === 'migration.start' && event.domains.length > 0,
+      event.type === 'migration.start' && event.plan.classified.length > 0,
     isOnlyFailures: ({ event }) =>
       event.type === 'migration.complete' && event.result.txHashes.length === 0,
   },
@@ -147,18 +135,11 @@ export const migrationUiMachine = setup({
     }),
     captureMigrationStart: assign(({ event }) => {
       if (event.type !== 'migration.start') return {}
-      const { stepDescriptors } = getMigrationStepInfo(
-        [...event.domains],
-        event.ownerAddress,
-        event.preflight,
-      )
       return {
-        domains: event.domains,
-        ownerAddress: event.ownerAddress,
+        plan: event.plan,
         signer: event.signer,
         accountAddress: event.accountAddress,
-        preflight: event.preflight,
-        stepDescriptors,
+        stepDescriptors: event.plan.stepDescriptors,
         progress: undefined,
         lastError: undefined,
         txHashes: [] as readonly Hex[],
@@ -183,24 +164,16 @@ export const migrationUiMachine = setup({
         event.type === 'migration.failed' ? event.error : context.lastError,
     }),
     resetForRetry: assign(({ context }) => {
+      if (!context.plan) return {}
+      const nextPlan = adjustPlanForRetry(context.plan, context.migratedNames)
       const migratedSet = new Set(context.migratedNames)
-      const remainingDomains = context.domains.filter(
-        (d) => !migratedSet.has(d.name),
-      )
-      const stepDescriptors = context.ownerAddress
-        ? getMigrationStepInfo(
-            [...remainingDomains],
-            context.ownerAddress,
-            context.preflight,
-          ).stepDescriptors
-        : context.stepDescriptors
       return {
+        plan: nextPlan,
+        stepDescriptors: nextPlan.stepDescriptors,
+        selectedNames: context.selectedNames.filter((n) => !migratedSet.has(n)),
         lastError: undefined,
         txHashes: [] as readonly Hex[],
         progress: undefined,
-        selectedNames: context.selectedNames.filter((n) => !migratedSet.has(n)),
-        domains: remainingDomains,
-        stepDescriptors,
       }
     }),
     resetAll: assign(({ context }) => ({
@@ -234,11 +207,9 @@ export const migrationUiMachine = setup({
             src: 'runMigration',
             input: ({ context }) => ({
               wagmiConfig: context.wagmiConfig,
-              domains: context.domains,
-              ownerAddress: context.ownerAddress!,
+              plan: context.plan!,
               signer: context.signer!,
               accountAddress: context.accountAddress!,
-              preflight: context.preflight,
             }),
           },
           on: {

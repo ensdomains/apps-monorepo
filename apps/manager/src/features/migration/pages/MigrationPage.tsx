@@ -3,13 +3,15 @@ import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import type { Address, PublicClient } from 'viem'
+import { useConfig, usePublicClient } from 'wagmi'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useMigrationPreflight } from '@/features/migration/hooks/useMigrationPreflight'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
+import { buildMigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import type { MigrationError } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
@@ -19,6 +21,7 @@ import {
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { customSepolia } from '@/lib/wagmi'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -79,6 +82,8 @@ export const MigrationPage = () => {
   const { data: v1Names = [] } = useV1Names()
   const smartAccount = useSmartAccountContext()
   const { ownerAddress, accountAddress } = smartAccount
+  const wagmiConfig = useConfig()
+  const publicClient = usePublicClient({ chainId: customSepolia.id })
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress as Address | undefined,
     scaAddress: accountAddress as Address | undefined,
@@ -97,18 +102,26 @@ export const MigrationPage = () => {
   const handleBeginUpgrade = useCallback(async () => {
     if (!ownerAddress || !smartAccount.signer || !smartAccount.accountAddress)
       return
+    if (!publicClient) return
     const { signer, accountAddress: sca } = smartAccount
     const selectedSet = new Set(selectedNames)
     const domains = v1Names.filter((d) => selectedSet.has(d.name))
     if (domains.length === 0) return
+
     const preflight = await ensurePreflight(domains)
+    const plan = await buildMigrationPlan({
+      domains,
+      migrationOwner: ownerAddress as Address,
+      wagmiConfig,
+      publicClient: publicClient as unknown as PublicClient,
+      preflight,
+    })
+
     uiActor.send({
       type: 'migration.start',
-      domains,
-      ownerAddress: ownerAddress as Address,
+      plan,
       signer,
       accountAddress: sca as Address,
-      preflight,
     })
   }, [
     v1Names,
@@ -117,6 +130,8 @@ export const MigrationPage = () => {
     selectedNames,
     uiActor,
     ensurePreflight,
+    wagmiConfig,
+    publicClient,
   ])
 
   return (

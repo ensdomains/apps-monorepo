@@ -11,26 +11,22 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 
 vi.mock('@/features/migration/service/migrationService', () => ({
   executeMigration: vi.fn(),
-  getMigrationStepInfo: vi.fn(() => ({
-    stepCount: 1,
-    stepDescriptors: [],
-    ineligible: [],
-  })),
 }))
 
+import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import type {
-  MigrationProgress,
-  MigrationResult,
-} from '@/features/migration/service/migrationService'
+  ClassifiedName,
+  GroupedNames,
+} from '@/features/migration/service/classifyNames'
 import {
   executeMigration,
-  getMigrationStepInfo,
+  type MigrationProgress,
+  type MigrationResult,
 } from '@/features/migration/service/migrationService'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { migrationUiMachine } from './migrationUi.machine'
 
 const executeMigrationMock = vi.mocked(executeMigration)
-const getMigrationStepInfoMock = vi.mocked(getMigrationStepInfo)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
@@ -42,8 +38,51 @@ const domain = (id: string): V1Domain =>
     id,
     name: `${id}.eth`,
     labelName: id,
-    labelhash: `0x${id}`,
+    labelhash:
+      '0x0000000000000000000000000000000000000000000000000000000000000002',
   }) as unknown as V1Domain
+
+const EMPTY_GROUPS: GroupedNames = {
+  unwrapped: [],
+  unlocked: [],
+  locked2ld: [],
+  childNames: new Map(),
+}
+
+const makeClassified = (d: V1Domain): ClassifiedName => ({
+  domain: d,
+  tokenType: 'unwrapped',
+  label: d.labelName ?? '',
+  parentName: 'eth',
+  fuses: 0,
+  tokenHolder: OWNER,
+  v1ResolverAddress: null,
+  resolverStrategy: 'to-owned-permres',
+  managerAddress: null,
+})
+
+const makePlan = (
+  domains: V1Domain[],
+  overrides: Partial<MigrationPlan> = {},
+): MigrationPlan => ({
+  migrationOwner: OWNER,
+  domains,
+  classified: domains.map(makeClassified),
+  ineligible: [],
+  groups: EMPTY_GROUPS,
+  preflight: {
+    preExistingOwnedPermRes: null,
+    skipApprovalPhase: false,
+    skipFetchProfilesPhase: false,
+  },
+  ownedPermRes: null,
+  profiles: new Map(),
+  notReservedSet: new Set(),
+  parentRegistries: new Map(),
+  batches: [],
+  stepDescriptors: [],
+  ...overrides,
+})
 
 const start = (domains: V1Domain[] = [domain('alice')]) => {
   const actor = createActor(migrationUiMachine, {
@@ -52,15 +91,9 @@ const start = (domains: V1Domain[] = [domain('alice')]) => {
   actor.start()
   actor.send({
     type: 'migration.start',
-    domains,
-    ownerAddress: OWNER,
+    plan: makePlan(domains),
     signer: SIGNER,
     accountAddress: SCA,
-    preflight: {
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: false,
-      skipFetchProfilesPhase: false,
-    },
   })
   return actor
 }
@@ -77,12 +110,6 @@ const migrationResult = (
 
 beforeEach(() => {
   executeMigrationMock.mockReset()
-  getMigrationStepInfoMock.mockReset()
-  getMigrationStepInfoMock.mockReturnValue({
-    stepCount: 1,
-    stepDescriptors: [],
-    ineligible: [],
-  })
   vi.useFakeTimers()
 })
 
@@ -109,34 +136,28 @@ describe('migrationUiMachine', () => {
       ])
     })
 
-    it('does not transition to migrate when domains array is empty', () => {
+    it('does not transition to migrate when classified is empty', () => {
       const actor = createActor(migrationUiMachine, {
         input: { wagmiConfig: WAGMI },
       })
       actor.start()
       actor.send({
         type: 'migration.start',
-        domains: [],
-        ownerAddress: OWNER,
+        plan: makePlan([], { classified: [] }),
         signer: SIGNER,
         accountAddress: SCA,
-        preflight: {
-          preExistingOwnedPermRes: null,
-          skipApprovalPhase: false,
-          skipFetchProfilesPhase: false,
-        },
       })
       expect(actor.getSnapshot().value).toBe('select')
     })
   })
 
   describe('migrate.running state', () => {
-    it('transitions select → migrate.running on migration.start with domains', () => {
+    it('transitions select → migrate.running on migration.start with classified names', () => {
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       const actor = start()
       expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
-      expect(actor.getSnapshot().context.domains).toHaveLength(1)
-      expect(actor.getSnapshot().context.ownerAddress).toBe(OWNER)
+      expect(actor.getSnapshot().context.plan?.domains).toHaveLength(1)
+      expect(actor.getSnapshot().context.plan?.migrationOwner).toBe(OWNER)
     })
 
     it('records progress events into context', async () => {
@@ -182,7 +203,7 @@ describe('migrationUiMachine', () => {
 
       actor.send({ type: 'done' })
       expect(actor.getSnapshot().value).toBe('select')
-      expect(actor.getSnapshot().context.domains).toEqual([])
+      expect(actor.getSnapshot().context.plan).toBeUndefined()
       expect(actor.getSnapshot().context.migratedNames).toEqual([])
     })
   })
@@ -211,72 +232,33 @@ describe('migrationUiMachine', () => {
   })
 
   describe('failure.retry → resetForRetry', () => {
-    it('filters already-migrated names out of domains and selectedNames on retry', async () => {
-      executeMigrationMock.mockResolvedValueOnce(
-        migrationResult({
-          txHashes: ['0xabc'] as readonly Hex[],
-          migratedNames: ['alice.eth'],
-        }),
-      )
-
-      const actor = createActor(migrationUiMachine, {
-        input: { wagmiConfig: WAGMI },
-      })
-      actor.start()
-      actor.send({ type: 'selection.set', names: ['alice.eth', 'bob.eth'] })
-      actor.send({
-        type: 'migration.start',
-        domains: [domain('alice'), domain('bob')],
-        ownerAddress: OWNER,
-        signer: SIGNER,
-        accountAddress: SCA,
-        preflight: {
-          preExistingOwnedPermRes: null,
-          skipApprovalPhase: false,
-          skipFetchProfilesPhase: false,
-        },
-      })
-      await vi.advanceTimersByTimeAsync(3000)
-      // Drive it to failure by firing a retry from success isn't possible; emit a failed outcome instead:
-      // Already in success now; instead construct a separate run below.
-      expect(actor.getSnapshot().value).toBe('success')
-    })
-
-    it('resetForRetry: filters migrated names and clears error/progress', async () => {
+    it('resetForRetry: filters migrated names from plan and clears error/progress', async () => {
       const actor = createActor(migrationUiMachine, {
         input: { wagmiConfig: WAGMI },
       })
       actor.start()
       actor.send({ type: 'selection.set', names: ['alice.eth', 'bob.eth'] })
 
-      // First run: one name succeeds, flow ends in failure by rejecting.
       executeMigrationMock.mockResolvedValueOnce(
         migrationResult({ migratedNames: ['alice.eth'], txHashes: [] }),
       )
       actor.send({
         type: 'migration.start',
-        domains: [domain('alice'), domain('bob')],
-        ownerAddress: OWNER,
+        plan: makePlan([domain('alice'), domain('bob')]),
         signer: SIGNER,
         accountAddress: SCA,
-        preflight: {
-          preExistingOwnedPermRes: null,
-          skipApprovalPhase: false,
-          skipFetchProfilesPhase: false,
-        },
       })
 
       await vi.advanceTimersByTimeAsync(1500)
       expect(actor.getSnapshot().value).toBe('failure')
       expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
 
-      // Re-mock for the retry.
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       actor.send({ type: 'retry' })
 
       const ctx = actor.getSnapshot().context
       expect(ctx.selectedNames).toEqual(['bob.eth'])
-      expect(ctx.domains.map((d) => d.name)).toEqual(['bob.eth'])
+      expect(ctx.plan?.domains.map((d) => d.name)).toEqual(['bob.eth'])
       expect(ctx.lastError).toBeUndefined()
       expect(ctx.progress).toBeUndefined()
     })
@@ -289,7 +271,7 @@ describe('migrationUiMachine', () => {
 
       actor.send({ type: 'cancel' })
       expect(actor.getSnapshot().value).toBe('select')
-      expect(actor.getSnapshot().context.domains).toEqual([])
+      expect(actor.getSnapshot().context.plan).toBeUndefined()
     })
   })
 })
