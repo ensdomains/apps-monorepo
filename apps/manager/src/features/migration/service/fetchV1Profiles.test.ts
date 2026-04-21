@@ -181,8 +181,8 @@ describe('fetchV1Profiles', () => {
     ])
   })
 
-  it('chunks multicall args into batches of 200 with batchSize:0 and calls sequentially', async () => {
-    const keys = Array.from({ length: 201 }, (_, i) => `text-${i}`)
+  it('chunks multicall args into batches of 700 with batchSize:0', async () => {
+    const keys = Array.from({ length: 701 }, (_, i) => `text-${i}`)
     getV1ProfileKeysMock.mockReturnValueOnce(
       ok([{ id: NODE_A, texts: keys, coinTypes: [] }]) as never,
     )
@@ -207,10 +207,39 @@ describe('fetchV1Profiles', () => {
       contracts: unknown[]
       batchSize?: number
     }
-    expect(firstCall.contracts).toHaveLength(200)
+    expect(firstCall.contracts).toHaveLength(700)
     expect(firstCall.batchSize).toBe(0)
     expect(secondCall.contracts).toHaveLength(1)
     expect(secondCall.batchSize).toBe(0)
+  })
+
+  it('runs chunks with bounded concurrency (>1 in flight)', async () => {
+    const keys = Array.from({ length: 700 * 8 }, (_, i) => `text-${i}`)
+    getV1ProfileKeysMock.mockReturnValueOnce(
+      ok([{ id: NODE_A, texts: keys, coinTypes: [] }]) as never,
+    )
+
+    let inFlight = 0
+    let maxInFlight = 0
+    const multicallSpy = vi.fn(async (opts: { contracts: unknown[] }) => {
+      inFlight++
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await new Promise((r) => setTimeout(r, 5))
+      inFlight--
+      return opts.contracts.map(() => call.ok('v'))
+    })
+    const publicClient = {
+      multicall: multicallSpy,
+    } as unknown as PublicClient
+
+    await fetchV1Profiles({
+      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
+      publicClient,
+    })
+
+    expect(multicallSpy).toHaveBeenCalledTimes(8)
+    expect(maxInFlight).toBeGreaterThan(1)
+    expect(maxInFlight).toBeLessThanOrEqual(6)
   })
 
   it('populates separate buckets per node', async () => {

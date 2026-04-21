@@ -3,7 +3,8 @@ import type { Address, Hex, PublicClient } from 'viem'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
-const PROFILE_MULTICALL_CHUNK = 200
+const PROFILE_MULTICALL_CHUNK = 700
+const PROFILE_MULTICALL_CONCURRENCY = 6
 
 type ProfileMulticallResult = {
   status: 'success' | 'failure'
@@ -23,20 +24,26 @@ const executeMulticallChunks = async (
   for (let i = 0; i < args.length; i += PROFILE_MULTICALL_CHUNK) {
     chunks.push(args.slice(i, i + PROFILE_MULTICALL_CHUNK))
   }
-  const out: ProfileMulticallResult[] = []
-  try {
-    for (const chunk of chunks) {
-      const res = (await publicClient.multicall({
-        contracts: chunk,
+  const chunkResults: ProfileMulticallResult[][] = new Array(chunks.length)
+  let cursor = 0
+  const runWorker = async (): Promise<void> => {
+    while (true) {
+      const index = cursor++
+      if (index >= chunks.length) return
+      chunkResults[index] = (await publicClient.multicall({
+        contracts: chunks[index]!,
         allowFailure: true,
         batchSize: 0,
       })) as ProfileMulticallResult[]
-      out.push(...res)
     }
+  }
+  try {
+    const workerCount = Math.min(PROFILE_MULTICALL_CONCURRENCY, chunks.length)
+    await Promise.all(Array.from({ length: workerCount }, () => runWorker()))
   } catch (cause) {
     throw new ProfileFetchError({ cause, phase: 'onchain' })
   }
-  return out
+  return chunkResults.flat()
 }
 
 export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
