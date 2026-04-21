@@ -251,7 +251,13 @@ const buildRenewalFlowTransactions = (
   ]
 }
 
-export const useRenewalTransactions = () => {
+type UseRenewalTransactionsOptions = {
+  readonly onComplete?: () => void
+}
+
+export const useRenewalTransactions = ({
+  onComplete,
+}: UseRenewalTransactionsOptions = {}) => {
   const config = useConfig()
   const connection = useConnection()
   const publicClient = usePublicClient({ chainId: sepolia.id })
@@ -279,6 +285,7 @@ export const useRenewalTransactions = () => {
   const handleDone = () => {
     closeModal()
     clearTransaction()
+    onComplete?.()
   }
 
   const handleApproveStart = async () => {
