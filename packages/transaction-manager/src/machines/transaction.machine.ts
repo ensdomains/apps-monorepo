@@ -274,7 +274,7 @@ export const transactionMachine = setup({
         publicClient: PublicClient
       }): ResultAsync<TransactionReceipt, TransactionTimeoutError> => {
         const confirmations = options?.confirmations || 1
-        const timeout = options?.timeout || 3000
+        const timeout = options?.timeout || 120000
 
         console.log('⏳ [TRANSACTION] Waiting for receipt:', {
           hash,
@@ -294,13 +294,21 @@ export const transactionMachine = setup({
     ),
 
     /**
-     * Check transaction with eth_call fallback
+     * Check transaction with receipt fallback
+     *
+     * Attempts to fetch the transaction receipt to determine if the transaction
+     * has been confirmed. This avoids the false-positive issue with eth_call
+     * simulation, where stateless transactions (e.g. ERC20 approve) simulate
+     * successfully even before being mined — causing dependent transactions to
+     * start prematurely.
      */
     checkWithEthCall: fromResultAsync(
       ({
+        hash,
         request,
         publicClient,
       }: {
+        hash?: Hash
         request?: TransactionRequest
         publicClient: PublicClient
       }): ResultAsync<
@@ -313,6 +321,30 @@ export const transactionMachine = setup({
               {} as TransactionRequest,
               new Error('No request provided'),
             ),
+          )
+        }
+
+        // If we have a hash, check if the transaction has actually been confirmed
+        // on-chain rather than simulating it. This prevents false positives where
+        // a transaction simulates successfully (e.g. ERC20 approve) but hasn't
+        // been mined yet, which would cause dependent transactions to fail.
+        if (hash) {
+          return fromPromise(
+            (async () => {
+              try {
+                const receipt = await publicClient.getTransactionReceipt({
+                  hash,
+                })
+                return {
+                  wouldSucceed: receipt.status === 'success',
+                  result: hash,
+                }
+              } catch {
+                // Receipt not found — transaction is still pending
+                return { wouldSucceed: false }
+              }
+            })(),
+            (error) => new EthCallFallbackError(request, error),
           )
         }
 
@@ -729,6 +761,7 @@ export const transactionMachine = setup({
       invoke: {
         src: 'checkWithEthCall',
         input: ({ context }) => ({
+          hash: context.hash,
           request: context.request,
           publicClient: context.publicClient,
         }),
