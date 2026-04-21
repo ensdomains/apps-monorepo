@@ -47,6 +47,12 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   ),
 }))
 
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadgeWithActions: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="entity-badge">{children}</span>
+  ),
+}))
+
 vi.mock('@/utils/formatting/truncateAddress', () => ({
   truncateAddress: (address: string) => `${address.slice(0, 6)}...`,
 }))

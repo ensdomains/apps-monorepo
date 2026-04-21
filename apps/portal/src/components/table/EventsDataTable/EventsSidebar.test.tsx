@@ -24,6 +24,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 // Mock wagmi hooks
 vi.mock('wagmi', () => ({
+  createConfig: vi.fn(() => ({})),
   useTransaction: vi.fn(() => ({
     data: {
       from: '0x123' as `0x${string}`,
@@ -48,6 +49,12 @@ vi.mock('wagmi', () => ({
 }))
 
 // Mock other dependencies
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadgeWithActions: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="entity-badge">{children}</span>
+  ),
+}))
+
 vi.mock('@/components/CopyableRecord', () => ({
   CopyableRecord: ({ displayValue }: { displayValue: React.ReactNode }) => (
     <div>{displayValue}</div>
