@@ -254,7 +254,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:66
+#: src/features/migration/components/GameStep.tsx:70
 msgid "Almost there..."
 msgstr ""
 
@@ -290,7 +290,7 @@ msgstr ""
 msgid "Approving payment token"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:70
+#: src/features/migration/components/GameStep.tsx:78
 msgid "Approving smart account"
 msgstr ""
 
@@ -376,7 +376,7 @@ msgstr ""
 #. placeholder {0}: descriptor.batch
 #. placeholder {1}: descriptor.totalBatches
 #. placeholder {2}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:79
+#: src/features/migration/components/GameStep.tsx:87
 msgid "Batch {0}/{1}: upgrading {2} name(s)"
 msgstr ""
 
@@ -1557,7 +1557,7 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:67
+#: src/features/migration/components/GameStep.tsx:71
 msgid "Preparing migration..."
 msgstr ""
 
@@ -1980,7 +1980,7 @@ msgstr "Anger ETH-adress..."
 msgid "Setting ETH address…"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:74
+#: src/features/migration/components/GameStep.tsx:82
 msgid "Setting up your v2 resolver"
 msgstr ""
 
@@ -2343,11 +2343,11 @@ msgid "Upgrade your name(s) to unlock your new ENS profile and claim your person
 msgstr ""
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:78
+#: src/features/migration/components/GameStep.tsx:86
 msgid "Upgrading {0} name(s) to v2"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:124
+#: src/features/migration/components/GameStep.tsx:132
 msgid "Upgrading your names..."
 msgstr ""
 

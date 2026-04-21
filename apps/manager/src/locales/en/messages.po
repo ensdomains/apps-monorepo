@@ -249,7 +249,7 @@ msgstr "Almost complete"
 msgid "Almost ready"
 msgstr "Almost ready"
 
-#: src/features/migration/components/GameStep.tsx:66
+#: src/features/migration/components/GameStep.tsx:70
 msgid "Almost there..."
 msgstr "Almost there..."
 
@@ -285,7 +285,7 @@ msgstr "Approving"
 msgid "Approving payment token"
 msgstr "Approving payment token"
 
-#: src/features/migration/components/GameStep.tsx:70
+#: src/features/migration/components/GameStep.tsx:78
 msgid "Approving smart account"
 msgstr "Approving smart account"
 
@@ -371,7 +371,7 @@ msgstr "Backup Card"
 #. placeholder {0}: descriptor.batch
 #. placeholder {1}: descriptor.totalBatches
 #. placeholder {2}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:79
+#: src/features/migration/components/GameStep.tsx:87
 msgid "Batch {0}/{1}: upgrading {2} name(s)"
 msgstr "Batch {0}/{1}: upgrading {2} name(s)"
 
@@ -1552,7 +1552,7 @@ msgstr "Premium Fee"
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
 
-#: src/features/migration/components/GameStep.tsx:67
+#: src/features/migration/components/GameStep.tsx:71
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
 
@@ -1975,7 +1975,7 @@ msgstr "Setting ETH address..."
 msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
-#: src/features/migration/components/GameStep.tsx:74
+#: src/features/migration/components/GameStep.tsx:82
 msgid "Setting up your v2 resolver"
 msgstr "Setting up your v2 resolver"
 
@@ -2338,11 +2338,11 @@ msgid "Upgrade your name(s) to unlock your new ENS profile and claim your person
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
 #. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:78
+#: src/features/migration/components/GameStep.tsx:86
 msgid "Upgrading {0} name(s) to v2"
 msgstr "Upgrading {0} name(s) to v2"
 
-#: src/features/migration/components/GameStep.tsx:124
+#: src/features/migration/components/GameStep.tsx:132
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

@@ -391,40 +391,24 @@ const submitBatches = async (params: {
     )
 
     const transferCalls = buildTransferBatchCalls({ ...params, chunk })
+    const replayCalls = ownedPermRes
+      ? buildChunkedProfileReplayCalls({
+          resolver: ownedPermRes,
+          profiles: collectChunkProfiles(chunk, profiles),
+        })
+      : []
+    const combinedCalls = [...transferCalls, ...replayCalls]
+
     let lastHash: Hex
     try {
       lastHash = await submitBatchedUserOp(
         ctx,
-        transferCalls,
+        combinedCalls,
         `Migrate batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
       )
       hashes.push(lastHash)
     } catch (error) {
       throw wrapBatchError(error, batchLabel)
-    }
-
-    if (ownedPermRes) {
-      const replayCalls = buildChunkedProfileReplayCalls({
-        resolver: ownedPermRes,
-        profiles: collectChunkProfiles(chunk, profiles),
-      })
-      for (let r = 0; r < replayCalls.length; r++) {
-        const replayLabel = `Restoring records ${r + 1}/${replayCalls.length} for ${batchLabel}`
-        ctx.tracker.emit(replayLabel)
-        try {
-          lastHash = await submitBatchedUserOp(
-            ctx,
-            [replayCalls[r]!],
-            replayLabel,
-          )
-          hashes.push(lastHash)
-        } catch (error) {
-          throw wrapBatchError(
-            error,
-            `Records ${r + 1}/${replayCalls.length} for ${batchLabel}`,
-          )
-        }
-      }
     }
 
     ctx.tracker.next()

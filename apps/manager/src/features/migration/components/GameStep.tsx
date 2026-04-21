@@ -27,6 +27,9 @@ export const GameStep = () => {
 
   const totalSteps = Math.max(stepDescriptors.length, 1)
   const completedSteps = progress?.currentStep ?? 0
+  const displayStep = done
+    ? totalSteps
+    : Math.min(completedSteps + 1, totalSteps)
   const needsScroll = totalSteps > VISIBLE_PLANKS
   const plankWidth =
     trackWidth > 0 ? trackWidth / Math.min(totalSteps, VISIBLE_PLANKS) : 0
@@ -61,10 +64,15 @@ export const GameStep = () => {
 
   const descriptionText = match({
     done,
+    progressDescription: progress?.description,
     descriptor: nextDescriptor,
   })
     .with({ done: true }, () => t`Almost there...`)
     .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
+    .with(
+      { progressDescription: P.string },
+      ({ progressDescription }) => progressDescription,
+    )
     .with(
       { descriptor: { type: 'approve-sca' } },
       () => `${t`Approving smart account`}...`,
@@ -151,7 +159,7 @@ export const GameStep = () => {
             transition={{ duration: 0.3 }}
           >
             <span className="font-semi-mono text-[10px] text-ens-garnet-400 uppercase tabular-nums tracking-[0.12px]">
-              {completedSteps}/{totalSteps}
+              {displayStep}/{totalSteps}
             </span>
           </motion.div>
         )}
