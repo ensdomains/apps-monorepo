@@ -28,6 +28,18 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
 
+  useEffect(() => {
+    if (!autoAdvanceTxId) return
+
+    const activeIndex = transactions.findIndex(
+      (tx) => tx.id === autoAdvanceTxId,
+    )
+    if (activeIndex < 0 || activeIndex >= transactions.length - 1) return
+
+    const activeTransaction = transactions[activeIndex]
+    activeTransaction.onDone()
+  }, [autoAdvanceTxId, transactions])
+
   const handleClose = () => {
     closeModal()
   }

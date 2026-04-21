@@ -157,6 +157,7 @@ function RouteComponent() {
     clearIncompatibleRenewalState,
   } = useRenewalTransactions({
     onComplete: () => {
+      setRowSelection({})
       void queryClient.invalidateQueries({
         queryKey: ['get-names-for-address'],
       })

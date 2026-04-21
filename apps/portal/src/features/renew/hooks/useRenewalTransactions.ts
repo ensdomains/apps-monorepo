@@ -62,7 +62,7 @@ export type StartMultiFlowConfig = {
 }
 
 type UseRenewalTransactionsOptions = {
-  readonly onComplete: () => void
+  readonly onComplete?: () => void
 }
 
 type ApproveParams = {
@@ -227,7 +227,7 @@ function buildMultiTransactions({
 
 export const useRenewalTransactions = ({
   onComplete,
-}: UseRenewalTransactionsOptions) => {
+}: UseRenewalTransactionsOptions = {}) => {
   const config = useConfig()
   const connection = useConnection()
   const publicClient = usePublicClient({ chainId: sepolia.id })
@@ -265,7 +265,7 @@ export const useRenewalTransactions = ({
     clearTransaction()
     setSavedParams(null)
     setMultiSavedParams(null)
-    onComplete()
+    onComplete?.()
   }
 
   const handleApproveStart = async () => {

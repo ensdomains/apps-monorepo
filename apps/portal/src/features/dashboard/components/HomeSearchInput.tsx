@@ -31,7 +31,7 @@ const SEARCH_DEBOUNCE_MS = 300
 
 export const HomeSearchInput = ({ className }: { className?: string }) => {
   const listboxId = useId()
-  const navigate = useNavigate({ from: '/' })
+  const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
