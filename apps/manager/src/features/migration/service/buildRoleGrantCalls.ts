@@ -7,10 +7,6 @@ import type { ClassifiedName } from './classifyNames'
 
 const ROLE_SET_RESOLVER = 1n << 12n
 
-export const getNamesWithManagers = (
-  names: readonly ClassifiedName[],
-): readonly ClassifiedName[] => names.filter((n) => n.managerAddress !== null)
-
 export const buildRoleGrantCall = (name: ClassifiedName): ZeroDevCall => {
   if (!name.managerAddress) {
     throw new Error(`No manager address for ${name.domain.name}`)
@@ -28,7 +24,3 @@ export const buildRoleGrantCall = (name: ClassifiedName): ZeroDevCall => {
     value: 0n,
   }
 }
-
-export const buildRoleGrantCalls = (
-  names: readonly ClassifiedName[],
-): ZeroDevCall[] => getNamesWithManagers(names).map(buildRoleGrantCall)

@@ -19,7 +19,7 @@ export const needsSCAApproval = (groups: GroupedNames): boolean =>
   groups.locked2ld.length > 0 ||
   groups.childNames.size > 0
 
-export const getBatchCount = (nameCount: number): number =>
+const getBatchCount = (nameCount: number): number =>
   Math.ceil(nameCount / MAX_NAMES_PER_BATCH)
 
 export const buildStepDescriptors = (

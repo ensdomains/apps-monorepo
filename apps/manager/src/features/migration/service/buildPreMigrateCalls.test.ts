@@ -2,10 +2,7 @@ import type { Address } from 'viem'
 import { decodeFunctionData, parseAbiItem } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import {
-  buildPreMigrateCall,
-  buildPreMigrateCalls,
-} from './buildPreMigrateCalls'
+import { buildPreMigrateCall } from './buildPreMigrateCalls'
 import type { ClassifiedName } from './classifyNames'
 import type { V1Domain } from './v1SubgraphClient'
 
@@ -98,37 +95,5 @@ describe('buildPreMigrateCall', () => {
     expect(() =>
       buildPreMigrateCall(makeClassified({ label: 'alice' })),
     ).toThrow(/No expiry found for alice\.eth/)
-  })
-})
-
-describe('buildPreMigrateCalls', () => {
-  it('returns one ZeroDevCall per name in order', () => {
-    const calls = buildPreMigrateCalls([
-      makeClassified({
-        label: 'alice',
-        v1ResolverAddress: CUSTOM_RESOLVER,
-        registrationExpiry: '100',
-      }),
-      makeClassified({ label: 'bob', registrationExpiry: '200' }),
-    ])
-
-    expect(calls).toHaveLength(2)
-    const decoded0 = decodeFunctionData({
-      abi: [preMigrateFn],
-      data: calls[0]!.data,
-    })
-    const decoded1 = decodeFunctionData({
-      abi: [preMigrateFn],
-      data: calls[1]!.data,
-    })
-    expect(decoded0.args[0]).toBe('alice')
-    expect(decoded1.args[0]).toBe('bob')
-    expect(decoded1.args[3].toLowerCase()).toBe(
-      V1_CONTRACTS.PublicResolver.toLowerCase(),
-    )
-  })
-
-  it('returns an empty array for empty input', () => {
-    expect(buildPreMigrateCalls([])).toEqual([])
   })
 })

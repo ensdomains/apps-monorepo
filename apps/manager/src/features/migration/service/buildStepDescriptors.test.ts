@@ -2,7 +2,6 @@ import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   buildStepDescriptors,
-  getBatchCount,
   MAX_NAMES_PER_BATCH,
   needsSCAApproval,
 } from './buildStepDescriptors'
@@ -91,32 +90,6 @@ describe('needsSCAApproval', () => {
         childNames: new Map([['raffy.eth', [child]]]),
       }),
     ).toBe(true)
-  })
-})
-
-describe('getBatchCount', () => {
-  it('returns 0 for 0 names', () => {
-    expect(getBatchCount(0)).toBe(0)
-  })
-
-  it('returns 1 for 1 name', () => {
-    expect(getBatchCount(1)).toBe(1)
-  })
-
-  it('returns 1 at exactly the batch size', () => {
-    expect(getBatchCount(MAX_NAMES_PER_BATCH)).toBe(1)
-  })
-
-  it('returns 2 at batch size + 1', () => {
-    expect(getBatchCount(MAX_NAMES_PER_BATCH + 1)).toBe(2)
-  })
-
-  it('returns 2 at 2x batch size', () => {
-    expect(getBatchCount(MAX_NAMES_PER_BATCH * 2)).toBe(2)
-  })
-
-  it('returns 3 just past 2x batch size', () => {
-    expect(getBatchCount(MAX_NAMES_PER_BATCH * 2 + 1)).toBe(3)
   })
 })
 

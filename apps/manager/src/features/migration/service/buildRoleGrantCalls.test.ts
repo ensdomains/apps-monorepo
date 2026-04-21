@@ -2,11 +2,7 @@ import { type Address, decodeFunctionData } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { ETH_REGISTRY_V2_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
-import {
-  buildRoleGrantCall,
-  buildRoleGrantCalls,
-  getNamesWithManagers,
-} from './buildRoleGrantCalls'
+import { buildRoleGrantCall } from './buildRoleGrantCalls'
 import type { ClassifiedName } from './classifyNames'
 import type { V1Domain } from './v1SubgraphClient'
 
@@ -28,18 +24,6 @@ const makeClassified = (
   resolverStrategy: 'to-owned-permres',
   managerAddress,
   domain: { id: '0x01', name: `${label}.eth` } as unknown as V1Domain,
-})
-
-describe('getNamesWithManagers', () => {
-  it('filters out names without a manager', () => {
-    const a = makeClassified(MANAGER, 'a')
-    const b = makeClassified(null, 'b')
-    expect(getNamesWithManagers([a, b])).toEqual([a])
-  })
-
-  it('returns an empty array when none have managers', () => {
-    expect(getNamesWithManagers([makeClassified(null)])).toEqual([])
-  })
 })
 
 describe('buildRoleGrantCall', () => {
@@ -64,25 +48,5 @@ describe('buildRoleGrantCall', () => {
     expect(() => buildRoleGrantCall(makeClassified(null))).toThrow(
       /No manager address/i,
     )
-  })
-})
-
-describe('buildRoleGrantCalls', () => {
-  it('returns an empty array when no name has a manager', () => {
-    expect(
-      buildRoleGrantCalls([
-        makeClassified(null, 'x'),
-        makeClassified(null, 'y'),
-      ]),
-    ).toEqual([])
-  })
-
-  it('emits one call per name with a manager, preserving order', () => {
-    const calls = buildRoleGrantCalls([
-      makeClassified(MANAGER, 'a'),
-      makeClassified(null, 'b'),
-      makeClassified(MANAGER, 'c'),
-    ])
-    expect(calls).toHaveLength(2)
   })
 })

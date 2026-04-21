@@ -29,7 +29,3 @@ export const buildPreMigrateCall = (name: ClassifiedName): ZeroDevCall => {
     value: 0n,
   }
 }
-
-export const buildPreMigrateCalls = (
-  names: readonly ClassifiedName[],
-): ZeroDevCall[] => names.map(buildPreMigrateCall)
