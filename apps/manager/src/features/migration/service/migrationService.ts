@@ -18,7 +18,7 @@ import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { buildAllTransferCalls } from './buildMigrationCalls'
 import { buildPreMigrateCalls } from './buildPreMigrateCalls'
-import { buildChunkedProfileReplayCalls } from './buildProfileReplayCalls'
+import { buildPerNameReplayCalls } from './buildProfileReplayCalls'
 import { buildRoleGrantCalls } from './buildRoleGrantCalls'
 import {
   buildStepDescriptors,
@@ -392,7 +392,7 @@ const submitBatches = async (params: {
 
     const transferCalls = buildTransferBatchCalls({ ...params, chunk })
     const replayCalls = ownedPermRes
-      ? buildChunkedProfileReplayCalls({
+      ? buildPerNameReplayCalls({
           resolver: ownedPermRes,
           profiles: collectChunkProfiles(chunk, profiles),
         })

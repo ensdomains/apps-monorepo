@@ -117,3 +117,23 @@ export const buildChunkedProfileReplayCalls = (params: {
   }
   return calls
 }
+
+export const buildPerNameReplayCalls = (params: {
+  resolver: Address
+  profiles: Map<Hex, Profile>
+}): ZeroDevCall[] => {
+  const { resolver, profiles } = params
+  if (resolver === zeroAddress) {
+    throw new Error(
+      'buildPerNameReplayCalls: resolver must not be the zero address',
+    )
+  }
+
+  const calls: ZeroDevCall[] = []
+  for (const [node, profile] of profiles) {
+    const singleMap = new Map<Hex, Profile>([[node, profile]])
+    const call = buildProfileReplayCall({ resolver, profiles: singleMap })
+    if (call) calls.push(call)
+  }
+  return calls
+}
