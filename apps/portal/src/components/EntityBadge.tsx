@@ -81,13 +81,12 @@ const CopyChip = ({
 
   return (
     <button type="button" className={chipClass} onClick={handleCopy}>
-      {showIcon &&
-        (copied ? (
-          <CheckIcon className="size-3.25" />
-        ) : (
-          <ChipCopyIcon className="size-3.25" />
-        ))}
-      {label}
+      {copied ? (
+        <CheckIcon className="size-3.25" />
+      ) : (
+        showIcon && <ChipCopyIcon className="size-3.25" />
+      )}
+      {!copied && label}
     </button>
   )
 }
