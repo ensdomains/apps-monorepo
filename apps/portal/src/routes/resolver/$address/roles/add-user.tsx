@@ -205,7 +205,7 @@ function RouteComponent() {
         {/* Roles */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <h2 className="text-lg font-medium">Roles</h2>
-          <div className="border rounded-lg divide-y">
+          <div className="border rounded-sm divide-y">
             {resolverPermissions.map((permission) => {
               const role = permission.key as ResolverRole
               const isChecked = selectedRoles.includes(role)

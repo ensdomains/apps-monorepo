@@ -14,7 +14,7 @@ export function RegistryCardsGrid({ label, owner }: RegistryCardsGridProps) {
     <div
       className={cn(
         'grid grid-cols-1 gap-4 md:gap-6 w-full',
-        owner ? 'md:grid-cols-3' : 'md:grid-cols-2',
+        owner ? 'lg:grid-cols-3' : 'lg:grid-cols-2',
       )}
     >
       <LabelCard label={label} />

@@ -180,7 +180,7 @@ function RouteComponent() {
 
           <h1 className="text-4xl font-medium leading-tight">Burn fuses</h1>
 
-          <div className="bg-muted rounded-2xl p-6 flex gap-4 items-start">
+          <div className="bg-muted rounded-sm p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />
             <p className="text-foreground">
               Burning fuses will make permanent changes to your name.

@@ -1,7 +1,5 @@
-import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
-import { CopyButton } from '@/components/CopyButton'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -21,10 +19,9 @@ export type NameRow = {
 const NameCell = ({ name }: { name: string }) => (
   <div className="flex flex-row gap-2 items-center">
     <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-    <Link to="/$name" params={{ name }}>
-      <EntityBadge variant="name">{name}</EntityBadge>
-    </Link>
-    <CopyButton value={name} size="sm" />
+    <EntityBadgeWithActions variant="name" name={name}>
+      {name}
+    </EntityBadgeWithActions>
   </div>
 )
 

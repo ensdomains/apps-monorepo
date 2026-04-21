@@ -151,7 +151,7 @@ function RouteComponent() {
 
   if (nodes.length === 0) {
     return (
-      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-160 mx-auto">
         <PageHeader address={address} />
         <p className="text-muted-foreground">
           This resolver has no nodes. A node must exist before an alias can be
@@ -162,7 +162,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-160 mx-auto">
       <PageHeader address={address} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -190,7 +190,7 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedFromNode && (
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-sm">
               <NameAvatar
                 name={selectedFromNode.name}
                 width="40px"
@@ -244,7 +244,7 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedToNode && (
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-sm">
               <NameAvatar
                 name={selectedToNode.name}
                 width="40px"

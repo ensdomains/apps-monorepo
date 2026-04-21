@@ -264,7 +264,7 @@ export const ResolverEventsTable = ({
           </div>
         ))
       ) : (
-        <div className="px-6 py-24 text-center border border-border rounded-lg">
+        <div className="px-6 py-24 text-center border border-border rounded-sm">
           No events found.
         </div>
       )}
@@ -319,10 +319,7 @@ export const ResolverEventsTable = ({
                     ))}
                   </TableRow>
                   {row.getIsExpanded() && (
-                    <TableRow
-                      key={`${row.id}-expanded`}
-                      className="hover:bg-muted"
-                    >
+                    <TableRow key={`${row.id}-expanded`}>
                       <TableCell colSpan={2} className={cellClassName} />
                       <TableCell className={cellClassName}>
                         <span>{row.original.type}</span>

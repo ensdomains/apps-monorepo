@@ -31,7 +31,7 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
   switch (record.type) {
     case 'address':
       return (
-        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+        <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
           <DataRow label="Coin Type">
             <span className="font-mono">
               {record.id}{' '}
@@ -51,7 +51,7 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
       )
     case 'text':
       return (
-        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+        <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
           <DataRow label="Key">
             <span className="font-mono">{record.key}</span>
           </DataRow>
@@ -67,7 +67,7 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
     case 'contentHash':
     case 'abi':
       return (
-        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+        <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
           <DataRow label="Value">
             <CopyableRecord
               value={record.value}
@@ -139,7 +139,7 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   if (!resolverAddress) return <div>No data</div>
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-border rounded-lg">
+    <div className="flex flex-col gap-6 p-6 border border-border rounded-sm">
       <h3 className="text-2xl font-medium">Resolver</h3>
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UnderlyingResolver {...{ name, resolverAddress }} />
@@ -293,7 +293,7 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
   const hasNoHistory = allEvents.length === 0
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-border rounded-lg">
+    <div className="flex flex-col gap-6 p-6 border border-border rounded-sm">
       <h3 className="text-2xl font-medium">History</h3>
       {hasNoHistory ? (
         <p className="text-muted-foreground text-sm py-4">

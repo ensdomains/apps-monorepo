@@ -78,14 +78,14 @@ export const RoleHistoryTable = ({
 
   if (!data || data.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm py-4">
+      <p className="text-muted-foreground text-sm p-4">
         No role history found.
       </p>
     )
   }
 
   return (
-    <div className="border rounded-lg overflow-auto">
+    <div className="border rounded-sm overflow-auto">
       <Table>
         <TableHeader>
           <TableRow>

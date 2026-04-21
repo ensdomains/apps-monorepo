@@ -195,7 +195,7 @@ function RouteComponent() {
         <Field data-invalid={invalidField === 'roles'}>
           <FieldLabel>Roles</FieldLabel>
           <div
-            className={cn('border rounded-lg divide-y transition-colors', {
+            className={cn('border rounded-sm divide-y transition-colors', {
               'opacity-50 pointer-events-none': isPending || isSuccess,
             })}
             aria-invalid={invalidField === 'roles'}
