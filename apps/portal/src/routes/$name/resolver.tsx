@@ -126,13 +126,11 @@ const SummaryCard = ({
   icon,
   label,
   value,
-  tooltip,
   valueHref,
 }: {
   icon: ReactNode
   label: string
   value: ReactNode
-  tooltip?: string
   valueHref?: string
 }) => {
   const content = valueHref ? (
@@ -154,9 +152,6 @@ const SummaryCard = ({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1 text-base font-medium">
           <span>{label}</span>
-          {tooltip ? (
-            <InfoIcon className="size-4 text-muted-foreground" />
-          ) : null}
         </div>
         <div className="min-w-0 truncate text-base">{content}</div>
       </div>
@@ -368,7 +363,6 @@ const PermissionedResolverView = ({
           icon={<ShieldCheckIcon className="size-5 text-primary" />}
           label="Network"
           value="Sepolia"
-          tooltip="Permissioned resolvers are deployed on ENSv2 infrastructure."
         />
       </div>
       <ResolverDetailsCard resolverAddress={resolverAddress}>
