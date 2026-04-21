@@ -21,7 +21,7 @@ export const ExtendNameSettings = ({
     <div className="space-y-6 mt-2">
       <div className="flex items-center gap-2">
         <NameAvatar name={selectedName.name} height="60px" width="60px" />
-        <h2 className="text-3xl font-medium w-max text-quartz-900">
+        <h2 className="text-3xl font-medium w-max text-foreground">
           {selectedName.name}
         </h2>
       </div>
