@@ -32,7 +32,7 @@ export const TransactionInfoContent = ({
         </DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4">
-        <div className="flex p-4 border-b items-start gap-2 rounded-lg">
+        <div className="flex p-4 border-b items-start gap-2 rounded-sm">
           <ArrowRight className="size-5 mt-0.5" />
           <div className="space-y-0.5">
             <h3 className="text-base font-medium">

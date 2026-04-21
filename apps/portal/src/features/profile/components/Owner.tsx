@@ -1,7 +1,7 @@
-import { Link } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -17,6 +17,7 @@ export const Owner = ({
   className?: string
   asRow?: boolean
 }) => {
+  const navigate = useNavigate()
   const {
     data: ownerName,
     error,
@@ -39,7 +40,7 @@ export const Owner = ({
     return (
       <div
         className={cn(
-          'p-6 flex flex-col justify-center rounded-2xl border border-border hover:bg-muted',
+          'p-6 flex flex-col justify-center rounded-sm border border-border hover:bg-muted',
           className,
         )}
       >
@@ -50,82 +51,85 @@ export const Owner = ({
   }
 
   const shortenedAddress = truncateAddress(owner, 6, 4, '...')
+  const variant = ownerName ? 'name' : 'address'
 
   if (asRow) {
-    const rowContent = (
-      <>
-        <NameAvatar
-          width="20px"
-          height="20px"
-          name={ownerName || shortenedAddress}
-        />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          {label}
-        </span>
-        <EntityBadge variant={ownerName ? 'name' : 'address'}>
-          {ownerName || shortenedAddress}
-        </EntityBadge>
-      </>
-    )
-    if (ownerName) {
-      return (
-        <Link
-          to="/$name"
-          params={{ name: ownerName }}
-          className={cn(
-            'flex items-center gap-4 py-3 hover:bg-muted/50',
-            className,
-          )}
-        >
-          {rowContent}
-        </Link>
-      )
+    const handleRowClick = () => {
+      if (ownerName) navigate({ to: '/$name', params: { name: ownerName } })
+      else navigate({ to: '/addr/$addr', params: { addr: owner } })
     }
+
     return (
-      <Link
-        to="/addr/$addr"
-        params={{ addr: owner }}
+      <div
         className={cn(
-          'flex items-center gap-4 py-3 hover:bg-muted/50',
+          'flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full',
           className,
         )}
       >
-        {rowContent}
-      </Link>
+        <button
+          type="button"
+          className="flex items-center gap-4 text-left cursor-pointer"
+          onClick={handleRowClick}
+        >
+          <NameAvatar
+            width="20px"
+            height="20px"
+            name={ownerName || shortenedAddress}
+          />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            {label}
+          </span>
+        </button>
+        <EntityBadgeWithActions
+          variant={variant}
+          name={ownerName ?? undefined}
+          address={owner}
+        >
+          {ownerName || shortenedAddress}
+        </EntityBadgeWithActions>
+      </div>
     )
   }
 
-  const cardClassName = cn(
-    'p-6 flex flex-row rounded-2xl gap-6 items-center border border-border hover:bg-muted',
-    className,
-  )
-  const cardContent = (
-    <>
-      <NameAvatar
-        width="40px"
-        height="40px"
-        name={ownerName || shortenedAddress}
-      />
-      <div className="flex flex-col gap-1">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <EntityBadge variant={ownerName ? 'name' : 'address'}>
-          {ownerName || shortenedAddress}
-        </EntityBadge>
-      </div>
-    </>
-  )
-
-  if (ownerName) {
-    return (
-      <Link to="/$name" params={{ name: ownerName }} className={cardClassName}>
-        {cardContent}
-      </Link>
-    )
+  const handleCardClick = () => {
+    if (ownerName) navigate({ to: '/$name', params: { name: ownerName } })
+    else navigate({ to: '/addr/$addr', params: { addr: owner } })
   }
 
   return (
-    <Link to="/addr/$addr" params={{ addr: owner }} className={cardClassName}>
-      {cardContent}
-    </Link>
+    <div
+      className={cn(
+        'p-6 flex flex-row items-center gap-6 rounded-sm border border-border hover:bg-muted w-full',
+        className,
+      )}
+    >
+      <button
+        type="button"
+        className="shrink-0 cursor-pointer"
+        onClick={handleCardClick}
+      >
+        <NameAvatar
+          width="40px"
+          height="40px"
+          name={ownerName || shortenedAddress}
+        />
+      </button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
+        <button
+          type="button"
+          className="font-medium text-left cursor-pointer shrink-0"
+          onClick={handleCardClick}
+        >
+          {label}
+        </button>
+        <EntityBadgeWithActions
+          variant={variant}
+          name={ownerName ?? undefined}
+          address={owner}
+        >
+          {ownerName || shortenedAddress}
+        </EntityBadgeWithActions>
+      </div>
+    </div>
   )
 }

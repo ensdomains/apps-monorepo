@@ -101,7 +101,7 @@ export const NodeDetailSheet = ({
           {node ? (
             <div className="flex flex-col gap-0">
               {isInactive && (
-                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-lg bg-garnet-100 p-6 text-sm text-garnet-900">
+                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-sm bg-garnet-100 p-6 text-sm text-garnet-900">
                   This node is inactive. The records and roles are read only.
                 </div>
               )}
@@ -132,7 +132,7 @@ export const NodeDetailSheet = ({
                     No records set for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden">
                     <DataTable columns={sidebarRecordColumns} data={records} />
                   </div>
                 )}
@@ -153,7 +153,7 @@ export const NodeDetailSheet = ({
                     No roles assigned for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>

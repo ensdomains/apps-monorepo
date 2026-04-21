@@ -1,8 +1,9 @@
-import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
-import { CopyButton } from '@/components/CopyButton'
-import { EntityBadge, type EntityVariant } from '@/components/EntityBadge'
+import {
+  EntityBadgeWithActions,
+  type EntityVariant,
+} from '@/components/EntityBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -31,8 +32,6 @@ export const AddressDisplay = ({
   const displayName = ensName || (short ? truncateAddress(address) : address)
   const variant = ensName ? 'name' : variantProp
 
-  const badge = <EntityBadge variant={variant}>{displayName}</EntityBadge>
-
   return (
     <div className="flex flex-row items-center gap-2">
       {ensName ? (
@@ -45,16 +44,13 @@ export const AddressDisplay = ({
       ) : (
         <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
       )}
-      {ensName ? (
-        <Link to="/$name" params={{ name: ensName }}>
-          {badge}
-        </Link>
-      ) : (
-        <Link to="/addr/$addr" params={{ addr: address }}>
-          {badge}
-        </Link>
-      )}
-      <CopyButton value={ensName || address} />
+      <EntityBadgeWithActions
+        variant={variant}
+        name={ensName ?? undefined}
+        address={address}
+      >
+        {displayName}
+      </EntityBadgeWithActions>
     </div>
   )
 }

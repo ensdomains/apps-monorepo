@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-2xl p-6 sm:min-w-96 xl:min-w-160 flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
+  'rounded-sm p-6 sm:min-w-96 xl:min-w-160 flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
   {
     variants: {
       variant: {

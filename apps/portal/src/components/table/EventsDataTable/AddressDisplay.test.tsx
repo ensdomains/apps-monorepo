@@ -22,11 +22,33 @@ vi.mock('wagmi', () => ({
   useEnsName: vi.fn(),
 }))
 
-vi.mock('@/components/CopyButton', () => ({
-  CopyButton: ({ value }: { value: string }) => (
-    <button type="button" data-testid="copy-button" data-value={value}>
-      Copy
-    </button>
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadgeWithActions: ({
+    children,
+    name,
+    address,
+    variant,
+  }: {
+    children: React.ReactNode
+    name?: string
+    address?: string
+    variant: string
+  }) => (
+    <span data-testid="entity-badge" data-variant={variant}>
+      {children}
+      <a
+        href={variant === 'name' ? `/$name/${name}` : `/addr/$addr/${address}`}
+      >
+        link
+      </a>
+      <button
+        type="button"
+        data-testid="copy-button"
+        data-value={name ?? address ?? ''}
+      >
+        Copy
+      </button>
+    </span>
   ),
 }))
 

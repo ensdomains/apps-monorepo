@@ -27,7 +27,7 @@ export const PaymentTokenList = ({
           onClick={() => onSelect(token)}
           disabled={!hasSufficientBalance || isRegistering}
           className={cn(
-            'flex w-full cursor-pointer items-center justify-between rounded-lg border-border border p-4 text-left transition-colors',
+            'flex w-full cursor-pointer items-center justify-between rounded-sm border-border border p-4 text-left transition-colors',
             selectedToken === token.address ? 'bg-muted' : 'hover:bg-muted/30',
             !hasSufficientBalance && 'cursor-not-allowed opacity-60',
           )}
