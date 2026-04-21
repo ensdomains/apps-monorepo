@@ -31,7 +31,7 @@ export const ExtendNameCheckoutSummary = ({
 
   return (
     <section
-      className="border border-border rounded-lg bg-card py-5"
+      className="border border-border rounded-sm bg-card py-5"
       aria-label="Extension summary"
     >
       {match({ isLoading, isError, hasDisplay: display !== null })
