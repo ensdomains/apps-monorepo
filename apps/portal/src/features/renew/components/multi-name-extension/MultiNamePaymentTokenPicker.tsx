@@ -1,5 +1,6 @@
 import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
-import { useQueries } from '@tanstack/react-query'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
@@ -20,6 +21,11 @@ import {
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { MultiRenewalEntry } from '../../hooks/useRenewalTransactions'
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 const PAYMENT_TOKENS = [
   {
@@ -77,6 +83,19 @@ export const MultiNamePaymentTokenPicker = ({
     ],
   })
 
+  const allowancesQuery = useQuery({
+    ...readContractsQueryOptions(config, {
+      contracts: PAYMENT_TOKENS.map((token) => ({
+        address: token.address,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [address as Address, ethRegistrar],
+        chainId: sepoliaWithEns.id,
+      })),
+    }),
+    enabled: hasAddress,
+  })
+
   const usdcPriceQueries = useQueries({
     queries: renewals.map((renewal) => ({
       ...getRegistrationPriceQueryOptions({
@@ -103,6 +122,7 @@ export const MultiNamePaymentTokenPicker = ({
 
   const isLoading =
     balancesQuery.isLoading ||
+    allowancesQuery.isLoading ||
     usdcPriceQueries.some((q) => q.isLoading) ||
     daiPriceQueries.some((q) => q.isLoading)
 
@@ -116,6 +136,12 @@ export const MultiNamePaymentTokenPicker = ({
           : 0n,
       )
     : []
+
+  const allowances = (allowancesQuery.data ?? []).map((allowance) =>
+    allowance.status === 'success' && allowance.result !== undefined
+      ? BigInt(allowance.result)
+      : 0n,
+  )
 
   const sumPrice = (queries: typeof usdcPriceQueries) =>
     queries.reduce(
@@ -144,6 +170,7 @@ export const MultiNamePaymentTokenPicker = ({
         hasPremium: usdcPrice.premium > 0n,
       },
       balance: balances[0] ?? 0n,
+      allowance: allowances[0] ?? 0n,
     },
     {
       ...PAYMENT_TOKENS[1],
@@ -155,6 +182,7 @@ export const MultiNamePaymentTokenPicker = ({
         hasPremium: daiPrice.premium > 0n,
       },
       balance: balances[1] ?? 0n,
+      allowance: allowances[1] ?? 0n,
     },
   ]
 
