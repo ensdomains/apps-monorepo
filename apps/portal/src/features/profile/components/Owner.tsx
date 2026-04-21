@@ -40,7 +40,7 @@ export const Owner = ({
     return (
       <div
         className={cn(
-          'p-6 flex flex-col justify-center rounded-2xl border border-border hover:bg-muted',
+          'p-6 flex flex-col justify-center rounded-sm border border-border hover:bg-muted',
           className,
         )}
       >
@@ -91,21 +91,21 @@ export const Owner = ({
     )
   }
 
-  const cardClassName = cn(
-    'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted cursor-pointer w-full text-left',
-    className,
-  )
-
   const handleCardClick = () => {
     if (ownerName) navigate({ to: '/$name', params: { name: ownerName } })
     else navigate({ to: '/addr/$addr', params: { addr: owner } })
   }
 
   return (
-    <div className={cardClassName}>
+    <div
+      className={cn(
+        'p-6 flex flex-row items-center gap-6 rounded-sm border border-border hover:bg-muted w-full',
+        className,
+      )}
+    >
       <button
         type="button"
-        className="flex items-center gap-6 text-left cursor-pointer"
+        className="shrink-0 cursor-pointer"
         onClick={handleCardClick}
       >
         <NameAvatar
@@ -113,15 +113,23 @@ export const Owner = ({
           height="40px"
           name={ownerName || shortenedAddress}
         />
-        <span className="text-sm text-muted-foreground">{label}</span>
       </button>
-      <EntityBadgeWithActions
-        variant={variant}
-        name={ownerName ?? undefined}
-        address={owner}
-      >
-        {ownerName || shortenedAddress}
-      </EntityBadgeWithActions>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
+        <button
+          type="button"
+          className="font-medium text-left cursor-pointer shrink-0"
+          onClick={handleCardClick}
+        >
+          {label}
+        </button>
+        <EntityBadgeWithActions
+          variant={variant}
+          name={ownerName ?? undefined}
+          address={owner}
+        >
+          {ownerName || shortenedAddress}
+        </EntityBadgeWithActions>
+      </div>
     </div>
   )
 }

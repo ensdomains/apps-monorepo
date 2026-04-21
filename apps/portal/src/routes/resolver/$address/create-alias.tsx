@@ -190,7 +190,7 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedFromNode && (
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-sm">
               <NameAvatar
                 name={selectedFromNode.name}
                 width="40px"
@@ -244,7 +244,7 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedToNode && (
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-sm">
               <NameAvatar
                 name={selectedToNode.name}
                 width="40px"

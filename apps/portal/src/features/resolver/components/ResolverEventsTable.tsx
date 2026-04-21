@@ -264,7 +264,7 @@ export const ResolverEventsTable = ({
           </div>
         ))
       ) : (
-        <div className="px-6 py-24 text-center border border-border rounded-lg">
+        <div className="px-6 py-24 text-center border border-border rounded-sm">
           No events found.
         </div>
       )}

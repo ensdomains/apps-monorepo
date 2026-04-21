@@ -90,7 +90,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+      <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
         {txHash && (
           <DataRow label="Tx Hash">
             <CopyableRecord
@@ -190,7 +190,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                 (parsed) => (
                   <div>
                     <h4 className="text-base font-semibold mb-3">Data</h4>
-                    <div className="border rounded-lg overflow-auto">
+                    <div className="border rounded-sm overflow-auto">
                       <table className="w-full">
                         <thead>
                           <tr>
@@ -234,7 +234,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
                 (parseError) => (
                   <div>
                     <h4 className="text-base font-semibold mb-3">Data</h4>
-                    <div className="border rounded-lg p-4 flex flex-col gap-2">
+                    <div className="border rounded-sm p-4 flex flex-col gap-2">
                       <span className="text-sm text-danger">
                         Unable to parse event data
                       </span>

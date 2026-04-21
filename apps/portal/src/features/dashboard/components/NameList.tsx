@@ -119,7 +119,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
   const data = limit ? allData.slice(0, limit) : allData
 
   return (
-    <div className="border rounded-2xl border-border overflow-hidden">
+    <div className="border rounded-sm border-border overflow-hidden">
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
         {data.map((name, index) => (

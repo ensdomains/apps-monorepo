@@ -84,7 +84,7 @@ const TransactionDetails = ({
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+      <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
         {displayName && (
           <DataRow label="Name">
             <NameDisplay name={displayName} />

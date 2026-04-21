@@ -212,7 +212,7 @@ export const RolesSidebar = <
                 </div>
 
                 {/* Permissions Section */}
-                <div className="border border-border rounded-2xl overflow-hidden">
+                <div className="border border-border rounded-sm overflow-hidden">
                   {permissions.map((permission, index) => {
                     const roleKey = permission.key
                     const isManagerRoleDisabled = !isManagerRoleSettable(
@@ -316,7 +316,7 @@ export const RolesSidebar = <
                     </Button>
                   </div>
 
-                  <div className="border border-border rounded-2xl overflow-hidden p-0">
+                  <div className="border border-border rounded-sm overflow-hidden p-0">
                     <RoleHistoryTable name={name} account={selectedAccount} />
                   </div>
                 </div>

@@ -86,7 +86,7 @@ export const TransactionStateContent = ({
             <div
               key={transaction.id}
               className={cn(
-                'flex flex-start gap-4 border border-border rounded-lg p-3.5',
+                'flex flex-start gap-4 border border-border rounded-sm p-3.5',
                 isPending && 'opacity-60',
               )}
             >

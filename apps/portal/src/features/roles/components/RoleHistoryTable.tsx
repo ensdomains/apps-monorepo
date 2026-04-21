@@ -85,7 +85,7 @@ export const RoleHistoryTable = ({
   }
 
   return (
-    <div className="border rounded-lg overflow-auto">
+    <div className="border rounded-sm overflow-auto">
       <Table>
         <TableHeader>
           <TableRow>

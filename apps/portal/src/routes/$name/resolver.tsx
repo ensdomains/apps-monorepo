@@ -115,10 +115,7 @@ const ResolverSection = ({
 }) => {
   return (
     <section
-      className={cn(
-        'rounded-2xl border border-border bg-background',
-        className,
-      )}
+      className={cn('rounded-sm border border-border bg-background', className)}
     >
       {children}
     </section>
@@ -257,7 +254,7 @@ const ResolverBanner = ({
   docsHref: string
 }) => {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl bg-[#d1eedf] px-6 py-6 text-center text-[#033010]">
+    <div className="flex flex-col items-center gap-4 rounded-sm bg-[#d1eedf] px-6 py-6 text-center text-[#033010]">
       <ShieldCheckIcon className="size-8" />
       <p className="text-base">
         This resolver is the official{' '}
@@ -588,7 +585,7 @@ const NoResolverSet = ({
   return (
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
       <h1 className="text-heading font-medium">Resolver</h1>
-      <div className="flex items-center gap-4 rounded-2xl bg-blue-50 p-6">
+      <div className="flex items-center gap-4 rounded-sm bg-blue-50 p-6">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
           <InfoIcon className="size-5 text-lapis-500" />
         </div>

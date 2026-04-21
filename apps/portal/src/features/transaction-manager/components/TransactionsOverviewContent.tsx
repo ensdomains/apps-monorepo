@@ -66,7 +66,7 @@ export const TransactionsOverviewContent = ({
       <DialogTitle className="sr-only">Transaction overview</DialogTitle>
       {isEnsNameLoading ? (
         <div className="flex flex-col items-center gap-4 pt-10">
-          <Skeleton className="h-20 w-20 rounded-lg" />
+          <Skeleton className="h-20 w-20 rounded-sm" />
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-10 w-full mb-0" />
@@ -100,7 +100,7 @@ export const TransactionsOverviewContent = ({
                   role="button"
                   tabIndex={0}
                   className={cn(
-                    'flex flex-col gap-4 p-4 rounded-lg border',
+                    'flex flex-col gap-4 p-4 rounded-sm border',
                     'border-border text-foreground cursor-pointer',
                   )}
                   onClick={() =>

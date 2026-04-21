@@ -69,7 +69,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   }))
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-border rounded-lg overflow-y-scroll">
+    <div className="flex flex-col gap-6 p-6 border border-border rounded-sm overflow-y-scroll">
       <h3 className="text-2xl font-medium">History</h3>
       <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
     </div>

@@ -43,7 +43,7 @@ export const RegistryCard = ({ registry, chainId }: RegistryCardProps) => {
   const factoryUrl = useBlockExplorerAddressUrl(registry.factory, chainId)
 
   return (
-    <div className="border border-border rounded-lg p-4 sm:p-6 flex flex-col items-center gap-4 relative w-full">
+    <div className="border border-border rounded-sm p-6 flex flex-col gap-4 relative w-full">
       <div className="flex flex-col gap-3 w-full">
         <div className="flex items-center justify-start gap-3">
           <span className="text-sm text-muted-foreground min-w-15">
