@@ -51,7 +51,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
     >
       <DialogContent
         className={cn(
-          'sm:max-w-[420px] max-h-[85vh] overflow-y-auto space-y-3 transition-all duration-150',
+          'sm:max-w-[420px] max-h-[85vh] overflow-y-auto space-y-3 transition-all duration-150 pt-10',
           transactionModalContentState.type === 'info' && 'p-0 gap-0',
         )}
         showCloseButton={transactionModalContentState.type !== 'info'}
