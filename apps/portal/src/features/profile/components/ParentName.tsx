@@ -1,5 +1,5 @@
-import { Link } from '@tanstack/react-router'
-import { EntityBadge } from '@/components/EntityBadge'
+import { useNavigate } from '@tanstack/react-router'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { NameAvatar } from './NameAvatar'
 
 export const ParentName = ({
@@ -9,6 +9,7 @@ export const ParentName = ({
   name: string
   asRow?: boolean
 }) => {
+  const navigate = useNavigate()
   const parent = name.slice(name.indexOf('.') + 1)
 
   if (asRow) {
@@ -22,17 +23,22 @@ export const ParentName = ({
         </div>
       )
     return (
-      <Link
-        to="/$name"
-        params={{ name: parent }}
-        className="flex items-center gap-4 py-3 hover:bg-muted/50"
-      >
-        <NameAvatar width="20px" height="20px" name={parent} />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Parent
-        </span>
-        <EntityBadge variant="name">{parent}</EntityBadge>
-      </Link>
+      <div className="flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full">
+        <button
+          type="button"
+          className="flex items-center gap-4 text-left cursor-pointer"
+          onClick={() => navigate({ to: '/$name', params: { name: parent } })}
+        >
+          <NameAvatar width="20px" height="20px" name={parent} />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            Parent
+          </span>
+        </button>
+
+        <EntityBadgeWithActions variant="name" name={parent}>
+          {parent}
+        </EntityBadgeWithActions>
+      </div>
     )
   }
 
@@ -47,16 +53,18 @@ export const ParentName = ({
     )
 
   return (
-    <Link
-      to="/$name"
-      params={{ name: parent }}
-      className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted"
-    >
-      <NameAvatar width="40px" height="40px" name={parent} />
-      <div className="flex flex-col gap-1">
+    <div className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted w-full">
+      <button
+        type="button"
+        className="flex items-center gap-6 text-left cursor-pointer"
+        onClick={() => navigate({ to: '/$name', params: { name: parent } })}
+      >
+        <NameAvatar width="40px" height="40px" name={parent} />
         <span className="text-sm text-muted-foreground">Parent</span>
-        <EntityBadge variant="name">{parent}</EntityBadge>
-      </div>
-    </Link>
+      </button>
+      <EntityBadgeWithActions variant="name" name={parent}>
+        {parent}
+      </EntityBadgeWithActions>
+    </div>
   )
 }

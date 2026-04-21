@@ -110,7 +110,7 @@ function RouteComponent() {
             </Link>
           </Button>
         </div>
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-border rounded-sm overflow-hidden">
           <ResolverEventsTable events={recentEvents} enableSidebar={false} />
         </div>
       </div>

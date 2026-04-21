@@ -16,6 +16,7 @@ vi.mock('@tanstack/react-router', () => ({
       {children}
     </a>
   ),
+  useNavigate: () => vi.fn(),
 }))
 
 vi.mock('@/components/CopyableRecord', () => ({
@@ -43,6 +44,12 @@ vi.mock('@/components/table/SortButton', () => ({
 vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => (
     <div data-testid="name-avatar">{name}</div>
+  ),
+}))
+
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadgeWithActions: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="entity-badge">{children}</span>
   ),
 }))
 

@@ -24,8 +24,8 @@ const Skeleton = () => (
   <div className="space-y-4">
     <div className="h-5 w-40 bg-quartz-100 animate-pulse rounded-md" />
     <div className="space-y-2">
-      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
-      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
+      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-sm" />
+      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-sm" />
     </div>
   </div>
 )

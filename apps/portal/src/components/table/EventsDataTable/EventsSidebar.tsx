@@ -2,9 +2,8 @@ import type { Row } from '@tanstack/react-table'
 import type { FC, PropsWithChildren } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataRow } from '@/components/DataRow'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import {
@@ -32,11 +31,9 @@ const NameDisplay = ({ name }: NameDisplayProps) => {
   return (
     <div className="flex flex-row items-center gap-2">
       <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-      <CopyableRecord
-        value={name}
-        displayValue={<EntityBadge variant="name">{name}</EntityBadge>}
-        href={`/name/${name}`}
-      />
+      <EntityBadgeWithActions variant="name" name={name}>
+        {name}
+      </EntityBadgeWithActions>
     </div>
   )
 }
@@ -87,7 +84,7 @@ const TransactionDetails = ({
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+      <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
         {displayName && (
           <DataRow label="Name">
             <NameDisplay name={displayName} />
@@ -95,23 +92,18 @@ const TransactionDetails = ({
         )}
 
         <DataRow label="Tx Hash">
-          <CopyableRecord
-            value={txHash}
-            displayValue={
-              <EntityBadge variant="tx">
-                {truncateAddress(txHash, 10, 8, '...')}
-              </EntityBadge>
-            }
-            href={txUrl}
-          />
+          <EntityBadgeWithActions
+            variant="tx"
+            copyValue={txHash}
+            etherscanHref={txUrl}
+          >
+            {truncateAddress(txHash, 10, 8, '...')}
+          </EntityBadgeWithActions>
         </DataRow>
 
         {formattedTimestamp && (
           <DataRow label="Timestamp">
-            <CopyableRecord
-              value={txHash}
-              displayValue={<span>{formattedTimestamp} UTC</span>}
-            />
+            <span>{formattedTimestamp} UTC</span>
           </DataRow>
         )}
 
