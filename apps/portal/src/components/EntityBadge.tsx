@@ -1,13 +1,18 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
+import type { Address } from 'viem'
 import {
   ChipCopyIcon,
   ChipLinkIcon,
   ChipNameIcon,
   ChipWalletIcon,
+  ResolverIcon,
 } from '@/assets/icons'
+import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
+import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
 
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
@@ -139,6 +144,16 @@ export const EntityBadgeWithActions = ({
 }: EntityBadgeWithActionsProps) => {
   const navigate = useNavigate()
 
+  const { data: resolverInterfaces } = useQuery({
+    ...getSupportsInterfacesQueryOptions({
+      address: (address ??
+        '0x0000000000000000000000000000000000000000') as Address,
+      interfaces: Object.values(RESOLVER_INTERFACE_IDS),
+    }),
+    enabled: variant === 'contract' && !!address,
+  })
+  const isResolver = resolverInterfaces?.some(Boolean) ?? false
+
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
 
@@ -161,7 +176,8 @@ export const EntityBadgeWithActions = ({
   const hasPrimaryAction =
     (variant === 'name' && !!name) ||
     (variant === 'address' && !!address) ||
-    ((variant === 'contract' || variant === 'tx') && !!etherscanHref)
+    (variant === 'contract' && (isResolver ? !!address : !!etherscanHref)) ||
+    (variant === 'tx' && !!etherscanHref)
 
   const triggerPrimaryAction = () => {
     if (variant === 'name' && name) {
@@ -174,7 +190,16 @@ export const EntityBadgeWithActions = ({
       return
     }
 
-    if ((variant === 'contract' || variant === 'tx') && etherscanHref) {
+    if (variant === 'contract') {
+      if (isResolver && address) {
+        navigate({ to: '/resolver/$address', params: { address } })
+      } else if (etherscanHref) {
+        window.open(etherscanHref, '_blank', 'noopener,noreferrer')
+      }
+      return
+    }
+
+    if (variant === 'tx' && etherscanHref) {
       window.open(etherscanHref, '_blank', 'noopener,noreferrer')
     }
   }
@@ -220,6 +245,17 @@ export const EntityBadgeWithActions = ({
           >
             <ChipWalletIcon className="size-3.25" />
             Address
+          </Link>
+        )}
+
+        {variant === 'contract' && isResolver && address && (
+          <Link
+            to="/resolver/$address"
+            params={{ address }}
+            className={chipClass}
+          >
+            <ResolverIcon className="size-3.25" />
+            Resolver
           </Link>
         )}
 

@@ -292,7 +292,7 @@ export const RolesSidebar = <
                   })}
 
                   {/* Save Changes Button */}
-                  <div className="flex justify-end px-6 py-4 border-t border-border bg-background">
+                  <div className="flex justify-end px-6 py-4 border-t border-border bg-card">
                     <Button
                       variant="secondary"
                       disabled={!hasChanges || !isWalletConnected}
