@@ -17,16 +17,14 @@ import { customSepolia } from '@/lib/wagmi'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { buildAllTransferCalls } from './buildMigrationCalls'
-import { buildPreMigrateCalls } from './buildPreMigrateCalls'
-import { buildPerNameReplayCalls } from './buildProfileReplayCalls'
-import { buildRoleGrantCalls } from './buildRoleGrantCalls'
+import { buildPreMigrateCall } from './buildPreMigrateCalls'
+import { buildProfileReplayCall } from './buildProfileReplayCalls'
+import { buildRoleGrantCall } from './buildRoleGrantCalls'
 import {
   buildStepDescriptors,
-  MAX_NAMES_PER_BATCH,
   type MigrationStepDescriptor,
 } from './buildStepDescriptors'
 import { approvalNeedsFor, checkSCAApprovals } from './checkSCAApprovals'
-import { chunkArray } from './chunkArray'
 import {
   type ClassifiedName,
   classifyNames,
@@ -85,19 +83,28 @@ export type MigrationResult = {
 type Tracker = {
   emit: (description: string, txHash?: Hex) => void
   next: () => void
+  getCurrentStep: () => number
+  setTotalSteps: (nextTotal: number) => void
 }
 
 const createTracker = (
   onProgress: (progress: MigrationProgress) => void,
-  totalSteps: number,
+  initialTotalSteps: number,
 ): Tracker => {
   let currentStep = 0
+  let totalSteps = initialTotalSteps
   return {
     emit(description, txHash) {
       onProgress({ currentStep, totalSteps, description, txHash })
     },
     next() {
       currentStep++
+    },
+    getCurrentStep() {
+      return currentStep
+    },
+    setTotalSteps(nextTotal) {
+      totalSteps = nextTotal
     },
   }
 }
@@ -313,49 +320,102 @@ const submitBatchedUserOp = async (
   return result.hash as Hex
 }
 
-const buildTransferBatchCalls = (params: {
-  ctx: MigrationCtx
-  chunk: readonly ClassifiedName[]
-  notReservedSet: ReadonlySet<string>
-  ownedPermRes: Address | null
-  parentRegistries: ReadonlyMap<string, Address>
-}): ZeroDevCall[] => {
-  const { ctx, chunk, notReservedSet, ownedPermRes, parentRegistries } = params
-  const batchCalls: ZeroDevCall[] = []
+export const MAX_BATCH_RAW_BYTES = 500_000
 
-  const chunkTwoLDs = chunk.filter(
-    (n) => is2LD(n) && notReservedSet.has(n.domain.name),
-  )
-  if (chunkTwoLDs.length > 0) {
-    batchCalls.push(...buildPreMigrateCalls(chunkTwoLDs))
+type NameBundle = {
+  name: ClassifiedName
+  calls: ZeroDevCall[]
+  bytes: number
+}
+
+const calcBundleBytes = (calls: readonly ZeroDevCall[]): number => {
+  let total = 0
+  for (const c of calls) {
+    total += Math.max(0, (c.data.length - 2) / 2)
+    total += 64
+  }
+  return total
+}
+
+const buildNameBundle = (params: {
+  name: ClassifiedName
+  migrationOwner: Address
+  defaultResolver: Address
+  ownedPermRes: Address | null
+  notReservedSet: ReadonlySet<string>
+  parentRegistries: ReadonlyMap<string, Address>
+  profiles: ReadonlyMap<Hex, Profile>
+}): NameBundle => {
+  const {
+    name,
+    migrationOwner,
+    defaultResolver,
+    ownedPermRes,
+    notReservedSet,
+    parentRegistries,
+    profiles,
+  } = params
+  const calls: ZeroDevCall[] = []
+
+  if (is2LD(name) && notReservedSet.has(name.domain.name)) {
+    calls.push(buildPreMigrateCall(name))
   }
 
-  batchCalls.push(
+  calls.push(
     ...buildAllTransferCalls({
-      classified: chunk,
-      migrationOwner: ctx.migrationOwner,
-      defaultResolver: ctx.defaultResolver,
+      classified: [name],
+      migrationOwner,
+      defaultResolver,
       ownedPermRes,
       parentRegistries,
     }),
   )
 
-  batchCalls.push(...buildRoleGrantCalls(chunk))
-  return batchCalls
+  if (name.managerAddress) {
+    calls.push(buildRoleGrantCall(name))
+  }
+
+  if (ownedPermRes && name.resolverStrategy === 'to-owned-permres') {
+    const node = namehash(name.domain.name) as Hex
+    const profile = profiles.get(profileMapKey(node))
+    if (profile && (profile.texts.length > 0 || profile.addresses.length > 0)) {
+      const replayCall = buildProfileReplayCall({
+        resolver: ownedPermRes,
+        profiles: new Map<Hex, Profile>([[node, profile]]),
+      })
+      if (replayCall) calls.push(replayCall)
+    }
+  }
+
+  return { name, calls, bytes: calcBundleBytes(calls) }
 }
 
-const collectChunkProfiles = (
-  chunk: readonly ClassifiedName[],
-  profiles: ReadonlyMap<Hex, Profile>,
-): Map<Hex, Profile> => {
-  const out = new Map<Hex, Profile>()
-  for (const name of chunk) {
-    if (name.resolverStrategy !== 'to-owned-permres') continue
-    const node = namehash(name.domain.name) as Hex
-    const entry = profiles.get(profileMapKey(node))
-    if (entry) out.set(node, entry)
+export const packNamesByPayload = (params: {
+  names: readonly ClassifiedName[]
+  migrationOwner: Address
+  defaultResolver: Address
+  ownedPermRes: Address | null
+  notReservedSet: ReadonlySet<string>
+  parentRegistries: ReadonlyMap<string, Address>
+  profiles: ReadonlyMap<Hex, Profile>
+  maxBatchBytes?: number
+}): NameBundle[][] => {
+  const { names, maxBatchBytes = MAX_BATCH_RAW_BYTES } = params
+  const bundles = names.map((name) => buildNameBundle({ ...params, name }))
+  const batches: NameBundle[][] = []
+  let current: NameBundle[] = []
+  let running = 0
+  for (const b of bundles) {
+    if (current.length > 0 && running + b.bytes > maxBatchBytes) {
+      batches.push(current)
+      current = []
+      running = 0
+    }
+    current.push(b)
+    running += b.bytes
   }
-  return out
+  if (current.length > 0) batches.push(current)
+  return batches
 }
 
 const wrapBatchError = (
@@ -376,35 +436,49 @@ const submitBatches = async (params: {
   profiles: ReadonlyMap<Hex, Profile>
   parentRegistries: ReadonlyMap<string, Address>
 }): Promise<Hex[]> => {
-  const { ctx, classified, ownedPermRes, profiles } = params
-  const nameChunks = chunkArray(classified, MAX_NAMES_PER_BATCH)
-  const totalBatches = nameChunks.length
+  const {
+    ctx,
+    classified,
+    notReservedSet,
+    ownedPermRes,
+    profiles,
+    parentRegistries,
+  } = params
+
+  const batches = packNamesByPayload({
+    names: classified,
+    migrationOwner: ctx.migrationOwner,
+    defaultResolver: ctx.defaultResolver,
+    ownedPermRes,
+    notReservedSet,
+    parentRegistries,
+    profiles,
+  })
+
+  const totalBatches = batches.length
+  const preBatchSteps = ctx.tracker.getCurrentStep()
+  ctx.tracker.setTotalSteps(preBatchSteps + totalBatches)
+
   const hashes: Hex[] = []
 
-  for (let i = 0; i < nameChunks.length; i++) {
-    const chunk = nameChunks[i]!
+  for (let i = 0; i < batches.length; i++) {
+    const bundle = batches[i]!
     const batchNum = i + 1
     const batchLabel = `Batch ${batchNum}/${totalBatches}`
+    const nameCount = bundle.length
 
     ctx.tracker.emit(
-      `Upgrading batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
+      `Upgrading batch ${batchNum}/${totalBatches} (${nameCount} names)`,
     )
 
-    const transferCalls = buildTransferBatchCalls({ ...params, chunk })
-    const replayCalls = ownedPermRes
-      ? buildPerNameReplayCalls({
-          resolver: ownedPermRes,
-          profiles: collectChunkProfiles(chunk, profiles),
-        })
-      : []
-    const combinedCalls = [...transferCalls, ...replayCalls]
+    const combinedCalls = bundle.flatMap((b) => b.calls)
 
     let lastHash: Hex
     try {
       lastHash = await submitBatchedUserOp(
         ctx,
         combinedCalls,
-        `Migrate batch ${batchNum}/${totalBatches} (${chunk.length} names)`,
+        `Migrate batch ${batchNum}/${totalBatches} (${nameCount} names)`,
       )
       hashes.push(lastHash)
     } catch (error) {

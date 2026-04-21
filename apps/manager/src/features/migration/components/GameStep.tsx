@@ -25,7 +25,7 @@ export const GameStep = () => {
   const done = substep === 'succeeding'
   const hasCollapsed = substep === 'failing'
 
-  const totalSteps = Math.max(stepDescriptors.length, 1)
+  const totalSteps = Math.max(progress?.totalSteps ?? stepDescriptors.length, 1)
   const completedSteps = progress?.currentStep ?? 0
   const displayStep = done
     ? totalSteps
@@ -68,11 +68,11 @@ export const GameStep = () => {
     descriptor: nextDescriptor,
   })
     .with({ done: true }, () => t`Almost there...`)
-    .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
     .with(
       { progressDescription: P.string },
       ({ progressDescription }) => progressDescription,
     )
+    .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
     .with(
       { descriptor: { type: 'approve-sca' } },
       () => `${t`Approving smart account`}...`,
