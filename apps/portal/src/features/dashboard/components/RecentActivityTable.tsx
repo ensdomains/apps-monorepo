@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -61,12 +62,15 @@ export const RecentActivityTable = () => {
                       </EntityBadgeWithActions>
                     ))
                     .with({ type: 'address' }, ({ value }) => (
-                      <EntityBadgeWithActions variant="address" address={value}>
+                      <EntityBadgeWithActions
+                        variant="address"
+                        address={value as Address}
+                      >
                         {truncateAddress(value, 6, 4)}
                       </EntityBadgeWithActions>
                     ))
                     .otherwise(() => (
-                      <BlockExplorerTxLink txHash={txHash} showCopy={false} />
+                      <BlockExplorerTxLink txHash={txHash} />
                     ))}
                 </div>
                 <span className="sm:order-1 font-mono text-xs sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">
@@ -82,7 +86,10 @@ export const RecentActivityTable = () => {
                 </span>
                 {match(actor)
                   .with({ type: 'address' }, ({ value }) => (
-                    <EntityBadgeWithActions variant="address" address={value}>
+                    <EntityBadgeWithActions
+                      variant="address"
+                      address={value as Address}
+                    >
                       {truncateAddress(value, 6, 4)}
                     </EntityBadgeWithActions>
                   ))

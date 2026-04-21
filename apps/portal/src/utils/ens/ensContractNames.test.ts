@@ -1,3 +1,4 @@
+import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { getEnsContractName } from './ensContractNames'
 
@@ -10,35 +11,47 @@ describe('getEnsContractName', () => {
     expect(
       getEnsContractName(
         UNKNOWN_CHAIN,
-        '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85',
+        '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as Address,
       ),
     ).toBeUndefined()
   })
 
   it('returns undefined for an unrecognised address on a known chain', () => {
     expect(
-      getEnsContractName(MAINNET, '0x0000000000000000000000000000000000001234'),
+      getEnsContractName(
+        MAINNET,
+        '0x0000000000000000000000000000000000001234' as Address,
+      ),
     ).toBeUndefined()
   })
 
   it('returns the display name for a mainnet contract (exact case)', () => {
     // ensBaseRegistrarImplementation on mainnet
     expect(
-      getEnsContractName(MAINNET, '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'),
+      getEnsContractName(
+        MAINNET,
+        '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as Address,
+      ),
     ).toBe('BaseRegistrar')
   })
 
   it('is case-insensitive for the address', () => {
     expect(
-      getEnsContractName(MAINNET, '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85'),
+      getEnsContractName(
+        MAINNET,
+        '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85' as Address,
+      ),
     ).toBe('BaseRegistrar')
     expect(
-      getEnsContractName(MAINNET, '0x57F1887A8BF19B14FC0DF6FD9B2ACC9AF147EA85'),
+      getEnsContractName(
+        MAINNET,
+        '0x57F1887A8BF19B14FC0DF6FD9B2ACC9AF147EA85' as Address,
+      ),
     ).toBe('BaseRegistrar')
   })
 
   it('returns correct labels for several mainnet contracts', () => {
-    const cases: [string, string][] = [
+    const cases: [Address, string][] = [
       ['0xa12159e5131b1eEf6B4857EEE3e1954744b5033A', 'BulkRenewal'],
       ['0xB32cB5677a7C971689228EC835800432B339bA2B', 'DNSRegistrar'],
       ['0x0fc3152971714E5ed7723FAFa650F86A4BaF30C5', 'DNSSECImpl'],
@@ -52,7 +65,7 @@ describe('getEnsContractName', () => {
   })
 
   it('returns correct labels for sepolia contracts', () => {
-    const cases: [string, string][] = [
+    const cases: [Address, string][] = [
       ['0x6409609247722761b8ba96371485de92a6d7b83b', 'BaseRegistrar'],
       ['0x7f86d816165baf4fd68bfd9a0706601cdd666ac4', 'BulkRenewal'],
       ['0x99e517db3db5ec5424367b8b50cd11ddcb0008f1', 'ETHRegistrarController'],
@@ -68,7 +81,10 @@ describe('getEnsContractName', () => {
   it('does not return names for zeroAddress entries', () => {
     // zeroAddress is excluded when building the lookup
     expect(
-      getEnsContractName(MAINNET, '0x0000000000000000000000000000000000000000'),
+      getEnsContractName(
+        MAINNET,
+        '0x0000000000000000000000000000000000000000' as Address,
+      ),
     ).toBeUndefined()
   })
 })

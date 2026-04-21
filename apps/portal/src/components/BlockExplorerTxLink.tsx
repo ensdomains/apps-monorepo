@@ -8,8 +8,6 @@ interface BlockExplorerTxLinkProps {
   readonly txHash: Hash
   readonly chainId?: number
   readonly className?: string
-  /** @deprecated Copy is now handled by the chip — kept for API compatibility */
-  readonly showCopy?: boolean
 }
 
 /**

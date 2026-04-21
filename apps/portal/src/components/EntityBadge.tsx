@@ -4,6 +4,7 @@ import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
 import { useChainId } from 'wagmi'
 import {
   ChipCopyIcon,
@@ -126,9 +127,9 @@ interface EntityBadgeWithActionsProps {
   /** Owner ENS name — enables Owner chip (→ /$ownerName) */
   readonly ownerName?: string
   /** Owner address — enables Owner chip (→ /addr/$ownerAddress) when ownerName is absent */
-  readonly ownerAddress?: string
+  readonly ownerAddress?: Address
   /** Address — enables Address chip (→ /addr/$address) */
-  readonly address?: string
+  readonly address?: Address
   /** Block explorer URL — enables Etherscan chip */
   readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
@@ -151,8 +152,7 @@ export const EntityBadgeWithActions = ({
 
   const { data: resolverInterfaces } = useQuery({
     ...getSupportsInterfacesQueryOptions({
-      address: (address ??
-        '0x0000000000000000000000000000000000000000') as Address,
+      address: address ?? zeroAddress,
       interfaces: Object.values(RESOLVER_INTERFACE_IDS),
     }),
     enabled: variant === 'contract' && !!address,
@@ -166,13 +166,14 @@ export const EntityBadgeWithActions = ({
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
 
-  const hasChips =
-    name !== undefined ||
-    ownerName !== undefined ||
-    ownerAddress !== undefined ||
-    address !== undefined ||
-    etherscanHref !== undefined ||
-    derivedCopyValue !== ''
+  const hasChips = !!(
+    name ||
+    ownerName ||
+    ownerAddress ||
+    address ||
+    etherscanHref ||
+    derivedCopyValue
+  )
 
   if (!hasChips) {
     return (

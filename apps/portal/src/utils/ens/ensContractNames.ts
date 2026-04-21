@@ -1,8 +1,11 @@
-import { ensL1Contracts } from '@ensdomains/ensjs/chain'
-import { zeroAddress } from 'viem'
+import {
+  ensL1Contracts,
+  type SupportedL1Contract,
+} from '@ensdomains/ensjs/chain'
+import { type Address, zeroAddress } from 'viem'
 
 /** Human-readable display names for known ENS L1 contracts */
-const contractDisplayNames: Record<string, string> = {
+const contractDisplayNames: Record<SupportedL1Contract, string> = {
   ensBaseRegistrarImplementation: 'BaseRegistrar',
   ensBulkRenewal: 'BulkRenewal',
   ensLegacyDnsRegistrar: 'DNSRegistrar',
@@ -30,9 +33,9 @@ for (const [chainIdStr, contracts] of Object.entries(ensL1Contracts)) {
   const lookup: ContractLookup = new Map()
 
   for (const [key, contract] of Object.entries(contracts)) {
-    const addr = (contract as { address: string }).address
+    const addr = (contract as { address: Address }).address
     if (!addr || addr === zeroAddress) continue
-    const label = contractDisplayNames[key] ?? key
+    const label = contractDisplayNames[key as SupportedL1Contract] ?? key
     lookup.set(addr.toLowerCase(), label)
   }
 
@@ -45,7 +48,7 @@ for (const [chainIdStr, contracts] of Object.entries(ensL1Contracts)) {
  */
 export const getEnsContractName = (
   chainId: number,
-  address: string,
+  address: Address,
 ): string | undefined => {
   const lookup = lookupByChain.get(chainId)
   if (!lookup) return undefined

@@ -1,3 +1,4 @@
+import type { Address } from 'viem'
 import type { HttpsUrl } from '@/utils/types'
 import { CopyableRecord } from './CopyableRecord'
 import { EntityBadgeWithActions, type EntityVariant } from './EntityBadge'
@@ -21,7 +22,9 @@ export const Datapoint = ({ label, value, href, variant }: DatapointProps) => {
           variant={variant}
           name={variant === 'name' ? value : undefined}
           address={
-            variant === 'address' || variant === 'contract' ? value : undefined
+            variant === 'address' || variant === 'contract'
+              ? (value as Address)
+              : undefined
           }
           copyValue={value}
           etherscanHref={href}
