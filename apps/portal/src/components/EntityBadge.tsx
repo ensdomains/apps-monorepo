@@ -53,9 +53,11 @@ const chipClass = cn(
 const CopyChip = ({
   value,
   label = 'Copy',
+  showIcon = true,
 }: {
   readonly value: string
   readonly label?: string
+  readonly showIcon?: boolean
 }) => {
   const [copied, setCopied] = useState(false)
 
@@ -79,11 +81,12 @@ const CopyChip = ({
 
   return (
     <button type="button" className={chipClass} onClick={handleCopy}>
-      {copied ? (
-        <CheckIcon className="size-3.25" />
-      ) : (
-        <ChipCopyIcon className="size-3.25" />
-      )}
+      {showIcon &&
+        (copied ? (
+          <CheckIcon className="size-3.25" />
+        ) : (
+          <ChipCopyIcon className="size-3.25" />
+        ))}
       {label}
     </button>
   )
@@ -266,7 +269,13 @@ export const EntityBadgeWithActions = ({
           </Link>
         )}
 
-        {contractName && <CopyChip value={contractName} label={contractName} />}
+        {contractName && (
+          <CopyChip
+            value={contractName}
+            label={contractName}
+            showIcon={false}
+          />
+        )}
 
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
 
