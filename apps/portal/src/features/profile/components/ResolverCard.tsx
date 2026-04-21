@@ -42,45 +42,37 @@ export const ResolverCard = ({
 
   if (asRow) {
     return (
-      <button
-        type="button"
-        className="flex items-center gap-4 py-3 rounded hover:bg-muted/50 cursor-pointer w-full text-left"
-        onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            navigate({ to: '/$name/resolver', params: { name } })
-          }
-        }}
-      >
-        <ResolverIcon className="size-4 shrink-0 text-icon-foreground" />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Resolver
-        </span>
+      <div className="flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full">
+        <button
+          type="button"
+          className="flex items-center gap-4 text-left cursor-pointer"
+          onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
+        >
+          <ResolverIcon className="size-4 shrink-0 text-icon-foreground" />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            Resolver
+          </span>
+        </button>
         {value}
-      </button>
+      </div>
     )
   }
 
   return (
-    <button
-      type="button"
+    <div
       className={cn(
-        'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted cursor-pointer w-full text-left',
+        'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted w-full',
       )}
-      onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          navigate({ to: '/$name/resolver', params: { name } })
-        }
-      }}
     >
-      <ResolverIcon className="size-8 shrink-0 text-icon-foreground" />
-      <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        className="flex items-center gap-6 text-left cursor-pointer"
+        onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
+      >
+        <ResolverIcon className="size-8 shrink-0 text-icon-foreground" />
         <span className="text-sm text-muted-foreground">Resolver</span>
-        {value}
-      </div>
-    </button>
+      </button>
+      {value}
+    </div>
   )
 }

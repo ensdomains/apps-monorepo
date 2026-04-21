@@ -60,28 +60,26 @@ export const Owner = ({
     }
 
     return (
-      <button
-        type="button"
+      <div
         className={cn(
-          'flex items-center gap-4 py-3 rounded hover:bg-muted/50 cursor-pointer w-full text-left',
+          'flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full',
           className,
         )}
-        onClick={handleRowClick}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            handleRowClick()
-          }
-        }}
       >
-        <NameAvatar
-          width="20px"
-          height="20px"
-          name={ownerName || shortenedAddress}
-        />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          {label}
-        </span>
+        <button
+          type="button"
+          className="flex items-center gap-4 text-left cursor-pointer"
+          onClick={handleRowClick}
+        >
+          <NameAvatar
+            width="20px"
+            height="20px"
+            name={ownerName || shortenedAddress}
+          />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            {label}
+          </span>
+        </button>
         <EntityBadgeWithActions
           variant={variant}
           name={ownerName ?? undefined}
@@ -89,7 +87,7 @@ export const Owner = ({
         >
           {ownerName || shortenedAddress}
         </EntityBadgeWithActions>
-      </button>
+      </div>
     )
   }
 
@@ -104,33 +102,26 @@ export const Owner = ({
   }
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-    <button
-      type="button"
-      className={cardClassName}
-      onClick={handleCardClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleCardClick()
-        }
-      }}
-    >
-      <NameAvatar
-        width="40px"
-        height="40px"
-        name={ownerName || shortenedAddress}
-      />
-      <div className="flex flex-col gap-1">
+    <div className={cardClassName}>
+      <button
+        type="button"
+        className="flex items-center gap-6 text-left cursor-pointer"
+        onClick={handleCardClick}
+      >
+        <NameAvatar
+          width="40px"
+          height="40px"
+          name={ownerName || shortenedAddress}
+        />
         <span className="text-sm text-muted-foreground">{label}</span>
-        <EntityBadgeWithActions
-          variant={variant}
-          name={ownerName ?? undefined}
-          address={owner}
-        >
-          {ownerName || shortenedAddress}
-        </EntityBadgeWithActions>
-      </div>
-    </button>
+      </button>
+      <EntityBadgeWithActions
+        variant={variant}
+        name={ownerName ?? undefined}
+        address={owner}
+      >
+        {ownerName || shortenedAddress}
+      </EntityBadgeWithActions>
+    </div>
   )
 }
