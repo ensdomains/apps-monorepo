@@ -4,6 +4,7 @@ import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
+import { useChainId } from 'wagmi'
 import {
   ChipCopyIcon,
   ChipLinkIcon,
@@ -14,6 +15,7 @@ import {
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
+import { getEnsContractName } from '@/utils/ens/ensContractNames'
 
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
 
@@ -143,6 +145,7 @@ export const EntityBadgeWithActions = ({
   copyValue,
 }: EntityBadgeWithActionsProps) => {
   const navigate = useNavigate()
+  const chainId = useChainId()
 
   const { data: resolverInterfaces } = useQuery({
     ...getSupportsInterfacesQueryOptions({
@@ -153,6 +156,10 @@ export const EntityBadgeWithActions = ({
     enabled: variant === 'contract' && !!address,
   })
   const isResolver = resolverInterfaces?.some(Boolean) ?? false
+  const contractName =
+    variant === 'contract' && address
+      ? getEnsContractName(chainId, address)
+      : undefined
 
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
@@ -258,6 +265,8 @@ export const EntityBadgeWithActions = ({
             Resolver
           </Link>
         )}
+
+        {contractName && <CopyChip value={contractName} label={contractName} />}
 
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
 
