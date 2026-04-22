@@ -31,7 +31,7 @@ import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
 import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
-export const MAX_BATCH_RAW_BYTES = 80_000
+export const MAX_BATCH_RAW_BYTES = 50_000
 
 export class MigrationPlanError extends TaggedError('MigrationPlanError')<{
   cause: unknown
