@@ -19,6 +19,13 @@ export type PremiumDecayConfig = {
 }
 
 /**
+ * Returns the total premium period as a whole number of days.
+ */
+export function getPremiumPeriodDays(config: PremiumDecayConfig): number {
+  return Temporal.Duration.from({ milliseconds: config.periodMs }).total('days')
+}
+
+/**
  * Computes the offset that ensures the premium curve reaches exactly 0
  * at the end of the premium period.
  *
