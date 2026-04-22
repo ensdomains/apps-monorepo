@@ -312,7 +312,7 @@ export const transactionMachine = setup({
         request?: TransactionRequest
         publicClient: PublicClient
       }): ResultAsync<
-        { wouldSucceed: boolean; result?: Hash },
+        { wouldSucceed: boolean; result?: Hash; receipt?: TransactionReceipt },
         EthCallFallbackError
       > => {
         if (!request) {
@@ -338,6 +338,7 @@ export const transactionMachine = setup({
                 return {
                   wouldSucceed: receipt.status === 'success',
                   result: hash,
+                  receipt,
                 }
               } catch {
                 // Receipt not found — transaction is still pending
@@ -770,16 +771,18 @@ export const transactionMachine = setup({
             guard: ({ event }) => event.output.wouldSucceed,
             target: 'success',
             actions: [
-              ({ context }) => {
+              assign({
+                receipt: ({ event }) => event.output.receipt,
+              }),
+              ({ context, event }) => {
                 try {
-                  auditTrail.addAuditEntry(
-                    'warning',
-                    'Transaction succeeded via eth_call fallback',
-                    {
-                      hash: context.hash,
-                      request: context.request,
-                    },
-                  )
+                  const message = event.output.receipt
+                    ? 'Transaction confirmed via on-chain receipt (fallback)'
+                    : 'Transaction succeeded via eth_call fallback'
+                  auditTrail.addAuditEntry('warning', message, {
+                    hash: context.hash,
+                    request: context.request,
+                  })
                 } catch (auditError) {
                   console.warn('Audit service error (non-fatal):', auditError)
                 }
