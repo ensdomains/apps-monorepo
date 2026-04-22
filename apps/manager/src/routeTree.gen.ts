@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegisterIndexRouteImport } from './routes/register/index'
@@ -32,6 +33,11 @@ import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/n
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MigrationRoute = MigrationRouteImport.update({
+  id: '/migration',
+  path: '/migration',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -133,6 +139,7 @@ const NotificationsChannelsEmailVerifyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
   '/wallet': typeof WalletRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
   '/wallet': typeof WalletRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
   '/wallet': typeof WalletRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/migration'
     | '/wallet'
     | '/notifications'
     | '/legal/privacy-policy'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/migration'
     | '/wallet'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/migration'
     | '/wallet'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
@@ -261,6 +273,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  MigrationRoute: typeof MigrationRoute
   WalletRoute: typeof WalletRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/wallet'
       preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/migration': {
+      id: '/migration'
+      path: '/migration'
+      fullPath: '/migration'
+      preLoaderRoute: typeof MigrationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -436,6 +456,7 @@ const NotificationsAuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  MigrationRoute: MigrationRoute,
   WalletRoute: WalletRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
