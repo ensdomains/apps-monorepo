@@ -4,14 +4,13 @@ import {
   BookIcon,
   CircleQuestionMarkIcon,
   GridIcon,
-  RefreshCwIcon,
   SettingsIcon,
   SplitIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
-import { HistoryIcon, ShieldIcon } from '@/assets/icons'
+import { HistoryIcon, ResolverIcon, ShieldIcon } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { CopyButton } from '@/components/CopyButton'
 import { Button } from '@/components/ui/button'
@@ -140,7 +139,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
             className="flex items-center gap-2 hover:opacity-80"
           >
             <div className="size-9 shrink-0 rounded bg-muted flex items-center justify-center">
-              <RefreshCwIcon className="size-4 text-muted-foreground" />
+              <ResolverIcon className="size-4 text-muted-foreground" />
             </div>
             <span className="group-data-[collapsible=icon]:hidden text-sm font-mono font-medium text-foreground break-all leading-tight">
               {truncateAddress(address, 6, 4, '...')}

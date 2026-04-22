@@ -29,7 +29,7 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-2xl">
+    <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
       <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
         <CalendarIcon className="size-5 text-secondary-foreground" />
       </div>
@@ -66,7 +66,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {expiry.data && (
-        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-2xl">
+        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
           <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
             <ClockIcon className="size-5 text-secondary-foreground" />
           </div>
@@ -80,7 +80,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       )}
       {blockNumber && <RegistrationData blockNumber={blockNumber} />}
       {expiry.data?.gracePeriod && (
-        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-2xl">
+        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
           <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
             <CalendarIcon className="size-5 text-secondary-foreground" />
           </div>
@@ -117,7 +117,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {!!data.registeredAt && (
-        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-2xl">
+        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
           <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
             <CalendarIcon className="size-5 text-secondary-foreground" />
           </div>
@@ -128,7 +128,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
         </div>
       )}
       {!!data.expiry && (
-        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-2xl">
+        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
           <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
             <ClockIcon className="size-5 text-secondary-foreground" />
           </div>

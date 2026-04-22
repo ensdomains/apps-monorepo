@@ -7,7 +7,7 @@ export const NameAvatar = ({
   name,
   height = '142px',
   width = '142px',
-  rounded = 'rounded-lg',
+  rounded = 'rounded-sm',
 }: {
   name: string
   height?: string

@@ -232,12 +232,12 @@ export const ResolverRolesTable = ({
                           </span>
                           <div className="flex gap-1">
                             {perms?.admin && (
-                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[22px] text-xs">
+                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-5.5 text-xs">
                                 <UserLockIcon width={12} height={12} /> Admin
                               </div>
                             )}
                             {perms?.manager && (
-                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[22px] text-xs">
+                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-5.5 text-xs">
                                 <UserIcon width={12} height={12} /> Manager
                               </div>
                             )}
@@ -251,7 +251,7 @@ export const ResolverRolesTable = ({
             )
           })
         ) : (
-          <div className="px-6 py-24 text-center border border-border rounded-lg">
+          <div className="px-6 py-24 text-center border border-border rounded-sm">
             No role holders found.
           </div>
         )}

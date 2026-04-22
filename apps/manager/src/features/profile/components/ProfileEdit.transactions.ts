@@ -227,17 +227,6 @@ function createTransactionRequest(params: {
 }): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
 
-  if (signer.type === 'eoa') {
-    return {
-      type: 'eoa',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-    }
-  }
-
   if (signer.type === 'rhinestone') {
     return {
       type: 'rhinestone-intent',
@@ -268,8 +257,9 @@ function createTransactionRequest(params: {
     } as ZeroDevTransactionRequest
   }
 
-  signer satisfies never
-  throw new Error('Unsupported signer type for transaction request')
+  throw new Error(
+    `Unsupported signer type for transaction request: ${(signer as { type: string }).type}`,
+  )
 }
 
 async function buildRecordsUpdateRequest(params: {

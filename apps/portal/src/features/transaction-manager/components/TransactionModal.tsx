@@ -1,5 +1,5 @@
 import { useActiveTransactions } from '@ens-apps/transaction-manager'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -22,9 +22,23 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const activeTransactionsMap = useActiveTransactions()
 
   const { isOpen, closeModal, clearTransaction } = useTransactionModal()
+  const autoAdvanceTxId =
+    isOpen && txState?.machineState === 'success' ? txState.txId : null
 
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
+
+  useEffect(() => {
+    if (!autoAdvanceTxId) return
+
+    const activeIndex = transactions.findIndex(
+      (tx) => tx.id === autoAdvanceTxId,
+    )
+    if (activeIndex < 0 || activeIndex >= transactions.length - 1) return
+
+    const activeTransaction = transactions[activeIndex]
+    activeTransaction.onDone()
+  }, [autoAdvanceTxId, transactions])
 
   const handleClose = () => {
     closeModal()
@@ -46,7 +60,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
     >
       <DialogContent
         className={cn(
-          'sm:max-w-[420px] max-h-[85vh] overflow-y-auto space-y-3 transition-all duration-150',
+          'sm:max-w-[420px] max-h-[85vh] overflow-y-auto space-y-3 transition-all duration-150 pt-10',
           transactionModalContentState.type === 'info' && 'p-0 gap-0',
         )}
         showCloseButton={transactionModalContentState.type !== 'info'}

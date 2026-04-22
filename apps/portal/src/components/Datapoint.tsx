@@ -1,8 +1,7 @@
-import { ExternalLink } from 'react-external-link'
+import type { Address } from 'viem'
 import type { HttpsUrl } from '@/utils/types'
 import { CopyableRecord } from './CopyableRecord'
-import { CopyButton } from './CopyButton'
-import { EntityBadge, type EntityVariant } from './EntityBadge'
+import { EntityBadgeWithActions, type EntityVariant } from './EntityBadge'
 
 export type DatapointProps = {
   label: string
@@ -19,16 +18,19 @@ export const Datapoint = ({ label, value, href, variant }: DatapointProps) => {
         {label}
       </span>
       {variant ? (
-        <div className="flex items-center gap-2">
-          {href ? (
-            <ExternalLink href={href}>
-              <EntityBadge variant={variant}>{value}</EntityBadge>
-            </ExternalLink>
-          ) : (
-            <EntityBadge variant={variant}>{value}</EntityBadge>
-          )}
-          <CopyButton value={value} size="sm" />
-        </div>
+        <EntityBadgeWithActions
+          variant={variant}
+          name={variant === 'name' ? value : undefined}
+          address={
+            variant === 'address' || variant === 'contract'
+              ? (value as Address)
+              : undefined
+          }
+          copyValue={value}
+          etherscanHref={href}
+        >
+          {value}
+        </EntityBadgeWithActions>
       ) : (
         <CopyableRecord value={value} href={href} />
       )}

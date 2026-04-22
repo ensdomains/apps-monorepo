@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRecentActivityQueryOptions } from '../hooks/useRecentActivity'
@@ -57,19 +57,20 @@ export const RecentActivityTable = () => {
                 <div className="sm:order-2 sm:w-32 sm:shrink-0">
                   {match(nameEntity)
                     .with({ type: 'name' }, ({ value }) => (
-                      <Link to="/$name" params={{ name: value }}>
-                        <EntityBadge variant="name">{value}</EntityBadge>
-                      </Link>
+                      <EntityBadgeWithActions variant="name" name={value}>
+                        {value}
+                      </EntityBadgeWithActions>
                     ))
                     .with({ type: 'address' }, ({ value }) => (
-                      <Link to="/addr/$addr" params={{ addr: value }}>
-                        <EntityBadge variant="address">
-                          {truncateAddress(value, 6, 4)}
-                        </EntityBadge>
-                      </Link>
+                      <EntityBadgeWithActions
+                        variant="address"
+                        address={value as Address}
+                      >
+                        {truncateAddress(value, 6, 4)}
+                      </EntityBadgeWithActions>
                     ))
                     .otherwise(() => (
-                      <BlockExplorerTxLink txHash={txHash} showCopy={false} />
+                      <BlockExplorerTxLink txHash={txHash} />
                     ))}
                 </div>
                 <span className="sm:order-1 font-mono text-xs sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">
@@ -85,16 +86,17 @@ export const RecentActivityTable = () => {
                 </span>
                 {match(actor)
                   .with({ type: 'address' }, ({ value }) => (
-                    <Link to="/addr/$addr" params={{ addr: value }}>
-                      <EntityBadge variant="address">
-                        {truncateAddress(value, 6, 4)}
-                      </EntityBadge>
-                    </Link>
+                    <EntityBadgeWithActions
+                      variant="address"
+                      address={value as Address}
+                    >
+                      {truncateAddress(value, 6, 4)}
+                    </EntityBadgeWithActions>
                   ))
                   .with({ type: 'name' }, ({ value }) => (
-                    <Link to="/$name" params={{ name: value }}>
-                      <EntityBadge variant="name">{value}</EntityBadge>
-                    </Link>
+                    <EntityBadgeWithActions variant="name" name={value}>
+                      {value}
+                    </EntityBadgeWithActions>
                   ))
                   .otherwise(() => null)}
               </div>

@@ -190,7 +190,7 @@ function RouteComponent() {
       </div>
 
       {hasBurnedFuses && expiry && (
-        <div className="border border-border rounded-2xl p-6 flex gap-4 items-center">
+        <div className="border border-border rounded-sm p-6 flex gap-4 items-center">
           <p className="font-medium whitespace-nowrap">Fuse expiry</p>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="font-mono text-sm truncate">
@@ -209,7 +209,7 @@ function RouteComponent() {
         </div>
       )}
 
-      <div className="border border-border rounded-2xl overflow-hidden">
+      <div className="border border-border rounded-sm overflow-hidden">
         <DataTable columns={columns} data={data} />
       </div>
     </div>

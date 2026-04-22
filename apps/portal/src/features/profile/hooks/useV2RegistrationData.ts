@@ -45,9 +45,9 @@ const getV2RegistrationData = ResultFn(async function* ({
   const domain = domains[0]
 
   return ok({
-    createdAt: domain?.createdAt ?? null,
-    registeredAt: domain?.registrationDate ?? null,
-    expiry: domain?.expiryDate ?? null,
+    createdAt: domain?.createdAt || null,
+    registeredAt: domain?.registrationDate || null,
+    expiry: domain?.expiryDate || null,
   })
 })
 
