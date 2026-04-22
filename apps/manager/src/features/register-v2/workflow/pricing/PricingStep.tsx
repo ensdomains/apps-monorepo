@@ -40,7 +40,7 @@ const useAvailabilityGuard = () => {
 
     navigate({
       replace: true,
-      to: '/p/$name',
+      to: '/$name',
       params: { name: `${label}.eth` },
     })
   }, [availabilityQuery.data?.isAvailable, label, navigate])

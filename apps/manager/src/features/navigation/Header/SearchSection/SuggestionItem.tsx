@@ -17,7 +17,7 @@ import { searchHistoryStore } from './useSearchHistory'
 const LINK_OPTIONS = {
   profile: (name: string) =>
     linkOptions({
-      to: '/p/$name',
+      to: '/$name',
       params: { name },
     }),
   register: (name: string) =>

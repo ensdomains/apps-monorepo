@@ -19,7 +19,7 @@ export const DashboardSidebar = ({
   const handleSuggestionSelect = useCallback(
     (value: string) => {
       navigate({
-        to: '/p/$name',
+        to: '/$name',
         params: { name: value },
       })
     },
@@ -54,7 +54,7 @@ export const DashboardSidebar = ({
                   <LinkButton
                     className="h-auto w-full justify-start rounded-[8px] bg-transparent p-3 text-[#6b6b6b] hover:bg-gray-100 hover:text-[#6b6b6b]"
                     params={{ name: profileName ?? '' }}
-                    to="/p/$name"
+                    to="/$name"
                     variant="ghost"
                   >
                     <User className="size-6" />

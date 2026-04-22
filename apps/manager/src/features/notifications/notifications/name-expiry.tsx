@@ -24,7 +24,7 @@ export const NameExpiryComponent: KindComponent<'name-expiry'> = ({
           params={{
             name: payload.name,
           }}
-          to="/p/$name"
+          to="/$name"
         >
           {expiry.isExpired ? 'View profile' : 'Extend'}
         </Link>

@@ -153,7 +153,7 @@ export const DashboardSidebarSearch = ({
       }
 
       navigate({
-        to: '/p/$name',
+        to: '/$name',
         params: { name: value },
       })
     },

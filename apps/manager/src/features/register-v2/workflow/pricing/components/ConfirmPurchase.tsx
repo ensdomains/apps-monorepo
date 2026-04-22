@@ -70,7 +70,7 @@ export const ConfirmPurchase = () => {
       if (!availability.isAvailable) {
         navigate({
           replace: true,
-          to: '/p/$name',
+          to: '/$name',
           params: { name: `${label}.eth` },
         })
         return
