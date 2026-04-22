@@ -65,7 +65,6 @@ export type MigrationResult = {
   readonly completed: number
   readonly txHashes: readonly Hex[]
   readonly ineligible: readonly IneligibleName[]
-  readonly migratedNames: readonly string[]
 }
 
 type Tracker = {
@@ -337,7 +336,6 @@ export const executeMigration = async (params: {
       completed: 0,
       txHashes: [],
       ineligible: [...ineligible],
-      migratedNames: [],
     }
   }
 
@@ -372,6 +370,5 @@ export const executeMigration = async (params: {
     completed: classified.length,
     txHashes: [...approvalHashes, ...batchHashes, ...deferredHashes],
     ineligible: [...ineligible],
-    migratedNames: classified.map((c) => c.domain.name),
   }
 }

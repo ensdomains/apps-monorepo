@@ -98,12 +98,8 @@ export const SelectNamesStep = ({
 
   const totalSelected = selected.size
 
-  const visibleCount = useMemo(
-    () =>
-      groups.reduce((acc, g) => acc + 1 + g.subnames.length, 0) +
-      orphans.length,
-    [groups, orphans],
-  )
+  const visibleCount =
+    groups.reduce((acc, g) => acc + 1 + g.subnames.length, 0) + orphans.length
 
   const handleUpgrade = useCallback(async () => {
     if (isStarting) return
@@ -215,9 +211,12 @@ export const SelectNamesStep = ({
           <p className="text-base text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.16px]">
             <Trans>
               <span>{totalSelected}</span>
-              <span className="font-semi-mono"> out of </span>
+              <span className="font-semi-mono"> of </span>
               <span>{visibleCount}</span>
-              <span className="font-semi-mono"> eligible names selected</span>
+              <span className="font-semi-mono">
+                {' '}
+                total eligible names selected
+              </span>
             </Trans>
           </p>
           {totalSelected > 0 && (

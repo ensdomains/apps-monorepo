@@ -216,6 +216,22 @@ const validateSubnameParents = async (
     }
   }
 
+  const deferredChildNames = new Set(deferredChildren.map((c) => c.domain.name))
+  const nestedDeferred = deferredParentNames.filter((p) =>
+    deferredChildNames.has(p),
+  )
+  if (nestedDeferred.length > 0) {
+    const preview = nestedDeferred.slice(0, 3).join(', ')
+    const suffix =
+      nestedDeferred.length > 3 ? ` (+${nestedDeferred.length - 3} more)` : ''
+    throw new MigrationPlanError({
+      cause: new Error(
+        `Nested subname hierarchy not supported in a single migration: ${preview}${suffix}. Migrate these parents first, then their children.`,
+      ),
+      step: 'Subnames',
+    })
+  }
+
   if (externalChildren.size === 0) {
     return {
       resolvedRegistries: new Map(),

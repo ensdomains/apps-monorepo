@@ -107,7 +107,6 @@ const migrationResult = (
   completed: 1,
   txHashes: ['0xabc'] as readonly Hex[],
   ineligible: [],
-  migratedNames: ['alice.eth'],
   ...overrides,
 })
 

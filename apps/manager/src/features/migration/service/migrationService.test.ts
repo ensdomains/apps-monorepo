@@ -163,7 +163,6 @@ describe('executeMigration', () => {
     })
     expect(result.completed).toBe(0)
     expect(result.txHashes).toEqual([])
-    expect(result.migratedNames).toEqual([])
     expect(result.ineligible.map((n) => n.reason)).toEqual(['unknown-label'])
     expect(waitForTransactionMock).not.toHaveBeenCalled()
   })
@@ -171,7 +170,6 @@ describe('executeMigration', () => {
   it('submits one batch for a single classified name and returns its tx hash', async () => {
     const { result, progressEvents } = await runExecute()
     expect(result.completed).toBe(1)
-    expect(result.migratedNames).toEqual(['alice.eth'])
     expect(result.txHashes).toEqual(['0xdeadbeef'])
     expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
     expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
@@ -245,7 +243,6 @@ describe('executeMigration', () => {
     const good = unwrappedDomain('good')
     const { result } = await runExecute({ domains: [bad, good] })
     expect(result.completed).toBe(1)
-    expect(result.migratedNames).toEqual(['good.eth'])
     expect(result.ineligible.map((n) => n.domain.id)).toEqual(['bad'])
   })
 })
