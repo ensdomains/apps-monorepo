@@ -38,7 +38,6 @@ vi.mock('./fetchV1Profiles', () => ({
 }))
 
 vi.mock('./preflightChecks', () => ({
-  filterNotReserved: vi.fn(() => Promise.resolve([])),
   resolveParentRegistries: vi.fn(() => Promise.resolve(new Map())),
   checkOwnership: vi.fn(),
   checkV2Status: vi.fn(),
@@ -70,7 +69,6 @@ import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
 import { fetchV1Profiles } from './fetchV1Profiles'
 import { executeMigration, type MigrationProgress } from './migrationService'
-import { filterNotReserved } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
 const waitForTransactionMock = vi.mocked(waitForTransaction)
@@ -78,7 +76,6 @@ const writeContractMock = vi.mocked(writeContract)
 const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
 const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
 const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
-const filterNotReservedMock = vi.mocked(filterNotReserved)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
@@ -144,7 +141,6 @@ beforeEach(() => {
     baseRegistrarApproved: true,
     nameWrapperApproved: true,
   })
-  filterNotReservedMock.mockResolvedValue([])
   fetchV1ProfilesMock.mockResolvedValue(new Map())
   ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({

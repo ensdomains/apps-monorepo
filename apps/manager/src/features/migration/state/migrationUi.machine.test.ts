@@ -77,7 +77,6 @@ const makePlan = (
   },
   ownedPermRes: null,
   profiles: new Map(),
-  notReservedSet: new Set(),
   parentRegistries: new Map(),
   batches: [],
   stepDescriptors: [],
