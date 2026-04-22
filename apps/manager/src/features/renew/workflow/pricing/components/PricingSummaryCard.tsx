@@ -1,8 +1,8 @@
 import { Trans } from '@lingui/react/macro'
 import { shallowEqual, useSelector } from '@xstate/react'
 import { format } from 'date-fns'
-import { secondsInYear } from 'date-fns/constants'
 import { useMemo, useState } from 'react'
+import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 
 export const PricingSummaryCard = () => {
@@ -11,7 +11,7 @@ export const PricingSummaryCard = () => {
     uiActor,
     (state) =>
       [
-        (state.context.duration / secondsInYear).toLocaleString('en-US', {
+        (state.context.duration / SECONDS_IN_YEAR).toLocaleString('en-US', {
           minimumFractionDigits: 0,
           maximumFractionDigits: 3,
         }),

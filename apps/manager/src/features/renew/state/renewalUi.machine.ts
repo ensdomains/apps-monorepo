@@ -14,11 +14,11 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
-import { secondsInYear } from 'date-fns/constants'
 import { type Address, encodeFunctionData } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
 import { IS_PAYMENT_TOKEN_SNIPPET } from '@/features/register/services/nameChainContractService'
+import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
@@ -227,7 +227,7 @@ export const renewalUiMachine = setup({
   id: 'renewalUi',
   context: ({ input }) => ({
     currentExpiry: input.currentExpiry,
-    duration: secondsInYear,
+    duration: SECONDS_IN_YEAR,
     selectedToken: undefined,
     lastErrorMessage: undefined,
   }),

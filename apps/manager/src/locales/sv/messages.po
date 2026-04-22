@@ -956,6 +956,10 @@ msgstr "Utgångsdatum (tidigast)"
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
+#: src/features/profile/components/view/ViewHeaderSection.tsx:68
+msgid "Extend Name"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx:50
 msgid "Failed to add email"
 msgstr ""

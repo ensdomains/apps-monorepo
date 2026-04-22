@@ -1,10 +1,10 @@
 import { Trans } from '@lingui/react/macro'
 import { format } from 'date-fns'
-import { secondsInYear } from 'date-fns/constants'
 import { useMemo } from 'react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
+import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { useBaseRate } from '../../../data/queries/baseRates.query'
 import { RegisterV2Context } from '../../../state/registrationUi.context'
@@ -51,7 +51,7 @@ export const RegistrationDetails = () => {
     calculateDiscount(details.basePriceNumber, baseRate, details.duration)
 
   const durationYears = (
-    Number(details.duration) / secondsInYear
+    Number(details.duration) / SECONDS_IN_YEAR
   ).toLocaleString('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 3,

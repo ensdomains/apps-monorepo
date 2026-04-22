@@ -1,12 +1,12 @@
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/react'
 import { format } from 'date-fns'
-import { secondsInYear } from 'date-fns/constants'
 import { useMemo } from 'react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
+import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
@@ -41,7 +41,7 @@ export const RenewalDetails = () => {
     )
 
   const durationYears = (
-    Number(submissionData.duration) / secondsInYear
+    Number(submissionData.duration) / SECONDS_IN_YEAR
   ).toLocaleString('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 3,

@@ -1,10 +1,11 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { secondsInDay, secondsInYear } from 'date-fns/constants'
+import { secondsInDay } from 'date-fns/constants'
 import { zeroAddress } from 'viem'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
+import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
@@ -17,10 +18,10 @@ import { DurationCustomRow } from './DurationCustomRow'
 import { DurationPresetRow } from './DurationPresetRow'
 
 const PRESET_DURATIONS: number[] = [
-  secondsInYear,
-  secondsInYear * 3,
-  secondsInYear * 5,
-  secondsInYear * 10,
+  SECONDS_IN_YEAR,
+  SECONDS_IN_YEAR * 3,
+  SECONDS_IN_YEAR * 5,
+  SECONDS_IN_YEAR * 10,
 ]
 
 type PresetPricingQuery = {
