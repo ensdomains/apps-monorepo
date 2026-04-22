@@ -66,7 +66,9 @@ describe('useMultiNamePricing pure helpers', () => {
         baseDate: plainDate('2026-01-01'),
       })
 
-      expect(result).toBe(59 * 86400 + 86399)
+      // Jan 1 → Mar 1 2026 = 59 calendar days × 86400s (no +86399 offset —
+      // calendar-day arithmetic is exact, see getDurationFromPickerDate).
+      expect(result).toBe(59 * 86400)
     })
 
     it('throws for invalid date mode duration', () => {
