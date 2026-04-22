@@ -34,7 +34,8 @@ export const ConfirmPurchase = () => {
         !!pricingQuery.data &&
         selectedToken !== undefined &&
         !pricingQuery.isLoading &&
-        !!account.signer
+        !!account.signer &&
+        !!account.accountAddress
       }
       label={label}
       nextMessage={<Trans>Renew Name</Trans>}
@@ -52,7 +53,6 @@ export const ConfirmPurchase = () => {
           type: 'renewal.start',
           label,
           signer: account.signer,
-          accountAddress: account.accountAddress,
           duration: BigInt(Math.ceil(duration)),
           token: selectedToken,
           priceRaw: pricingQuery.data.rawPrice,

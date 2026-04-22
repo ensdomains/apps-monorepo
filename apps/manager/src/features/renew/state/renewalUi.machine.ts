@@ -38,7 +38,6 @@ type SubmissionData = {
   priceNumber: number
 
   signer: Signer
-  accountAddress: Address
 }
 
 const startRenewalTransaction = async ({
@@ -146,7 +145,6 @@ export const renewalUiMachine = setup({
           /** Price in token units */
           priceRaw: bigint
           signer: Signer
-          accountAddress: Address
 
           /** Formatted base price */
           priceNumber: number
@@ -202,7 +200,6 @@ export const renewalUiMachine = setup({
               label: event.label,
               duration: event.duration,
               signer: event.signer,
-              accountAddress: event.accountAddress,
               token: event.token,
               priceRaw: event.priceRaw,
               priceNumber: event.priceNumber,
@@ -338,7 +335,6 @@ export const renewalUiMachine = setup({
           label: context.submissionData!.label,
           duration: context.submissionData!.duration,
           signer: context.submissionData!.signer,
-          accountAddress: context.submissionData!.accountAddress,
           selectedToken: context.submissionData!.token,
         }),
         onDone: {

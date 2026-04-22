@@ -1788,7 +1788,7 @@ msgstr "Removing telegram channel"
 msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:40
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:41
 msgid "Renew Name"
 msgstr "Renew Name"
 
