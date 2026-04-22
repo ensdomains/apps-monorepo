@@ -31,10 +31,10 @@ export const MultiNameConfirmCard = ({
         </div>
         <div className="flex flex-col w-full gap-1">
           <div className="flex items-center justify-between">
-            <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+            <span className="flex-1 text-left text-base font-medium truncate">
               {selectedName.name}
             </span>
-            <span className="text-base text-quartz-900 shrink-0 ml-2">
+            <span className="text-base shrink-0 ml-2">
               Expires {newExpiryFormatted}
             </span>
           </div>
@@ -43,7 +43,7 @@ export const MultiNameConfirmCard = ({
               label="Subtotal:"
               labelClassName="text-base text-quartz-350"
               value={subtotal}
-              valueClassName="text-quartz-900 text-base"
+              valueClassName="text-base"
             />
           </dl>
         </div>
@@ -63,9 +63,7 @@ const MultiNameConfirmCardSkeleton = ({
     <NameAvatar name={name} height="40px" width="40px" rounded="rounded-md" />
     <div className="flex flex-col flex-1 gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-quartz-900 truncate">
-          {name}
-        </span>
+        <span className="text-sm font-medium truncate">{name}</span>
         <Skeleton className="h-3 w-24" />
       </div>
       <Skeleton className="h-3 w-full" />

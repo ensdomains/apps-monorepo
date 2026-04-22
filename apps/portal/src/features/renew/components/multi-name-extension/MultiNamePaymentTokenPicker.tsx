@@ -10,6 +10,7 @@ import { readContractsQueryOptions } from 'wagmi/query'
 import { DAIcon } from '@/assets/dai-icon'
 import { USDCIcon } from '@/assets/usdc-icon'
 import { MessageCard } from '@/components/ui/message-card'
+import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
@@ -26,21 +27,6 @@ const ethRegistrar = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
-
-const PAYMENT_TOKENS = [
-  {
-    symbol: 'USDC' as const,
-    address: SUPPORTED_TOKENS.USDC,
-    decimals: USDC_DECIMALS,
-    Icon: USDCIcon,
-  },
-  {
-    symbol: 'DAI' as const,
-    address: SUPPORTED_TOKENS.DAI,
-    decimals: DAI_DECIMALS,
-    Icon: DAIcon,
-  },
-] as const
 
 const Skeleton = () => (
   <div className="space-y-4">
