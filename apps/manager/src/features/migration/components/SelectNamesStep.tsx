@@ -1,10 +1,11 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { Check, Info, Search } from 'lucide-react'
+import { Info, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { cn } from '@/lib/utils'
+import type { ClassifiedName } from '../service/classifyNames'
 import { NameListSkeleton } from './NameListSkeleton'
+import { NameRow } from './NameRow'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
@@ -21,23 +22,28 @@ export const SelectNamesStep = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isStarting, setIsStarting] = useState(false)
 
-  const eligibleNames = useMemo(() => eligible.map((c) => c.domain), [eligible])
+  const eligibleList = useMemo<readonly ClassifiedName[]>(
+    () => eligible,
+    [eligible],
+  )
 
   const didSeed = useRef(false)
   useEffect(() => {
-    if (didSeed.current || isPending || eligibleNames.length === 0) return
+    if (didSeed.current || isPending || eligibleList.length === 0) return
     didSeed.current = true
-    const all = new Set(eligibleNames.map((n) => n.name))
+    const all = new Set(eligibleList.map((n) => n.domain.name))
     setSelected(all)
     onNamesChange([...all])
-  }, [isPending, eligibleNames, onNamesChange])
+  }, [isPending, eligibleList, onNamesChange])
 
   const searchLower = search.toLowerCase()
 
   const filtered = useMemo(
     () =>
-      eligibleNames.filter((n) => n.name.toLowerCase().includes(searchLower)),
-    [searchLower, eligibleNames],
+      eligibleList.filter((n) =>
+        n.domain.name.toLowerCase().includes(searchLower),
+      ),
+    [searchLower, eligibleList],
   )
 
   const toggleName = useCallback(
@@ -116,45 +122,16 @@ export const SelectNamesStep = ({
                       </div>
                     ))
                     .otherwise(() =>
-                      filtered.map((item) => {
-                        const isSelected = selected.has(item.name)
-                        return (
-                          <button
-                            aria-pressed={isSelected}
-                            className="flex cursor-pointer items-center gap-3"
-                            key={item.id}
-                            onClick={() => toggleName(item.name)}
-                            type="button"
-                          >
-                            <div
-                              className={cn(
-                                'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
-                                isSelected
-                                  ? 'bg-ens-garnet-900'
-                                  : 'border border-ens-garnet-900/30 bg-transparent',
-                              )}
-                            >
-                              <Check
-                                className={cn(
-                                  'size-5 transition-opacity',
-                                  isSelected
-                                    ? 'text-white opacity-100'
-                                    : 'text-transparent opacity-0',
-                                )}
-                                strokeWidth={2.5}
-                              />
-                            </div>
-                            <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                              <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                                {item.labelName?.[0]?.toUpperCase() ?? '?'}
-                              </span>
-                            </div>
-                            <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
-                              {item.name}
-                            </div>
-                          </button>
-                        )
-                      }),
+                      filtered.map((item) => (
+                        <NameRow
+                          indent={false}
+                          interactive={true}
+                          isSelected={selected.has(item.domain.name)}
+                          item={item}
+                          key={item.domain.id}
+                          onClick={() => toggleName(item.domain.name)}
+                        />
+                      )),
                     )}
                 </div>
               </div>
@@ -169,7 +146,7 @@ export const SelectNamesStep = ({
             <Trans>
               <span>{totalSelected}</span>
               <span className="font-semi-mono"> out of </span>
-              <span>{eligibleNames.length}</span>
+              <span>{eligibleList.length}</span>
               <span className="font-semi-mono"> eligible names selected</span>
             </Trans>
           </p>
