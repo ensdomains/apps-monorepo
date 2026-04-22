@@ -1,15 +1,16 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
-import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
-import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { dateToPlainDate } from '@/utils/temporal'
+import { useNamePricing } from '../hooks/useNamePricing'
 import type {
   SelectedName,
   StartFlowConfig,
@@ -17,12 +18,15 @@ import type {
 import { ExtendNameConfirmation } from './ExtendNameConfirmation'
 import { ExtendNameDisclaimer } from './ExtendNameDisclaimer'
 import { ExtendNameSettings } from './ExtendNameSettings'
+import type { ExtensionSpanType } from './ExtensionDurationOrExpiryPicker'
 
 type ExtendNameModalProps = {
   readonly open: boolean
   readonly onClose: () => void
   readonly selectedName: SelectedName
   readonly onExtend: (config: StartFlowConfig) => void
+  readonly transactionCompleted: boolean
+  readonly onSuccessAcknowledged: () => void
 }
 
 type ExtendNameModalStep = 'disclaimer' | 'settings' | 'confirm' | 'success'
@@ -32,18 +36,28 @@ export const ExtendNameModal = ({
   onClose,
   selectedName,
   onExtend,
+  transactionCompleted,
+  onSuccessAcknowledged,
 }: ExtendNameModalProps) => {
   const [step, setStep] = useState<ExtendNameModalStep>('disclaimer')
-  const [duration, setDuration] = useState<number>(() =>
-    getDurationInSecondsFromYears(1),
+  const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
+  const [duration, setDuration] = useState<number>(1)
+  const baseDate = selectedName.expiryDate
+    ? dateToPlainDate(selectedName.expiryDate)
+    : undefined
+  const { durationSeconds, price } = useNamePricing(
+    selectedName,
+    duration,
+    spanType,
+    baseDate,
+    open,
   )
 
-  const { data: priceData } = useQuery({
-    ...getRegistrationPriceQueryOptions({ name: selectedName.name, duration }),
-    enabled: open && duration > 0,
-  })
-
-  const price = priceData && isPriceResult(priceData) ? priceData : undefined
+  useEffect(() => {
+    if (open && transactionCompleted) {
+      setStep('success')
+    }
+  }, [open, transactionCompleted])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -75,6 +89,10 @@ export const ExtendNameModal = ({
               selectedName={selectedName}
               duration={duration}
               setDuration={setDuration}
+              spanType={spanType}
+              setSpanType={setSpanType}
+              baseDate={baseDate}
+              onBack={() => setStep('disclaimer')}
               onNext={() => setStep('confirm')}
             />
           ))
@@ -82,21 +100,51 @@ export const ExtendNameModal = ({
             price ? (
               <ExtendNameConfirmation
                 selectedName={selectedName}
-                durationSeconds={duration}
+                durationSeconds={durationSeconds}
                 price={price}
+                onBack={() => setStep('settings')}
                 onConfirm={(token) =>
                   onExtend({
-                    duration,
-                    v2TokenAddress: token.address,
-                    v2TokenPrice: token.price.base,
-                    v2TokenAllowance: token.allowance,
+                    duration: durationSeconds,
+                    tokenAddress: token.address,
+                    tokenPrice: token.price.total,
+                    tokenAllowance: token.allowance,
                   })
                 }
                 isRegistering={false}
               />
             ) : null,
           )
-          .with('success', () => null)
+          .with('success', () => (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center gap-2">
+                <CheckCircle2 className="size-10" />
+                <h2 className="text-3xl font-medium">Extension complete</h2>
+              </div>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="w-full flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1">
+                    <NameAvatar
+                      name={selectedName.name}
+                      height="40px"
+                      width="40px"
+                      rounded="rounded-md"
+                    />
+                  </div>
+                  <span className="flex-1 text-left text-base font-medium text-foreground truncate">
+                    {selectedName.name}
+                  </span>
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                variant="secondary"
+                onClick={onSuccessAcknowledged}
+              >
+                Done
+              </Button>
+            </div>
+          ))
           .exhaustive()}
       </DialogContent>
     </Dialog>

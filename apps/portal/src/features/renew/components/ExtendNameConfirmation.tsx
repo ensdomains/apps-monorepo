@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -11,6 +12,7 @@ type ExtendNameConfirmationProps = {
   readonly selectedName: SelectedName
   readonly durationSeconds: number
   readonly price: RegistrationPriceResult
+  readonly onBack: () => void
   readonly onConfirm: (token: TokenWithPriceAndBalance) => void
   readonly isRegistering: boolean
 }
@@ -19,6 +21,7 @@ export const ExtendNameConfirmation = ({
   selectedName,
   durationSeconds,
   price,
+  onBack,
   onConfirm,
   isRegistering,
 }: ExtendNameConfirmationProps) => {
@@ -46,14 +49,19 @@ export const ExtendNameConfirmation = ({
         isRegistering={isRegistering}
         onSelectionChange={setSelectedTokenData}
       />
-      <Button
-        className="w-full"
-        variant="secondary"
-        disabled={!selectedTokenData}
-        onClick={() => selectedTokenData && onConfirm(selectedTokenData)}
-      >
-        Confirm
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" size="icon" onClick={onBack}>
+          <ArrowLeft className="size-4" />
+        </Button>
+        <Button
+          className="flex-1"
+          variant="secondary"
+          disabled={!selectedTokenData}
+          onClick={() => selectedTokenData && onConfirm(selectedTokenData)}
+        >
+          Confirm
+        </Button>
+      </div>
     </div>
   )
 }
