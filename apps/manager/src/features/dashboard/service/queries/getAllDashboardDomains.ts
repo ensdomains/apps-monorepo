@@ -51,4 +51,5 @@ export const getAllDomainsQuery = (where: DomainFilter | undefined) =>
   resultQueryOptions({
     queryKey: qk('dashboard', 'all_domains', where ?? {}),
     queryFn: where ? () => getAllDomains(where) : skipToken,
+    staleTime: 5 * 60 * 1000,
   })
