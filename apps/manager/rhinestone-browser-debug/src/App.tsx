@@ -4,11 +4,9 @@ import {
   type Session,
   walletClientToAccount,
 } from '@rhinestone/sdk'
-import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import { useEffect, useRef, useState } from 'react'
 import {
   type Address,
-  type Chain,
   createPublicClient,
   createWalletClient,
   custom,
@@ -17,16 +15,24 @@ import {
   type Hex,
   http,
   keccak256,
-  parseUnits,
   toHex,
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { sepolia } from 'viem/chains'
+import {
+  generatePrivateKey,
+  type PrivateKeyAccount,
+  privateKeyToAccount,
+} from 'viem/accounts'
+import { baseSepolia, sepolia } from 'viem/chains'
 
 const SEPOLIA_RPC_URL =
+  import.meta.env.VITE_SEPOLIA_RPC_URL ??
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
+
+const BASE_SEPOLIA_RPC_URL =
+  import.meta.env.VITE_BASE_SEPOLIA_RPC_URL ??
+  'https://base-sepolia-rpc.publicnode.com'
 
 const customSepolia = {
   ...sepolia,
@@ -36,15 +42,34 @@ const customSepolia = {
   },
 }
 
-const SUPPORTED_TOKENS = {
-  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as const,
-  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as const,
+const customBaseSepolia = {
+  ...baseSepolia,
+  rpcUrls: {
+    default: { http: [BASE_SEPOLIA_RPC_URL] },
+    public: { http: [BASE_SEPOLIA_RPC_URL] },
+  },
+}
+
+/**
+ * Circle USDC on Base Sepolia (source / `tokenRequests` spend).
+ * Verified: Circle “USDC Contract Addresses” → Testnet → Base Sepolia.
+ */
+const SOURCE_TOKENS = {
+  USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const,
+}
+
+/**
+ * Circle USDC on Ethereum Sepolia (target chain `approve` + registrar payment).
+ * Verified: Circle “USDC Contract Addresses” → Testnet → Ethereum Sepolia.
+ */
+const TARGET_TOKENS = {
+  USDC: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const,
 }
 
 const ENS_SEPOLIA_CONTRACTS = {
-  FastTestETHRegistrar: '0xe37a1366c827d18dc0ad57f3767de4b3025ceac2' as const,
-  HCAFactory: '0x6a20c7f050f31f4b4cb1eaf060849629be10e6a1' as const,
-  PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
+  FastTestETHRegistrar: '0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39' as const,
+  HCAFactory: '0x12919bd18e9eb9f004e2faf78709d0319747d761' as const,
+  PublicResolver: '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const,
 } as const
 
 const FAST_TEST_REGISTRAR_ABI = [
@@ -205,15 +230,21 @@ const HCA_FACTORY_ABI = [
   },
 ] as const
 
-const publicClient = createPublicClient({
+const targetPublicClient = createPublicClient({
   chain: customSepolia,
   transport: http(SEPOLIA_RPC_URL),
+})
+
+const sourcePublicClient = createPublicClient({
+  chain: customBaseSepolia,
+  transport: http(BASE_SEPOLIA_RPC_URL),
 })
 
 type BrowserProvider = Parameters<typeof custom>[0]
 
 type SessionBundle = {
-  session: Session
+  sessions: Session[]
+  sessionOwnerAccount: PrivateKeyAccount
   enableSignature: Hex
   hashesAndChainIds: { chainId: bigint; sessionDigest: Hex }[]
 }
@@ -243,8 +274,8 @@ const CHECKPOINTS = [
   },
   {
     id: 'fund',
-    label: 'Fund Smart Account',
-    hint: 'Top up ETH and mock stablecoins for registration.',
+    label: 'Fund Smart Account (Base)',
+    hint: 'Skipped in UI: assume SCA already has Base USDC; gas via Rhinestone sponsorship.',
   },
   {
     id: 'hca',
@@ -254,17 +285,17 @@ const CHECKPOINTS = [
   {
     id: 'pricing',
     label: 'Validate Name And Price',
-    hint: 'Checks name availability, token support, and required balance.',
+    hint: 'ENS on Sepolia; Base USDC balance is informational only (not enforced).',
   },
   {
     id: 'session',
-    label: 'Enable Smart Session',
-    hint: 'MetaMask signs the enable payload, then installs the session.',
+    label: 'Prepare Smart Sessions',
+    hint: 'Owner signs enable payload for Base + Sepolia; sessions attach on first cross-chain tx.',
   },
   {
     id: 'commit',
     label: 'Submit Commitment',
-    hint: 'Creates and sends the ENS commitment intent.',
+    hint: 'Cross-chain warp intent (Base → Sepolia), no token pull.',
   },
   {
     id: 'cooldown',
@@ -272,9 +303,14 @@ const CHECKPOINTS = [
     hint: 'Only waits when the registrar requires a delay.',
   },
   {
-    id: 'bundle',
-    label: 'Batch Approve + Register',
-    hint: 'Sends the final session-signed registration bundle.',
+    id: 'approve',
+    label: 'Cross-Chain Approve',
+    hint: 'tokenRequests: USDC — bridge from Base then approve Sepolia registrar.',
+  },
+  {
+    id: 'register',
+    label: 'Cross-Chain Register',
+    hint: 'Session-signed register on Sepolia after USDC is on-chain.',
   },
 ] as const
 
@@ -298,13 +334,15 @@ type RegistrationSummary = {
   price: bigint
   paymentToken: Address
   commitHash: string
-  bundledRegisterHash: string
+  approveHash: string
+  registerHash: string
 }
 
 type BalanceSnapshot = {
-  eth: string
-  usdc: string
-  dai: string
+  baseEth: string
+  baseUsdc: string
+  sepEth: string
+  sepUsdc: string
 }
 
 const Icons = {
@@ -469,28 +507,34 @@ declare global {
   }
 }
 
-async function checkEthBalance(address: Address) {
-  const balance = await publicClient.getBalance({ address })
+async function checkEthBalance(address: Address, chain: 'source' | 'target') {
+  const client = chain === 'source' ? sourcePublicClient : targetPublicClient
+  const balance = await client.getBalance({ address })
   return {
     balance,
     formatted: `${formatUnits(balance, 18)} ETH`,
   }
 }
 
-async function checkTokenBalance(address: Address, token: Address) {
+async function checkTokenBalance(
+  address: Address,
+  token: Address,
+  chain: 'source' | 'target',
+) {
+  const client = chain === 'source' ? sourcePublicClient : targetPublicClient
   const [balance, decimals, symbol] = await Promise.all([
-    publicClient.readContract({
+    client.readContract({
       address: token,
       abi: ERC20_ABI,
       functionName: 'balanceOf',
       args: [address],
     }),
-    publicClient.readContract({
+    client.readContract({
       address: token,
       abi: ERC20_ABI,
       functionName: 'decimals',
     }),
-    publicClient.readContract({
+    client.readContract({
       address: token,
       abi: ERC20_ABI,
       functionName: 'symbol',
@@ -518,28 +562,16 @@ function truncateMiddle(value: string, leading = 8, trailing = 6) {
 }
 
 function formatPaymentToken(token: Address) {
-  if (token.toLowerCase() === SUPPORTED_TOKENS.USDC.toLowerCase()) {
-    return 'USDC'
-  }
-
-  if (token.toLowerCase() === SUPPORTED_TOKENS.DAI.toLowerCase()) {
-    return 'DAI'
+  if (token.toLowerCase() === TARGET_TOKENS.USDC.toLowerCase()) {
+    return 'USDC (Sepolia registrar)'
   }
 
   return token
 }
 
 function formatSummaryPrice(summary: RegistrationSummary) {
-  if (
-    summary.paymentToken.toLowerCase() === SUPPORTED_TOKENS.USDC.toLowerCase()
-  ) {
+  if (summary.paymentToken.toLowerCase() === TARGET_TOKENS.USDC.toLowerCase()) {
     return `${formatUnits(summary.price, 6)} USDC`
-  }
-
-  if (
-    summary.paymentToken.toLowerCase() === SUPPORTED_TOKENS.DAI.toLowerCase()
-  ) {
-    return `${formatUnits(summary.price, 18)} DAI`
   }
 
   return summary.price.toString()
@@ -575,6 +607,9 @@ export function App() {
   )
   const rhinestoneAccountRef = useRef<RhinestoneAccount | null>(null)
   const sessionBundleRef = useRef<SessionBundle | null>(null)
+  const copyFooterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
 
   const [desiredName, setDesiredName] = useState('warpdebug')
   const [ownerAddress, setOwnerAddress] = useState<Address | null>(null)
@@ -599,6 +634,7 @@ export function App() {
   const [checkpointMap, setCheckpointMap] = useState<CheckpointMap>(
     createCheckpointMap(),
   )
+  const [copiedFooter, setCopiedFooter] = useState<'eoa' | 'sca' | null>(null)
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -625,6 +661,33 @@ export function App() {
         -160,
       ),
     )
+  }
+
+  const copyFooterAddress = async (
+    kind: 'eoa' | 'sca',
+    address: Address | null,
+  ) => {
+    if (!address) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(address)
+      if (copyFooterTimeoutRef.current) {
+        clearTimeout(copyFooterTimeoutRef.current)
+      }
+      setCopiedFooter(kind)
+      copyFooterTimeoutRef.current = setTimeout(() => {
+        setCopiedFooter(null)
+        copyFooterTimeoutRef.current = null
+      }, 2000)
+      pushLog(
+        `Copied ${kind.toUpperCase()} to clipboard: ${address}`,
+        'success',
+      )
+    } catch (error) {
+      pushLog(`Copy failed: ${formatError(error)}`, 'error')
+    }
   }
 
   const requireApiKey = () => {
@@ -656,16 +719,18 @@ export function App() {
   const loadBalanceSnapshot = async (
     address: Address,
   ): Promise<BalanceSnapshot> => {
-    const [eth, usdc, dai] = await Promise.all([
-      checkEthBalance(address),
-      checkTokenBalance(address, SUPPORTED_TOKENS.USDC),
-      checkTokenBalance(address, SUPPORTED_TOKENS.DAI),
+    const [baseEth, baseUsdc, sepEth, sepUsdc] = await Promise.all([
+      checkEthBalance(address, 'source'),
+      checkTokenBalance(address, SOURCE_TOKENS.USDC, 'source'),
+      checkEthBalance(address, 'target'),
+      checkTokenBalance(address, TARGET_TOKENS.USDC, 'target'),
     ])
 
     return {
-      eth: eth.formatted,
-      usdc: usdc.formatted,
-      dai: dai.formatted,
+      baseEth: baseEth.formatted,
+      baseUsdc: baseUsdc.formatted,
+      sepEth: sepEth.formatted,
+      sepUsdc: sepUsdc.formatted,
     }
   }
 
@@ -681,7 +746,7 @@ export function App() {
 
   const resolveOwnerIdentityLabel = async (address: Address) => {
     try {
-      const ensName = await publicClient.getEnsName({ address })
+      const ensName = await targetPublicClient.getEnsName({ address })
       if (ensName) {
         return ensName
       }
@@ -795,68 +860,6 @@ export function App() {
     }
   }
 
-  const autofundSmartAccount = async (params: {
-    owner: Address
-    smartAccount: Address
-  }) => {
-    const { owner, smartAccount } = params
-    const walletClient = requireWalletClient()
-
-    const ownerEth = await checkEthBalance(owner)
-    pushLog(`Owner ETH: ${ownerEth.formatted}`)
-
-    const smartEth = await checkEthBalance(smartAccount)
-    const smartUsdc = await checkTokenBalance(
-      smartAccount,
-      SUPPORTED_TOKENS.USDC,
-    )
-    const smartDai = await checkTokenBalance(smartAccount, SUPPORTED_TOKENS.DAI)
-
-    pushLog(`Smart account ETH: ${smartEth.formatted}`)
-    pushLog(`Smart account USDC: ${smartUsdc.formatted}`)
-    pushLog(`Smart account DAI: ${smartDai.formatted}`)
-
-    if (smartEth.balance < parseUnits('0.01', 18)) {
-      pushLog('Auto-funding smart account with 0.01 ETH...')
-      const hash = await walletClient.sendTransaction({
-        account: requireWalletAccountAddress(),
-        chain: customSepolia,
-        to: smartAccount,
-        value: parseUnits('0.01', 18),
-      })
-      pushLog(`ETH funding tx: ${hash}`)
-      await publicClient.waitForTransactionReceipt({ hash })
-    }
-
-    if (smartUsdc.balance < parseUnits('100', 6)) {
-      pushLog('Auto-funding smart account with 1000 USDC...')
-      const hash = await walletClient.writeContract({
-        account: requireWalletAccountAddress(),
-        address: SUPPORTED_TOKENS.USDC,
-        abi: ERC20_ABI,
-        chain: customSepolia,
-        functionName: 'mint',
-        args: [smartAccount, parseUnits('1000', 6)],
-      })
-      pushLog(`USDC mint tx: ${hash}`)
-      await publicClient.waitForTransactionReceipt({ hash })
-    }
-
-    if (smartDai.balance < parseUnits('100', 18)) {
-      pushLog('Auto-funding smart account with 1000 DAI...')
-      const hash = await walletClient.writeContract({
-        account: requireWalletAccountAddress(),
-        address: SUPPORTED_TOKENS.DAI,
-        abi: ERC20_ABI,
-        chain: customSepolia,
-        functionName: 'mint',
-        args: [smartAccount, parseUnits('1000', 18)],
-      })
-      pushLog(`DAI mint tx: ${hash}`)
-      await publicClient.waitForTransactionReceipt({ hash })
-    }
-  }
-
   const registerHca = async (params: {
     owner: Address
     smartAccount: Address
@@ -864,7 +867,7 @@ export function App() {
   }) => {
     const { owner, smartAccount, rhinestoneAccount } = params
 
-    const currentOwner = await publicClient.readContract({
+    const currentOwner = await targetPublicClient.readContract({
       address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
       abi: HCA_FACTORY_ABI,
       functionName: 'getAccountOwner',
@@ -909,7 +912,7 @@ export function App() {
     const receipt = await rhinestoneAccount.waitForExecution(tx, false)
     pushLog(`HCA receipt: ${stringify(receipt)}`)
 
-    const nextOwner = await publicClient.readContract({
+    const nextOwner = await targetPublicClient.readContract({
       address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
       abi: HCA_FACTORY_ABI,
       functionName: 'getAccountOwner',
@@ -925,94 +928,43 @@ export function App() {
   ): Promise<SessionBundle> => {
     const cached = sessionBundleRef.current
     if (cached) {
-      pushLog('Reusing the session created in this browser tab.')
+      pushLog('Reusing the session bundle created in this browser tab.')
       return cached
     }
 
     const sessionOwnerKey = generatePrivateKey()
     const sessionOwnerAccount = privateKeyToAccount(sessionOwnerKey)
-    const session: Session = {
-      chain: customSepolia,
-      owners: {
-        type: 'ecdsa',
-        accounts: [sessionOwnerAccount],
+    const sessions: Session[] = [
+      {
+        chain: customSepolia,
+        owners: {
+          type: 'ecdsa',
+          accounts: [sessionOwnerAccount],
+        },
+        actions: [{ policies: [{ type: 'sudo' }] }],
       },
-      actions: [{ policies: [{ type: 'sudo' }] }],
-    }
+      {
+        chain: customBaseSepolia,
+        owners: {
+          type: 'ecdsa',
+          accounts: [sessionOwnerAccount],
+        },
+        actions: [{ policies: [{ type: 'sudo' }] }],
+      },
+    ]
 
+    pushLog('Getting session details for Base Sepolia + Sepolia...')
     const sessionDetails =
-      await rhinestoneAccount.experimental_getSessionDetails([session])
+      await rhinestoneAccount.experimental_getSessionDetails(sessions)
     pushLog(`Session details: ${stringify(sessionDetails)}`)
 
     const enableSignature =
       await rhinestoneAccount.experimental_signEnableSession(sessionDetails)
-    pushLog(`Enable signature: ${enableSignature}`)
+    pushLog(`Enable signature: ${enableSignature.slice(0, 18)}…`)
 
-    const alreadyEnabled =
-      typeof rhinestoneAccount.experimental_isSessionEnabled === 'function'
-        ? await rhinestoneAccount.experimental_isSessionEnabled(session)
-        : false
-
-    if (!alreadyEnabled) {
-      const enableCall = experimental_enableSession(
-        session,
-        enableSignature,
-        sessionDetails.hashesAndChainIds,
-        0,
-      )
-      try {
-        pushLog('Trying enable-mode install (prepare -> sign -> submit)...')
-        const perChainSigners = {
-          type: 'experimental_session' as const,
-          sessions: {
-            [customSepolia.id]: {
-              session,
-              enableData: {
-                userSignature: enableSignature,
-                hashesAndChainIds: sessionDetails.hashesAndChainIds,
-                sessionToEnableIndex: 0,
-              },
-            },
-          },
-        } as unknown as Parameters<
-          RhinestoneAccount['prepareTransaction']
-        >[0]['signers']
-        const prepared = await rhinestoneAccount.prepareTransaction({
-          chain: customSepolia,
-          calls: [enableCall],
-          sponsored: true,
-          signers: perChainSigners,
-        })
-        const signed = await rhinestoneAccount.signTransaction(prepared)
-        const enableTx = await rhinestoneAccount.submitTransaction(signed)
-        pushLog(`Enable tx (enable-mode): ${stringify(enableTx)}`)
-        const receipt = await rhinestoneAccount.waitForExecution(
-          enableTx,
-          false,
-        )
-        pushLog(`Enable-mode receipt: ${stringify(receipt)}`)
-      } catch (error) {
-        pushLog(
-          `Enable-mode failed (${error instanceof Error ? error.message : String(error)}), falling back to sendTransaction`,
-        )
-        pushLog('Submitting session enable tx (legacy sendTransaction)...')
-        const enableTx = await rhinestoneAccount.sendTransaction({
-          sourceChains: [customSepolia],
-          targetChain: customSepolia,
-          calls: [enableCall],
-          sponsored: true,
-        })
-        pushLog(`Enable tx (legacy): ${stringify(enableTx)}`)
-        const receipt = await rhinestoneAccount.waitForExecution(
-          enableTx,
-          false,
-        )
-        pushLog(`Legacy enable receipt: ${stringify(receipt)}`)
-      }
-    }
-
-    const bundle = {
-      session,
+    const bundle: SessionBundle = {
+      sessions,
+      sessionOwnerAccount,
       enableSignature,
       hashesAndChainIds: sessionDetails.hashesAndChainIds,
     }
@@ -1021,31 +973,43 @@ export function App() {
     return bundle
   }
 
-  const submitSponsoredSessionTransaction = async (
+  const submitCrossChainSessionTransaction = async (
     rhinestoneAccount: RhinestoneAccount,
-    chain: Chain,
     sessionBundle: SessionBundle,
     calls: Array<{ to: Address; data: Hex; value: bigint }>,
+    tokenRequests?: [{ address: 'USDC'; amount: bigint }],
   ) => {
+    const signers = {
+      type: 'experimental_session' as const,
+      sessions: Object.fromEntries(
+        sessionBundle.sessions.map((session, index) => [
+          session.chain.id,
+          {
+            session,
+            enableData: {
+              userSignature: sessionBundle.enableSignature,
+              hashesAndChainIds: sessionBundle.hashesAndChainIds,
+              sessionToEnableIndex: index,
+            },
+          },
+        ]),
+      ),
+    } as unknown as Parameters<
+      RhinestoneAccount['sendTransaction']
+    >[0]['signers']
+
     const tx = await rhinestoneAccount.sendTransaction({
-      sourceChains: [chain],
-      targetChain: chain,
+      sourceChains: [customBaseSepolia],
+      targetChain: customSepolia,
       calls,
+      ...(tokenRequests ? { tokenRequests } : {}),
       sponsored: true,
-      signers: {
-        type: 'experimental_session',
-        session: sessionBundle.session,
-        enableData: {
-          userSignature: sessionBundle.enableSignature,
-          hashesAndChainIds: sessionBundle.hashesAndChainIds,
-          sessionToEnableIndex: 0,
-        },
-      },
+      signers,
     })
 
-    pushLog(`Session tx submitted: ${stringify(tx)}`)
+    pushLog(`Cross-chain session tx submitted: ${stringify(tx)}`)
     const receipt = await rhinestoneAccount.waitForExecution(tx, false)
-    pushLog(`Session tx receipt: ${stringify(receipt)}`)
+    pushLog(`Cross-chain session tx receipt: ${stringify(receipt)}`)
 
     const txHash = receipt.fill.hash
     if (!txHash) {
@@ -1115,48 +1079,64 @@ export function App() {
           }
         },
       )
-      const paymentToken = SUPPORTED_TOKENS.USDC
+      const paymentToken = TARGET_TOKENS.USDC
       const durationInSeconds = BigInt(365 * 24 * 60 * 60)
 
       await refreshBalances(smartAccount)
 
       pushLog(`Name: ${cleanName}.eth`)
-      pushLog(`Payment token: ${paymentToken}`)
+      pushLog(`Registrar payment token (Sepolia): ${paymentToken}`)
+      pushLog(
+        `Spend rail: Base Sepolia USDC ${SOURCE_TOKENS.USDC} → warp → Sepolia`,
+      )
 
       await runCheckpoint('deploy', 'Deploy With Warp', async () => {
-        const deployed = await rhinestoneAccount.isDeployed(customSepolia)
-        if (deployed) {
-          return {
-            value: undefined,
-            status: 'skipped' as const,
-            detail: 'Smart account is already deployed',
+        const deployChains = [customSepolia, customBaseSepolia] as const
+        const lines: string[] = []
+        let submittedDeploy = false
+
+        for (const chain of deployChains) {
+          const deployed = await rhinestoneAccount.isDeployed(chain)
+          if (deployed) {
+            lines.push(`${chain.name}: already deployed`)
+            continue
           }
+
+          submittedDeploy = true
+          const deployTx = await rhinestoneAccount.deploy(chain, {
+            sponsored: true,
+          })
+          lines.push(`${chain.name}: deploy submitted`)
+          pushLog(`${chain.name} deploy: ${stringify(deployTx)}`)
         }
 
-        const deployTx = await rhinestoneAccount.deploy(customSepolia, {
-          sponsored: true,
-        })
         return {
           value: undefined,
-          detail: `Deploy tx submitted: ${stringify(deployTx)}`,
+          status: submittedDeploy ? undefined : ('skipped' as const),
+          detail: lines.join(' · '),
         }
       })
 
-      await runCheckpoint('fund', 'Fund Smart Account', async () => {
-        await autofundSmartAccount({ owner, smartAccount })
+      await runCheckpoint('fund', 'Fund Smart Account (Base)', async () => {
         await refreshBalances(smartAccount)
         const fundedBalance = await checkTokenBalance(
           smartAccount,
-          paymentToken,
+          SOURCE_TOKENS.USDC,
+          'source',
+        )
+        pushLog(
+          'Skipping Base autofund: assuming SCA already holds Base Sepolia USDC; sponsored txs via Rhinestone.',
+          'warn',
         )
         return {
           value: undefined,
-          detail: `Funding ready. Smart account now has ${fundedBalance.formatted}`,
+          status: 'skipped' as const,
+          detail: `Autofund bypassed. SCA Base USDC (read-only): ${fundedBalance.formatted}`,
         }
       })
 
       await runCheckpoint('hca', 'Register HCA Owner', async () => {
-        const currentOwner = await publicClient.readContract({
+        const currentOwner = await targetPublicClient.readContract({
           address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
           abi: HCA_FACTORY_ABI,
           functionName: 'getAccountOwner',
@@ -1183,7 +1163,7 @@ export function App() {
         'pricing',
         'Validate Name And Price',
         async () => {
-          const isAvailable = await publicClient.readContract({
+          const isAvailable = await targetPublicClient.readContract({
             address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             abi: FAST_TEST_REGISTRAR_ABI,
             functionName: 'isAvailable',
@@ -1193,7 +1173,7 @@ export function App() {
             throw new Error(`Name ${cleanName}.eth is not available`)
           }
 
-          const isTokenSupported = await publicClient.readContract({
+          const isTokenSupported = await targetPublicClient.readContract({
             address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             abi: FAST_TEST_REGISTRAR_ABI,
             functionName: 'isPaymentToken',
@@ -1205,7 +1185,7 @@ export function App() {
             )
           }
 
-          const [basePrice, premium] = (await publicClient.readContract({
+          const [basePrice, premium] = (await targetPublicClient.readContract({
             address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             abi: FAST_TEST_REGISTRAR_ABI,
             functionName: 'rentPrice',
@@ -1215,12 +1195,14 @@ export function App() {
           const nextTotalPrice = basePrice + premium
           const tokenBalance = await checkTokenBalance(
             smartAccount,
-            paymentToken,
+            SOURCE_TOKENS.USDC,
+            'source',
           )
 
           if (tokenBalance.balance < nextTotalPrice) {
-            throw new Error(
-              `Insufficient ${tokenBalance.symbol} balance on smart account ${smartAccount}`,
+            pushLog(
+              `• Base USDC on SCA (${tokenBalance.formatted}) is below quoted price; continuing anyway (assumes bridged liquidity / sponsorship).`,
+              'warn',
             )
           }
 
@@ -1228,33 +1210,34 @@ export function App() {
             value: {
               totalPrice: nextTotalPrice,
             },
-            detail: `Available. Total price ${nextTotalPrice.toString()} with balance ${tokenBalance.formatted}`,
+            detail: `Price ${nextTotalPrice.toString()} (Sepolia registrar). Base USDC (SCA): ${tokenBalance.formatted}`,
           }
         },
       )
 
       const sessionBundle = await runCheckpoint(
         'session',
-        'Enable Smart Session',
+        'Prepare Smart Sessions',
         async () => {
           if (sessionBundleRef.current) {
             return {
               value: sessionBundleRef.current,
               status: 'skipped' as const,
-              detail: 'Reusing the session created in this browser tab',
+              detail: 'Reusing the session bundle from this browser tab',
             }
           }
 
           const bundle = await enableSmartSession(rhinestoneAccount)
           return {
             value: bundle,
-            detail: 'Smart session enabled and ready for session-signed txs',
+            detail:
+              'Owner signed enable payload; sessions install on first cross-chain tx',
           }
         },
       )
 
       const secret = keccak256(toHex(Math.random().toString()))
-      const commitment = await publicClient.readContract({
+      const commitment = await targetPublicClient.readContract({
         address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
         abi: FAST_TEST_REGISTRAR_ABI,
         functionName: 'makeCommitment',
@@ -1280,9 +1263,8 @@ export function App() {
         'commit',
         'Submit Commitment',
         async () => {
-          const txHash = await submitSponsoredSessionTransaction(
+          const txHash = await submitCrossChainSessionTransaction(
             rhinestoneAccount,
-            customSepolia,
             sessionBundle,
             [
               {
@@ -1304,12 +1286,12 @@ export function App() {
 
       await runCheckpoint('cooldown', 'Wait Commitment Age', async () => {
         try {
-          const minAge = (await publicClient.readContract({
+          const minAge = (await targetPublicClient.readContract({
             address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             abi: FAST_TEST_REGISTRAR_ABI,
             functionName: 'MIN_COMMITMENT_AGE',
           })) as bigint
-          const committedAt = (await publicClient.readContract({
+          const committedAt = (await targetPublicClient.readContract({
             address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
             abi: FAST_TEST_REGISTRAR_ABI,
             functionName: 'commitmentAt',
@@ -1320,7 +1302,7 @@ export function App() {
             await sleep(3000)
           }
 
-          const latestBlock = await publicClient.getBlock()
+          const latestBlock = await targetPublicClient.getBlock()
           const nowTs = latestBlock.timestamp as bigint
           const elapsed = nowTs - committedAt
 
@@ -1367,20 +1349,38 @@ export function App() {
         ],
       })
 
-      const bundledRegisterHash = await runCheckpoint(
-        'bundle',
-        'Batch Approve + Register',
+      const approveHash = await runCheckpoint(
+        'approve',
+        'Cross-Chain Approve',
         async () => {
-          const txHash = await submitSponsoredSessionTransaction(
+          const txHash = await submitCrossChainSessionTransaction(
             rhinestoneAccount,
-            customSepolia,
             sessionBundle,
             [
               {
-                to: paymentToken.toLowerCase() as Address,
+                to: paymentToken,
                 data: approveData,
                 value: 0n,
               },
+            ],
+            [{ address: 'USDC', amount: totalPrice }],
+          )
+
+          return {
+            value: txHash,
+            detail: `Approve tx hash: ${txHash}`,
+          }
+        },
+      )
+
+      const registerHash = await runCheckpoint(
+        'register',
+        'Cross-Chain Register',
+        async () => {
+          const txHash = await submitCrossChainSessionTransaction(
+            rhinestoneAccount,
+            sessionBundle,
+            [
               {
                 to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
                 data: registerData,
@@ -1391,7 +1391,7 @@ export function App() {
 
           return {
             value: txHash,
-            detail: `Approve + register bundle hash: ${txHash}`,
+            detail: `Register tx hash: ${txHash}`,
           }
         },
       )
@@ -1402,7 +1402,8 @@ export function App() {
         price: totalPrice,
         paymentToken,
         commitHash,
-        bundledRegisterHash,
+        approveHash,
+        registerHash,
       })
     } catch (error) {
       pushLog(`Registration flow stopped: ${formatError(error)}`)
@@ -1444,6 +1445,12 @@ export function App() {
     if (busyLabel) {
       return
     }
+
+    if (copyFooterTimeoutRef.current) {
+      clearTimeout(copyFooterTimeoutRef.current)
+      copyFooterTimeoutRef.current = null
+    }
+    setCopiedFooter(null)
 
     walletClientRef.current = null
     rhinestoneAccountRef.current = null
@@ -1502,7 +1509,7 @@ export function App() {
               <div className="terminal-meta">
                 <span>
                   <Icons.Cpu />
-                  SEPOLIA
+                  BASE_SEP → SEP
                 </span>
                 <span className="terminal-meta-live">
                   <Icons.Activity />
@@ -1569,7 +1576,7 @@ export function App() {
                 </article>
                 <article className="terminal-stat-card">
                   <p>PAYMENT_RAIL</p>
-                  <strong>{formatPaymentToken(SUPPORTED_TOKENS.USDC)}</strong>
+                  <strong>BASE_USDC → REG</strong>
                 </article>
                 <article className="terminal-stat-card">
                   <p>SESSION_STATE</p>
@@ -1587,33 +1594,50 @@ export function App() {
                 <div className="terminal-section-heading terminal-section-heading-tight">
                   <h2>Balances</h2>
                   <p>
-                    Owner and smart account balances update after connect and
-                    funding.
+                    Smart account balances on Base Sepolia (spend) and Sepolia
+                    (registrar / ETH).
                   </p>
                 </div>
 
                 <div className="terminal-balance-grid">
                   <article className="terminal-balance-card">
-                    <p>ETH</p>
-                    <strong>{smartAccountBalances?.eth ?? 'WAIT_INIT'}</strong>
+                    <p>BASE_ETH</p>
+                    <strong>
+                      {smartAccountBalances?.baseEth ?? 'WAIT_INIT'}
+                    </strong>
                   </article>
                   <article className="terminal-balance-card">
-                    <p>MOCK_USDC</p>
-                    <strong>{smartAccountBalances?.usdc ?? 'WAIT_INIT'}</strong>
+                    <p>BASE_USDC</p>
+                    <strong>
+                      {smartAccountBalances?.baseUsdc ?? 'WAIT_INIT'}
+                    </strong>
                   </article>
                   <article className="terminal-balance-card">
-                    <p>MOCK_DAI</p>
-                    <strong>{smartAccountBalances?.dai ?? 'WAIT_INIT'}</strong>
+                    <p>SEP_ETH</p>
+                    <strong>
+                      {smartAccountBalances?.sepEth ?? 'WAIT_INIT'}
+                    </strong>
+                  </article>
+                  <article className="terminal-balance-card">
+                    <p>SEP_USDC</p>
+                    <strong>
+                      {smartAccountBalances?.sepUsdc ?? 'WAIT_INIT'}
+                    </strong>
                   </article>
                 </div>
               </div>
 
               <div className="terminal-info-block">
-                <p>Chain ID: {customSepolia.id}</p>
+                <p>
+                  Target Sepolia: {customSepolia.id} · Source Base Sepolia:{' '}
+                  {customBaseSepolia.id}
+                </p>
                 <p>HCA Factory: {ENS_SEPOLIA_CONTRACTS.HCAFactory}</p>
                 <p>
-                  Auto-funding stays enabled, so the flow tops up ETH and mock
-                  stablecoins before registration when needed.
+                  Deploy SA on Sepolia + Base; Base EOA autofund is skipped
+                  (fund SCA yourself). Smart sessions on both chains; warp Base
+                  → Sepolia with `tokenRequests` on approve. Intents use
+                  Rhinestone sponsorship where configured.
                 </p>
                 {apiKey ? null : (
                   <p className="terminal-warning">
@@ -1717,9 +1741,15 @@ export function App() {
                     </strong>
                   </article>
                   <article>
-                    <p>Settlement_Bundle</p>
-                    <code title={summary.bundledRegisterHash}>
-                      {truncateMiddle(summary.bundledRegisterHash, 12, 12)}
+                    <p>Approve_Tx</p>
+                    <code title={summary.approveHash}>
+                      {truncateMiddle(summary.approveHash, 12, 12)}
+                    </code>
+                  </article>
+                  <article>
+                    <p>Register_Tx</p>
+                    <code title={summary.registerHash}>
+                      {truncateMiddle(summary.registerHash, 12, 12)}
                     </code>
                   </article>
                   <article>
@@ -1756,19 +1786,59 @@ export function App() {
           <div className="terminal-footer-items">
             <span>
               EOA:
-              <strong title={ownerAddress ?? undefined}>
-                {ownerAddress
-                  ? truncateMiddle(ownerAddress, 10, 8)
-                  : 'WAIT_AUTH'}
-              </strong>
+              <button
+                aria-label={
+                  ownerAddress ? 'Copy EOA address' : 'EOA not connected'
+                }
+                className="terminal-footer-address"
+                disabled={!ownerAddress}
+                onClick={() => void copyFooterAddress('eoa', ownerAddress)}
+                title={
+                  ownerAddress
+                    ? `Copy full address\n${ownerAddress}`
+                    : undefined
+                }
+                type="button"
+              >
+                <strong>
+                  {ownerAddress
+                    ? truncateMiddle(ownerAddress, 10, 8)
+                    : 'WAIT_AUTH'}
+                </strong>
+                {copiedFooter === 'eoa' ? (
+                  <span className="terminal-footer-copied">COPIED</span>
+                ) : null}
+              </button>
             </span>
             <span>
               SA:
-              <strong title={smartAccountAddress ?? undefined}>
-                {smartAccountAddress
-                  ? truncateMiddle(smartAccountAddress, 10, 8)
-                  : 'WAIT_INIT'}
-              </strong>
+              <button
+                aria-label={
+                  smartAccountAddress
+                    ? 'Copy smart account address'
+                    : 'Smart account not ready'
+                }
+                className="terminal-footer-address"
+                disabled={!smartAccountAddress}
+                onClick={() =>
+                  void copyFooterAddress('sca', smartAccountAddress)
+                }
+                title={
+                  smartAccountAddress
+                    ? `Copy full address\n${smartAccountAddress}`
+                    : undefined
+                }
+                type="button"
+              >
+                <strong>
+                  {smartAccountAddress
+                    ? truncateMiddle(smartAccountAddress, 10, 8)
+                    : 'WAIT_INIT'}
+                </strong>
+                {copiedFooter === 'sca' ? (
+                  <span className="terminal-footer-copied">COPIED</span>
+                ) : null}
+              </button>
             </span>
             <span>
               HCA:

@@ -716,6 +716,40 @@ button {
   color: #f0f2f7;
 }
 
+.terminal-footer-address {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  max-width: 100%;
+  margin: 0;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.terminal-footer-address:hover:not(:disabled) {
+  border-color: rgba(120, 200, 255, 0.28);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.terminal-footer-address:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.terminal-footer-copied {
+  flex-shrink: 0;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #4ade80;
+}
+
 .terminal-footer-dots {
   display: inline-flex;
   gap: 4px;
