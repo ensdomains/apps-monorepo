@@ -194,7 +194,12 @@ export const getExpiryDateForPicker = (
 
 /**
  * Converts a date picker selection (PlainDate) to duration in seconds.
- * Returns exact whole-day seconds so the on-chain expiry lands on the chosen date.
+ * Uses calendar-day arithmetic via Temporal — `days` counts exact calendar
+ * days, so `days * 86400` is the correct on-chain duration. No +86399 offset
+ * is needed here (unlike timestamp-based approaches) because Temporal never
+ * loses fractional-day rounding; the ENS registrar adds this duration to
+ * block.timestamp, placing expiry at roughly the same time of day as
+ * registration, which is within the user's chosen calendar day.
  * Pass `startOfToday` for deterministic testing.
  */
 export const getDurationFromPickerDate = (

@@ -51,7 +51,7 @@ export const getExtensionDisplayedYears = ({
     MAX_REGISTRATION_YEARS,
     Math.max(
       1,
-      Math.round(
+      Math.floor(
         spanType === 'years'
           ? duration
           : baseDate.until(targetDate, { largestUnit: 'years' }).years,

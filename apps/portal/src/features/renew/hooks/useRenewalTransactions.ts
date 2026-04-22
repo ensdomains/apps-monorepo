@@ -19,6 +19,8 @@ export type SelectedName = {
   readonly expiryDate?: Date | null
 }
 
+export type RenewalFlowType = 'single' | 'multi'
+
 export const RENEWAL_TX_IDS = {
   approve: 'renewal-approve',
   renew: (name: string) => `renewal-renew-${name}`,
@@ -34,6 +36,7 @@ type SavedRenewalParams = {
   readonly duration: number
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
+  readonly tokenAllowance: bigint
   readonly tokenSymbol: 'USDC' | 'DAI'
 }
 
@@ -46,6 +49,7 @@ type MultiSavedRenewalParams = {
   readonly renewals: readonly MultiRenewalEntry[]
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
+  readonly tokenAllowance: bigint
   readonly tokenSymbol: 'USDC' | 'DAI'
 }
 
@@ -53,16 +57,18 @@ export type StartFlowConfig = {
   readonly duration: number
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
+  readonly tokenAllowance?: bigint
 }
 
 export type StartMultiFlowConfig = {
   readonly renewals: readonly MultiRenewalEntry[]
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
+  readonly tokenAllowance?: bigint
 }
 
 type UseRenewalTransactionsOptions = {
-  readonly onComplete?: () => void
+  readonly onComplete?: (flowType: RenewalFlowType) => void
 }
 
 type ApproveParams = {
@@ -172,7 +178,8 @@ function buildMultiTransactions({
   getSigner,
   handleDone,
 }: BuildMultiTransactionsParams): Transaction[] {
-  const { renewals, tokenAddress, tokenSymbol, tokenPrice } = multiSavedParams
+  const { renewals, tokenAddress, tokenSymbol, tokenPrice, tokenAllowance } =
+    multiSavedParams
 
   if (renewals.length === 0) return []
 
@@ -191,6 +198,19 @@ function buildMultiTransactions({
   }
 
   const renewFns = renewals.map((renewal) => makeRenewFn(renewal))
+
+  const renewTxs: Transaction[] = renewals.map((renewal, i) => ({
+    id: RENEWAL_TX_IDS.renew(renewal.selectedName.name),
+    title: `Extend ${renewal.selectedName.name}`,
+    transactionName: `Extend ${renewal.selectedName.name}`,
+    estimatedGasCost: 0.001,
+    onStart: renewFns[i],
+    onDone: i < renewals.length - 1 ? renewFns[i + 1] : handleDone,
+  }))
+
+  if (tokenAllowance >= tokenPrice) {
+    return renewTxs
+  }
 
   const approveTx: Transaction = {
     id: RENEWAL_TX_IDS.approve,
@@ -212,15 +232,6 @@ function buildMultiTransactions({
     },
     onDone: renewFns[0],
   }
-
-  const renewTxs: Transaction[] = renewals.map((renewal, i) => ({
-    id: RENEWAL_TX_IDS.renew(renewal.selectedName.name),
-    title: `Extend ${renewal.selectedName.name}`,
-    transactionName: `Extend ${renewal.selectedName.name}`,
-    estimatedGasCost: 0.001,
-    onStart: renewFns[i],
-    onDone: i < renewals.length - 1 ? renewFns[i + 1] : handleDone,
-  }))
 
   return [approveTx, ...renewTxs]
 }
@@ -261,11 +272,12 @@ export const useRenewalTransactions = ({
   }
 
   const handleDone = () => {
+    const flowType: RenewalFlowType = savedParams ? 'single' : 'multi'
     closeModal()
     clearTransaction()
     setSavedParams(null)
     setMultiSavedParams(null)
-    onComplete?.()
+    onComplete?.(flowType)
   }
 
   const handleApproveStart = async () => {
@@ -304,26 +316,40 @@ export const useRenewalTransactions = ({
     )
   }
 
+  const needsApprove =
+    savedParams !== null && savedParams.tokenAllowance < savedParams.tokenPrice
+
   const singleTransactions: Transaction[] = !savedParams
     ? []
-    : [
-        {
-          id: RENEWAL_TX_IDS.approve,
-          title: 'Approve payment',
-          transactionName: `Approve ${savedParams.tokenSymbol} for renewal`,
-          estimatedGasCost: 0.0003,
-          onStart: handleApproveStart,
-          onDone: handleRenewStart,
-        },
-        {
-          id: RENEWAL_TX_IDS.renew(savedParams.name.name),
-          title: `Extend ${savedParams.name.name}`,
-          transactionName: `Extend ${savedParams.name.name}`,
-          estimatedGasCost: 0.001,
-          onStart: handleRenewStart,
-          onDone: handleDone,
-        },
-      ]
+    : needsApprove
+      ? [
+          {
+            id: RENEWAL_TX_IDS.approve,
+            title: 'Approve payment',
+            transactionName: `Approve ${savedParams.tokenSymbol} for renewal`,
+            estimatedGasCost: 0.0003,
+            onStart: handleApproveStart,
+            onDone: handleRenewStart,
+          },
+          {
+            id: RENEWAL_TX_IDS.renew(savedParams.name.name),
+            title: `Extend ${savedParams.name.name}`,
+            transactionName: `Extend ${savedParams.name.name}`,
+            estimatedGasCost: 0.001,
+            onStart: handleRenewStart,
+            onDone: handleDone,
+          },
+        ]
+      : [
+          {
+            id: RENEWAL_TX_IDS.renew(savedParams.name.name),
+            title: `Extend ${savedParams.name.name}`,
+            transactionName: `Extend ${savedParams.name.name}`,
+            estimatedGasCost: 0.001,
+            onStart: handleRenewStart,
+            onDone: handleDone,
+          },
+        ]
 
   const multiTransactions: Transaction[] =
     !multiSavedParams || !connection.address || !publicClient
@@ -337,6 +363,8 @@ export const useRenewalTransactions = ({
         })
 
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
+    if (!name.isV2) return
+
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
     ).symbol
@@ -347,6 +375,7 @@ export const useRenewalTransactions = ({
       duration: flowConfig.duration,
       tokenAddress: flowConfig.tokenAddress,
       tokenPrice: flowConfig.tokenPrice,
+      tokenAllowance: flowConfig.tokenAllowance ?? 0n,
       tokenSymbol,
     })
   }
@@ -358,14 +387,15 @@ export const useRenewalTransactions = ({
 
     setSavedParams(null)
     setMultiSavedParams({
-      renewals: flowConfig.renewals,
+      renewals: flowConfig.renewals.filter((r) => r.selectedName.isV2),
       tokenAddress: flowConfig.tokenAddress,
       tokenPrice: flowConfig.tokenPrice,
+      tokenAllowance: flowConfig.tokenAllowance ?? 0n,
       tokenSymbol,
     })
   }
 
-  const clearIncompatibleRenewalState = (mode: 'single' | 'multi') => {
+  const clearIncompatibleRenewalState = (mode: RenewalFlowType) => {
     if (mode === 'single') setMultiSavedParams(null)
     else setSavedParams(null)
   }

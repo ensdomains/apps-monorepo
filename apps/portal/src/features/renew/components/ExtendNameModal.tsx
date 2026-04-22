@@ -108,6 +108,7 @@ export const ExtendNameModal = ({
                     duration: durationSeconds,
                     tokenAddress: token.address,
                     tokenPrice: token.price.total,
+                    tokenAllowance: token.allowance,
                   })
                 }
                 isRegistering={false}
