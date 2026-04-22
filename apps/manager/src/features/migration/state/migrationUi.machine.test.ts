@@ -80,6 +80,9 @@ const makePlan = (
   notReservedSet: new Set(),
   parentRegistries: new Map(),
   batches: [],
+  deferredChildren: [],
+  deferredParentNames: [],
+  deferredBatches: [],
   stepDescriptors: [],
   ...overrides,
 })

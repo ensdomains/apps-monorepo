@@ -15,7 +15,11 @@ import type { Address, Hex, PublicClient } from 'viem'
 import { customSepolia } from '@/lib/wagmi'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import type { MigrationPlan, NameBundle } from './buildMigrationPlan'
+import {
+  type MigrationPlan,
+  type NameBundle,
+  resolveDeferredBatches,
+} from './buildMigrationPlan'
 import { approvalNeedsFor, checkSCAApprovals } from './checkSCAApprovals'
 import type {
   ClassifiedName,
@@ -334,9 +338,15 @@ export const executeMigration = async (params: {
 
   const batchHashes = await submitBatches(ctx, batches)
 
+  let deferredHashes: Hex[] = []
+  if (plan.deferredBatches.length > 0) {
+    const rebuilt = await resolveDeferredBatches({ plan, publicClient })
+    deferredHashes = await submitBatches(ctx, rebuilt)
+  }
+
   return {
     completed: classified.length,
-    txHashes: [...approvalHashes, ...batchHashes],
+    txHashes: [...approvalHashes, ...batchHashes, ...deferredHashes],
     ineligible: [...ineligible],
     migratedNames: classified.map((c) => c.domain.name),
   }

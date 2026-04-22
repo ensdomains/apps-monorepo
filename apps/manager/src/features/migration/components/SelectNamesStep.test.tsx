@@ -51,7 +51,7 @@ const renderStep = () => {
 }
 
 describe('SelectNamesStep', () => {
-  it('seeds all visible names as selected on mount', () => {
+  it('seeds all visible names (parent + subnames + orphans) as selected', () => {
     const { onNamesChange, getByText } = renderStep()
     expect(getByText('sub1234.eth')).toBeInTheDocument()
     expect(getByText('gm.sub1234.eth')).toBeInTheDocument()
@@ -84,7 +84,7 @@ describe('SelectNamesStep', () => {
     expect(lastCall).toContain('gm.sub1234.eth')
   })
 
-  it('subname rows are not interactive', () => {
+  it('subname rows are not individually interactive', () => {
     const { onNamesChange, getByText } = renderStep()
     const subnameText = getByText('gm.sub1234.eth')
     expect(subnameText.closest('button')).toBeNull()

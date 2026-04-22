@@ -78,8 +78,27 @@ const makeDomain = (o: DomainOverrides = {}): V1Domain => {
 
 describe('classifyName', () => {
   describe('early returns', () => {
-    it('returns null when labelName is missing', () => {
-      expect(classifyName(makeDomain({ labelName: null }), OWNER)).toBeNull()
+    it('marks as ineligible when labelName is missing', () => {
+      const result = classifyName(makeDomain({ labelName: null }), OWNER)
+      expect(result).toEqual({
+        type: 'ineligible',
+        name: expect.objectContaining({ reason: 'unknown-label' }),
+      })
+    })
+
+    it('marks as ineligible when label preimage is a hex-bracket placeholder', () => {
+      const hex = '0'.repeat(64)
+      const result = classifyName(
+        makeDomain({
+          labelName: `[${hex}]`,
+          name: `[${hex}].eth`,
+        }),
+        OWNER,
+      )
+      expect(result).toEqual({
+        type: 'ineligible',
+        name: expect.objectContaining({ reason: 'unknown-label' }),
+      })
     })
 
     it('returns null for unwrapped when registrant does not match owner', () => {
@@ -328,6 +347,7 @@ describe('classifyNames', () => {
     ).toEqual([
       { id: '0x2', reason: 'not-transferable' },
       { id: '0x3', reason: 'unlocked-subname' },
+      { id: '0x4', reason: 'unknown-label' },
     ])
   })
 })

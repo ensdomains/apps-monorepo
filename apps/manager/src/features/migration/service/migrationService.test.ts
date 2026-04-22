@@ -158,12 +158,10 @@ describe('executeMigration', () => {
     const { result } = await runExecute({
       domains: [{ ...unwrappedDomain('x'), labelName: null } as V1Domain],
     })
-    expect(result).toEqual({
-      completed: 0,
-      txHashes: [],
-      ineligible: [],
-      migratedNames: [],
-    })
+    expect(result.completed).toBe(0)
+    expect(result.txHashes).toEqual([])
+    expect(result.migratedNames).toEqual([])
+    expect(result.ineligible.map((n) => n.reason)).toEqual(['unknown-label'])
     expect(waitForTransactionMock).not.toHaveBeenCalled()
   })
 
