@@ -7,6 +7,7 @@ type NameRowProps = {
   readonly isSelected: boolean
   readonly indent: boolean
   readonly interactive: boolean
+  readonly firstSubname?: boolean
   readonly onClick?: () => void
 }
 
@@ -15,6 +16,7 @@ export const NameRow = ({
   isSelected,
   indent,
   interactive,
+  firstSubname = false,
   onClick,
 }: NameRowProps) => {
   const isSubname = indent && !interactive
@@ -22,9 +24,13 @@ export const NameRow = ({
   const content = (
     <>
       {isSubname ? (
-        <div className="flex h-[37px] w-7 shrink-0 items-start">
-          <div className="h-1/2 w-full rounded-bl-[6px] border-ens-garnet-900/30 border-b border-l" />
-        </div>
+        <div
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute bottom-1/2 left-[58px] z-0 w-[30px] rounded-bl-[6px] border-ens-garnet-900/30 border-b border-l',
+            firstSubname ? '-top-4' : '-top-[41px]',
+          )}
+        />
       ) : (
         <div
           className={cn(
@@ -45,7 +51,7 @@ export const NameRow = ({
           />
         </div>
       )}
-      <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+      <div className="relative z-10 flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
         <span className="font-semi-mono text-ens-garnet-900 text-xs">
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
         </span>
@@ -57,8 +63,8 @@ export const NameRow = ({
   )
 
   const rowClass = cn(
-    'flex items-center gap-3',
-    indent && 'pl-8',
+    'relative flex items-center gap-3',
+    isSubname && 'pl-[88px]',
     interactive ? 'cursor-pointer' : 'cursor-default',
   )
 

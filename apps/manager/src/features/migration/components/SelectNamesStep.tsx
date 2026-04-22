@@ -177,8 +177,9 @@ export const SelectNamesStep = ({
                               toggleGroup(parentName, subnameNames)
                             }
                           />,
-                          ...group.subnames.map((sub) => (
+                          ...group.subnames.map((sub, idx) => (
                             <NameRow
+                              firstSubname={idx === 0}
                               indent={true}
                               interactive={false}
                               isSelected={parentSelected}

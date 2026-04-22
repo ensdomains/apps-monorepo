@@ -116,7 +116,7 @@ msgstr ""
 msgid "+{overflow} more"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:212
+#: src/features/migration/components/SelectNamesStep.tsx:213
 msgid "<0>{totalSelected}</0><1> of </1><2>{visibleCount}</2><3> total eligible names selected</3>"
 msgstr ""
 
@@ -1564,7 +1564,7 @@ msgstr ""
 msgid "Preparing the commitment"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:238
+#: src/features/migration/components/SelectNamesStep.tsx:239
 msgid "Preparing..."
 msgstr ""
 
@@ -2328,7 +2328,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:240
+#: src/features/migration/components/SelectNamesStep.tsx:241
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2718,7 +2718,7 @@ msgstr ""
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:225
+#: src/features/migration/components/SelectNamesStep.tsx:226
 msgid "Your text records and addresses will be migrated automatically."
 msgstr ""
 
