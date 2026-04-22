@@ -188,7 +188,10 @@ describe('migrationUiMachine', () => {
 
   describe('migrate.succeeding → success', () => {
     it('transitions to success after the success hold delay when migration resolves', async () => {
-      executeMigrationMock.mockResolvedValueOnce(migrationResult())
+      executeMigrationMock.mockImplementation(async (params) => {
+        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        return migrationResult()
+      })
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
 
@@ -200,7 +203,10 @@ describe('migrationUiMachine', () => {
     })
 
     it('resetAll returns to select and wipes context on done', async () => {
-      executeMigrationMock.mockResolvedValueOnce(migrationResult())
+      executeMigrationMock.mockImplementation(async (params) => {
+        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        return migrationResult()
+      })
       const actor = start()
       await vi.advanceTimersByTimeAsync(3000)
 
@@ -242,9 +248,10 @@ describe('migrationUiMachine', () => {
       actor.start()
       actor.send({ type: 'selection.set', names: ['alice.eth', 'bob.eth'] })
 
-      executeMigrationMock.mockResolvedValueOnce(
-        migrationResult({ migratedNames: ['alice.eth'], txHashes: [] }),
-      )
+      executeMigrationMock.mockImplementation(async (params) => {
+        params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
+        throw new Error('boom')
+      })
       actor.send({
         type: 'migration.start',
         plan: makePlan([domain('alice'), domain('bob')]),

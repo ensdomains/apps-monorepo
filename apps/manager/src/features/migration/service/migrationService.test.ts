@@ -63,7 +63,7 @@ vi.mock('./checkSCAApprovals', () => ({
 }))
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
-import { writeContract } from '@wagmi/core'
+import { waitForTransactionReceipt, writeContract } from '@wagmi/core'
 import { buildMigrationPlan } from './buildMigrationPlan'
 import { checkSCAApprovals } from './checkSCAApprovals'
 import type { MigrationPreflight } from './computeMigrationPreflight'
@@ -75,6 +75,7 @@ import type { V1Domain } from './v1SubgraphClient'
 
 const waitForTransactionMock = vi.mocked(waitForTransaction)
 const writeContractMock = vi.mocked(writeContract)
+const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
 const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
 const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
 const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
@@ -149,8 +150,10 @@ beforeEach(() => {
   ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({
     hash: '0xdeadbeef' as Hex,
-    // biome-ignore lint/suspicious/noExplicitAny: partial tx-manager result shape
-  } as any)
+  } as Awaited<ReturnType<typeof waitForTransaction>>)
+  waitForTransactionReceiptMock.mockResolvedValue({
+    status: 'success',
+  } as Awaited<ReturnType<typeof waitForTransactionReceipt>>)
 })
 
 describe('executeMigration', () => {

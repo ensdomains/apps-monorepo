@@ -337,7 +337,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:186
+#: src/features/migration/pages/MigrationPage.tsx:216
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -1260,7 +1260,7 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#: src/features/migration/pages/MigrationPage.tsx:162
+#: src/features/migration/pages/MigrationPage.tsx:192
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1792,7 +1792,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:193
+#: src/features/migration/pages/MigrationPage.tsx:223
 msgid "Retry"
 msgstr "Retry"
 

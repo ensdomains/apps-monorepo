@@ -125,10 +125,18 @@ const ensureApprovals = async (
       functionName: 'setApprovalForAll',
       args: [ctx.accountAddress, true],
     })
-    await waitForTransactionReceipt(ctx.wagmiConfig, {
+    const receipt = await waitForTransactionReceipt(ctx.wagmiConfig, {
       hash,
       timeout: APPROVAL_RECEIPT_TIMEOUT_MS,
     })
+    if (receipt.status !== 'success') {
+      throw new MigrationError({
+        cause: new Error(
+          `BaseRegistrar setApprovalForAll reverted (tx ${hash})`,
+        ),
+        step: 'Approving SCA',
+      })
+    }
     hashes.push(hash)
   }
 
@@ -143,10 +151,16 @@ const ensureApprovals = async (
       functionName: 'setApprovalForAll',
       args: [ctx.accountAddress, true],
     })
-    await waitForTransactionReceipt(ctx.wagmiConfig, {
+    const receipt = await waitForTransactionReceipt(ctx.wagmiConfig, {
       hash,
       timeout: APPROVAL_RECEIPT_TIMEOUT_MS,
     })
+    if (receipt.status !== 'success') {
+      throw new MigrationError({
+        cause: new Error(`NameWrapper setApprovalForAll reverted (tx ${hash})`),
+        step: 'Approving SCA',
+      })
+    }
     hashes.push(hash)
   }
 
@@ -245,9 +259,12 @@ const wrapBatchError = (
   return new MigrationError({ cause: error, step })
 }
 
+export type OnBatchComplete = (names: readonly string[], txHash: Hex) => void
+
 const submitBatches = async (
   ctx: MigrationCtx,
   batches: readonly NameBundle[][],
+  onBatchComplete?: OnBatchComplete,
 ): Promise<Hex[]> => {
   const totalBatches = batches.length
   const hashes: Hex[] = []
@@ -276,6 +293,11 @@ const submitBatches = async (
       throw wrapBatchError(error, batchLabel)
     }
 
+    onBatchComplete?.(
+      bundle.map((b) => b.name.domain.name),
+      lastHash,
+    )
+
     ctx.tracker.next()
     ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, lastHash)
   }
@@ -290,6 +312,7 @@ export const executeMigration = async (params: {
   signer: Signer
   accountAddress: Address
   onProgress: (progress: MigrationProgress) => void
+  onBatchComplete?: OnBatchComplete
 }): Promise<MigrationResult> => {
   const {
     plan,
@@ -298,6 +321,7 @@ export const executeMigration = async (params: {
     signer,
     accountAddress,
     onProgress,
+    onBatchComplete,
   } = params
   const {
     classified,
@@ -336,12 +360,12 @@ export const executeMigration = async (params: {
   )
   await ensureResolver(ctx, namesToOwnedPermRes, preflight)
 
-  const batchHashes = await submitBatches(ctx, batches)
+  const batchHashes = await submitBatches(ctx, batches, onBatchComplete)
 
   let deferredHashes: Hex[] = []
   if (plan.deferredBatches.length > 0) {
     const rebuilt = await resolveDeferredBatches({ plan, publicClient })
-    deferredHashes = await submitBatches(ctx, rebuilt)
+    deferredHashes = await submitBatches(ctx, rebuilt, onBatchComplete)
   }
 
   return {

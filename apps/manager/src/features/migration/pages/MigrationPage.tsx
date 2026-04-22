@@ -1,7 +1,8 @@
 import { Trans } from '@lingui/react/macro'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback } from 'react'
+import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
@@ -18,6 +19,7 @@ import {
 } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
+  useMigrateSubstep,
   useMigrationLastError,
   useMigrationMigratedNames,
   useMigrationSelectedNames,
@@ -75,10 +77,31 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   }
 }
 
+const invalidateMigrationQueries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+) => {
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      const first = query.queryKey[0]
+      if (first === 'migration-preflight') return true
+      if (
+        typeof first === 'object' &&
+        first !== null &&
+        '$scope' in first &&
+        (first as { $scope: unknown }).$scope === 'migration'
+      ) {
+        return true
+      }
+      return false
+    },
+  })
+}
+
 export const MigrationPage = () => {
   const navigate = useNavigate()
   const { uiActor } = useMigrationUiContext()
   const step = useMigrationStep(uiActor)
+  const migrateSubstep = useMigrateSubstep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
@@ -87,10 +110,17 @@ export const MigrationPage = () => {
   const { ownerAddress, accountAddress } = smartAccount
   const wagmiConfig = useConfig()
   const publicClient = usePublicClient({ chainId: customSepolia.id })
+  const queryClient = useQueryClient()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress as Address | undefined,
     scaAddress: accountAddress as Address | undefined,
   })
+
+  useEffect(() => {
+    if (migrateSubstep === 'succeeding') {
+      invalidateMigrationQueries(queryClient)
+    }
+  }, [migrateSubstep, queryClient])
 
   const handleSuccessClose = useCallback(() => {
     uiActor.send({ type: 'done' })
