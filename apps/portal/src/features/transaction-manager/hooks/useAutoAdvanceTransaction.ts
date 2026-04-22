@@ -1,26 +1,29 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Transaction } from '../types'
 
 /**
  * Automatically calls `onDone` on the currently active transaction when it
  * succeeds, advancing the flow to the next transaction in the sequence.
  *
- * @param autoAdvanceTxId - The ID of the transaction to advance from, or null
- *   if auto-advance is not applicable (e.g. modal is closed or tx not yet done).
- * @param transactions - The ordered list of transactions in the current flow.
+ * `transactions` is held in a ref so the effect only fires when
+ * `autoAdvanceTxId` changes — callers pass an inline array that gets a new
+ * reference on every render, and including it in deps would cause an infinite
+ * loop when `onDone` triggers a state update.
  */
 export function useAutoAdvanceTransaction(
   autoAdvanceTxId: string | null,
   transactions: readonly Transaction[],
 ): void {
+  const transactionsRef = useRef(transactions)
+  transactionsRef.current = transactions
+
   useEffect(() => {
     if (!autoAdvanceTxId) return
 
-    const activeIndex = transactions.findIndex(
-      (tx) => tx.id === autoAdvanceTxId,
-    )
-    if (activeIndex < 0 || activeIndex >= transactions.length - 1) return
+    const txs = transactionsRef.current
+    const activeIndex = txs.findIndex((tx) => tx.id === autoAdvanceTxId)
+    if (activeIndex < 0 || activeIndex >= txs.length - 1) return
 
-    transactions[activeIndex].onDone()
-  }, [autoAdvanceTxId, transactions])
+    txs[activeIndex].onDone()
+  }, [autoAdvanceTxId])
 }
