@@ -935,7 +935,7 @@ msgstr "Expires:"
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:31
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:48
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:40
 msgid "expiring on"
 msgstr "expiring on"
 
@@ -1652,7 +1652,7 @@ msgstr "Reconnect the wallet used for notifications, then sign in again."
 msgid "Reconnect Wallet"
 msgstr "Reconnect Wallet"
 
-#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:49
+#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:58
 msgid "Register to date"
 msgstr "Register to date"
 
@@ -1792,7 +1792,7 @@ msgstr "Removing telegram for {0}"
 msgid "Renew Name"
 msgstr "Renew Name"
 
-#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:51
+#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:60
 msgid "Renew to date"
 msgstr "Renew to date"
 
@@ -1820,7 +1820,7 @@ msgstr "Renewal Period"
 msgid "Renewing"
 msgstr "Renewing"
 
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:42
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:34
 msgid "Renewing for"
 msgstr "Renewing for"
 

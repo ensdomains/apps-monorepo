@@ -940,7 +940,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:31
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:48
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:40
 msgid "expiring on"
 msgstr ""
 
@@ -1657,7 +1657,7 @@ msgstr ""
 msgid "Reconnect Wallet"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:49
+#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:58
 msgid "Register to date"
 msgstr ""
 
@@ -1797,7 +1797,7 @@ msgstr ""
 msgid "Renew Name"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:51
+#: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx:60
 msgid "Renew to date"
 msgstr ""
 
@@ -1825,7 +1825,7 @@ msgstr ""
 msgid "Renewing"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:42
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:34
 msgid "Renewing for"
 msgstr ""
 

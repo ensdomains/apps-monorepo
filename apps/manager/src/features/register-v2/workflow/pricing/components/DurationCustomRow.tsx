@@ -17,21 +17,30 @@ export const DurationCustomRow = ({
   onDurationSet,
   isSelected,
   type,
+  referenceDate: referenceDateProp,
 }: {
   selectedDuration: number
   onDurationSet: (duration: number) => void
   isSelected: boolean
   type: 'register' | 'renew'
+  /** Registration: defaults to start of today. Renewal: pass current on-chain expiry (same as PricingSummaryCard). */
+  referenceDate?: Date
 }) => {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
-  const expirationDate = new Date(Date.now() + selectedDuration * 1000)
-  const [now] = useState(() => {
+  const [defaultReferenceDate] = useState(() => {
     const value = new Date()
     value.setHours(0, 0, 0, 0)
     return value
   })
+  const referenceDate = referenceDateProp ?? defaultReferenceDate
+  const expirationDate = new Date(
+    referenceDate.getTime() + selectedDuration * 1000,
+  )
 
-  const minSelectableDate = addSeconds(now, MIN_REGISTER_DURATION_SECONDS)
+  const minSelectableDate = addSeconds(
+    referenceDate,
+    MIN_REGISTER_DURATION_SECONDS,
+  )
 
   return (
     <Popover onOpenChange={setIsDatePopoverOpen} open={isDatePopoverOpen}>
@@ -83,7 +92,7 @@ export const DurationCustomRow = ({
             date.setHours(0, 0, 0, 0)
             const duration = Math.max(
               MIN_REGISTER_DURATION_SECONDS,
-              Math.round((date.getTime() - now.getTime()) / 1000),
+              Math.round((date.getTime() - referenceDate.getTime()) / 1000),
             )
             onDurationSet(duration)
           }}
@@ -92,7 +101,7 @@ export const DurationCustomRow = ({
             minDate.setHours(0, 0, 0, 0)
             const duration = Math.max(
               MIN_REGISTER_DURATION_SECONDS,
-              Math.round((minDate.getTime() - now.getTime()) / 1000),
+              Math.round((minDate.getTime() - referenceDate.getTime()) / 1000),
             )
             onDurationSet(duration)
           }}

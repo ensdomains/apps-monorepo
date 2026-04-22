@@ -2,6 +2,7 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
+import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import {
@@ -33,7 +34,11 @@ type PresetPricingQuery = {
 }
 
 export const DurationSelector = () => {
-  const { uiActor, label } = useRenewalUiContext()
+  const { uiActor, label, currentExpiry } = useRenewalUiContext()
+  const referenceDate = useMemo(
+    () => new Date(Number(currentExpiry) * 1000),
+    [currentExpiry],
+  )
   const selectedDuration = useSelector(
     uiActor,
     (state) => state.context.duration,
@@ -115,6 +120,7 @@ export const DurationSelector = () => {
         onDurationSet={(duration) =>
           uiActor.send({ type: 'pricing.duration.set', duration })
         }
+        referenceDate={referenceDate}
         selectedDuration={selectedDuration}
         type="renew"
       />
