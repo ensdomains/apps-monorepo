@@ -4,7 +4,11 @@ export const calculateDiscount = (
   basePriceNumber: number,
   baseRate: bigint,
   duration: bigint,
-) => {
+): {
+  basePriceWithoutDiscount: number
+  discountAmount: number
+  discountPercentage: number
+} => {
   const basePriceWithoutDiscount = decimalBigintToNumber(
     duration * baseRate,
     12,

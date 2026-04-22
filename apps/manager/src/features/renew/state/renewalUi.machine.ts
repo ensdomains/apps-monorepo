@@ -53,10 +53,6 @@ const startRenewalTransaction = async ({
   selectedToken: SUPPORTED_TOKEN
 }) => {
   const accountAddress = getSignerAddress(signer)
-
-  if (!signer || !accountAddress) {
-    throw new Error('Account not ready')
-  }
   const paymentToken = SUPPORTED_TOKENS[selectedToken]
   // Normalize to lowercase to avoid Rhinestone SDK validation issues
   const normalizedPaymentToken = paymentToken.toLowerCase() as Address
