@@ -1,38 +1,35 @@
-import {
-  Domain_OrderBy,
-  type DomainFragment,
-  OrderDirection,
-} from '@ens-apps/indexer'
+import type { DomainFragment } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   ChevronDown,
   CircleAlert,
   CircleArrowLeft,
   CircleArrowRight,
-  Loader2,
   Mountain,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import ensMarkBadge from '@/assets/ens-mark-badge.svg'
 import {
-  formatDashboardDate,
-  getDaysUntil,
-  isExpiringSoon,
-  resolveDomainLabel,
-  toDateFromSeconds,
-} from '@/features/dashboard/utils'
+  buildMergedNamesList,
+  mergedRowMetadata,
+  type SortDir,
+  type SortField,
+} from '@/features/dashboard/mergedNames'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { tw } from '@/utils/tailwind'
-import { getDomainsQuery } from '../service/queries/getDashboardDomains'
+import { getAllDomainsQuery } from '../service/queries/getAllDashboardDomains'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
 const PAGE_SIZE = 5
 
-type Sort = 'name-asc' | 'name-desc' | 'expiry-asc' | 'expiry-desc'
+type Sort = `${SortField}-${SortDir}`
 
 interface MyNamesListProps {
   readonly primaryLabel?: string | null
@@ -85,14 +82,9 @@ const SortIndicator = ({
   )
 }
 
-const parseSort = (sort: Sort) => {
-  const [field, dir] = sort.split('-') as ['name' | 'expiry', 'asc' | 'desc']
-  return {
-    field,
-    dir,
-    orderBy: field === 'name' ? Domain_OrderBy.Name : Domain_OrderBy.ExpiryDate,
-    orderDirection: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
-  }
+const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
+  const [field, dir] = sort.split('-') as [SortField, SortDir]
+  return { field, dir }
 }
 
 export const MyNamesList = ({
@@ -105,42 +97,52 @@ export const MyNamesList = ({
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<Sort>('name-desc')
 
+  const { eligible: v1Classified, isPending: isV1Pending } =
+    useEligibleV1Names()
+
+  const normalizedAddress = wallet?.address?.toLowerCase()
+
   const {
-    field: sortField,
-    dir: sortDir,
-    orderBy,
-    orderDirection,
-  } = parseSort(sort)
+    data: v2Data,
+    isPending: isV2Pending,
+    isError,
+  } = useQuery(
+    getAllDomainsQuery(
+      normalizedAddress ? { owner: normalizedAddress } : undefined,
+    ),
+  )
+
+  const v2Names: DomainFragment[] = v2Data ?? []
+
+  const { field: sortField, dir: sortDir } = parseSort(sort)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
     setPage(1)
   }, [searchQuery, wallet?.address])
 
-  const normalizedAddress = wallet?.address?.toLowerCase()
+  const mergedSortedFiltered = useMemo(
+    () =>
+      buildMergedNamesList({
+        v2Names,
+        v1Classified,
+        searchQuery,
+        sortField,
+        sortDir,
+      }),
+    [v2Names, v1Classified, searchQuery, sortField, sortDir],
+  )
 
-  const queryVariables = normalizedAddress
-    ? {
-        where: {
-          owner: normalizedAddress,
-          ...(searchQuery
-            ? { name_contains_nocase: searchQuery.toLowerCase() }
-            : {}),
-        },
-        first: PAGE_SIZE,
-        skip: (page - 1) * PAGE_SIZE,
-        orderBy,
-        orderDirection,
-      }
-    : undefined
-
-  const { data, isPending, isError, isPlaceholderData } = useQuery({
-    ...getDomainsQuery(queryVariables),
-    placeholderData: keepPreviousData,
-  })
-
-  const names: DomainFragment[] =
-    normalizedAddress && data?.domains ? data.domains : []
+  const totalPages = Math.max(
+    1,
+    Math.ceil(mergedSortedFiltered.length / PAGE_SIZE),
+  )
+  const currentPage = Math.min(page, totalPages)
+  const pageItems = mergedSortedFiltered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  )
+  const hasNextPage = currentPage < totalPages
 
   const toggleSort = (field: 'name' | 'expiry') => {
     if (sortField === field) {
@@ -152,12 +154,17 @@ export const MyNamesList = ({
   }
 
   const avatarQueries = useQueries({
-    queries: names.map((domain) =>
-      parseAvatarQuery(domain.resolver?.avatar ?? undefined),
+    queries: pageItems.map((item) =>
+      parseAvatarQuery(
+        item.kind === 'v2'
+          ? (item.domain.resolver?.avatar ?? undefined)
+          : undefined,
+      ),
     ),
   })
 
-  const hasNextPage = names.length === PAGE_SIZE
+  const isPending =
+    (isV2Pending && normalizedAddress !== undefined) || isV1Pending
 
   if (isError) {
     return (
@@ -245,10 +252,8 @@ export const MyNamesList = ({
         </button>
       </div>
 
-      <div
-        className={tw`flex w-full flex-col transition-opacity ${isPlaceholderData && 'opacity-50'}`}
-      >
-        {match({ isPending, names })
+      <div className={tw`flex w-full flex-col`}>
+        {match({ isPending, pageItems })
           .with({ isPending: true }, () => (
             <>
               <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
@@ -262,7 +267,7 @@ export const MyNamesList = ({
               </div>
             </>
           ))
-          .with({ names: P.when((n) => n.length === 0) }, () => (
+          .with({ pageItems: P.when((n) => n.length === 0) }, () => (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
               <Mountain
                 className="size-12 text-ens-gray-three"
@@ -273,27 +278,26 @@ export const MyNamesList = ({
               </span>
             </div>
           ))
-          .otherwise(({ names }) =>
-            names.map((name, index) => {
-              const label = resolveDomainLabel(name)
-              const expiryDate = toDateFromSeconds(name.expiryDate ?? null)
-              const daysUntilExpiry = getDaysUntil(expiryDate)
-              const expiringSoon = isExpiringSoon(
-                expiryDate,
-                30,
+          .otherwise(({ pageItems }) =>
+            pageItems.map((item, index) => {
+              const {
+                label,
                 daysUntilExpiry,
+                expiringSoon,
+                formattedExpiryDate,
+                isV1,
+                isPrimary,
+                avatarUrl,
+              } = mergedRowMetadata(
+                item,
+                primaryLabel,
+                avatarQueries[index]?.data,
               )
-              const formattedExpiryDate = formatDashboardDate(expiryDate)
-              const isPrimary =
-                primaryLabel !== undefined &&
-                label.toLowerCase() === primaryLabel?.toLowerCase()
-              const avatarUrl =
-                avatarQueries[index]?.data ?? name.resolver?.avatar ?? undefined
 
               return (
                 <motion.div
                   className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                  key={name.id}
+                  key={item.key}
                   {...(shouldReduceMotion
                     ? {}
                     : {
@@ -306,27 +310,48 @@ export const MyNamesList = ({
                         },
                       })}
                 >
+                  {isV1 && (
+                    <div className="mb-[10px]">
+                      <Link
+                        className="inline-flex items-center gap-1 rounded-full bg-[#feeaf0] px-1 py-0.5 transition-colors hover:bg-[#fcdbe5]"
+                        to="/migration"
+                      >
+                        <img
+                          alt=""
+                          className="mt-[2px] size-4.5 shrink-0"
+                          src={ensMarkBadge}
+                        />
+                        <span className="font-sans text-[#e72a96] text-[14px] leading-[1.05] tracking-[0.28px]">
+                          <Trans>Eligible for upgrade</Trans>
+                        </span>
+                      </Link>
+                    </div>
+                  )}
                   {isPrimary && (
                     <div className="mb-[10px]">
                       <PrimaryBadge />
                     </div>
                   )}
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow avatarUrl={avatarUrl} label={label} />
+                    <NameRow
+                      avatarUrl={avatarUrl}
+                      label={label}
+                      linkToMigration={isV1}
+                    />
                     <div className="flex items-start gap-4 md:gap-[30px]">
-                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
+                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
                         <div className="flex flex-col items-start">
                           <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
                             {formattedExpiryDate}
                           </span>
                         </div>
                         {expiringSoon && daysUntilExpiry !== null && (
-                          <div className="flex items-center gap-[3px] rounded-[20px] bg-[#fff8f0] p-[3px] md:gap-[4px] md:p-[4px]">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
                             <CircleAlert
-                              className="size-[10px] text-[#e3a531] md:size-[12px]"
+                              className="size-3 shrink-0 text-[#e3a531]"
                               strokeWidth={2}
                             />
-                            <span className="font-sans text-[#c68a1b] text-[10px] leading-[1.05] tracking-[0.2px] md:text-xs md:tracking-[0.24px]">
+                            <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
                               <Trans>Expires in {daysUntilExpiry} days</Trans>
                             </span>
                           </div>
@@ -345,8 +370,8 @@ export const MyNamesList = ({
           <button
             aria-label={t`Previous page`}
             className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
-            disabled={isPending || page === 1}
-            onClick={() => setPage((p) => p - 1)}
+            disabled={isPending || currentPage === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             type="button"
           >
             <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
@@ -362,9 +387,6 @@ export const MyNamesList = ({
           </button>
         </div>
         <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-          {isPlaceholderData && (
-            <Loader2 className="size-[12px] animate-spin" />
-          )}
           <Trans>Showing your names</Trans>
         </span>
       </div>

@@ -60,7 +60,7 @@ export const ParentName = ({
         onClick={() => navigate({ to: '/$name', params: { name: parent } })}
       >
         <NameAvatar width="40px" height="40px" name={parent} />
-        <span className="text-sm text-muted-foreground">Parent</span>
+        <span className="font-medium">Parent</span>
       </button>
       <EntityBadgeWithActions variant="name" name={parent}>
         {parent}

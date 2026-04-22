@@ -28,6 +28,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `transactions` is intentionally omitted — callers pass an inline array that gets a new reference on every render, which would cause an infinite loop. This effect must only fire when a transaction actually completes (autoAdvanceTxId changes).
   useEffect(() => {
     if (!autoAdvanceTxId) return
 
@@ -36,9 +37,8 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
     )
     if (activeIndex < 0 || activeIndex >= transactions.length - 1) return
 
-    const activeTransaction = transactions[activeIndex]
-    activeTransaction.onDone()
-  }, [autoAdvanceTxId, transactions])
+    transactions[activeIndex].onDone()
+  }, [autoAdvanceTxId])
 
   const handleClose = () => {
     closeModal()
