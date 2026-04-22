@@ -263,7 +263,7 @@ const PriceBreakdown = ({
                 'Price:'
               )
             }
-            value={`${formatUsd(pricePerYear)}/year × ${Math.floor(years)}`}
+            value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
           />
         )}
 
