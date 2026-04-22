@@ -319,6 +319,68 @@ describe('registrationDuration', () => {
         getYearsFromDuration(expectedDuration, startOfFixedToday),
       )
     })
+
+    // The ENS registrar computes expiry = block.timestamp + duration. These
+    // tests verify that getDurationFromPickerDate produces a duration that
+    // round-trips back to exactly the calendar date the user selected, so the
+    // on-chain expiry always lands on (not before) the chosen date regardless
+    // of the time of day registration occurs.
+    describe('calendar date round-trip (picker → duration → expiry date)', () => {
+      it('should recover the exact picked date for a 1-year selection', () => {
+        const picked = startOfFixedToday.add({ years: 1 })
+        const duration = getDurationFromPickerDate(picked, startOfFixedToday)
+        const recovered = getRegistrationExpiryDateFromSeconds(
+          startOfFixedToday,
+          duration,
+        )
+        expect(recovered.toString()).toBe(picked.toString())
+      })
+
+      it('should recover the exact picked date for a 2-year selection', () => {
+        const picked = startOfFixedToday.add({ years: 2 })
+        const duration = getDurationFromPickerDate(picked, startOfFixedToday)
+        const recovered = getRegistrationExpiryDateFromSeconds(
+          startOfFixedToday,
+          duration,
+        )
+        expect(recovered.toString()).toBe(picked.toString())
+      })
+
+      it('should recover the exact picked date across a leap year boundary', () => {
+        // 2026-01-15 → 2028-01-15 crosses the Feb 29 2028 leap day
+        const leapStart = Temporal.PlainDate.from('2026-01-15')
+        const picked = leapStart.add({ years: 2 })
+        const duration = getDurationFromPickerDate(picked, leapStart)
+        const recovered = getRegistrationExpiryDateFromSeconds(
+          leapStart,
+          duration,
+        )
+        expect(recovered.toString()).toBe(picked.toString())
+      })
+
+      it('should recover the exact picked date for a 6-month selection', () => {
+        const picked = startOfFixedToday.add({ months: 6 })
+        const duration = getDurationFromPickerDate(picked, startOfFixedToday)
+        const recovered = getRegistrationExpiryDateFromSeconds(
+          startOfFixedToday,
+          duration,
+        )
+        expect(recovered.toString()).toBe(picked.toString())
+      })
+
+      it('on-chain expiry lands on the picked date, not one day early', () => {
+        // With the old +86399 offset the recovered date would be one day later
+        // than picked (extra ~24 h pushed it past midnight). Without the offset,
+        // duration = days * 86400 maps exactly to the calendar day.
+        const picked = Temporal.PlainDate.from('2026-07-04')
+        const today = Temporal.PlainDate.from('2025-07-04')
+        const duration = getDurationFromPickerDate(picked, today)
+        const recovered = getRegistrationExpiryDateFromSeconds(today, duration)
+        expect(recovered.toString()).toBe('2026-07-04')
+        // Sanity: duration is exactly 365 days in seconds (no leap year here)
+        expect(duration).toBe(365 * 86400)
+      })
+    })
   })
 
   describe('getRegistrationExpiryDateFromSeconds', () => {

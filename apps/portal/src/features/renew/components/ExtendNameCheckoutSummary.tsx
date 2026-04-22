@@ -1,59 +1,40 @@
-import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  getRegistrationPriceQueryOptions,
-  type RegistrationPriceResult,
-} from '@/features/register/hooks/useRegistrationPrice'
-import {
-  getRegistrationDisplayDates,
-  getStartOfToday,
-} from '@/features/register/utils/registrationDuration'
-import {
-  formatPriceDisplay,
-  formatRegistrationTotal,
-  isPriceResult,
-} from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { cn } from '@/lib/utils'
-import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { dateToPlainDate } from '@/utils/temporal'
+import { useNamePricing } from '../hooks/useNamePricing'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
+import type { NamePricingDisplay } from '../utils/computeNamePricingDisplay'
+import type { ExtensionSpanType } from './ExtensionDurationOrExpiryPicker'
 
 type ExtendNameCheckoutSummaryProps = {
   readonly selectedName: SelectedName
   readonly duration: number
+  readonly spanType: ExtensionSpanType
+  readonly baseDate?: Temporal.PlainDate
 }
 
 export const ExtendNameCheckoutSummary = ({
   selectedName,
   duration,
+  spanType,
+  baseDate,
 }: ExtendNameCheckoutSummaryProps) => {
-  const {
-    data: price,
-    isLoading,
-    isError,
-    error,
-  } = useQuery({
-    ...getRegistrationPriceQueryOptions({
-      name: selectedName.name,
-      duration,
-    }),
-    enabled: duration > 0,
-  })
-
-  const hasPrice = price && isPriceResult(price)
+  const { display, isLoading, isError, error } = useNamePricing(
+    selectedName,
+    duration,
+    spanType,
+    baseDate,
+  )
 
   return (
     <section
       className="border border-border rounded-sm bg-card py-5"
       aria-label="Extension summary"
     >
-      {match({ isLoading, isError, hasPrice })
+      {match({ isLoading, isError, hasDisplay: display !== null })
         .with({ isLoading: true }, () => <ExtensionSkeleton />)
         .with({ isError: true }, () => {
           const errorInfo = error ? getTransactionErrorInfo(error) : null
@@ -67,14 +48,8 @@ export const ExtendNameCheckoutSummary = ({
             />
           )
         })
-        .with({ hasPrice: true }, () =>
-          price ? (
-            <ExtensionPriceBreakdown
-              selectedName={selectedName}
-              price={price}
-              duration={duration}
-            />
-          ) : null,
+        .with({ hasDisplay: true }, () =>
+          display ? <ExtensionPriceBreakdown display={display} /> : null,
         )
         .otherwise(() => (
           <div className="border border-border rounded-md p-4">
@@ -133,31 +108,19 @@ const ExtensionSkeleton = () => (
   </dl>
 )
 
-type ExtensionPriceBreakdownProps = {
-  readonly selectedName: SelectedName
-  readonly price: RegistrationPriceResult
-  readonly duration: number
-}
-
 const ExtensionPriceBreakdown = ({
-  selectedName,
-  price,
-  duration,
-}: ExtensionPriceBreakdownProps) => {
-  const { registrationPeriod } = getRegistrationDisplayDates(duration)
-
-  const days = Math.floor(duration / 86400)
-  const baseDate = selectedName.expiryDate
-    ? dateToPlainDate(selectedName.expiryDate)
-    : getStartOfToday()
-  const newExpiry = baseDate.add({ days })
-  const newExpiryFormatted = formatExpiryDate(newExpiry)
-
-  const { pricePerYear, years } = getPricingBreakdown(
-    selectedName.name,
-    price,
-    duration,
-  )
+  display,
+}: {
+  readonly display: NamePricingDisplay
+}) => {
+  const {
+    registrationPeriod,
+    newExpiryFormatted,
+    priceLabel,
+    priceValue,
+    subtotal,
+    total,
+  } = display
 
   return (
     <dl className="space-y-2">
@@ -166,26 +129,17 @@ const ExtensionPriceBreakdown = ({
 
       <hr className="border-border my-3" />
 
-      {Math.round(years * 12) >= 12 && (
-        <SummaryRow
-          label="Price:"
-          value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
-        />
-      )}
+      <SummaryRow label={priceLabel} value={priceValue} />
 
       <SummaryRow
         label="Subtotal:"
-        value={formatPriceDisplay(price.base, price.decimals)}
+        value={subtotal}
         valueClassName="flex items-center gap-1 m-0"
       />
 
       <SummaryRow
         label="Total:"
-        value={formatRegistrationTotal(
-          price.base,
-          price.premium,
-          price.decimals,
-        )}
+        value={total}
         className="pt-3 border-t border-border"
         labelClassName="text-xl text-primary font-medium"
         valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"

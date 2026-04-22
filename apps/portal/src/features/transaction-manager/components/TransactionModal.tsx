@@ -1,10 +1,11 @@
 import { useActiveTransactions } from '@ens-apps/transaction-manager'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
+import { useAutoAdvanceTransaction } from '../hooks/useAutoAdvanceTransaction'
 import { useTransactionModal } from '../hooks/useTransactionModal'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
@@ -28,17 +29,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `transactions` is intentionally omitted — callers pass an inline array that gets a new reference on every render, which would cause an infinite loop. This effect must only fire when a transaction actually completes (autoAdvanceTxId changes).
-  useEffect(() => {
-    if (!autoAdvanceTxId) return
-
-    const activeIndex = transactions.findIndex(
-      (tx) => tx.id === autoAdvanceTxId,
-    )
-    if (activeIndex < 0 || activeIndex >= transactions.length - 1) return
-
-    transactions[activeIndex].onDone()
-  }, [autoAdvanceTxId])
+  useAutoAdvanceTransaction(autoAdvanceTxId, transactions)
 
   const handleClose = () => {
     closeModal()
