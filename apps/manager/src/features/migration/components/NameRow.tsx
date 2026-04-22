@@ -67,9 +67,5 @@ export const NameRow = ({
     )
   }
 
-  return (
-    <div aria-disabled="true" className={rowClass} data-selected={isSelected}>
-      {content}
-    </div>
-  )
+  return <div className={rowClass}>{content}</div>
 }

@@ -22,10 +22,7 @@ export const SelectNamesStep = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isStarting, setIsStarting] = useState(false)
 
-  const eligibleList = useMemo<readonly ClassifiedName[]>(
-    () => eligible,
-    [eligible],
-  )
+  const eligibleList: readonly ClassifiedName[] = eligible
 
   const didSeed = useRef(false)
   useEffect(() => {
