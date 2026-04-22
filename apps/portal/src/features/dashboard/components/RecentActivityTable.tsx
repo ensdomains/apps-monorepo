@@ -96,7 +96,7 @@ export const RecentActivityTable = () => {
                   ))
                   .with({ type: 'name' }, ({ value }) => (
                     <EntityBadgeWithActions variant="name" name={value}>
-                      {value}
+                      {truncateName(value)}
                     </EntityBadgeWithActions>
                   ))
                   .otherwise(() => null)}

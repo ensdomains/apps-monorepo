@@ -25,5 +25,6 @@ export const truncateName = (name: string, maxLength = 24): string => {
 
   if (prefixLen + suffixLen >= label.length) return name
 
-  return `${label.slice(0, prefixLen)}…${label.slice(-suffixLen)}${tld}`
+  const suffix = suffixLen > 0 ? label.slice(-suffixLen) : ''
+  return `${label.slice(0, prefixLen)}…${suffix}${tld}`
 }
