@@ -286,7 +286,7 @@ export const ResolverRolesSidebar = ({
                 </Alert>
               )}
 
-              <div className="border border-border rounded-2xl overflow-hidden">
+              <div className="border border-border rounded-sm overflow-hidden">
                 {resolverPermissions.map((permission, index) => {
                   const roleKey = permission.key
                   const rolePerms = editedPermissions.get(roleKey) || {

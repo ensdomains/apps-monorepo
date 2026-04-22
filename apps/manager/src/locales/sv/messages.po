@@ -74,6 +74,10 @@ msgstr ""
 msgid "{0}% off"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:103
+msgid "{count} names migrated"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
 msgid "{discountPercentage}% off"
 msgstr ""
@@ -88,12 +92,12 @@ msgid "{durationYears} years"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:305
-#: src/features/dashboard/components/NameRow.tsx:65
+#: src/features/dashboard/components/NameRow.tsx:67
 msgid "{label} avatar"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:311
-#: src/features/dashboard/components/NameRow.tsx:71
+#: src/features/dashboard/components/NameRow.tsx:73
 msgid "{label} avatar placeholder"
 msgstr "{label} avatar-placeholder"
 
@@ -105,9 +109,26 @@ msgstr ""
 msgid "{label} theme (selected)"
 msgstr ""
 
+#: src/features/migration/components/MigrationProgressBanner.tsx:33
+msgid "{migrated} out of {total} names upgraded"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:126
+msgid "+{overflow} more"
+msgstr ""
+
+#. placeholder {0}: eligibleNames.length
+#: src/features/migration/components/SelectNamesStep.tsx:169
+msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
+msgstr ""
+
 #. placeholder {0}: getErrorMessage(error)
 #: src/routes/wallet.tsx:193
 msgid "<0>Connection failed:</0> {0}"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:101
+msgid "1 name migrated"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts:18
@@ -120,6 +141,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:72
 msgid "60-second wait prevents attacks"
+msgstr ""
+
+#: src/features/migration/components/ProfileCardPreview.tsx:63
+msgid "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:36
@@ -230,6 +255,10 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:70
+msgid "Almost there..."
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:122
 msgid "An error occurred"
 msgstr ""
@@ -262,6 +291,10 @@ msgstr ""
 msgid "Approving payment token"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:78
+msgid "Approving smart account"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:102
 msgid "Approving the payment token"
 msgstr ""
@@ -280,6 +313,10 @@ msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx:124
 msgid "Are you sure?"
+msgstr ""
+
+#: src/features/migration/components/ProfileCardPreview.tsx:57
+msgid "August 28, 2024"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:61
@@ -307,6 +344,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx:186
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -340,6 +378,13 @@ msgstr ""
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
+msgstr ""
+
+#. placeholder {0}: descriptor.batch
+#. placeholder {1}: descriptor.totalBatches
+#. placeholder {2}: descriptor.count
+#: src/features/migration/components/GameStep.tsx:87
+msgid "Batch {0}/{1}: upgrading {2} name(s)"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:44
@@ -483,6 +528,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
+#: src/features/migration/components/MigrationModal.tsx:85
 msgid "Close"
 msgstr ""
 
@@ -492,6 +538,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:104
 msgid "Coming Soon"
+msgstr ""
+
+#: src/features/migration/components/MigrationModal.tsx:38
+msgid "Commemorative NFT"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:46
@@ -508,6 +558,14 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:69
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx:67
+msgid "Complete Upgrade"
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx:56
+msgid "Complete upgrade and receive a collectible marking your place in ENS history."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:143
@@ -674,6 +732,10 @@ msgstr ""
 msgid "Custom duration in years"
 msgstr ""
 
+#: src/features/migration/components/MigrationModal.tsx:37
+msgid "Custom Profiles"
+msgstr ""
+
 #: src/features/landing/ProfilesShowcase.tsx:13
 msgid "Customize your profile to share what matters"
 msgstr ""
@@ -731,8 +793,16 @@ msgstr ""
 msgid "Domain transfer & expiry notifications"
 msgstr ""
 
+#: src/features/migration/components/SuccessModal.tsx:140
+msgid "Done"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:242
 msgid "Drag and drop an image here, or"
+msgstr ""
+
+#: src/features/dashboard/components/MyNamesList.tsx:325
+msgid "Eligible for upgrade"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:47
@@ -807,6 +877,10 @@ msgstr ""
 msgid "ENS names can be up to 255 characters"
 msgstr ""
 
+#: src/features/migration/components/MigrationModal.tsx:39
+msgid "ENS v2 Names"
+msgstr ""
+
 #: src/features/notifications/settings/email-verify-step.tsx:99
 msgid "Enter 6-digit code"
 msgstr ""
@@ -835,7 +909,7 @@ msgstr ""
 msgid "Enter your email"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:165
+#: src/features/dashboard/components/MyNamesList.tsx:172
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
@@ -856,7 +930,7 @@ msgstr ""
 msgid "expires {expiryDateString}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:330
+#: src/features/dashboard/components/MyNamesList.tsx:355
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -870,15 +944,15 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:239
+#: src/features/dashboard/components/MyNamesList.tsx:246
 msgid "Expiry"
 msgstr "Utgång"
 
-#: src/features/dashboard/components/MyNamesList.tsx:194
+#: src/features/dashboard/components/MyNamesList.tsx:201
 msgid "Expiry date (Earliest)"
 msgstr "Utgångsdatum (tidigast)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:197
+#: src/features/dashboard/components/MyNamesList.tsx:204
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
@@ -964,7 +1038,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:114
+#: src/features/dashboard/components/NamesTable.tsx:119
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1052,7 +1126,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:87
+#: src/features/dashboard/pages/DashboardPage.tsx:74
 msgid "Hello"
 msgstr "Hej"
 
@@ -1123,6 +1197,7 @@ msgid "Link copied to clipboard"
 msgstr ""
 
 #: src/features/landing/components/ProfileCard.tsx:142
+#: src/features/migration/components/ProfileCardPreview.tsx:73
 msgid "links"
 msgstr ""
 
@@ -1162,7 +1237,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "Laddar..."
 
-#: src/features/dashboard/components/NameRow.tsx:57
+#: src/features/dashboard/components/NameRow.tsx:59
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
@@ -1204,6 +1279,10 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx:162
+msgid "Migration failed"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:38
 msgid "MM/YY"
 msgstr ""
@@ -1218,23 +1297,23 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:109
+#: src/features/dashboard/components/NamesTable.tsx:114
 msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:203
-#: src/features/dashboard/components/MyNamesList.tsx:220
+#: src/features/dashboard/components/MyNamesList.tsx:227
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:171
-#: src/features/dashboard/components/MyNamesList.tsx:188
+#: src/features/dashboard/components/MyNamesList.tsx:195
 msgid "Name (A-Z)"
 msgstr "Namn (A-Ö)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:174
-#: src/features/dashboard/components/MyNamesList.tsx:191
+#: src/features/dashboard/components/MyNamesList.tsx:198
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
@@ -1272,6 +1351,10 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
+#: src/features/migration/components/MigrationModal.tsx:40
+msgid "New Experience"
+msgstr ""
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:179
 msgid "New value:"
 msgstr ""
@@ -1281,7 +1364,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:297
-#: src/features/dashboard/components/MyNamesList.tsx:355
+#: src/features/dashboard/components/MyNamesList.tsx:380
 #: src/features/profile/components/view/AddressProfileView.tsx:275
 msgid "Next page"
 msgstr ""
@@ -1303,6 +1386,10 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:111
+msgid "No eligible names found for this wallet"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:348
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:212
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
@@ -1316,9 +1403,13 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
+#: src/features/migration/components/SelectNamesStep.tsx:108
+msgid "No names match your search"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:234
 #: src/features/dashboard/components/FavoritesList.tsx:245
-#: src/features/dashboard/components/MyNamesList.tsx:272
+#: src/features/dashboard/components/MyNamesList.tsx:277
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1480,8 +1571,16 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:75
+msgid "Preparing migration..."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 msgid "Preparing the commitment"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:192
+msgid "Preparing..."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:510
@@ -1498,7 +1597,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:288
-#: src/features/dashboard/components/MyNamesList.tsx:346
+#: src/features/dashboard/components/MyNamesList.tsx:371
 #: src/features/profile/components/view/AddressProfileView.tsx:266
 msgid "Previous page"
 msgstr ""
@@ -1560,6 +1659,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
+#: src/features/migration/components/ProfileCardPreview.tsx:54
 #: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:164
 msgid "Registered"
 msgstr "Registrerad"
@@ -1749,6 +1849,10 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
+#: src/features/migration/pages/MigrationPage.tsx:193
+msgid "Retry"
+msgstr ""
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx:43
 msgid "Retrying will attempt the registration again from where it left off."
 msgstr ""
@@ -1812,7 +1916,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:152
+#: src/features/dashboard/components/NamesTable.tsx:157
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
@@ -1825,9 +1929,14 @@ msgstr ""
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/dashboard/components/NamesTable.tsx:152
+#: src/features/dashboard/components/NamesTable.tsx:157
 msgid "Search name..."
 msgstr "Sök namn..."
+
+#: src/features/migration/components/SelectNamesStep.tsx:84
+#: src/features/migration/components/SelectNamesStep.tsx:88
+msgid "Search names"
+msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx:120
 #: src/routes/notifications/_authenticated/index.tsx:121
@@ -1844,6 +1953,10 @@ msgstr ""
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:46
 msgid "See all"
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx:39
+msgid "See what's new"
 msgstr ""
 
 #. placeholder {0}: stablecoin.symbol
@@ -1893,7 +2006,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:108
+#: src/features/dashboard/pages/DashboardPage.tsx:95
 msgid "Set primary name"
 msgstr ""
 
@@ -1923,6 +2036,10 @@ msgstr "Anger ETH-adress..."
 msgid "Setting ETH address…"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:82
+msgid "Setting up your v2 resolver"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:381
 msgid "Setting..."
 msgstr "Anger..."
@@ -1944,7 +2061,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:368
+#: src/features/dashboard/components/MyNamesList.tsx:390
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -1952,7 +2069,7 @@ msgstr "Visar dina namn"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:117
+#: src/features/dashboard/components/NamesTable.tsx:122
 msgid "Sign in to view favorites"
 msgstr "Logga in för att se favoriter"
 
@@ -2000,6 +2117,11 @@ msgstr ""
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr ""
 
+#. placeholder {0}: i + 1
+#: src/features/migration/components/MigrationModal.tsx:114
+msgid "Slide {0}"
+msgstr ""
+
 #: src/features/wallet/components/EnableSessionModal.tsx:100
 msgid "Smart Account"
 msgstr ""
@@ -2021,34 +2143,34 @@ msgid "Social Links"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:148
-#: src/features/dashboard/components/MyNamesList.tsx:176
+#: src/features/dashboard/components/MyNamesList.tsx:183
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:228
+#: src/features/dashboard/components/MyNamesList.tsx:235
 msgid "Sort by expiry, currently ascending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:229
+#: src/features/dashboard/components/MyNamesList.tsx:236
 msgid "Sort by expiry, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:230
+#: src/features/dashboard/components/MyNamesList.tsx:237
 msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:192
-#: src/features/dashboard/components/MyNamesList.tsx:209
+#: src/features/dashboard/components/MyNamesList.tsx:216
 msgid "Sort by name, currently ascending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:193
-#: src/features/dashboard/components/MyNamesList.tsx:210
+#: src/features/dashboard/components/MyNamesList.tsx:217
 msgid "Sort by name, currently descending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:194
-#: src/features/dashboard/components/MyNamesList.tsx:211
+#: src/features/dashboard/components/MyNamesList.tsx:218
 msgid "Sort by name, currently unsorted"
 msgstr ""
 
@@ -2056,7 +2178,7 @@ msgstr ""
 msgid "Sort favorites by"
 msgstr "Sortera favoriter efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:179
+#: src/features/dashboard/components/MyNamesList.tsx:186
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
@@ -2279,6 +2401,28 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
 msgid "Updating profile"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:194
+#: src/features/migration/components/UpgradeNamesButton.tsx:21
+msgid "Upgrade Names"
+msgstr ""
+
+#: src/features/migration/components/MigrationModal.tsx:94
+msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
+msgstr ""
+
+#: src/features/migration/components/UpgradeBanner.tsx:29
+msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
+msgstr ""
+
+#. placeholder {0}: descriptor.count
+#: src/features/migration/components/GameStep.tsx:86
+msgid "Upgrading {0} name(s) to v2"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:132
+msgid "Upgrading your names..."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:460
@@ -2514,13 +2658,13 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:70
-msgid "Welcome to the public alpha of the ENS app"
-msgstr "Välkommen till den offentliga alfaversionen av ENS-appen"
+#: src/features/migration/components/UpgradeBanner.tsx:25
+msgid "Welcome to the new ENS app"
+msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:73
-msgid "Welcome to the public alpha of the ENS App. You're seeing the earliest version of our app. There will be things that break, change, or disappear as we iterate. We'd love to hear what you think-share feedback anytime!"
-msgstr "Välkommen till den offentliga alfaversionen av ENS-appen. Du ser den tidigaste versionen av vår app. Saker kan gå sönder, ändras eller försvinna medan vi utvecklar. Vi vill gärna höra vad du tycker – dela feedback när som helst!"
+#: src/features/migration/components/MigrationModal.tsx:91
+msgid "Welcome to the new ENS app!"
+msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx:195
 msgid "What are smart sessions?"
@@ -2560,6 +2704,11 @@ msgstr ""
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
+#. placeholder {0}: v1Names.length
+#: src/features/migration/components/MigrationModal.tsx:150
+msgid "You have <0>{0}</0> names that are eligible for upgrade"
+msgstr ""
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:109
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr ""
@@ -2593,6 +2742,14 @@ msgstr ""
 
 #: src/features/notifications/inbox/list.tsx:108
 msgid "You're all caught up!"
+msgstr ""
+
+#: src/features/migration/components/MigrationProgressBanner.tsx:53
+msgid "You're almost there!"
+msgstr ""
+
+#: src/features/migration/components/SuccessModal.tsx:97
+msgid "You're on ENS v2!"
 msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx:91
@@ -2632,6 +2789,10 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:77
+msgid "Your names are ready to upgrade"
+msgstr ""
+
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 msgid "Your profile changes have been confirmed on-chain."
 msgstr ""
@@ -2642,6 +2803,10 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:23
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:179
+msgid "Your text records and addresses will be migrated automatically."
 msgstr ""
 
 #: src/routes/wallet.tsx:285

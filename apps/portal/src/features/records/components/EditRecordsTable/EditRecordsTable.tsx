@@ -304,7 +304,7 @@ export const EditRecordsTable = ({
                   ))}
                 </TableRow>
                 {isPendingDelete && (
-                  <TableRow className="bg-muted hover:bg-muted">
+                  <TableRow>
                     <TableCell
                       colSpan={editColumns.length}
                       className="px-4 sm:px-6 py-3"
