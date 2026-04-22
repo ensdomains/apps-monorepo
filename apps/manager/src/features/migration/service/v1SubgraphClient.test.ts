@@ -85,6 +85,39 @@ describe('getV1NamesForAddress', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('paginates using id_gt cursor from the last domain on the previous page', async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, i) =>
+      makeDomain(`0x${i.toString(16).padStart(4, '0')}`),
+    )
+    const secondPage = [makeDomain('0xffff')]
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: { domains: firstPage } }))
+      .mockResolvedValueOnce(jsonResponse({ data: { domains: secondPage } }))
+
+    await getV1NamesForAddress('0x0000000000000000000000000000000000000001')
+
+    const body0 = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as { body: string }).body,
+    )
+    const body1 = JSON.parse(
+      (fetchMock.mock.calls[1]![1] as { body: string }).body,
+    )
+    expect(body0.variables.orderBy).toBe('id')
+    expect(body0.variables.skip).toBeUndefined()
+    const firstAnd = body0.variables.whereFilter.and as Array<
+      Record<string, unknown>
+    >
+    expect(firstAnd.some((f) => 'id_gt' in f)).toBe(false)
+
+    const secondAnd = body1.variables.whereFilter.and as Array<
+      Record<string, unknown>
+    >
+    const cursorFilter = secondAnd.find((f) => 'id_gt' in f)
+    expect(cursorFilter).toEqual({
+      id_gt: firstPage[firstPage.length - 1]!.id,
+    })
+  })
+
   it('lowercases the address in the query variables', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: { domains: [] } }))
 
