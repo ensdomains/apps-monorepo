@@ -1,9 +1,4 @@
-import {
-  ENS_SEPOLIA_CONTRACTS,
-  type Signer,
-  transactionManager,
-} from '@ens-apps/transaction-manager'
-import { FAST_TEST_ETH_REGISTRAR_ABI } from '@ens-apps/transaction-manager/abis/FastTestETHRegistrar.abi.js'
+import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import {
   REFERER_ADDRESS,
   type SUPPORTED_TOKEN,
@@ -17,12 +12,20 @@ import {
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
 import { secondsInYear } from 'date-fns/constants'
 import { type Address, encodeFunctionData } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
-import { publicClient } from '@/lib/wagmi'
+import { IS_PAYMENT_TOKEN_SNIPPET } from '@/features/register/services/nameChainContractService'
+import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
+
+const ETH_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 type SubmissionData = {
   label: string
@@ -63,8 +66,8 @@ const startRenewalTransaction = async ({
 
   // Check if the payment token is supported
   const isSupported = await readContract(publicClient, {
-    address: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
-    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    address: ETH_REGISTRAR,
+    abi: IS_PAYMENT_TOKEN_SNIPPET,
     functionName: 'isPaymentToken',
     args: [normalizedPaymentToken],
   })
@@ -81,7 +84,7 @@ const startRenewalTransaction = async ({
   }
 
   const txData = encodeFunctionData({
-    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    abi: l2EthRegistrarRenewSnippet,
     functionName: 'renew',
     args: [label, duration, normalizedPaymentToken, REFERER_ADDRESS],
   })
@@ -89,13 +92,13 @@ const startRenewalTransaction = async ({
   const request = createTransactionRequest({
     signer,
     from: accountAddress,
-    to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+    to: ETH_REGISTRAR,
     data: txData,
     value: 0n,
     chainId: publicClient.chain.id,
     calls: [
       {
-        to: ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar,
+        to: ETH_REGISTRAR,
         data: txData,
         value: 0n,
       },
