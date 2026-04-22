@@ -1,6 +1,5 @@
 import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction } from '../types'
-import { getTransactionById } from './getTransactionById'
 
 /**
  * Returns the active transaction: the one matching txState when present,
