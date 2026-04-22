@@ -91,7 +91,7 @@ export const HeaderSearchSection = ({
     delay: 500,
   })
 
-  const handleEnterNavigate = () => {
+  const handleEnterNavigate = useCallback(() => {
     if (debouncedSearchValue !== searchValue) return
 
     const firstSuggestion =
@@ -103,7 +103,7 @@ export const HeaderSearchSection = ({
 
     inputRef.current?.blur()
     firstSuggestion.click()
-  }
+  }, [debouncedSearchValue, searchValue])
 
   if (isDesktop) {
     return (
