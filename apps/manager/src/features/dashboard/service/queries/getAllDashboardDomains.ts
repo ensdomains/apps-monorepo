@@ -15,7 +15,7 @@ import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import { GetDomainsError } from './getDashboardDomains'
 
-const PAGE_SIZE = 1000
+const PAGE_SIZE = 5000
 
 export const getAllDomains = ResultFn(async function* (where: DomainFilter) {
   const result = yield* fromPromise(
@@ -51,5 +51,4 @@ export const getAllDomainsQuery = (where: DomainFilter | undefined) =>
   resultQueryOptions({
     queryKey: qk('dashboard', 'all_domains', where ?? {}),
     queryFn: where ? () => getAllDomains(where) : skipToken,
-    staleTime: 5 * 60 * 1000,
   })
