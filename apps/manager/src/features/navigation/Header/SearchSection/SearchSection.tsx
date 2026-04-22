@@ -1,7 +1,7 @@
 import { useLingui } from '@lingui/react/macro'
 import { Loader2Icon, Search, X } from 'lucide-react'
 import type { KeyboardEvent, RefObject } from 'react'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import * as Drawer from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import * as Popover from '@/components/ui/popover'
