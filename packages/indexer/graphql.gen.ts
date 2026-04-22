@@ -501,6 +501,13 @@ export type DomainsQuery = { __typename?: 'Query', domains: Array<(
     & DomainFragment
   )> };
 
+export type MigratedNamesCountQueryVariables = Exact<{
+  where: DomainFilter;
+}>;
+
+
+export type MigratedNamesCountQuery = { __typename?: 'Query', domainConnection: { __typename?: 'DomainConnection', totalCount?: number | null } };
+
 export type OwnedNamesCountQueryVariables = Exact<{
   where: RegistrationFilter;
 }>;
@@ -563,6 +570,13 @@ export const DomainsDocument = gql`
   }
 }
     ${Domain}`;
+export const MigratedNamesCountDocument = gql`
+    query MigratedNamesCount($where: DomainFilter!) {
+  domainConnection(first: 0, where: $where) {
+    totalCount
+  }
+}
+    `;
 export const OwnedNamesCountDocument = gql`
     query OwnedNamesCount($where: RegistrationFilter!) {
   registrationConnection(first: 0, where: $where) {

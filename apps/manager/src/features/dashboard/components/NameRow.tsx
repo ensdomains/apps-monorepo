@@ -17,6 +17,7 @@ interface NameRowProps {
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
   readonly showFavoriteButton?: boolean
+  readonly linkToMigration?: boolean
 }
 
 export const NameRow = ({
@@ -26,6 +27,7 @@ export const NameRow = ({
   onToggleFavorite,
   isAuthenticated = true,
   showFavoriteButton = false,
+  linkToMigration = false,
 }: NameRowProps) => {
   const { t } = useLingui()
 
@@ -76,13 +78,22 @@ export const NameRow = ({
           </ImageFallback.Root>
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]">
-          <Link
-            className="mr-1 max-w-full break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
-            params={{ name: label }}
-            to="/p/$name"
-          >
-            {label}
-          </Link>
+          {linkToMigration ? (
+            <Link
+              className="mr-1 max-w-full break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
+              to="/migration"
+            >
+              {label}
+            </Link>
+          ) : (
+            <Link
+              className="mr-1 max-w-full break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
+              params={{ name: label }}
+              to="/p/$name"
+            >
+              {label}
+            </Link>
+          )}
           <ArrowUpRight
             className="size-2 shrink-0 text-ens-blue md:size-3"
             strokeWidth={2}

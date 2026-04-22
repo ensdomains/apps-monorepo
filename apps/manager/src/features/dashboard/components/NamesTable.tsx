@@ -4,8 +4,7 @@ import { useQueries } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { match } from 'ts-pattern'
 import { CountBadge } from '@/components/atoms/CountBadge'
 import { Input } from '@/components/ui/input'
@@ -14,6 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
@@ -99,15 +99,20 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     ],
   })
 
+  const { eligible: eligibleV1Names } = useEligibleV1Names()
+  const v1NamesCount = eligibleV1Names.length
+
   const { data: favorites = [] } = favoritesQuery
   const { data: ownedNamesCount } = ownedNamesCountQuery
   const favoritesCount = favorites.length
+  const combinedCount = (ownedNamesCount ?? 0) + v1NamesCount
+  const totalNamesCount = combinedCount > 0 ? combinedCount : undefined
 
   const tabs = [
     {
       key: 'myNames' as const,
       label: <Trans>My Names</Trans>,
-      badge: ownedNamesCount,
+      badge: totalNamesCount,
     },
     {
       key: 'favorites' as const,
