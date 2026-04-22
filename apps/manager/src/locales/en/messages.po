@@ -111,10 +111,9 @@ msgstr "{migrated} out of {total} names upgraded"
 msgid "+{overflow} more"
 msgstr "+{overflow} more"
 
-#. placeholder {0}: eligibleList.length
-#: src/features/migration/components/SelectNamesStep.tsx:143
-msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
-msgstr "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
+#: src/features/migration/components/SelectNamesStep.tsx:176
+msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
+msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
 
 #. placeholder {0}: getErrorMessage(error)
 #: src/routes/wallet.tsx:193
@@ -1367,7 +1366,7 @@ msgstr "No coins found"
 msgid "No default payment method set."
 msgstr "No default payment method set."
 
-#: src/features/migration/components/SelectNamesStep.tsx:114
+#: src/features/migration/components/SelectNamesStep.tsx:133
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
@@ -1384,7 +1383,7 @@ msgstr "No more records to add"
 msgid "No names found"
 msgstr "No names found"
 
-#: src/features/migration/components/SelectNamesStep.tsx:111
+#: src/features/migration/components/SelectNamesStep.tsx:130
 msgid "No names match your search"
 msgstr "No names match your search"
 
@@ -1560,7 +1559,7 @@ msgstr "Preparing migration..."
 msgid "Preparing the commitment"
 msgstr "Preparing the commitment"
 
-#: src/features/migration/components/SelectNamesStep.tsx:166
+#: src/features/migration/components/SelectNamesStep.tsx:199
 msgid "Preparing..."
 msgstr "Preparing..."
 
@@ -1873,8 +1872,8 @@ msgstr "Search name, address..."
 msgid "Search name..."
 msgstr "Search name..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:87
-#: src/features/migration/components/SelectNamesStep.tsx:91
+#: src/features/migration/components/SelectNamesStep.tsx:106
+#: src/features/migration/components/SelectNamesStep.tsx:110
 msgid "Search names"
 msgstr "Search names"
 
@@ -2324,7 +2323,7 @@ msgstr "Update Resolver"
 msgid "Updating profile"
 msgstr "Updating profile"
 
-#: src/features/migration/components/SelectNamesStep.tsx:168
+#: src/features/migration/components/SelectNamesStep.tsx:201
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
@@ -2702,7 +2701,7 @@ msgstr "Your ENS name works across web3"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/migration/components/SelectNamesStep.tsx:80
+#: src/features/migration/components/SelectNamesStep.tsx:99
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
 
@@ -2714,7 +2713,7 @@ msgstr "Your profile changes have been confirmed on-chain."
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 
-#: src/features/migration/components/SelectNamesStep.tsx:153
+#: src/features/migration/components/SelectNamesStep.tsx:186
 msgid "Your text records and addresses will be migrated automatically."
 msgstr "Your text records and addresses will be migrated automatically."
 

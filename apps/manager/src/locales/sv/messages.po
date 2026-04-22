@@ -116,9 +116,8 @@ msgstr ""
 msgid "+{overflow} more"
 msgstr ""
 
-#. placeholder {0}: eligibleList.length
-#: src/features/migration/components/SelectNamesStep.tsx:143
-msgid "<0>{totalSelected}</0><1> out of </1><2>{0}</2><3> eligible names selected</3>"
+#: src/features/migration/components/SelectNamesStep.tsx:176
+msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
 msgstr ""
 
 #. placeholder {0}: getErrorMessage(error)
@@ -1372,7 +1371,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:114
+#: src/features/migration/components/SelectNamesStep.tsx:133
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1389,7 +1388,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:111
+#: src/features/migration/components/SelectNamesStep.tsx:130
 msgid "No names match your search"
 msgstr ""
 
@@ -1565,7 +1564,7 @@ msgstr ""
 msgid "Preparing the commitment"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:166
+#: src/features/migration/components/SelectNamesStep.tsx:199
 msgid "Preparing..."
 msgstr ""
 
@@ -1878,8 +1877,8 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:87
-#: src/features/migration/components/SelectNamesStep.tsx:91
+#: src/features/migration/components/SelectNamesStep.tsx:106
+#: src/features/migration/components/SelectNamesStep.tsx:110
 msgid "Search names"
 msgstr ""
 
@@ -2329,7 +2328,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:168
+#: src/features/migration/components/SelectNamesStep.tsx:201
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2707,7 +2706,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:80
+#: src/features/migration/components/SelectNamesStep.tsx:99
 msgid "Your names are ready to upgrade"
 msgstr ""
 
@@ -2719,7 +2718,7 @@ msgstr ""
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:153
+#: src/features/migration/components/SelectNamesStep.tsx:186
 msgid "Your text records and addresses will be migrated automatically."
 msgstr ""
 

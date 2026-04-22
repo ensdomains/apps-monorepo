@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { ClassifiedName } from '../service/classifyNames'
+import { groupByParent, type NameGroup } from '../service/groupByParent'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
 
@@ -24,33 +25,46 @@ export const SelectNamesStep = ({
 
   const eligibleList: readonly ClassifiedName[] = eligible
 
+  const groups = useMemo(() => groupByParent(eligibleList), [eligibleList])
+
   const didSeed = useRef(false)
   useEffect(() => {
     if (didSeed.current || isPending || eligibleList.length === 0) return
     didSeed.current = true
-    const all = new Set(eligibleList.map((n) => n.domain.name))
-    setSelected(all)
-    onNamesChange([...all])
-  }, [isPending, eligibleList, onNamesChange])
+    const visible = new Set<string>()
+    for (const group of groups) {
+      visible.add(group.parent.domain.name)
+      for (const sub of group.subnames) visible.add(sub.domain.name)
+    }
+    setSelected(visible)
+    onNamesChange([...visible])
+  }, [isPending, eligibleList, groups, onNamesChange])
 
   const searchLower = search.toLowerCase()
 
-  const filtered = useMemo(
-    () =>
-      eligibleList.filter((n) =>
-        n.domain.name.toLowerCase().includes(searchLower),
-      ),
-    [searchLower, eligibleList],
-  )
+  const filteredGroups = useMemo(() => {
+    if (!searchLower) return groups
+    return groups.filter(
+      (g) =>
+        g.parent.domain.name.toLowerCase().includes(searchLower) ||
+        g.subnames.some((s) =>
+          s.domain.name.toLowerCase().includes(searchLower),
+        ),
+    )
+  }, [groups, searchLower])
 
-  const toggleName = useCallback(
-    (name: string) => {
+  const toggleGroup = useCallback(
+    (group: NameGroup) => {
       setSelected((prev) => {
         const next = new Set(prev)
-        if (next.has(name)) {
-          next.delete(name)
+        const parentName = group.parent.domain.name
+        const hasParent = next.has(parentName)
+        if (hasParent) {
+          next.delete(parentName)
+          for (const sub of group.subnames) next.delete(sub.domain.name)
         } else {
-          next.add(name)
+          next.add(parentName)
+          for (const sub of group.subnames) next.add(sub.domain.name)
         }
         onNamesChange([...next])
         return next
@@ -60,6 +74,11 @@ export const SelectNamesStep = ({
   )
 
   const totalSelected = selected.size
+
+  const visibleCount = useMemo(
+    () => groups.reduce((acc, g) => acc + 1 + g.subnames.length, 0),
+    [groups],
+  )
 
   const handleUpgrade = useCallback(async () => {
     if (isStarting) return
@@ -99,7 +118,7 @@ export const SelectNamesStep = ({
                 <div className="flex flex-col gap-4">
                   {match({
                     isPending,
-                    hasResults: filtered.length > 0,
+                    hasResults: filteredGroups.length > 0,
                   })
                     .with({ isPending: true }, () => <NameListSkeleton />)
                     .with({ hasResults: false }, () => (
@@ -119,16 +138,30 @@ export const SelectNamesStep = ({
                       </div>
                     ))
                     .otherwise(() =>
-                      filtered.map((item) => (
-                        <NameRow
-                          indent={false}
-                          interactive={true}
-                          isSelected={selected.has(item.domain.name)}
-                          item={item}
-                          key={item.domain.id}
-                          onClick={() => toggleName(item.domain.name)}
-                        />
-                      )),
+                      filteredGroups.flatMap((group) => {
+                        const parentSelected = selected.has(
+                          group.parent.domain.name,
+                        )
+                        return [
+                          <NameRow
+                            indent={false}
+                            interactive={true}
+                            isSelected={parentSelected}
+                            item={group.parent}
+                            key={group.parent.domain.id}
+                            onClick={() => toggleGroup(group)}
+                          />,
+                          ...group.subnames.map((sub) => (
+                            <NameRow
+                              indent={true}
+                              interactive={false}
+                              isSelected={parentSelected}
+                              item={sub}
+                              key={sub.domain.id}
+                            />
+                          )),
+                        ]
+                      }),
                     )}
                 </div>
               </div>
@@ -143,7 +176,7 @@ export const SelectNamesStep = ({
             <Trans>
               <span>{totalSelected}</span>
               <span className="font-semi-mono"> out of </span>
-              <span>{eligibleList.length}</span>
+              <span>{visibleCount}</span>
               <span className="font-semi-mono"> eligible names selected</span>
             </Trans>
           </p>
