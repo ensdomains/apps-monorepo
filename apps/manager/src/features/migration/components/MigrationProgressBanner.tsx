@@ -4,7 +4,6 @@ import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const MigrationProgressBanner = () => {
   const navigate = useNavigate()
@@ -14,7 +13,6 @@ export const MigrationProgressBanner = () => {
   const { data: migratedCount, isPending: isCountPending } =
     useMigratedNamesCount()
 
-  if (!isFeatureEnabled('NAME_MIGRATION')) return null
   if (!isConnected) return null
   if (isV1Pending || isCountPending) return null
 

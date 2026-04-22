@@ -108,7 +108,7 @@ msgstr ""
 msgid "{label} theme (selected)"
 msgstr ""
 
-#: src/features/migration/components/MigrationProgressBanner.tsx:35
+#: src/features/migration/components/MigrationProgressBanner.tsx:33
 msgid "{migrated} out of {total} names upgraded"
 msgstr ""
 
@@ -521,7 +521,7 @@ msgid "Click to copy"
 msgstr ""
 
 #: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:87
+#: src/features/migration/components/MigrationModal.tsx:85
 msgid "Close"
 msgstr ""
 
@@ -533,7 +533,7 @@ msgstr ""
 msgid "Coming Soon"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:40
+#: src/features/migration/components/MigrationModal.tsx:38
 msgid "Commemorative NFT"
 msgstr ""
 
@@ -553,11 +553,11 @@ msgstr ""
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr ""
 
-#: src/features/migration/components/MigrationProgressBanner.tsx:69
+#: src/features/migration/components/MigrationProgressBanner.tsx:67
 msgid "Complete Upgrade"
 msgstr ""
 
-#: src/features/migration/components/MigrationProgressBanner.tsx:58
+#: src/features/migration/components/MigrationProgressBanner.tsx:56
 msgid "Complete upgrade and receive a collectible marking your place in ENS history."
 msgstr ""
 
@@ -721,7 +721,7 @@ msgstr ""
 msgid "Custom duration in years"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:39
+#: src/features/migration/components/MigrationModal.tsx:37
 msgid "Custom Profiles"
 msgstr ""
 
@@ -866,7 +866,7 @@ msgstr ""
 msgid "ENS names can be up to 255 characters"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:41
+#: src/features/migration/components/MigrationModal.tsx:39
 msgid "ENS v2 Names"
 msgstr ""
 
@@ -1337,7 +1337,7 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:42
+#: src/features/migration/components/MigrationModal.tsx:40
 msgid "New Experience"
 msgstr ""
 
@@ -1900,7 +1900,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:41
+#: src/features/migration/components/UpgradeBanner.tsx:39
 msgid "See what's new"
 msgstr ""
 
@@ -2062,7 +2062,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr ""
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:116
+#: src/features/migration/components/MigrationModal.tsx:114
 msgid "Slide {0}"
 msgstr ""
 
@@ -2334,11 +2334,11 @@ msgstr ""
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:96
+#: src/features/migration/components/MigrationModal.tsx:94
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:31
+#: src/features/migration/components/UpgradeBanner.tsx:29
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
@@ -2576,11 +2576,11 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:27
+#: src/features/migration/components/UpgradeBanner.tsx:25
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:93
+#: src/features/migration/components/MigrationModal.tsx:91
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
@@ -2623,7 +2623,7 @@ msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
 #. placeholder {0}: v1Names.length
-#: src/features/migration/components/MigrationModal.tsx:152
+#: src/features/migration/components/MigrationModal.tsx:150
 msgid "You have <0>{0}</0> names that are eligible for upgrade"
 msgstr ""
 
@@ -2662,7 +2662,7 @@ msgstr ""
 msgid "You're all caught up!"
 msgstr ""
 
-#: src/features/migration/components/MigrationProgressBanner.tsx:55
+#: src/features/migration/components/MigrationProgressBanner.tsx:53
 msgid "You're almost there!"
 msgstr ""
 

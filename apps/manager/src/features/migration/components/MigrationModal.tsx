@@ -14,7 +14,6 @@ import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNam
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const AUTO_SCROLL_INTERVAL_MS = 5000
 
@@ -23,11 +22,10 @@ const SLIDE_DATA = [{ id: 'profiles' }] as const
 export const MigrationModal = () => {
   const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
-  const migrationEnabled = isFeatureEnabled('NAME_MIGRATION')
   const { data: v1Names } = useV1Names()
   const { data: migratedCount } = useMigratedNamesCount()
   const hasUnstartedMigration =
-    migrationEnabled && (v1Names?.length ?? 0) > 0 && (migratedCount ?? 0) === 0
+    (v1Names?.length ?? 0) > 0 && (migratedCount ?? 0) === 0
   const { open, dismiss } = useOpenModalOnFirstVisit(
     isConnected,
     hasUnstartedMigration,

@@ -6,7 +6,6 @@ import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNames
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
@@ -14,7 +13,6 @@ export const UpgradeBanner = () => {
   const { data: v1Names } = useV1Names()
   const { data: migratedCount } = useMigratedNamesCount()
 
-  if (!isFeatureEnabled('NAME_MIGRATION')) return null
   if (!isConnected || !v1Names?.length) return null
   if ((migratedCount ?? 0) >= 1) return null
 
