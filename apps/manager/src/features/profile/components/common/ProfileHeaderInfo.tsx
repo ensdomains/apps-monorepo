@@ -67,7 +67,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
           )}
         </button>
       )}
-      {registration.data?.registrationDate && (
+      {registration.data?.registrationDate ? (
         <div className="flex items-center gap-x-1 whitespace-pre-wrap text-sm">
           <Calendar className="size-4" />
           Registered{' '}
@@ -75,8 +75,8 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
             {formatDate(new Date(registration.data.registrationDate * 1000))}
           </span>
         </div>
-      )}
-      {expiry.data?.expiry && (
+      ) : null}
+      {expiry.data?.expiry ? (
         <div className="flex items-center gap-x-1 whitespace-pre-wrap text-sm">
           <Clock className="size-4" />
           Expires{' '}
@@ -84,7 +84,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
             {formatDate(new Date(Number(expiry.data.expiry) * 1000))}
           </span>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

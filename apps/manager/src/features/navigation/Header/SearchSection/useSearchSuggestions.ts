@@ -25,7 +25,7 @@ export const useSearchSuggestions = (searchValue: string) => {
     getDomainsQuery(
       searchLabel && [...searchLabel].length >= 3 && parsedInput.type === 'name'
         ? {
-            where: { name_starts_with: searchLabel },
+            where: { name_contains_nocase: searchLabel },
             first: 5,
             orderBy: Domain_OrderBy.Name,
             orderDirection: OrderDirection.Asc,
