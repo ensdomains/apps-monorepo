@@ -45,70 +45,70 @@ describe('batchedMulticall', () => {
     expect(result).toHaveLength(1)
   })
 
-  it('issues a single multicall for exactly 500 contracts', async () => {
+  it('issues a single multicall for exactly 5000 contracts', async () => {
     multicallMock.mockResolvedValueOnce(
-      Array.from({ length: 500 }, (_, i) => ok(i)),
+      Array.from({ length: 5000 }, (_, i) => ok(i)),
     )
     const result = await batchedMulticall<number>(
       publicClient,
-      fakeContracts(500),
+      fakeContracts(5000),
     )
     expect(multicallMock).toHaveBeenCalledTimes(1)
-    expect(result).toHaveLength(500)
+    expect(result).toHaveLength(5000)
   })
 
-  it('splits 501 contracts into two chunks of 500 and 1', async () => {
+  it('splits 5001 contracts into two chunks of 5000 and 1', async () => {
     multicallMock.mockResolvedValueOnce(
-      Array.from({ length: 500 }, (_, i) => ok(i)),
+      Array.from({ length: 5000 }, (_, i) => ok(i)),
     )
-    multicallMock.mockResolvedValueOnce([ok(500)])
+    multicallMock.mockResolvedValueOnce([ok(5000)])
 
     const result = await batchedMulticall<number>(
       publicClient,
-      fakeContracts(501),
+      fakeContracts(5001),
     )
 
     expect(multicallMock).toHaveBeenCalledTimes(2)
-    expect(multicallMock.mock.calls[0]![1]!.contracts).toHaveLength(500)
+    expect(multicallMock.mock.calls[0]![1]!.contracts).toHaveLength(5000)
     expect(multicallMock.mock.calls[1]![1]!.contracts).toHaveLength(1)
-    expect(result).toHaveLength(501)
+    expect(result).toHaveLength(5001)
   })
 
-  it('splits 1001 contracts into three chunks: 500, 500, 1', async () => {
+  it('splits 10001 contracts into three chunks: 5000, 5000, 1', async () => {
     multicallMock.mockResolvedValueOnce(
-      Array.from({ length: 500 }, (_, i) => ok(i)),
+      Array.from({ length: 5000 }, (_, i) => ok(i)),
     )
     multicallMock.mockResolvedValueOnce(
-      Array.from({ length: 500 }, (_, i) => ok(500 + i)),
+      Array.from({ length: 5000 }, (_, i) => ok(5000 + i)),
     )
-    multicallMock.mockResolvedValueOnce([ok(1000)])
+    multicallMock.mockResolvedValueOnce([ok(10000)])
 
     const result = await batchedMulticall<number>(
       publicClient,
-      fakeContracts(1001),
+      fakeContracts(10001),
     )
 
     expect(multicallMock).toHaveBeenCalledTimes(3)
-    expect(multicallMock.mock.calls[0]![1]!.contracts).toHaveLength(500)
-    expect(multicallMock.mock.calls[1]![1]!.contracts).toHaveLength(500)
+    expect(multicallMock.mock.calls[0]![1]!.contracts).toHaveLength(5000)
+    expect(multicallMock.mock.calls[1]![1]!.contracts).toHaveLength(5000)
     expect(multicallMock.mock.calls[2]![1]!.contracts).toHaveLength(1)
-    expect(result).toHaveLength(1001)
+    expect(result).toHaveLength(10001)
   })
 
   it('preserves cross-chunk result ordering after flattening', async () => {
     multicallMock.mockResolvedValueOnce(
-      Array.from({ length: 500 }, (_, i) => ok(i)),
+      Array.from({ length: 5000 }, (_, i) => ok(i)),
     )
-    multicallMock.mockResolvedValueOnce([ok(500), ok(501)])
+    multicallMock.mockResolvedValueOnce([ok(5000), ok(5001)])
 
     const result = await batchedMulticall<number>(
       publicClient,
-      fakeContracts(502),
+      fakeContracts(5002),
     )
 
     expect(
       result.map((r) => (r.status === 'success' ? r.result : null)),
-    ).toEqual(Array.from({ length: 502 }, (_, i) => i))
+    ).toEqual(Array.from({ length: 5002 }, (_, i) => i))
   })
 
   it('always invokes multicall with allowFailure: true and batchSize: 0', async () => {
@@ -151,17 +151,17 @@ describe('batchedMulticall', () => {
 
   it('preserves peer chunk results when one chunk rejects', async () => {
     multicallMock.mockRejectedValueOnce(new Error('chunk 1 down'))
-    multicallMock.mockResolvedValueOnce([ok(500)])
+    multicallMock.mockResolvedValueOnce([ok(5000)])
 
     const result = await batchedMulticall<number>(
       publicClient,
-      fakeContracts(501),
+      fakeContracts(5001),
     )
 
-    expect(result).toHaveLength(501)
-    for (let i = 0; i < 500; i++) {
+    expect(result).toHaveLength(5001)
+    for (let i = 0; i < 5000; i++) {
       expect(result[i]!.status).toBe('failure')
     }
-    expect(result[500]!.status).toBe('success')
+    expect(result[5000]!.status).toBe('success')
   })
 })
