@@ -3,6 +3,7 @@ import {
   getInstantForPremiumPrice,
   getPremiumInstantRange,
   getPremiumInstantRangeFromPrice,
+  getPremiumPeriodDays,
   getPremiumPriceAtInstant,
   type PremiumDecayConfig,
 } from './premiumDecay'
@@ -188,6 +189,20 @@ describe('premiumDecay', () => {
           result.end.epochMilliseconds - result.start.epochMilliseconds
         expect(diff).toBe(PREMIUM_PERIOD_MS)
       }
+    })
+  })
+
+  describe('getPremiumPeriodDays', () => {
+    it('returns whole days for an exact multiple', () => {
+      expect(getPremiumPeriodDays(TEST_CONFIG)).toBe(21)
+    })
+
+    it('reflects the configured period, not a hardcoded value', () => {
+      const config: PremiumDecayConfig = {
+        ...TEST_CONFIG,
+        periodMs: 28 * MS_PER_DAY,
+      }
+      expect(getPremiumPeriodDays(config)).toBe(28)
     })
   })
 
