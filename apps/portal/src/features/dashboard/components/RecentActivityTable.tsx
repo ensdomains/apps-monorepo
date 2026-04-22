@@ -5,6 +5,7 @@ import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { truncateName } from '@/utils/formatting/truncateName'
 import { getRecentActivityQueryOptions } from '../hooks/useRecentActivity'
 import {
   formatActivityEvent,
@@ -58,7 +59,7 @@ export const RecentActivityTable = () => {
                   {match(nameEntity)
                     .with({ type: 'name' }, ({ value }) => (
                       <EntityBadgeWithActions variant="name" name={value}>
-                        {value}
+                        {truncateName(value)}
                       </EntityBadgeWithActions>
                     ))
                     .with({ type: 'address' }, ({ value }) => (
