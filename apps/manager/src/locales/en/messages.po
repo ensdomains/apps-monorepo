@@ -951,7 +951,8 @@ msgstr "Expiry date (Earliest)"
 msgid "Expiry date (Latest)"
 msgstr "Expiry date (Latest)"
 
-#: src/features/profile/components/view/ViewHeaderSection.tsx:68
+#: src/features/profile/components/sections/HeaderSection.tsx:45
+#: src/features/profile/components/view/ViewHeaderSection.tsx:69
 msgid "Extend Name"
 msgstr "Extend Name"
 

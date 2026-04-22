@@ -33,6 +33,7 @@ const MATERIAL_SYMBOLS = [
   'edit',
   'arrow_back',
   'calendar_month',
+  'double_arrow',
 ] as const satisfies readonly string[]
 
 // Google Fonts requires the icons to be sorted alphabetically

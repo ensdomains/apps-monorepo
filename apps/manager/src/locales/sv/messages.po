@@ -956,7 +956,8 @@ msgstr "Utgångsdatum (tidigast)"
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
-#: src/features/profile/components/view/ViewHeaderSection.tsx:68
+#: src/features/profile/components/sections/HeaderSection.tsx:45
+#: src/features/profile/components/view/ViewHeaderSection.tsx:69
 msgid "Extend Name"
 msgstr ""
 
