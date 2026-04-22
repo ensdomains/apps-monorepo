@@ -101,8 +101,8 @@ export const HeaderSearchSection = ({
 
     if (!firstSuggestion) return
 
-    inputRef.current?.blur()
     firstSuggestion.click()
+    inputRef.current?.blur()
   }, [debouncedSearchValue, searchValue])
 
   if (isDesktop) {
