@@ -1564,7 +1564,7 @@ msgstr ""
 msgid "Preparing the commitment"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:235
+#: src/features/migration/components/SelectNamesStep.tsx:238
 msgid "Preparing..."
 msgstr ""
 
@@ -2328,7 +2328,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:237
+#: src/features/migration/components/SelectNamesStep.tsx:240
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2718,7 +2718,7 @@ msgstr ""
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:222
+#: src/features/migration/components/SelectNamesStep.tsx:225
 msgid "Your text records and addresses will be migrated automatically."
 msgstr ""
 

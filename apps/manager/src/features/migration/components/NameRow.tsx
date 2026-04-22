@@ -17,26 +17,34 @@ export const NameRow = ({
   interactive,
   onClick,
 }: NameRowProps) => {
+  const isSubname = indent && !interactive
+
   const content = (
     <>
-      <div
-        className={cn(
-          'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
-          isSelected
-            ? 'bg-ens-garnet-900'
-            : 'border border-ens-garnet-900/30 bg-transparent',
-        )}
-      >
-        <Check
+      {isSubname ? (
+        <div className="flex h-[37px] w-7 shrink-0 items-start">
+          <div className="h-1/2 w-full rounded-bl-[6px] border-ens-garnet-900/30 border-b border-l" />
+        </div>
+      ) : (
+        <div
           className={cn(
-            'size-5 transition-opacity',
+            'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
             isSelected
-              ? 'text-white opacity-100'
-              : 'text-transparent opacity-0',
+              ? 'bg-ens-garnet-900'
+              : 'border border-ens-garnet-900/30 bg-transparent',
           )}
-          strokeWidth={2.5}
-        />
-      </div>
+        >
+          <Check
+            className={cn(
+              'size-5 transition-opacity',
+              isSelected
+                ? 'text-white opacity-100'
+                : 'text-transparent opacity-0',
+            )}
+            strokeWidth={2.5}
+          />
+        </div>
+      )}
       <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
         <span className="font-semi-mono text-ens-garnet-900 text-xs">
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
