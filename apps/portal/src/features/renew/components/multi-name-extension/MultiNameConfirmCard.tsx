@@ -41,7 +41,7 @@ export const MultiNameConfirmCard = ({
           <dl className="space-y-1 pt-1">
             <RenewalDetailRow
               label="Subtotal:"
-              labelClassName="text-base text-quartz-350"
+              labelClassName="text-base text-muted-foreground"
               value={subtotal}
               valueClassName="text-base"
             />

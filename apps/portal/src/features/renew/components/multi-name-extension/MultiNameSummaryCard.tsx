@@ -46,12 +46,12 @@ export const MultiNameSummaryCard = ({
         </div>
         <div className="flex flex-col w-full">
           <div className="flex items-center justify-between">
-            <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+            <span className="flex-1 text-left text-base font-medium text-foreground truncate">
               {selectedName.name}
             </span>
             <ChevronDown
               className={cn(
-                'size-4 text-quartz-900 shrink-0 ml-auto transition-transform duration-200',
+                'size-4 text-foreground shrink-0 ml-auto transition-transform duration-200',
                 isOpen && 'rotate-180',
               )}
             />
@@ -62,10 +62,10 @@ export const MultiNameSummaryCard = ({
               isOpen && 'hidden',
             )}
           >
-            <span className="text-base text-quartz-350 shrink-0">
+            <span className="text-base text-muted-foreground shrink-0">
               Subtotal:
             </span>
-            <span className="text-base text-quartz-900">{subtotal}</span>
+            <span className="text-base text-foreground">{subtotal}</span>
           </div>
           <div
             className={cn(
@@ -76,28 +76,28 @@ export const MultiNameSummaryCard = ({
             <dl className="overflow-hidden space-y-1">
               <RenewalDetailRow
                 label="Extension:"
-                labelClassName="text-xs text-quartz-350"
+                labelClassName="text-xs text-muted-foreground"
                 value={registrationPeriod}
-                valueClassName="text-quartz-900"
+                valueClassName="text-foreground"
               />
               <RenewalDetailRow
                 label="New expiry:"
-                labelClassName="text-xs text-quartz-350"
+                labelClassName="text-xs text-muted-foreground"
                 value={newExpiryFormatted}
-                valueClassName="font-medium text-quartz-900"
+                valueClassName="font-medium text-foreground"
               />
               <RenewalDetailRow
                 label={priceLabel}
-                labelClassName="text-xs text-quartz-350"
+                labelClassName="text-xs text-muted-foreground"
                 value={priceValue}
-                valueClassName="text-quartz-900"
+                valueClassName="text-foreground"
               />
               <hr className="border-border" />
               <RenewalDetailRow
                 label="Subtotal:"
-                labelClassName="text-base text-quartz-350"
+                labelClassName="text-base text-muted-foreground"
                 value={subtotal}
-                valueClassName="text-quartz-900 text-base"
+                valueClassName="text-foreground text-base"
               />
             </dl>
           </div>
@@ -126,13 +126,15 @@ export const MultiNameSummaryCardSkeleton = ({
       </div>
       <div className="flex flex-col w-full">
         <div className="flex items-center justify-between">
-          <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+          <span className="flex-1 text-left text-base font-medium text-foreground truncate">
             {name}
           </span>
-          <ChevronDown className="size-4 text-quartz-900 shrink-0 ml-auto" />
+          <ChevronDown className="size-4 text-foreground shrink-0 ml-auto" />
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-base text-quartz-350 shrink-0">Subtotal:</span>
+          <span className="text-base text-muted-foreground shrink-0">
+            Subtotal:
+          </span>
           <Skeleton className="h-5 w-20" />
         </div>
       </div>

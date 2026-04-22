@@ -131,7 +131,7 @@ export const ExtendNameModal = ({
                       rounded="rounded-md"
                     />
                   </div>
-                  <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+                  <span className="flex-1 text-left text-base font-medium text-foreground truncate">
                     {selectedName.name}
                   </span>
                 </div>

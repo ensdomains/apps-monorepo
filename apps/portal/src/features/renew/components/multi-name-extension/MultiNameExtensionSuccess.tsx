@@ -61,10 +61,10 @@ export const MultiNameExtensionSuccessCard = ({
         </div>
         <div className="flex flex-col w-full gap-1">
           <div className="flex items-center justify-between">
-            <span className="flex-1 text-left text-base font-medium text-quartz-900 truncate">
+            <span className="flex-1 text-left text-base font-medium text-foreground truncate">
               {selectedName.name}
             </span>
-            <span className="text-base text-quartz-900 shrink-0 ml-2">
+            <span className="text-base text-foreground shrink-0 ml-2">
               Expires {newExpiryFormatted}
             </span>
           </div>
@@ -85,7 +85,7 @@ const MultiNameExtensionSuccessCardSkeleton = ({
     <NameAvatar name={name} height="40px" width="40px" rounded="rounded-md" />
     <div className="flex flex-col flex-1 gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-quartz-900 truncate">
+        <span className="text-sm font-medium text-foreground truncate">
           {name}
         </span>
         <Skeleton className="h-3 w-24" />

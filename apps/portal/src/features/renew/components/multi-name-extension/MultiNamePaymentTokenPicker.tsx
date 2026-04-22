@@ -7,8 +7,6 @@ import type { Address } from 'viem'
 import { formatUnits } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
-import { DAIcon } from '@/assets/dai-icon'
-import { USDCIcon } from '@/assets/usdc-icon'
 import { MessageCard } from '@/components/ui/message-card'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
@@ -30,10 +28,10 @@ const ethRegistrar = getChainContractAddress({
 
 const Skeleton = () => (
   <div className="space-y-4">
-    <div className="h-5 w-40 bg-quartz-100 animate-pulse rounded-md" />
+    <div className="h-5 w-40 bg-muted animate-pulse rounded-md" />
     <div className="space-y-2">
-      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
-      <div className="h-16 w-full bg-quartz-100 animate-pulse rounded-lg" />
+      <div className="h-16 w-full bg-muted animate-pulse rounded-lg" />
+      <div className="h-16 w-full bg-muted animate-pulse rounded-lg" />
     </div>
   </div>
 )
