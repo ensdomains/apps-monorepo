@@ -1,5 +1,5 @@
 import { useActiveTransactions } from '@ens-apps/transaction-manager'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -28,17 +28,18 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
 
+  const transactionsRef = useRef(transactions)
+  transactionsRef.current = transactions
+
   useEffect(() => {
     if (!autoAdvanceTxId) return
 
-    const activeIndex = transactions.findIndex(
-      (tx) => tx.id === autoAdvanceTxId,
-    )
-    if (activeIndex < 0 || activeIndex >= transactions.length - 1) return
+    const txs = transactionsRef.current
+    const activeIndex = txs.findIndex((tx) => tx.id === autoAdvanceTxId)
+    if (activeIndex < 0 || activeIndex >= txs.length - 1) return
 
-    const activeTransaction = transactions[activeIndex]
-    activeTransaction.onDone()
-  }, [autoAdvanceTxId, transactions])
+    txs[activeIndex].onDone()
+  }, [autoAdvanceTxId])
 
   const handleClose = () => {
     closeModal()

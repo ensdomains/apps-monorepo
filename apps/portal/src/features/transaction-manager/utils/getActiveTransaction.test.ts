@@ -46,4 +46,12 @@ describe('getActiveTransaction', () => {
       'No transactions provided',
     )
   })
+
+  it('returns first transaction when txState references an unknown id (stale state)', () => {
+    const deployTx = createTransaction({ id: 'deploy' })
+    const changeTx = createTransaction({ id: 'change' })
+    const transactions = [deployTx, changeTx]
+    const txState = createTxState({ txId: 'tx-reg-register' })
+    expect(getActiveTransaction(transactions, txState)).toBe(deployTx)
+  })
 })

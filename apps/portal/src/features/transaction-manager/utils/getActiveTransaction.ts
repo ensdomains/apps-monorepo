@@ -10,12 +10,13 @@ export const getActiveTransaction = (
   transactions: readonly Transaction[],
   txState: ActiveTransactionState | undefined,
 ): Transaction => {
-  if (txState) {
-    return getTransactionById(transactions, txState.txId)
-  }
-
   if (transactions.length === 0) {
     throw new Error('No transactions provided')
+  }
+
+  if (txState) {
+    const tx = transactions.find((t) => t.id === txState.txId)
+    if (tx) return tx
   }
 
   return transactions[0]
