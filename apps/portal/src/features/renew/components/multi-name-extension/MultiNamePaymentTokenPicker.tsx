@@ -1,10 +1,8 @@
-import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
-import type { Address } from 'viem'
-import { formatUnits } from 'viem'
+import { type Address, erc20Abi, formatUnits } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
@@ -56,7 +54,7 @@ export const MultiNamePaymentTokenPicker = ({
         ...readContractsQueryOptions(config, {
           contracts: PAYMENT_TOKENS.map((token) => ({
             address: token.address,
-            abi: ERC20_ABI,
+            abi: erc20Abi,
             functionName: 'balanceOf',
             args: [address as Address],
             chainId: sepoliaWithEns.id,
@@ -71,7 +69,7 @@ export const MultiNamePaymentTokenPicker = ({
     ...readContractsQueryOptions(config, {
       contracts: PAYMENT_TOKENS.map((token) => ({
         address: token.address,
-        abi: ERC20_ABI,
+        abi: erc20Abi,
         functionName: 'allowance',
         args: [address as Address, ethRegistrar],
         chainId: sepoliaWithEns.id,
