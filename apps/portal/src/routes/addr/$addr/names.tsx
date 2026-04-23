@@ -225,8 +225,9 @@ function RouteComponent() {
     [rowSelection],
   )
 
-  const extendableNames = getSelectedNames(rowSelection, filteredData).filter(
-    isExtendable2LD,
+  const extendableNames = useMemo(
+    () => getSelectedNames(rowSelection, filteredData).filter(isExtendable2LD),
+    [rowSelection, filteredData],
   )
 
   const searchNamesId = useId()
