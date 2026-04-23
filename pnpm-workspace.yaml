@@ -9,6 +9,7 @@ catalog:
   '@ensdomains/ensjs': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@27cd75b93f80e3a67a8cc46fc9ce68f1b6b15996
   '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@27cd75b93f80e3a67a8cc46fc9ce68f1b6b15996
   xstate: ^5.24.0
+  '@typescript/native-preview': 7.0.0-dev.20260421.2
 
 dedupeDirectDeps: true
 
