@@ -27,6 +27,10 @@ import {
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { customSepolia } from '@/lib/wagmi'
+import {
+  isMigrationQueryKey,
+  selectDomainsFromNames,
+} from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -81,19 +85,7 @@ const invalidateMigrationQueries = (
   queryClient: ReturnType<typeof useQueryClient>,
 ) => {
   queryClient.invalidateQueries({
-    predicate: (query) => {
-      const first = query.queryKey[0]
-      if (first === 'migration-preflight') return true
-      if (
-        typeof first === 'object' &&
-        first !== null &&
-        '$scope' in first &&
-        (first as { $scope: unknown }).$scope === 'migration'
-      ) {
-        return true
-      }
-      return false
-    },
+    predicate: (query) => isMigrationQueryKey(query.queryKey),
   })
 }
 
@@ -137,8 +129,7 @@ export const MigrationPage = () => {
       return
     if (!publicClient) return
     const { signer, accountAddress: sca } = smartAccount
-    const selectedSet = new Set(selectedNames)
-    const domains = v1Names.filter((d) => selectedSet.has(d.name))
+    const domains = selectDomainsFromNames(v1Names, selectedNames)
     if (domains.length === 0) return
 
     try {
