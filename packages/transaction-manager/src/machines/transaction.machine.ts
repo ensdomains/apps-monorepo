@@ -330,21 +330,14 @@ export const transactionMachine = setup({
         // been mined yet, which would cause dependent transactions to fail.
         if (hash) {
           return fromPromise(
-            (async () => {
-              try {
-                const receipt = await publicClient.getTransactionReceipt({
-                  hash,
-                })
-                return {
-                  wouldSucceed: receipt.status === 'success',
-                  result: hash,
-                  receipt,
-                }
-              } catch {
-                // Receipt not found — transaction is still pending
-                return { wouldSucceed: false }
-              }
-            })(),
+            publicClient
+              .getTransactionReceipt({ hash })
+              .then((receipt) => ({
+                wouldSucceed: receipt.status === 'success',
+                result: hash,
+                receipt,
+              }))
+              .catch(() => ({ wouldSucceed: false as const })),
             (error) => new EthCallFallbackError(request, error),
           )
         }
