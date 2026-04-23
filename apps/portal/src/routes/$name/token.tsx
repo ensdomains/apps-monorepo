@@ -11,7 +11,7 @@ import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataRow } from '@/components/DataRow'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -63,7 +63,7 @@ const TokenInfoCard = ({
   protocolVersion: ProtocolVersion
 }) => {
   return (
-    <div className="flex border border-border rounded-2xl w-full p-6 flex-col gap-4">
+    <div className="flex border border-border rounded-sm w-full p-6 flex-col gap-4">
       <DataRow label="Protocol" tooltip="The ENS protocol version">
         <span className="text-base">{protocolVersion}</span>
       </DataRow>
@@ -73,12 +73,9 @@ const TokenInfoCard = ({
       </DataRow>
 
       <DataRow label="Contract" tooltip="The smart contract address">
-        <CopyableRecord
-          value={contractAddress}
-          displayValue={
-            <EntityBadge variant="contract">{contractAddress}</EntityBadge>
-          }
-        />
+        <EntityBadgeWithActions variant="contract" address={contractAddress}>
+          {contractAddress}
+        </EntityBadgeWithActions>
       </DataRow>
 
       <DataRow label="Token ID" tooltip="The token identifier">
@@ -118,7 +115,7 @@ const TokenInfoCard = ({
                   </DataRow>
                 </div>
 
-                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
+                <div className="bg-muted rounded-sm p-3 flex gap-2 items-start">
                   <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-base">
                     The Token ID will change anytime the roles are updated.
@@ -127,7 +124,7 @@ const TokenInfoCard = ({
 
                 <div>
                   <h3 className="text-2xl font-medium mb-4">History</h3>
-                  <div className="border border-border rounded-2xl overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="border-b-2">
@@ -282,7 +279,7 @@ function RouteComponent() {
 
       {/* Normalization Section */}
       <h2 className="font-medium text-2xl">Normalization</h2>
-      <div className="flex border border-border rounded-2xl flex-col">
+      <div className="flex border border-border rounded-sm flex-col">
         <div className="flex flex-col w-full p-6 gap-4">
           <DataRow label="Input" tooltip="The input name parts">
             <div className="flex flex-row gap-1 flex-wrap items-center">
@@ -349,7 +346,7 @@ function RouteComponent() {
       {/* Labels Section */}
       <h2 className="font-medium text-2xl">Labels</h2>
       {labels[0] ? (
-        <div className="border border-border rounded-2xl overflow-hidden">
+        <div className="border border-border rounded-sm overflow-hidden">
           <Tabs defaultValue={labels[0]} className="gap-0">
             <div className="px-6 border-b border-border flex items-center gap-2">
               <TabsList>
@@ -407,7 +404,7 @@ function RouteComponent() {
           </Tabs>
         </div>
       ) : (
-        <div className="border border-border rounded-2xl p-6">
+        <div className="border border-border rounded-sm p-6">
           Invalid name: no labels
         </div>
       )}

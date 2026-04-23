@@ -5,8 +5,26 @@ import type { Hash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { BaseEvent, EventsTableData } from './types'
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+  }) => (
+    <a href={to} data-params={JSON.stringify(params)}>
+      {children}
+    </a>
+  ),
+  useNavigate: () => vi.fn(),
+}))
+
 // Mock wagmi hooks
 vi.mock('wagmi', () => ({
+  createConfig: vi.fn(() => ({})),
   useTransaction: vi.fn(() => ({
     data: {
       from: '0x123' as `0x${string}`,
@@ -31,6 +49,12 @@ vi.mock('wagmi', () => ({
 }))
 
 // Mock other dependencies
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadgeWithActions: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="entity-badge">{children}</span>
+  ),
+}))
+
 vi.mock('@/components/CopyableRecord', () => ({
   CopyableRecord: ({ displayValue }: { displayValue: React.ReactNode }) => (
     <div>{displayValue}</div>

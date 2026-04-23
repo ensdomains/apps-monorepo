@@ -31,11 +31,14 @@ import {
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
+import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
 import {
+  type RenewalFlowType,
   type SelectedName,
   useRenewalTransactions,
 } from '@/features/renew/hooks/useRenewalTransactions'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
@@ -143,11 +146,29 @@ function RouteComponent() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [extendModalOpen, setExtendModalOpen] = useState(false)
+  const [renewalSuccessFlow, setRenewalSuccessFlow] =
+    useState<RenewalFlowType | null>(null)
 
-  const { transactions: renewalTransactions, startFlow } =
-    useRenewalTransactions()
+  const {
+    transactions: renewalTransactions,
+    startFlow,
+    startMultiFlow,
+    clearIncompatibleRenewalState,
+  } = useRenewalTransactions({
+    onComplete: (flowType) => {
+      setRowSelection({})
+      void queryClient.invalidateQueries({
+        queryKey: ['get-names-for-address'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['get-v2-names-with-roles-for-address'],
+      })
+      setRenewalSuccessFlow(flowType)
+    },
+  })
 
-  const { openModal } = useTransactionModal()
+  const activeTxState = useActiveTransactionState()
+  const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
 
   // Filter state
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
@@ -245,7 +266,7 @@ function RouteComponent() {
   )
 
   const selectedNames = useMemo(
-    (): SelectedName[] =>
+    (): readonly SelectedName[] =>
       Object.keys(rowSelection)
         .map((idx) => filteredData[Number(idx)])
         .filter((row): row is NameRow => Boolean(row))
@@ -257,11 +278,6 @@ function RouteComponent() {
         })),
     [rowSelection, filteredData],
   )
-
-  const canExtendSelection =
-    rowCount === 1 && selectedNames.length === 1
-      ? isExtendable2LD(selectedNames[0])
-      : false
 
   const searchNamesId = useId()
 
@@ -301,7 +317,7 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="bg-muted px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-background px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row justify-between">
           <h1 className="text-heading font-medium">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
@@ -323,8 +339,20 @@ function RouteComponent() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={!canExtendSelection}
-              onClick={() => setExtendModalOpen(true)}
+              disabled={
+                rowCount < 1 || selectedNames.every((n) => !isExtendable2LD(n))
+              }
+              onClick={() => {
+                if (activeTxState) {
+                  openModal()
+                  return
+                }
+
+                clearIncompatibleRenewalState(
+                  rowCount === 1 ? 'single' : 'multi',
+                )
+                setExtendModalOpen(true)
+              }}
             >
               <FastForward className="size-4" />
               Extend
@@ -370,12 +398,45 @@ function RouteComponent() {
       </div>
       {selectedNames.length === 1 && (
         <ExtendNameModal
-          open={extendModalOpen}
-          onClose={() => setExtendModalOpen(false)}
-          selectedName={selectedNames[0]}
-          onExtend={(config) => {
-            startFlow(selectedNames[0], config)
+          open={extendModalOpen && !isTransactionModalOpen}
+          onClose={() => {
             setExtendModalOpen(false)
+            setRenewalSuccessFlow(null)
+          }}
+          selectedName={selectedNames[0]}
+          transactionCompleted={renewalSuccessFlow === 'single'}
+          onSuccessAcknowledged={() => {
+            setExtendModalOpen(false)
+            setRenewalSuccessFlow(null)
+          }}
+          onExtend={(config) => {
+            setRenewalSuccessFlow(null)
+            startFlow(selectedNames[0], config)
+            openModal()
+          }}
+        />
+      )}
+      {selectedNames.length > 1 && (
+        <MultiNameExtendModal
+          open={extendModalOpen && !isTransactionModalOpen}
+          onClose={() => {
+            setExtendModalOpen(false)
+            setRenewalSuccessFlow(null)
+          }}
+          transactionCompleted={renewalSuccessFlow === 'multi'}
+          onSuccessAcknowledged={() => {
+            setExtendModalOpen(false)
+            setRenewalSuccessFlow(null)
+          }}
+          selectedNames={selectedNames}
+          onExtend={(config) => {
+            setRenewalSuccessFlow(null)
+            startMultiFlow({
+              renewals: config.renewals,
+              tokenAddress: config.token.address,
+              tokenPrice: config.token.price.total,
+              tokenAllowance: config.token.allowance,
+            })
             openModal()
           }}
         />

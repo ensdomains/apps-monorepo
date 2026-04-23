@@ -95,7 +95,7 @@ export const RegisterNameCheckoutSummary = ({
         </Alert>
       )}
       <section
-        className="border border-border rounded-lg p-5"
+        className="border border-border rounded-sm p-5"
         aria-label="Checkout summary"
       >
         {match({ isLoading, isError, hasPrice })
@@ -263,7 +263,7 @@ const PriceBreakdown = ({
                 'Price:'
               )
             }
-            value={`${formatUsd(pricePerYear)}/year × ${Math.floor(years)}`}
+            value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
           />
         )}
 

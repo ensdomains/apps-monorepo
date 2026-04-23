@@ -1,6 +1,4 @@
-import { Link } from '@tanstack/react-router'
-import { CopyButton } from '@/components/CopyButton'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -57,10 +55,9 @@ export const NameMobileCard = ({
           width="20px"
           rounded="rounded-sm"
         />
-        <Link to="/$name" params={{ name: name || '' }}>
-          <EntityBadge variant="name">{name}</EntityBadge>
-        </Link>
-        <CopyButton value={name || ''} size="sm" />
+        <EntityBadgeWithActions variant="name" name={name ?? undefined}>
+          {name}
+        </EntityBadgeWithActions>
       </div>
 
       {/* Expiry section */}

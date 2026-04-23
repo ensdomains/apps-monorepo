@@ -311,7 +311,7 @@ const EditRecordsContent = ({
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <header className="bg-muted border-b border-border px-8 pb-6 pt-6">
+      <header className="border-b border-border px-8 pb-6 pt-6">
         <Link to="/$name/records" params={{ name }}>
           <Button variant="ghost" className="flex items-center gap-2 -ml-2">
             <ArrowLeftIcon className="size-4" />
@@ -418,7 +418,7 @@ const EditRecordsContent = ({
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 bg-background border rounded-lg mx-6 my-4">
+      <div className="flex-1 bg-background border rounded-sm mx-6 my-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto">
             <TabsList className="w-full justify-start border-b rounded-none px-4 py-0 h-auto bg-transparent">

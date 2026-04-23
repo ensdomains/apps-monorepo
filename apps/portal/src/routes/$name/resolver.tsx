@@ -17,7 +17,7 @@ import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { CopyButton } from '@/components/CopyButton'
 import { DataRow } from '@/components/DataRow'
-import { EntityBadge } from '@/components/EntityBadge'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -115,10 +115,7 @@ const ResolverSection = ({
 }) => {
   return (
     <section
-      className={cn(
-        'rounded-2xl border border-border bg-background',
-        className,
-      )}
+      className={cn('rounded-sm border border-border bg-background', className)}
     >
       {children}
     </section>
@@ -129,13 +126,11 @@ const SummaryCard = ({
   icon,
   label,
   value,
-  tooltip,
   valueHref,
 }: {
   icon: ReactNode
   label: string
   value: ReactNode
-  tooltip?: string
   valueHref?: string
 }) => {
   const content = valueHref ? (
@@ -157,9 +152,6 @@ const SummaryCard = ({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1 text-base font-medium">
           <span>{label}</span>
-          {tooltip ? (
-            <InfoIcon className="size-4 text-muted-foreground" />
-          ) : null}
         </div>
         <div className="min-w-0 truncate text-base">{content}</div>
       </div>
@@ -169,17 +161,14 @@ const SummaryCard = ({
 
 const ResolverAddressValue = ({ address }: { address: Address }) => {
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <ExternalLink
-        href={`${sepoliaUrl}/address/${address}`}
-        className="min-w-0"
-      >
-        <EntityBadge variant="contract" className="max-w-full truncate">
-          {address}
-        </EntityBadge>
-      </ExternalLink>
-      <CopyButton value={address} size="sm" />
-    </div>
+    <EntityBadgeWithActions
+      variant="contract"
+      address={address}
+      etherscanHref={`${sepoliaUrl}/address/${address}`}
+      className="max-w-full truncate"
+    >
+      {address}
+    </EntityBadgeWithActions>
   )
 }
 
@@ -260,7 +249,7 @@ const ResolverBanner = ({
   docsHref: string
 }) => {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl bg-[#d1eedf] px-6 py-6 text-center text-[#033010]">
+    <div className="flex flex-col items-center gap-4 rounded-sm bg-[#d1eedf] px-6 py-6 text-center text-[#033010]">
       <ShieldCheckIcon className="size-8" />
       <p className="text-base">
         This resolver is the official{' '}
@@ -348,8 +337,6 @@ const PermissionedResolverView = ({
   ownerData: NonNullable<GetEnsOwnerReturnType>
   resolverAddress: Address
 }) => {
-  const ownerLabel = truncateAddress(ownerData.owner, 6, 4, '...')
-
   return (
     <>
       <ResolverBanner
@@ -360,7 +347,11 @@ const PermissionedResolverView = ({
         <SummaryCard
           icon={<NameAvatar name={name} height="24px" width="24px" />}
           label="Owner"
-          value={ownerLabel}
+          value={
+            <EntityBadgeWithActions variant="address" address={ownerData.owner}>
+              {truncateAddress(ownerData.owner, 6, 4, '...')}
+            </EntityBadgeWithActions>
+          }
         />
         <SummaryCard
           icon={<FocusIcon className="size-5" />}
@@ -372,7 +363,6 @@ const PermissionedResolverView = ({
           icon={<ShieldCheckIcon className="size-5 text-primary" />}
           label="Network"
           value="Sepolia"
-          tooltip="Permissioned resolvers are deployed on ENSv2 infrastructure."
         />
       </div>
       <ResolverDetailsCard resolverAddress={resolverAddress}>
@@ -589,7 +579,7 @@ const NoResolverSet = ({
   return (
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
       <h1 className="text-heading font-medium">Resolver</h1>
-      <div className="flex items-center gap-4 rounded-2xl bg-blue-50 p-6">
+      <div className="flex items-center gap-4 rounded-sm bg-blue-50 p-6">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
           <InfoIcon className="size-5 text-lapis-500" />
         </div>

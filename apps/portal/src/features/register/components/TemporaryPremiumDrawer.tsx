@@ -21,6 +21,7 @@ import {
 import { formatPriceForInput } from '@/features/register/utils/formatPriceForInput'
 import {
   getInstantForPremiumPrice,
+  getPremiumPeriodDays,
   getPremiumPriceAtInstant,
   type PremiumDecayConfig,
 } from '@/features/register/utils/premiumDecay'
@@ -198,12 +199,9 @@ export const TemporaryPremiumDrawer = ({
           <p className="text-base leading-relaxed">
             Temporary premiums are a <b>one time</b> cost applied to recently
             expired names to give fair opportunity to new registrations. The
-            premium starts at $100,000,000 and reduces to $0 over 21 days, and
-            is only applied once on top of the usual registration costs.
-          </p>
-          <p className="text-base leading-relaxed font-medium">
-            The previous owner of this name is exempt from the temporary
-            premium.
+            premium starts at $100,000,000 and reduces to $0 over{' '}
+            {getPremiumPeriodDays(premiumDecayConfig)} days, and is only applied
+            once on top of the usual registration costs.
           </p>
 
           <div className="grid grid-cols-2 gap-4 grid-row-1">
