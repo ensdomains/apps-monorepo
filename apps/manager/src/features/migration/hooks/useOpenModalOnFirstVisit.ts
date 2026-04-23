@@ -18,6 +18,7 @@ export const useOpenModalOnFirstVisit = (
   useEffect(() => {
     if (!isConnected || !hasV1Names || !isAuthResolved) return
     if (localStorage.getItem(STORAGE_KEY) === 'true') return
+    localStorage.setItem(STORAGE_KEY, 'true')
     setOpen(true)
   }, [isConnected, hasV1Names, isAuthResolved])
 

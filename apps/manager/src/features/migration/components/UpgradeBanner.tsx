@@ -10,10 +10,13 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
-  const { data: v1Names } = useV1Names()
-  const { data: migratedCount } = useMigratedNamesCount()
+  const { data: v1Names, isPending: isV1NamesPending } = useV1Names()
+  const { data: migratedCount, isPending: isMigratedCountPending } =
+    useMigratedNamesCount()
 
-  if (!isConnected || !v1Names?.length) return null
+  if (!isConnected) return null
+  if (isV1NamesPending || isMigratedCountPending) return null
+  if (!v1Names?.length) return null
   if ((migratedCount ?? 0) >= 1) return null
 
   return (
