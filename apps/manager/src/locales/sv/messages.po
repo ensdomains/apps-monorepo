@@ -116,7 +116,7 @@ msgstr ""
 msgid "+{overflow} more"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:213
+#: src/features/migration/components/SelectNamesStep.tsx:144
 msgid "<0>{totalSelected}</0><1> of </1><2>{visibleCount}</2><3> total eligible names selected</3>"
 msgstr ""
 
@@ -253,7 +253,7 @@ msgstr ""
 msgid "Almost ready"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:70
+#: src/features/migration/components/GameStep.tsx:53
 msgid "Almost there..."
 msgstr ""
 
@@ -289,7 +289,7 @@ msgstr ""
 msgid "Approving payment token"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:78
+#: src/features/migration/components/GameStep.tsx:56
 msgid "Approving smart account"
 msgstr ""
 
@@ -342,7 +342,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:216
+#: src/features/migration/pages/MigrationPage.tsx:207
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
@@ -372,11 +372,8 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
-#. placeholder {0}: descriptor.batch
-#. placeholder {1}: descriptor.totalBatches
-#. placeholder {2}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:87
-msgid "Batch {0}/{1}: upgrading {2} name(s)"
+#: src/features/migration/components/GameStep.tsx:68
+msgid "Batch {batch}/{total}: upgrading {count} name(s)"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:44
@@ -1265,7 +1262,7 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:192
+#: src/features/migration/pages/MigrationPage.tsx:183
 msgid "Migration failed"
 msgstr ""
 
@@ -1371,7 +1368,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:155
+#: src/features/migration/components/SelectNamesStep.tsx:86
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1388,7 +1385,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:152
+#: src/features/migration/components/SelectNamesStep.tsx:83
 msgid "No names match your search"
 msgstr ""
 
@@ -1556,7 +1553,7 @@ msgstr ""
 msgid "Preparing commitment"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:75
+#: src/features/migration/components/GameStep.tsx:55
 msgid "Preparing migration..."
 msgstr ""
 
@@ -1564,7 +1561,7 @@ msgstr ""
 msgid "Preparing the commitment"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:239
+#: src/features/migration/components/SelectNamesStep.tsx:170
 msgid "Preparing..."
 msgstr ""
 
@@ -1797,7 +1794,7 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:223
+#: src/features/migration/pages/MigrationPage.tsx:214
 msgid "Retry"
 msgstr ""
 
@@ -1877,8 +1874,8 @@ msgstr "Sök namn, adress..."
 msgid "Search name..."
 msgstr "Sök namn..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:127
-#: src/features/migration/components/SelectNamesStep.tsx:131
+#: src/features/migration/components/SelectNamesStep.tsx:58
+#: src/features/migration/components/SelectNamesStep.tsx:62
 msgid "Search names"
 msgstr ""
 
@@ -1979,7 +1976,7 @@ msgstr "Anger ETH-adress..."
 msgid "Setting ETH address…"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:82
+#: src/features/migration/components/GameStep.tsx:59
 msgid "Setting up your v2 resolver"
 msgstr ""
 
@@ -2328,7 +2325,7 @@ msgstr ""
 msgid "Updating profile"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:241
+#: src/features/migration/components/SelectNamesStep.tsx:172
 #: src/features/migration/components/UpgradeNamesButton.tsx:21
 msgid "Upgrade Names"
 msgstr ""
@@ -2341,12 +2338,11 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
-#. placeholder {0}: descriptor.count
-#: src/features/migration/components/GameStep.tsx:86
-msgid "Upgrading {0} name(s) to v2"
+#: src/features/migration/components/GameStep.tsx:63
+msgid "Upgrading {count} name(s) to v2"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:132
+#: src/features/migration/components/GameStep.tsx:92
 msgid "Upgrading your names..."
 msgstr ""
 
@@ -2706,7 +2702,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:120
+#: src/features/migration/components/SelectNamesStep.tsx:51
 msgid "Your names are ready to upgrade"
 msgstr ""
 
@@ -2718,7 +2714,7 @@ msgstr ""
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:226
+#: src/features/migration/components/SelectNamesStep.tsx:157
 msgid "Your text records and addresses will be migrated automatically."
 msgstr ""
 

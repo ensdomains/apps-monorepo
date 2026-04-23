@@ -28,6 +28,17 @@ import {
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { predictOwnedPermResAddress } from './ensureOwnedPermRes'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
+import {
+  calcBundleBytes,
+  collectDeferredParentNames,
+  computePhase1Names,
+  findNestedDeferredParents,
+  findUnresolvedParents,
+  formatNamesPreview,
+  groupDeferredChildrenByParent,
+  packPlanBatches,
+  partitionChildrenByInPlan,
+} from './migrationPlan.helpers'
 import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
@@ -60,15 +71,6 @@ export type MigrationPlan = {
   deferredParentNames: readonly string[]
   deferredBatches: readonly NameBundle[][]
   stepDescriptors: readonly MigrationStepDescriptor[]
-}
-
-const calcBundleBytes = (calls: readonly ZeroDevCall[]): number => {
-  let total = 0
-  for (const c of calls) {
-    total += Math.max(0, (c.data.length - 2) / 2)
-    total += 64
-  }
-  return total
 }
 
 export const buildNameBundle = (params: {
@@ -179,9 +181,7 @@ const computeNotReservedSet = async (
   const twoLDs = classified.filter(is2LD)
   if (twoLDs.length === 0) return new Set()
   const notReserved = await filterNotReserved(publicClient, twoLDs)
-  const out = new Set<string>()
-  for (const name of notReserved) out.add(name.domain.name)
-  return out
+  return new Set(notReserved.map((n) => n.domain.name))
 }
 
 type SubnameParentResolution = {
@@ -195,38 +195,26 @@ const validateSubnameParents = async (
   groups: GroupedNames,
   classified: readonly ClassifiedName[],
 ): Promise<SubnameParentResolution> => {
-  const empty: SubnameParentResolution = {
-    resolvedRegistries: new Map(),
-    deferredChildren: [],
-    deferredParentNames: [],
-  }
-  if (groups.childNames.size === 0) return empty
-
-  const inPlanNames = new Set(classified.map((c) => c.domain.name))
-  const externalChildren = new Map<string, readonly ClassifiedName[]>()
-  const deferredChildren: ClassifiedName[] = []
-  const deferredParentNames: string[] = []
-
-  for (const [parentName, children] of groups.childNames) {
-    if (inPlanNames.has(parentName)) {
-      deferredChildren.push(...children)
-      deferredParentNames.push(parentName)
-    } else {
-      externalChildren.set(parentName, children)
+  if (groups.childNames.size === 0) {
+    return {
+      resolvedRegistries: new Map(),
+      deferredChildren: [],
+      deferredParentNames: [],
     }
   }
 
-  const deferredChildNames = new Set(deferredChildren.map((c) => c.domain.name))
-  const nestedDeferred = deferredParentNames.filter((p) =>
-    deferredChildNames.has(p),
+  const inPlanNames = new Set(classified.map((c) => c.domain.name))
+  const { externalChildren, deferredChildren, deferredParentNames } =
+    partitionChildrenByInPlan(groups.childNames, inPlanNames)
+
+  const nested = findNestedDeferredParents(
+    deferredChildren,
+    deferredParentNames,
   )
-  if (nestedDeferred.length > 0) {
-    const preview = nestedDeferred.slice(0, 3).join(', ')
-    const suffix =
-      nestedDeferred.length > 3 ? ` (+${nestedDeferred.length - 3} more)` : ''
+  if (nested.length > 0) {
     throw new MigrationPlanError({
       cause: new Error(
-        `Nested subname hierarchy not supported in a single migration: ${preview}${suffix}. Migrate these parents first, then their children.`,
+        `Nested subname hierarchy not supported in a single migration: ${formatNamesPreview(nested)}. Migrate these parents first, then their children.`,
       ),
       step: 'Subnames',
     })
@@ -244,42 +232,23 @@ const validateSubnameParents = async (
     publicClient,
     externalChildren,
   )
-
-  const unresolvedParents: string[] = []
-  for (const [parentName] of externalChildren) {
-    const registry = resolvedRegistries.get(parentName) ?? zeroAddress
-    if (registry === zeroAddress) unresolvedParents.push(parentName)
-  }
-  if (unresolvedParents.length === 0) {
+  const unresolved = findUnresolvedParents(
+    externalChildren,
+    resolvedRegistries,
+    zeroAddress,
+  )
+  if (unresolved.length === 0) {
     return { resolvedRegistries, deferredChildren, deferredParentNames }
   }
 
   const total = externalChildren.size
-  const resolved = total - unresolvedParents.length
-  const preview = unresolvedParents.slice(0, 3).join(', ')
-  const suffix =
-    unresolvedParents.length > 3
-      ? ` (+${unresolvedParents.length - 3} more)`
-      : ''
+  const resolved = total - unresolved.length
   throw new MigrationPlanError({
     cause: new Error(
-      `${unresolvedParents.length}/${total} parent registries unresolved after retries: ${preview}${suffix}. Migrate the parent name(s) first, or retry once the indexer catches up.`,
+      `${unresolved.length}/${total} parent registries unresolved after retries: ${formatNamesPreview(unresolved)}. Migrate the parent name(s) first, or retry once the indexer catches up.`,
     ),
     step: `Subnames (${resolved}/${total} parents ready)`,
   })
-}
-
-const DEFERRED_PARENT_PLACEHOLDER: Address =
-  '0x00000000000000000000000000000000deadbeef'
-
-const buildDeferredPlaceholderRegistries = (
-  deferredParentNames: readonly string[],
-): Map<string, Address> => {
-  const map = new Map<string, Address>()
-  for (const name of deferredParentNames) {
-    map.set(name, DEFERRED_PARENT_PLACEHOLDER)
-  }
-  return map
 }
 
 export const buildMigrationPlan = async (params: {
@@ -299,13 +268,12 @@ export const buildMigrationPlan = async (params: {
 
   let ownedPermRes: Address | null = null
   if (namesToOwnedPermRes.length > 0) {
-    ownedPermRes = preflight.preExistingOwnedPermRes
-    if (!ownedPermRes) {
-      ownedPermRes = await predictOwnedPermResAddress({
+    ownedPermRes =
+      preflight.preExistingOwnedPermRes ??
+      (await predictOwnedPermResAddress({
         eoa: migrationOwner,
         publicClient,
-      })
-    }
+      }))
   }
 
   const [profiles, notReservedSet, subnameResolution] = await Promise.all([
@@ -316,45 +284,23 @@ export const buildMigrationPlan = async (params: {
   const { resolvedRegistries, deferredChildren, deferredParentNames } =
     subnameResolution
 
-  const deferredSet = new Set(deferredChildren.map((c) => c.domain.name))
-  const phase1Classified = classified.filter(
-    (c) => !deferredSet.has(c.domain.name),
-  )
-
-  const batches = packNamesByPayload({
-    names: phase1Classified,
+  const { batches, deferredBatches } = packPlanBatches({
+    phase1Names: computePhase1Names(classified, deferredChildren),
+    deferredChildren,
+    deferredParentNames,
+    parentRegistries: resolvedRegistries,
     migrationOwner,
     defaultResolver: V2_CONTRACTS.ENSV2Resolver,
     ownedPermRes,
     notReservedSet,
-    parentRegistries: resolvedRegistries,
     profiles,
+    pack: packNamesByPayload,
   })
 
-  const deferredBatches =
-    deferredChildren.length === 0
-      ? []
-      : packNamesByPayload({
-          names: deferredChildren,
-          migrationOwner,
-          defaultResolver: V2_CONTRACTS.ENSV2Resolver,
-          ownedPermRes,
-          notReservedSet,
-          parentRegistries:
-            buildDeferredPlaceholderRegistries(deferredParentNames),
-          profiles,
-        })
-
-  const combinedBatchSizes = [
+  const stepDescriptors = buildStepDescriptors(classified, groups, preflight, [
     ...batches.map((b) => b.length),
     ...deferredBatches.map((b) => b.length),
-  ]
-  const stepDescriptors = buildStepDescriptors(
-    classified,
-    groups,
-    preflight,
-    combinedBatchSizes,
-  )
+  ])
 
   return {
     migrationOwner,
@@ -375,19 +321,6 @@ export const buildMigrationPlan = async (params: {
   }
 }
 
-const groupDeferredChildrenByParent = (
-  children: readonly ClassifiedName[],
-): Map<string, readonly ClassifiedName[]> => {
-  const map = new Map<string, ClassifiedName[]>()
-  for (const child of children) {
-    if (!child.parentName) continue
-    const list = map.get(child.parentName) ?? []
-    list.push(child)
-    map.set(child.parentName, list)
-  }
-  return map as Map<string, readonly ClassifiedName[]>
-}
-
 export const resolveDeferredBatches = async (params: {
   plan: MigrationPlan
   publicClient: PublicClient
@@ -398,18 +331,13 @@ export const resolveDeferredBatches = async (params: {
   const grouped = groupDeferredChildrenByParent(plan.deferredChildren)
   const resolved = await resolveParentRegistries(publicClient, grouped)
 
-  const stillUnresolved: string[] = []
-  for (const parentName of plan.deferredParentNames) {
-    const addr = resolved.get(parentName) ?? zeroAddress
-    if (addr === zeroAddress) stillUnresolved.push(parentName)
-  }
+  const stillUnresolved = plan.deferredParentNames.filter(
+    (parentName) => (resolved.get(parentName) ?? zeroAddress) === zeroAddress,
+  )
   if (stillUnresolved.length > 0) {
-    const preview = stillUnresolved.slice(0, 3).join(', ')
-    const suffix =
-      stillUnresolved.length > 3 ? ` (+${stillUnresolved.length - 3} more)` : ''
     throw new MigrationPlanError({
       cause: new Error(
-        `${stillUnresolved.length} parent registries still unresolved after parent migration: ${preview}${suffix}. Retry once the chain catches up.`,
+        `${stillUnresolved.length} parent registries still unresolved after parent migration: ${formatNamesPreview(stillUnresolved)}. Retry once the chain catches up.`,
       ),
       step: 'Subnames',
     })
@@ -448,13 +376,9 @@ export const adjustPlanForRetry = (
   const remainingDeferredChildren = plan.deferredChildren.filter(
     (c) => !migratedSet.has(c.domain.name),
   )
-  const remainingDeferredParentNames = [
-    ...new Set(
-      remainingDeferredChildren
-        .map((c) => c.parentName)
-        .filter((n): n is string => n !== null),
-    ),
-  ]
+  const remainingDeferredParentNames = collectDeferredParentNames(
+    remainingDeferredChildren,
+  )
 
   if (remainingClassified.length === 0) {
     return {
@@ -470,47 +394,27 @@ export const adjustPlanForRetry = (
   }
 
   const groups = groupClassifiedNames(remainingClassified)
-  const deferredSet = new Set(
-    remainingDeferredChildren.map((c) => c.domain.name),
-  )
-  const phase1Remaining = remainingClassified.filter(
-    (c) => !deferredSet.has(c.domain.name),
-  )
-
-  const batches = packNamesByPayload({
-    names: phase1Remaining,
+  const { batches, deferredBatches } = packPlanBatches({
+    phase1Names: computePhase1Names(
+      remainingClassified,
+      remainingDeferredChildren,
+    ),
+    deferredChildren: remainingDeferredChildren,
+    deferredParentNames: remainingDeferredParentNames,
+    parentRegistries: plan.parentRegistries,
     migrationOwner: plan.migrationOwner,
     defaultResolver: V2_CONTRACTS.ENSV2Resolver,
     ownedPermRes: plan.ownedPermRes,
     notReservedSet: plan.notReservedSet,
-    parentRegistries: plan.parentRegistries,
     profiles: plan.profiles,
+    pack: packNamesByPayload,
   })
 
-  const deferredBatches =
-    remainingDeferredChildren.length === 0
-      ? []
-      : packNamesByPayload({
-          names: remainingDeferredChildren,
-          migrationOwner: plan.migrationOwner,
-          defaultResolver: V2_CONTRACTS.ENSV2Resolver,
-          ownedPermRes: plan.ownedPermRes,
-          notReservedSet: plan.notReservedSet,
-          parentRegistries: buildDeferredPlaceholderRegistries(
-            remainingDeferredParentNames,
-          ),
-          profiles: plan.profiles,
-        })
-
-  const combinedBatchSizes = [
-    ...batches.map((b) => b.length),
-    ...deferredBatches.map((b) => b.length),
-  ]
   const stepDescriptors = buildStepDescriptors(
     remainingClassified,
     groups,
     plan.preflight,
-    combinedBatchSizes,
+    [...batches.map((b) => b.length), ...deferredBatches.map((b) => b.length)],
   )
 
   return {

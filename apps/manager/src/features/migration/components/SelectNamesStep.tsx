@@ -1,10 +1,9 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Info, Search } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import type { ClassifiedName } from '../service/classifyNames'
-import { groupByParent } from '../service/groupByParent'
+import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
 
@@ -19,87 +18,19 @@ export const SelectNamesStep = ({
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
   const { eligible, isPending } = useEligibleV1Names()
-  const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isStarting, setIsStarting] = useState(false)
 
-  const eligibleList: readonly ClassifiedName[] = eligible
-
-  const { groups, orphans } = useMemo(
-    () => groupByParent(eligibleList),
-    [eligibleList],
-  )
-
-  const didSeed = useRef(false)
-  useEffect(() => {
-    if (didSeed.current || isPending || eligibleList.length === 0) return
-    didSeed.current = true
-    const ready = new Set<string>()
-    for (const group of groups) {
-      ready.add(group.parent.domain.name)
-      for (const sub of group.subnames) ready.add(sub.domain.name)
-    }
-    for (const orphan of orphans) ready.add(orphan.domain.name)
-    setSelected(ready)
-    onNamesChange([...ready])
-  }, [isPending, eligibleList, groups, orphans, onNamesChange])
-
-  const searchLower = search.toLowerCase()
-
-  const filteredGroups = useMemo(() => {
-    if (!searchLower) return groups
-    return groups.filter(
-      (g) =>
-        g.parent.domain.name.toLowerCase().includes(searchLower) ||
-        g.subnames.some((s) =>
-          s.domain.name.toLowerCase().includes(searchLower),
-        ),
-    )
-  }, [groups, searchLower])
-
-  const filteredOrphans = useMemo(() => {
-    if (!searchLower) return orphans
-    return orphans.filter((o) =>
-      o.domain.name.toLowerCase().includes(searchLower),
-    )
-  }, [orphans, searchLower])
-
-  const toggleName = useCallback(
-    (name: string) => {
-      setSelected((prev) => {
-        const next = new Set(prev)
-        if (next.has(name)) next.delete(name)
-        else next.add(name)
-        onNamesChange([...next])
-        return next
-      })
-    },
-    [onNamesChange],
-  )
-
-  const toggleGroup = useCallback(
-    (parentName: string, subnameNames: readonly string[]) => {
-      setSelected((prev) => {
-        const next = new Set(prev)
-        const hasParent = next.has(parentName)
-        if (hasParent) {
-          next.delete(parentName)
-          for (const sub of subnameNames) next.delete(sub)
-        } else {
-          next.add(parentName)
-          for (const sub of subnameNames) next.add(sub)
-        }
-        onNamesChange([...next])
-        return next
-      })
-    },
-    [onNamesChange],
-  )
-
-  const totalSelected = selected.size
-
-  const visibleCount =
-    groups.reduce((acc, g) => acc + 1 + g.subnames.length, 0) + orphans.length
+  const {
+    search,
+    setSearch,
+    selected,
+    totalSelected,
+    visibleCount,
+    filteredGroups,
+    filteredOrphans,
+    toggleName,
+    toggleGroup,
+  } = useNameSelection({ eligible, isPending, onNamesChange })
 
   const handleUpgrade = useCallback(async () => {
     if (isStarting) return
