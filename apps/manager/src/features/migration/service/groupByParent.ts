@@ -26,13 +26,14 @@ export const groupByParent = (
       continue
     }
     const parent = n.parentName
-    if (!parent || !byName.has(parent)) {
+    const parentNode = parent ? byName.get(parent) : undefined
+    if (!parentNode || !is2LD(parentNode)) {
       orphans.push(n)
       continue
     }
-    const list = subnamesByParent.get(parent) ?? []
+    const list = subnamesByParent.get(parent!) ?? []
     list.push(n)
-    subnamesByParent.set(parent, list)
+    subnamesByParent.set(parent!, list)
   }
 
   roots.sort((a, b) => a.domain.name.localeCompare(b.domain.name))
