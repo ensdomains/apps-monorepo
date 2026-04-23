@@ -103,6 +103,20 @@ const getNameStatus = (expiryDate: Date | null | undefined): string => {
 
 // V2: ETHRegistrar.renew reverts once expiry <= now (no grace period).
 // V1: ETHRegistrarController.renew reverts once past grace (in premium window).
+const getSelectedNames = (
+  rowSelection: RowSelectionState,
+  filteredData: NameRow[],
+): readonly SelectedName[] =>
+  Object.keys(rowSelection)
+    .map((idx) => filteredData[Number(idx)])
+    .filter((row): row is NameRow => Boolean(row))
+    .filter((row): row is NameRow & { name: string } => row.name !== null)
+    .map((row) => ({
+      name: row.name,
+      isV2: row.v1Roles === null,
+      expiryDate: row.expiryDate,
+    }))
+
 const isExtendable2LD = ({ name, isV2, expiryDate }: SelectedName): boolean => {
   if (!/^[^.]+\.eth$/.test(name)) return false
   if (!expiryDate) return true
@@ -279,6 +293,8 @@ function RouteComponent() {
     [rowSelection, filteredData],
   )
 
+  const extendableNames = selectedNames.filter(isExtendable2LD)
+
   const searchNamesId = useId()
 
   if (v1NamesQuery.isLoading) {
@@ -339,9 +355,7 @@ function RouteComponent() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={
-                rowCount < 1 || selectedNames.every((n) => !isExtendable2LD(n))
-              }
+              disabled={extendableNames.length === 0}
               onClick={() => {
                 if (activeTxState) {
                   openModal()
@@ -349,7 +363,7 @@ function RouteComponent() {
                 }
 
                 clearIncompatibleRenewalState(
-                  rowCount === 1 ? 'single' : 'multi',
+                  extendableNames.length === 1 ? 'single' : 'multi',
                 )
                 setExtendModalOpen(true)
               }}
@@ -396,14 +410,14 @@ function RouteComponent() {
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
-      {selectedNames.length === 1 && (
+      {extendableNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen && !isTransactionModalOpen}
           onClose={() => {
             setExtendModalOpen(false)
             setRenewalSuccessFlow(null)
           }}
-          selectedName={selectedNames[0]}
+          selectedName={extendableNames[0]}
           transactionCompleted={renewalSuccessFlow === 'single'}
           onSuccessAcknowledged={() => {
             setExtendModalOpen(false)
@@ -411,12 +425,12 @@ function RouteComponent() {
           }}
           onExtend={(config) => {
             setRenewalSuccessFlow(null)
-            startFlow(selectedNames[0], config)
+            startFlow(extendableNames[0], config)
             openModal()
           }}
         />
       )}
-      {selectedNames.length > 1 && (
+      {extendableNames.length > 1 && (
         <MultiNameExtendModal
           open={extendModalOpen && !isTransactionModalOpen}
           onClose={() => {
@@ -428,7 +442,7 @@ function RouteComponent() {
             setExtendModalOpen(false)
             setRenewalSuccessFlow(null)
           }}
-          selectedNames={selectedNames}
+          selectedNames={extendableNames}
           onExtend={(config) => {
             setRenewalSuccessFlow(null)
             startMultiFlow({
