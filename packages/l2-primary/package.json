@@ -23,7 +23,7 @@
     "test": "echo \"No tests defined for @ens-apps/l2-primary\""
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "typescript": "catalog:typescript6"
   },
   "keywords": [],
   "dependencies": {
