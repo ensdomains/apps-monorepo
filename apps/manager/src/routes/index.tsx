@@ -29,7 +29,7 @@ const LandingPage = () => {
             <Trans>Claim your</Trans>
           </span>
           <br />
-          <span className="font-serif text-ens-lapis-dense italic">
+          <span className="text-ens-lapis-dense italic">
             <Trans>web3 username</Trans>
           </span>
         </h1>
