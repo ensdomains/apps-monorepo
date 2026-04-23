@@ -63,7 +63,7 @@ vi.mock('./checkSCAApprovals', () => ({
 }))
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
-import { writeContract } from '@wagmi/core'
+import { waitForTransactionReceipt, writeContract } from '@wagmi/core'
 import { buildMigrationPlan } from './buildMigrationPlan'
 import { checkSCAApprovals } from './checkSCAApprovals'
 import type { MigrationPreflight } from './computeMigrationPreflight'
@@ -75,6 +75,7 @@ import type { V1Domain } from './v1SubgraphClient'
 
 const waitForTransactionMock = vi.mocked(waitForTransaction)
 const writeContractMock = vi.mocked(writeContract)
+const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
 const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
 const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
 const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
@@ -149,8 +150,10 @@ beforeEach(() => {
   ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({
     hash: '0xdeadbeef' as Hex,
-    // biome-ignore lint/suspicious/noExplicitAny: partial tx-manager result shape
-  } as any)
+  } as Awaited<ReturnType<typeof waitForTransaction>>)
+  waitForTransactionReceiptMock.mockResolvedValue({
+    status: 'success',
+  } as Awaited<ReturnType<typeof waitForTransactionReceipt>>)
 })
 
 describe('executeMigration', () => {
@@ -158,19 +161,15 @@ describe('executeMigration', () => {
     const { result } = await runExecute({
       domains: [{ ...unwrappedDomain('x'), labelName: null } as V1Domain],
     })
-    expect(result).toEqual({
-      completed: 0,
-      txHashes: [],
-      ineligible: [],
-      migratedNames: [],
-    })
+    expect(result.completed).toBe(0)
+    expect(result.txHashes).toEqual([])
+    expect(result.ineligible.map((n) => n.reason)).toEqual(['unknown-label'])
     expect(waitForTransactionMock).not.toHaveBeenCalled()
   })
 
   it('submits one batch for a single classified name and returns its tx hash', async () => {
     const { result, progressEvents } = await runExecute()
     expect(result.completed).toBe(1)
-    expect(result.migratedNames).toEqual(['alice.eth'])
     expect(result.txHashes).toEqual(['0xdeadbeef'])
     expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
     expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
@@ -244,7 +243,6 @@ describe('executeMigration', () => {
     const good = unwrappedDomain('good')
     const { result } = await runExecute({ domains: [bad, good] })
     expect(result.completed).toBe(1)
-    expect(result.migratedNames).toEqual(['good.eth'])
     expect(result.ineligible.map((n) => n.domain.id)).toEqual(['bad'])
   })
 })

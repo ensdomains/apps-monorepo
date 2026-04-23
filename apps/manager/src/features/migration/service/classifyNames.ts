@@ -35,6 +35,7 @@ export type IneligibleReason =
   | 'missing-parent'
   | 'frozen-approval'
   | 'already-migrated'
+  | 'unknown-label'
 
 export type IneligibleName = {
   readonly domain: V1Domain
@@ -90,10 +91,21 @@ type ClassifyResult =
   | { type: 'ineligible'; name: IneligibleName }
   | null
 
+const UNKNOWN_LABEL_PATTERN = /\[[0-9a-fA-F]{64}\]/
+const hasUnknownLabel = (domain: V1Domain): boolean => {
+  if (!domain.labelName) return true
+  if (UNKNOWN_LABEL_PATTERN.test(domain.labelName)) return true
+  if (UNKNOWN_LABEL_PATTERN.test(domain.name)) return true
+  return false
+}
+
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
 ): ClassifyResult => {
+  if (hasUnknownLabel(domain)) {
+    return { type: 'ineligible', name: { domain, reason: 'unknown-label' } }
+  }
   const label = domain.labelName
   if (!label) return null
 
