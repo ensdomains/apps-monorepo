@@ -53,6 +53,16 @@ describe('isExtendable2LD', () => {
       ).toBe(false)
     })
 
+    it('rejects a v2 name within the v1 grace period', () => {
+      expect(
+        isExtendable2LD({
+          name: 'alice.eth',
+          isV2: true,
+          expiryDate: withinGrace,
+        }),
+      ).toBe(false)
+    })
+
     it('accepts a v2 name with no expiry', () => {
       expect(
         isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: null }),
