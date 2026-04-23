@@ -34,9 +34,15 @@ import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
 import {
   type RenewalFlowType,
-  type SelectedName,
   useRenewalTransactions,
 } from '@/features/renew/hooks/useRenewalTransactions'
+import {
+  getNameLength,
+  getNameStatus,
+  getSelectedNames,
+  isExtendable2LD,
+  MS_PER_SECOND,
+} from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -44,11 +50,6 @@ import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { queryClient } from '@/utils/queryClient'
-
-const MS_PER_SECOND = 1000
-const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
-const GRACE_PERIOD_DAYS = 90
-const PREMIUM_PERIOD_DAYS = 21
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
   {
@@ -79,61 +80,6 @@ const LENGTH_FILTER_GROUPS: FilterGroup[] = [
     ],
   },
 ]
-
-const getNameStatus = (expiryDate: Date | null | undefined): string => {
-  if (!expiryDate) return 'no-expiry'
-
-  const now = new Date()
-  const gracePeriodEnd = new Date(
-    expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY,
-  )
-  const premiumPeriodEnd = new Date(
-    gracePeriodEnd.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY,
-  )
-
-  // After grace + premium period = fully expired
-  if (now > premiumPeriodEnd) return 'expired'
-  // After grace period but in premium period
-  if (now > gracePeriodEnd) return 'premium'
-  // After expiry but in grace period
-  if (now > expiryDate) return 'grace'
-  // Still registered (active)
-  return 'registered'
-}
-
-// V2: ETHRegistrar.renew reverts once expiry <= now (no grace period).
-// V1: ETHRegistrarController.renew reverts once past grace (in premium window).
-const getSelectedNames = (
-  rowSelection: RowSelectionState,
-  filteredData: NameRow[],
-): readonly SelectedName[] =>
-  Object.keys(rowSelection)
-    .map((idx) => filteredData[Number(idx)])
-    .filter((row): row is NameRow => Boolean(row))
-    .filter((row): row is NameRow & { name: string } => row.name !== null)
-    .map((row) => ({
-      name: row.name,
-      isV2: row.v1Roles === null,
-      expiryDate: row.expiryDate,
-    }))
-
-const isExtendable2LD = ({ name, isV2, expiryDate }: SelectedName): boolean => {
-  if (!/^[^.]+\.eth$/.test(name)) return false
-  if (!expiryDate) return true
-  const cutoff = isV2
-    ? expiryDate.getTime()
-    : expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY
-  return cutoff > Date.now()
-}
-
-const getNameLength = (name: string | null): string => {
-  if (!name) return '5+'
-  // Remove the TLD (e.g., .eth)
-  const label = name.split('.')[0]
-  if (label.length === 3) return '3'
-  if (label.length === 4) return '4'
-  return '5+'
-}
 
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
@@ -279,21 +225,9 @@ function RouteComponent() {
     [rowSelection],
   )
 
-  const selectedNames = useMemo(
-    (): readonly SelectedName[] =>
-      Object.keys(rowSelection)
-        .map((idx) => filteredData[Number(idx)])
-        .filter((row): row is NameRow => Boolean(row))
-        .filter((row): row is NameRow & { name: string } => row.name !== null)
-        .map((row) => ({
-          name: row.name,
-          isV2: row.v1Roles === null,
-          expiryDate: row.expiryDate,
-        })),
-    [rowSelection, filteredData],
+  const extendableNames = getSelectedNames(rowSelection, filteredData).filter(
+    isExtendable2LD,
   )
-
-  const extendableNames = selectedNames.filter(isExtendable2LD)
 
   const searchNamesId = useId()
 
