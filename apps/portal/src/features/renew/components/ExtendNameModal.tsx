@@ -123,14 +123,12 @@ export const ExtendNameModal = ({
               </div>
               <div className="border border-border rounded-lg overflow-hidden">
                 <div className="w-full flex items-center gap-3 px-4 py-3">
-                  <div className="flex-1">
-                    <NameAvatar
-                      name={selectedName.name}
-                      height="40px"
-                      width="40px"
-                      rounded="rounded-md"
-                    />
-                  </div>
+                  <NameAvatar
+                    name={selectedName.name}
+                    height="40px"
+                    width="40px"
+                    rounded="rounded-md"
+                  />
                   <span className="flex-1 text-left text-base font-medium text-foreground truncate">
                     {selectedName.name}
                   </span>
