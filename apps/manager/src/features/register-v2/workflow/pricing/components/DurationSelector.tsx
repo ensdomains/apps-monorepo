@@ -17,7 +17,7 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { DurationCustomRow } from './DurationCustomRow'
 import { DurationPresetRow } from './DurationPresetRow'
 
-const PRESET_DURATIONS: number[] = [
+export const PRESET_DURATIONS: number[] = [
   SECONDS_IN_YEAR,
   SECONDS_IN_YEAR * 3,
   SECONDS_IN_YEAR * 5,

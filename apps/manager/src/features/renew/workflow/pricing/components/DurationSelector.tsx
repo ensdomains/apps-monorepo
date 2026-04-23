@@ -11,18 +11,11 @@ import {
   type MissingTokenError,
 } from '@/features/register-v2/data/queries/pricing.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
 import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
+import { PRESET_DURATIONS } from '@/features/register-v2/workflow/pricing/components/DurationSelector'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-
-const PRESET_DURATIONS: number[] = [
-  SECONDS_IN_YEAR,
-  SECONDS_IN_YEAR * 3,
-  SECONDS_IN_YEAR * 5,
-  SECONDS_IN_YEAR * 10,
-]
 
 type PresetPricingQuery = {
   isPending: boolean
