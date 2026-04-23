@@ -1,6 +1,7 @@
 import { err, ok } from 'neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fail as failCall, ok as okCall } from './_fixtures'
 import {
   fetchV1Profiles,
   ProfileFetchError,
@@ -8,9 +9,7 @@ import {
 } from './fetchV1Profiles'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
-vi.mock('./v1SubgraphClient', () => ({
-  getV1ProfileKeys: vi.fn(),
-}))
+vi.mock('./v1SubgraphClient', () => ({ getV1ProfileKeys: vi.fn() }))
 
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
 
@@ -20,87 +19,77 @@ const NODE_A: Hex =
 const NODE_B: Hex =
   '0x2222222222222222222222222222222222222222222222222222222222222222'
 
-const makeClient = (multicallImpl: (opts: unknown) => unknown): PublicClient =>
+const clientWith = (multicallImpl: (opts: unknown) => unknown): PublicClient =>
   ({ multicall: vi.fn(multicallImpl) }) as unknown as PublicClient
 
-const call = {
-  ok: <T>(result: T) => ({ status: 'success' as const, result }),
-  fail: () => ({
-    status: 'failure' as const,
-    error: new Error('reverted'),
-    result: undefined,
-  }),
-}
+const mockKeys = (
+  rows: {
+    id: string
+    texts: readonly string[]
+    coinTypes: readonly number[]
+  }[],
+) => getV1ProfileKeysMock.mockReturnValueOnce(ok(rows) as never)
+
+const run = (
+  names: { nodeHex: Hex; v1ResolverAddress: Address }[],
+  publicClient: PublicClient,
+) => fetchV1Profiles({ names, publicClient })
+
+const A = { nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }
+const B = { nodeHex: NODE_B, v1ResolverAddress: V1_RESOLVER }
 
 beforeEach(() => {
   getV1ProfileKeysMock.mockReset()
 })
 
 describe('profileMapKey', () => {
-  it('lowercases the hex', () => {
+  it('lowercases the hex and is idempotent', () => {
     expect(profileMapKey('0xABCDEF' as Hex)).toBe('0xabcdef')
-  })
-
-  it('is idempotent', () => {
-    const once = profileMapKey(NODE_A)
-    const twice = profileMapKey(once)
-    expect(twice).toBe(once)
+    expect(profileMapKey(profileMapKey(NODE_A))).toBe(profileMapKey(NODE_A))
   })
 })
 
 describe('fetchV1Profiles', () => {
   it('returns empty map without RPC when names is empty', async () => {
-    const publicClient = makeClient(() => [])
-    const result = await fetchV1Profiles({ names: [], publicClient })
+    const result = await run(
+      [],
+      clientWith(() => []),
+    )
     expect(result.size).toBe(0)
     expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
   })
 
-  it('wraps subgraph errors in ProfileFetchError with phase="subgraph"', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok(undefined).andThen(() => err(new Error('subgraph 500'))) as never,
-    )
-    const publicClient = makeClient(() => [])
-
-    await expect(
-      fetchV1Profiles({
-        names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-        publicClient,
+  it.each([
+    [
+      'subgraph',
+      () =>
+        getV1ProfileKeysMock.mockReturnValueOnce(
+          ok(undefined).andThen(() => err(new Error('subgraph 500'))) as never,
+        ),
+      clientWith(() => []),
+    ],
+    [
+      'onchain',
+      () => mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [] }]),
+      clientWith(() => {
+        throw new Error('rpc down')
       }),
-    ).rejects.toBeInstanceOf(ProfileFetchError)
-  })
-
-  it('wraps onchain multicall rejections in ProfileFetchError with phase="onchain"', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([{ id: NODE_A, texts: ['email'], coinTypes: [] }]) as never,
-    )
-    const publicClient = makeClient(() => {
-      throw new Error('rpc down')
-    })
-
-    await expect(
-      fetchV1Profiles({
-        names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-        publicClient,
-      }),
-    ).rejects.toSatisfy(
-      (e) => e instanceof ProfileFetchError && e.phase === 'onchain',
+    ],
+  ])('wraps %s errors in ProfileFetchError', async (phase, setup, client) => {
+    setup()
+    await expect(run([A], client)).rejects.toSatisfy(
+      (e) => e instanceof ProfileFetchError && e.phase === phase,
     )
   })
 
   it('returns empty-profile entries when subgraph reports no keys', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([{ id: NODE_A, texts: [], coinTypes: [] }]) as never,
+    mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
+    const result = await run(
+      [A],
+      clientWith(() => {
+        throw new Error('should not be called')
+      }),
     )
-    const publicClient = makeClient(() => {
-      throw new Error('should not be called')
-    })
-
-    const result = await fetchV1Profiles({
-      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-      publicClient,
-    })
-
     expect(result.get(profileMapKey(NODE_A))).toEqual({
       texts: [],
       addresses: [],
@@ -108,19 +97,14 @@ describe('fetchV1Profiles', () => {
   })
 
   it('populates text + addr records from multicall results', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([{ id: NODE_A, texts: ['email'], coinTypes: [60] }]) as never,
+    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60] }])
+    const result = await run(
+      [A],
+      clientWith(() => [
+        okCall('a@b.c'),
+        okCall('0x000000000000000000000000000000000000abcd' as Hex),
+      ]),
     )
-    const publicClient = makeClient(() => [
-      call.ok('a@b.c'),
-      call.ok('0x000000000000000000000000000000000000abcd' as Hex),
-    ])
-
-    const result = await fetchV1Profiles({
-      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-      publicClient,
-    })
-
     const entry = result.get(profileMapKey(NODE_A))!
     expect(entry.texts).toEqual([{ key: 'email', value: 'a@b.c' }])
     expect(entry.addresses).toEqual([
@@ -132,50 +116,33 @@ describe('fetchV1Profiles', () => {
   })
 
   it('drops empty text values and zero-length addr values', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([{ id: NODE_A, texts: ['email'], coinTypes: [60] }]) as never,
+    mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60] }])
+    const result = await run(
+      [A],
+      clientWith(() => [okCall(''), okCall('0x' as Hex)]),
     )
-    const publicClient = makeClient(() => [call.ok(''), call.ok('0x' as Hex)])
-
-    const result = await fetchV1Profiles({
-      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-      publicClient,
-    })
-
     const entry = result.get(profileMapKey(NODE_A))!
     expect(entry.texts).toEqual([])
     expect(entry.addresses).toEqual([])
   })
 
-  it('skips entries with failed multicall status without populating the bucket', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([{ id: NODE_A, texts: ['email', 'url'], coinTypes: [] }]) as never,
+  it('skips entries with failed multicall status', async () => {
+    mockKeys([{ id: NODE_A, texts: ['email', 'url'], coinTypes: [] }])
+    const result = await run(
+      [A],
+      clientWith(() => [failCall(), okCall('ok-value')]),
     )
-    const publicClient = makeClient(() => [call.fail(), call.ok('ok-value')])
-
-    const result = await fetchV1Profiles({
-      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-      publicClient,
-    })
-
     expect(result.get(profileMapKey(NODE_A))!.texts).toEqual([
       { key: 'url', value: 'ok-value' },
     ])
   })
 
   it('matches subgraph entries to names via lowercase node id', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([
-        { id: NODE_A.toUpperCase(), texts: ['email'], coinTypes: [] },
-      ]) as never,
+    mockKeys([{ id: NODE_A.toUpperCase(), texts: ['email'], coinTypes: [] }])
+    const result = await run(
+      [A],
+      clientWith(() => [okCall('matched')]),
     )
-    const publicClient = makeClient(() => [call.ok('matched')])
-
-    const result = await fetchV1Profiles({
-      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-      publicClient,
-    })
-
     expect(result.get(profileMapKey(NODE_A))!.texts).toEqual([
       { key: 'email', value: 'matched' },
     ])
@@ -183,41 +150,25 @@ describe('fetchV1Profiles', () => {
 
   it('chunks multicall args into batches of 700 with batchSize:0', async () => {
     const keys = Array.from({ length: 701 }, (_, i) => `text-${i}`)
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([{ id: NODE_A, texts: keys, coinTypes: [] }]) as never,
-    )
+    mockKeys([{ id: NODE_A, texts: keys, coinTypes: [] }])
     const multicallSpy = vi.fn(async (opts: { contracts: unknown[] }) =>
-      opts.contracts.map(() => call.ok('v')),
+      opts.contracts.map(() => okCall('v')),
     )
-    const publicClient = {
-      multicall: multicallSpy,
-    } as unknown as PublicClient
-
-    await fetchV1Profiles({
-      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-      publicClient,
-    })
+    await run([A], { multicall: multicallSpy } as unknown as PublicClient)
 
     expect(multicallSpy).toHaveBeenCalledTimes(2)
-    const firstCall = multicallSpy.mock.calls[0]![0] as {
-      contracts: unknown[]
-      batchSize?: number
-    }
-    const secondCall = multicallSpy.mock.calls[1]![0] as {
-      contracts: unknown[]
-      batchSize?: number
-    }
-    expect(firstCall.contracts).toHaveLength(700)
-    expect(firstCall.batchSize).toBe(0)
-    expect(secondCall.contracts).toHaveLength(1)
-    expect(secondCall.batchSize).toBe(0)
+    const [first, second] = multicallSpy.mock.calls.map(
+      ([opts]) => opts as { contracts: unknown[]; batchSize?: number },
+    )
+    expect(first!.batchSize).toBe(0)
+    expect(second!.batchSize).toBe(0)
+    expect(first!.contracts).toHaveLength(700)
+    expect(second!.contracts).toHaveLength(1)
   })
 
-  it('runs chunks with bounded concurrency (>1 in flight)', async () => {
+  it('runs chunks with bounded concurrency (>1 in flight, cap respected)', async () => {
     const keys = Array.from({ length: 700 * 8 }, (_, i) => `text-${i}`)
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([{ id: NODE_A, texts: keys, coinTypes: [] }]) as never,
-    )
+    mockKeys([{ id: NODE_A, texts: keys, coinTypes: [] }])
 
     let inFlight = 0
     let maxInFlight = 0
@@ -226,16 +177,9 @@ describe('fetchV1Profiles', () => {
       maxInFlight = Math.max(maxInFlight, inFlight)
       await new Promise((r) => setTimeout(r, 5))
       inFlight--
-      return opts.contracts.map(() => call.ok('v'))
+      return opts.contracts.map(() => okCall('v'))
     })
-    const publicClient = {
-      multicall: multicallSpy,
-    } as unknown as PublicClient
-
-    await fetchV1Profiles({
-      names: [{ nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER }],
-      publicClient,
-    })
+    await run([A], { multicall: multicallSpy } as unknown as PublicClient)
 
     expect(multicallSpy).toHaveBeenCalledTimes(8)
     expect(maxInFlight).toBeGreaterThan(1)
@@ -243,22 +187,14 @@ describe('fetchV1Profiles', () => {
   })
 
   it('populates separate buckets per node', async () => {
-    getV1ProfileKeysMock.mockReturnValueOnce(
-      ok([
-        { id: NODE_A, texts: ['keyA'], coinTypes: [] },
-        { id: NODE_B, texts: ['keyB'], coinTypes: [] },
-      ]) as never,
+    mockKeys([
+      { id: NODE_A, texts: ['keyA'], coinTypes: [] },
+      { id: NODE_B, texts: ['keyB'], coinTypes: [] },
+    ])
+    const result = await run(
+      [A, B],
+      clientWith(() => [okCall('valA'), okCall('valB')]),
     )
-    const publicClient = makeClient(() => [call.ok('valA'), call.ok('valB')])
-
-    const result = await fetchV1Profiles({
-      names: [
-        { nodeHex: NODE_A, v1ResolverAddress: V1_RESOLVER },
-        { nodeHex: NODE_B, v1ResolverAddress: V1_RESOLVER },
-      ],
-      publicClient,
-    })
-
     expect(result.get(profileMapKey(NODE_A))!.texts[0]).toEqual({
       key: 'keyA',
       value: 'valA',

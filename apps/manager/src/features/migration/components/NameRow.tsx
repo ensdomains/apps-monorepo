@@ -34,10 +34,10 @@ export const NameRow = ({
       ) : (
         <div
           className={cn(
-            'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
+            'flex shrink-0 items-center justify-center rounded-[4px] border p-1 transition-colors',
             isSelected
-              ? 'bg-ens-garnet-900'
-              : 'border border-ens-garnet-900/30 bg-transparent',
+              ? 'border-ens-garnet-900 bg-ens-garnet-900'
+              : 'border-ens-garnet-900/30 bg-transparent',
           )}
         >
           <Check
