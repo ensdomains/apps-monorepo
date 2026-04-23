@@ -1,0 +1,187 @@
+# Local E2E stack: Anvil (Sepolia fork) + Alto (ERC-4337 bundler) + optional mock paymaster.
+# Use when running E2E tests on the fork so the bundler uses the same chain.
+#
+# Start:   docker compose -f e2e/infra/docker-compose.yml up -d
+# Stop:    docker compose -f e2e/infra/docker-compose.yml down
+#
+# Then set in the app (or .env):
+#   VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545
+#   VITE_PIMLICO_BUNDLER_URL=http://localhost:3000/alto  (proxy avoids CORS; see vite.config.ts)
+#
+# Optional: override fork URL (e.g. for CI)
+#   SEPOLIA_FORK_URL=https://ethereum-sepolia-rpc.publicnode.com
+#
+# Paymaster is optional; host port 3002 to avoid clashing with app. VITE_PAYMASTER_URL=http://127.0.0.1:3002
+
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    networks:
+      e2e:
+        aliases:
+          - anvil
+    # The Foundry image entrypoint is "/bin/sh -c" which swallows list-style
+    # command args.  Override to call anvil directly so all flags are passed.
+    entrypoint: ["anvil"]
+    command:
+      - --fork-url
+      - ${SEPOLIA_FORK_URL:-https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j}
+      - --chain-id
+      - "11155111"
+      - --port
+      - "8545"
+      - --host
+      - "0.0.0.0"
+    ports:
+      - "8545:8545"
+    healthcheck:
+      # eth_chainId ensures RPC is ready for Alto; start_period gives fork time to init
+      test: ["CMD", "cast", "rpc", "eth_chainId"]
+      interval: 5s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+
+  alto:
+    image: ghcr.io/pimlicolabs/alto:latest
+    networks:
+      e2e:
+        aliases:
+          - alto
+    ports:
+      - "4337:4337"
+    entrypoint: ["sh", "-c"]
+    environment:
+      ANVIL_RPC: http://anvil:8545
+    command:
+      - "node /app/wait-for-anvil.mjs && exec node src/lib/cli/alto.js run --config /app/alto-config.json"
+    depends_on:
+      anvil:
+        condition: service_healthy
+    volumes:
+      - ./alto/alto-config.json:/app/alto-config.json
+      - ./alto/wait-for-anvil.mjs:/app/wait-for-anvil.mjs
+      - ./alto/healthcheck.mjs:/app/healthcheck.mjs
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.mjs"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # Mock verifying paymaster: sponsors gas on the fork (no ETH needed in smart account).
+  # Resolve hostname "anvil" to host so any anvil:8545 request (env or lib fallback) hits host's published port.
+  paymaster:
+    image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
+    networks:
+      e2e:
+        aliases:
+          - paymaster
+    ports:
+      - "3002:3000"
+    environment:
+      ALTO_RPC: http://alto:4337
+      ANVIL_RPC: http://anvil:8545
+    depends_on:
+      anvil:
+        condition: service_healthy
+      alto:
+        condition: service_healthy
+    restart: on-failure
+
+  # Panoptes ENS Indexer: indexes ENS V2 events from the Anvil fork.
+  # Provides a GraphQL API on port 5655 for domain lookups, dashboard, etc.
+  panoptes-indexer:
+    image: ghcr.io/mdtanrikulu/panoptes:latest
+    networks:
+      e2e:
+        aliases:
+          - panoptes-indexer
+    command: ["/app/ensv2-indexer-v2"]
+    volumes:
+      - panoptes-data:/app/data
+      - ./panoptes/contracts.json:/app/config/contracts.json:ro
+    environment:
+      - DATABASE_PATH=/app/data/ens_v2.db
+      - RAINBOW_PATH=/app/data/ens_rainbow.db
+      - RPC_URL=http://anvil:8545
+      - NETWORK=sepolia
+      - CONTRACTS_PATH=/app/config/contracts.json
+      - BATCH_SIZE=10000
+      - POLL_INTERVAL=2
+      - RATE_LIMIT_PER_SECOND=100
+      - STATUS_PORT=3001
+      - WEBHOOKS_ENABLED=false
+    depends_on:
+      anvil:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: on-failure
+
+  panoptes-api:
+    image: ghcr.io/mdtanrikulu/panoptes:latest
+    networks:
+      e2e:
+        aliases:
+          - panoptes-api
+    command: ["/app/api-entrypoint.sh"]
+    ports:
+      - "5655:5655"
+    volumes:
+      - panoptes-data:/app/data:ro
+    environment:
+      - DATABASE_PATH=/app/data/ens_v2.db
+      - RAINBOW_PATH=/app/data/ens_rainbow.db
+      - DOWNLOAD_RAINBOW=false
+      - API_PORT=5655
+      - GRAPHQL_MAX_DEPTH=10
+      - GRAPHQL_MAX_COST=1000
+      - WEBHOOKS_ENABLED=false
+      - METRICS_ENABLED=false
+    depends_on:
+      - panoptes-indexer
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5655/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: on-failure
+
+  # Rhinestone mockestrator: local orchestrator for Rhinestone intent-based transactions.
+  # Only needed when running Rhinestone e2e tests (VITE_FF_RHINESTONE_SESSIONS=true).
+  mockestrator:
+    image: ghcr.io/ensdomains/mockestrator:latest
+    networks:
+      e2e:
+        aliases:
+          - mockestrator
+    ports:
+      - "3007:3000"
+    depends_on:
+      anvil:
+        condition: service_healthy
+    volumes:
+      - ./mockestrator/rpcs.json:/app/rpcs.json
+      - ./mockestrator/chains.json:/app/chains.json
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  panoptes-data:
+    driver: local
+
+networks:
+  e2e:
+    name: ens-e2e

@@ -93,20 +93,45 @@ export function submitWarpTransaction(
       logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
       logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
-      const sessionSigners = config.sessionConfig?.signers
+      // When isSessionClient is false, we're not using sessions —
+      // skip session signers (applies to local mockestrator which
+      // doesn't support sessions, and to any non-session flow).
+      const sessionSigners = config.isSessionClient
+        ? config.sessionConfig?.signers
+        : undefined
       if (sessionSigners) {
         logger.debug(
           '📤 [WARP] Using experimental_session signers from sessionConfig',
         )
       }
 
-      const transaction = await account.sendTransaction({
+      const sdkParams: Record<string, unknown> = {
         sourceChains: [chain],
         targetChain: chain,
         calls,
         sponsored: sponsored ?? true,
+        // Local mockestrator requires empty tokenRequests to skip balance validation
+        tokenRequests: [],
         ...(sessionSigners ? { signers: sessionSigners } : {}),
-      })
+      }
+
+      logger.debug(
+        '📤 [WARP] SDK sendTransaction params:',
+        JSON.stringify(
+          Object.fromEntries(
+            Object.entries(sdkParams).map(([k, v]) => [
+              k,
+              Array.isArray(v)
+                ? `Array(${(v as unknown[]).length})`
+                : typeof v === 'object'
+                  ? `${(v as { name?: string })?.name ?? typeof v}`
+                  : v,
+            ]),
+          ),
+        ),
+      )
+
+      const transaction = await account.sendTransaction(sdkParams as any)
       const sendLatencyMs = nowMs() - sendStart
 
       logger.debug(

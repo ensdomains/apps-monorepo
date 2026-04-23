@@ -42,6 +42,12 @@ import type {
 } from './types'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
+/** True when using a local bundler (e.g. Alto) — no Pimlico API key needed. */
+const isLocalBundler = (): boolean => {
+  const url = import.meta.env.VITE_PIMLICO_BUNDLER_URL
+  return typeof url === 'string' && url.length > 0
+}
+
 export interface SmartAccountContextValue
   extends Omit<ZeroDevAccountState, 'type' | 'client' | 'config'> {
   readonly type: 'zerodev' | 'rhinestone'
@@ -279,7 +285,10 @@ export const SmartAccountContextProvider = ({
     if (!baseClient || !accountAddress) return null
 
     if (provider === 'rhinestone') {
-      const rhinestoneApiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+      const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+      const rhinestoneApiKey =
+        import.meta.env.VITE_RHINESTONE_API_KEY ||
+        (isLocalOrchestrator ? 'local-dev' : undefined)
       if (!rhinestoneApiKey) {
         logger.error('Rhinestone API key not configured - cannot create signer')
         return null
@@ -341,8 +350,9 @@ export const SmartAccountContextProvider = ({
       }
     }
 
-    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-    if (!pimlicoApiKey) {
+    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY || ''
+    // Local bundler (Alto) does not need a Pimlico API key
+    if (!pimlicoApiKey && !isLocalBundler()) {
       logger.error('Pimlico API key not configured - cannot create signer')
       return null
     }
