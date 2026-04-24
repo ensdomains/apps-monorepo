@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FlameIcon, IdCardIcon } from 'lucide-react'
 import {
@@ -15,7 +16,9 @@ import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { createDefineLinkItem } from '@/utils/tsr'
+import type { ProtocolVersion } from '@/utils/types'
 import { SettingsMenu } from './SettingsMenu'
 import {
   Sidebar,
@@ -43,7 +46,7 @@ type SidebarItemData = {
 
 const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 
-const getItems = (name: string) => [
+const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
   defineProfileSidebarItem({
     title: 'Records',
     icon: CardsStackIcon,
@@ -68,22 +71,27 @@ const getItems = (name: string) => [
       params: { name },
     },
   }),
-  defineProfileSidebarItem({
-    title: 'Roles',
-    icon: ShieldIcon,
-    link: {
-      to: '/$name/roles',
-      params: { name },
-    },
-  }),
-  defineProfileSidebarItem({
-    title: 'Fuses',
-    icon: FlameIcon,
-    link: {
-      to: '/$name/fuses',
-      params: { name },
-    },
-  }),
+  ...(protocolVersion === 'ENSv2'
+    ? [
+        defineProfileSidebarItem({
+          title: 'Roles',
+          icon: ShieldIcon,
+          link: {
+            to: '/$name/roles',
+            params: { name },
+          },
+        }),
+      ]
+    : [
+        defineProfileSidebarItem({
+          title: 'Fuses',
+          icon: FlameIcon,
+          link: {
+            to: '/$name/fuses',
+            params: { name },
+          },
+        }),
+      ]),
   defineProfileSidebarItem({
     title: 'Subnames',
     icon: GraphIcon,
@@ -123,7 +131,9 @@ interface ProfileSidebarProps {
 }
 
 export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
-  const items = getItems(name)
+  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const protocolVersion = ownerData?.protocolVersion
+  const items = getItems(name, protocolVersion)
   const { state, isMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
 
