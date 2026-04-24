@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
@@ -10,8 +10,15 @@ import {
   useMigrationStepDescriptors,
 } from '@/features/migration/state/migrationUi.selectors'
 import { cn } from '@/lib/utils'
-
-const VISIBLE_PLANKS = 6
+import {
+  computeBridgeLayout,
+  describeNextStep,
+  displayStepOf,
+  giantAnimateFor,
+  giantModeOf,
+  giantTransitionFor,
+  VISIBLE_PLANKS,
+} from './GameStep.helpers'
 
 export const GameStep = () => {
   const { t } = useLingui()
@@ -27,34 +34,9 @@ export const GameStep = () => {
 
   const totalSteps = Math.max(progress?.totalSteps ?? stepDescriptors.length, 1)
   const completedSteps = progress?.currentStep ?? 0
-  const displayStep = done
-    ? totalSteps
-    : Math.min(completedSteps + 1, totalSteps)
-  const needsScroll = totalSteps > VISIBLE_PLANKS
-  const plankWidth =
-    trackWidth > 0 ? trackWidth / Math.min(totalSteps, VISIBLE_PLANKS) : 0
-  const totalBridgeWidth = plankWidth * totalSteps
-
-  const midPlank = Math.floor(VISIBLE_PLANKS / 2)
-  const scrollStart = midPlank
-  const scrollEnd = totalSteps - (VISIBLE_PLANKS - midPlank)
-
-  let scrollOffset = 0
-  let frensX = 0
-
-  if (!needsScroll || trackWidth === 0) {
-    frensX = ((completedSteps + 0.5) / totalSteps) * trackWidth
-  } else if (completedSteps < scrollStart) {
-    frensX = (completedSteps + 0.5) * plankWidth
-    scrollOffset = 0
-  } else if (completedSteps >= scrollEnd) {
-    scrollOffset = (scrollEnd - scrollStart) * plankWidth
-    const stepsFromEnd = totalSteps - completedSteps
-    frensX = trackWidth - (stepsFromEnd - 0.5) * plankWidth
-  } else {
-    frensX = (midPlank + 0.5) * plankWidth
-    scrollOffset = (completedSteps - scrollStart) * plankWidth
-  }
+  const displayStep = displayStepOf(done, completedSteps, totalSteps)
+  const { plankWidth, frensX, scrollOffset, totalBridgeWidth } =
+    computeBridgeLayout({ totalSteps, completedSteps, trackWidth })
 
   const isExcited = !!progress?.txHash && !done && !hasCollapsed
 
@@ -62,29 +44,28 @@ export const GameStep = () => {
     | MigrationStepDescriptor
     | undefined
 
-  const descriptionText = match({
+  const stepDescription = describeNextStep({
     done,
     progressDescription: progress?.description,
     descriptor: nextDescriptor,
   })
-    .with({ done: true }, () => t`Almost there...`)
+  const descriptionText = match(stepDescription)
+    .with({ kind: 'done' }, () => t`Almost there...`)
+    .with({ kind: 'progress' }, ({ text }) => text)
+    .with({ kind: 'preparing' }, () => t`Preparing migration...`)
+    .with({ kind: 'approve-sca' }, () => `${t`Approving smart account`}...`)
     .with(
-      { progressDescription: P.string },
-      ({ progressDescription }) => progressDescription,
-    )
-    .with({ descriptor: P.nullish }, () => t`Preparing migration...`)
-    .with(
-      { descriptor: { type: 'approve-sca' } },
-      () => `${t`Approving smart account`}...`,
-    )
-    .with(
-      { descriptor: { type: 'ensure-resolver' } },
+      { kind: 'ensure-resolver' },
       () => `${t`Setting up your v2 resolver`}...`,
     )
-    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) =>
-      descriptor.totalBatches === 1
-        ? `${t`Upgrading ${descriptor.count} name(s) to v2`}...`
-        : `${t`Batch ${descriptor.batch}/${descriptor.totalBatches}: upgrading ${descriptor.count} name(s)`}...`,
+    .with(
+      { kind: 'batch-single' },
+      ({ count }) => `${t`Upgrading ${count} name(s) to v2`}...`,
+    )
+    .with(
+      { kind: 'batch-multi' },
+      ({ batch, total, count }) =>
+        `${t`Batch ${batch}/${total}: upgrading ${count} name(s)`}...`,
     )
     .exhaustive()
 
@@ -95,30 +76,9 @@ export const GameStep = () => {
     ease: [0.55, 0, 1, 0.45] as const,
   }
 
-  const giantAnimate = match({ hasCollapsed, isExcited })
-    .with({ hasCollapsed: true }, () => ({ y: 300, rotate: -10, opacity: 0 }))
-    .with({ isExcited: true }, () => ({
-      y: [0, -14, 0],
-      scale: [1, 1.05, 1],
-    }))
-    .otherwise(() => ({ y: [0, -6, 0] }))
-
-  const giantTransition = match({ hasCollapsed, isExcited })
-    .with({ hasCollapsed: true }, () => ({
-      duration: 0.9,
-      ease: [0.36, 0, 0.66, -0.56] as const,
-      delay: 0.1,
-    }))
-    .with({ isExcited: true }, () => ({
-      duration: 0.7,
-      ease: 'easeInOut' as const,
-      repeat: Number.POSITIVE_INFINITY,
-    }))
-    .otherwise(() => ({
-      duration: 4,
-      ease: 'easeInOut' as const,
-      repeat: Number.POSITIVE_INFINITY,
-    }))
+  const giantMode = giantModeOf({ hasCollapsed, isExcited })
+  const giantAnimate = giantAnimateFor(giantMode)
+  const giantTransition = giantTransitionFor(giantMode)
 
   return (
     <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">

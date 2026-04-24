@@ -1,10 +1,11 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import { Check, Info, Search } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Info, Search } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { cn } from '@/lib/utils'
+import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { NameListSkeleton } from './NameListSkeleton'
+import { NameRow } from './NameRow'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
@@ -17,46 +18,19 @@ export const SelectNamesStep = ({
 }: SelectNamesStepProps) => {
   const { t } = useLingui()
   const { eligible, isPending } = useEligibleV1Names()
-  const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isStarting, setIsStarting] = useState(false)
 
-  const eligibleNames = useMemo(() => eligible.map((c) => c.domain), [eligible])
-
-  const didSeed = useRef(false)
-  useEffect(() => {
-    if (didSeed.current || isPending || eligibleNames.length === 0) return
-    didSeed.current = true
-    const all = new Set(eligibleNames.map((n) => n.name))
-    setSelected(all)
-    onNamesChange([...all])
-  }, [isPending, eligibleNames, onNamesChange])
-
-  const searchLower = search.toLowerCase()
-
-  const filtered = useMemo(
-    () =>
-      eligibleNames.filter((n) => n.name.toLowerCase().includes(searchLower)),
-    [searchLower, eligibleNames],
-  )
-
-  const toggleName = useCallback(
-    (name: string) => {
-      setSelected((prev) => {
-        const next = new Set(prev)
-        if (next.has(name)) {
-          next.delete(name)
-        } else {
-          next.add(name)
-        }
-        onNamesChange([...next])
-        return next
-      })
-    },
-    [onNamesChange],
-  )
-
-  const totalSelected = selected.size
+  const {
+    search,
+    setSearch,
+    selected,
+    totalSelected,
+    visibleCount,
+    filteredGroups,
+    filteredOrphans,
+    toggleName,
+    toggleGroup,
+  } = useNameSelection({ eligible, isPending, onNamesChange })
 
   const handleUpgrade = useCallback(async () => {
     if (isStarting) return
@@ -96,7 +70,8 @@ export const SelectNamesStep = ({
                 <div className="flex flex-col gap-4">
                   {match({
                     isPending,
-                    hasResults: filtered.length > 0,
+                    hasResults:
+                      filteredGroups.length > 0 || filteredOrphans.length > 0,
                   })
                     .with({ isPending: true }, () => <NameListSkeleton />)
                     .with({ hasResults: false }, () => (
@@ -115,47 +90,47 @@ export const SelectNamesStep = ({
                         </p>
                       </div>
                     ))
-                    .otherwise(() =>
-                      filtered.map((item) => {
-                        const isSelected = selected.has(item.name)
-                        return (
-                          <button
-                            aria-pressed={isSelected}
-                            className="flex cursor-pointer items-center gap-3"
-                            key={item.id}
-                            onClick={() => toggleName(item.name)}
-                            type="button"
-                          >
-                            <div
-                              className={cn(
-                                'flex shrink-0 items-center justify-center rounded-[4px] p-1 transition-colors',
-                                isSelected
-                                  ? 'bg-ens-garnet-900'
-                                  : 'border border-ens-garnet-900/30 bg-transparent',
-                              )}
-                            >
-                              <Check
-                                className={cn(
-                                  'size-5 transition-opacity',
-                                  isSelected
-                                    ? 'text-white opacity-100'
-                                    : 'text-transparent opacity-0',
-                                )}
-                                strokeWidth={2.5}
-                              />
-                            </div>
-                            <div className="flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
-                              <span className="font-semi-mono text-ens-garnet-900 text-xs">
-                                {item.labelName?.[0]?.toUpperCase() ?? '?'}
-                              </span>
-                            </div>
-                            <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
-                              {item.name}
-                            </div>
-                          </button>
+                    .otherwise(() => [
+                      ...filteredGroups.flatMap((group) => {
+                        const parentName = group.parent.domain.name
+                        const parentSelected = selected.has(parentName)
+                        const subnameNames = group.subnames.map(
+                          (s) => s.domain.name,
                         )
+                        return [
+                          <NameRow
+                            indent={false}
+                            interactive={true}
+                            isSelected={parentSelected}
+                            item={group.parent}
+                            key={group.parent.domain.id}
+                            onClick={() =>
+                              toggleGroup(parentName, subnameNames)
+                            }
+                          />,
+                          ...group.subnames.map((sub, idx) => (
+                            <NameRow
+                              firstSubname={idx === 0}
+                              indent={true}
+                              interactive={false}
+                              isSelected={parentSelected}
+                              item={sub}
+                              key={sub.domain.id}
+                            />
+                          )),
+                        ]
                       }),
-                    )}
+                      ...filteredOrphans.map((orphan) => (
+                        <NameRow
+                          indent={false}
+                          interactive={true}
+                          isSelected={selected.has(orphan.domain.name)}
+                          item={orphan}
+                          key={orphan.domain.id}
+                          onClick={() => toggleName(orphan.domain.name)}
+                        />
+                      )),
+                    ])}
                 </div>
               </div>
             </div>
@@ -168,9 +143,12 @@ export const SelectNamesStep = ({
           <p className="text-base text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.16px]">
             <Trans>
               <span>{totalSelected}</span>
-              <span className="font-semi-mono"> out of </span>
-              <span>{eligibleNames.length}</span>
-              <span className="font-semi-mono"> eligible names selected</span>
+              <span className="font-semi-mono"> of </span>
+              <span>{visibleCount}</span>
+              <span className="font-semi-mono">
+                {' '}
+                total eligible names selected
+              </span>
             </Trans>
           </p>
           {totalSelected > 0 && (
