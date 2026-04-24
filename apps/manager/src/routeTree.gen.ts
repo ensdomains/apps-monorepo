@@ -19,6 +19,7 @@ import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as AddressIndexRouteImport } from './routes/$address/index'
+import { Route as RenewNameRouteImport } from './routes/renew/$name'
 import { Route as RegisterNameRouteImport } from './routes/register/$name'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
@@ -83,6 +84,11 @@ const AddressIndexRoute = AddressIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AddressRouteRoute,
+} as any)
+const RenewNameRoute = RenewNameRouteImport.update({
+  id: '/renew/$name',
+  path: '/renew/$name',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterNameRoute = RegisterNameRouteImport.update({
   id: '/register/$name',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
   '/$address/': typeof AddressIndexRoute
   '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
   '/$address': typeof AddressIndexRoute
   '/$name': typeof NameIndexRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
   '/$address/': typeof AddressIndexRoute
   '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
     | '/$address/'
     | '/$name/'
     | '/auto-renewal/'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
     | '/$address'
     | '/$name'
     | '/auto-renewal'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
     | '/$address/'
     | '/$name/'
     | '/auto-renewal/'
@@ -328,6 +340,7 @@ export interface RootRouteChildren {
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   RegisterNameRoute: typeof RegisterNameRoute
+  RenewNameRoute: typeof RenewNameRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
@@ -408,6 +421,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$address/'
       preLoaderRoute: typeof AddressIndexRouteImport
       parentRoute: typeof AddressRouteRoute
+    }
+    '/renew/$name': {
+      id: '/renew/$name'
+      path: '/renew/$name'
+      fullPath: '/renew/$name'
+      preLoaderRoute: typeof RenewNameRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/register/$name': {
       id: '/register/$name'
@@ -566,6 +586,7 @@ const rootRouteChildren: RootRouteChildren = {
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   RegisterNameRoute: RegisterNameRoute,
+  RenewNameRoute: RenewNameRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,

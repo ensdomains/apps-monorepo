@@ -1,13 +1,11 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { Link } from '@tanstack/react-router'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { getRegistrationV2AvailabilityQueryOptions } from '../../data/queries/availability.query'
-import { useRegistrationV2Context } from '../../state/registrationUi.context'
+import { PricingDomainHeader } from '@/features/register-v2/workflow/pricing/components/PricingDomainHeader'
+import { useRenewalUiContext } from '../../state/renewalUi.context'
+import { RenewPageLayout } from '../components/RenewPageLayout'
 import { DurationSelector } from './components/DurationSelector'
 import { PaymentCard } from './components/PaymentCard'
-import { PricingDomainHeader } from './components/PricingDomainHeader'
 import { PricingSummaryCard } from './components/PricingSummaryCard'
 import { TokenPickerDialog } from './components/TokenPickerDialog'
 
@@ -25,33 +23,11 @@ const BackButton = () => {
   )
 }
 
-const useAvailabilityGuard = () => {
-  const navigate = useNavigate()
-  const { label } = useRegistrationV2Context()
-  const availabilityQuery = useQuery({
-    ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
-    refetchOnWindowFocus: true,
-  })
-
-  useEffect(() => {
-    if (availabilityQuery.data?.isAvailable !== false) {
-      return
-    }
-
-    navigate({
-      replace: true,
-      to: '/$name',
-      params: { name: `${label}.eth` },
-    })
-  }, [availabilityQuery.data?.isAvailable, label, navigate])
-}
-
-export const PricingStep = () => {
-  const { label } = useRegistrationV2Context()
-  useAvailabilityGuard()
+export const RenewPricingStep = () => {
+  const { label } = useRenewalUiContext()
 
   return (
-    <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
+    <RenewPageLayout>
       <BackButton />
       <PricingDomainHeader label={label} />
 
@@ -64,6 +40,6 @@ export const PricingStep = () => {
         </div>
       </div>
       <TokenPickerDialog />
-    </div>
+    </RenewPageLayout>
   )
 }
