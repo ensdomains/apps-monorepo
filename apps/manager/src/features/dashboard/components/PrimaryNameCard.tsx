@@ -146,7 +146,7 @@ export const PrimaryNameCard = ({
           className="h-10 w-full rounded-xs border border-ens-blue px-[8.5px] py-[4.25px] font-mono text-ens-blue uppercase tracking-wider hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
           disabled={!canViewProfile}
           params={{ name: primaryName ?? '' }}
-          to="/p/$name"
+          to="/$name"
           variant="outline"
         >
           <span className="font-sans text-sm leading-normal">

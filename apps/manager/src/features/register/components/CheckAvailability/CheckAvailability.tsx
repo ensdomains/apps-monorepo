@@ -161,7 +161,7 @@ export const CheckAvailability = ({
                         variant="card"
                       />
                       {primaryName && (
-                        <Link params={{ name: primaryName }} to="/p/$name">
+                        <Link params={{ name: primaryName }} to="/$name">
                           <DomainProfileCard
                             avatarUrl={profileAvatar}
                             clickable
@@ -243,7 +243,7 @@ export const CheckAvailability = ({
                     key={`result-${state.domainName}`}
                     {...dropdownAnimation}
                   >
-                    <Link params={{ name: state.domainName }} to="/p/$name">
+                    <Link params={{ name: state.domainName }} to="/$name">
                       <DomainProfileCard
                         avatarUrl={profileAvatar}
                         clickable
