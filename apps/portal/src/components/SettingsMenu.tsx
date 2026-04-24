@@ -2,13 +2,10 @@ import { useId } from 'react'
 import { ExternalLink } from 'react-external-link'
 import {
   ChipLinkIcon,
-  LanguageIcon,
   ProfileSettingsIcon,
   TableSettingsIcon,
-  VisibilityOffIcon,
 } from '@/assets/icons'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
-import { useDoNotTrack } from '@/hooks/useDoNotTrack'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
@@ -93,9 +90,6 @@ const TableSettingsSubmenu = () => {
 }
 
 export const SettingsMenu = () => {
-  const [doNotTrack, setDoNotTrack] = useDoNotTrack()
-  const doNotTrackId = useId()
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -110,33 +104,7 @@ export const SettingsMenu = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="end" className="min-w-52">
         <ThemeToggle />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="gap-2">
-            <LanguageIcon className="size-4" />
-            Language
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem className="bg-accent">English</DropdownMenuItem>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
         <TableSettingsSubmenu />
-        <DropdownMenuItem
-          onSelect={(e) => e.preventDefault()}
-          className="justify-between"
-        >
-          <Label
-            htmlFor={doNotTrackId}
-            className="flex items-center gap-2 cursor-pointer font-normal text-foreground"
-          >
-            <VisibilityOffIcon className="size-4" />
-            Do not track
-          </Label>
-          <Switch
-            id={doNotTrackId}
-            checked={doNotTrack}
-            onCheckedChange={setDoNotTrack}
-          />
-        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <ExternalLink href="https://sepolia.etherscan.io">
             <ChipLinkIcon className="size-3" />
