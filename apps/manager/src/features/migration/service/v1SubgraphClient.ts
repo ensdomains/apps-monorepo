@@ -80,53 +80,51 @@ query getNamesForAddress($orderBy: Domain_orderBy, $orderDirection: OrderDirecti
 const fetchPage = async (
   addr: string,
   now: string,
-  skip: number,
+  idCursor: string | undefined,
 ): Promise<V1Domain[]> => {
+  const baseFilters: Record<string, unknown>[] = [
+    {
+      or: [{ owner: addr }, { registrant: addr }, { wrappedOwner: addr }],
+    },
+    {
+      parent_not:
+        '0x91d1777781884d03a6757a803996e38de2a42967fb37eeaca72729271025a9e2',
+    },
+    {
+      or: [{ expiryDate_gt: now }, { expiryDate: null }],
+    },
+    {
+      or: [
+        {
+          owner_not: '0x0000000000000000000000000000000000000000',
+        },
+        { resolver_not: null },
+        {
+          and: [
+            {
+              registrant_not: '0x0000000000000000000000000000000000000000',
+            },
+            { registrant_not: null },
+          ],
+        },
+      ],
+    },
+  ]
+
+  if (idCursor !== undefined) {
+    baseFilters.push({ id_gt: idCursor })
+  }
+
   const response = await fetch(V1_SUBGRAPH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       query: GET_NAMES_QUERY,
       variables: {
-        orderBy: 'expiryDate',
+        orderBy: 'id',
         orderDirection: 'asc',
         first: PAGE_SIZE,
-        skip,
-        whereFilter: {
-          and: [
-            {
-              or: [
-                { owner: addr },
-                { registrant: addr },
-                { wrappedOwner: addr },
-              ],
-            },
-            {
-              parent_not:
-                '0x91d1777781884d03a6757a803996e38de2a42967fb37eeaca72729271025a9e2',
-            },
-            {
-              or: [{ expiryDate_gt: now }, { expiryDate: null }],
-            },
-            {
-              or: [
-                {
-                  owner_not: '0x0000000000000000000000000000000000000000',
-                },
-                { resolver_not: null },
-                {
-                  and: [
-                    {
-                      registrant_not:
-                        '0x0000000000000000000000000000000000000000',
-                    },
-                    { registrant_not: null },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
+        whereFilter: { and: baseFilters },
       },
       operationName: 'getNamesForAddress',
     }),
@@ -149,14 +147,14 @@ export const getV1NamesForAddress = ResultFn(async function* (address: string) {
   const result = yield* fromPromise(
     (async () => {
       const allDomains: V1Domain[] = []
-      let skip = 0
+      let idCursor: string | undefined
 
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       while (true) {
-        const page = await fetchPage(addr, now, skip)
+        const page = await fetchPage(addr, now, idCursor)
         allDomains.push(...page)
         if (page.length < PAGE_SIZE) break
-        skip += PAGE_SIZE
+        idCursor = page[page.length - 1]?.id
       }
 
       return allDomains

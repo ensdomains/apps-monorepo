@@ -10,6 +10,7 @@ import {
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
+import { getRegisteredV2Names } from './getRegisteredV2Names'
 
 export const filterNotReserved = async (
   publicClient: PublicClient,
@@ -41,8 +42,6 @@ export type EligibilityResult = {
   alreadyMigrated: ClassifiedName[]
 }
 
-const V2_STATUS_REGISTERED = 2
-
 export const checkOwnership = async (
   publicClient: PublicClient,
   names: readonly ClassifiedName[],
@@ -73,8 +72,7 @@ export const checkOwnership = async (
   >(publicClient, contracts)
 
   const expected = migrationOwner.toLowerCase()
-  for (let i = 0; i < names.length; i++) {
-    const name = names[i]!
+  for (const [i, name] of names.entries()) {
     const r = results[i]
     if (!r || r.status === 'failure') {
       ids.add(name.domain.id)
@@ -91,37 +89,20 @@ export const checkOwnership = async (
 }
 
 export const checkV2Status = async (
-  publicClient: PublicClient,
   twoLDs: readonly ClassifiedName[],
 ): Promise<Set<string>> => {
-  const ids = new Set<string>()
-  if (twoLDs.length === 0) return ids
+  if (twoLDs.length === 0) return new Set<string>()
 
-  const results = await batchedMulticall<number>(
-    publicClient,
-    twoLDs.map((name) => ({
-      address: V2_CONTRACTS.ETHRegistry,
-      abi: ETH_REGISTRY_V2_ABI,
-      functionName: 'getStatus' as const,
-      args: [BigInt(name.domain.labelhash)] as const,
-    })),
+  const registered = await getRegisteredV2Names(
+    twoLDs.map((n) => n.domain.name),
   )
 
-  for (let i = 0; i < twoLDs.length; i++) {
-    const name = twoLDs[i]!
-    const r = results[i]
-    if (!r || r.status === 'failure') {
-      console.warn(
-        `[migration] v2-status check failed for ${name.domain.id}; treating as already migrated`,
-      )
-      ids.add(name.domain.id)
-      continue
-    }
-    if (r.result === V2_STATUS_REGISTERED) {
+  const ids = new Set<string>()
+  for (const name of twoLDs) {
+    if (registered.has(name.domain.name.toLowerCase())) {
       ids.add(name.domain.id)
     }
   }
-
   return ids
 }
 
@@ -142,8 +123,7 @@ export const checkFrozenApproval = async (
     })),
   )
 
-  for (let i = 0; i < candidates.length; i++) {
-    const name = candidates[i]!
+  for (const [i, name] of candidates.entries()) {
     const r = results[i]
     if (!r || r.status === 'failure') {
       console.warn(
@@ -183,7 +163,7 @@ export const runEligibilityChecks = async (
 
   const [ownershipMigrated, v2Migrated, frozenIds] = await Promise.all([
     checkOwnership(publicClient, names, migrationOwner),
-    checkV2Status(publicClient, twoLDs),
+    checkV2Status(twoLDs),
     checkFrozenApproval(publicClient, frozenCandidates),
   ])
 
@@ -285,9 +265,8 @@ export const resolveParentRegistries = async (
 
     const delay =
       PARENT_REGISTRY_RETRY_DELAYS_MS[attempt - 1] ??
-      PARENT_REGISTRY_RETRY_DELAYS_MS[
-        PARENT_REGISTRY_RETRY_DELAYS_MS.length - 1
-      ]!
+      PARENT_REGISTRY_RETRY_DELAYS_MS.at(-1) ??
+      500
     console.warn(
       `[migration] ${unresolved.length} parent registries unresolved, retrying in ${delay}ms (attempt ${attempt + 1}/${PARENT_REGISTRY_RETRIES})`,
     )

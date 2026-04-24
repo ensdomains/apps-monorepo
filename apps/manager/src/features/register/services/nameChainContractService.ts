@@ -58,7 +58,7 @@ const MIN_COMMITMENT_AGE_SNIPPET = [
   },
 ] as const
 
-const IS_PAYMENT_TOKEN_SNIPPET = [
+export const IS_PAYMENT_TOKEN_SNIPPET = [
   {
     inputs: [{ name: 'token', type: 'address' }],
     name: 'isPaymentToken',

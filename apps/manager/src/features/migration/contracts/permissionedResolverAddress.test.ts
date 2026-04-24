@@ -1,5 +1,4 @@
-import type { Address } from 'viem'
-import { decodeFunctionData, parseAbiItem } from 'viem'
+import { type Address, decodeFunctionData, parseAbiItem } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   computeOwnedResolverSalt,
@@ -9,11 +8,15 @@ import {
 const OWNER_A: Address = '0x0000000000000000000000000000000000000001'
 const OWNER_B: Address = '0x0000000000000000000000000000000000000002'
 
+const initializeAbi = [
+  parseAbiItem('function initialize(address admin, uint256 allRoles) external'),
+]
+
 describe('computeOwnedResolverSalt', () => {
-  it('is deterministic for the same owner and version', () => {
-    expect(computeOwnedResolverSalt(OWNER_A, 0n)).toBe(
-      computeOwnedResolverSalt(OWNER_A, 0n),
-    )
+  it('is deterministic and returns a bigint', () => {
+    const salt = computeOwnedResolverSalt(OWNER_A, 0n)
+    expect(salt).toBe(computeOwnedResolverSalt(OWNER_A, 0n))
+    expect(typeof salt).toBe('bigint')
   })
 
   it('defaults version to 0 when omitted', () => {
@@ -22,51 +25,32 @@ describe('computeOwnedResolverSalt', () => {
     )
   })
 
-  it('differs across distinct owners', () => {
-    expect(computeOwnedResolverSalt(OWNER_A, 0n)).not.toBe(
-      computeOwnedResolverSalt(OWNER_B, 0n),
-    )
-  })
-
-  it('differs across distinct versions for the same owner', () => {
-    expect(computeOwnedResolverSalt(OWNER_A, 0n)).not.toBe(
-      computeOwnedResolverSalt(OWNER_A, 1n),
-    )
-  })
-
-  it('is a bigint', () => {
-    expect(typeof computeOwnedResolverSalt(OWNER_A, 0n)).toBe('bigint')
+  it.each([
+    [
+      'owners',
+      () => computeOwnedResolverSalt(OWNER_A, 0n),
+      () => computeOwnedResolverSalt(OWNER_B, 0n),
+    ],
+    [
+      'versions',
+      () => computeOwnedResolverSalt(OWNER_A, 0n),
+      () => computeOwnedResolverSalt(OWNER_A, 1n),
+    ],
+  ])('differs across distinct %s', (_, a, b) => {
+    expect(a()).not.toBe(b())
   })
 })
 
 describe('getOwnedPermResInitCalldata', () => {
-  it('encodes initialize(admin, ALL_ROLES) — admin matches input', () => {
-    const data = getOwnedPermResInitCalldata(OWNER_A)
+  it('encodes initialize(admin, non-zero roles)', () => {
     const { functionName, args } = decodeFunctionData({
-      abi: [
-        parseAbiItem(
-          'function initialize(address admin, uint256 allRoles) external',
-        ),
-      ],
-      data,
+      abi: initializeAbi,
+      data: getOwnedPermResInitCalldata(OWNER_A),
     })
     expect(functionName).toBe('initialize')
-    expect((args as [Address, bigint])[0].toLowerCase()).toBe(
-      OWNER_A.toLowerCase(),
-    )
-  })
-
-  it('passes a non-zero role mask', () => {
-    const data = getOwnedPermResInitCalldata(OWNER_A)
-    const { args } = decodeFunctionData({
-      abi: [
-        parseAbiItem(
-          'function initialize(address admin, uint256 allRoles) external',
-        ),
-      ],
-      data,
-    })
-    expect((args as [Address, bigint])[1]).toBeGreaterThan(0n)
+    const [admin, roles] = args as [Address, bigint]
+    expect(admin.toLowerCase()).toBe(OWNER_A.toLowerCase())
+    expect(roles).toBeGreaterThan(0n)
   })
 
   it('differs across distinct admins', () => {
