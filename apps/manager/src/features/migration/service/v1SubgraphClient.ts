@@ -154,7 +154,7 @@ export const getV1NamesForAddress = ResultFn(async function* (address: string) {
         const page = await fetchPage(addr, now, idCursor)
         allDomains.push(...page)
         if (page.length < PAGE_SIZE) break
-        idCursor = page[page.length - 1]!.id
+        idCursor = page[page.length - 1]?.id
       }
 
       return allDomains
