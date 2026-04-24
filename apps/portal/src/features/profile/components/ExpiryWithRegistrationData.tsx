@@ -40,10 +40,11 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
 }
 
 const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
-  const [nameHistory, expiry] = useQueries({
+  const [nameHistory, expiry, indexerData] = useQueries({
     queries: [
       getNameHistoryQueryOptions({ name, orderDirection: 'asc', first: 1 }),
       getV1ExpiryQueryOptions({ name }),
+      getV2RegistrationDataQueryOptions({ name }),
     ],
   })
 
@@ -61,6 +62,9 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     (event) => event.type === 'NameRegistered',
   )?.blockNumber
 
+  const registeredAt = indexerData.data?.registeredAt || null
+  const createdAt = indexerData.data?.createdAt || null
+
   return (
     <>
       {expiry.data && (
@@ -72,7 +76,28 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           <Timestamp timestamp={expiry.data.expiry} />
         </div>
       )}
-      {blockNumber && <RegistrationData blockNumber={blockNumber} />}
+      {blockNumber ? (
+        <RegistrationData blockNumber={blockNumber} />
+      ) : (
+        registeredAt !== null && (
+          <div className="flex items-center gap-4 py-3">
+            <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground w-24 shrink-0">
+              Registered
+            </span>
+            <Timestamp timestamp={registeredAt} />
+          </div>
+        )
+      )}
+      {!blockNumber && createdAt !== null && (
+        <div className="flex items-center gap-4 py-3">
+          <PlusCircleIcon className="size-4 text-muted-foreground shrink-0" />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            Created
+          </span>
+          <Timestamp timestamp={createdAt} />
+        </div>
+      )}
     </>
   )
 }
