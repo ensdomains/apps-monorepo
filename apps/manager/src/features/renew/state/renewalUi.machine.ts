@@ -281,15 +281,20 @@ export const renewalUiMachine = setup({
       invoke: {
         id: 'submitTokenApproval',
         src: 'submitTokenApproval',
-        input: ({ context }) => ({
-          tokenPrice: context.submissionData!.priceRaw,
-          selectedToken: context.submissionData!.token,
-          signer: context.submissionData!.signer,
-          publicClient,
-          // Use same registrar address as ensjs, which isn't the fast registrar
-          useFastRegistrar: false,
-          sponsored: true,
-        }),
+        input: ({ context }) => {
+          if (!context.submissionData) {
+            throw new Error('submissionData is required')
+          }
+          return {
+            tokenPrice: context.submissionData.priceRaw,
+            selectedToken: context.submissionData.token,
+            signer: context.submissionData.signer,
+            publicClient,
+            // Use same registrar address as ensjs, which isn't the fast registrar
+            useFastRegistrar: false,
+            sponsored: true,
+          }
+        },
         onDone: {
           target: 'waitingForTokenApproval',
           actions: assign({
@@ -311,7 +316,12 @@ export const renewalUiMachine = setup({
       tags: 'renewing',
       invoke: {
         src: 'pollTransactionStatus',
-        input: ({ context }) => ({ txId: context.approvalTxId! }),
+        input: ({ context }) => {
+          if (!context.approvalTxId) {
+            throw new Error('approvalTxId is required')
+          }
+          return { txId: context.approvalTxId }
+        },
         onDone: {
           target: 'submittingRenewal',
         },
@@ -331,12 +341,17 @@ export const renewalUiMachine = setup({
       invoke: {
         id: 'submitRenewal',
         src: 'submitRenewal',
-        input: ({ context }) => ({
-          label: context.submissionData!.label,
-          duration: context.submissionData!.duration,
-          signer: context.submissionData!.signer,
-          selectedToken: context.submissionData!.token,
-        }),
+        input: ({ context }) => {
+          if (!context.submissionData) {
+            throw new Error('submissionData is required')
+          }
+          return {
+            label: context.submissionData.label,
+            duration: context.submissionData.duration,
+            signer: context.submissionData.signer,
+            selectedToken: context.submissionData.token,
+          }
+        },
         onDone: {
           target: 'waitingForRenewal',
           actions: assign({
@@ -358,7 +373,12 @@ export const renewalUiMachine = setup({
       tags: 'renewing',
       invoke: {
         src: 'pollTransactionStatus',
-        input: ({ context }) => ({ txId: context.renewalTxId! }),
+        input: ({ context }) => {
+          if (!context.renewalTxId) {
+            throw new Error('renewalTxId is required')
+          }
+          return { txId: context.renewalTxId }
+        },
         onDone: {
           target: 'success',
           actions: ['invalidateNameQueries'],

@@ -72,8 +72,7 @@ export const checkOwnership = async (
   >(publicClient, contracts)
 
   const expected = migrationOwner.toLowerCase()
-  for (let i = 0; i < names.length; i++) {
-    const name = names[i]!
+  for (const [i, name] of names.entries()) {
     const r = results[i]
     if (!r || r.status === 'failure') {
       ids.add(name.domain.id)
@@ -124,8 +123,7 @@ export const checkFrozenApproval = async (
     })),
   )
 
-  for (let i = 0; i < candidates.length; i++) {
-    const name = candidates[i]!
+  for (const [i, name] of candidates.entries()) {
     const r = results[i]
     if (!r || r.status === 'failure') {
       console.warn(
@@ -267,9 +265,8 @@ export const resolveParentRegistries = async (
 
     const delay =
       PARENT_REGISTRY_RETRY_DELAYS_MS[attempt - 1] ??
-      PARENT_REGISTRY_RETRY_DELAYS_MS[
-        PARENT_REGISTRY_RETRY_DELAYS_MS.length - 1
-      ]!
+      PARENT_REGISTRY_RETRY_DELAYS_MS.at(-1) ??
+      500
     console.warn(
       `[migration] ${unresolved.length} parent registries unresolved, retrying in ${delay}ms (attempt ${attempt + 1}/${PARENT_REGISTRY_RETRIES})`,
     )

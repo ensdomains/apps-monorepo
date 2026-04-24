@@ -43,7 +43,7 @@ describe('getMigratedNamesCount', () => {
   it('lowercases the address when building query variables', async () => {
     respond({ data: { domainConnection: { totalCount: 1 } } })
     await getMigratedNamesCount('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
-    const vars = queryMock.mock.calls[0]![1] as { where?: { owner?: string } }
+    const vars = queryMock.mock.calls[0]?.[1] as { where?: { owner?: string } }
     expect(vars?.where?.owner).toBe(
       '0xabcdef0123456789abcdef0123456789abcdef01',
     )

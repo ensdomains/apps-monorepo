@@ -19,7 +19,7 @@ const respondWith = (...pages: V1Domain[][]) => {
 }
 
 const readBody = (callIndex = 0) =>
-  JSON.parse((fetchMock.mock.calls[callIndex]![1] as { body: string }).body)
+  JSON.parse((fetchMock.mock.calls[callIndex]?.[1] as { body: string }).body)
 
 beforeEach(() => {
   fetchMock.mockReset()
@@ -73,7 +73,7 @@ describe('getV1NamesForAddress', () => {
       unknown
     >[]
     expect(secondAnd.find((f) => 'id_gt' in f)).toEqual({
-      id_gt: first[first.length - 1]!.id,
+      id_gt: first[first.length - 1]?.id,
     })
   })
 

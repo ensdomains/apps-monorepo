@@ -1,5 +1,5 @@
 import type { Address, Hex } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { assert, describe, expect, it } from 'vitest'
 import {
   buildProfileMulticallPlan,
   indexNamesByNode,
@@ -100,7 +100,8 @@ describe('mergeMulticallResultsIntoProfiles', () => {
         },
       ],
     })
-    const entry = merged.get(profileMapKey(NODE_A))!
+    const entry = merged.get(profileMapKey(NODE_A))
+    assert(entry)
     expect(entry.texts).toEqual([{ key: 'email', value: 'a@b.c' }])
     expect(entry.addresses).toEqual([
       {
@@ -124,7 +125,8 @@ describe('mergeMulticallResultsIntoProfiles', () => {
         { status: 'success', result: '0x' as Hex },
       ],
     })
-    const entry = merged.get(profileMapKey(NODE_A))!
+    const entry = merged.get(profileMapKey(NODE_A))
+    assert(entry)
     expect(entry.texts).toEqual([])
     expect(entry.addresses).toEqual([])
   })
@@ -143,7 +145,7 @@ describe('mergeMulticallResultsIntoProfiles', () => {
         { status: 'success', result: 'ok-value' },
       ],
     })
-    expect(merged.get(profileMapKey(NODE_A))!.texts).toEqual([
+    expect(merged.get(profileMapKey(NODE_A))?.texts).toEqual([
       { key: 'url', value: 'ok-value' },
     ])
   })
