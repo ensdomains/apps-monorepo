@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon, PlusCircleIcon } from 'lucide-react'
+
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import type { ProtocolVersion } from '@/utils/types'
@@ -40,11 +41,10 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
 }
 
 const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
-  const [nameHistory, expiry, indexerData] = useQueries({
+  const [nameHistory, expiry] = useQueries({
     queries: [
       getNameHistoryQueryOptions({ name, orderDirection: 'asc', first: 1 }),
       getV1ExpiryQueryOptions({ name }),
-      getV2RegistrationDataQueryOptions({ name }),
     ],
   })
 
@@ -55,15 +55,12 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       <div>Failed to fetch name history: {nameHistory.error.cause.message}</div>
     )
 
-  if (expiry.isLoading || nameHistory.isLoading || indexerData.isLoading)
+  if (expiry.isLoading || nameHistory.isLoading)
     return <LoadingSpinner title="Loading expiry and registration data" />
 
   const blockNumber = nameHistory.data?.registrationEvents?.find(
     (event) => event.type === 'NameRegistered',
   )?.blockNumber
-
-  const registeredAt = indexerData.data?.registeredAt || null
-  const createdAt = indexerData.data?.createdAt || null
 
   return (
     <>
@@ -76,28 +73,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           <Timestamp timestamp={expiry.data.expiry} />
         </div>
       )}
-      {blockNumber ? (
-        <RegistrationData blockNumber={blockNumber} />
-      ) : (
-        registeredAt !== null && (
-          <div className="flex items-center gap-4 py-3">
-            <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground w-24 shrink-0">
-              Registered
-            </span>
-            <Timestamp timestamp={registeredAt} />
-          </div>
-        )
-      )}
-      {!blockNumber && createdAt !== null && (
-        <div className="flex items-center gap-4 py-3">
-          <PlusCircleIcon className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Created
-          </span>
-          <Timestamp timestamp={createdAt} />
-        </div>
-      )}
+      {blockNumber && <RegistrationData blockNumber={blockNumber} />}
     </>
   )
 }
