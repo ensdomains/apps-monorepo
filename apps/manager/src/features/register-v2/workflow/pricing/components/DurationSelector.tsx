@@ -1,8 +1,11 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { secondsInDay, secondsInYear } from 'date-fns/constants'
+import { secondsInDay } from 'date-fns/constants'
 import { zeroAddress } from 'viem'
+import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
+import { calculateDiscount } from '@/features/register-v2/utils/discount'
+import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
@@ -11,15 +14,14 @@ import {
   type MissingTokenError,
 } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
-import { getDurationDiscount } from '../lib/durationDiscount'
 import { DurationCustomRow } from './DurationCustomRow'
 import { DurationPresetRow } from './DurationPresetRow'
 
-const PRESET_DURATIONS: number[] = [
-  secondsInYear,
-  secondsInYear * 3,
-  secondsInYear * 5,
-  secondsInYear * 10,
+export const PRESET_DURATIONS: number[] = [
+  SECONDS_IN_YEAR,
+  SECONDS_IN_YEAR * 3,
+  SECONDS_IN_YEAR * 5,
+  SECONDS_IN_YEAR * 10,
 ]
 
 type PresetPricingQuery = {
@@ -40,6 +42,8 @@ export const DurationSelector = () => {
   )
 
   const ownerAddress = account.ownerAddress ?? zeroAddress
+
+  const baseRate = useBaseRate(label)
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map((duration) =>
@@ -71,30 +75,27 @@ export const DurationSelector = () => {
       }),
   })
 
-  const baseCostQuery = presetPricingQueries[0]
-
   const selectedPresetIdx = PRESET_DURATIONS.findIndex(
     (duration) => Math.abs(selectedDuration - duration) < secondsInDay,
   )
 
   return (
-    <div className="flex h-full flex-col justify-between gap-1 rounded-xl border border-[#DDDDDE] bg-white p-1">
+    <div className="flex h-full flex-col justify-between gap-1 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-1 shadow-temp-card">
       {PRESET_DURATIONS.map((duration, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {
           throw new Error('Invalid preset duration index')
         }
 
-        const years = duration / secondsInYear
-        const discount = getDurationDiscount(
-          query.data?.basePrice,
-          baseCostQuery?.data?.basePrice,
-          years,
+        const { discountPercentage } = calculateDiscount(
+          query.data?.basePrice ?? 0,
+          baseRate,
+          BigInt(duration),
         )
 
         return (
           <DurationPresetRow
-            discount={discount}
+            discountPercentage={discountPercentage}
             duration={duration}
             isLoading={query.isPending}
             isSelected={idx === selectedPresetIdx}
@@ -113,6 +114,7 @@ export const DurationSelector = () => {
           uiActor.send({ type: 'pricing.duration.set', duration })
         }
         selectedDuration={selectedDuration}
+        type="register"
       />
     </div>
   )

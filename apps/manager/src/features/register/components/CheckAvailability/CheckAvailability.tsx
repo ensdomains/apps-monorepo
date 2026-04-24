@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ChangeEvent, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import {
   AddressSuggestionCard,
   DomainProfileCard,
@@ -133,11 +133,12 @@ export const CheckAvailability = ({
                     {...dropdownAnimation}
                   >
                     <div className="flex w-full items-center gap-4 rounded-sm bg-ens-white px-5 py-5 shadow-lg">
-                      <img
-                        alt={state.domainName}
-                        className="size-12 rounded-sm object-cover"
-                        src={placeholderAvatar}
-                      />
+                      <div className="size-12 shrink-0 overflow-hidden rounded-md">
+                        <PatternAvatar
+                          className="size-full min-h-0 min-w-0"
+                          name={state.domainName}
+                        />
+                      </div>
                       <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
                         {state.domainName}
                       </span>
@@ -161,7 +162,7 @@ export const CheckAvailability = ({
                         variant="card"
                       />
                       {primaryName && (
-                        <Link params={{ name: primaryName }} to="/p/$name">
+                        <Link params={{ name: primaryName }} to="/$name">
                           <DomainProfileCard
                             avatarUrl={profileAvatar}
                             clickable
@@ -243,7 +244,7 @@ export const CheckAvailability = ({
                     key={`result-${state.domainName}`}
                     {...dropdownAnimation}
                   >
-                    <Link params={{ name: state.domainName }} to="/p/$name">
+                    <Link params={{ name: state.domainName }} to="/$name">
                       <DomainProfileCard
                         avatarUrl={profileAvatar}
                         clickable

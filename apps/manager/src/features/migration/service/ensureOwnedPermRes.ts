@@ -59,8 +59,7 @@ export const findExistingPermRes = async (params: {
     fromBlock: V2_DEPLOY_BLOCK,
     toBlock: 'latest',
   })
-  for (let i = logs.length - 1; i >= 0; i--) {
-    const log = logs[i]!
+  for (const log of [...logs].reverse()) {
     if (log.args.implementation?.toLowerCase() !== impl) continue
     if (log.args.salt !== expectedSalt) continue
     return log.args.proxyAddress as Address
