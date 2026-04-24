@@ -26,21 +26,8 @@ vi.mock('@ensdomains/ensjs/public/v2', () => ({
 const { getEnsOwner } = await import('./useEnsOwner')
 
 describe('getEnsOwner', () => {
-  it('returns a V1 owner for a V1 name', async () => {
-    const mockOwnerAddress = '0x1234567890123456789012345678901234567890'
-    mockV1GetOwner.mockResolvedValue({ owner: mockOwnerAddress })
-
-    const result = await getEnsOwner({ name: 'v1rtl.eth' })
-
-    expect(result._unsafeUnwrap()).toMatchObject({
-      owner: mockOwnerAddress,
-      protocolVersion: 'ENSv1',
-    })
-  })
-
-  it('returns a V2 owner when V1 has no owner', async () => {
+  it('returns a V2 owner for a V2 name', async () => {
     const mockOwnerAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
-    mockV1GetOwner.mockResolvedValue({ owner: null })
     mockV2GetOwner.mockResolvedValue(mockOwnerAddress)
 
     const result = await getEnsOwner({ name: 'test.eth' })
@@ -51,9 +38,22 @@ describe('getEnsOwner', () => {
     })
   })
 
-  it('returns null when no owner found on either network', async () => {
-    mockV1GetOwner.mockResolvedValue({ owner: null })
+  it('returns a V1 owner for a V1 name', async () => {
+    const mockOwnerAddress = '0x1234567890123456789012345678901234567890'
     mockV2GetOwner.mockResolvedValue(zeroAddress)
+    mockV1GetOwner.mockResolvedValue({ owner: mockOwnerAddress })
+
+    const result = await getEnsOwner({ name: 'v1rtl.eth' })
+
+    expect(result._unsafeUnwrap()).toMatchObject({
+      owner: mockOwnerAddress,
+      protocolVersion: 'ENSv1',
+    })
+  })
+
+  it('returns null when no owner found on either network', async () => {
+    mockV2GetOwner.mockResolvedValue(zeroAddress)
+    mockV1GetOwner.mockResolvedValue({ owner: null })
 
     const result = await getEnsOwner({ name: 'unowned.eth' })
 

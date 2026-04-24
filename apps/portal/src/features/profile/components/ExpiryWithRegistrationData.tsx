@@ -1,6 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon, PlusCircleIcon } from 'lucide-react'
-
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import type { ProtocolVersion } from '@/utils/types'
