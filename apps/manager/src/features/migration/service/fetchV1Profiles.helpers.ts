@@ -92,8 +92,7 @@ export const mergeMulticallResultsIntoProfiles = (params: {
   readonly results: readonly MulticallResult[]
 }): Map<Hex, Profile> => {
   const { buckets, calls, results } = params
-  for (let i = 0; i < calls.length; i++) {
-    const call = calls[i]!
+  for (const [i, call] of calls.entries()) {
     const res = results[i]
     if (!res || res.status !== 'success') continue
     const bucket = buckets.get(profileMapKey(call.name.nodeHex))

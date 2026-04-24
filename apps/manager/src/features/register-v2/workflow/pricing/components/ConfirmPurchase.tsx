@@ -1,9 +1,13 @@
-import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import {
+  type SUPPORTED_TOKEN,
+  TOKENS,
+} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { zeroAddress } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
@@ -52,7 +56,6 @@ export const ConfirmPurchase = () => {
     }),
   })
 
-  const premiumLabel = getPremiumLabel(label.length)
   const domainName = `${label}.eth`
 
   const availabilityMutation = useMutation({
@@ -70,7 +73,7 @@ export const ConfirmPurchase = () => {
       if (!availability.isAvailable) {
         navigate({
           replace: true,
-          to: '/p/$name',
+          to: '/$name',
           params: { name: `${label}.eth` },
         })
         return
@@ -93,6 +96,48 @@ export const ConfirmPurchase = () => {
     ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
     : null
 
+  return (
+    <ConfirmPurchaseBase
+      canNext={
+        !!pricingQuery.data &&
+        selectedToken !== undefined &&
+        !pricingQuery.isLoading
+      }
+      errorMessage={errorMessage}
+      label={label}
+      nextMessage={<Trans>Buy Name</Trans>}
+      onNext={() => availabilityMutation.mutate()}
+      pricingData={pricingQuery.data?.totalPriceNumber}
+      selectedToken={selectedToken}
+      title={<Trans>Registering</Trans>}
+    />
+  )
+}
+
+export const ConfirmPurchaseBase = ({
+  label,
+  pricingData,
+  onNext,
+  selectedToken,
+  errorMessage,
+  nextMessage,
+  canNext,
+  title,
+}: {
+  label: string
+  pricingData: number | undefined
+  onNext: () => void
+  selectedToken: SUPPORTED_TOKEN | undefined
+  errorMessage?: string | null
+  nextMessage: ReactNode
+  canNext: boolean
+  title: ReactNode
+}) => {
+  const { t } = useLingui()
+
+  const premiumLabel = getPremiumLabel(label.length)
+  const domainName = `${label}.eth`
+
   const selectedCoinConfig = selectedToken && STABLECOINS[selectedToken]
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
@@ -100,7 +145,7 @@ export const ConfirmPurchase = () => {
     <div className="flex h-full flex-1 flex-col justify-between gap-4 px-4">
       <div className="flex flex-col items-center gap-6">
         <h2 className="text-center font-medium text-2xl text-ens-lapis-dense tracking-wide">
-          <Trans>Registering</Trans>
+          {title}
         </h2>
 
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
@@ -129,7 +174,7 @@ export const ConfirmPurchase = () => {
           <div className="flex items-baseline gap-1">
             <SelectedCoinIcon className="h-6 w-6 self-center" />
             <span className="font-medium text-2xl text-ens-gray tracking-tight">
-              {formatUsd(pricingQuery.data?.totalPriceNumber ?? 0)}
+              {formatUsd(pricingData ?? 0)}
             </span>
             <span className="text-ens-gray-three text-lg">
               {selectedToken || 'USDC'}
@@ -147,18 +192,16 @@ export const ConfirmPurchase = () => {
 
       <Button
         className="h-20 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
-        disabled={
-          !pricingQuery.data || !selectedToken || availabilityMutation.isPending
-        }
+        disabled={!pricingData || !selectedToken || !canNext}
         onClick={() => {
-          if (!pricingQuery.data || !selectedToken) {
+          if (!pricingData || !selectedToken || !canNext) {
             return
           }
 
-          availabilityMutation.mutate()
+          onNext()
         }}
       >
-        <Trans>Buy Name</Trans>
+        {nextMessage}
       </Button>
     </div>
   )

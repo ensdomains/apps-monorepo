@@ -24,7 +24,7 @@ export const Route = createFileRoute('/register/$name')({
 
     if (!availability.isAvailable) {
       throw redirect({
-        to: '/p/$name',
+        to: '/$name',
         params: { name: name },
       })
     }

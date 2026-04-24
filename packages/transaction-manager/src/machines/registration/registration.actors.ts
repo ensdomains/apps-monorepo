@@ -193,7 +193,7 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
-function getSignerAddress(signer: Signer): Address {
+export function getSignerAddress(signer: Signer): Address {
   if (signer.type === 'eoa') {
     const account = signer.walletClient.account
 
@@ -243,7 +243,7 @@ function getSignerAddress(signer: Signer): Address {
  * Create transaction request based on signer type
  * Returns the appropriate transaction request type (rhinestone-intent or zerodev)
  */
-function createTransactionRequest(params: {
+export function createTransactionRequest(params: {
   signer: Signer
   from: Address
   to: Address
