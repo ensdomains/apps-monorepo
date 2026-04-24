@@ -268,8 +268,7 @@ const submitBatches = async (
   const totalBatches = batches.length
   const hashes: Hex[] = []
 
-  for (let i = 0; i < batches.length; i++) {
-    const bundle = batches[i]!
+  for (const [i, bundle] of batches.entries()) {
     const batchNum = i + 1
     const batchLabel = `Batch ${batchNum}/${totalBatches}`
     const nameCount = bundle.length
