@@ -2,17 +2,17 @@ import { useId, useMemo } from 'react'
 
 import { tw } from '@/utils/tailwind'
 
-/** DJB2 XOR hash → 32 bytes for deterministic pattern bits. */
+/** DJB2 XOR hash → 2 bytes (theme + 16 payload bits). */
 function getBytesFromName(name: string): Uint8Array {
   let h1 = 5381
   let h2 = 52711
   for (let i = 0; i < name.length; i++) {
     const c = name.charCodeAt(i)
     h1 = (h1 * 33) ^ c
-    h2 = (h2 * 33) ^ c
+    h2 = (h2 * 37) ^ c
   }
-  const bytes = new Uint8Array(32)
-  for (let i = 0; i < 32; i++) {
+  const bytes = new Uint8Array(2)
+  for (let i = 0; i < 2; i++) {
     bytes[i] = Math.abs((h1 ^ (h2 >> i) ^ (i * 0x5bd1e995)) % 256)
   }
   return bytes
@@ -23,17 +23,14 @@ const ensThemes = [
   { start: '#79b1d0', end: '#0080bc' }, // Lapis
   { start: '#f886b6', end: '#f53293' }, // Garnet
   { start: '#74ac76', end: '#007c23' }, // Peridot
+  { start: '#984D1B', end: '#E1B77E' }, // Citrine,
+  { start: '#191919', end: '#595755' }, // Black
 ] as const
 
 function generateColors(bytes: Uint8Array): [string, string] {
-  switch ((bytes[0] ?? 0) % ensThemes.length) {
-    case 0:
-      return [ensThemes[0].start, ensThemes[0].end]
-    case 1:
-      return [ensThemes[1].start, ensThemes[1].end]
-    default:
-      return [ensThemes[2].start, ensThemes[2].end]
-  }
+  const themeIndex = (bytes[0] ?? 0) % ensThemes.length
+  const theme = ensThemes[themeIndex] ?? ensThemes[0]
+  return [theme.start, theme.end]
 }
 
 export type PatternAvatarProps = {
@@ -48,10 +45,9 @@ export const PatternAvatar = ({ name, className }: PatternAvatarProps) => {
   const reactId = useId().replaceAll(':', '')
   const gradientId = `pattern-grad-${reactId}`
 
-  const bytes = useMemo(() => getBytesFromName(name), [name])
-  const colors = useMemo(() => generateColors(bytes), [bytes])
-
-  const cells = useMemo(() => {
+  const { colors, cells } = useMemo(() => {
+    const bytes = getBytesFromName(name)
+    const colors = generateColors(bytes)
     const grid: { x: number; y: number }[] = []
     for (let y = 0; y < 6; y++) {
       for (let x = 0; x < 6; x++) {
@@ -73,8 +69,8 @@ export const PatternAvatar = ({ name, className }: PatternAvatarProps) => {
         }
       }
     }
-    return grid
-  }, [bytes])
+    return { colors, cells: grid }
+  }, [name])
 
   return (
     <div

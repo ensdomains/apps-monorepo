@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ChangeEvent, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import {
   AddressSuggestionCard,
   DomainProfileCard,
