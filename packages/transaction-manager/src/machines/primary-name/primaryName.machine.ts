@@ -461,6 +461,9 @@ export const primaryNameMachine = setup({
         },
         onDone: {
           target: 'success',
+          actions: assign({
+            txHash: ({ event }) => event.output,
+          }),
         },
         onError: {
           target: 'error',

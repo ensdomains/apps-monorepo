@@ -152,8 +152,8 @@ export const ChoosePrimaryNameDialog = ({
       }
 
       if (!resolverAddress) {
-        toast.error(t`Could not find resolver for ${selectedName}`)
-        return
+        const name = selectedName
+        throw new Error(t`Could not find resolver for ${name}`)
       }
 
       const onChainAddr = (await (publicClient as PublicClient).readContract({
@@ -187,7 +187,7 @@ export const ChoosePrimaryNameDialog = ({
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error(t`Failed to set ETH address record`)
+      toast.error(error.message || t`Failed to set ETH address record`)
     },
   })
 
