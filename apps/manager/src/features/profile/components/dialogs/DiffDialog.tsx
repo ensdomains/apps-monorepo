@@ -243,7 +243,7 @@ export const DiffDialog = ({
       className="w-full"
       onClick={() => setOpen(false)}
       params={{ name }}
-      to="/p/$name"
+      to="/$name"
     >
       <Trans>Go to Profile</Trans>
     </LinkButton>
