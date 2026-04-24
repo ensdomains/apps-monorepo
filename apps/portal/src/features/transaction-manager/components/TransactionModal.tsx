@@ -35,6 +35,8 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
     closeModal()
   }
 
+  if (!transactions.length) return null
+
   return (
     <Dialog
       open={isOpen}
