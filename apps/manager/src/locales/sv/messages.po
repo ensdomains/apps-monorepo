@@ -983,7 +983,7 @@ msgid "Failed to fund wallet: {0}"
 msgstr ""
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:58
-#: src/features/notifications/inbox/list.tsx:97
+#: src/features/notifications/inbox/list.tsx:98
 msgid "Failed to load notifications"
 msgstr ""
 
@@ -1207,7 +1207,7 @@ msgstr ""
 msgid "Links"
 msgstr ""
 
-#: src/features/notifications/inbox/list.tsx:48
+#: src/features/notifications/inbox/list.tsx:49
 msgid "Load more"
 msgstr ""
 
@@ -1232,7 +1232,7 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
-#: src/features/notifications/inbox/list.tsx:46
+#: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:74
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Loading..."
@@ -1257,6 +1257,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:130
 msgid "Makes crypto addresses human-readable"
+msgstr ""
+
+#: src/features/notifications/inbox/list.tsx:119
+msgid "Manage notification settings"
 msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/WalletSection.tsx:73
@@ -1444,6 +1448,7 @@ msgid "Not supported"
 msgstr ""
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:83
+#: src/features/notifications/inbox/list.tsx:108
 msgid "Nothing here yet!"
 msgstr ""
 
@@ -2738,10 +2743,6 @@ msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx:138
 msgid "You'll miss:"
-msgstr ""
-
-#: src/features/notifications/inbox/list.tsx:108
-msgid "You're all caught up!"
 msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx:53

@@ -978,7 +978,7 @@ msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:58
-#: src/features/notifications/inbox/list.tsx:97
+#: src/features/notifications/inbox/list.tsx:98
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
 
@@ -1202,7 +1202,7 @@ msgstr "links"
 msgid "Links"
 msgstr "Links"
 
-#: src/features/notifications/inbox/list.tsx:48
+#: src/features/notifications/inbox/list.tsx:49
 msgid "Load more"
 msgstr "Load more"
 
@@ -1227,7 +1227,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/features/dashboard/components/PrimaryNameCard.tsx:52
 #: src/features/dashboard/components/PrimaryNameCard.tsx:55
 #: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
-#: src/features/notifications/inbox/list.tsx:46
+#: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:74
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Loading..."
@@ -1253,6 +1253,10 @@ msgstr "Make sure you have a wallet extension installed"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:130
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
+
+#: src/features/notifications/inbox/list.tsx:119
+msgid "Manage notification settings"
+msgstr "Manage notification settings"
 
 #: src/features/navigation/Header/ProfileSection/WalletSection.tsx:73
 msgid "Manage Para Wallet"
@@ -1439,6 +1443,7 @@ msgid "Not supported"
 msgstr "Not supported"
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:83
+#: src/features/notifications/inbox/list.tsx:108
 msgid "Nothing here yet!"
 msgstr "Nothing here yet!"
 
@@ -2734,10 +2739,6 @@ msgstr "You'll be notified 30, 7, and 1 day before expiry"
 #: src/features/wallet/components/BackendAuthModal.tsx:138
 msgid "You'll miss:"
 msgstr "You'll miss:"
-
-#: src/features/notifications/inbox/list.tsx:108
-msgid "You're all caught up!"
-msgstr "You're all caught up!"
 
 #: src/features/migration/components/MigrationProgressBanner.tsx:53
 msgid "You're almost there!"
