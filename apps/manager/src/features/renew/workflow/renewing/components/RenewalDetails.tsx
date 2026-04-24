@@ -117,7 +117,7 @@ export const RenewalDetails = () => {
             <LinkButton
               params={{ name: `${submissionData.label}.eth` }}
               size="xl"
-              to="/p/$name"
+              to="/$name"
               variant="blue"
             >
               <Trans>Back to profile</Trans>

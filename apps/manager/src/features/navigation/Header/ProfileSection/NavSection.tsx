@@ -27,7 +27,7 @@ const getNavItems = (
       </>
     ),
     link: linkOptions({
-      to: '/p/$name',
+      to: '/$name',
       params: {
         name: reverseName ?? '',
       },

@@ -54,7 +54,8 @@ describe('batchedMulticall', () => {
     expect(result).toHaveLength(total)
     chunkSizes.forEach((size, i) => {
       expect(
-        (multicallMock.mock.calls[i]![1] as { contracts: unknown[] }).contracts,
+        (multicallMock.mock.calls[i]?.[1] as { contracts: unknown[] })
+          .contracts,
       ).toHaveLength(size)
     })
   })
@@ -75,7 +76,7 @@ describe('batchedMulticall', () => {
   it('always invokes multicall with allowFailure: true and batchSize: 0', async () => {
     multicallMock.mockResolvedValueOnce([ok(0)])
     await batchedMulticall<number>(publicClient, fakeContracts(1))
-    expect(multicallMock.mock.calls[0]![1]).toMatchObject({
+    expect(multicallMock.mock.calls[0]?.[1]).toMatchObject({
       allowFailure: true,
       batchSize: 0,
     })
@@ -121,6 +122,6 @@ describe('batchedMulticall', () => {
     expect(result.slice(0, 5000).every((r) => r.status === 'failure')).toBe(
       true,
     )
-    expect(result[5000]!.status).toBe('success')
+    expect(result[5000]?.status).toBe('success')
   })
 })

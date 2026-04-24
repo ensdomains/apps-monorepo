@@ -43,12 +43,12 @@ export const buildStepDescriptors = (
 
   if (batchSizes) {
     const totalBatches = batchSizes.length
-    for (let i = 0; i < totalBatches; i++) {
+    for (const [i, count] of batchSizes.entries()) {
       descriptors.push({
         type: 'migrate-batch',
         batch: i + 1,
         totalBatches,
-        count: batchSizes[i]!,
+        count,
       })
     }
     return descriptors

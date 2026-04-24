@@ -211,7 +211,7 @@ export const Registration = ({
 
   const handleProfileNavigate = () => {
     if (!displayDomainName) return
-    navigate({ to: '/p/$name', params: { name: displayDomainName } })
+    navigate({ to: '/$name', params: { name: displayDomainName } })
   }
 
   const handlePricingDataChange = useCallback(

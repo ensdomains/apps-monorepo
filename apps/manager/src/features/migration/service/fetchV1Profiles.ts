@@ -41,9 +41,10 @@ const executeMulticallChunks = async (
   const runWorker = async (): Promise<void> => {
     while (true) {
       const index = cursor++
-      if (index >= chunks.length) return
+      const chunk = chunks[index]
+      if (!chunk) return
       chunkResults[index] = (await publicClient.multicall({
-        contracts: [...chunks[index]!] as {
+        contracts: [...chunk] as {
           address: Address
           abi: typeof PERMISSIONED_RESOLVER_ABI
           functionName: 'text' | 'addr'

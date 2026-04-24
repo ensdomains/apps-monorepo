@@ -89,7 +89,7 @@ export const NameRow = ({
             <Link
               className="mr-1 max-w-full break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
               params={{ name: label }}
-              to="/p/$name"
+              to="/$name"
             >
               {label}
             </Link>
