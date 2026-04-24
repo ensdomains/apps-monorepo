@@ -2,16 +2,13 @@ import { useLingui } from '@lingui/react'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { getByteLength, getDomainHeaderSizeClasses } from '@/utils/domain'
 import { twm } from '@/utils/tailwind'
-import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { getPremiumLabel } from '../lib/premiumLabel'
 
-export const PricingDomainHeader = () => {
+export const PricingDomainHeader = ({ label }: { label: string }) => {
   const { _ } = useLingui()
-  const { label } = useRegistrationV2Context()
-
   const name = `${label}.eth`
   const sizeClasses = getDomainHeaderSizeClasses(getByteLength(name))
-  const premiumLabel = getPremiumLabel(label.length)
+  const premiumLabel = getPremiumLabel(label.length || 0)
 
   return (
     <div className="flex flex-col items-center gap-3 text-center md:items-start md:text-left">

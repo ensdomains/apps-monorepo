@@ -171,7 +171,7 @@ export const AddressProfileView = ({
                     <Link
                       className="mr-1 min-w-0 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
                       params={{ name: label }}
-                      to="/p/$name"
+                      to="/$name"
                     >
                       {label}
                     </Link>
@@ -217,7 +217,7 @@ export const AddressProfileView = ({
                 <Link
                   className="inline-flex items-center gap-1 rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-[8px] md:py-[4px]"
                   params={{ name: primaryName }}
-                  to="/p/$name"
+                  to="/$name"
                 >
                   {primaryName}
                   <ArrowUpRight

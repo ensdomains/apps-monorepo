@@ -65,7 +65,7 @@ function usePrimaryNameSuccessRedirect(params: {
     onUpdated?.()
     setOpen(false)
     toast.success(t`Primary name set successfully`)
-    navigate({ to: '/p/$name', params: { name } })
+    navigate({ to: '/$name', params: { name } })
   }, [isSuccess, name, navigate, onUpdated, setOpen, queryClient, t])
 }
 

@@ -62,7 +62,38 @@ export const getEnsOwner = ResultFn(async function* ({
     )
   }
 
-  // Try V1 registry first
+  // Try V2 registry first
+  const labels = name.split('.')
+  let registryAddress: Address = v2EthRegistry
+  if (labels.length > 2) {
+    registryAddress = yield* fromPromise(
+      getNameRegistryAddress(client, {
+        registryAddress: v2EthRegistry,
+        label: labels[1],
+      }),
+      (e) =>
+        new GetEnsOwnerError({ cause: e as GetNameRegistryAddressErrorType }),
+    )
+  }
+
+  if (registryAddress !== zeroAddress) {
+    const v2Owner = yield* fromPromise(
+      ensjsv2_getOwner(client, {
+        label: labels[0],
+        registryAddress,
+      }),
+      (e) => new GetEnsOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
+    )
+
+    if (v2Owner && v2Owner !== zeroAddress)
+      return ok<GetEnsOwnerReturnType>({
+        owner: v2Owner,
+        registryAddress,
+        protocolVersion: 'ENSv2',
+      })
+  }
+
+  // Fall back to V1 registry
   const v1Owner = yield* fromPromise(
     ensjsv1_getOwner(client, { name }),
     (e) =>
@@ -76,36 +107,6 @@ export const getEnsOwner = ResultFn(async function* ({
       owner: v1Owner.owner,
       registryAddress: v1EthRegistry,
       protocolVersion: 'ENSv1',
-    })
-
-  // Try V2 registry on L1
-  const labels = name.split('.')
-  let registryAddress: Address = v2EthRegistry
-  if (labels.length > 2) {
-    registryAddress = yield* fromPromise(
-      getNameRegistryAddress(client, {
-        registryAddress: v2EthRegistry,
-        label: labels[1],
-      }),
-      (e) =>
-        new GetEnsOwnerError({ cause: e as GetNameRegistryAddressErrorType }),
-    )
-    if (registryAddress === zeroAddress) return ok(null)
-  }
-
-  const v2Owner = yield* fromPromise(
-    ensjsv2_getOwner(client, {
-      label: labels[0],
-      registryAddress,
-    }),
-    (e) => new GetEnsOwnerError({ cause: e as ensjsv2_GetOwnerErrorType }),
-  )
-
-  if (v2Owner && v2Owner !== zeroAddress)
-    return ok<GetEnsOwnerReturnType>({
-      owner: v2Owner,
-      registryAddress,
-      protocolVersion: 'ENSv2',
     })
 
   return ok(null)

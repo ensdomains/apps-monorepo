@@ -1,8 +1,16 @@
-import { type Address, type PublicClient, zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { multicall, readContract } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ClassifiedName } from './classifyNames'
+import {
+  fail,
+  makeClassified,
+  OTHER,
+  OWNER,
+  ok,
+  publicClient,
+} from './_fixtures'
 import { FUSES } from './classifyNames'
+import { getRegisteredV2Names } from './getRegisteredV2Names'
 import {
   checkFrozenApproval,
   checkOwnership,
@@ -11,72 +19,40 @@ import {
   resolveParentRegistries,
   runEligibilityChecks,
 } from './preflightChecks'
-import type { V1Domain } from './v1SubgraphClient'
 
 vi.mock('viem/actions', () => ({
   multicall: vi.fn(),
   readContract: vi.fn(),
 }))
 
+vi.mock('./getRegisteredV2Names', () => ({
+  getRegisteredV2Names: vi.fn(),
+}))
+
 const multicallMock = vi.mocked(multicall)
 const readContractMock = vi.mocked(readContract)
-
-const OWNER: Address = '0x0000000000000000000000000000000000000001'
-const OTHER: Address = '0x0000000000000000000000000000000000000002'
-
-// biome-ignore lint/suspicious/noExplicitAny: test fixture only passed through
-const publicClient = {} as PublicClient
-
-type Overrides = {
-  tokenType?: ClassifiedName['tokenType']
-  id?: string
-  labelhash?: string
-  label?: string
-  name?: string
-  parentName?: string | null
-  fuses?: number
-}
-
-const makeClassified = (o: Overrides = {}): ClassifiedName => ({
-  tokenType: o.tokenType ?? 'unwrapped',
-  label: o.label ?? 'alice',
-  parentName: o.parentName === undefined ? 'eth' : o.parentName,
-  fuses: o.fuses ?? 0,
-  tokenHolder: OWNER,
-  v1ResolverAddress: null,
-  resolverStrategy: 'to-owned-permres',
-  managerAddress: null,
-  domain: {
-    id: o.id ?? '0x01',
-    labelhash: o.labelhash ?? '0x02',
-    name: o.name ?? 'alice.eth',
-  } as unknown as V1Domain,
-})
-
-const ok = <T>(result: T) => ({ status: 'success' as const, result })
-const fail = () => ({
-  status: 'failure' as const,
-  error: new Error('reverted'),
-  result: undefined,
-})
+const getRegisteredV2NamesMock = vi.mocked(getRegisteredV2Names)
 
 beforeEach(() => {
   multicallMock.mockReset()
   readContractMock.mockReset()
+  getRegisteredV2NamesMock.mockReset()
+  getRegisteredV2NamesMock.mockResolvedValue(new Set())
 })
 
 describe('checkOwnership', () => {
   it('returns empty set for empty input', async () => {
-    const ids = await checkOwnership(publicClient, [], OWNER)
-    expect(ids.size).toBe(0)
+    expect((await checkOwnership(publicClient, [], OWNER)).size).toBe(0)
     expect(multicallMock).not.toHaveBeenCalled()
   })
 
   it('marks unwrapped names whose ownerOf differs from migrationOwner', async () => {
     multicallMock.mockResolvedValueOnce([ok(OTHER), ok(OWNER)])
-    const a = makeClassified({ id: '0xa1', tokenType: 'unwrapped' })
-    const b = makeClassified({ id: '0xb1', tokenType: 'unwrapped' })
-    const ids = await checkOwnership(publicClient, [a, b], OWNER)
+    const ids = await checkOwnership(
+      publicClient,
+      [makeClassified({ id: '0xa1' }), makeClassified({ id: '0xb1' })],
+      OWNER,
+    )
     expect([...ids]).toEqual(['0xa1'])
   })
 
@@ -85,72 +61,85 @@ describe('checkOwnership', () => {
       ok([OWNER, 0, 0n] as const),
       ok([OTHER, 0, 0n] as const),
     ])
-    const a = makeClassified({ id: '0xa1', tokenType: 'locked-2ld' })
-    const b = makeClassified({ id: '0xb1', tokenType: 'locked-2ld' })
-    const ids = await checkOwnership(publicClient, [a, b], OWNER)
+    const ids = await checkOwnership(
+      publicClient,
+      [
+        makeClassified({ id: '0xa1', tokenType: 'locked-2ld' }),
+        makeClassified({ id: '0xb1', tokenType: 'locked-2ld' }),
+      ],
+      OWNER,
+    )
     expect([...ids]).toEqual(['0xb1'])
   })
 
   it('treats a failed multicall entry as already migrated', async () => {
     multicallMock.mockResolvedValueOnce([fail()])
-    const a = makeClassified({ id: '0xa1' })
-    const ids = await checkOwnership(publicClient, [a], OWNER)
+    const ids = await checkOwnership(
+      publicClient,
+      [makeClassified({ id: '0xa1' })],
+      OWNER,
+    )
     expect([...ids]).toEqual(['0xa1'])
   })
 
   it('is case-insensitive on the owner comparison', async () => {
-    const upper = OWNER.toUpperCase()
-    multicallMock.mockResolvedValueOnce([ok(upper as unknown as Address)])
-    const a = makeClassified({ id: '0xa1' })
-    const ids = await checkOwnership(publicClient, [a], OWNER)
+    multicallMock.mockResolvedValueOnce([
+      ok(OWNER.toUpperCase() as unknown as Address),
+    ])
+    const ids = await checkOwnership(
+      publicClient,
+      [makeClassified({ id: '0xa1' })],
+      OWNER,
+    )
     expect(ids.size).toBe(0)
   })
 })
 
 describe('checkV2Status', () => {
-  it('returns empty set for empty input', async () => {
-    const ids = await checkV2Status(publicClient, [])
-    expect(ids.size).toBe(0)
+  it('returns empty set for empty input and issues no subgraph call', async () => {
+    expect((await checkV2Status([])).size).toBe(0)
+    expect(getRegisteredV2NamesMock).not.toHaveBeenCalled()
+  })
+
+  it('marks names present in the v2 subgraph (case-insensitive)', async () => {
+    getRegisteredV2NamesMock.mockResolvedValue(new Set(['alice.eth']))
+    const ids = await checkV2Status([
+      makeClassified({ id: '0xa1', name: 'ALICE.ETH' }),
+      makeClassified({ id: '0xb1', name: 'bob.eth' }),
+    ])
+    expect([...ids]).toEqual(['0xa1'])
     expect(multicallMock).not.toHaveBeenCalled()
   })
 
-  it('marks names whose getStatus == REGISTERED (2)', async () => {
-    multicallMock.mockResolvedValueOnce([ok(2), ok(0)])
-    const a = makeClassified({ id: '0xa1' })
-    const b = makeClassified({ id: '0xb1' })
-    const ids = await checkV2Status(publicClient, [a, b])
-    expect([...ids]).toEqual(['0xa1'])
-  })
-
-  it('fails closed: multicall failure is treated as registered', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    multicallMock.mockResolvedValueOnce([fail()])
-    const a = makeClassified({ id: '0xa1' })
-    const ids = await checkV2Status(publicClient, [a])
-    expect([...ids]).toEqual(['0xa1'])
-    warn.mockRestore()
+  it('propagates subgraph errors instead of falling back to RPC', async () => {
+    getRegisteredV2NamesMock.mockRejectedValueOnce(new Error('subgraph down'))
+    await expect(
+      checkV2Status([makeClassified({ id: '0xa1' })]),
+    ).rejects.toThrow('subgraph down')
+    expect(multicallMock).not.toHaveBeenCalled()
   })
 })
 
 describe('checkFrozenApproval', () => {
   it('returns empty set when no candidates', async () => {
-    const ids = await checkFrozenApproval(publicClient, [])
-    expect(ids.size).toBe(0)
+    expect((await checkFrozenApproval(publicClient, [])).size).toBe(0)
   })
 
   it('marks candidates whose getApproved is non-zero', async () => {
     multicallMock.mockResolvedValueOnce([ok(OTHER), ok(zeroAddress)])
-    const a = makeClassified({ id: '0xa1', tokenType: 'locked-2ld' })
-    const b = makeClassified({ id: '0xb1', tokenType: 'locked-2ld' })
-    const ids = await checkFrozenApproval(publicClient, [a, b])
+    const ids = await checkFrozenApproval(publicClient, [
+      makeClassified({ id: '0xa1', tokenType: 'locked-2ld' }),
+      makeClassified({ id: '0xb1', tokenType: 'locked-2ld' }),
+    ])
     expect([...ids]).toEqual(['0xa1'])
   })
 
   it('fails closed: multicall failure is treated as frozen', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     multicallMock.mockResolvedValueOnce([fail()])
-    const a = makeClassified({ id: '0xa1', tokenType: 'locked-2ld' })
-    const ids = await checkFrozenApproval(publicClient, [a])
+    const ids = await checkFrozenApproval(publicClient, [
+      makeClassified({ id: '0xa1', tokenType: 'locked-2ld' }),
+    ])
     expect([...ids]).toEqual(['0xa1'])
     warn.mockRestore()
   })
@@ -158,28 +147,27 @@ describe('checkFrozenApproval', () => {
 
 describe('filterNotReserved', () => {
   it('returns empty when no 2LDs in the input', async () => {
-    const child = makeClassified({
-      tokenType: 'locked-child',
-      parentName: 'raffy.eth',
-    })
-    const result = await filterNotReserved(publicClient, [child])
+    const result = await filterNotReserved(publicClient, [
+      makeClassified({ tokenType: 'locked-child', parentName: 'raffy.eth' }),
+    ])
     expect(result).toEqual([])
     expect(multicallMock).not.toHaveBeenCalled()
   })
 
-  it('keeps 2LDs whose v2 resolver is zero (= not reserved in v2)', async () => {
+  it('keeps 2LDs whose v2 resolver is zero (= not reserved)', async () => {
     multicallMock.mockResolvedValueOnce([ok(zeroAddress), ok(OTHER)])
-    const a = makeClassified({ id: '0xa1', label: 'a' })
-    const b = makeClassified({ id: '0xb1', label: 'b' })
-    const result = await filterNotReserved(publicClient, [a, b])
+    const result = await filterNotReserved(publicClient, [
+      makeClassified({ id: '0xa1', label: 'a' }),
+      makeClassified({ id: '0xb1', label: 'b' }),
+    ])
     expect(result.map((n) => n.domain.id)).toEqual(['0xa1'])
   })
 
-  it('treats a failed multicall entry as reserved (drops it from notReserved)', async () => {
+  it('treats a failed multicall entry as reserved', async () => {
     multicallMock.mockResolvedValueOnce([fail()])
-    const a = makeClassified({ id: '0xa1' })
-    const result = await filterNotReserved(publicClient, [a])
-    expect(result).toEqual([])
+    expect(
+      await filterNotReserved(publicClient, [makeClassified({ id: '0xa1' })]),
+    ).toEqual([])
   })
 })
 
@@ -191,28 +179,31 @@ describe('runEligibilityChecks', () => {
   })
 
   it('composes ownership, v2-status and frozen into the three buckets', async () => {
-    const A = makeClassified({ id: '0xa1', tokenType: 'unwrapped', label: 'a' })
+    const A = makeClassified({ id: '0xa1', label: 'a', name: 'a.eth' })
     const B = makeClassified({
       id: '0xb1',
-      tokenType: 'locked-2ld',
       label: 'b',
+      name: 'b.eth',
+      tokenType: 'locked-2ld',
       fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_APPROVE,
     })
-    const C = makeClassified({ id: '0xc1', tokenType: 'unwrapped', label: 'c' })
+    const C = makeClassified({ id: '0xc1', label: 'c', name: 'c.eth' })
 
-    multicallMock.mockResolvedValueOnce([
-      ok(OTHER),
-      ok([OWNER, 0, 0n] as const),
-      ok(OWNER),
-    ])
-    multicallMock.mockResolvedValueOnce([ok(0), ok(0), ok(0)])
-    multicallMock.mockResolvedValueOnce([ok(OTHER)])
+    multicallMock
+      .mockResolvedValueOnce([
+        ok(OTHER),
+        ok([OWNER, 0, 0n] as const),
+        ok(OWNER),
+      ]) // ownership
+      .mockResolvedValueOnce([ok(OTHER)]) // frozen-approval (only B)
+    getRegisteredV2NamesMock.mockResolvedValueOnce(new Set()) // v2 subgraph
 
     const result = await runEligibilityChecks(publicClient, [A, B, C], OWNER)
 
     expect(result.alreadyMigrated.map((n) => n.domain.id)).toEqual(['0xa1'])
     expect(result.frozen.map((n) => n.domain.id)).toEqual(['0xb1'])
     expect(result.eligible.map((n) => n.domain.id)).toEqual(['0xc1'])
+    expect(multicallMock).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -224,18 +215,23 @@ describe('resolveParentRegistries', () => {
 
   it('resolves a single-label parent with one first-hop multicall', async () => {
     const parent: Address = '0x0000000000000000000000000000000000000a01'
-    const child = makeClassified({
-      tokenType: 'locked-child',
-      parentName: 'raffy.eth',
-      name: 'sub.raffy.eth',
-    })
     multicallMock.mockResolvedValueOnce([ok(parent)])
 
     const result = await resolveParentRegistries(
       publicClient,
-      new Map([['raffy.eth', [child]]]),
+      new Map([
+        [
+          'raffy.eth',
+          [
+            makeClassified({
+              tokenType: 'locked-child',
+              parentName: 'raffy.eth',
+              name: 'sub.raffy.eth',
+            }),
+          ],
+        ],
+      ]),
     )
-
     expect(result.get('raffy.eth')).toBe(parent)
     expect(multicallMock).toHaveBeenCalledTimes(1)
   })
@@ -243,34 +239,45 @@ describe('resolveParentRegistries', () => {
   it('walks deep registry for multi-label parents', async () => {
     const firstHop: Address = '0x0000000000000000000000000000000000000b01'
     const deeper: Address = '0x0000000000000000000000000000000000000b02'
-    const child = makeClassified({
-      tokenType: 'locked-child',
-      parentName: 'a.b.eth',
-      name: 'x.a.b.eth',
-    })
-
     multicallMock.mockResolvedValueOnce([ok(firstHop)])
     readContractMock.mockResolvedValueOnce(deeper)
 
     const result = await resolveParentRegistries(
       publicClient,
-      new Map([['a.b.eth', [child]]]),
+      new Map([
+        [
+          'a.b.eth',
+          [
+            makeClassified({
+              tokenType: 'locked-child',
+              parentName: 'a.b.eth',
+              name: 'x.a.b.eth',
+            }),
+          ],
+        ],
+      ]),
     )
     expect(result.get('a.b.eth')).toBe(deeper)
   })
 
   it('short-circuits to zeroAddress when first hop is zero', async () => {
-    const child = makeClassified({
-      tokenType: 'locked-child',
-      parentName: 'a.b.eth',
-      name: 'x.a.b.eth',
-    })
     multicallMock.mockResolvedValue([ok(zeroAddress)])
 
     vi.useFakeTimers()
     const pending = resolveParentRegistries(
       publicClient,
-      new Map([['a.b.eth', [child]]]),
+      new Map([
+        [
+          'a.b.eth',
+          [
+            makeClassified({
+              tokenType: 'locked-child',
+              parentName: 'a.b.eth',
+              name: 'x.a.b.eth',
+            }),
+          ],
+        ],
+      ]),
     )
     await vi.runAllTimersAsync()
     const result = await pending

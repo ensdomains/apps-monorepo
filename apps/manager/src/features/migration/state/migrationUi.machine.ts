@@ -50,6 +50,11 @@ type Events =
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
+      type: 'migration.batchComplete'
+      names: readonly string[]
+      txHash: Hex
+    }
+  | {
       type: 'migration.complete'
       result: MigrationResult
     }
@@ -97,6 +102,11 @@ export const migrationUiMachine = setup({
         sendBack({ type: 'migration.progress', progress })
       }
 
+      const onBatchComplete = (names: readonly string[], txHash: Hex) => {
+        if (cancelled) return
+        sendBack({ type: 'migration.batchComplete', names, txHash })
+      }
+
       executeMigration({
         plan: input.plan,
         wagmiConfig: input.wagmiConfig,
@@ -104,6 +114,7 @@ export const migrationUiMachine = setup({
         signer: input.signer,
         accountAddress: input.accountAddress,
         onProgress,
+        onBatchComplete,
       })
         .then((result) => {
           if (cancelled) return
@@ -125,8 +136,10 @@ export const migrationUiMachine = setup({
   guards: {
     hasSelection: ({ event }) =>
       event.type === 'migration.start' && event.plan.classified.length > 0,
-    isOnlyFailures: ({ event }) =>
-      event.type === 'migration.complete' && event.result.txHashes.length === 0,
+    isOnlyFailures: ({ event, context }) =>
+      event.type === 'migration.complete' &&
+      event.result.txHashes.length === 0 &&
+      context.migratedNames.length === 0,
   },
   actions: {
     setSelection: assign({
@@ -149,14 +162,34 @@ export const migrationUiMachine = setup({
       progress: ({ event, context }) =>
         event.type === 'migration.progress' ? event.progress : context.progress,
     }),
+    appendBatchComplete: assign(({ event, context }) => {
+      if (event.type !== 'migration.batchComplete') return {}
+      const existing = new Set(context.migratedNames)
+      const nextNames = [...context.migratedNames]
+      for (const name of event.names) {
+        if (!existing.has(name)) {
+          nextNames.push(name)
+          existing.add(name)
+        }
+      }
+      const existingHashes = new Set(context.txHashes)
+      const nextHashes = existingHashes.has(event.txHash)
+        ? context.txHashes
+        : [...context.txHashes, event.txHash]
+      return {
+        migratedNames: nextNames,
+        txHashes: nextHashes,
+      }
+    }),
     recordCompletion: assign(({ event, context }) => {
       if (event.type !== 'migration.complete') return {}
+      const existingHashes = new Set(context.txHashes)
+      const mergedHashes = [
+        ...context.txHashes,
+        ...event.result.txHashes.filter((h) => !existingHashes.has(h)),
+      ]
       return {
-        txHashes: event.result.txHashes,
-        migratedNames: [
-          ...context.migratedNames,
-          ...event.result.migratedNames,
-        ],
+        txHashes: mergedHashes,
       }
     }),
     setError: assign({
@@ -172,7 +205,6 @@ export const migrationUiMachine = setup({
         stepDescriptors: nextPlan.stepDescriptors,
         selectedNames: context.selectedNames.filter((n) => !migratedSet.has(n)),
         lastError: undefined,
-        txHashes: [] as readonly Hex[],
         progress: undefined,
       }
     }),
@@ -211,16 +243,24 @@ export const migrationUiMachine = setup({
           invoke: {
             id: 'runMigration',
             src: 'runMigration',
-            input: ({ context }) => ({
-              wagmiConfig: context.wagmiConfig,
-              plan: context.plan!,
-              signer: context.signer!,
-              accountAddress: context.accountAddress!,
-            }),
+            input: ({ context }) => {
+              if (!context.plan || !context.signer || !context.accountAddress) {
+                throw new Error('Migration context is incomplete')
+              }
+              return {
+                wagmiConfig: context.wagmiConfig,
+                plan: context.plan,
+                signer: context.signer,
+                accountAddress: context.accountAddress,
+              }
+            },
           },
           on: {
             'migration.progress': {
               actions: 'setProgress',
+            },
+            'migration.batchComplete': {
+              actions: 'appendBatchComplete',
             },
             'migration.complete': [
               {

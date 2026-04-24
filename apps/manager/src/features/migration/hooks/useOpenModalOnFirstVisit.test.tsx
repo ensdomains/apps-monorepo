@@ -70,6 +70,17 @@ describe('useOpenModalOnFirstVisit', () => {
     expect(result.current.open).toBe(true)
   })
 
+  it('marks localStorage flag on open so it does not re-open on next mount', () => {
+    authState = { authKey: 'jwt', modalDismissed: false }
+    const first = renderHook(() => useOpenModalOnFirstVisit(true, true))
+    expect(first.result.current.open).toBe(true)
+    expect(localStorage.getItem('migration-modal-dismissed')).toBe('true')
+
+    first.unmount()
+    const second = renderHook(() => useOpenModalOnFirstVisit(true, true))
+    expect(second.result.current.open).toBe(false)
+  })
+
   it('stays closed when localStorage flag is already set', () => {
     authState = { authKey: 'jwt', modalDismissed: false }
     localStorage.setItem('migration-modal-dismissed', 'true')
