@@ -421,6 +421,7 @@ msgid "Bug bounty"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:108
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:299
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:94
 msgid "Buy Name"
 msgstr ""
@@ -577,12 +578,10 @@ msgstr ""
 msgid "Confirm NFT Selection"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:208
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:407
 msgid "Confirm Payment"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.tsx:45
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:443
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:459
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx:37
@@ -1054,6 +1053,7 @@ msgid "Finalizing registration"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:172
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:203
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr ""
@@ -1219,11 +1219,11 @@ msgstr "Laddar översikten..."
 msgid "Loading prices..."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:164
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:247
 msgid "Loading pricing..."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:157
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:240
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:280
 msgid "Loading your stablecoin balances..."
 msgstr ""
@@ -1378,7 +1378,6 @@ msgstr ""
 msgid "No changes to save"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:174
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:307
 msgid "No coins found"
 msgstr ""
@@ -1424,6 +1423,10 @@ msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
 msgid "No recent searches"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:254
+msgid "No stablecoins available"
 msgstr ""
 
 #: src/routes/wallet.tsx:251
@@ -1535,7 +1538,7 @@ msgstr ""
 msgid "Personal Site"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:145
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:228
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:288
 msgid "Please connect your wallet first"
 msgstr ""
@@ -1906,8 +1909,6 @@ msgstr ""
 msgid "Search"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:123
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:126
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:264
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:267
 msgid "Search coins"
@@ -1969,13 +1970,15 @@ msgstr ""
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:107
-#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.tsx:44
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:246
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:443
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:459
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx:36
 msgid "Select coin"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:216
+msgid "Select payment"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:481
@@ -2183,7 +2186,7 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:111
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:279
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
 msgstr ""
@@ -2381,7 +2384,6 @@ msgstr ""
 msgid "Try Again"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:177
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:310
 msgid "Try searching for a different coin or chain"
 msgstr ""
@@ -2645,6 +2647,10 @@ msgstr "Plånbokssignering inte tillgänglig"
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:115
+msgid "We couldn't confirm that {label}.eth is still available. Please try again."
+msgstr ""
+
 #: src/features/notifications/settings/email-verify-step.tsx:68
 msgid "We sent a verification code to your email address."
 msgstr ""
@@ -2721,7 +2727,7 @@ msgstr ""
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:148
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:231
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:291
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr ""

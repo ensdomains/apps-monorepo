@@ -8,10 +8,13 @@ import { zeroAddress } from 'viem'
 import { getPricingQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
+import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const TokenPickerContent = () => {
   const { label, uiActor } = useRenewalUiContext()
+  const { stablecoinBalances, isLoadingBalances, isConnected } =
+    useSmartAccountContext()
   const [duration, selectedToken] = useSelector(
     uiActor,
     (state) => [state.context.duration, state.context.selectedToken] as const,
@@ -35,11 +38,15 @@ export const TokenPickerContent = () => {
 
   return (
     <TokenPickerContentBase
+      isConnected={isConnected}
+      isLoadingBalances={isLoadingBalances}
+      label={label}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}
+      stablecoinBalances={stablecoinBalances}
     />
   )
 }
