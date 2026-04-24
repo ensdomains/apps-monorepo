@@ -1,6 +1,6 @@
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { assert, describe, expect, it, vi } from 'vitest'
 import { makeClassified } from './_fixtures'
 import type { ClassifiedName } from './classifyNames'
 import {
@@ -207,7 +207,8 @@ describe('packPlanBatches', () => {
       pack,
     })
     expect(pack).toHaveBeenCalledTimes(2)
-    const deferredCall = pack.mock.calls[1]![0]
+    const deferredCall = pack.mock.calls[1]?.[0]
+    assert(deferredCall)
     expect(deferredCall.parentRegistries.get('raffy.eth')).not.toBe(zeroAddress)
     expect(deferredCall.parentRegistries.get('raffy.eth')).toBeDefined()
   })

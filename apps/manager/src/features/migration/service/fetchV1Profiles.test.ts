@@ -1,6 +1,6 @@
 import { err, ok } from 'neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail as failCall, ok as okCall } from './_fixtures'
 import {
   fetchV1Profiles,
@@ -105,7 +105,8 @@ describe('fetchV1Profiles', () => {
         okCall('0x000000000000000000000000000000000000abcd' as Hex),
       ]),
     )
-    const entry = result.get(profileMapKey(NODE_A))!
+    const entry = result.get(profileMapKey(NODE_A))
+    assert(entry)
     expect(entry.texts).toEqual([{ key: 'email', value: 'a@b.c' }])
     expect(entry.addresses).toEqual([
       {
@@ -121,7 +122,8 @@ describe('fetchV1Profiles', () => {
       [A],
       clientWith(() => [okCall(''), okCall('0x' as Hex)]),
     )
-    const entry = result.get(profileMapKey(NODE_A))!
+    const entry = result.get(profileMapKey(NODE_A))
+    assert(entry)
     expect(entry.texts).toEqual([])
     expect(entry.addresses).toEqual([])
   })
@@ -132,7 +134,7 @@ describe('fetchV1Profiles', () => {
       [A],
       clientWith(() => [failCall(), okCall('ok-value')]),
     )
-    expect(result.get(profileMapKey(NODE_A))!.texts).toEqual([
+    expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
       { key: 'url', value: 'ok-value' },
     ])
   })
@@ -143,7 +145,7 @@ describe('fetchV1Profiles', () => {
       [A],
       clientWith(() => [okCall('matched')]),
     )
-    expect(result.get(profileMapKey(NODE_A))!.texts).toEqual([
+    expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
       { key: 'email', value: 'matched' },
     ])
   })
@@ -160,10 +162,10 @@ describe('fetchV1Profiles', () => {
     const [first, second] = multicallSpy.mock.calls.map(
       ([opts]) => opts as { contracts: unknown[]; batchSize?: number },
     )
-    expect(first!.batchSize).toBe(0)
-    expect(second!.batchSize).toBe(0)
-    expect(first!.contracts).toHaveLength(700)
-    expect(second!.contracts).toHaveLength(1)
+    expect(first?.batchSize).toBe(0)
+    expect(second?.batchSize).toBe(0)
+    expect(first?.contracts).toHaveLength(700)
+    expect(second?.contracts).toHaveLength(1)
   })
 
   it('runs chunks with bounded concurrency (>1 in flight, cap respected)', async () => {
@@ -195,11 +197,11 @@ describe('fetchV1Profiles', () => {
       [A, B],
       clientWith(() => [okCall('valA'), okCall('valB')]),
     )
-    expect(result.get(profileMapKey(NODE_A))!.texts[0]).toEqual({
+    expect(result.get(profileMapKey(NODE_A))?.texts[0]).toEqual({
       key: 'keyA',
       value: 'valA',
     })
-    expect(result.get(profileMapKey(NODE_B))!.texts[0]).toEqual({
+    expect(result.get(profileMapKey(NODE_B))?.texts[0]).toEqual({
       key: 'keyB',
       value: 'valB',
     })
