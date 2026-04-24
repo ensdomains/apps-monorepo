@@ -1,6 +1,6 @@
 import { err, ok } from 'neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchV1Profiles,
   ProfileFetchError,
@@ -121,7 +121,8 @@ describe('fetchV1Profiles', () => {
       publicClient,
     })
 
-    const entry = result.get(profileMapKey(NODE_A))!
+    const entry = result.get(profileMapKey(NODE_A))
+    assert(entry)
     expect(entry.texts).toEqual([{ key: 'email', value: 'a@b.c' }])
     expect(entry.addresses).toEqual([
       {
@@ -142,7 +143,8 @@ describe('fetchV1Profiles', () => {
       publicClient,
     })
 
-    const entry = result.get(profileMapKey(NODE_A))!
+    const entry = result.get(profileMapKey(NODE_A))
+    assert(entry)
     expect(entry.texts).toEqual([])
     expect(entry.addresses).toEqual([])
   })
@@ -158,7 +160,7 @@ describe('fetchV1Profiles', () => {
       publicClient,
     })
 
-    expect(result.get(profileMapKey(NODE_A))!.texts).toEqual([
+    expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
       { key: 'url', value: 'ok-value' },
     ])
   })
@@ -176,7 +178,7 @@ describe('fetchV1Profiles', () => {
       publicClient,
     })
 
-    expect(result.get(profileMapKey(NODE_A))!.texts).toEqual([
+    expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
       { key: 'email', value: 'matched' },
     ])
   })
@@ -199,11 +201,11 @@ describe('fetchV1Profiles', () => {
     })
 
     expect(multicallSpy).toHaveBeenCalledTimes(2)
-    const firstCall = multicallSpy.mock.calls[0]![0] as {
+    const firstCall = multicallSpy.mock.calls[0]?.[0] as {
       contracts: unknown[]
       batchSize?: number
     }
-    const secondCall = multicallSpy.mock.calls[1]![0] as {
+    const secondCall = multicallSpy.mock.calls[1]?.[0] as {
       contracts: unknown[]
       batchSize?: number
     }
@@ -259,11 +261,11 @@ describe('fetchV1Profiles', () => {
       publicClient,
     })
 
-    expect(result.get(profileMapKey(NODE_A))!.texts[0]).toEqual({
+    expect(result.get(profileMapKey(NODE_A))?.texts[0]).toEqual({
       key: 'keyA',
       value: 'valA',
     })
-    expect(result.get(profileMapKey(NODE_B))!.texts[0]).toEqual({
+    expect(result.get(profileMapKey(NODE_B))?.texts[0]).toEqual({
       key: 'keyB',
       value: 'valB',
     })

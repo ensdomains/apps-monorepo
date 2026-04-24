@@ -1,5 +1,5 @@
 import { type Address, decodeFunctionData, zeroAddress } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { assert, describe, expect, it } from 'vitest'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -146,7 +146,7 @@ describe('buildAllTransferCalls dispatcher', () => {
       ownedPermRes: null,
       parentRegistries: new Map(),
     })
-    expect(call!.to).toBe(V1_CONTRACTS.BaseRegistrar)
+    expect(call?.to).toBe(V1_CONTRACTS.BaseRegistrar)
   })
 
   it('routes unlocked names to NameWrapper → UnlockedMigrationController', () => {
@@ -157,10 +157,11 @@ describe('buildAllTransferCalls dispatcher', () => {
       ownedPermRes: null,
       parentRegistries: new Map(),
     })
-    expect(call!.to).toBe(V1_CONTRACTS.NameWrapper)
+    assert(call)
+    expect(call.to).toBe(V1_CONTRACTS.NameWrapper)
     const { args } = decodeFunctionData({
       abi: NAME_WRAPPER_ABI,
-      data: call!.data,
+      data: call.data,
     })
     expect((args as [unknown, Address])[1].toLowerCase()).toBe(
       V2_CONTRACTS.UnlockedMigrationController.toLowerCase(),
@@ -175,9 +176,10 @@ describe('buildAllTransferCalls dispatcher', () => {
       ownedPermRes: null,
       parentRegistries: new Map(),
     })
+    assert(call)
     const { args } = decodeFunctionData({
       abi: NAME_WRAPPER_ABI,
-      data: call!.data,
+      data: call.data,
     })
     expect((args as [unknown, Address])[1].toLowerCase()).toBe(
       V2_CONTRACTS.LockedMigrationController.toLowerCase(),
@@ -198,9 +200,10 @@ describe('buildAllTransferCalls dispatcher', () => {
       ownedPermRes: null,
       parentRegistries: new Map([['raffy.eth', parentRegistry]]),
     })
+    assert(call)
     const { args } = decodeFunctionData({
       abi: NAME_WRAPPER_ABI,
-      data: call!.data,
+      data: call.data,
     })
     expect((args as [unknown, Address])[1].toLowerCase()).toBe(
       parentRegistry.toLowerCase(),
@@ -221,9 +224,10 @@ describe('buildAllTransferCalls dispatcher', () => {
       ownedPermRes: null,
       parentRegistries: new Map([['raffy.eth', parentRegistry]]),
     })
+    assert(call)
     const { args } = decodeFunctionData({
       abi: NAME_WRAPPER_ABI,
-      data: call!.data,
+      data: call.data,
     })
     expect((args as [unknown, Address])[1].toLowerCase()).toBe(
       parentRegistry.toLowerCase(),
@@ -261,8 +265,8 @@ describe('buildAllTransferCalls dispatcher', () => {
       parentRegistries: new Map(),
     })
     expect(calls).toHaveLength(3)
-    expect(calls[0]!.to).toBe(V1_CONTRACTS.BaseRegistrar)
-    expect(calls[1]!.to).toBe(V1_CONTRACTS.NameWrapper)
-    expect(calls[2]!.to).toBe(V1_CONTRACTS.NameWrapper)
+    expect(calls[0]?.to).toBe(V1_CONTRACTS.BaseRegistrar)
+    expect(calls[1]?.to).toBe(V1_CONTRACTS.NameWrapper)
+    expect(calls[2]?.to).toBe(V1_CONTRACTS.NameWrapper)
   })
 })

@@ -29,9 +29,10 @@ const executeMulticallChunks = async (
   const runWorker = async (): Promise<void> => {
     while (true) {
       const index = cursor++
-      if (index >= chunks.length) return
+      const chunk = chunks[index]
+      if (!chunk) return
       chunkResults[index] = (await publicClient.multicall({
-        contracts: chunks[index]!,
+        contracts: chunk,
         allowFailure: true,
         batchSize: 0,
       })) as ProfileMulticallResult[]
@@ -136,11 +137,11 @@ export const fetchV1Profiles = async (params: {
     out.set(profileMapKey(name.nodeHex), { texts: [], addresses: [] })
   }
 
-  for (let i = 0; i < calls.length; i++) {
-    const call = calls[i]!
+  for (const [i, call] of calls.entries()) {
     const res = results[i]
     if (!res || res.status !== 'success') continue
-    const bucket = out.get(profileMapKey(call.name.nodeHex))!
+    const bucket = out.get(profileMapKey(call.name.nodeHex))
+    if (!bucket) continue
     if (call.kind === 'text') {
       const value = res.result as string
       if (value && value.length > 0) {

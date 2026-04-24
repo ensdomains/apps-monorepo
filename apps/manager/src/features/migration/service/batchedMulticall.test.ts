@@ -11,7 +11,6 @@ const multicallMock = vi.mocked(multicall)
 
 // biome-ignore lint/suspicious/noExplicitAny: test fixture only passed through
 type AnyContract = any
-// biome-ignore lint/suspicious/noExplicitAny: test fixture only passed through
 const publicClient = {} as PublicClient
 
 const fakeContracts = (n: number): AnyContract[] =>
@@ -69,8 +68,8 @@ describe('batchedMulticall', () => {
     )
 
     expect(multicallMock).toHaveBeenCalledTimes(2)
-    expect(multicallMock.mock.calls[0]![1]!.contracts).toHaveLength(5000)
-    expect(multicallMock.mock.calls[1]![1]!.contracts).toHaveLength(1)
+    expect(multicallMock.mock.calls[0]?.[1]?.contracts).toHaveLength(5000)
+    expect(multicallMock.mock.calls[1]?.[1]?.contracts).toHaveLength(1)
     expect(result).toHaveLength(5001)
   })
 
@@ -89,9 +88,9 @@ describe('batchedMulticall', () => {
     )
 
     expect(multicallMock).toHaveBeenCalledTimes(3)
-    expect(multicallMock.mock.calls[0]![1]!.contracts).toHaveLength(5000)
-    expect(multicallMock.mock.calls[1]![1]!.contracts).toHaveLength(5000)
-    expect(multicallMock.mock.calls[2]![1]!.contracts).toHaveLength(1)
+    expect(multicallMock.mock.calls[0]?.[1]?.contracts).toHaveLength(5000)
+    expect(multicallMock.mock.calls[1]?.[1]?.contracts).toHaveLength(5000)
+    expect(multicallMock.mock.calls[2]?.[1]?.contracts).toHaveLength(1)
     expect(result).toHaveLength(10001)
   })
 
@@ -114,7 +113,7 @@ describe('batchedMulticall', () => {
   it('always invokes multicall with allowFailure: true and batchSize: 0', async () => {
     multicallMock.mockResolvedValueOnce([ok(0)])
     await batchedMulticall<number>(publicClient, fakeContracts(1))
-    const [, args] = multicallMock.mock.calls[0]!
+    const args = multicallMock.mock.calls[0]?.[1]
     expect(args).toMatchObject({ allowFailure: true, batchSize: 0 })
   })
 
@@ -129,9 +128,9 @@ describe('batchedMulticall', () => {
       publicClient,
       fakeContracts(3),
     )
-    expect(result[1]!.status).toBe('failure')
-    expect(result[0]!.status).toBe('success')
-    expect(result[2]!.status).toBe('success')
+    expect(result[1]?.status).toBe('failure')
+    expect(result[0]?.status).toBe('success')
+    expect(result[2]?.status).toBe('success')
   })
 
   it('converts a chunk-level rejection into per-item failure entries instead of throwing', async () => {
@@ -160,8 +159,8 @@ describe('batchedMulticall', () => {
 
     expect(result).toHaveLength(5001)
     for (let i = 0; i < 5000; i++) {
-      expect(result[i]!.status).toBe('failure')
+      expect(result[i]?.status).toBe('failure')
     }
-    expect(result[5000]!.status).toBe('success')
+    expect(result[5000]?.status).toBe('success')
   })
 })

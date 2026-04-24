@@ -24,7 +24,6 @@ const readContractMock = vi.mocked(readContract)
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const OTHER: Address = '0x0000000000000000000000000000000000000002'
 
-// biome-ignore lint/suspicious/noExplicitAny: test fixture only passed through
 const publicClient = {} as PublicClient
 
 type Overrides = {

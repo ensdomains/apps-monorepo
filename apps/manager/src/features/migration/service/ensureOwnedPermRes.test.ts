@@ -181,7 +181,7 @@ describe('ensureOwnedPermRes', () => {
 
   it('deploys when no existing proxy, parses the ProxyDeployed log and returns the new address', async () => {
     const publicClient = mockPublicClient(() => [])
-    const hash = ('0x' + 'ab'.repeat(32)) as Hex
+    const hash = `0x${'ab'.repeat(32)}` as Hex
     writeContractMock.mockResolvedValueOnce(hash)
     waitForTransactionReceiptMock.mockResolvedValueOnce({
       status: 'success',

@@ -90,8 +90,11 @@ describe('getV1NamesForAddress', () => {
 
     await getV1NamesForAddress('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
 
-    const [, init] = fetchMock.mock.calls[0]! as [string, { body: string }]
-    const body = JSON.parse(init.body)
+    const firstCall = fetchMock.mock.calls[0] as
+      | [string, { body: string }]
+      | undefined
+    assert(firstCall)
+    const body = JSON.parse(firstCall[1].body)
     expect(body.variables.whereFilter.and[0].or[0].owner).toBe(
       '0xabcdef0123456789abcdef0123456789abcdef01',
     )
@@ -167,8 +170,11 @@ describe('getV1ProfileKeys', () => {
 
     await getV1ProfileKeys(['0xABCD', '0xef01'])
 
-    const [, init] = fetchMock.mock.calls[0]! as [string, { body: string }]
-    const body = JSON.parse(init.body)
+    const firstCall = fetchMock.mock.calls[0] as
+      | [string, { body: string }]
+      | undefined
+    assert(firstCall)
+    const body = JSON.parse(firstCall[1].body)
     expect(body.variables.whereFilter.id_in).toEqual(['0xabcd', '0xef01'])
   })
 
@@ -215,10 +221,10 @@ describe('getV1ProfileKeys', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
 
     const body0 = JSON.parse(
-      (fetchMock.mock.calls[0]![1] as { body: string }).body,
+      (fetchMock.mock.calls[0]?.[1] as { body: string }).body,
     )
     const body1 = JSON.parse(
-      (fetchMock.mock.calls[1]![1] as { body: string }).body,
+      (fetchMock.mock.calls[1]?.[1] as { body: string }).body,
     )
     expect(body0.variables.whereFilter.id_in).toHaveLength(500)
     expect(body1.variables.whereFilter.id_in).toHaveLength(1)

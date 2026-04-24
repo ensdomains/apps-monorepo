@@ -72,7 +72,7 @@ describe('getMigratedNamesCount', () => {
 
     await getMigratedNamesCount('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
 
-    const variables = queryMock.mock.calls[0]![1] as
+    const variables = queryMock.mock.calls[0]?.[1] as
       | { where?: { owner?: string } }
       | undefined
     expect(variables?.where?.owner).toBe(

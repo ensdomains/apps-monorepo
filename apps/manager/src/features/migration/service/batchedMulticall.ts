@@ -36,9 +36,9 @@ export const batchedMulticall = async <T>(
   )
 
   const out: MulticallResult<T>[] = []
-  for (let i = 0; i < settled.length; i++) {
-    const r = settled[i]!
-    const chunkLen = chunks[i]!.length
+  for (const [i, r] of settled.entries()) {
+    const chunk = chunks[i]
+    if (!chunk) continue
     if (r.status === 'fulfilled') {
       for (const entry of r.value) {
         out.push(entry as MulticallResult<T>)
@@ -47,7 +47,7 @@ export const batchedMulticall = async <T>(
     }
     const error =
       r.reason instanceof Error ? r.reason : new Error(String(r.reason))
-    for (let j = 0; j < chunkLen; j++) {
+    for (let j = 0; j < chunk.length; j++) {
       out.push({ status: 'failure', error, result: undefined })
     }
   }

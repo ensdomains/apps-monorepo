@@ -211,12 +211,17 @@ export const migrationUiMachine = setup({
           invoke: {
             id: 'runMigration',
             src: 'runMigration',
-            input: ({ context }) => ({
-              wagmiConfig: context.wagmiConfig,
-              plan: context.plan!,
-              signer: context.signer!,
-              accountAddress: context.accountAddress!,
-            }),
+            input: ({ context }) => {
+              if (!context.plan || !context.signer || !context.accountAddress) {
+                throw new Error('Migration context is incomplete')
+              }
+              return {
+                wagmiConfig: context.wagmiConfig,
+                plan: context.plan,
+                signer: context.signer,
+                accountAddress: context.accountAddress,
+              }
+            },
           },
           on: {
             'migration.progress': {
