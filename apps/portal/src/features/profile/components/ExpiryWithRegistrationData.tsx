@@ -55,7 +55,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       <div>Failed to fetch name history: {nameHistory.error.cause.message}</div>
     )
 
-  if (expiry.isLoading || nameHistory.isLoading)
+  if (expiry.isLoading || nameHistory.isLoading || indexerData.isLoading)
     return <LoadingSpinner title="Loading expiry and registration data" />
 
   const blockNumber = nameHistory.data?.registrationEvents?.find(
