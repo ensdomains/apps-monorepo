@@ -330,7 +330,7 @@ msgstr "Autorenews on"
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:175
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:171
 msgid "Available"
 msgstr "Available"
 
@@ -1433,8 +1433,8 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:148
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:145
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:144
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:146
 msgid "Not supported"
 msgstr "Not supported"
 
@@ -1656,7 +1656,7 @@ msgstr "Register to date"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:121
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:164
+#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:160
 msgid "Registered"
 msgstr "Registered"
 
@@ -2183,7 +2183,7 @@ msgstr "Sort names by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:274
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:275
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
