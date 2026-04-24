@@ -29,7 +29,13 @@ import { SearchResultsList } from './SearchResultsList'
 
 const SEARCH_DEBOUNCE_MS = 300
 
-export const HomeSearchInput = ({ className }: { className?: string }) => {
+export const HomeSearchInput = ({
+  className,
+  iconOnly = false,
+}: {
+  className?: string
+  iconOnly?: boolean
+}) => {
   const listboxId = useId()
   const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
@@ -183,6 +189,44 @@ export const HomeSearchInput = ({ className }: { className?: string }) => {
     if (e.key === 'Escape') setMenuOpen(false)
   }
 
+  if (iconOnly) {
+    return (
+      <>
+        <button
+          type="button"
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+          onClick={() => setModalOpen(true)}
+        >
+          <Search className="size-3.5" />
+          <span className="sr-only">Search</span>
+        </button>
+        <CommandDialog
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          title="Search"
+          description="Search for ENS names or Ethereum addresses"
+          showCloseButton={false}
+          shouldFilter={false}
+        >
+          <CommandInput
+            placeholder="Search..."
+            value={modalSearchValue}
+            onValueChange={setModalSearchValue}
+          />
+          <SearchModalContent
+            searchValue={trimmedModalSearch}
+            onSelectSuggestion={handleModalSelectSuggestion}
+            onSelectOwnedName={handleSelectOwnedName}
+            onSelectAvailableName={handleModalSelectAvailableName}
+            navigateToName={navigateToName}
+            navigateToAddress={navigateToAddress}
+            navigateToResolver={navigateToResolver}
+          />
+        </CommandDialog>
+      </>
+    )
+  }
+
   return (
     <>
       <Popover
@@ -209,7 +253,7 @@ export const HomeSearchInput = ({ className }: { className?: string }) => {
               }
               aria-autocomplete="list"
               className="w-full"
-              placeholder="Search name or address..."
+              placeholder="Search..."
               value={searchValue}
               onFocus={(e) => e.target.value.trim() && setMenuOpen(true)}
               onChange={(e) => setSearchValue(e.target.value)}
@@ -261,7 +305,7 @@ export const HomeSearchInput = ({ className }: { className?: string }) => {
         shouldFilter={false}
       >
         <CommandInput
-          placeholder="Search name or address..."
+          placeholder="Search..."
           value={modalSearchValue}
           onValueChange={setModalSearchValue}
         />

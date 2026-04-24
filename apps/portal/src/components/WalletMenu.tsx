@@ -1,16 +1,15 @@
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Power, Wallet } from 'lucide-react'
+import { ChevronRight, Wallet } from 'lucide-react'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
+import { AccountCircleIcon, DisconnectIcon } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 
@@ -23,14 +22,16 @@ export const WalletMenu = () => {
     address,
     query: { enabled: isConnected },
   })
-  // const [smartSessionsEnabled, setSmartSessionsEnabled] =
-  //   useSmartSessions(address)
-  // const smartSessionsId = useId()
 
   if (!isConnected || !address) {
     return (
-      <Button size="sm" onClick={() => openConnectModal?.()}>
-        Connect
+      <Button
+        size="sm"
+        className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:p-0"
+        onClick={() => openConnectModal?.()}
+      >
+        <AccountCircleIcon className="size-4 shrink-0 hidden group-data-[collapsible=icon]:block" />
+        <span className="group-data-[collapsible=icon]:hidden">Connect</span>
       </Button>
     )
   }
@@ -61,15 +62,6 @@ export const WalletMenu = () => {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuItem asChild>
-          <Link to="/addr/$addr" params={{ addr: address }}>
-            <Wallet className="size-4 text-foreground" />
-            <span className="font-mono text-sm">
-              {truncateAddress(address)}
-            </span>
-            <ChevronRight className="size-4 ml-auto" />
-          </Link>
-        </DropdownMenuItem>
         {name && (
           <DropdownMenuItem asChild>
             <Link to="/$name" params={{ name }}>
@@ -79,29 +71,20 @@ export const WalletMenu = () => {
             </Link>
           </DropdownMenuItem>
         )}
-        {/* TODO: Enable when smart sessions are available
-        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/addr/$addr" params={{ addr: address }}>
+            <Wallet className="size-4 text-foreground" />
+            <span className="font-mono text-sm">
+              {truncateAddress(address)}
+            </span>
+            <ChevronRight className="size-4 ml-auto" />
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem
-          onSelect={(e) => e.preventDefault()}
-          className="justify-between"
+          onClick={() => disconnect()}
+          className="text-message-danger-text focus:text-message-danger-text"
         >
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-foreground" />
-            <label htmlFor={smartSessionsId} className="text-sm cursor-pointer">
-              Smart sessions
-            </label>
-          </div>
-          <Switch
-            id={smartSessionsId}
-            checked={smartSessionsEnabled}
-            onCheckedChange={setSmartSessionsEnabled}
-          />
-        </DropdownMenuItem> */}
-        <DropdownMenuSeparator />
-        <ThemeToggle />
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => disconnect()}>
-          <Power className="size-4 text-foreground" />
+          <DisconnectIcon className="size-4 text-message-danger-text" />
           Disconnect
         </DropdownMenuItem>
       </DropdownMenuContent>
