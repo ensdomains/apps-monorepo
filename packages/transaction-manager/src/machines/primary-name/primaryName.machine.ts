@@ -9,6 +9,7 @@ import {
   requestEOASignatureActor,
   submitPrimaryNameUpdateActor,
   submitPrimaryNameWithSignatureActor,
+  submitReverseUpdateActor,
 } from './primaryName.actors'
 
 // ETH coin type for signature
@@ -21,6 +22,7 @@ export type PrimaryNameContext = {
   chainId: number
   name: string
   updateTxId?: string
+  reverseTxId?: string
   txHash?: string
   error?: Error
   // Signature flow fields
@@ -66,12 +68,68 @@ const startUpdateAssignment = {
  * 1. Using a smart account signer (not EOA)
  * 2. walletClient and eoaAddress are provided
  */
-function needsSignatureFlow(context: PrimaryNameContext): boolean {
-  return (
-    context.signer?.type !== 'eoa' &&
-    !!context.walletClient &&
-    !!context.eoaAddress
-  )
+const needsSignatureFlow = (context: PrimaryNameContext): boolean =>
+  context.signer?.type !== 'eoa' &&
+  !!context.walletClient &&
+  !!context.eoaAddress
+
+function assertCoreReady(
+  context: PrimaryNameContext,
+): asserts context is PrimaryNameContext & {
+  signer: Signer
+  accountAddress: Address
+  publicClient: PublicClient
+} {
+  if (!context.signer || !context.accountAddress || !context.publicClient) {
+    throw new Error('primary-name context not ready')
+  }
+}
+
+function assertSignatureRequestReady(
+  context: PrimaryNameContext,
+): asserts context is PrimaryNameContext & {
+  eoaAddress: Address
+  walletClient: WalletClient
+} {
+  if (!context.eoaAddress || !context.walletClient) {
+    throw new Error('primary-name signature request context not ready')
+  }
+}
+
+function assertSignatureSubmitReady(
+  context: PrimaryNameContext,
+): asserts context is PrimaryNameContext & {
+  eoaAddress: Address
+  signature: Hex
+  signatureExpiry: bigint
+  signer: Signer
+  publicClient: PublicClient
+} {
+  if (
+    !context.eoaAddress ||
+    !context.signature ||
+    !context.signatureExpiry ||
+    !context.signer ||
+    !context.publicClient
+  ) {
+    throw new Error('primary-name signature submit context not ready')
+  }
+}
+
+function assertUpdateTxIdReady(
+  context: PrimaryNameContext,
+): asserts context is PrimaryNameContext & { updateTxId: string } {
+  if (!context.updateTxId) {
+    throw new Error('primary-name updateTxId not set')
+  }
+}
+
+function assertReverseTxIdReady(
+  context: PrimaryNameContext,
+): asserts context is PrimaryNameContext & { reverseTxId: string } {
+  if (!context.reverseTxId) {
+    throw new Error('primary-name reverseTxId not set')
+  }
 }
 
 export const primaryNameMachine = setup({
@@ -112,6 +170,15 @@ export const primaryNameMachine = setup({
         publicClient: PublicClient
         chainId: number
       }) => submitPrimaryNameWithSignatureActor(input),
+    ),
+    submitReverseUpdate: fromResultAsync(
+      (input: {
+        name: string
+        signer: Signer
+        accountAddress: Address
+        publicClient: PublicClient
+        chainId: number
+      }) => submitReverseUpdateActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) =>
       pollTransactionStatus(input.txId),
@@ -164,6 +231,7 @@ export const primaryNameMachine = setup({
     chainId: input.chainId,
     name: '',
     updateTxId: undefined,
+    reverseTxId: undefined,
     txHash: undefined,
     error: undefined,
     // Signature flow fields
@@ -214,18 +282,17 @@ export const primaryNameMachine = setup({
       invoke: {
         src: 'requestEOASignature',
         input: ({ context }) => {
+          assertSignatureRequestReady(context)
           // Calculate signature expiry: 30 minutes from now (within 1 hour limit)
           const signatureExpiry = BigInt(
             Math.floor(Date.now() / 1000) + 30 * 60,
           )
           return {
             name: context.name,
-            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-            eoaAddress: context.eoaAddress!,
+            eoaAddress: context.eoaAddress,
             signatureExpiry,
             coinTypes: [ETH_COIN_TYPE],
-            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-            walletClient: context.walletClient!,
+            walletClient: context.walletClient,
             registrarAddress: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
           }
         },
@@ -254,21 +321,19 @@ export const primaryNameMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'submitWithSignature',
-        input: ({ context }) => ({
-          name: context.name,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          eoaAddress: context.eoaAddress!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          signature: context.signature!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          signatureExpiry: context.signatureExpiry!,
-          coinTypes: [ETH_COIN_TYPE],
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          signer: context.signer!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          publicClient: context.publicClient!,
-          chainId: context.chainId,
-        }),
+        input: ({ context }) => {
+          assertSignatureSubmitReady(context)
+          return {
+            name: context.name,
+            eoaAddress: context.eoaAddress,
+            signature: context.signature,
+            signatureExpiry: context.signatureExpiry,
+            coinTypes: [ETH_COIN_TYPE],
+            signer: context.signer,
+            publicClient: context.publicClient,
+            chainId: context.chainId,
+          }
+        },
         onDone: {
           target: 'waitingForUpdate',
           actions: assign({
@@ -291,16 +356,16 @@ export const primaryNameMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'submitPrimaryNameUpdate',
-        input: ({ context }) => ({
-          name: context.name,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          signer: context.signer!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          accountAddress: context.accountAddress!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          publicClient: context.publicClient!,
-          chainId: context.chainId,
-        }),
+        input: ({ context }) => {
+          assertCoreReady(context)
+          return {
+            name: context.name,
+            signer: context.signer,
+            accountAddress: context.accountAddress,
+            publicClient: context.publicClient,
+            chainId: context.chainId,
+          }
+        },
         onDone: {
           target: 'waitingForUpdate',
           actions: assign({
@@ -323,13 +388,79 @@ export const primaryNameMachine = setup({
       entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'pollTransactionStatus',
-        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-        input: ({ context }) => ({ txId: context.updateTxId! }),
+        input: ({ context }) => {
+          assertUpdateTxIdReady(context)
+          return { txId: context.updateTxId }
+        },
+        onDone: [
+          {
+            target: 'submittingReverse',
+            guard: ({ context }) => context.signer?.type === 'eoa',
+            actions: assign({
+              txHash: ({ event }) => event.output,
+            }),
+          },
+          {
+            target: 'success',
+            actions: assign({
+              txHash: ({ event }) => event.output,
+            }),
+          },
+        ],
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    submittingReverse: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'submitReverseUpdate',
+        input: ({ context }) => {
+          assertCoreReady(context)
+          return {
+            name: context.name,
+            signer: context.signer,
+            accountAddress: context.accountAddress,
+            publicClient: context.publicClient,
+            chainId: context.chainId,
+          }
+        },
+        onDone: {
+          target: 'waitingForReverse',
+          actions: assign({
+            reverseTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForReverse: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'pollTransactionStatus',
+        input: ({ context }) => {
+          assertReverseTxIdReady(context)
+          return { txId: context.reverseTxId }
+        },
         onDone: {
           target: 'success',
-          actions: assign({
-            txHash: ({ event }) => event.output,
-          }),
         },
         onError: {
           target: 'error',
@@ -352,6 +483,7 @@ export const primaryNameMachine = setup({
             ...startUpdateAssignment,
             error: () => undefined,
             updateTxId: () => undefined,
+            reverseTxId: () => undefined,
           }),
         },
         CANCEL: 'idle',
@@ -367,14 +499,30 @@ export const primaryNameMachine = setup({
             ...startUpdateAssignment,
             error: () => undefined,
             updateTxId: () => undefined,
+            reverseTxId: () => undefined,
           }),
         },
-        RETRY: {
-          target: 'submittingUpdate',
-          actions: assign({
-            error: () => undefined,
-          }),
-        },
+        // Resume the reverse-leg directly if the primary tx already landed;
+        // otherwise re-run from the top.
+        RETRY: [
+          {
+            target: 'submittingReverse',
+            guard: ({ context }) =>
+              !!context.updateTxId && context.signer?.type === 'eoa',
+            actions: assign({
+              error: () => undefined,
+              reverseTxId: () => undefined,
+            }),
+          },
+          {
+            target: 'submittingUpdate',
+            actions: assign({
+              error: () => undefined,
+              updateTxId: () => undefined,
+              reverseTxId: () => undefined,
+            }),
+          },
+        ],
         CANCEL: 'idle',
       },
     },
