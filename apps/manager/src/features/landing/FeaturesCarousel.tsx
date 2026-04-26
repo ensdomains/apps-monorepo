@@ -26,7 +26,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
     title: (
       <Trans>
         One username <br />
-        <span className="font-normal italic">everywhere</span>
+        <span className="font-normal font-serif italic">everywhere</span>
       </Trans>
     ),
     description: (
@@ -120,7 +120,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
       <Trans>
         A simpler way to
         <br />
-        <span className="font-normal italic">get paid.</span>
+        <span className="font-normal font-serif italic">get paid.</span>
       </Trans>
     ),
     description: (
@@ -211,7 +211,7 @@ const CarouselCard = ({
         <h2 className="font-bold text-2xl leading-ens-none lg:text-temp-32px">
           {title}
         </h2>
-        <p className="max-w-[350px] font-normal text-sm leading-none lg:text-base">
+        <p className="max-w-[350px] font-normal font-serif text-sm leading-none lg:text-base">
           {description}
         </p>
       </div>

@@ -12,7 +12,7 @@ export const ProfilesShowcase = () => {
         <h2 className="max-w-md font-medium text-ens-lapis-core text-temp-32px leading-ens-none">
           <Trans>Customize your profile to share what matters</Trans>
         </h2>
-        <p className="max-w-md text-lg leading-ens-normal">
+        <p className="max-w-md font-serif text-lg leading-ens-normal">
           <Trans>
             Your ENS name is your onchain identity. Personalize it with an
             avatar, a banner, and the links that matter most. Showcase your
