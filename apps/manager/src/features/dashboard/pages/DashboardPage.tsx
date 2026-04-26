@@ -70,13 +70,13 @@ export const DashboardPage = () => {
           className="flex items-center gap-3 px-4 md:px-0"
           {...stagger(1, shouldReduceMotion)}
         >
-          <h1 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
+          <h1 className="text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
             <Trans>Hello</Trans>{' '}
             {defaultName ??
               (ownerAddress && (
                 <CopyableAddress
                   address={ownerAddress}
-                  textClassName="font-serif text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
+                  textClassName="text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
                   truncate={true}
                 />
               ))}
