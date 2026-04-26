@@ -268,7 +268,7 @@ export const ChoosePrimaryNameDialog = ({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="flex max-h-[90vh] max-w-[500px] flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="font-serif text-[24px] text-foreground">
+          <DialogTitle className="text-[24px] text-foreground">
             <Trans>Choose Primary Name</Trans>
           </DialogTitle>
           <DialogDescription className="font-sans text-muted-foreground text-sm">
