@@ -77,6 +77,8 @@
   --text-temp-32px: 2rem;
   --text-temp-32px--line-height: 110%;
 
+  --shadow-temp-card: 0 4px 24px 0 rgba(7, 28, 47, 0.07);
+
   --breakpoint-xs: 30rem;
 }
 

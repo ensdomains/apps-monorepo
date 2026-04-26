@@ -15,7 +15,7 @@ export const Route = createFileRoute('/p/$name/edit')({
   errorComponent: ProfileEditRouteError,
   beforeLoad: ({ params: { name } }) => {
     if (!isConnectedToPara()) {
-      throw redirect({ to: '/p/$name', params: { name } })
+      throw redirect({ to: '/$name', params: { name } })
     }
   },
 })
@@ -67,7 +67,7 @@ function RouteComponent() {
   )
 
   useParaLogoutEffect(() => {
-    navigate({ to: '/p/$name', params: { name }, replace: true })
+    navigate({ to: '/$name', params: { name }, replace: true })
   })
 
   const isCheckingOwnership =
@@ -87,7 +87,7 @@ function RouteComponent() {
           <div className="text-gray-700">
             You don&apos;t have permission to edit this profile.
           </div>
-          <LinkButton params={{ name }} to="/p/$name">
+          <LinkButton params={{ name }} to="/$name">
             View profile
           </LinkButton>
         </div>

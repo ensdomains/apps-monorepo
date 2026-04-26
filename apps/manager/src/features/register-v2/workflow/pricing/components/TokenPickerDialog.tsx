@@ -21,7 +21,6 @@ import { TokenPickerContent } from './TokenPickerContent'
 export const TokenPickerDialog = () => {
   const { t } = useLingui()
   const { uiActor } = useRegistrationV2Context()
-  const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   const pricingStep = usePricingStep(uiActor)
 
@@ -37,36 +36,56 @@ export const TokenPickerDialog = () => {
     }
   }
 
-  const header = match(pricingStep)
-    .with('tokens', () => t`Select coin`)
-    .with('confirm', () => t`Confirm purchase`)
-    .otherwise(() => undefined)
+  return (
+    <PaymentDialogBase
+      onOpenChange={handleOpenChange}
+      open={isOpen}
+      title={match(pricingStep)
+        .with('tokens', () => t`Select coin`)
+        .with('confirm', () => t`Confirm purchase`)
+        .otherwise(() => undefined)}
+    >
+      {match(pricingStep)
+        .with('tokens', () => <TokenPickerContent />)
+        .with('confirm', () => <ConfirmPurchase />)
+        .otherwise(() => undefined)}
+    </PaymentDialogBase>
+  )
+}
 
-  const content = match(pricingStep)
-    .with('tokens', () => <TokenPickerContent />)
-    .with('confirm', () => <ConfirmPurchase />)
-    .otherwise(() => undefined)
+export const PaymentDialogBase = ({
+  open,
+  title,
+  onOpenChange,
+  children,
+}: {
+  open: boolean
+  title?: string
+  onOpenChange: (open: boolean) => void
+  children: React.ReactNode
+}) => {
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   if (isDesktop) {
     return (
-      <Dialog onOpenChange={handleOpenChange} open={isOpen}>
+      <Dialog onOpenChange={onOpenChange} open={open}>
         <DialogContent className="min-h-[500px]" showCloseButton={true}>
           <DialogHeader>
-            <DialogTitle className="sr-only">{header}</DialogTitle>
+            <DialogTitle className="sr-only">{title}</DialogTitle>
           </DialogHeader>
-          {content}
+          {children}
         </DialogContent>
       </Dialog>
     )
   }
 
   return (
-    <Drawer onOpenChange={handleOpenChange} open={isOpen}>
+    <Drawer onOpenChange={onOpenChange} open={open}>
       <DrawerContent className="h-full pb-4">
         <DrawerHeader>
-          <DrawerTitle className="sr-only">{header}</DrawerTitle>
+          <DrawerTitle className="sr-only">{title}</DrawerTitle>
         </DrawerHeader>
-        {content}
+        {children}
       </DrawerContent>
     </Drawer>
   )

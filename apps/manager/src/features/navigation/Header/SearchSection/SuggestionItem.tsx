@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
 import { Loader2Icon, XIcon } from 'lucide-react'
 import { match } from 'ts-pattern'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
@@ -17,7 +17,7 @@ import { searchHistoryStore } from './useSearchHistory'
 const LINK_OPTIONS = {
   profile: (name: string) =>
     linkOptions({
-      to: '/p/$name',
+      to: '/$name',
       params: { name },
     }),
   register: (name: string) =>
@@ -117,7 +117,7 @@ export const NameSuggestionItem = ({
       }}
       {...LINK_OPTIONS[isAvailable ? 'register' : 'profile'](name)}
     >
-      <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-slate-100">
+      <div className="relative size-8 shrink-0 overflow-hidden rounded-md bg-slate-100">
         <ImageFallback.Root className="contents">
           <ImageFallback.Image
             alt={`${name} avatar`}
@@ -125,11 +125,7 @@ export const NameSuggestionItem = ({
             src={avatarUrl}
           />
           <ImageFallback.Fallback>
-            <img
-              alt={`${name} avatar placeholder`}
-              className="size-full object-cover"
-              src={placeholderAvatar}
-            />
+            <PatternAvatar className="size-full min-h-0 min-w-0" name={name} />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
       </div>

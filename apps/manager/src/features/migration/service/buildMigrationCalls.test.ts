@@ -1,5 +1,5 @@
 import { type Address, decodeFunctionData, zeroAddress } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { assert, describe, expect, it } from 'vitest'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified, OWNER } from './_fixtures'
@@ -173,9 +173,10 @@ describe('buildAllTransferCalls dispatcher', () => {
     ],
   ])('routes %s', (_, overrides, expectedTo, expectedReceiver) => {
     const [call] = build([overrides])
-    expect(call!.to).toBe(expectedTo)
+    assert(call)
+    expect(call.to).toBe(expectedTo)
     if (expectedReceiver) {
-      const { args } = decodeNameWrapperCall(call!.data)
+      const { args } = decodeNameWrapperCall(call.data)
       expect((args as [unknown, Address])[1].toLowerCase()).toBe(
         expectedReceiver.toLowerCase(),
       )

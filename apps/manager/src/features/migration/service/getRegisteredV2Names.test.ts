@@ -10,7 +10,7 @@ const respond = (r: { data?: unknown; error?: unknown }) =>
   mockIndexerQuery(queryMock, r)
 
 const nameIn = (callIndex = 0) =>
-  (queryMock.mock.calls[callIndex]![1] as { where: { name_in: string[] } })
+  (queryMock.mock.calls[callIndex]?.[1] as { where: { name_in: string[] } })
     .where.name_in
 
 beforeEach(() => {
