@@ -1,6 +1,8 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
+import { getResolver as ensjsGetResolver } from '@ensdomains/ensjs/public'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import {
@@ -15,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
-import { getAddress } from 'viem'
+import { getAddress, namehash } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { Button } from '@/components/ui/button'
@@ -68,7 +70,9 @@ export const ChoosePrimaryNameDialog = ({
 
   const isSubmitting =
     primaryNameState.matches('submittingUpdate') ||
-    primaryNameState.matches('waitingForUpdate')
+    primaryNameState.matches('waitingForUpdate') ||
+    primaryNameState.matches('submittingReverse') ||
+    primaryNameState.matches('waitingForReverse')
   const isError = primaryNameState.matches('error')
 
   // Fetch current primary name from reverse resolver
@@ -134,30 +138,56 @@ export const ChoosePrimaryNameDialog = ({
       if (!selectedName || !account.ownerAddress) return
       if (!account.signer || !account.accountAddress) return
 
+      const walletAddress = account.ownerAddress as Address
+
+      let resolverAddress = selectedNameRecords?.resolverAddress as
+        | Address
+        | undefined
+      if (!resolverAddress) {
+        const onChainResolver = await ensjsGetResolver(
+          publicClient as unknown as Parameters<typeof ensjsGetResolver>[0],
+          { name: selectedName },
+        )
+        resolverAddress = (onChainResolver ?? undefined) as Address | undefined
+      }
+
+      if (!resolverAddress) {
+        const name = selectedName
+        throw new Error(t`Could not find resolver for ${name}`)
+      }
+
+      const onChainAddr = (await (publicClient as PublicClient).readContract({
+        address: resolverAddress,
+        abi: publicResolverSingleAddrSnippet,
+        functionName: 'addr',
+        args: [namehash(selectedName)],
+      })) as Address
+
+      if (onChainAddr.toLowerCase() === walletAddress.toLowerCase()) return
+
       await saveRecords({
         name: selectedName,
         before: {
           texts: [],
-          coins: existingEthAddress
-            ? [{ coinType: 60, value: existingEthAddress }]
-            : [],
+          coins:
+            onChainAddr !== '0x0000000000000000000000000000000000000000'
+              ? [{ coinType: 60, value: onChainAddr }]
+              : [],
         },
         after: {
           texts: [],
-          coins: [
-            { coinType: 60, value: getAddress(account.ownerAddress as string) },
-          ],
+          coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
         signer: account.signer,
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
         chainId: customSepolia.id,
-        resolverAddress: selectedNameRecords?.resolverAddress as Address,
+        resolverAddress,
       })
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error(t`Failed to set ETH address record`)
+      toast.error(error.message || t`Failed to set ETH address record`)
     },
   })
 
@@ -196,17 +226,15 @@ export const ChoosePrimaryNameDialog = ({
   const handleConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (needsEthAddressUpdate) {
-      if (!account.signer || !account.accountAddress) {
-        toast.error(t`Wallet signer not available`)
-        return
-      }
+    if (!account.signer || !account.accountAddress) {
+      toast.error(t`Wallet signer not available`)
+      return
+    }
 
-      try {
-        await updateEthAddressMutation.mutateAsync()
-      } catch {
-        return
-      }
+    try {
+      await updateEthAddressMutation.mutateAsync()
+    } catch {
+      return
     }
 
     const params: PrimaryNameParams = {
