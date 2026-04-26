@@ -20,7 +20,7 @@ export const EducationCarousel = () => {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <h2 className="text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
+        <h2 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
           <Trans>Did You Know?</Trans>
         </h2>
         <div className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export const EducationCarousel = () => {
             <h3 className="font-medium text-[25px] leading-[0.96] tracking-[-0.5px]">
               {card.title}
             </h3>
-            <p className="text-sm leading-none tracking-[-0.28px]">
+            <p className="font-serif text-sm leading-none tracking-[-0.28px]">
               {card.description}
             </p>
             <div className="relative isolate mt-auto h-[164px] w-full overflow-hidden rounded-sm shadow-[0px_10px_14px_0px_rgba(14,61,104,0.06)]">

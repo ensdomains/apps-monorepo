@@ -130,7 +130,7 @@ export const ProfileCard = ({
         </p>
 
         <p
-          className={tw`mt-4 text-base leading-ens-none ${COLOR_VARIANTS[variant].core.text}`}
+          className={tw`mt-4 font-serif text-base leading-ens-none ${COLOR_VARIANTS[variant].core.text}`}
         >
           {description}
         </p>
