@@ -44,7 +44,7 @@ export function submitEOATransaction(input: {
     data: eoaRequest.data,
     gas: eoaRequest.gas,
     nonce: eoaRequest.nonce,
-    chain: walletClient.chain,
+    chain: walletClient.chain ?? null,
   }
 
   // Use either legacy or EIP-1559 gas pricing (not both)
