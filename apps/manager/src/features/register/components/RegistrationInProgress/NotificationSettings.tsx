@@ -197,7 +197,7 @@ export const NotificationSettings = ({
       {/* title row */}
       <div className="flex flex-col gap-4">
         {/* title */}
-        <h1 className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
+        <h1 className="font-[350] text-[#232222] text-temp-32px leading-ens-none">
           <Trans>Notification Settings</Trans>
         </h1>
 

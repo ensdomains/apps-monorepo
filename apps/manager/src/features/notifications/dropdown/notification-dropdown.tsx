@@ -24,7 +24,7 @@ export const NotificationsDropdown = ({
       <div className="flex flex-col gap-4">
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
-            <div className="font-[350] font-serif text-2xl text-[#232222] leading-ens-none">
+            <div className="font-[350] text-2xl text-[#232222] leading-ens-none">
               <Trans>Notifications</Trans>
             </div>
             <UnreadCount />

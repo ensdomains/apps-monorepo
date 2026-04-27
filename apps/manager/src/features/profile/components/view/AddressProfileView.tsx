@@ -241,7 +241,7 @@ export const AddressProfileView = ({
       <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:px-6 md:py-8">
         <div className="mb-[20px] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="font-serif text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
+            <span className="text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
               <Trans>Registered ENS names</Trans>
             </span>
             {namesCount !== undefined && namesCount > 0 && (

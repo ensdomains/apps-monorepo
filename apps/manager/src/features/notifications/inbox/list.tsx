@@ -115,7 +115,7 @@ export const NotificationsList = ({
     <div className="flex flex-col gap-8">
       {grouped.groups.map((group) => (
         <section className="space-y-4" key={group.title}>
-          <h3 className="font-serif text-[#232222] text-xl leading-ens-none">
+          <h3 className="text-[#232222] text-xl leading-ens-none">
             {group.title}
           </h3>
           <div className="flex flex-col">
