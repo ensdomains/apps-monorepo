@@ -7,7 +7,21 @@ import {
 } from '@urql/core'
 import { retryExchange } from '@urql/exchange-retry'
 
-export const INDEXER_GRAPHQL_URL = 'https://staging-graphql.ens.dev/'
+function getIndexerUrl(): string {
+  try {
+    // Only use the custom URL on the client side — relative paths
+    // like /indexer/graphql don't work during SSR.
+    if (typeof window !== 'undefined') {
+      const envUrl = import.meta.env?.VITE_INDEXER_GRAPHQL_URL
+      if (envUrl) return envUrl
+    }
+  } catch {
+    // SSR or non-Vite environment — fall through to default
+  }
+  return 'https://staging-graphql.ens.dev/'
+}
+
+export const INDEXER_GRAPHQL_URL = getIndexerUrl()
 
 const forcePostExchange = mapExchange({
   onOperation(operation) {

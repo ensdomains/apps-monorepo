@@ -81,33 +81,12 @@ export async function fillParaPasswordInput(
  * Supports the new session-enable flow and the legacy wallet sign-in flow.
  */
 export async function clickParaSignInButton(page: Page): Promise<void> {
-  const enableSessionsButton = page.getByRole('button', {
-    name: /enable sessions/i,
-  })
+  const enableSessionsButton = page.getByText("Enable Sessions")
+  await enableSessionsButton.waitFor({ state: 'visible', timeout: 10_000 })
+  await enableSessionsButton.click()
 
-  const hasEnableSessionsModal = await enableSessionsButton
-    .waitFor({ state: 'visible', timeout: 5_000 })
-    .then(() => true)
-    .catch(() => false)
 
-  if (hasEnableSessionsModal) {
-    await enableSessionsButton.click()
-
-    const sessionsEnabledBanner = page.getByText(/sessions enabled/i)
-    const sessionModalTitle = page.getByText(/enable smart sessions/i)
-
-    await Promise.race([
-      sessionsEnabledBanner.waitFor({ state: 'visible', timeout: 20_000 }),
-      sessionModalTitle.waitFor({ state: 'hidden', timeout: 20_000 }),
-      enableSessionsButton.waitFor({ state: 'hidden', timeout: 20_000 }),
-    ]).catch(() => null)
-
-    // return
-  }
-
-  const signInButton = page.getByRole('button', {
-    name: /Sign in with Wallet/i,
-  })
+  const signInButton = page.getByText("Sign in with Wallet")
   await signInButton.waitFor({ state: 'visible', timeout: 60_000 })
   await signInButton.click()
 }

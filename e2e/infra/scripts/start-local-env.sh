@@ -68,6 +68,13 @@ wait_for_service "anvil" 60
 # ---------- fund accounts as soon as Anvil is ready ----------
 # Funding only needs Anvil (mints tokens via cast). Do it early so the
 # smart account has ETH/USDC/DAI before the app tries to deploy or register.
+
+# Always fund the default Anvil account (used by portal headless wallet tests)
+echo ""
+echo "=== Funding default Anvil account (portal headless wallet) ==="
+bash "$SCRIPT_DIR/fund-account.sh" "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+# Fund additional address if provided as CLI arg
 FUND_ADDRESS="${1:-}"
 if [[ -n "$FUND_ADDRESS" ]]; then
   echo ""

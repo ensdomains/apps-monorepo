@@ -135,10 +135,14 @@ services:
       - "5655:5655"
     volumes:
       - panoptes-data:/app/data:ro
+      - ./panoptes/contracts.json:/app/config/contracts.json:ro
     environment:
       - DATABASE_PATH=/app/data/ens_v2.db
       - RAINBOW_PATH=/app/data/ens_rainbow.db
       - DOWNLOAD_RAINBOW=false
+      - NETWORK=sepolia
+      - CONTRACTS_PATH=/app/config/contracts.json
+      - RPC_URL=http://anvil:8545
       - API_PORT=5655
       - GRAPHQL_MAX_DEPTH=10
       - GRAPHQL_MAX_COST=1000

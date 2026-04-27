@@ -36,10 +36,10 @@ import type { Time } from './time.js'
 // Contract addresses (same as packages/transaction-manager/src/contracts/ens-sepolia.ts)
 // ---------------------------------------------------------------------------
 const FAST_TEST_ETH_REGISTRAR =
-  '0xe37a1366c827d18dc0ad57f3767de4b3025ceac2' as const
+  '0x68586418353b771cf2425ed14a07512aa880c532' as const
 const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
 const DEDICATED_RESOLVER =
-  '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as const
+  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
@@ -55,13 +55,13 @@ const REGISTRAR_ABI = parseAbi([
   'function isAvailable(string name) view returns (bool)',
 ])
 
-// Registry ABI — to read the name's expiry after registration
+// V2 permissioned registry ABI — getExpiry takes uint256 tokenId (labelhash as BigInt)
 const REGISTRY_ABI = parseAbi([
-  'function getNameData(string name) view returns (uint256 tokenId, uint64 expiry, uint96 flags, address subregistry)',
+  'function getExpiry(uint256 anyId) view returns (uint64)',
 ])
 
-// ETHRegistry address (from ens-sepolia.ts)
-const ETH_REGISTRY = '0xF332544e6234f1CA149907D0d4658afD5feB6831' as const
+// V2 ENS Registry (root + ETH registry)
+const ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as const
 
 const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
@@ -281,11 +281,12 @@ export function createMakeName({ accounts, time }: Dependencies) {
     // expiry + desiredGapPastExpiry. This avoids accumulated drift from
     // previous test runs on the same anvil fork.
     if (desiredGapPastExpiry > 0) {
-      const [, expiry] = await publicClient.readContract({
+      const labelHash = BigInt(keccak256(toHex(uniqueLabel)))
+      const expiry = await publicClient.readContract({
         address: ETH_REGISTRY,
         abi: REGISTRY_ABI,
-        functionName: 'getNameData',
-        args: [uniqueLabel],
+        functionName: 'getExpiry',
+        args: [labelHash],
       })
       const targetTimestamp = Number(expiry) + desiredGapPastExpiry
       console.log(
