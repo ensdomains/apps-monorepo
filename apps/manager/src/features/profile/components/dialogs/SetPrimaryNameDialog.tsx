@@ -1,5 +1,7 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
+import { getResolver as ensjsGetResolver } from '@ensdomains/ensjs/public'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -8,7 +10,7 @@ import { AlertCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address, PublicClient } from 'viem'
-import { getAddress } from 'viem'
+import { getAddress, namehash } from 'viem'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -45,14 +47,14 @@ interface SetPrimaryNameDialogProps {
   onUpdated?: () => void
 }
 
-function usePrimaryNameSuccessRedirect(params: {
+const usePrimaryNameSuccessRedirect = (params: {
   isSuccess: boolean
   name: string
   onUpdated?: () => void
   navigate: ReturnType<typeof useNavigate>
   setOpen: (open: boolean) => void
   queryClient: ReturnType<typeof useQueryClient>
-}) {
+}) => {
   const { t } = useLingui()
   const { isSuccess, name, navigate, onUpdated, setOpen, queryClient } = params
 
@@ -65,7 +67,7 @@ function usePrimaryNameSuccessRedirect(params: {
     onUpdated?.()
     setOpen(false)
     toast.success(t`Primary name set successfully`)
-    navigate({ to: '/p/$name', params: { name } })
+    navigate({ to: '/$name', params: { name } })
   }, [isSuccess, name, navigate, onUpdated, setOpen, queryClient, t])
 }
 
@@ -90,7 +92,9 @@ export const SetPrimaryNameDialog = ({
   const txHash = primaryNameState.context.txHash
   const isSubmitting =
     primaryNameState.matches('submittingUpdate') ||
-    primaryNameState.matches('waitingForUpdate')
+    primaryNameState.matches('waitingForUpdate') ||
+    primaryNameState.matches('submittingReverse') ||
+    primaryNameState.matches('waitingForReverse')
   const isSuccess = primaryNameState.matches('success')
   const isError = primaryNameState.matches('error')
   const machineErrorMessage =
@@ -116,19 +120,41 @@ export const SetPrimaryNameDialog = ({
 
   const walletAddress = account.ownerAddress as Address | undefined
   const existingEthAddress = getEthAddressFromRecords(records)
-  const needsEthAddressUpdate =
-    open && !isLoadingRecords && !hasMatchingEthAddress(records, walletAddress)
+  const indexerSaysMatch = hasMatchingEthAddress(records, walletAddress)
   const updateEthAddressMutation = useMutation({
     mutationFn: async () => {
       if (!walletAddress || !account.signer || !account.accountAddress) return
+
+      let resolverAddress = records?.resolverAddress as Address | undefined
+      if (!resolverAddress) {
+        const onChainResolver = await ensjsGetResolver(
+          publicClient as unknown as Parameters<typeof ensjsGetResolver>[0],
+          { name },
+        )
+        resolverAddress = (onChainResolver ?? undefined) as Address | undefined
+      }
+
+      if (!resolverAddress) {
+        throw new Error(t`Could not find resolver for ${name}`)
+      }
+
+      const onChainAddr = (await (publicClient as PublicClient).readContract({
+        address: resolverAddress,
+        abi: publicResolverSingleAddrSnippet,
+        functionName: 'addr',
+        args: [namehash(name)],
+      })) as Address
+
+      if (onChainAddr.toLowerCase() === walletAddress.toLowerCase()) return
 
       await saveRecords({
         name,
         before: {
           texts: [],
-          coins: existingEthAddress
-            ? [{ coinType: 60, value: existingEthAddress }]
-            : [],
+          coins:
+            onChainAddr !== '0x0000000000000000000000000000000000000000'
+              ? [{ coinType: 60, value: onChainAddr }]
+              : [],
         },
         after: {
           texts: [],
@@ -138,17 +164,19 @@ export const SetPrimaryNameDialog = ({
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
         chainId: customSepolia.id,
-        resolverAddress: records?.resolverAddress as Address,
+        resolverAddress,
       })
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error(t`Failed to set ETH address record`)
+      toast.error(error.message || t`Failed to set ETH address record`)
     },
   })
 
+  const needsEthAddressUpdate = open && !isLoadingRecords && !indexerSaysMatch
+
   const handleSave = async () => {
-    if (needsEthAddressUpdate && walletAddress) {
+    if (walletAddress) {
       if (!account.signer || !account.accountAddress) {
         toast.error(t`Wallet signer not available`)
         return
@@ -227,7 +255,8 @@ export const SetPrimaryNameDialog = ({
     </>
   )
 
-  const isBusy = isSubmitting || updateEthAddressMutation.isPending
+  const isBusy =
+    isSubmitting || updateEthAddressMutation.isPending || isLoadingRecords
 
   const footer = (
     <>

@@ -22,10 +22,14 @@ const SLIDE_DATA = [{ id: 'profiles' }] as const
 export const MigrationModal = () => {
   const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
-  const { data: v1Names } = useV1Names()
-  const { data: migratedCount } = useMigratedNamesCount()
+  const { data: v1Names, isPending: isV1NamesPending } = useV1Names()
+  const { data: migratedCount, isPending: isMigratedCountPending } =
+    useMigratedNamesCount()
   const hasUnstartedMigration =
-    (v1Names?.length ?? 0) > 0 && (migratedCount ?? 0) === 0
+    !isV1NamesPending &&
+    !isMigratedCountPending &&
+    (v1Names?.length ?? 0) > 0 &&
+    (migratedCount ?? 0) === 0
   const { open, dismiss } = useOpenModalOnFirstVisit(
     isConnected,
     hasUnstartedMigration,

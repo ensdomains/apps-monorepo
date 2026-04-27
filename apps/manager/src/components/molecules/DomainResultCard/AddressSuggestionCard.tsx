@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Wallet } from 'lucide-react'
+import type { Address } from 'viem'
 import { cn } from '@/lib/utils'
 
 export type AddressSuggestionCardVariant = 'compact' | 'card'
@@ -26,8 +27,8 @@ export const AddressSuggestionCard = ({
           : 'domain-result-card hover:-translate-y-0.5 cursor-pointer flex-col gap-3 rounded-sm bg-ens-white px-5 py-5 shadow-lg hover:shadow-xl',
       )}
       onClick={onClick}
-      params={{ name: address }}
-      to="/p/$name"
+      params={{ address: address as Address }}
+      to="/$address"
     >
       <div className={cn('flex w-full items-center gap-3')}>
         <div

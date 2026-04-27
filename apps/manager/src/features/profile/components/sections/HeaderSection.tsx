@@ -1,5 +1,8 @@
+import { Trans } from '@lingui/react/macro'
 import type { Address } from 'viem'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import { LinkButton } from '@/components/ui/button'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileHeaderInfo'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
@@ -32,6 +35,17 @@ export const HeaderSection = withForm({
             />
           )}
         </form.Field>
+        <div className="absolute top-2 left-2">
+          <LinkButton
+            params={{ name }}
+            size="sm"
+            to="/renew/$name"
+            variant="outline"
+          >
+            <Trans>Extend Name</Trans>
+            <MSymbol className="ms-opsz-16 ms-wght-300" symbol="double_arrow" />
+          </LinkButton>
+        </div>
         {/* Share button overlay */}
         <div className="absolute top-2 right-2">
           <form.Subscribe selector={(state) => state.values.base.avatar}>
