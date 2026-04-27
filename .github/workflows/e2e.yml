@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - ensjs-v2
   pull_request:
     branches:
       - main
+      - ensjs-v2
     paths:
       - "apps/manager/**"
       - "apps/portal/**"
