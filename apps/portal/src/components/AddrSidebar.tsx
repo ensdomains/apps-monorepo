@@ -9,7 +9,6 @@ import {
 import type { Address } from 'viem'
 import { HistoryIcon } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -130,14 +129,6 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
 
       <SidebarContent className="gap-3">
         <div className="px-6 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
-          <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between">
-            <div className="flex items-center gap-1 w-fit bg-peridot-100 dark:bg-peridot-900/30 rounded px-1.5 py-0.5">
-              <span className="text-xs text-peridot-500 font-medium">
-                Address
-              </span>
-            </div>
-            <CopyButton value={addr} />
-          </div>
           <Link
             to="/addr/$addr"
             params={{ addr }}

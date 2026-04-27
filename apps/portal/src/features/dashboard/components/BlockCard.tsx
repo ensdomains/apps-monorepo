@@ -4,7 +4,7 @@ import { ExternalLink } from 'react-external-link'
 import { cn } from '@/lib/utils'
 
 const baseCardClass =
-  'group flex flex-col h-[212px] w-[174px] rounded-sm p-[18px] shrink-0 transition-colors'
+  'group flex flex-col h-[212px] w-full rounded-sm p-[18px] transition-colors'
 
 export const InfoBlockCard = ({
   title,

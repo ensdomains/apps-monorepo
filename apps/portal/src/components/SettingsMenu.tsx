@@ -1,10 +1,5 @@
 import { useId } from 'react'
-import { ExternalLink } from 'react-external-link'
-import {
-  ChipLinkIcon,
-  ProfileSettingsIcon,
-  TableSettingsIcon,
-} from '@/assets/icons'
+import { ProfileSettingsIcon, TableSettingsIcon } from '@/assets/icons'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
@@ -105,12 +100,12 @@ export const SettingsMenu = () => {
       <DropdownMenuContent side="right" align="end" className="min-w-52">
         <ThemeToggle />
         <TableSettingsSubmenu />
-        <DropdownMenuItem asChild>
+        {/* <DropdownMenuItem asChild>
           <ExternalLink href="https://sepolia.etherscan.io">
             <ChipLinkIcon className="size-3" />
             Sepolia explorer
           </ExternalLink>
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
       </DropdownMenuContent>
     </DropdownMenu>
   )

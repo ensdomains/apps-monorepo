@@ -12,7 +12,6 @@ import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { HistoryIcon, ResolverIcon, ShieldIcon } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { CopyButton } from '@/components/CopyButton'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -135,14 +134,6 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
 
       <SidebarContent className="gap-3">
         <div className="px-6 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
-          <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between">
-            <div className="flex items-center gap-1 w-fit bg-garnet-100 dark:bg-garnet-900/30 rounded px-1.5 py-0.5">
-              <span className="text-xs text-garnet-500 font-medium">
-                Contract
-              </span>
-            </div>
-            <CopyButton value={address} />
-          </div>
           <Link
             to="/resolver/$address"
             params={{ address }}

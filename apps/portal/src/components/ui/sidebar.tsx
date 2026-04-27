@@ -3,8 +3,8 @@
 import { Slot } from '@radix-ui/react-slot'
 import { useHotkey } from '@tanstack/react-hotkeys'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { PanelLeftIcon } from 'lucide-react'
 import * as React from 'react'
+import { LeftPanelCloseIcon } from '@/assets/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
@@ -249,10 +249,10 @@ function SidebarTrigger({
     <Button
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
-      variant="ghost"
+      variant="secondary"
       size="icon"
       className={cn(
-        'size-7 text-muted-foreground hover:text-foreground [&>svg]:size-3.5',
+        'size-9 text-muted-foreground hover:text-foreground [&>svg]:size-3.5',
         className,
       )}
       onClick={(event) => {
@@ -261,7 +261,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon />
+      <LeftPanelCloseIcon className="size-4" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )

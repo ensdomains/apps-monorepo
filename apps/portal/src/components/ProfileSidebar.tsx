@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FlameIcon, IdCardIcon } from 'lucide-react'
+import { FlameIcon } from 'lucide-react'
 import {
   CardsStackIcon,
   GraphIcon,
@@ -12,7 +12,6 @@ import {
   TollIcon,
 } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -179,15 +178,6 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
       <SidebarContent className="gap-3">
         {/* Name section */}
         <div className="px-6 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
-          <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <div className="flex items-center justify-center bg-lapis-100 dark:bg-lapis-900/30 rounded-xs size-4 shrink-0">
-                <IdCardIcon className="size-2.5 text-lapis-500" />
-              </div>
-              <span className="text-xs text-lapis-500 font-medium">Name</span>
-            </div>
-            <CopyButton value={name} />
-          </div>
           <Link
             to="/$name"
             params={{ name }}
