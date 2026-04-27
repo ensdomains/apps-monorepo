@@ -274,7 +274,7 @@ export const transactionMachine = setup({
         publicClient: PublicClient
       }): ResultAsync<TransactionReceipt, TransactionTimeoutError> => {
         const confirmations = options?.confirmations || 1
-        const timeout = options?.timeout || 3000
+        const timeout = options?.timeout || 120000
 
         console.log('⏳ [TRANSACTION] Waiting for receipt:', {
           hash,
@@ -294,17 +294,25 @@ export const transactionMachine = setup({
     ),
 
     /**
-     * Check transaction with eth_call fallback
+     * Check transaction with receipt fallback
+     *
+     * Attempts to fetch the transaction receipt to determine if the transaction
+     * has been confirmed. This avoids the false-positive issue with eth_call
+     * simulation, where stateless transactions (e.g. ERC20 approve) simulate
+     * successfully even before being mined — causing dependent transactions to
+     * start prematurely.
      */
     checkWithEthCall: fromResultAsync(
       ({
+        hash,
         request,
         publicClient,
       }: {
+        hash?: Hash
         request?: TransactionRequest
         publicClient: PublicClient
       }): ResultAsync<
-        { wouldSucceed: boolean; result?: Hash },
+        { wouldSucceed: boolean; result?: Hash; receipt?: TransactionReceipt },
         EthCallFallbackError
       > => {
         if (!request) {
@@ -313,6 +321,24 @@ export const transactionMachine = setup({
               {} as TransactionRequest,
               new Error('No request provided'),
             ),
+          )
+        }
+
+        // If we have a hash, check if the transaction has actually been confirmed
+        // on-chain rather than simulating it. This prevents false positives where
+        // a transaction simulates successfully (e.g. ERC20 approve) but hasn't
+        // been mined yet, which would cause dependent transactions to fail.
+        if (hash) {
+          return fromPromise(
+            publicClient
+              .getTransactionReceipt({ hash })
+              .then((receipt) => ({
+                wouldSucceed: receipt.status === 'success',
+                result: hash,
+                receipt,
+              }))
+              .catch(() => ({ wouldSucceed: false as const })),
+            (error) => new EthCallFallbackError(request, error),
           )
         }
 
@@ -729,6 +755,7 @@ export const transactionMachine = setup({
       invoke: {
         src: 'checkWithEthCall',
         input: ({ context }) => ({
+          hash: context.hash,
           request: context.request,
           publicClient: context.publicClient,
         }),
@@ -737,16 +764,18 @@ export const transactionMachine = setup({
             guard: ({ event }) => event.output.wouldSucceed,
             target: 'success',
             actions: [
-              ({ context }) => {
+              assign({
+                receipt: ({ event }) => event.output.receipt,
+              }),
+              ({ context, event }) => {
                 try {
-                  auditTrail.addAuditEntry(
-                    'warning',
-                    'Transaction succeeded via eth_call fallback',
-                    {
-                      hash: context.hash,
-                      request: context.request,
-                    },
-                  )
+                  const message = event.output.receipt
+                    ? 'Transaction confirmed via on-chain receipt (fallback)'
+                    : 'Transaction succeeded via eth_call fallback'
+                  auditTrail.addAuditEntry('warning', message, {
+                    hash: context.hash,
+                    request: context.request,
+                  })
                 } catch (auditError) {
                   console.warn('Audit service error (non-fatal):', auditError)
                 }
