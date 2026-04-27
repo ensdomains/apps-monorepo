@@ -72,7 +72,7 @@ function RouteComponent() {
       <div className="mb-24 flex flex-col gap-8">
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
-            <div className="font-[350] font-sans text-[#232222] text-temp-32px leading-ens-none">
+            <div className="font-[350] text-[#232222] text-temp-32px leading-ens-none">
               <Trans>All Notifications</Trans>
             </div>
             <UnreadCount />

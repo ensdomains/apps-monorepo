@@ -86,12 +86,12 @@ msgstr "{duration, plural, one {# year} other {# years}}"
 msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:305
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:333
 #: src/features/dashboard/components/NameRow.tsx:67
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:311
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:339
 #: src/features/dashboard/components/NameRow.tsx:73
 msgid "{label} avatar placeholder"
 msgstr "{label} avatar placeholder"
@@ -416,6 +416,7 @@ msgid "Bug bounty"
 msgstr "Bug bounty"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:108
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:299
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:94
 msgid "Buy Name"
 msgstr "Buy Name"
@@ -432,13 +433,13 @@ msgstr "Can I send crypto to a .eth name (instead of an address)?"
 msgid "Can you share your order number?"
 msgstr "Can you share your order number?"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:366
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:394
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:329
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:235
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
 msgid "Cancel"
 msgstr "Cancel"
@@ -492,7 +493,7 @@ msgstr "Choose an NFT"
 msgid "Choose how you'd like to pay for your subscription."
 msgstr "Choose how you'd like to pay for your subscription."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:244
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:272
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
@@ -572,12 +573,10 @@ msgstr "Confirm"
 msgid "Confirm NFT Selection"
 msgstr "Confirm NFT Selection"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:208
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:407
 msgid "Confirm Payment"
 msgstr "Confirm Payment"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.tsx:45
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:443
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:459
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx:37
@@ -672,6 +671,11 @@ msgstr "Copy Link"
 #: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx:19
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:156
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:138
+msgid "Could not find resolver for {name}"
+msgstr "Could not find resolver for {name}"
 
 #: src/features/payment/components/add.tsx:44
 msgid "Country"
@@ -998,16 +1002,16 @@ msgstr "Failed to request test tokens"
 msgid "Failed to resend email verification"
 msgstr "Failed to resend email verification"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:160
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:146
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:190
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:172
 msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:100
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
 msgid "Failed to set primary name"
 msgstr "Failed to set primary name"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:337
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:365
 msgid "Failed to set primary name. Please try again."
 msgstr "Failed to set primary name. Please try again."
 
@@ -1049,6 +1053,7 @@ msgid "Finalizing registration"
 msgstr "Finalizing registration"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:172
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:203
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr "for"
@@ -1214,11 +1219,11 @@ msgstr "Loading dashboard..."
 msgid "Loading prices..."
 msgstr "Loading prices..."
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:164
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:247
 msgid "Loading pricing..."
 msgstr "Loading pricing..."
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:157
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:240
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:280
 msgid "Loading your stablecoin balances..."
 msgstr "Loading your stablecoin balances..."
@@ -1377,7 +1382,6 @@ msgstr "Next slide"
 msgid "No changes to save"
 msgstr "No changes to save"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:174
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:307
 msgid "No coins found"
 msgstr "No coins found"
@@ -1390,8 +1394,8 @@ msgstr "No default payment method set."
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:348
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:212
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:376
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:240
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 
@@ -1399,7 +1403,7 @@ msgstr "No ETH address record set. If you proceed, your current wallet address w
 msgid "No more records to add"
 msgstr "No more records to add"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:275
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:303
 msgid "No names found"
 msgstr "No names found"
 
@@ -1424,6 +1428,10 @@ msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY
 #: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
 msgid "No recent searches"
 msgstr "No recent searches"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:254
+msgid "No stablecoins available"
+msgstr "No stablecoins available"
 
 #: src/routes/wallet.tsx:251
 msgid "No wallet connectors available"
@@ -1535,7 +1543,7 @@ msgstr "Pending"
 msgid "Personal Site"
 msgstr "Personal Site"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:145
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:228
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:288
 msgid "Please connect your wallet first"
 msgstr "Please connect your wallet first"
@@ -1611,8 +1619,8 @@ msgstr "Previous slide"
 msgid "Primary Name"
 msgstr "Primary Name"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:175
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:67
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:205
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
 
@@ -1906,8 +1914,6 @@ msgstr "Saving…"
 msgid "Search"
 msgstr "Search"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:123
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:126
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:264
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:267
 msgid "Search coins"
@@ -1965,18 +1971,20 @@ msgstr "See what's new"
 msgid "Select {0}"
 msgstr "Select {0}"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:289
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:317
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:107
-#: src/features/register-v2/workflow/pricing/components/TokenPickerDialog.tsx:44
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:246
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:443
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:459
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx:36
 msgid "Select coin"
 msgstr "Select coin"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:216
+msgid "Select payment"
+msgstr "Select payment"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:481
 msgid "Select payment method"
@@ -1994,8 +2002,8 @@ msgstr "Sending..."
 msgid "Sessions enabled! You can now transact without signing each time."
 msgstr "Sessions enabled! You can now transact without signing each time."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:382
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:243
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:410
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
 msgid "Set as Primary"
 msgstr "Set as Primary"
 
@@ -2011,9 +2019,9 @@ msgstr "Set multiple records: ETH, BTC, email"
 msgid "Set primary name"
 msgstr "Set primary name"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:181
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:209
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:285
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:301
 msgid "Set Primary Name"
 msgstr "Set Primary Name"
 
@@ -2025,15 +2033,15 @@ msgstr "Set reverse record to show your name"
 msgid "Set the content hash and ABI for your name"
 msgstr "Set the content hash and ABI for your name"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:247
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:275
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Set which ENS name displays as your identity across apps and wallets."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:379
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
 msgid "Setting ETH address..."
 msgstr "Setting ETH address..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:239
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:268
 msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
@@ -2041,11 +2049,11 @@ msgstr "Setting ETH address…"
 msgid "Setting up your v2 resolver"
 msgstr "Setting up your v2 resolver"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:381
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
 msgid "Setting..."
 msgstr "Setting..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:241
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:270
 msgid "Setting…"
 msgstr "Setting…"
 
@@ -2183,7 +2191,7 @@ msgstr "Sort favorites by"
 msgid "Sort names by"
 msgstr "Sort names by"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:111
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:279
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
 msgstr "Stables accepted"
@@ -2268,8 +2276,8 @@ msgstr "The backup payment method will be charged if the default payment method 
 msgid "The ENS domain has been successfully renewed."
 msgstr "The ENS domain has been successfully renewed."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:347
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:206
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:375
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:234
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 
@@ -2318,7 +2326,7 @@ msgstr "This page can only verify your email when opened from the link in the ve
 msgid "This signature is free and doesn't cost any gas."
 msgstr "This signature is free and doesn't cost any gas."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:194
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:222
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 
@@ -2381,7 +2389,6 @@ msgstr "Transfer your name to any wallet"
 msgid "Try Again"
 msgstr "Try Again"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:177
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:310
 msgid "Try searching for a different coin or chain"
 msgstr "Try searching for a different coin or chain"
@@ -2636,14 +2643,18 @@ msgstr "Wallet Connected"
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:201
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:153
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:230
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:181
 msgid "Wallet signer not available"
 msgstr "Wallet signer not available"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:96
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
 msgstr "We couldn't confirm that {domainName} is still available. Please try again."
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:115
+msgid "We couldn't confirm that {label}.eth is still available. Please try again."
+msgstr "We couldn't confirm that {label}.eth is still available. Please try again."
 
 #: src/features/notifications/settings/email-verify-step.tsx:68
 msgid "We sent a verification code to your email address."
@@ -2721,7 +2732,7 @@ msgstr "You may miss important alerts if you remove this contact method. Are you
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:148
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:231
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:291
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr "You need to connect a wallet to see your stablecoin balances"
