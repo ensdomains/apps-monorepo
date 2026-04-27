@@ -8,8 +8,8 @@ import { findSearchInput } from '../../../helpers/search-input.js'
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const PARA_EMAIL = process.env.PARA_E2E_EMAIL ?? 'test1@test.getpara.com'
 const PARA_PIN = process.env.PARA_E2E_PIN ?? '123456'
-const DOMAIN_TO_REGISTER =
-  process.env.E2E_DOMAIN ?? `e2e-${Date.now().toString(36)}.eth`
+const DOMAIN_TO_REGISTER = "e2e-test-001"
+// process.env.E2E_DOMAIN ?? `e2e-${Date.now().toString(36)}.eth`
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 const LATE_AUTH_DOMAIN = `e2e-${(Date.now() + 2).toString(36)}.eth`
 
