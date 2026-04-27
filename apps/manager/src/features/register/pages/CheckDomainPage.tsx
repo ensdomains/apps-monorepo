@@ -28,7 +28,7 @@ export const CheckDomainPage = () => {
           <Trans>Claim your</Trans>
         </span>
         <br />
-        <span className="font-serif text-ens-blue-midnight italic">
+        <span className="text-ens-blue-midnight italic">
           <Trans>web3 username</Trans>
         </span>
       </h1>

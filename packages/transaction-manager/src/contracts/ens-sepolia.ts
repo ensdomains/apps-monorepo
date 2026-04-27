@@ -18,6 +18,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Default reverse registrar (sets primary/default ENS name per coin type)
   DefaultReverseRegistrar:
     '0xeb8269fb39290f31c4c29cec548807ca2133abb4' as const,
+  ReverseRegistrar: '0x075703fd8f8ef6b1e8e593dacab2dd702fc28196' as const,
   // Standard Rent Price Oracle
   StandardRentPriceOracle:
     '0x6e5b8a907ed46a15869b9a19f6961781d6af2270' as const,
