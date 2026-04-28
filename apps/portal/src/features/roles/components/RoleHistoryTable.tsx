@@ -152,7 +152,7 @@ export const RoleHistoryTable = ({
     data: allData,
     isLoading,
     error,
-  } = useQuery(getRoleHistoryQueryOptions({ name, label }))
+  } = useQuery(getRoleHistoryQueryOptions({ label }))
 
   // Filter by account if provided
   const data =

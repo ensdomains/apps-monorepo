@@ -18,7 +18,6 @@ class GetRoleHistoryError extends TaggedError('GetRoleHistoryError')<{
 }> {}
 
 type GetRoleHistoryParameters = {
-  readonly name: string
   readonly label?: string
 }
 
@@ -28,7 +27,6 @@ const PAGE_SIZE = 1000
 const MAX_PAGES = 50
 
 const getRoleHistory = ResultFn(async function* ({
-  name: _name,
   label,
 }: GetRoleHistoryParameters) {
   // NOTE: We intentionally do not filter by `domain` in the GraphQL query.
