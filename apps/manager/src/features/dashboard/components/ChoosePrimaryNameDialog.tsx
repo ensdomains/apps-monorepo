@@ -5,12 +5,7 @@ import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
 import { getResolver as ensjsGetResolver } from '@ensdomains/ensjs/public'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import {
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -18,8 +13,8 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { getAddress, namehash } from 'viem'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -38,7 +33,10 @@ import {
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
 import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  type AvatarLookupEntry,
+  namesAvatarsQuery,
+} from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -78,7 +76,7 @@ export const ChoosePrimaryNameDialog = ({
   // Fetch current primary name from reverse resolver
   const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(account.ownerAddress ?? undefined),
-    enabled: !!account.ownerAddress,
+    enabled: open && !!account.ownerAddress,
   })
 
   // Fetch all owned names
@@ -94,7 +92,7 @@ export const ChoosePrimaryNameDialog = ({
     : undefined
 
   const { data: domainsData, isLoading } = useQuery(
-    getDomainsQuery(queryVariables),
+    getDomainsQuery(open ? queryVariables : undefined),
   )
   const allDomains = domainsData?.domains ?? []
 
@@ -114,16 +112,20 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  // Fetch avatars for all names
-  const avatarQueries = useQueries({
-    queries: domains.map((domain) =>
-      parseAvatarQuery(domain.resolver?.avatar ?? undefined),
-    ),
-  })
+  const avatarLookups = useMemo<AvatarLookupEntry[]>(() => {
+    if (!open) return []
+    return domains.flatMap((domain) => {
+      const resolverAddress = domain.resolver?.address as Address | undefined
+      if (!resolverAddress) return []
+      return [{ name: resolveDomainLabel(domain), resolverAddress }]
+    })
+  }, [open, domains])
+
+  const { data: avatarsByName } = useQuery(namesAvatarsQuery(avatarLookups))
 
   const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
-    enabled: !!selectedName,
+    enabled: open && !!selectedName,
   })
   const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
   const needsEthAddressUpdate =
@@ -304,13 +306,10 @@ export const ChoosePrimaryNameDialog = ({
                 </div>
               ))
               .otherwise(({ domains }) =>
-                domains.map((domain, index) => {
+                domains.map((domain) => {
                   const label = resolveDomainLabel(domain)
                   const isSelected = selectedName === label
-                  const avatarUrl =
-                    avatarQueries[index]?.data ??
-                    domain.resolver?.avatar ??
-                    undefined
+                  const avatarUrl = avatarsByName?.[label]
 
                   return (
                     <button
@@ -335,10 +334,9 @@ export const ChoosePrimaryNameDialog = ({
                               src={avatarUrl}
                             />
                             <ImageFallback.Fallback>
-                              <img
-                                alt={t`${label} avatar placeholder`}
-                                className="size-full object-cover"
-                                src={placeholderAvatar}
+                              <PatternAvatar
+                                className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                                name={label}
                               />
                             </ImageFallback.Fallback>
                           </ImageFallback.Root>

@@ -8,7 +8,7 @@ import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { AddressSuggestionCard } from '@/components/molecules/DomainResultCard'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
-import { getAvatarUrl } from '@/features/profile/utils/getAvatarUrl'
+import { useAvatarFromName } from '@/features/profile/service/profileAvatar'
 import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
@@ -54,7 +54,7 @@ export const NameSuggestionItem = ({
   isError: isErrorProp,
   isSupported = true,
 }: NameSuggestionItemProps) => {
-  const avatarUrl = getAvatarUrl(name)
+  const { data: avatarUrl } = useAvatarFromName({ name })
   const isSubname = name.split('.').length > 2
 
   const needsSelfCheck =
