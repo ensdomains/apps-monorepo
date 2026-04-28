@@ -4,6 +4,10 @@ import { useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import {
+  EventsSidebar,
+  type EventsTableData,
+} from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,12 +19,41 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { RoleHistorySidebar } from '@/features/roles/components/RoleHistorySidebar'
 import {
   getRoleHistoryQueryOptions,
   type RoleHistoryEntry,
 } from '@/features/roles/hooks/useRoleHistory'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
+import type { ENSEvent } from '@/utils/history/transformHistoryToEvents'
+
+/**
+ * Map a {@link RoleHistoryEntry} into the generic `EventsTableData` shape
+ * consumed by `EventsSidebar`, so role-history rows reuse the same subgraph
+ * transaction sidebar as the rest of the app.
+ */
+const roleHistoryEntryToTransaction = (
+  entry: RoleHistoryEntry,
+): EventsTableData<ENSEvent> => ({
+  transactionID: entry.transactionHash,
+  blockNumber: entry.blockNumber,
+  timestamp: BigInt(entry.timestamp),
+  from: entry.account,
+  network: { name: 'Sepolia', chainId: sepoliaWithEns.id },
+  events: [
+    {
+      id: `${entry.transactionHash}-eac-roles-changed`,
+      type: 'EACRolesChanged',
+      category: 'domain',
+      details: {
+        resource: entry.resource,
+        account: entry.account,
+        oldRoles: [...entry.oldRoles],
+        newRoles: [...entry.newRoles],
+      },
+    },
+  ],
+})
 
 const RoleDiff = ({ entry }: { readonly entry: RoleHistoryEntry }) => {
   const added = entry.newRoles.filter((r) => !entry.oldRoles.includes(r))
@@ -154,8 +187,11 @@ export const RoleHistoryTable = ({
   }
 
   return (
-    <RoleHistorySidebar
-      entry={selectedEntry}
+    <EventsSidebar
+      transaction={
+        selectedEntry ? roleHistoryEntryToTransaction(selectedEntry) : null
+      }
+      name={name}
       open={sidebarOpen}
       setOpen={setSidebarOpen}
     >
@@ -207,6 +243,6 @@ export const RoleHistoryTable = ({
           </TableBody>
         </Table>
       </div>
-    </RoleHistorySidebar>
+    </EventsSidebar>
   )
 }
