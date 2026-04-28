@@ -15,6 +15,7 @@ export function LoadingMessage({
       icon={<Loader2 size={30} className="animate-spin" strokeWidth={1.5} />}
       title={title}
       description={description}
+      className="bg-transparent"
     />
   )
 }

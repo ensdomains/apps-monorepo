@@ -47,7 +47,6 @@ const NoSubregistryMessage = ({
       canDeploy
         ? {
             label: 'Deploy subregistry',
-            variant: 'secondary',
             href: `/${name}/registry`,
           }
         : undefined
