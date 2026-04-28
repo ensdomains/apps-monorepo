@@ -36,4 +36,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rolldownOptions: {
+      experimental: {
+        lazyBarrel: true, // Reduces compiled modules for barrel exports
+      },
+    },
+  },
 })

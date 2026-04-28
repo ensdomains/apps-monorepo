@@ -48,4 +48,11 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     exclude: ['@ens-apps/l2-primary', '@ens-apps/transaction-manager'],
   },
+  build: {
+    rolldownOptions: {
+      experimental: {
+        lazyBarrel: true, // Reduces compiled modules for barrel exports
+      },
+    },
+  },
 }))
