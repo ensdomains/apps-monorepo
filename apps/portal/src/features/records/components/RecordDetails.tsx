@@ -2,8 +2,6 @@ import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Hash } from 'viem'
-import { zeroAddress } from 'viem'
-import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { CopyableRecord } from '@/components/CopyableRecord'
@@ -14,7 +12,7 @@ import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { ResolverField } from '@/features/resolver/components/ResolverField'
-import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   filterV2EventsByRecord,
   type HistoryEvent,
@@ -82,45 +80,6 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
   }
 }
 
-interface UnderlyingResolverProps {
-  resolverAddress: Address
-  name: string
-}
-
-const UnderlyingResolver = ({
-  resolverAddress,
-  name,
-}: UnderlyingResolverProps) => {
-  const { data, error, isLoading } = useQuery(
-    getUnderlyingAddressQueryOptions({ resolverAddress, name }),
-  )
-
-  if (error) return <div>Error: ${error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
-
-  if (!data || data[0] === zeroAddress) {
-    return (
-      <ResolverField
-        label="Universal Resolver address"
-        value={resolverAddress}
-      />
-    )
-  }
-
-  return (
-    <>
-      <ResolverField
-        label="Universal Resolver address"
-        value={resolverAddress}
-      />
-      <ResolverField
-        label={data[1] ? 'Namechain address' : 'Mainnet address'}
-        value={data[0]}
-      />
-    </>
-  )
-}
-
 interface ResolverViewProps {
   name: string
 }
@@ -132,17 +91,18 @@ const ResolverView = ({ name }: ResolverViewProps) => {
     isLoading,
   } = useEnsResolver({
     name,
+    universalResolverAddress,
   })
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error) return <div>Error: {error.message}</div>
-  if (!resolverAddress) return <div>No data</div>
+  if (!resolverAddress) return <div>No resolver set</div>
 
   return (
     <div className="flex flex-col gap-6 p-6 border border-border rounded-sm">
       <h3 className="text-2xl font-medium">Resolver</h3>
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <UnderlyingResolver {...{ name, resolverAddress }} />
+        <ResolverField label="Resolver address" value={resolverAddress} />
       </div>
     </div>
   )
