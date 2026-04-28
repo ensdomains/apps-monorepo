@@ -234,6 +234,33 @@ test.describe('ENS V1 → V2 Migration', () => {
     console.log(`[migration] ✅ V1 records preserved after migration for ${v1Name}`)
   })
 
+  test('pre-registered V1 name is not available for new registration', async ({
+    page,
+  }) => {
+    const makeV1Name = createMakeV1Name()
+    const v1Name = await makeV1Name({ label: 'migblock' })
+    console.log(`[migration] V1 name pre-registered: ${v1Name}`)
+
+    await mockV1Subgraph(page, [
+      { name: v1Name, ownerAddress: PARA_EOA },
+    ])
+
+    await page.goto(MANAGER_APP_URL)
+    await page.waitForLoadState('networkidle')
+
+    const nameOnly = v1Name.replace(/\.eth$/i, '')
+    const searchInput = await findSearchInput(page)
+    await searchInput.click()
+    await searchInput.fill(nameOnly)
+
+    // The dropdown should show DomainProfileCard ("Registered") not DomainResultCard ("available")
+    await expect(
+      page.getByText('Available').first(),
+    ).not.toBeVisible({ timeout: 5_000 })
+
+    console.log(`[migration] ✅ Pre-registered V1 name correctly blocked for ${v1Name}`)
+  })
+
   test('can edit profile after migration', async ({
     authenticatedPage: page,
   }) => {
