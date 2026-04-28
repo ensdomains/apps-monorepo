@@ -7,7 +7,7 @@ import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
-import { AssuredWorkloadIcon } from '@/assets/icons'
+import { AssuredWorkloadIcon, EditNoteIcon } from '@/assets/icons'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -77,9 +77,9 @@ const EditButtons = ({
   if (!resolverAddress || resolverAddress === zeroAddress) return null
 
   return (
-    <Button variant="secondary" size="sm" asChild>
+    <Button variant="default" className="flex items-center gap-2" asChild>
       <Link to="/$name/change-resolver" params={{ name }}>
-        <EditIcon className="size-4" />
+        <EditNoteIcon className="size-4" />
         Change resolver
       </Link>
     </Button>
@@ -90,7 +90,7 @@ const ResolverBanner = ({
   name,
   docsHref,
 }: {
-  name: 'Permissioned Resolver' | 'ENS Public Resolver'
+  name: 'ENS Permissioned Resolver' | 'ENS Public Resolver'
   docsHref: string
 }) => {
   return (
@@ -104,7 +104,7 @@ const ResolverBanner = ({
             fontSize: 'var(--3xl, 30px)',
           }}
         >
-          ENS {name}
+          {name}
         </span>
         <p className="text-sm text-message-success-text">
           This resolver is an instance of the official{' '}
@@ -215,7 +215,7 @@ const ResolverInfoCard = ({
   return (
     <div className="rounded-sm bg-background overflow-hidden">
       <div className="px-6 py-3">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
           Resolver info
         </span>
       </div>
@@ -265,13 +265,13 @@ const PermissionedResolverView = ({
 }) => (
   <>
     <ResolverBanner
-      name="Permissioned Resolver"
+      name="ENS Permissioned Resolver"
       docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
     />
     <ResolverInfoCard
       name={name}
       resolverAddress={resolverAddress}
-      type="Owned Resolver"
+      type="Permissioned Resolver"
     />
   </>
 )
@@ -339,7 +339,7 @@ const HistorySection = ({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-2xl font-medium">History</h2>
-          <Button variant="secondary" size="sm" asChild>
+          <Button variant="ghost" size="sm" asChild>
             <Link to="/$name/history" params={{ name }}>
               <ClockIcon className="size-4" />
               Full history

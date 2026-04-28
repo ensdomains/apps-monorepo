@@ -1,7 +1,6 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
-import { EditIcon } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
@@ -20,6 +19,7 @@ import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { ProtocolVersion } from '@/utils/types'
+import { EditNoteIcon } from '../../assets/icons'
 import { NotFoundMessage } from '../../components/NotFoundMessage'
 
 const namechainVerifiableFactory = getChainContractAddress({
@@ -55,9 +55,9 @@ const DeploySubregistryButton = ({
 
   if (hasSetSubregistryRole)
     return (
-      <Button variant="secondary" className="flex items-center gap-2" asChild>
+      <Button variant="default" className="flex items-center gap-2" asChild>
         <Link to="/$name/deploy-registry" params={{ name }}>
-          <EditIcon className="size-4" />
+          <EditNoteIcon className="size-4" />
           Deploy registry
         </Link>
       </Button>
