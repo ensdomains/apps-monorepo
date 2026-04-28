@@ -264,7 +264,7 @@ function RouteComponent() {
 
           <Button
             type="submit"
-            variant="secondary"
+            variant="default"
             className="w-fit"
             disabled={
               !userAddress || selectedRoles.length === 0 || mutation.isPending

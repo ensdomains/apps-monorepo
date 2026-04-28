@@ -1,6 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
-import { ClockIcon, EditIcon } from 'lucide-react'
+import { ClockIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
@@ -459,9 +459,9 @@ const SetResolverButton = ({
   if (!hasSetResolverRole) return null
 
   return (
-    <Button variant="secondary" size="sm" asChild>
+    <Button variant="default" className="flex items-center gap-2" asChild>
       <Link to="/$name/change-resolver" params={{ name }}>
-        <EditIcon className="size-4" />
+        <EditNoteIcon className="size-4" />
         Set resolver
       </Link>
     </Button>

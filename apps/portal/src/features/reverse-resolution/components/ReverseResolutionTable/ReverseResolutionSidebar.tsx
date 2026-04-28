@@ -440,7 +440,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   />
                   <Button
                     type="submit"
-                    variant="secondary"
+                    variant="default"
                     disabled={
                       !isConnected ||
                       !nameInput ||

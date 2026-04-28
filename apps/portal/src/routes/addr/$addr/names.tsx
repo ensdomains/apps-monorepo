@@ -337,7 +337,7 @@ function RouteComponent() {
               {rowCount} selected
             </div>
             <Button
-              variant="secondary"
+              variant="default"
               size="sm"
               disabled={
                 rowCount < 1 || selectedNames.every((n) => !isExtendable2LD(n))

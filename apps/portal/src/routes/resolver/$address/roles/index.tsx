@@ -64,11 +64,7 @@ function RouteComponent() {
           Roles
         </h1>
         {accountAddress && canManageRoles && (
-          <Button
-            variant="secondary"
-            className="flex items-center gap-2"
-            asChild
-          >
+          <Button variant="default" className="flex items-center gap-2" asChild>
             <Link to="/resolver/$address/roles/add-user" params={{ address }}>
               <Plus className="size-4" />
               Add user

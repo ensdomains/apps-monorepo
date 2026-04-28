@@ -201,7 +201,7 @@ export const RolesSidebar = <
                   </div>
                   {canManageRoles && selectedAccount && (
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!isWalletConnected}
                       onClick={() => setConfirmOpen(true)}
                     >
@@ -294,7 +294,7 @@ export const RolesSidebar = <
                   {/* Save Changes Button */}
                   <div className="flex justify-end px-6 py-4 border-t border-border bg-card">
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!hasChanges || !isWalletConnected}
                       onClick={handleSaveChanges}
                     >

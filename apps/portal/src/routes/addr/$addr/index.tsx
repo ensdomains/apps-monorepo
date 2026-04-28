@@ -106,7 +106,7 @@ function RouteComponent() {
           {addr}
         </h1>
         {isConnected && (
-          <Button variant="secondary" onClick={() => disconnect()}>
+          <Button variant="default" onClick={() => disconnect()}>
             Disconnect
           </Button>
         )}

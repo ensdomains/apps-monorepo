@@ -34,7 +34,7 @@ export const MobileCardHeader = <TEvent extends BaseEvent = BaseEvent>({
       )}
       {hasSidebar && (
         <Button
-          variant="secondary"
+          variant="default"
           size="sm"
           onClick={(e) => {
             e.stopPropagation()
