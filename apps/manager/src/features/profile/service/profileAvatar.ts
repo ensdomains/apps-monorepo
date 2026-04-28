@@ -5,7 +5,6 @@ import {
   publicResolverTextSnippet,
   universalResolverResolveSnippet,
 } from '@ensdomains/ensjs/contracts'
-import { getRecords } from '@ensdomains/ensjs/public'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import {
@@ -21,6 +20,8 @@ import { multicall } from 'viem/actions'
 import { packetToBytes, parseAvatarRecord } from 'viem/ens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
+const IPFS_GATEWAY = 'https://ipfs.euc.li'
+
 class ParseError extends TaggedError('ParseError')<{
   cause: unknown
 }> {}
@@ -28,6 +29,27 @@ class ParseError extends TaggedError('ParseError')<{
 class GetAvatarError extends TaggedError('GetAvatarError')<{
   cause: unknown
 }> {}
+
+const buildGatewayUrls = (overrides?: AssetGatewayUrls): AssetGatewayUrls => ({
+  ipfs: IPFS_GATEWAY,
+  ...overrides,
+})
+
+const safeParseAvatarUrl = async (
+  client: Parameters<typeof parseAvatarRecord>[0],
+  record: string | undefined,
+  gatewayUrls?: AssetGatewayUrls,
+): Promise<string | undefined> => {
+  if (!record) return undefined
+  try {
+    return await parseAvatarRecord(client, {
+      record,
+      gatewayUrls: buildGatewayUrls(gatewayUrls),
+    })
+  } catch {
+    return undefined
+  }
+}
 
 export const parseAvatar = ResultFn(async function* (
   record: string,
@@ -38,10 +60,7 @@ export const parseAvatar = ResultFn(async function* (
   const url = yield* await fromPromise(
     parseAvatarRecord(client, {
       record,
-      gatewayUrls: {
-        ipfs: 'https://ipfs.euc.li',
-        ...gatewayUrls,
-      },
+      gatewayUrls: buildGatewayUrls(gatewayUrls),
     }),
     (e) => new ParseError({ cause: e }),
   )
@@ -55,53 +74,7 @@ export const parseAvatarQuery = (
 ) =>
   resultQueryOptions({
     queryKey: qk('profile', 'parse_avatar', { record, gatewayUrls }),
-    queryFn: record
-      ? ({ queryKey: [{ record, gatewayUrls }] }) =>
-          // biome-ignore lint/style/noNonNullAssertion: Null assertion is covered by the skipToken
-          parseAvatar(record!, gatewayUrls)
-      : skipToken,
-  })
-
-export const getNameAvatar = ResultFn(async function* (
-  name: string,
-  gatewayUrls?: AssetGatewayUrls,
-) {
-  const client = yield* safeGetClient()
-
-  const records = yield* fromPromise(
-    getRecords(client, {
-      name,
-      texts: ['avatar'],
-      contentHash: false,
-      abi: false,
-    }),
-    (e) => new GetAvatarError({ cause: e }),
-  )
-
-  const record = records.texts.find((t) => t.key === 'avatar')?.value
-  if (!record) return ok(undefined)
-
-  const url = yield* await fromPromise(
-    parseAvatarRecord(client, {
-      record,
-      gatewayUrls: {
-        ipfs: 'https://ipfs.euc.li',
-        ...gatewayUrls,
-      },
-    }),
-    (e) => new ParseError({ cause: e }),
-  )
-
-  return ok(url)
-})
-
-export const nameAvatarQuery = (
-  name: string | undefined,
-  gatewayUrls?: AssetGatewayUrls,
-) =>
-  resultQueryOptions({
-    queryKey: qk('profile', 'name_avatar', { name, gatewayUrls }),
-    queryFn: name ? () => getNameAvatar(name, gatewayUrls) : skipToken,
+    queryFn: record ? () => parseAvatar(record, gatewayUrls) : skipToken,
   })
 
 export type AvatarLookupEntry = {
@@ -139,16 +112,8 @@ export const getNamesAvatars = ResultFn(async function* (
       const result = records[index]
       const record =
         result && result.status === 'success' ? (result.result as string) : ''
-      if (!record) return [name, undefined] as const
-      try {
-        const url = await parseAvatarRecord(client, {
-          record,
-          gatewayUrls: { ipfs: 'https://ipfs.euc.li', ...gatewayUrls },
-        })
-        return [name, url] as const
-      } catch {
-        return [name, undefined] as const
-      }
+      const url = await safeParseAvatarUrl(client, record, gatewayUrls)
+      return [name, url] as const
     }),
   )
 
@@ -214,21 +179,18 @@ export const getNamesAvatarsByName = ResultFn(async function* (
       }
       const [encoded] = result.result as readonly [Hex, Address]
       if (!encoded || encoded === '0x') return [name, undefined] as const
+      let record: string
       try {
-        const record = decodeFunctionResult({
+        record = decodeFunctionResult({
           abi: publicResolverTextSnippet,
           functionName: 'text',
           data: encoded,
         }) as string
-        if (!record) return [name, undefined] as const
-        const url = await parseAvatarRecord(client, {
-          record,
-          gatewayUrls: { ipfs: 'https://ipfs.euc.li', ...gatewayUrls },
-        })
-        return [name, url] as const
       } catch {
         return [name, undefined] as const
       }
+      const url = await safeParseAvatarUrl(client, record, gatewayUrls)
+      return [name, url] as const
     }),
   )
 
@@ -251,6 +213,23 @@ export const namesAvatarsByNameQuery = (
         : skipToken,
   })
 }
+
+export const getNameAvatar = ResultFn(async function* (
+  name: string,
+  gatewayUrls?: AssetGatewayUrls,
+) {
+  const map = yield* getNamesAvatarsByName([name], gatewayUrls)
+  return ok(map[name])
+})
+
+export const nameAvatarQuery = (
+  name: string | undefined,
+  gatewayUrls?: AssetGatewayUrls,
+) =>
+  resultQueryOptions({
+    queryKey: qk('profile', 'name_avatar', { name, gatewayUrls }),
+    queryFn: name ? () => getNameAvatar(name, gatewayUrls) : skipToken,
+  })
 
 export const useAvatarFromName = ({
   name,
