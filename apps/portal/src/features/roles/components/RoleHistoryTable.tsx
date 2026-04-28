@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, PanelRightOpen } from 'lucide-react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -13,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { RoleHistorySidebar } from '@/features/roles/components/RoleHistorySidebar'
 import {
   getRoleHistoryQueryOptions,
   type RoleHistoryEntry,
@@ -42,6 +45,62 @@ const RoleDiff = ({ entry }: { readonly entry: RoleHistoryEntry }) => {
   )
 }
 
+const RoleCountChange = ({ entry }: { readonly entry: RoleHistoryEntry }) => (
+  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <span>{entry.oldRoles.length} roles</span>
+    <ArrowRight className="size-3" />
+    <span>{entry.newRoles.length} roles</span>
+  </div>
+)
+
+const MoreButton = ({ onClick }: { readonly onClick: () => void }) => (
+  <Button
+    variant="secondary"
+    size="sm"
+    onClick={(e) => {
+      e.stopPropagation()
+      onClick()
+    }}
+  >
+    <PanelRightOpen className="h-4 w-4" />
+    <span className="text-sm font-medium">More</span>
+  </Button>
+)
+
+const RoleHistoryMobileCard = ({
+  entry,
+  onMoreClick,
+}: {
+  readonly entry: RoleHistoryEntry
+  readonly onMoreClick: () => void
+}) => (
+  <div className="flex flex-col gap-2 px-6 py-4 bg-card border-b border-border">
+    <div className="flex justify-end">
+      <MoreButton onClick={onMoreClick} />
+    </div>
+
+    <div className="text-sm font-medium">Date</div>
+    <div className="text-base text-muted-foreground">
+      {formatTimestamp(BigInt(entry.timestamp))}
+    </div>
+
+    <div className="text-sm font-medium">Account</div>
+    <div className="text-base">
+      <AddressDisplay address={entry.account} />
+    </div>
+
+    <div className="text-sm font-medium">Changes</div>
+    <div className="text-base">
+      <RoleDiff entry={entry} />
+    </div>
+
+    <div className="text-sm font-medium">Roles</div>
+    <div className="text-base">
+      <RoleCountChange entry={entry} />
+    </div>
+  </div>
+)
+
 export const RoleHistoryTable = ({
   name,
   label,
@@ -51,6 +110,11 @@ export const RoleHistoryTable = ({
   readonly label?: string
   readonly account?: Address
 }) => {
+  const [selectedEntry, setSelectedEntry] = useState<RoleHistoryEntry | null>(
+    null,
+  )
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   const {
     data: allData,
     isLoading,
@@ -64,6 +128,11 @@ export const RoleHistoryTable = ({
           (entry) => entry.account.toLowerCase() === account.toLowerCase(),
         )
       : allData
+
+  const handleMoreClick = (entry: RoleHistoryEntry) => {
+    setSelectedEntry(entry)
+    setSidebarOpen(true)
+  }
 
   if (isLoading) return <LoadingSpinner title="Loading role history" />
 
@@ -85,39 +154,59 @@ export const RoleHistoryTable = ({
   }
 
   return (
-    <div className="border rounded-sm overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Account</TableHead>
-            <TableHead>Changes</TableHead>
-            <TableHead>Roles</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((entry) => (
-            <TableRow key={`${entry.transactionHash}-${entry.account}`}>
-              <TableCell className="px-4 sm:px-6 py-3 text-sm text-muted-foreground">
-                {formatTimestamp(BigInt(entry.timestamp))}
-              </TableCell>
-              <TableCell className="px-4 sm:px-6 py-3">
-                <AddressDisplay address={entry.account} />
-              </TableCell>
-              <TableCell className="px-4 sm:px-6 py-3">
-                <RoleDiff entry={entry} />
-              </TableCell>
-              <TableCell className="px-4 sm:px-6 py-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{entry.oldRoles.length} roles</span>
-                  <ArrowRight className="size-3" />
-                  <span>{entry.newRoles.length} roles</span>
-                </div>
-              </TableCell>
+    <RoleHistorySidebar
+      entry={selectedEntry}
+      open={sidebarOpen}
+      setOpen={setSidebarOpen}
+    >
+      {/* Mobile view - card layout */}
+      <div className="md:hidden border rounded-sm overflow-hidden">
+        {data.map((entry) => (
+          <RoleHistoryMobileCard
+            key={`${entry.transactionHash}-${entry.account}`}
+            entry={entry}
+            onMoreClick={() => handleMoreClick(entry)}
+          />
+        ))}
+      </div>
+
+      {/* Desktop view - table layout */}
+      <div className="hidden md:block border rounded-sm overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Account</TableHead>
+              <TableHead>Changes</TableHead>
+              <TableHead>Roles</TableHead>
+              <TableHead />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {data.map((entry) => (
+              <TableRow key={`${entry.transactionHash}-${entry.account}`}>
+                <TableCell className="px-4 sm:px-6 py-3 text-sm text-muted-foreground">
+                  {formatTimestamp(BigInt(entry.timestamp))}
+                </TableCell>
+                <TableCell className="px-4 sm:px-6 py-3">
+                  <AddressDisplay address={entry.account} />
+                </TableCell>
+                <TableCell className="px-4 sm:px-6 py-3">
+                  <RoleDiff entry={entry} />
+                </TableCell>
+                <TableCell className="px-4 sm:px-6 py-3">
+                  <RoleCountChange entry={entry} />
+                </TableCell>
+                <TableCell className="px-4 sm:px-6 py-3">
+                  <div className="flex justify-end">
+                    <MoreButton onClick={() => handleMoreClick(entry)} />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </RoleHistorySidebar>
   )
 }
