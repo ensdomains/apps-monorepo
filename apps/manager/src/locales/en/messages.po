@@ -724,11 +724,11 @@ msgstr "CVV"
 msgid "DAO Forum"
 msgstr "DAO Forum"
 
-#: src/features/dashboard/components/FavoritesList.tsx:180
+#: src/features/dashboard/components/FavoritesList.tsx:173
 msgid "Date added (Newest)"
 msgstr "Date added (Newest)"
 
-#: src/features/dashboard/components/FavoritesList.tsx:177
+#: src/features/dashboard/components/FavoritesList.tsx:170
 msgid "Date added (Oldest)"
 msgstr "Date added (Oldest)"
 
@@ -1275,18 +1275,18 @@ msgstr "Multi-year Discount ({discountPercentage}%)"
 msgid "My Names"
 msgstr "My Names"
 
-#: src/features/dashboard/components/FavoritesList.tsx:203
+#: src/features/dashboard/components/FavoritesList.tsx:196
 #: src/features/dashboard/components/MyNamesList.tsx:236
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Name"
 
-#: src/features/dashboard/components/FavoritesList.tsx:171
+#: src/features/dashboard/components/FavoritesList.tsx:164
 #: src/features/dashboard/components/MyNamesList.tsx:204
 msgid "Name (A-Z)"
 msgstr "Name (A-Z)"
 
-#: src/features/dashboard/components/FavoritesList.tsx:174
+#: src/features/dashboard/components/FavoritesList.tsx:167
 #: src/features/dashboard/components/MyNamesList.tsx:207
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
@@ -1337,7 +1337,7 @@ msgstr "New value:"
 msgid "Next card"
 msgstr "Next card"
 
-#: src/features/dashboard/components/FavoritesList.tsx:297
+#: src/features/dashboard/components/FavoritesList.tsx:290
 #: src/features/dashboard/components/MyNamesList.tsx:389
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
@@ -1380,8 +1380,8 @@ msgstr "No names found"
 msgid "No names match your search"
 msgstr "No names match your search"
 
-#: src/features/dashboard/components/FavoritesList.tsx:234
-#: src/features/dashboard/components/FavoritesList.tsx:245
+#: src/features/dashboard/components/FavoritesList.tsx:227
+#: src/features/dashboard/components/FavoritesList.tsx:238
 #: src/features/dashboard/components/MyNamesList.tsx:286
 msgid "No names to display"
 msgstr "No names to display"
@@ -1574,7 +1574,7 @@ msgstr "Preview of your image"
 msgid "Previous card"
 msgstr "Previous card"
 
-#: src/features/dashboard/components/FavoritesList.tsx:288
+#: src/features/dashboard/components/FavoritesList.tsx:281
 #: src/features/dashboard/components/MyNamesList.tsx:380
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
@@ -2020,7 +2020,7 @@ msgstr "Share"
 msgid "Short Description"
 msgstr "Short Description"
 
-#: src/features/dashboard/components/FavoritesList.tsx:307
+#: src/features/dashboard/components/FavoritesList.tsx:300
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
 
@@ -2105,7 +2105,7 @@ msgstr "Smart sessions are required to use this app."
 msgid "Social Links"
 msgstr "Social Links"
 
-#: src/features/dashboard/components/FavoritesList.tsx:148
+#: src/features/dashboard/components/FavoritesList.tsx:141
 #: src/features/dashboard/components/MyNamesList.tsx:192
 msgid "Sort by"
 msgstr "Sort by"
@@ -2122,22 +2122,22 @@ msgstr "Sort by expiry, currently descending"
 msgid "Sort by expiry, currently unsorted"
 msgstr "Sort by expiry, currently unsorted"
 
-#: src/features/dashboard/components/FavoritesList.tsx:192
+#: src/features/dashboard/components/FavoritesList.tsx:185
 #: src/features/dashboard/components/MyNamesList.tsx:225
 msgid "Sort by name, currently ascending"
 msgstr "Sort by name, currently ascending"
 
-#: src/features/dashboard/components/FavoritesList.tsx:193
+#: src/features/dashboard/components/FavoritesList.tsx:186
 #: src/features/dashboard/components/MyNamesList.tsx:226
 msgid "Sort by name, currently descending"
 msgstr "Sort by name, currently descending"
 
-#: src/features/dashboard/components/FavoritesList.tsx:194
+#: src/features/dashboard/components/FavoritesList.tsx:187
 #: src/features/dashboard/components/MyNamesList.tsx:227
 msgid "Sort by name, currently unsorted"
 msgstr "Sort by name, currently unsorted"
 
-#: src/features/dashboard/components/FavoritesList.tsx:151
+#: src/features/dashboard/components/FavoritesList.tsx:144
 msgid "Sort favorites by"
 msgstr "Sort favorites by"
 

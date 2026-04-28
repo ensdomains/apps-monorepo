@@ -729,11 +729,11 @@ msgstr ""
 msgid "DAO Forum"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:180
+#: src/features/dashboard/components/FavoritesList.tsx:173
 msgid "Date added (Newest)"
 msgstr "Datum tillagt (nyast)"
 
-#: src/features/dashboard/components/FavoritesList.tsx:177
+#: src/features/dashboard/components/FavoritesList.tsx:170
 msgid "Date added (Oldest)"
 msgstr "Datum tillagt (äldst)"
 
@@ -1280,18 +1280,18 @@ msgstr ""
 msgid "My Names"
 msgstr "Mina namn"
 
-#: src/features/dashboard/components/FavoritesList.tsx:203
+#: src/features/dashboard/components/FavoritesList.tsx:196
 #: src/features/dashboard/components/MyNamesList.tsx:236
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
 
-#: src/features/dashboard/components/FavoritesList.tsx:171
+#: src/features/dashboard/components/FavoritesList.tsx:164
 #: src/features/dashboard/components/MyNamesList.tsx:204
 msgid "Name (A-Z)"
 msgstr "Namn (A-Ö)"
 
-#: src/features/dashboard/components/FavoritesList.tsx:174
+#: src/features/dashboard/components/FavoritesList.tsx:167
 #: src/features/dashboard/components/MyNamesList.tsx:207
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
@@ -1342,7 +1342,7 @@ msgstr ""
 msgid "Next card"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:297
+#: src/features/dashboard/components/FavoritesList.tsx:290
 #: src/features/dashboard/components/MyNamesList.tsx:389
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
@@ -1385,8 +1385,8 @@ msgstr "Inga namn hittades"
 msgid "No names match your search"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:234
-#: src/features/dashboard/components/FavoritesList.tsx:245
+#: src/features/dashboard/components/FavoritesList.tsx:227
+#: src/features/dashboard/components/FavoritesList.tsx:238
 #: src/features/dashboard/components/MyNamesList.tsx:286
 msgid "No names to display"
 msgstr "Inga namn att visa"
@@ -1579,7 +1579,7 @@ msgstr ""
 msgid "Previous card"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:288
+#: src/features/dashboard/components/FavoritesList.tsx:281
 #: src/features/dashboard/components/MyNamesList.tsx:380
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
@@ -2025,7 +2025,7 @@ msgstr ""
 msgid "Short Description"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:307
+#: src/features/dashboard/components/FavoritesList.tsx:300
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
@@ -2110,7 +2110,7 @@ msgstr ""
 msgid "Social Links"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:148
+#: src/features/dashboard/components/FavoritesList.tsx:141
 #: src/features/dashboard/components/MyNamesList.tsx:192
 msgid "Sort by"
 msgstr "Sortera efter"
@@ -2127,22 +2127,22 @@ msgstr ""
 msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:192
+#: src/features/dashboard/components/FavoritesList.tsx:185
 #: src/features/dashboard/components/MyNamesList.tsx:225
 msgid "Sort by name, currently ascending"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:193
+#: src/features/dashboard/components/FavoritesList.tsx:186
 #: src/features/dashboard/components/MyNamesList.tsx:226
 msgid "Sort by name, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:194
+#: src/features/dashboard/components/FavoritesList.tsx:187
 #: src/features/dashboard/components/MyNamesList.tsx:227
 msgid "Sort by name, currently unsorted"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:151
+#: src/features/dashboard/components/FavoritesList.tsx:144
 msgid "Sort favorites by"
 msgstr "Sortera favoriter efter"
 
