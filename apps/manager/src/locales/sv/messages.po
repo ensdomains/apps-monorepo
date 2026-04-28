@@ -81,7 +81,7 @@ msgstr ""
 msgid "{durationYears} years"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:336
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:332
 #: src/features/dashboard/components/NameRow.tsx:67
 msgid "{label} avatar"
 msgstr ""
@@ -326,9 +326,9 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:207
 #: src/features/notifications/settings/email-verify-step.tsx:125
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:548
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:567
 #: src/features/register-v2/workflow/pricing/PricingStep.tsx:22
 #: src/features/renew/workflow/pricing/PricingStep.tsx:20
 msgid "Back"
@@ -419,12 +419,12 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:396
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:392
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:329
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
 msgid "Cancel"
@@ -471,7 +471,7 @@ msgstr ""
 msgid "Choose a wallet to connect to the application"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:346
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:365
 msgid "Choose an NFT"
 msgstr ""
 
@@ -479,7 +479,7 @@ msgstr ""
 msgid "Choose how you'd like to pay for your subscription."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:278
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:274
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
@@ -555,7 +555,7 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:396
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:415
 msgid "Confirm NFT Selection"
 msgstr ""
 
@@ -641,7 +641,7 @@ msgstr ""
 msgid "Continue to Settings"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:140
 msgid "Copied"
 msgstr ""
 
@@ -649,7 +649,7 @@ msgstr ""
 msgid "Copied!"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:140
 msgid "Copy Link"
 msgstr ""
 
@@ -658,7 +658,7 @@ msgstr ""
 msgid "Copy to clipboard"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:162
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:158
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:138
 msgid "Could not find resolver for {name}"
 msgstr ""
@@ -689,19 +689,19 @@ msgstr ""
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:435
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
 msgid "Crop Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:431
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:450
 msgid "Crop your image to fit the avatar dimensions."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:451
 msgid "Crop your image to fit the header dimensions."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:447
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:466
 msgid "Cropping functionality coming soon"
 msgstr ""
 
@@ -866,11 +866,11 @@ msgstr ""
 msgid "Enter custom duration"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:487
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:506
 msgid "Enter Image URL"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:492
 msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 msgstr ""
 
@@ -933,7 +933,7 @@ msgstr "Utgångsdatum (tidigast)"
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
-#: src/features/profile/components/sections/HeaderSection.tsx:45
+#: src/features/profile/components/sections/HeaderSection.tsx:44
 #: src/features/profile/components/view/ViewHeaderSection.tsx:69
 msgid "Extend Name"
 msgstr ""
@@ -984,7 +984,7 @@ msgstr ""
 msgid "Failed to resend email verification"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:196
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:192
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:172
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
@@ -993,7 +993,7 @@ msgstr "Kunde inte ange ETH-adresspost"
 msgid "Failed to set primary name"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:367
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
 msgid "Failed to set primary name. Please try again."
 msgstr "Kunde inte ange primärt namn. Försök igen."
 
@@ -1162,7 +1162,7 @@ msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje
 msgid "Language"
 msgstr "Språk"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:482
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:501
 msgid "Learn more"
 msgstr ""
 
@@ -1170,8 +1170,8 @@ msgstr ""
 msgid "Link"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:71
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:81
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:72
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:82
 msgid "Link copied to clipboard"
 msgstr ""
 
@@ -1368,7 +1368,7 @@ msgstr ""
 msgid "No eligible names found for this wallet"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:378
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:374
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:240
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
@@ -1377,7 +1377,7 @@ msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande
 msgid "No more records to add"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:309
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:305
 msgid "No names found"
 msgstr "Inga namn hittades"
 
@@ -1566,12 +1566,12 @@ msgstr ""
 msgid "Preparing..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:510
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:521
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:529
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:540
 msgid "Preview Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:541
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:560
 msgid "Preview of your image"
 msgstr ""
 
@@ -1593,7 +1593,7 @@ msgstr ""
 msgid "Primary Name"
 msgstr "Primärt namn"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:211
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:207
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
@@ -1709,7 +1709,7 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/email.tsx:214
 #: src/features/notifications/settings/contact-methods/email.tsx:250
 #: src/features/notifications/settings/contact-methods/telegram.tsx:190
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:335
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:354
 msgid "Remove"
 msgstr ""
 
@@ -1909,11 +1909,11 @@ msgstr ""
 msgid "Search notifications"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:355
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:374
 msgid "Search your NFTs"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:360
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:379
 msgid "Search your NFTs..."
 msgstr ""
 
@@ -1930,7 +1930,7 @@ msgstr ""
 msgid "Select {0}"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:320
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:316
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
@@ -1961,7 +1961,7 @@ msgstr ""
 msgid "Sessions enabled! You can now transact without signing each time."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:412
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:408
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
 msgid "Set as Primary"
 msgstr "Ange som primärt"
@@ -1992,11 +1992,11 @@ msgstr ""
 msgid "Set the content hash and ABI for your name"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:281
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:277
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:405
 msgid "Setting ETH address..."
 msgstr "Anger ETH-adress..."
 
@@ -2008,7 +2008,7 @@ msgstr ""
 msgid "Setting up your v2 resolver"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:411
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
 msgid "Setting..."
 msgstr "Anger..."
 
@@ -2016,8 +2016,8 @@ msgstr "Anger..."
 msgid "Setting…"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:92
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:123
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:93
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:132
 msgid "Share"
 msgstr ""
 
@@ -2235,7 +2235,7 @@ msgstr ""
 msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:377
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:373
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:234
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
@@ -2391,7 +2391,7 @@ msgstr ""
 msgid "Upgrading your names..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:460
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:479
 msgid "Upload & Use Image"
 msgstr ""
 
@@ -2399,7 +2399,7 @@ msgstr ""
 msgid "Upload or drag & drop"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:458
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:477
 msgid "Uploading…"
 msgstr ""
 
@@ -2411,11 +2411,11 @@ msgstr ""
 msgid "Use Different Email"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:551
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:570
 msgid "Use This Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:416
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:435
 msgid "Use This NFT"
 msgstr ""
 
@@ -2602,7 +2602,7 @@ msgstr ""
 msgid "Wallet funded successfully"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:236
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:232
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:181
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"

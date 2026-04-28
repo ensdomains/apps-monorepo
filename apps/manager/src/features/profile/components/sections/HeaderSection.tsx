@@ -1,6 +1,5 @@
 import { Trans } from '@lingui/react/macro'
 import type { Address } from 'viem'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileHeaderInfo'
@@ -68,7 +67,7 @@ export const HeaderSection = withForm({
               {(field) => (
                 <ImageSelectionDialog
                   currentImage={field.state.value}
-                  defaultImage={placeholderAvatar}
+                  defaultImage=""
                   description="Choose an avatar for your profile"
                   name={name}
                   onImageChange={(url) => field.handleChange(url)}

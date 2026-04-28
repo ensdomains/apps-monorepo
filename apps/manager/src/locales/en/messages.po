@@ -76,7 +76,7 @@ msgstr "{duration, plural, one {# year} other {# years}}"
 msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:336
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:332
 #: src/features/dashboard/components/NameRow.tsx:67
 msgid "{label} avatar"
 msgstr "{label} avatar"
@@ -321,9 +321,9 @@ msgstr "Available Wallets"
 
 #: src/features/migration/pages/MigrationPage.tsx:207
 #: src/features/notifications/settings/email-verify-step.tsx:125
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:548
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:567
 #: src/features/register-v2/workflow/pricing/PricingStep.tsx:22
 #: src/features/renew/workflow/pricing/PricingStep.tsx:20
 msgid "Back"
@@ -414,12 +414,12 @@ msgstr "Can I send crypto to a .eth name (instead of an address)?"
 msgid "Can you share your order number?"
 msgstr "Can you share your order number?"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:396
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:392
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:329
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
 msgid "Cancel"
@@ -466,7 +466,7 @@ msgstr "Choose a color for your profile"
 msgid "Choose a wallet to connect to the application"
 msgstr "Choose a wallet to connect to the application"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:346
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:365
 msgid "Choose an NFT"
 msgstr "Choose an NFT"
 
@@ -474,7 +474,7 @@ msgstr "Choose an NFT"
 msgid "Choose how you'd like to pay for your subscription."
 msgstr "Choose how you'd like to pay for your subscription."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:278
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:274
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
@@ -550,7 +550,7 @@ msgstr "Complete your profile"
 msgid "Confirm"
 msgstr "Confirm"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:396
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:415
 msgid "Confirm NFT Selection"
 msgstr "Confirm NFT Selection"
 
@@ -636,7 +636,7 @@ msgstr "Continue to Home"
 msgid "Continue to Settings"
 msgstr "Continue to Settings"
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:140
 msgid "Copied"
 msgstr "Copied"
 
@@ -644,7 +644,7 @@ msgstr "Copied"
 msgid "Copied!"
 msgstr "Copied!"
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:131
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:140
 msgid "Copy Link"
 msgstr "Copy Link"
 
@@ -653,7 +653,7 @@ msgstr "Copy Link"
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:162
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:158
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:138
 msgid "Could not find resolver for {name}"
 msgstr "Could not find resolver for {name}"
@@ -684,19 +684,19 @@ msgstr "Credit Card Payment"
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:435
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
 msgid "Crop Image"
 msgstr "Crop Image"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:431
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:450
 msgid "Crop your image to fit the avatar dimensions."
 msgstr "Crop your image to fit the avatar dimensions."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:451
 msgid "Crop your image to fit the header dimensions."
 msgstr "Crop your image to fit the header dimensions."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:447
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:466
 msgid "Cropping functionality coming soon"
 msgstr "Cropping functionality coming soon"
 
@@ -861,11 +861,11 @@ msgstr "Enter 6-digit code"
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:487
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:506
 msgid "Enter Image URL"
 msgstr "Enter Image URL"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:492
 msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 msgstr "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 
@@ -928,7 +928,7 @@ msgstr "Expiry date (Earliest)"
 msgid "Expiry date (Latest)"
 msgstr "Expiry date (Latest)"
 
-#: src/features/profile/components/sections/HeaderSection.tsx:45
+#: src/features/profile/components/sections/HeaderSection.tsx:44
 #: src/features/profile/components/view/ViewHeaderSection.tsx:69
 msgid "Extend Name"
 msgstr "Extend Name"
@@ -979,7 +979,7 @@ msgstr "Failed to request test tokens"
 msgid "Failed to resend email verification"
 msgstr "Failed to resend email verification"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:196
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:192
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:172
 msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
@@ -988,7 +988,7 @@ msgstr "Failed to set ETH address record"
 msgid "Failed to set primary name"
 msgstr "Failed to set primary name"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:367
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
 msgid "Failed to set primary name. Please try again."
 msgstr "Failed to set primary name. Please try again."
 
@@ -1157,7 +1157,7 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 msgid "Language"
 msgstr "Language"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:482
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:501
 msgid "Learn more"
 msgstr "Learn more"
 
@@ -1165,8 +1165,8 @@ msgstr "Learn more"
 msgid "Link"
 msgstr "Link"
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:71
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:81
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:72
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:82
 msgid "Link copied to clipboard"
 msgstr "Link copied to clipboard"
 
@@ -1363,7 +1363,7 @@ msgstr "No default payment method set."
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:378
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:374
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:240
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
@@ -1372,7 +1372,7 @@ msgstr "No ETH address record set. If you proceed, your current wallet address w
 msgid "No more records to add"
 msgstr "No more records to add"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:309
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:305
 msgid "No names found"
 msgstr "No names found"
 
@@ -1561,12 +1561,12 @@ msgstr "Preparing the commitment"
 msgid "Preparing..."
 msgstr "Preparing..."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:510
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:521
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:529
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:540
 msgid "Preview Image"
 msgstr "Preview Image"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:541
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:560
 msgid "Preview of your image"
 msgstr "Preview of your image"
 
@@ -1588,7 +1588,7 @@ msgstr "Previous slide"
 msgid "Primary Name"
 msgstr "Primary Name"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:211
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:207
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
@@ -1704,7 +1704,7 @@ msgstr "Registration successful! You'll receive a confirmation shortly."
 #: src/features/notifications/settings/contact-methods/email.tsx:214
 #: src/features/notifications/settings/contact-methods/email.tsx:250
 #: src/features/notifications/settings/contact-methods/telegram.tsx:190
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:335
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:354
 msgid "Remove"
 msgstr "Remove"
 
@@ -1904,11 +1904,11 @@ msgstr "Search names"
 msgid "Search notifications"
 msgstr "Search notifications"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:355
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:374
 msgid "Search your NFTs"
 msgstr "Search your NFTs"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:360
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:379
 msgid "Search your NFTs..."
 msgstr "Search your NFTs..."
 
@@ -1925,7 +1925,7 @@ msgstr "See what's new"
 msgid "Select {0}"
 msgstr "Select {0}"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:320
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:316
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
 
@@ -1956,7 +1956,7 @@ msgstr "Sending..."
 msgid "Sessions enabled! You can now transact without signing each time."
 msgstr "Sessions enabled! You can now transact without signing each time."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:412
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:408
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
 msgid "Set as Primary"
 msgstr "Set as Primary"
@@ -1987,11 +1987,11 @@ msgstr "Set reverse record to show your name"
 msgid "Set the content hash and ABI for your name"
 msgstr "Set the content hash and ABI for your name"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:281
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:277
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Set which ENS name displays as your identity across apps and wallets."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:405
 msgid "Setting ETH address..."
 msgstr "Setting ETH address..."
 
@@ -2003,7 +2003,7 @@ msgstr "Setting ETH address…"
 msgid "Setting up your v2 resolver"
 msgstr "Setting up your v2 resolver"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:411
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
 msgid "Setting..."
 msgstr "Setting..."
 
@@ -2011,8 +2011,8 @@ msgstr "Setting..."
 msgid "Setting…"
 msgstr "Setting…"
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:92
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:123
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:93
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx:132
 msgid "Share"
 msgstr "Share"
 
@@ -2230,7 +2230,7 @@ msgstr "The backup payment method will be charged if the default payment method 
 msgid "The ENS domain has been successfully renewed."
 msgstr "The ENS domain has been successfully renewed."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:377
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:373
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:234
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
@@ -2386,7 +2386,7 @@ msgstr "Upgrading {count} name(s) to v2"
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:460
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:479
 msgid "Upload & Use Image"
 msgstr "Upload & Use Image"
 
@@ -2394,7 +2394,7 @@ msgstr "Upload & Use Image"
 msgid "Upload or drag & drop"
 msgstr "Upload or drag & drop"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:458
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:477
 msgid "Uploading…"
 msgstr "Uploading…"
 
@@ -2406,11 +2406,11 @@ msgstr "USD"
 msgid "Use Different Email"
 msgstr "Use Different Email"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:551
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:570
 msgid "Use This Image"
 msgstr "Use This Image"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:416
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:435
 msgid "Use This NFT"
 msgstr "Use This NFT"
 
@@ -2597,7 +2597,7 @@ msgstr "Wallet Connected"
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:236
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:232
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:181
 msgid "Wallet signer not available"
 msgstr "Wallet signer not available"
