@@ -34,6 +34,13 @@ export const hoverBgClass: Record<EntityVariant, string> = {
   tx: 'hover:bg-warning-fill dark:hover:bg-entity-bg',
 }
 
+const bgClass: Record<EntityVariant, string> = {
+  name: 'bg-accent-fill dark:bg-entity-bg',
+  address: 'bg-success-fill dark:bg-entity-bg',
+  contract: 'bg-danger-fill dark:bg-entity-bg',
+  tx: 'bg-warning-fill dark:bg-entity-bg',
+}
+
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
@@ -134,6 +141,8 @@ interface EntityBadgeWithActionsProps {
   readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
   readonly copyValue?: string
+  /** Optional leading avatar rendered inside the hover surface, before the pill */
+  readonly avatar?: ReactNode
 }
 
 export const EntityBadgeWithActions = ({
@@ -146,6 +155,7 @@ export const EntityBadgeWithActions = ({
   address,
   etherscanHref,
   copyValue,
+  avatar,
 }: EntityBadgeWithActionsProps) => {
   const navigate = useNavigate()
   const chainId = useChainId()
@@ -296,20 +306,22 @@ export const EntityBadgeWithActions = ({
         <button
           type="button"
           className={cn(
-            'inline-flex rounded transition-colors cursor-pointer px-1.5 py-1',
-            hoverBgClass[variant],
+            'inline-flex items-center gap-1 rounded transition-colors cursor-pointer px-1.5 py-1',
+            avatar ? bgClass[variant] : hoverBgClass[variant],
           )}
           onClick={triggerPrimaryAction}
         >
+          {avatar}
           <span className={pillClass(variant, className)}>{children}</span>
         </button>
       ) : (
         <div
           className={cn(
-            'inline-flex rounded transition-colors px-1.5 py-1',
-            hoverBgClass[variant],
+            'inline-flex items-center gap-1 rounded transition-colors px-1.5 py-1',
+            avatar ? bgClass[variant] : hoverBgClass[variant],
           )}
         >
+          {avatar}
           <span className={pillClass(variant, className)}>{children}</span>
         </div>
       )}

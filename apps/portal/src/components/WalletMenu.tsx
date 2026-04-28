@@ -1,9 +1,11 @@
 import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Wallet } from 'lucide-react'
-import { useConnection, useDisconnect, useEnsName } from 'wagmi'
-import { AccountCircleIcon, DisconnectIcon } from '@/assets/icons'
+import { useConnection, useDisconnect } from 'wagmi'
+import { AccountCircleIcon, ChipNameIcon, DisconnectIcon } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { Button } from './ui/button'
 import {
@@ -18,10 +20,7 @@ export const WalletMenu = () => {
   const { openConnectModal } = useConnectModal()
   const { mutate: disconnect } = useDisconnect()
 
-  const { data: name } = useEnsName({
-    address,
-    query: { enabled: isConnected },
-  })
+  const { data: name } = useQuery(getPrimaryNameQueryOptions(address))
 
   if (!isConnected || !address) {
     return (
@@ -65,7 +64,7 @@ export const WalletMenu = () => {
         {name && (
           <DropdownMenuItem asChild>
             <Link to="/$name" params={{ name }}>
-              <Wallet className="size-4 text-foreground" />
+              <ChipNameIcon className="size-4 text-foreground" />
               <span className="text-sm">{name}</span>
               <ChevronRight className="size-4 ml-auto" />
             </Link>
