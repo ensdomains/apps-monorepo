@@ -488,7 +488,7 @@ msgstr "Välj primärt namn"
 msgid "Claim your"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:42
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:54
 msgid "Clear"
 msgstr ""
 
@@ -1399,7 +1399,7 @@ msgstr ""
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
 msgid "No recent searches"
 msgstr ""
 
@@ -1618,7 +1618,7 @@ msgstr ""
 msgid "Receive notifications via email for important domain events"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:47
 msgid "Recent"
 msgstr ""
 

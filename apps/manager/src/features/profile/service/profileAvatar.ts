@@ -1,13 +1,24 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { publicResolverTextSnippet } from '@ensdomains/ensjs/contracts'
+import {
+  publicResolverTextSnippet,
+  universalResolverResolveSnippet,
+} from '@ensdomains/ensjs/contracts'
 import { getRecords } from '@ensdomains/ensjs/public'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, type AssetGatewayUrls, namehash } from 'viem'
+import {
+  type Address,
+  type AssetGatewayUrls,
+  decodeFunctionResult,
+  encodeFunctionData,
+  type Hex,
+  namehash,
+  toHex,
+} from 'viem'
 import { multicall } from 'viem/actions'
-import { parseAvatarRecord } from 'viem/ens'
+import { packetToBytes, parseAvatarRecord } from 'viem/ens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class ParseError extends TaggedError('ParseError')<{
@@ -148,18 +159,95 @@ export const namesAvatarsQuery = (
   entries: readonly AvatarLookupEntry[],
   gatewayUrls?: AssetGatewayUrls,
 ) => {
-  const sortedNames = entries
-    .map((e) => e.name)
-    .slice()
-    .sort()
+  const sortedEntries = entries
+    .map((e) => ({ name: e.name, resolver: e.resolverAddress }))
+    .sort((a, b) => a.name.localeCompare(b.name))
   return resultQueryOptions({
     queryKey: qk('profile', 'names_avatars', {
-      names: sortedNames,
+      entries: sortedEntries,
       gatewayUrls,
     }),
     queryFn:
       entries.length > 0
         ? () => getNamesAvatars(entries, gatewayUrls)
+        : skipToken,
+  })
+}
+
+export const getNamesAvatarsByName = ResultFn(async function* (
+  names: readonly string[],
+  gatewayUrls?: AssetGatewayUrls,
+) {
+  const client = yield* safeGetClient()
+
+  if (names.length === 0) {
+    return ok({} as NameAvatarMap)
+  }
+
+  const universalResolver = client.chain.contracts.ensUniversalResolver.address
+
+  const records = yield* fromPromise(
+    multicall(client, {
+      allowFailure: true,
+      contracts: names.map((name) => ({
+        address: universalResolver,
+        abi: universalResolverResolveSnippet,
+        functionName: 'resolve' as const,
+        args: [
+          toHex(packetToBytes(name)),
+          encodeFunctionData({
+            abi: publicResolverTextSnippet,
+            functionName: 'text',
+            args: [namehash(name), 'avatar'],
+          }),
+        ] as const,
+      })),
+    }),
+    (e) => new GetAvatarError({ cause: e }),
+  )
+
+  const parsed = await Promise.all(
+    names.map(async (name, index) => {
+      const result = records[index]
+      if (!result || result.status !== 'success') {
+        return [name, undefined] as const
+      }
+      const [encoded] = result.result as readonly [Hex, Address]
+      if (!encoded || encoded === '0x') return [name, undefined] as const
+      try {
+        const record = decodeFunctionResult({
+          abi: publicResolverTextSnippet,
+          functionName: 'text',
+          data: encoded,
+        }) as string
+        if (!record) return [name, undefined] as const
+        const url = await parseAvatarRecord(client, {
+          record,
+          gatewayUrls: { ipfs: 'https://ipfs.euc.li', ...gatewayUrls },
+        })
+        return [name, url] as const
+      } catch {
+        return [name, undefined] as const
+      }
+    }),
+  )
+
+  return ok(Object.fromEntries(parsed) as NameAvatarMap)
+})
+
+export const namesAvatarsByNameQuery = (
+  names: readonly string[],
+  gatewayUrls?: AssetGatewayUrls,
+) => {
+  const sortedNames = names.slice().sort()
+  return resultQueryOptions({
+    queryKey: qk('profile', 'names_avatars_by_name', {
+      names: sortedNames,
+      gatewayUrls,
+    }),
+    queryFn:
+      names.length > 0
+        ? () => getNamesAvatarsByName(names, gatewayUrls)
         : skipToken,
   })
 }

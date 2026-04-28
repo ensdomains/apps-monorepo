@@ -483,7 +483,7 @@ msgstr "Choose Primary Name"
 msgid "Claim your"
 msgstr "Claim your"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:42
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:54
 msgid "Clear"
 msgstr "Clear"
 
@@ -1394,7 +1394,7 @@ msgstr "No payment methods found."
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:23
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
 msgid "No recent searches"
 msgstr "No recent searches"
 
@@ -1613,7 +1613,7 @@ msgstr "Receive crypto from any chain"
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
+#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:47
 msgid "Recent"
 msgstr "Recent"
 
