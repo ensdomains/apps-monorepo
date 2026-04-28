@@ -58,10 +58,6 @@ type Events =
   | { type: 'pricing.duration.set'; duration: number }
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
   | {
-      type: 'registration.submit'
-      startEvent: Extract<RegistrationEvent, { type: 'START_REGISTRATION' }>
-    }
-  | {
       type: 'registration.start'
       label: string
       duration: bigint
@@ -120,13 +116,6 @@ const machineSetup = setup({
           .with({ type: 'transaction.failed' }, ({ message }) => message)
           .with({ type: '$error' }, ({ error }) => error.message)
           .otherwise(() => undefined),
-    }),
-    forwardStartRegistration: sendTo(REGISTRATION_V2_ACTOR_ID, ({ event }) => {
-      if (event.type !== 'registration.submit') {
-        throw new Error('registration.submit event required')
-      }
-
-      return event.startEvent
     }),
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
@@ -260,26 +249,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             'pricing.token.select': {
               actions: 'setToken',
             },
-            'pricing.step.next': {
-              guard: 'isDurationValid',
-              target: 'confirm',
-            },
             'pricing.dialog.dismiss': {
               target: 'duration',
-            },
-          },
-        },
-        confirm: {
-          on: {
-            'pricing.step.previous': {
-              target: 'tokens',
-            },
-            'pricing.dialog.dismiss': {
-              target: 'duration',
-            },
-            'registration.submit': {
-              target: '#registrationV2Ui.registering',
-              actions: ['clearError', 'forwardStartRegistration'],
             },
             'registration.start': {
               target: '#registrationV2Ui.registering',
