@@ -106,7 +106,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center">
         <h3 className="text-2xl font-medium">History</h3>
-        <Button variant="secondary" size="sm" asChild>
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/$name/history" params={{ name }}>
             <Clock className="size-4" />
             Full history

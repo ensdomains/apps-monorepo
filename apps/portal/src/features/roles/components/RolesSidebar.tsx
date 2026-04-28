@@ -310,7 +310,7 @@ export const RolesSidebar = <
                     <h3 className="text-2xl font-medium leading-snug">
                       History
                     </h3>
-                    <Button variant="secondary">
+                    <Button variant="ghost">
                       <Clock className="size-4" />
                       Full history
                     </Button>
