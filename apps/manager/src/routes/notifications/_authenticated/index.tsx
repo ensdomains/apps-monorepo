@@ -69,10 +69,10 @@ function RouteComponent() {
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
-      <div className="flex flex-col gap-8">
+      <div className="mb-24 flex flex-col gap-8">
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
-            <div className="font-[350] font-serif text-[#232222] text-temp-32px leading-ens-none">
+            <div className="font-[350] text-[#232222] text-temp-32px leading-ens-none">
               <Trans>All Notifications</Trans>
             </div>
             <UnreadCount />
@@ -124,7 +124,7 @@ function RouteComponent() {
             <MSymbol className="ms-opsz-24 ms-wght-200" symbol="search" />
           </InputGroupAddon>
         </InputGroup>
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <FilterBadge
             active={selectedTag === 'all'}
             label="All"
