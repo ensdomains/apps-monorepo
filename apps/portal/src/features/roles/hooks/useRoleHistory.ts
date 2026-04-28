@@ -23,18 +23,25 @@ type GetRoleHistoryParameters = {
 }
 
 const getRoleHistory = ResultFn(async function* ({
-  name,
+  name: _name,
   label,
 }: GetRoleHistoryParameters) {
+  // NOTE: We intentionally do not filter by `domain` in the GraphQL query.
+  // The indexer does not currently populate the `domain` relation on
+  // `EACRolesChanged` events for many names (e.g. 2LDs like `fresh.eth`),
+  // so filtering server-side by `domain` would drop valid events. Instead we
+  // fetch by event type and filter client-side by the resource hex.
   const { events } = yield* fromPromise(
     graphqlIndexerClient.request<{
       events: IndexerEACEvent[]
     }>(
       gql`
-        query getRoleHistory($name: String!) {
+        query getRoleHistory {
           events(
-            where: { domain: $name, type: "EACRolesChanged" }
-            first: 100
+            where: { type: "EACRolesChanged" }
+            first: 1000
+            orderBy: blockNumber
+            orderDirection: desc
           ) {
             type
             data
@@ -44,7 +51,6 @@ const getRoleHistory = ResultFn(async function* ({
           }
         }
       `,
-      { name: name.toLowerCase() },
     ),
     (e) => new GetRoleHistoryError({ cause: e as ClientError }),
   )
