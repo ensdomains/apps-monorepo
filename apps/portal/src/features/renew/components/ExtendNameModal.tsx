@@ -59,6 +59,18 @@ export const ExtendNameModal = ({
     }
   }, [open, transactionCompleted])
 
+  // Reset internal state whenever the modal closes so a subsequent extension
+  // starts cleanly. We can't rely on `onOpenChange` for this because Radix only
+  // fires it for user-driven close events, not when the parent toggles `open`
+  // (e.g. after the user clicks "Done" on the success screen).
+  useEffect(() => {
+    if (!open) {
+      setStep('disclaimer')
+      setSpanType('years')
+      setDuration(1)
+    }
+  }, [open])
+
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
     .with('settings', () => 'Extend name')
@@ -72,7 +84,6 @@ export const ExtendNameModal = ({
       onOpenChange={(open) => {
         if (!open) {
           onClose()
-          setStep('disclaimer')
         }
       }}
     >
