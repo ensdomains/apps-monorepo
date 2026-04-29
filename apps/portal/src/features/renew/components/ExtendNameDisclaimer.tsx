@@ -15,7 +15,7 @@ export const ExtendNameDisclaimer = ({
         Extending a name does not change the owner. Extending a name you do not
         own will not give you ownership of it.
       </p>
-      <Button variant="secondary" className="w-full" onClick={onContinue}>
+      <Button variant="default" className="w-full" onClick={onContinue}>
         I Understand
       </Button>
     </div>

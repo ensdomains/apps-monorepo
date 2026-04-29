@@ -26,7 +26,7 @@ export const MultiNameExtensionSuccess = ({
           </li>
         ))}
       </ul>
-      <Button className="w-full" variant="secondary" onClick={onClose}>
+      <Button className="w-full" variant="default" onClick={onClose}>
         Done
       </Button>
     </div>

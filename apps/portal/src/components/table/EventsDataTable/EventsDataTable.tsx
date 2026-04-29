@@ -176,7 +176,9 @@ export const EventsDataTable = <TEvent extends BaseEvent = BaseEvent>({
 
       {enableSidebar ? (
         <EventsSidebar
-          row={clickedRow as Row<EventsTableData> | null}
+          transaction={
+            (clickedRow?.original as EventsTableData | undefined) ?? null
+          }
           name={name}
           open={sidebarOpen}
           setOpen={setSidebarOpen}

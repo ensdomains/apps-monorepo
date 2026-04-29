@@ -103,7 +103,7 @@ function RouteComponent() {
       <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
           <h2 className="text-2xl font-medium">History</h2>
-          <Button variant="secondary" size="sm" asChild>
+          <Button variant="ghost" size="sm" asChild>
             <Link to="/resolver/$address/history" params={{ address }}>
               <Clock className="size-4" />
               Full history

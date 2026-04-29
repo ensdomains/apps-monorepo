@@ -241,7 +241,7 @@ function RouteComponent() {
           </div>
 
           <Button
-            variant="secondary"
+            variant="default"
             onClick={handleBurn}
             disabled={
               !hasChanges || !address || !walletClient || isCannotBurnFusesBurnt

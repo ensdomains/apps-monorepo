@@ -162,7 +162,7 @@ function RouteComponent() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-medium">Fuses</h1>
           {isOwner && (
-            <Button asChild variant="secondary" className="gap-2">
+            <Button asChild variant="default" className="gap-2">
               <Link to="/$name/fuses/burn" params={{ name }}>
                 <Flame className="w-4 h-4 text-lapis-500" />
                 Burn fuses

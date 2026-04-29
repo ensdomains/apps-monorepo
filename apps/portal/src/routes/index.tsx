@@ -28,16 +28,11 @@ function RouteComponent() {
         <HomeSearchInput className="bg-card dark:bg-transparent w-91.75 max-w-full rounded-sm border-border shadow-none" />
       </section>
 
-      <section className="flex flex-col gap-8 items-center w-full max-w-4xl">
-        <div className="flex gap-6 flex-wrap justify-center">
+      <section className="flex flex-col gap-8 items-center w-full max-w-3xl">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full">
           <InfoBlockCard
             title="Welcome to the ENS Explorer Beta!"
             description="This is in active development, and new features will roll out regularly"
-          />
-          <LinkBlockCard
-            title="Register a new name in the ENS Manager app"
-            href="https://app.ens.dev/"
-            hoverColor="lapis"
           />
           <LinkBlockCard
             title="Learn what's new in ENSv2"

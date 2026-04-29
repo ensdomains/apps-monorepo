@@ -1,4 +1,10 @@
-export { InfoBlockCard, LinkBlockCard } from './BlockCard'
+export {
+  BlockCard,
+  DataBlockCard,
+  DataBlockCardError,
+  InfoBlockCard,
+  LinkBlockCard,
+} from './BlockCard'
 export { DashboardProfilePreview } from './DashboardProfilePreview'
 export { ExampleNameCard } from './ExampleNameCard'
 export { HomeHeader } from './HomeHeader'

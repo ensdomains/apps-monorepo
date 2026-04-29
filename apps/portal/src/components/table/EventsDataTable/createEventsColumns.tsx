@@ -148,7 +148,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
         return (
           <div className="flex justify-end pr-4">
             <Button
-              variant="secondary"
+              variant="default"
               size="sm"
               onClick={(e) => {
                 e.stopPropagation()

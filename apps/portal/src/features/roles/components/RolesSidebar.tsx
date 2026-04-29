@@ -25,6 +25,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
@@ -201,7 +202,7 @@ export const RolesSidebar = <
                   </div>
                   {canManageRoles && selectedAccount && (
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!isWalletConnected}
                       onClick={() => setConfirmOpen(true)}
                     >
@@ -294,7 +295,7 @@ export const RolesSidebar = <
                   {/* Save Changes Button */}
                   <div className="flex justify-end px-6 py-4 border-t border-border bg-card">
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!hasChanges || !isWalletConnected}
                       onClick={handleSaveChanges}
                     >
@@ -310,14 +311,18 @@ export const RolesSidebar = <
                     <h3 className="text-2xl font-medium leading-snug">
                       History
                     </h3>
-                    <Button variant="secondary">
+                    <Button variant="ghost">
                       <Clock className="size-4" />
                       Full history
                     </Button>
                   </div>
 
                   <div className="border border-border rounded-sm overflow-hidden p-0">
-                    <RoleHistoryTable name={name} account={selectedAccount} />
+                    <RoleHistoryTable
+                      name={name}
+                      label={getNameLabels(name).currentLabel}
+                      account={selectedAccount}
+                    />
                   </div>
                 </div>
               </div>

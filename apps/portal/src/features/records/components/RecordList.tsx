@@ -9,8 +9,9 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { EditIcon, Search, XIcon } from 'lucide-react'
+import { Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
+import { EditNoteIcon } from '@/assets/icons'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -75,12 +76,12 @@ export const RecordList = ({
           <h1 className="text-heading font-medium">{recordCount} Records</h1>
           {canEdit && (
             <Button
-              variant="secondary"
+              variant="default"
               className="flex items-center gap-2"
               asChild
             >
               <Link to="/$name/edit-records" params={{ name }}>
-                <EditIcon className="size-4" />
+                <EditNoteIcon className="size-4" />
                 Edit records
               </Link>
             </Button>
@@ -99,13 +100,13 @@ export const RecordList = ({
               {rowCount} selected
             </div>
             {/*<div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-              <Button variant="secondary" className="w-auto whitespace-nowrap">
+              <Button variant="default" className="w-auto whitespace-nowrap">
                 <PencilLineIcon className="size-6" /> Edit
               </Button>
-              <Button variant="secondary" className="w-auto whitespace-nowrap">
+              <Button variant="default" className="w-auto whitespace-nowrap">
                 <FileInputIcon className="size-6" /> Export
               </Button>
-              <Button variant="secondary" className="w-auto whitespace-nowrap">
+              <Button variant="default" className="w-auto whitespace-nowrap">
                 <TrashIcon className="size-6" /> Delete
               </Button>
             </div>*/}
