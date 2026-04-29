@@ -42,13 +42,13 @@ function RouteComponent() {
           name={name}
           protocolVersion={data.protocolVersion}
         />
-        <div className="flex flex-col gap-4 sm:gap-6 md:flex-row justify-between">
-          <Owner owner={data.owner} label="Name owner" className="w-full" />
-          {data.protocolVersion === 'ENSv1' && (
-            <V1NameManagerRecord name={name} className="w-full" />
-          )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <Owner owner={data.owner} label="Name owner" />
+          <ParentName name={name} />
         </div>
-        <ParentName name={name} />
+        {data.protocolVersion === 'ENSv1' && (
+          <V1NameManagerRecord name={name} className="w-full" />
+        )}
         <NameSubgraphHistory name={name} category="domain" />
       </div>
     </div>

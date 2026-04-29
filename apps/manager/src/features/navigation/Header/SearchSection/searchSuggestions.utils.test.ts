@@ -58,7 +58,6 @@ describe('buildSuggestions', () => {
 
     const result = buildSuggestions({
       parsedInput: { type: 'error' },
-      indexerDomains: [],
       history,
     })
 
@@ -68,10 +67,9 @@ describe('buildSuggestions', () => {
     ])
   })
 
-  it('returns primary suggestion for name input (self-checks availability)', () => {
+  it('returns only the typed name as the single suggestion', () => {
     const result = buildSuggestions({
       parsedInput: { type: 'name', value: 'bigint.eth' },
-      indexerDomains: [],
       history: emptyHistory,
     })
 
@@ -87,7 +85,6 @@ describe('buildSuggestions', () => {
   it('marks short names as not supported', () => {
     const result = buildSuggestions({
       parsedInput: { type: 'name', value: 'ab.eth' },
-      indexerDomains: [],
       history: emptyHistory,
     })
 
@@ -98,49 +95,11 @@ describe('buildSuggestions', () => {
     })
   })
 
-  it('adds indexer results as registered suggestions', () => {
-    const result = buildSuggestions({
-      parsedInput: { type: 'name', value: 'big.eth' },
-      indexerDomains: [
-        { name: 'bigint.eth', normalizedName: 'bigint.eth' },
-        { name: 'bigboss.eth', normalizedName: 'bigboss.eth' },
-      ],
-      history: emptyHistory,
-    })
-
-    expect(result).toHaveLength(3)
-    expect(result[0]).toMatchObject({ value: 'big.eth', isSupported: true })
-    expect(result[1]).toMatchObject({ value: 'bigint.eth', isRegistered: true })
-    expect(result[2]).toMatchObject({
-      value: 'bigboss.eth',
-      isRegistered: true,
-    })
-  })
-
-  it('deduplicates exact match from indexer results', () => {
-    const result = buildSuggestions({
-      parsedInput: { type: 'name', value: 'bigint.eth' },
-      indexerDomains: [
-        { name: 'bigint.eth', normalizedName: 'bigint.eth' },
-        { name: 'bigboss.eth', normalizedName: 'bigboss.eth' },
-      ],
-      history: emptyHistory,
-    })
-
-    expect(result).toHaveLength(2)
-    expect(result[0]).toMatchObject({ value: 'bigint.eth', isSupported: true })
-    expect(result[1]).toMatchObject({
-      value: 'bigboss.eth',
-      isRegistered: true,
-    })
-  })
-
   it('returns address suggestion with primary name', () => {
     const address = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
     const result = buildSuggestions({
       parsedInput: { type: 'address', value: address },
       primaryName: 'vitalik.eth',
-      indexerDomains: [],
       history: emptyHistory,
     })
 
@@ -160,7 +119,6 @@ describe('buildSuggestions', () => {
 
     const result = buildSuggestions({
       parsedInput: { type: 'error' },
-      indexerDomains: [],
       history,
     })
 
@@ -174,7 +132,6 @@ describe('buildSuggestions', () => {
 
     const result = buildSuggestions({
       parsedInput: { type: 'name', value: 'new.eth' },
-      indexerDomains: [],
       history,
     })
 
@@ -190,7 +147,6 @@ describe('buildSuggestions', () => {
 
     const result = buildSuggestions({
       parsedInput: { type: 'error' },
-      indexerDomains: [],
       history,
     })
 

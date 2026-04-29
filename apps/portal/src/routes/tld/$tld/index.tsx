@@ -160,7 +160,7 @@ const HistorySection = ({ tld }: { tld: string }) => {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-2xl font-medium">History</h2>
-        <Button variant="secondary" size="sm" disabled>
+        <Button variant="ghost" size="sm" disabled>
           <ClockIcon className="size-4" />
           Full history
         </Button>

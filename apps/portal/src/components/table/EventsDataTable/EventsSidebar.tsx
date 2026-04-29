@@ -1,4 +1,3 @@
-import type { Row } from '@tanstack/react-table'
 import type { FC, PropsWithChildren } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
@@ -134,18 +133,20 @@ const TransactionDetails = ({
 }
 
 interface EventsSidebarProps extends PropsWithChildren {
-  row: Row<ENSTransaction> | null
+  transaction: ENSTransaction | null
   name: string
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  title?: string
 }
 
 export const EventsSidebar: FC<EventsSidebarProps> = ({
   children,
-  row,
+  transaction,
   name,
   open,
   setOpen,
+  title = 'Transaction',
 }) => {
   const isMobile = useIsMobile()
 
@@ -160,19 +161,19 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
             <SheetTitle className="font-sans text-heading font-medium">
-              Transaction
+              {title}
             </SheetTitle>
           </SheetHeader>
         </div>
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
-          {row ? (
+          {transaction ? (
             <TransactionDetails
-              txHash={row.original.transactionID as Hash}
+              txHash={transaction.transactionID as Hash}
               name={name}
-              timestamp={row.original.timestamp}
-              events={row.original.events}
+              timestamp={transaction.timestamp}
+              events={transaction.events}
             />
           ) : (
             <div className="text-muted-foreground text-center py-12">

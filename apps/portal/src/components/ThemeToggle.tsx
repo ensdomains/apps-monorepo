@@ -1,4 +1,5 @@
-import { Monitor, Moon, Sun } from 'lucide-react'
+import { Monitor } from 'lucide-react'
+import { DarkModeIcon, LightModeIcon } from '@/assets/icons'
 import { type Theme, useTheme } from '@/hooks/useTheme'
 import {
   DropdownMenuItem,
@@ -8,14 +9,22 @@ import {
 } from './ui/dropdown-menu'
 
 const options: { value: Theme; label: string; icon: React.ReactNode }[] = [
-  { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
-  { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
+  {
+    value: 'light',
+    label: 'Light',
+    icon: <LightModeIcon className="size-4" />,
+  },
+  {
+    value: 'dark',
+    label: 'Dark',
+    icon: <DarkModeIcon className="size-4" />,
+  },
   { value: 'system', label: 'System', icon: <Monitor className="size-4" /> },
 ]
 
 const themeIcons: Record<Theme, React.ReactNode> = {
-  dark: <Moon className="size-4" />,
-  light: <Sun className="size-4" />,
+  dark: <DarkModeIcon className="size-4" />,
+  light: <LightModeIcon className="size-4" />,
   system: <Monitor className="size-4" />,
 }
 

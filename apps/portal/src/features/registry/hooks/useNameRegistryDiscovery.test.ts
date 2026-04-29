@@ -30,10 +30,7 @@ describe('getNameRegistries', () => {
       name: 'eth',
     })
 
-    expect(result._unsafeUnwrap()).toEqual({
-      registries: mockRegistries,
-      protocolVersion: 'ENSv2',
-    })
+    expect(result._unsafeUnwrap()).toEqual(mockRegistries)
     expect(mockGetNameRegistries).toHaveBeenCalledWith(mockL1Client, {
       name: 'eth',
     })
@@ -51,10 +48,7 @@ describe('getNameRegistries', () => {
       name: 'test.eth',
     })
 
-    expect(result._unsafeUnwrap()).toEqual({
-      registries: mockRegistries,
-      protocolVersion: 'ENSv2',
-    })
+    expect(result._unsafeUnwrap()).toEqual(mockRegistries)
     expect(mockGetNameRegistries).toHaveBeenCalledWith(mockL1Client, {
       name: 'test.eth',
     })
@@ -73,10 +67,7 @@ describe('getNameRegistries', () => {
       name: 'sub.test.eth',
     })
 
-    expect(result._unsafeUnwrap()).toEqual({
-      registries: mockRegistries,
-      protocolVersion: 'ENSv2',
-    })
+    expect(result._unsafeUnwrap()).toEqual(mockRegistries)
     expect(mockGetNameRegistries).toHaveBeenCalledWith(mockL1Client, {
       name: 'sub.test.eth',
     })

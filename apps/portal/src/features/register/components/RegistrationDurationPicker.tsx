@@ -92,7 +92,7 @@ export const RegistrationDurationPicker = ({
         <Button
           type="button"
           size="icon"
-          variant="secondary"
+          variant="default"
           onClick={handleDecrement}
           disabled={value <= min}
           className="size-8 mr-1"
@@ -102,7 +102,7 @@ export const RegistrationDurationPicker = ({
 
         <Button
           type="button"
-          variant="secondary"
+          variant="default"
           size="icon"
           onClick={handleIncrement}
           disabled={value >= max}

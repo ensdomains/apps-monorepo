@@ -1,10 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { ResolverIcon } from '@/assets/icons'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -18,31 +15,16 @@ export const ResolverCard = ({
   asRow?: boolean
 }) => {
   const navigate = useNavigate()
-  const { data, isLoading, error } = useQuery({
-    ...getUnderlyingAddressQueryOptions({ name, resolverAddress }),
-    enabled: Boolean(resolverAddress),
-  })
 
-  const underlyingResolverAddress = data?.[0] || undefined
-
-  const value = isLoading ? (
-    <LoadingSpinner title="Loading..." />
-  ) : error ? (
-    <span className="text-muted-foreground">—</span>
-  ) : underlyingResolverAddress ? (
-    <EntityBadgeWithActions
-      variant="contract"
-      address={underlyingResolverAddress}
-    >
-      {truncateAddress(underlyingResolverAddress, 6, 4, '...')}
+  const value = (
+    <EntityBadgeWithActions variant="contract" address={resolverAddress}>
+      {truncateAddress(resolverAddress, 6, 4, '...')}
     </EntityBadgeWithActions>
-  ) : (
-    <span className="text-muted-foreground">No resolver</span>
   )
 
   if (asRow) {
     return (
-      <div className="flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full">
+      <div className="flex items-center gap-4 rounded hover:bg-muted/50 w-full">
         <button
           type="button"
           className="flex items-center gap-4 text-left cursor-pointer"

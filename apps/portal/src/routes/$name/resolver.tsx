@@ -1,27 +1,19 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
-import {
-  ClockIcon,
-  EditIcon,
-  FocusIcon,
-  GitBranchIcon,
-  InfoIcon,
-  ShieldCheckIcon,
-} from 'lucide-react'
+import { ClockIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
-import { type Address, isAddressEqual, zeroAddress } from 'viem'
+import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
-import { CopyButton } from '@/components/CopyButton'
-import { DataRow } from '@/components/DataRow'
+import { AssuredWorkloadIcon, EditNoteIcon } from '@/assets/icons'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import {
@@ -31,6 +23,7 @@ import {
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
+import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURES,
@@ -38,10 +31,8 @@ import {
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
-import { cn } from '@/lib/utils'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 import { NameSubgraphHistory } from '../../components/table/NameSubgraphHistory/NameSubgraphHistory'
 
@@ -51,16 +42,6 @@ export const Route = createFileRoute('/$name/resolver')({
 })
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
-
-const factoryAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensVerifiableFactory',
-})
-
-const permissionedResolverImplAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensPermissionedResolverImpl',
-})
 
 const officialPublicResolverAddress =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
@@ -93,84 +74,78 @@ const EditButtons = ({
   })
 
   if (!hasSetResolverRole) return null
-
   if (!resolverAddress || resolverAddress === zeroAddress) return null
 
   return (
-    <Button variant="secondary" className="flex items-center gap-2" asChild>
+    <Button variant="default" className="flex items-center gap-2" asChild>
       <Link to="/$name/change-resolver" params={{ name }}>
-        <EditIcon className="size-4" />
+        <EditNoteIcon className="size-4" />
         Change resolver
       </Link>
     </Button>
   )
 }
 
-const ResolverSection = ({
-  children,
-  className,
+const ResolverBanner = ({
+  name,
+  docsHref,
 }: {
-  children: ReactNode
-  className?: string
+  name: 'ENS Permissioned Resolver' | 'ENS Public Resolver'
+  docsHref: string
 }) => {
   return (
-    <section
-      className={cn('rounded-sm border border-border bg-background', className)}
-    >
-      {children}
-    </section>
+    <div className="flex items-start gap-3 p-6 self-stretch rounded-sm bg-message-success-fill">
+      <AssuredWorkloadIcon className="size-6 shrink-0 text-message-success-text mt-0.5" />
+      <div className="flex flex-col gap-1">
+        <span
+          className="font-serif font-[350] leading-none tracking-[-0.6px]"
+          style={{
+            color: 'var(--message-success-text, #105C23)',
+            fontSize: 'var(--3xl, 30px)',
+          }}
+        >
+          {name}
+        </span>
+        <p className="text-sm text-message-success-text">
+          This resolver is an instance of the official{' '}
+          <ExternalLink
+            href={docsHref}
+            className="underline decoration-dashed underline-offset-4"
+          >
+            ENS {name}
+          </ExternalLink>
+          . This resolver has been audited and is considered secure.
+        </p>
+      </div>
+    </div>
   )
 }
 
-const SummaryCard = ({
-  icon,
+const InfoRow = ({
   label,
-  value,
-  valueHref,
+  children,
 }: {
-  icon: ReactNode
   label: string
-  value: ReactNode
-  valueHref?: string
-}) => {
-  const content = valueHref ? (
-    <ExternalLink
-      href={valueHref}
-      className="underline decoration-dotted underline-offset-4"
-    >
-      {value}
-    </ExternalLink>
-  ) : (
-    value
-  )
+  children: ReactNode
+}) => (
+  <div className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-13">
+    <span className="w-28 shrink-0 text-sm font-medium text-muted-foreground">
+      {label}
+    </span>
+    <div className="flex-1 min-w-0">{children}</div>
+  </div>
+)
 
-  return (
-    <ResolverSection className="flex min-h-23 items-center gap-6 p-6">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1 text-base font-medium">
-          <span>{label}</span>
-        </div>
-        <div className="min-w-0 truncate text-base">{content}</div>
-      </div>
-    </ResolverSection>
-  )
-}
-
-const ResolverAddressValue = ({ address }: { address: Address }) => {
-  return (
-    <EntityBadgeWithActions
-      variant="contract"
-      address={address}
-      etherscanHref={`${sepoliaUrl}/address/${address}`}
-      className="max-w-full truncate"
-    >
-      {address}
-    </EntityBadgeWithActions>
-  )
-}
+const ResolverAddressValue = ({ address }: { address: Address }) => (
+  <EntityBadgeWithActions
+    variant="contract"
+    address={address}
+    etherscanHref={`${sepoliaUrl}/address/${address}`}
+    className="max-w-full truncate"
+  >
+    {address}
+  </EntityBadgeWithActions>
+)
 
 const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
   const { data, isLoading, error } = useQuery(
@@ -208,7 +183,7 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
     )
 
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-2 text-base">
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
       {features.map((feature) => (
         <ExternalLink
           key={feature.name}
@@ -222,48 +197,118 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
   )
 }
 
-const ResolverDetailsCard = ({
+const ResolverInfoCard = ({
   resolverAddress,
-  children,
+  name,
+  type,
 }: {
   resolverAddress: Address
-  children: ReactNode
+  name: string
+  type: string
 }) => {
-  return (
-    <ResolverSection className="p-6">
-      <div className="flex flex-col gap-4">{children}</div>
-      <div className="mt-4 border-t border-border pt-4">
-        <DataRow label="Interfaces">
-          <FeatureLinks resolverAddress={resolverAddress} />
-        </DataRow>
-      </div>
-    </ResolverSection>
+  const { data: resolver } = useQuery(
+    getResolverOverviewQueryOptions({ address: resolverAddress }),
   )
-}
+  const isAliased = resolver?.aliases.some((a) => a.fromName === name) ?? false
+  const nodeHash = namehash(name)
 
-const ResolverBanner = ({
-  name,
-  docsHref,
-}: {
-  name: 'Permissioned Resolver' | 'ENS Public Resolver'
-  docsHref: string
-}) => {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-sm bg-[#d1eedf] px-6 py-6 text-center text-[#033010]">
-      <ShieldCheckIcon className="size-8" />
-      <p className="text-base">
-        This resolver is the official{' '}
-        <ExternalLink
-          href={docsHref}
-          className="underline decoration-dotted underline-offset-4"
-        >
-          {name}
-        </ExternalLink>
-        . This resolver has been audited and is considered secure.
-      </p>
+    <div className="rounded-sm bg-background overflow-hidden">
+      <div className="px-6 py-3">
+        <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
+          Resolver info
+        </span>
+      </div>
+      <div>
+        <InfoRow label="Type">
+          <span className="text-sm">{type}</span>
+        </InfoRow>
+        <InfoRow label="Contract">
+          <ResolverAddressValue address={resolverAddress} />
+        </InfoRow>
+        <InfoRow label="Node">
+          <div className="flex items-center gap-2">
+            <EntityBadgeWithActions
+              variant="name"
+              name={name}
+              avatar={
+                <NameAvatar
+                  name={name}
+                  width="20px"
+                  height="20px"
+                  rounded="rounded-sm"
+                />
+              }
+            >
+              {name}
+            </EntityBadgeWithActions>
+            {isAliased && <Badge variant="outline">Aliased</Badge>}
+          </div>
+        </InfoRow>
+        <InfoRow label="Namehash">
+          <span className="font-mono text-sm break-all">{nodeHash}</span>
+        </InfoRow>
+        <InfoRow label="Interfaces">
+          <FeatureLinks resolverAddress={resolverAddress} />
+        </InfoRow>
+      </div>
     </div>
   )
 }
+
+const PermissionedResolverView = ({
+  name,
+  resolverAddress,
+}: {
+  name: string
+  resolverAddress: Address
+}) => (
+  <>
+    <ResolverBanner
+      name="ENS Permissioned Resolver"
+      docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
+    />
+    <ResolverInfoCard
+      name={name}
+      resolverAddress={resolverAddress}
+      type="Permissioned Resolver"
+    />
+  </>
+)
+
+const PublicResolverView = ({
+  name,
+  resolverAddress,
+}: {
+  name: string
+  resolverAddress: Address
+}) => (
+  <>
+    <ResolverBanner
+      name="ENS Public Resolver"
+      docsHref="https://docs.ens.domains/resolvers/public/"
+    />
+    <ResolverInfoCard
+      name={name}
+      resolverAddress={resolverAddress}
+      type="ENS Public Resolver"
+    />
+  </>
+)
+
+const CustomResolverView = ({
+  name,
+  resolverAddress,
+}: {
+  name: string
+  resolverAddress: Address
+}) => (
+  <ResolverInfoCard
+    name={name}
+    resolverAddress={resolverAddress}
+    type="Custom Resolver"
+  />
+)
 
 const HistorySection = ({
   name,
@@ -294,7 +339,7 @@ const HistorySection = ({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-2xl font-medium">History</h2>
-          <Button variant="secondary" size="sm" asChild>
+          <Button variant="ghost" size="sm" asChild>
             <Link to="/$name/history" params={{ name }}>
               <ClockIcon className="size-4" />
               Full history
@@ -316,7 +361,7 @@ const HistorySection = ({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-2xl font-medium">History</h2>
-        <Button variant="secondary" size="sm" asChild>
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/$name/history" params={{ name }}>
             <ClockIcon className="size-4" />
             Full history
@@ -325,144 +370,6 @@ const HistorySection = ({
       </div>
       <NameSubgraphHistory name={name} enableHeader={false} />
     </div>
-  )
-}
-
-const PermissionedResolverView = ({
-  name,
-  ownerData,
-  resolverAddress,
-}: {
-  name: string
-  ownerData: NonNullable<GetEnsOwnerReturnType>
-  resolverAddress: Address
-}) => {
-  return (
-    <>
-      <ResolverBanner
-        name="Permissioned Resolver"
-        docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
-      />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <SummaryCard
-          icon={<NameAvatar name={name} height="24px" width="24px" />}
-          label="Owner"
-          value={
-            <EntityBadgeWithActions variant="address" address={ownerData.owner}>
-              {truncateAddress(ownerData.owner, 6, 4, '...')}
-            </EntityBadgeWithActions>
-          }
-        />
-        <SummaryCard
-          icon={<FocusIcon className="size-5" />}
-          label="Type"
-          value="Permissioned Resolver"
-          valueHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
-        />
-        <SummaryCard
-          icon={<ShieldCheckIcon className="size-5 text-primary" />}
-          label="Network"
-          value="Sepolia"
-        />
-      </div>
-      <ResolverDetailsCard resolverAddress={resolverAddress}>
-        <DataRow label="Protocol">
-          <span className="text-base">ENSv2</span>
-        </DataRow>
-        <DataRow label="Chain ID">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-base">
-              {String(sepoliaWithEns.id)}
-            </span>
-            <CopyButton value={String(sepoliaWithEns.id)} size="sm" />
-          </div>
-        </DataRow>
-        <DataRow label="Contract">
-          <ResolverAddressValue address={resolverAddress} />
-        </DataRow>
-        {permissionedResolverImplAddress ? (
-          <DataRow label="Implementation">
-            <ResolverAddressValue address={permissionedResolverImplAddress} />
-          </DataRow>
-        ) : null}
-        {factoryAddress ? (
-          <DataRow label="Factory">
-            <ResolverAddressValue address={factoryAddress} />
-          </DataRow>
-        ) : null}
-      </ResolverDetailsCard>
-    </>
-  )
-}
-
-const PublicResolverView = ({
-  resolverAddress,
-}: {
-  resolverAddress: Address
-}) => {
-  return (
-    <>
-      <ResolverBanner
-        name="ENS Public Resolver"
-        docsHref="https://docs.ens.domains/resolvers/public/"
-      />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SummaryCard
-          icon={<GitBranchIcon className="size-5" />}
-          label="Version"
-          value="Latest"
-        />
-        <SummaryCard
-          icon={<FocusIcon className="size-5" />}
-          label="Type"
-          value="Public Resolver"
-          valueHref="https://docs.ens.domains/resolvers/public/"
-        />
-      </div>
-      <ResolverDetailsCard resolverAddress={resolverAddress}>
-        <DataRow label="Contract">
-          <ResolverAddressValue address={resolverAddress} />
-        </DataRow>
-      </ResolverDetailsCard>
-    </>
-  )
-}
-
-const CustomResolverView = ({
-  resolverAddress,
-  protocolVersion,
-}: {
-  resolverAddress: Address
-  protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
-}) => {
-  return (
-    <>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SummaryCard
-          icon={<FocusIcon className="size-5" />}
-          label="Type"
-          value="Custom Resolver"
-        />
-        <SummaryCard
-          icon={<GitBranchIcon className="size-5" />}
-          label="Protocol"
-          value={protocolVersion}
-        />
-      </div>
-      <ResolverDetailsCard resolverAddress={resolverAddress}>
-        <DataRow label="Contract">
-          <ResolverAddressValue address={resolverAddress} />
-        </DataRow>
-        <DataRow label="Chain ID">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-base">
-              {String(sepoliaWithEns.id)}
-            </span>
-            <CopyButton value={String(sepoliaWithEns.id)} size="sm" />
-          </div>
-        </DataRow>
-      </ResolverDetailsCard>
-    </>
   )
 }
 
@@ -517,16 +424,12 @@ const ResolverView = ({
       {permissionedResolverQuery.data ? (
         <PermissionedResolverView
           name={name}
-          ownerData={ownerData}
           resolverAddress={resolverAddress}
         />
       ) : isOfficialPublicResolver ? (
-        <PublicResolverView resolverAddress={resolverAddress} />
+        <PublicResolverView name={name} resolverAddress={resolverAddress} />
       ) : (
-        <CustomResolverView
-          resolverAddress={resolverAddress}
-          protocolVersion={ownerData.protocolVersion}
-        />
+        <CustomResolverView name={name} resolverAddress={resolverAddress} />
       )}
 
       <HistorySection name={name} protocolVersion={ownerData.protocolVersion} />
@@ -553,14 +456,12 @@ const SetResolverButton = ({
     }),
   )
 
-  if (!hasSetResolverRole) {
-    return null
-  }
+  if (!hasSetResolverRole) return null
 
   return (
-    <Button variant="secondary" className="flex items-center gap-2" asChild>
+    <Button variant="default" className="flex items-center gap-2" asChild>
       <Link to="/$name/change-resolver" params={{ name }}>
-        <EditIcon className="size-4" />
+        <EditNoteIcon className="size-4" />
         Set resolver
       </Link>
     </Button>
@@ -579,11 +480,8 @@ const NoResolverSet = ({
   return (
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
       <h1 className="text-heading font-medium">Resolver</h1>
-      <div className="flex items-center gap-4 rounded-sm bg-blue-50 p-6">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
-          <InfoIcon className="size-5 text-lapis-500" />
-        </div>
-        <p className="flex-1 text-base text-lapis-900">
+      <div className="flex items-center gap-4 rounded-sm bg-accent-fill/40 p-6">
+        <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.
         </p>
         {account && (

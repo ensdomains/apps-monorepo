@@ -7,9 +7,7 @@ import {
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import type { GetEnsOwnerError } from '@/features/profile/hooks/useEnsOwner'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import type { ProtocolVersion } from '@/utils/types'
 
 type GetNameRegistriesParameters = {
   name: string
@@ -20,22 +18,19 @@ type TLD = [tld: Address, ...Root]
 type TwoLD = [nameOrZero: Address, ...TLD]
 type ThreeLD = [nameAddress: Address, ...TwoLD]
 
-type NameRegistries = Root | TLD | TwoLD | ThreeLD
-
-type NameRegistriesReturnType = {
-  registries: NameRegistries
-  protocolVersion: ProtocolVersion
-} | null
+export type NameRegistries = Root | TLD | TwoLD | ThreeLD
 
 class NameRegistriesError extends TaggedError('NameRegistriesError')<{
-  cause: GetNameRegistriesErrorType | GetEnsOwnerError
+  cause: GetNameRegistriesErrorType
 }> {}
 
 /**
  * Discovers which registries a name exists on using the UniversalResolver V2.
  *
- * Uses ensjs getNameRegistries which calls findRegistries on the UniversalResolver.
- * For V2 registries, this efficiently fetches all registry addresses at once.
+ * Should only be called for V2 names. V1 names don't have subregistries and
+ * `findRegistries` returns identical (and meaningless) results for them, so
+ * callers must guard with a V1/V2 check (see {@link getEnsOwner}) before
+ * invoking this query.
  */
 export const getNameRegistries = ResultFn(async function* ({
   name,
@@ -47,10 +42,7 @@ export const getNameRegistries = ResultFn(async function* ({
     (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
   )) as NameRegistries
 
-  return ok({
-    registries,
-    protocolVersion: 'ENSv2' as ProtocolVersion,
-  } satisfies NameRegistriesReturnType)
+  return ok(registries)
 })
 
 const nameRegistriesQueryKey = createQueryKey<
