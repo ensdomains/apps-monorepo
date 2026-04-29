@@ -1,22 +1,6 @@
 import { BlockCard } from '@/features/dashboard/components'
 
-type NetworkCardProps = {
-  asRow?: boolean
-}
-
-export function NetworkCard({ asRow }: NetworkCardProps = {}) {
-  if (asRow) {
-    return (
-      <div className="flex items-center gap-4 w-full">
-        <img src="/icons/eth.svg" alt="" className="size-4 shrink-0" />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Network
-        </span>
-        <span className="text-sm font-medium text-foreground">Sepolia</span>
-      </div>
-    )
-  }
-
+export function NetworkCard() {
   return (
     <BlockCard className="gap-3">
       <div className="flex-1 flex items-center justify-between min-w-0 gap-2">

@@ -3,24 +3,9 @@ import { BlockCard } from '@/features/dashboard/components'
 
 type LabelCardProps = {
   label: string
-  asRow?: boolean
 }
 
-export function LabelCard({ label, asRow }: LabelCardProps) {
-  if (asRow) {
-    return (
-      <div className="flex items-center gap-4 w-full">
-        <Network className="size-4 shrink-0 text-icon-foreground" />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Label
-        </span>
-        <span className="text-sm font-medium text-foreground truncate">
-          {label}
-        </span>
-      </div>
-    )
-  }
-
+export function LabelCard({ label }: LabelCardProps) {
   return (
     <BlockCard className="gap-3">
       <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
