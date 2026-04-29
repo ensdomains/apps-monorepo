@@ -6,7 +6,7 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
-import viteReact from '@vitejs/plugin-react-swc'
+import viteReact from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 const locales = dirname(
@@ -47,5 +47,12 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     exclude: ['@ens-apps/l2-primary', '@ens-apps/transaction-manager'],
+  },
+  build: {
+    rolldownOptions: {
+      experimental: {
+        lazyBarrel: true, // Reduces compiled modules for barrel exports
+      },
+    },
   },
 }))

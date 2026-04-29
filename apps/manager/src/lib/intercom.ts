@@ -1,4 +1,4 @@
-import Intercom from '@intercom/messenger-js-sdk'
+import { Intercom } from '@intercom/messenger-js-sdk'
 import { createIsomorphicFn } from '@tanstack/react-start'
 
 const CLIENT_initializeIntercom = () => {
