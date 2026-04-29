@@ -7,6 +7,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { ChangeResolverForm } from '@/features/resolver/components/ChangeResolverForm'
@@ -38,11 +39,15 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address: connectedAddress } = useConnection()
 
-  const registryQuery = useQuery(getNameRegistriesQueryOptions({ name }))
+  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const registryQuery = useQuery({
+    ...getNameRegistriesQueryOptions({ name }),
+    enabled: ownerQuery.data?.protocolVersion === 'ENSv2',
+  })
 
   const label = name.split('.')[0]
   // Use registries[1] to get the parent registry that manages this name
-  const currentNameRegistry = registryQuery.data?.registries[1]
+  const currentNameRegistry = registryQuery.data?.[1]
 
   const roleQuery = useQuery({
     ...getHasRolesQueryOptions({
@@ -54,25 +59,11 @@ function RouteComponent() {
     enabled: !!connectedAddress && !!currentNameRegistry,
   })
 
-  if (registryQuery.isLoading) {
+  if (ownerQuery.isLoading || registryQuery.isLoading) {
     return <LoadingSpinner title="Loading registry information" />
   }
 
-  if (registryQuery.error || !registryQuery.data) {
-    return (
-      <PageLayout name={name}>
-        <Alert variant="destructive" className="max-w-full">
-          <AlertCircle />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            Could not load registry information.
-          </AlertDescription>
-        </Alert>
-      </PageLayout>
-    )
-  }
-
-  if (registryQuery.data.protocolVersion === 'ENSv1') {
+  if (ownerQuery.data?.protocolVersion === 'ENSv1') {
     return (
       <PageLayout name={name}>
         <Alert className="max-w-full">
@@ -87,7 +78,7 @@ function RouteComponent() {
     )
   }
 
-  if (!currentNameRegistry) {
+  if (registryQuery.error || !registryQuery.data || !currentNameRegistry) {
     return (
       <PageLayout name={name}>
         <Alert variant="destructive" className="max-w-full">

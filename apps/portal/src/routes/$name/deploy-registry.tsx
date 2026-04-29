@@ -10,6 +10,7 @@ import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { DeployRegistryForm } from '@/features/registry/components/DeployRegistryForm'
 import { DeployRegistryHeader } from '@/features/registry/components/DeployRegistryHeader'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
@@ -42,14 +43,20 @@ function RouteComponent() {
     clearTransaction,
   } = useTransactionModal()
 
+  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+
   const {
-    data: registryData,
+    data: registries,
     isLoading,
     error: registryError,
-  } = useQuery(getNameRegistriesQueryOptions({ name }))
+  } = useQuery({
+    ...getNameRegistriesQueryOptions({ name }),
+    // findRegistries is only meaningful for V2 names; V1 names have no subregistries
+    enabled: ownerData?.protocolVersion === 'ENSv2',
+  })
 
   const label = name.split('.')[0]
-  const parentRegistry = registryData?.registries.at(1) ?? null
+  const parentRegistry = registries?.at(1) ?? null
 
   const { data: hasSetSubregistryRole, isLoading: isLoadingRoleCheck } =
     useQuery({
@@ -170,7 +177,7 @@ function RouteComponent() {
     )
   }
 
-  if (registryData?.protocolVersion === 'ENSv1') {
+  if (ownerData?.protocolVersion === 'ENSv1') {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <DeployRegistryHeader name={name} />
