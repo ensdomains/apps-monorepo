@@ -179,7 +179,7 @@ export const BlockCard = ({
 }) => (
   <div
     className={cn(
-      'flex items-center gap-4 p-4 rounded-lg bg-background border border-secondary w-full',
+      'flex items-center gap-4 p-4 rounded-lg bg-background border border-secondary w-full min-h-20',
       className,
     )}
   >

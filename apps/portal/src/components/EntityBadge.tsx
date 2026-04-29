@@ -235,7 +235,7 @@ export const EntityBadgeWithActions = ({
       <div
         className={cn(
           'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
-          inline ? 'left-0' : 'left-3.5',
+          inline ? 'right-0' : 'left-3.5',
         )}
       >
         {variant === 'name' && name && (
