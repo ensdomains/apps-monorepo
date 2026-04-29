@@ -52,7 +52,7 @@ const DashboardTabButton = ({
     >
       <span
         className={cn(
-          'font-serif text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]',
+          'text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]',
           isActive ? 'text-foreground' : 'text-ens-quartz-400',
         )}
       >

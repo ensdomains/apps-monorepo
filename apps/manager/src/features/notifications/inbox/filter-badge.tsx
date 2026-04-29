@@ -9,11 +9,11 @@ export const FilterBadge = (props: {
   return (
     <button
       className={tw(
-        'cursor-pointer rounded-full font-normal leading-ens-tight transition-colors',
+        'cursor-pointer rounded-sm font-normal font-semi-mono text-sm uppercase leading-[1.05] tracking-[0.28px] transition-colors',
         props.active
           ? 'bg-[#232222] text-white'
-          : 'bg-ens-white text-[#7D7D7D] hover:bg-[#f4f4f6]',
-        props.size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-base',
+          : 'bg-ens-white text-ens-quartz-400 hover:bg-[#f4f4f6]',
+        props.size === 'sm' ? 'px-3 py-2' : 'px-4 py-3',
       )}
       onClick={props.onClick}
       type="button"

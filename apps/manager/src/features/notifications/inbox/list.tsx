@@ -1,7 +1,8 @@
 import { notificationDefinitions } from '@ens-apps/shared-schema/notifications'
 import { Trans } from '@lingui/react/macro'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { Loader2Icon } from 'lucide-react'
+import { Link as RouterLink } from '@tanstack/react-router'
+import { ArrowRightIcon, Loader2Icon } from 'lucide-react'
 import { useInView } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
@@ -102,11 +103,23 @@ export const NotificationsList = ({
 
   if (filteredData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center">
-        <MSymbol className="ms-opsz-75 ms-wght-200" symbol="sentiment_calm" />
+      <div className="flex flex-col items-center justify-center gap-10">
         <div className="text-[#717182] text-base">
-          <Trans>You're all caught up!</Trans>
+          <Trans>Nothing here yet!</Trans>
         </div>
+        <RouterLink
+          className="group flex items-center gap-2"
+          to="/notifications/settings"
+        >
+          <MSymbol
+            className="ms-opsz-30 ms-wght-200 text-[#232222]"
+            symbol="settings"
+          />
+          <div className="font-normal text-[#232222] text-base leading-ens-normal group-hover:underline max-sm:hidden">
+            <Trans>Manage notification settings</Trans>
+          </div>
+          <ArrowRightIcon className="size-4 text-ens-lapis-core transition-transform group-hover:translate-x-0.5 max-sm:hidden" />
+        </RouterLink>
       </div>
     )
   }
@@ -115,7 +128,7 @@ export const NotificationsList = ({
     <div className="flex flex-col gap-8">
       {grouped.groups.map((group) => (
         <section className="space-y-4" key={group.title}>
-          <h3 className="font-serif text-[#232222] text-xl leading-ens-none">
+          <h3 className="text-[#232222] text-xl leading-ens-none">
             {group.title}
           </h3>
           <div className="flex flex-col">
