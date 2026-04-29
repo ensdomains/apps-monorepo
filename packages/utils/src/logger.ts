@@ -1,4 +1,5 @@
 // Check for development mode across different environments:
+/** biome-ignore-all lint/suspicious/noTsIgnore: Required to suppress type errors since this utility supports both browser and Node.js environments */
 const getIsDev = (): boolean => {
   try {
     const viteEnv = (import.meta as { env?: { DEV?: boolean } }).env
@@ -10,9 +11,9 @@ const getIsDev = (): boolean => {
   }
 
   if (
-    // @ts-expect-error - process is not defined in the browser
+    // @ts-ignore - process is not defined in the browser
     typeof process !== 'undefined' &&
-    // @ts-expect-error - process.env is not defined in the browser
+    // @ts-ignore - process.env is not defined in the browser
     process.env?.NODE_ENV === 'development'
   ) {
     return true
