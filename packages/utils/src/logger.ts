@@ -10,7 +10,9 @@ const getIsDev = (): boolean => {
   }
 
   if (
+    // @ts-expect-error - process is not defined in the browser
     typeof process !== 'undefined' &&
+    // @ts-expect-error - process.env is not defined in the browser
     process.env?.NODE_ENV === 'development'
   ) {
     return true
