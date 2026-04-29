@@ -158,7 +158,7 @@ export const TransactionStateContent = ({
         {match(activeTxStatus)
           .with(undefined, () => (
             <Button
-              variant="secondary"
+              variant="default"
               className="flex-1"
               onClick={activeTransaction.onStart}
             >
@@ -167,7 +167,7 @@ export const TransactionStateContent = ({
           ))
           .with('success', () => (
             <Button
-              variant="secondary"
+              variant="default"
               className="flex-1"
               onClick={activeTransaction.onDone}
             >
@@ -176,7 +176,7 @@ export const TransactionStateContent = ({
           ))
           .with('error', () => (
             <Button
-              variant="secondary"
+              variant="default"
               className="flex-1"
               onClick={activeTransaction.onStart}
             >

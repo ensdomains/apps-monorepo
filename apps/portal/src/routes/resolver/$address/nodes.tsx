@@ -98,7 +98,7 @@ const createNodesColumns = (
       return (
         <div className="flex justify-end pr-4">
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             onClick={(e) => {
               e.stopPropagation()
@@ -221,7 +221,7 @@ function RouteComponent() {
                     </Badge>
                   </div>
                   <Button
-                    variant="secondary"
+                    variant="default"
                     size="sm"
                     className="self-start"
                     onClick={() => {

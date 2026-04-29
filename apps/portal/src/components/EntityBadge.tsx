@@ -134,6 +134,10 @@ interface EntityBadgeWithActionsProps {
   readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
   readonly copyValue?: string
+  /** Optional leading avatar rendered inside the hover surface, before the pill */
+  readonly avatar?: ReactNode
+  /** Render as an inline pill instead of a full-width 48px row */
+  readonly inline?: boolean
 }
 
 export const EntityBadgeWithActions = ({
@@ -146,6 +150,8 @@ export const EntityBadgeWithActions = ({
   address,
   etherscanHref,
   copyValue,
+  avatar,
+  inline = false,
 }: EntityBadgeWithActionsProps) => {
   const navigate = useNavigate()
   const chainId = useChainId()
@@ -215,13 +221,23 @@ export const EntityBadgeWithActions = ({
   }
 
   return (
-    <div className="relative group/entity inline-flex">
+    <div
+      className={cn(
+        'relative group/entity',
+        inline ? 'inline-flex' : 'flex w-full',
+      )}
+    >
       {/*
         Chips float above the badge.
         pb-2 creates an invisible 8px bridge at the bottom of this container,
         so hovering from badge upward to chips doesn't break the hover state.
       */}
-      <div className="absolute bottom-full left-0 pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50">
+      <div
+        className={cn(
+          'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
+          inline ? 'left-0' : 'left-3.5',
+        )}
+      >
         {variant === 'name' && name && (
           <Link to="/$name" params={{ name }} className={chipClass}>
             <ChipNameIcon className="size-3.25" />
@@ -296,20 +312,28 @@ export const EntityBadgeWithActions = ({
         <button
           type="button"
           className={cn(
-            'inline-flex rounded transition-colors cursor-pointer px-1.5 py-1',
+            'items-center gap-2 rounded-lg transition-colors cursor-pointer text-left',
+            inline
+              ? 'inline-flex px-1.5 py-1 rounded'
+              : 'flex w-full px-3.5 py-3.5',
             hoverBgClass[variant],
           )}
           onClick={triggerPrimaryAction}
         >
+          {avatar}
           <span className={pillClass(variant, className)}>{children}</span>
         </button>
       ) : (
         <div
           className={cn(
-            'inline-flex rounded transition-colors px-1.5 py-1',
+            'items-center gap-2 rounded-lg transition-colors',
+            inline
+              ? 'inline-flex px-1.5 py-1 rounded'
+              : 'flex w-full px-3.5 py-3.5',
             hoverBgClass[variant],
           )}
         >
+          {avatar}
           <span className={pillClass(variant, className)}>{children}</span>
         </div>
       )}

@@ -60,7 +60,7 @@ export const PaymentTokenSection = ({
         className="w-full"
         onClick={handleBuyName}
         disabled={!selectedTokenData}
-        variant="secondary"
+        variant="default"
       >
         {isRegistering ? 'Registering...' : 'Register'}
       </Button>

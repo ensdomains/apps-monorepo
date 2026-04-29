@@ -1,13 +1,5 @@
 import { Link } from '@tanstack/react-router'
 import {
-  BookIcon,
-  CircleQuestionMarkIcon,
-  IdCardIcon,
-  SettingsIcon,
-} from 'lucide-react'
-import { useState } from 'react'
-import { ExternalLink } from 'react-external-link'
-import {
   CardsStackIcon,
   HistoryIcon,
   HubIcon,
@@ -15,19 +7,11 @@ import {
   TollIcon,
 } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { CopyButton } from '@/components/CopyButton'
 import { SoonBadge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
 import { createDefineLinkItem } from '@/utils/tsr'
-import { HelpMenu } from './HelpMenu'
+import { SettingsMenu } from './SettingsMenu'
 import {
   Sidebar,
   SidebarContent,
@@ -38,8 +22,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from './ui/sidebar'
 import { WalletMenu } from './WalletMenu'
 
@@ -111,54 +97,51 @@ interface TldSidebarProps {
 
 export const TldSidebar = ({ tld }: TldSidebarProps) => {
   const items = getItems(tld)
-  const [helpOpen, setHelpOpen] = useState(false)
+  const { state, isMobile } = useSidebar()
+  const isIconMode = state === 'collapsed' && !isMobile
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-3 gap-3">
-        {/* Logo row */}
-        <div className="flex items-center justify-between min-h-8">
-          <Link
-            to="/"
-            className="flex items-center group-data-[collapsible=icon]:hidden"
-          >
-            <LogoSVG
-              width={35}
-              height={40}
-              className="sm:hidden text-foreground"
-            />
-            <LogoWithTextSVG
-              width={72}
-              height="auto"
-              className="hidden sm:block text-foreground"
-            />
-          </Link>
-          <SidebarTrigger className="shrink-0 bg-sidebar-accent hover:bg-sidebar-accent/80" />
-        </div>
-
-        {/* Search — hidden when collapsed */}
-        <div className="group-data-[collapsible=icon]:hidden">
-          <HomeSearchInput />
-        </div>
+      <SidebarRail />
+      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 bg-secondary hover:bg-quartz-100 border border-border rounded-r-md shadow-sm" />
+      <SidebarHeader className="p-0 gap-0">
+        {isIconMode ? (
+          <div className="flex flex-col items-center gap-4 pt-6 px-2">
+            <Link
+              to="/"
+              className="flex items-center min-h-8"
+              aria-label="ENS Home"
+            >
+              <LogoSVG height={30} className="text-foreground" />
+            </Link>
+            <HomeSearchInput iconOnly />
+          </div>
+        ) : (
+          <div className="px-6 pt-6 flex flex-col gap-6">
+            <div className="flex items-center min-h-8">
+              <Link to="/" className="flex items-center">
+                <LogoWithTextSVG
+                  width={97}
+                  height={30}
+                  className="text-foreground"
+                />
+              </Link>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <HomeSearchInput />
+              </div>
+              <SidebarTrigger className="shrink-0" />
+            </div>
+          </div>
+        )}
       </SidebarHeader>
 
-      <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
+      <SidebarSeparator className="my-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
 
-      <SidebarContent>
+      <SidebarContent className="gap-3">
         {/* TLD name section */}
-        <div className="px-3 py-3 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
-          <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <div className="flex items-center justify-center bg-lapis-100 dark:bg-lapis-900/30 rounded-xs size-4 shrink-0">
-                <IdCardIcon className="size-2.5 text-lapis-500" />
-              </div>
-              <span className="text-xs text-lapis-500 font-medium">TLD</span>
-            </div>
-            <CopyButton
-              value={tld}
-              className="bg-sidebar-accent hover:bg-sidebar-accent/80"
-            />
-          </div>
+        <div className="px-6 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
           <Link
             to="/tld/$tld"
             params={{ tld }}
@@ -177,9 +160,9 @@ export const TldSidebar = ({ tld }: TldSidebarProps) => {
           </Link>
         </div>
 
-        <SidebarGroup>
+        <SidebarGroup className="px-6 py-0 group-data-[collapsible=icon]:px-2">
           <SidebarGroupContent>
-            <SidebarMenu className="gap-3.5">
+            <SidebarMenu className="gap-3">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   {item.disabled || item.upcoming ? (
@@ -212,56 +195,14 @@ export const TldSidebar = ({ tld }: TldSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="my-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)]" />
 
-      <SidebarFooter className="p-3">
-        <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+      <SidebarFooter className="px-6 pb-6 group-data-[collapsible=icon]:px-2">
+        <div className="flex items-center gap-4 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:gap-3.5">
           <div className="flex-1 group-data-[collapsible=icon]:flex-none">
             <WalletMenu />
           </div>
-          <Popover open={helpOpen} onOpenChange={setHelpOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-muted-foreground hover:text-foreground"
-                aria-label="Help"
-              >
-                <CircleQuestionMarkIcon className="size-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="right" align="end">
-              <HelpMenu />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-muted-foreground hover:text-foreground"
-                aria-label="Settings"
-              >
-                <SettingsIcon className="size-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="right" align="end">
-              <TableViewSwitch />
-            </PopoverContent>
-          </Popover>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted-foreground hover:text-foreground"
-            aria-label="Documentation"
-            asChild
-          >
-            <ExternalLink href="https://docs.ens.domains">
-              <BookIcon className="size-4" />
-            </ExternalLink>
-          </Button>
+          <SettingsMenu />
         </div>
       </SidebarFooter>
     </Sidebar>

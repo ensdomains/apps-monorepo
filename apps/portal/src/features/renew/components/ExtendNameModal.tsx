@@ -136,7 +136,7 @@ export const ExtendNameModal = ({
               </div>
               <Button
                 className="w-full"
-                variant="secondary"
+                variant="default"
                 onClick={onSuccessAcknowledged}
               >
                 Done

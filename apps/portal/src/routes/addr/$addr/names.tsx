@@ -288,7 +288,7 @@ function RouteComponent() {
               {rowCount} selected
             </div>
             <Button
-              variant="secondary"
+              variant="default"
               size="sm"
               disabled={extendableNames.length === 0}
               onClick={() => {

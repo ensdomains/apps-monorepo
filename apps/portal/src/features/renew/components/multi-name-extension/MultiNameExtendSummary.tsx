@@ -59,7 +59,7 @@ export const MultiNameExtendSummary = ({
         </Button>
         <Button
           className="flex-1"
-          variant="secondary"
+          variant="default"
           disabled={!selectedToken}
           onClick={() => selectedToken && onNext(selectedToken)}
         >

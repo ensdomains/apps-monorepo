@@ -37,7 +37,7 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
       {showMoreButton && (
         <TableCell>
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             onClick={() => {
               setClickedRow(row)

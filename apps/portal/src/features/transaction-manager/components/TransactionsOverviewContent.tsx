@@ -202,7 +202,7 @@ export const TransactionsOverviewContent = ({
           </div>
           <Button
             className="w-full mb-0"
-            variant="secondary"
+            variant="default"
             onClick={() => {
               if (transactionStatus === 'success' && !hasNextTransaction) {
                 activeTransaction.onDone()

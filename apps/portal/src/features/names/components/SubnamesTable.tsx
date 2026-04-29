@@ -129,7 +129,7 @@ export const SubnamesTable = ({
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
           </h1>
           {canCreateSubname && (
-            <Button variant="secondary" asChild>
+            <Button variant="default" asChild>
               <Link to="/$name/create-subname" params={{ name }}>
                 <Plus className="size-6" />
                 Create subname
