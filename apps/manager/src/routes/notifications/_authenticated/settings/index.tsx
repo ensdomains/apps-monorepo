@@ -1,30 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { ContactMethods } from '@/features/notifications/settings/contact-methods'
-import { NotificationPreferences } from '@/features/notifications/settings/preferences'
+import { NotificationSettingsPage } from '@/features/notifications/pages/notification-settings-page'
 
 export const Route = createFileRoute('/notifications/_authenticated/settings/')(
   {
-    component: RouteComponent,
+    component: NotificationSettingsPage,
   },
 )
-
-function RouteComponent() {
-  return (
-    <div className="mx-auto w-full max-w-5xl space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
-      <div className="flex flex-col gap-4">
-        <h1 className="font-[350] text-[#232222] text-temp-32px leading-ens-none">
-          Notification Settings
-        </h1>
-
-        <p className="text-[#717182] text-base">
-          Manage your notification preferences for your name(s) and ENS-related
-          updates.
-        </p>
-      </div>
-
-      <ContactMethods />
-
-      <NotificationPreferences />
-    </div>
-  )
-}
