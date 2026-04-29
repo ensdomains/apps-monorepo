@@ -12,7 +12,6 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
-import { RegistryCard } from '@/features/registry/components/RegistryCard'
 import { RegistryCardsGrid } from '@/features/registry/components/RegistryCardsGrid'
 import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -82,7 +81,7 @@ const V1ETHRegistry = ({ tld }: { tld: string }) => {
 
   if (!data) return null
 
-  return <RegistryCardsGrid label={tld} owner={data.owner} />
+  return <RegistryCardsGrid label={tld} protocol="ENSv1" owner={data.owner} />
 }
 
 const ETHRegistry = ({
@@ -96,7 +95,7 @@ const ETHRegistry = ({
   const tld = name.split('.').at(-1)!
 
   if (protocolVersion === 'ENSv1') return <V1ETHRegistry tld={tld} />
-  else return <RegistryCardsGrid label={tld} />
+  else return <RegistryCardsGrid label={tld} protocol="ENSv2" />
 }
 
 const RegistryInfo = ({
@@ -161,36 +160,29 @@ const RegistryInfo = ({
           { registries: [P.string, P.string, P.string], protocol: 'ENSv2' },
           () => {
             // ["2ld.eth"] on V2
+            const hasSubregistry = subregistryAddress !== zeroAddress
             return (
               <>
-                {subregistryAddress !== zeroAddress && <VerifiedRegistryCard />}
-                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
-                {subregistryAddress === zeroAddress ? (
-                  <RegistryCard
-                    registry={{
-                      protocol: data.protocolVersion,
-                    }}
-                    chainId={chainId}
-                  />
-                ) : (
-                  <RegistryCard
-                    registry={{
-                      address: subregistryAddress as Address,
-                      protocol: data.protocolVersion,
-                      factory: namechainVerifiableFactory,
-                    }}
-                    chainId={chainId}
-                  />
-                )}
+                {hasSubregistry && <VerifiedRegistryCard />}
+                <RegistryCardsGrid
+                  label={firstLabel}
+                  protocol={data.protocolVersion}
+                  owner={ownerData.owner}
+                  contractAddress={
+                    hasSubregistry ? (subregistryAddress as Address) : undefined
+                  }
+                  factoryAddress={
+                    hasSubregistry ? namechainVerifiableFactory : undefined
+                  }
+                  chainId={chainId}
+                />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid label={labels[1]} />
-                <RegistryCard
-                  registry={{
-                    address: data.registries.at(-2) as Address,
-                    protocol: data.protocolVersion,
-                  }}
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocol={data.protocolVersion}
+                  contractAddress={data.registries.at(-2) as Address}
                   chainId={chainId}
                 />
               </>
@@ -202,16 +194,18 @@ const RegistryInfo = ({
           () => {
             return (
               <>
-                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
+                <RegistryCardsGrid
+                  label={firstLabel}
+                  protocol={data.protocolVersion}
+                  owner={ownerData.owner}
+                />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid label={labels[1]} />
-                <RegistryCard
-                  registry={{
-                    address: data.registries.at(-2) as Address,
-                    protocol: data.protocolVersion,
-                  }}
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocol={data.protocolVersion}
+                  contractAddress={data.registries.at(-2) as Address}
                   chainId={chainId}
                 />
               </>
@@ -225,30 +219,32 @@ const RegistryInfo = ({
           },
           () => {
             const subsubRegistryAddress = data.registries.at(-4)
+            const hasSubsubRegistry =
+              subsubRegistryAddress && subsubRegistryAddress !== zeroAddress
             // ["sub.2ld.eth"] on V2
             return (
               <>
-                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
-                {subsubRegistryAddress === zeroAddress ? null : (
-                  <RegistryCard
-                    registry={{
-                      address: subsubRegistryAddress as Address,
-                      protocol: data.protocolVersion,
-                      factory: namechainVerifiableFactory,
-                    }}
-                    chainId={chainId}
-                  />
-                )}
+                <RegistryCardsGrid
+                  label={firstLabel}
+                  protocol={data.protocolVersion}
+                  owner={ownerData.owner}
+                  contractAddress={
+                    hasSubsubRegistry
+                      ? (subsubRegistryAddress as Address)
+                      : undefined
+                  }
+                  factoryAddress={
+                    hasSubsubRegistry ? namechainVerifiableFactory : undefined
+                  }
+                  chainId={chainId}
+                />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-
-                <RegistryCardsGrid label={labels[1]} />
-                <RegistryCard
-                  registry={{
-                    address: data.registries.at(-3) as Address,
-                    protocol: data.protocolVersion,
-                  }}
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocol={data.protocolVersion}
+                  contractAddress={data.registries.at(-3) as Address}
                   chainId={chainId}
                 />
               </>
@@ -264,11 +260,18 @@ const RegistryInfo = ({
             // ["sub.2ld.eth"]
             return (
               <>
-                <RegistryCardsGrid label={firstLabel} owner={ownerData.owner} />
+                <RegistryCardsGrid
+                  label={firstLabel}
+                  protocol={data.protocolVersion}
+                  owner={ownerData.owner}
+                />
                 <h2 className="leading-none text-heading font-medium">
                   Parent Registry
                 </h2>
-                <RegistryCardsGrid label={labels[1]} />
+                <RegistryCardsGrid
+                  label={labels[1]}
+                  protocol={data.protocolVersion}
+                />
               </>
             )
           },

@@ -1,5 +1,6 @@
 import type { Address } from 'viem'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { BlockCard } from '@/features/dashboard/components'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
@@ -24,11 +25,12 @@ const ContractAddressRow = ({
   address: Address
   explorerUrl?: string
 }) => (
-  <div className="flex items-center justify-start gap-3">
+  <div className="flex items-center justify-between min-w-0 gap-2">
     <span className="text-sm text-muted-foreground shrink-0 min-w-15">
       {label}
     </span>
     <EntityBadgeWithActions
+      inline
       variant="contract"
       address={address}
       etherscanHref={explorerUrl}
@@ -43,31 +45,31 @@ export const RegistryCard = ({ registry, chainId }: RegistryCardProps) => {
   const factoryUrl = useBlockExplorerAddressUrl(registry.factory, chainId)
 
   return (
-    <div className="border border-border rounded-sm p-6 flex flex-col gap-4 relative w-full">
-      <div className="flex flex-col gap-3 w-full">
-        <div className="flex items-center justify-start gap-3">
-          <span className="text-sm text-muted-foreground min-w-15">
-            Protocol
-          </span>
-          <span className="text-sm font-medium">{registry.protocol}</span>
-        </div>
-
-        {registry.address && (
-          <ContractAddressRow
-            label="Contract"
-            address={registry.address}
-            explorerUrl={addressUrl}
-          />
-        )}
-
-        {registry.factory && (
-          <ContractAddressRow
-            label="Factory"
-            address={registry.factory}
-            explorerUrl={factoryUrl}
-          />
-        )}
+    <BlockCard className="flex-col items-stretch gap-3">
+      <div className="flex items-center justify-between min-w-0 gap-2">
+        <span className="text-sm text-muted-foreground shrink-0 min-w-15">
+          Protocol
+        </span>
+        <span className="text-sm font-medium text-foreground shrink-0">
+          {registry.protocol}
+        </span>
       </div>
-    </div>
+
+      {registry.address && (
+        <ContractAddressRow
+          label="Contract"
+          address={registry.address}
+          explorerUrl={addressUrl}
+        />
+      )}
+
+      {registry.factory && (
+        <ContractAddressRow
+          label="Factory"
+          address={registry.factory}
+          explorerUrl={factoryUrl}
+        />
+      )}
+    </BlockCard>
   )
 }
