@@ -6,10 +6,10 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  '@ensdomains/ensjs': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c560f61
-  '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@c560f61
+  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c560f61
+  "@ensdomains/ensjs-abi": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@c560f61
   xstate: ^5.24.0
-  '@typescript/native-preview': 7.0.0-dev.20260421.2
+  "@typescript/native-preview": 7.0.0-dev.20260421.2
 
 catalogs:
   typescript6:
@@ -21,7 +21,9 @@ minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
   - "@rhinestone/sdk"
-  - '@lingui/*'
+  - "@lingui/*"
+  - rolldown
+  - "@rolldown/*"
 
 resolutionMode: highest
 
