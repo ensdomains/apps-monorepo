@@ -124,7 +124,7 @@ const CreateSubnameForm = ({
     error: registriesError,
   } = useQuery(getNameRegistriesQueryOptions({ name }))
 
-  const subregistryAddress = registriesData?.registries[0]
+  const subregistryAddress = registriesData?.[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
