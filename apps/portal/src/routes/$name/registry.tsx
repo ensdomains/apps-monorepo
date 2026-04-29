@@ -64,7 +64,13 @@ const DeploySubregistryButton = ({
   else return null
 }
 
-const V1ETHRegistry = ({ tld }: { tld: string }) => {
+const V1ETHRegistry = ({
+  tld,
+  protocolVersion,
+}: {
+  tld: string
+  protocolVersion: ProtocolVersion
+}) => {
   const { data, isLoading, error } = useQuery(
     getEnsOwnerQueryOptions({ name: tld }),
   )
@@ -81,7 +87,13 @@ const V1ETHRegistry = ({ tld }: { tld: string }) => {
 
   if (!data) return null
 
-  return <RegistryCardsGrid label={tld} protocol="ENSv1" owner={data.owner} />
+  return (
+    <RegistryCardsGrid
+      label={tld}
+      protocol={protocolVersion}
+      owner={data.owner}
+    />
+  )
 }
 
 const ETHRegistry = ({
@@ -94,8 +106,9 @@ const ETHRegistry = ({
   // biome-ignore lint/style/noNonNullAssertion: tld is always defined for 2ld
   const tld = name.split('.').at(-1)!
 
-  if (protocolVersion === 'ENSv1') return <V1ETHRegistry tld={tld} />
-  else return <RegistryCardsGrid label={tld} protocol="ENSv2" />
+  if (protocolVersion === 'ENSv1')
+    return <V1ETHRegistry tld={tld} protocolVersion={protocolVersion} />
+  else return <RegistryCardsGrid label={tld} protocol={protocolVersion} />
 }
 
 const RegistryInfo = ({
