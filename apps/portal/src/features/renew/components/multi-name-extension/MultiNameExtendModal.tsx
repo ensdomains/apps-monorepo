@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useConnection } from 'wagmi'
 import {
@@ -67,23 +67,25 @@ export const MultiNameExtendModal = ({
     duration: item.duration,
   }))
 
+  // Only transition to the success step when `transactionCompleted` flips from
+  // false → true while the modal is open. Without the ref guard, this effect
+  // would also fire when the modal remounts with a stale `transactionCompleted`
+  // prop (e.g. after the parent clears row selection on completion, unmounting
+  // the modal, and the user then selects another name to extend, remounting it
+  // before the parent has had a chance to clear the success flag).
+  const prevTransactionCompletedRef = useRef(transactionCompleted)
   useEffect(() => {
-    if (open && transactionCompleted) {
+    if (open && transactionCompleted && !prevTransactionCompletedRef.current) {
       setStep('success')
     }
+    prevTransactionCompletedRef.current = transactionCompleted
   }, [open, transactionCompleted])
 
-  // Reset internal state whenever the modal closes so a subsequent extension
-  // starts cleanly. We can't rely on `onOpenChange` for this because Radix only
-  // fires it for user-driven close events, not when the parent toggles `open`
-  // (e.g. after the user clicks "Done" on the success screen).
-  useEffect(() => {
-    if (!open) {
-      setStep('disclaimer')
-      setSpanType('years')
-      setDuration(1)
-    }
-  }, [open])
+  const resetInternalState = () => {
+    setStep('disclaimer')
+    setSpanType('years')
+    setDuration(1)
+  }
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -97,6 +99,7 @@ export const MultiNameExtendModal = ({
       open={open}
       onOpenChange={(isOpen) => {
         if (!isOpen) {
+          resetInternalState()
           onClose()
         }
       }}
@@ -140,7 +143,10 @@ export const MultiNameExtendModal = ({
           .with('success', () => (
             <MultiNameExtensionSuccess
               pricingData={pricingData}
-              onClose={onSuccessAcknowledged}
+              onClose={() => {
+                resetInternalState()
+                onSuccessAcknowledged()
+              }}
             />
           ))
           .exhaustive()}
