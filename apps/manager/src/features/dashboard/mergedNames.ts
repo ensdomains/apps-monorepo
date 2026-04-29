@@ -124,9 +124,7 @@ export const mergedRowMetadata = (
     !isV1 &&
     !!primaryLabel &&
     label.toLowerCase() === primaryLabel.toLowerCase()
-  const avatarUrl = isV1
-    ? undefined
-    : (avatarOverride ?? item.domain.resolver?.avatar ?? undefined)
+  const avatarUrl = isV1 ? undefined : avatarOverride
 
   return {
     label,

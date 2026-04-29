@@ -55,7 +55,7 @@ export const ExtendNameConfirmation = ({
         </Button>
         <Button
           className="flex-1"
-          variant="secondary"
+          variant="default"
           disabled={!selectedTokenData}
           onClick={() => selectedTokenData && onConfirm(selectedTokenData)}
         >

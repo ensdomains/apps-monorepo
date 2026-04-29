@@ -278,7 +278,7 @@ function RouteComponent() {
             <FieldError className="mt-1.5">{submitFeedback}</FieldError>
           )}
         </Field>
-        <Button type="submit" variant="secondary" className="w-fit">
+        <Button type="submit" variant="default" className="w-fit">
           {match({ isPending, isSuccess })
             .with({ isSuccess: true }, () => 'Transaction Complete')
             .with({ isPending: true }, () => 'Saving...')

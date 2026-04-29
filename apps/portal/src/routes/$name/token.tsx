@@ -83,7 +83,7 @@ const TokenInfoCard = ({
           <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="secondary" size="sm" className="gap-1 shrink-0">
+              <Button variant="default" size="sm" className="gap-1 shrink-0">
                 <ArrowRightFromLineIcon className="size-4" />
                 <span className="text-xs font-medium">More</span>
               </Button>

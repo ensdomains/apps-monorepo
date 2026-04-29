@@ -212,7 +212,7 @@ describe('mergedRowMetadata', () => {
     expect(meta.avatarUrl).toBeUndefined()
   })
 
-  it('prefers avatarOverride then resolver avatar for v2', () => {
+  it('uses avatarOverride for v2 and ignores indexer resolver avatar', () => {
     const item = makeMergedV2({
       domain: makeV2({
         resolver: {
@@ -224,7 +224,7 @@ describe('mergedRowMetadata', () => {
       }) as DomainFragment,
     })
     expect(mergedRowMetadata(item, null, 'override').avatarUrl).toBe('override')
-    expect(mergedRowMetadata(item, null).avatarUrl).toBe('resolver-avatar')
+    expect(mergedRowMetadata(item, null).avatarUrl).toBeUndefined()
   })
 
   it('computes expiringSoon within 30 days', () => {

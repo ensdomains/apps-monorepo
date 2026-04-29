@@ -6,7 +6,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #faf9f7;
+  --background: #ffffff;
   --foreground: #191919;
   --card: #faf9f7;
   --card-foreground: #191919;
@@ -27,7 +27,7 @@
   --border: #e1e1e0;
   --input: #f2f2f2;
   --ring: #737373;
-  --sidebar: #ffffff;
+  --sidebar: #f9f9f7;
   --sidebar-foreground: #737373;
   --sidebar-primary: #f2f2f2;
   --sidebar-primary-foreground: #191919;

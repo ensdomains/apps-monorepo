@@ -52,7 +52,7 @@ export const ExtendNameSettings = ({
         <Button variant="outline" size="icon" onClick={onBack}>
           <ArrowLeft className="size-4" />
         </Button>
-        <Button className="flex-1" variant="secondary" onClick={onNext}>
+        <Button className="flex-1" variant="default" onClick={onNext}>
           Next
         </Button>
       </div>

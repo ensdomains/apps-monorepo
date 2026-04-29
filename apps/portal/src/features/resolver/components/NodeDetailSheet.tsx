@@ -88,7 +88,7 @@ export const NodeDetailSheet = ({
               {node?.name ?? 'Node Details'}
             </SheetTitle>
             {node && (
-              <Button variant="secondary" size="sm" asChild>
+              <Button variant="default" size="sm" asChild>
                 <Link to="/$name" params={{ name: node.name }}>
                   Go to name
                 </Link>
@@ -108,7 +108,7 @@ export const NodeDetailSheet = ({
               <section className="p-6 border-b flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">Records</h3>
-                  <Button variant="secondary" size="sm" asChild>
+                  <Button variant="default" size="sm" asChild>
                     <Link to="/$name/records" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
                       Go to records
@@ -141,7 +141,7 @@ export const NodeDetailSheet = ({
               <section className="p-6 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">Roles</h3>
-                  <Button variant="secondary" size="sm" asChild>
+                  <Button variant="default" size="sm" asChild>
                     <Link to="/$name/roles" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
                       Go to roles

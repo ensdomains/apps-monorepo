@@ -1,7 +1,7 @@
 import type { DomainFragment } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ChevronDown,
@@ -13,6 +13,7 @@ import {
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import type { Address } from 'viem'
 import ensMarkBadge from '@/assets/ens-mark-badge.svg'
 import {
   buildMergedNamesList,
@@ -21,7 +22,10 @@ import {
   type SortField,
 } from '@/features/dashboard/mergedNames'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  type AvatarLookupEntry,
+  namesAvatarsQuery,
+} from '@/features/profile/service/profileAvatar'
 import { tw } from '@/utils/tailwind'
 import { getAllDomainsQuery } from '../service/queries/getAllDashboardDomains'
 import { NameRow } from './NameRow'
@@ -153,15 +157,20 @@ export const MyNamesList = ({
     setPage(1)
   }
 
-  const avatarQueries = useQueries({
-    queries: pageItems.map((item) =>
-      parseAvatarQuery(
-        item.kind === 'v2'
-          ? (item.domain.resolver?.avatar ?? undefined)
-          : undefined,
-      ),
-    ),
-  })
+  const avatarLookups = useMemo<AvatarLookupEntry[]>(
+    () =>
+      pageItems.flatMap((item) => {
+        if (item.kind !== 'v2') return []
+        const resolverAddress = item.domain.resolver?.address as
+          | Address
+          | undefined
+        if (!resolverAddress) return []
+        return [{ name: item.sortName, resolverAddress }]
+      }),
+    [pageItems],
+  )
+
+  const { data: pageAvatars } = useQuery(namesAvatarsQuery(avatarLookups))
 
   const isPending =
     (isV2Pending && normalizedAddress !== undefined) || isV1Pending
@@ -291,7 +300,7 @@ export const MyNamesList = ({
               } = mergedRowMetadata(
                 item,
                 primaryLabel,
-                avatarQueries[index]?.data,
+                pageAvatars?.[item.sortName],
               )
 
               return (

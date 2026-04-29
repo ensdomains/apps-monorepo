@@ -124,7 +124,7 @@ const CreateSubnameForm = ({
     error: registriesError,
   } = useQuery(getNameRegistriesQueryOptions({ name }))
 
-  const subregistryAddress = registriesData?.registries[0]
+  const subregistryAddress = registriesData?.[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
@@ -211,7 +211,7 @@ const CreateSubnameForm = ({
           This name does not have a subregistry. You must deploy one first to
           create subnames.
         </p>
-        <Button asChild variant="secondary" className="w-fit">
+        <Button asChild variant="default" className="w-fit">
           <Link to="/$name/registry" params={{ name }}>
             Deploy subregistry
           </Link>

@@ -90,7 +90,7 @@ const AddUserButton = ({
   if (!canManageRoles) return null
 
   return (
-    <Button variant="secondary" className="flex items-center gap-2" asChild>
+    <Button variant="default" className="flex items-center gap-2" asChild>
       <Link to="/$name/roles/add-user" params={{ name }}>
         <Plus className="size-4" />
         Add user

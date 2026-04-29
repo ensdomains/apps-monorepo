@@ -57,7 +57,7 @@ function createWrapper() {
 
 /** Helper to focus the search input (inline popover opens when typing) */
 async function openSearchDialog(user: ReturnType<typeof userEvent.setup>) {
-  const input = screen.getByPlaceholderText('Search name or address...')
+  const input = screen.getByPlaceholderText('Search...')
   await user.click(input)
   return input
 }

@@ -229,7 +229,7 @@ export const ResolverRolesSidebar = ({
               {canManageRoles && selectedAccount && (
                 <div className="flex gap-2">
                   <Button
-                    variant="secondary"
+                    variant="default"
                     className="text-primary"
                     disabled={
                       !hasChanges ||
@@ -242,7 +242,7 @@ export const ResolverRolesSidebar = ({
                     {saveMutation.isPending ? 'Saving...' : 'Save changes'}
                   </Button>
                   <Button
-                    variant="secondary"
+                    variant="default"
                     className="text-primary"
                     disabled={
                       removeUserMutation.isPending || !isWalletConnected

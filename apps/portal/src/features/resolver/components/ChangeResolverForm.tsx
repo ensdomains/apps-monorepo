@@ -273,7 +273,7 @@ export const ChangeResolverForm = ({
 
       <Button
         onClick={handleSubmit}
-        variant="secondary"
+        variant="default"
         disabled={isSubmitDisabled}
         className="w-fit"
       >

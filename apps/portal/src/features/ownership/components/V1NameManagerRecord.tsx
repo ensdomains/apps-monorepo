@@ -32,7 +32,7 @@ const abi = [
 
 const ensRegistryAddress = getChainContractAddress({
   chain: sepoliaWithEns,
-  contract: 'ensRegistry',
+  contract: 'ensLegacyRegistry',
 })
 
 export const V1NameManagerRecord = ({

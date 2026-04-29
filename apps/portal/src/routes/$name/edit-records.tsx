@@ -405,7 +405,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 justify-end">
             <span className="text-xs text-transparent select-none">Action</span>
             <Button
-              variant="secondary"
+              variant="default"
               onClick={handleAddRecord}
               disabled={!selectedType || (requiresKey && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
