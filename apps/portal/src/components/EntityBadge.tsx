@@ -136,6 +136,8 @@ interface EntityBadgeWithActionsProps {
   readonly copyValue?: string
   /** Optional leading avatar rendered inside the hover surface, before the pill */
   readonly avatar?: ReactNode
+  /** Render as an inline pill instead of a full-width 48px row */
+  readonly inline?: boolean
 }
 
 export const EntityBadgeWithActions = ({
@@ -149,6 +151,7 @@ export const EntityBadgeWithActions = ({
   etherscanHref,
   copyValue,
   avatar,
+  inline = false,
 }: EntityBadgeWithActionsProps) => {
   const navigate = useNavigate()
   const chainId = useChainId()
@@ -218,13 +221,23 @@ export const EntityBadgeWithActions = ({
   }
 
   return (
-    <div className="relative group/entity flex w-full">
+    <div
+      className={cn(
+        'relative group/entity',
+        inline ? 'inline-flex' : 'flex w-full',
+      )}
+    >
       {/*
         Chips float above the badge.
         pb-2 creates an invisible 8px bridge at the bottom of this container,
         so hovering from badge upward to chips doesn't break the hover state.
       */}
-      <div className="absolute bottom-full left-3.5 pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50">
+      <div
+        className={cn(
+          'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
+          inline ? 'left-0' : 'left-3.5',
+        )}
+      >
         {variant === 'name' && name && (
           <Link to="/$name" params={{ name }} className={chipClass}>
             <ChipNameIcon className="size-3.25" />
@@ -299,7 +312,10 @@ export const EntityBadgeWithActions = ({
         <button
           type="button"
           className={cn(
-            'flex w-full items-center gap-2 px-3.5 py-3.5 rounded-lg transition-colors cursor-pointer text-left',
+            'items-center gap-2 rounded-lg transition-colors cursor-pointer text-left',
+            inline
+              ? 'inline-flex px-1.5 py-1 rounded'
+              : 'flex w-full px-3.5 py-3.5',
             hoverBgClass[variant],
           )}
           onClick={triggerPrimaryAction}
@@ -310,7 +326,10 @@ export const EntityBadgeWithActions = ({
       ) : (
         <div
           className={cn(
-            'flex w-full items-center gap-2 px-3.5 py-3.5 rounded-lg transition-colors',
+            'items-center gap-2 rounded-lg transition-colors',
+            inline
+              ? 'inline-flex px-1.5 py-1 rounded'
+              : 'flex w-full px-3.5 py-3.5',
             hoverBgClass[variant],
           )}
         >

@@ -169,3 +169,20 @@ export const DataBlockCardError = ({
     <span className="text-sm">{message}</span>
   </div>
 )
+
+export const BlockCard = ({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) => (
+  <div
+    className={cn(
+      'flex items-center gap-4 p-4 rounded-lg bg-background border border-secondary w-full',
+      className,
+    )}
+  >
+    {children}
+  </div>
+)

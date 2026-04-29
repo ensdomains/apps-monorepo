@@ -1,4 +1,5 @@
 export {
+  BlockCard,
   DataBlockCard,
   DataBlockCardError,
   InfoBlockCard,
