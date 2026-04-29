@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "typescript": "catalog:typescript6",
-    "vitest": "^3.2.4"
+    "vitest": "catalog:"
   },
   "keywords": [],
   "dependencies": {

@@ -41,7 +41,7 @@
     "workers-og": "^0.0.27"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.33.1",
+    "@cloudflare/vite-plugin": "catalog:",
     "@cloudflare/vitest-pool-workers": "^0.14.9",
     "@grammyjs/types": "^3.22.2",
     "@sendgrid/helpers": "^8.0.0",
@@ -52,8 +52,8 @@
     "dotenv": "^17.2.2",
     "drizzle-kit": "^0.31.4",
     "typescript": "catalog:typescript6",
-    "vite": "^8.0.10",
-    "vitest": "^4.1.5"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   },
   "imports": {
     "#*": "./src/*"
