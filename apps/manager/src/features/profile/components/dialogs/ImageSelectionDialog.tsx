@@ -15,8 +15,8 @@ import {
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
@@ -315,11 +315,30 @@ export const ImageSelectionDialog = ({
             <p className="mb-2 font-medium text-sm">
               <Trans>Default</Trans>
             </p>
-            <img
-              alt={`Default ${type}`}
-              className={getImageStyles('small')}
-              src={defaultImage || placeholderAvatar}
-            />
+            {defaultImage ? (
+              <img
+                alt={`Default ${type}`}
+                className={getImageStyles('small')}
+                src={defaultImage}
+              />
+            ) : type === 'avatar' ? (
+              <PatternAvatar
+                className={cn(
+                  getImageStyles('small'),
+                  'border-none bg-transparent p-0 shadow-none',
+                )}
+                name={name || 'avatar'}
+              />
+            ) : (
+              <div
+                className={cn(
+                  getImageStyles('small'),
+                  'flex items-center justify-center bg-gray-200',
+                )}
+              >
+                <Image className="size-8 text-gray-400" />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -613,23 +632,20 @@ export const ImageSelectionDialog = ({
               className="h-full w-full object-cover"
               src={defaultImage}
             />
+          ) : type === 'avatar' ? (
+            <PatternAvatar
+              className="h-full w-full rounded-md border-none bg-transparent p-0 shadow-none"
+              name={name || 'avatar'}
+            />
           ) : (
             <div
-              className={clsx(
-                type === 'header'
-                  ? 'h-full w-full'
-                  : 'h-48 w-full bg-gray-200 md:h-64',
-              )}
-              style={
-                type === 'header'
-                  ? {
-                      backgroundColor: 'var(--color-ens-lapis-dust)',
-                      backgroundImage:
-                        'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
-                      backgroundSize: '8px 8px',
-                    }
-                  : undefined
-              }
+              className="h-full w-full"
+              style={{
+                backgroundColor: 'var(--color-ens-lapis-dust)',
+                backgroundImage:
+                  'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
+                backgroundSize: '8px 8px',
+              }}
             />
           )}
         </ImageFallback.Fallback>

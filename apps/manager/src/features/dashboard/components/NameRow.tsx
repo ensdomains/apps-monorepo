@@ -2,8 +2,8 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, Heart } from 'lucide-react'
 import { motion } from 'motion/react'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import {
   Tooltip,
   TooltipContent,
@@ -69,10 +69,9 @@ export const NameRow = ({
               src={avatarUrl}
             />
             <ImageFallback.Fallback>
-              <img
-                alt={t`${label} avatar placeholder`}
-                className="size-full object-cover"
-                src={placeholderAvatar}
+              <PatternAvatar
+                className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                name={label}
               />
             </ImageFallback.Fallback>
           </ImageFallback.Root>

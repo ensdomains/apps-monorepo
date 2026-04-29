@@ -1,31 +1,20 @@
 import {
-  type DomainFilter,
   DomainsDocument,
   type DomainsQuery,
   type DomainsQueryVariables,
 } from '@ens-apps/indexer'
 import indexerClient from '@ens-apps/indexer/urql'
 
-// `name_in` is accepted by the indexer but not yet advertised in introspected
-// DomainFilter schema, so codegen can't pick it up. Augment the type locally
-// until the subgraph team exposes it.
-type DomainFilterWithNameIn = DomainFilter & {
-  name_in?: readonly string[]
-}
-type Variables = Omit<DomainsQueryVariables, 'where'> & {
-  where: DomainFilterWithNameIn
-}
-
 const NAMES_CHUNK = 1000
 
 const fetchChunk = async (names: readonly string[]): Promise<string[]> => {
-  const variables: Variables = {
-    where: { name_in: names },
+  const variables: DomainsQueryVariables = {
+    where: { name_in: [...names] },
     first: names.length,
   }
 
   const result = await indexerClient
-    .query<DomainsQuery, Variables>(DomainsDocument, variables)
+    .query<DomainsQuery, DomainsQueryVariables>(DomainsDocument, variables)
     .toPromise()
 
   if (result.error) throw result.error

@@ -8,7 +8,8 @@ import { useMemo, useState } from 'react'
 import QRCode from 'react-qr-code'
 import { toast } from 'sonner'
 import ensLogo from '@/assets/icons/ens.svg'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -101,12 +102,20 @@ export const ShareProfileDialog = ({
           <div className="inline-block rounded-lg bg-black p-2">
             <QRCode bgColor="#000" fgColor="#fff" size={120} value={safeUrl} />
           </div>
-          <div className="mt-5 rounded-lg bg-white p-1 shadow">
-            <img
-              alt={`${name} avatar`}
-              className="size-14 rounded md:size-20"
-              src={avatarUrl || placeholderAvatar}
-            />
+          <div className="mt-5 size-14 overflow-hidden rounded-lg bg-white p-1 shadow md:size-20">
+            <ImageFallback.Root className="contents">
+              <ImageFallback.Image
+                alt={`${name} avatar`}
+                className="size-full rounded object-cover"
+                src={avatarUrl}
+              />
+              <ImageFallback.Fallback>
+                <PatternAvatar
+                  className="size-full rounded border-none bg-transparent p-0 shadow-none"
+                  name={name}
+                />
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
           </div>
           <div className="mt-2 rounded-md bg-black px-2 py-1 text-sm text-white">
             {name}

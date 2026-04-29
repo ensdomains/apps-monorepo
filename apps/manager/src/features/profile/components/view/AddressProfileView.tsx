@@ -14,10 +14,10 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { CountBadge } from '@/components/atoms/CountBadge'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Card } from '@/components/ui/card'
 import {
   formatDashboardDate,
@@ -56,10 +56,9 @@ const NameAvatar = ({ name }: { name: string }) => {
           src={avatarUrl ?? undefined}
         />
         <ImageFallback.Fallback>
-          <img
-            alt={`${name} fallback avatar`}
-            className="size-full object-cover"
-            src={placeholderAvatar}
+          <PatternAvatar
+            className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+            name={name}
           />
           {isLoading && (
             <div className="absolute inset-0 animate-pulse rounded-full bg-gray-100" />

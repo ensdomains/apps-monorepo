@@ -92,10 +92,12 @@ export type DomainFilter = {
   expiry_lt?: InputMaybe<Scalars['Int']['input']>;
   expiry_lte?: InputMaybe<Scalars['Int']['input']>;
   hasSubdomains?: InputMaybe<Scalars['Boolean']['input']>;
+  isMigrated?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   name_contains?: InputMaybe<Scalars['String']['input']>;
   name_contains_nocase?: InputMaybe<Scalars['String']['input']>;
   name_ends_with?: InputMaybe<Scalars['String']['input']>;
+  name_in?: InputMaybe<Array<Scalars['String']['input']>>;
   name_starts_with?: InputMaybe<Scalars['String']['input']>;
   owner?: InputMaybe<Scalars['String']['input']>;
   owner_in?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -475,7 +477,7 @@ export type DomainFragment = { __typename?: 'Domain', id: string, name?: string 
     & AccountFragment
   ) };
 
-export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, contentHash?: string | null, avatar?: string | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number, address: string }> | null };
+export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, contentHash?: string | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number, address: string }> | null };
 
 export type DomainQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -520,7 +522,6 @@ export const Resolver = gql`
   id
   address
   texts
-  avatar: text(key: "avatar")
   contentHash
   addresses {
     coinType

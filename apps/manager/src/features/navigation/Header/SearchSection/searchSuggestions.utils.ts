@@ -58,15 +58,9 @@ export const parseSearchInput = (input: string): ParsedInput => {
   return { type: 'name', value }
 }
 
-type IndexerDomain = {
-  readonly name?: string | null
-  readonly normalizedName?: string | null
-}
-
 type BuildSuggestionsParams = {
   readonly parsedInput: ParsedInput
   readonly primaryName?: string | null
-  readonly indexerDomains: readonly IndexerDomain[]
   readonly history: readonly SearchHistoryItem[]
 }
 
@@ -75,16 +69,13 @@ const MAX_SUGGESTIONS = 6
 export const buildSuggestions = ({
   parsedInput,
   primaryName,
-  indexerDomains,
   history,
 }: BuildSuggestionsParams): SuggestionItem[] => {
   const suggestions: SuggestionItem[] = []
-  const addedNames = new Set<string>()
 
   if (parsedInput.type === 'address') {
     suggestions.push({ type: 'address', value: parsedInput.value })
     if (primaryName) {
-      addedNames.add(primaryName.toLowerCase())
       suggestions.push(
         { type: 'name', value: primaryName },
         { type: 'separator' },
@@ -93,30 +84,11 @@ export const buildSuggestions = ({
   }
 
   if (parsedInput.type === 'name') {
-    addedNames.add(parsedInput.value.toLowerCase())
     suggestions.push({
       type: 'name',
       value: parsedInput.value,
       isSupported: isSearchNameSupported(parsedInput.value),
     })
-
-    for (const domain of indexerDomains) {
-      const name = domain.normalizedName ?? domain.name
-      if (!name) continue
-      const lowered = name.toLowerCase()
-      if (addedNames.has(lowered)) {
-        const idx = suggestions.findIndex(
-          (s) => s.type === 'name' && s.value.toLowerCase() === lowered,
-        )
-        if (idx !== -1) {
-          const existing = suggestions[idx] as NameSuggestion
-          suggestions[idx] = { ...existing, isRegistered: true }
-        }
-        continue
-      }
-      addedNames.add(lowered)
-      suggestions.push({ type: 'name', value: name, isRegistered: true })
-    }
   }
 
   if (parsedInput.type === 'error') {
