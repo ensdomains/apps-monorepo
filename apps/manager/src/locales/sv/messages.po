@@ -242,7 +242,7 @@ msgstr "Adressprofil"
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
 
-#: src/routes/notifications/_authenticated/index.tsx:76
+#: src/features/notifications/pages/all-notifications-page.tsx:72
 msgid "All Notifications"
 msgstr ""
 
@@ -1281,11 +1281,11 @@ msgstr ""
 msgid "Manage your notification preferences for your name(s) and ENS-related updates."
 msgstr ""
 
-#: src/routes/notifications/_authenticated/index.tsx:114
+#: src/features/notifications/pages/all-notifications-page.tsx:110
 msgid "Mark all as read"
 msgstr ""
 
-#: src/routes/notifications/_authenticated/index.tsx:112
+#: src/features/notifications/pages/all-notifications-page.tsx:108
 msgid "Marking..."
 msgstr ""
 
@@ -1466,9 +1466,9 @@ msgstr ""
 msgid "Notification Preferences"
 msgstr ""
 
+#: src/features/notifications/pages/all-notifications-page.tsx:82
 #: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:21
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
-#: src/routes/notifications/_authenticated/index.tsx:86
 msgid "Notification Settings"
 msgstr ""
 
@@ -1950,8 +1950,8 @@ msgstr "Sök namn..."
 msgid "Search names"
 msgstr ""
 
-#: src/routes/notifications/_authenticated/index.tsx:120
-#: src/routes/notifications/_authenticated/index.tsx:121
+#: src/features/notifications/pages/all-notifications-page.tsx:116
+#: src/features/notifications/pages/all-notifications-page.tsx:117
 msgid "Search notifications"
 msgstr ""
 
@@ -2398,7 +2398,7 @@ msgstr ""
 msgid "Try searching for a different coin or chain"
 msgstr ""
 
-#: src/routes/notifications/_authenticated/index.tsx:101
+#: src/features/notifications/pages/all-notifications-page.tsx:97
 msgid "Unread only"
 msgstr ""
 
