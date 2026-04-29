@@ -62,7 +62,7 @@ export const Owner = ({
     return (
       <div
         className={cn(
-          'flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full',
+          'flex items-center gap-4 rounded hover:bg-muted/50 w-full',
           className,
         )}
       >

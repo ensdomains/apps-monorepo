@@ -34,13 +34,6 @@ export const hoverBgClass: Record<EntityVariant, string> = {
   tx: 'hover:bg-warning-fill dark:hover:bg-entity-bg',
 }
 
-const bgClass: Record<EntityVariant, string> = {
-  name: 'bg-accent-fill dark:bg-entity-bg',
-  address: 'bg-success-fill dark:bg-entity-bg',
-  contract: 'bg-danger-fill dark:bg-entity-bg',
-  tx: 'bg-warning-fill dark:bg-entity-bg',
-}
-
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
@@ -225,13 +218,13 @@ export const EntityBadgeWithActions = ({
   }
 
   return (
-    <div className="relative group/entity inline-flex">
+    <div className="relative group/entity flex w-full">
       {/*
         Chips float above the badge.
         pb-2 creates an invisible 8px bridge at the bottom of this container,
         so hovering from badge upward to chips doesn't break the hover state.
       */}
-      <div className="absolute bottom-full left-0 pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50">
+      <div className="absolute bottom-full left-3.5 pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50">
         {variant === 'name' && name && (
           <Link to="/$name" params={{ name }} className={chipClass}>
             <ChipNameIcon className="size-3.25" />
@@ -306,8 +299,8 @@ export const EntityBadgeWithActions = ({
         <button
           type="button"
           className={cn(
-            'inline-flex items-center gap-1 rounded transition-colors cursor-pointer px-1.5 py-1',
-            avatar ? bgClass[variant] : hoverBgClass[variant],
+            'flex w-full items-center gap-2 px-3.5 py-3.5 rounded-lg transition-colors cursor-pointer text-left',
+            hoverBgClass[variant],
           )}
           onClick={triggerPrimaryAction}
         >
@@ -317,8 +310,8 @@ export const EntityBadgeWithActions = ({
       ) : (
         <div
           className={cn(
-            'inline-flex items-center gap-1 rounded transition-colors px-1.5 py-1',
-            avatar ? bgClass[variant] : hoverBgClass[variant],
+            'flex w-full items-center gap-2 px-3.5 py-3.5 rounded-lg transition-colors',
+            hoverBgClass[variant],
           )}
         >
           {avatar}

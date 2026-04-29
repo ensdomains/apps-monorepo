@@ -23,7 +23,7 @@ export const ParentName = ({
         </div>
       )
     return (
-      <div className="flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full">
+      <div className="flex items-center gap-4 rounded hover:bg-muted/50 w-full">
         <button
           type="button"
           className="flex items-center gap-4 text-left cursor-pointer"
