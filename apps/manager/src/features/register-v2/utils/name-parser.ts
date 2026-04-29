@@ -58,6 +58,18 @@ export const parseName = (name: string) => {
   })
 }
 
+export const isRootEthName = (name: string) => {
+  const parsedName = parseName(name)
+
+  if (parsedName.isErr()) {
+    return false
+  }
+
+  return (
+    parsedName.value.tld === 'eth' && parsedName.value.subLabels.length === 0
+  )
+}
+
 /**
  * Correctly calculates the length of a ENS label by iterating over the string iterator and counting the number of code points.
  */

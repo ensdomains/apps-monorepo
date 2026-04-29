@@ -11,6 +11,7 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { isRootEthName } from '@/features/register-v2/utils/name-parser'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
@@ -49,7 +50,7 @@ export const Route = createFileRoute('/p/$name/')({
     const isExpired =
       !expiryData?.expiry || Number(expiryData.expiry) * 1000 < Date.now()
 
-    if (isExpired) {
+    if (isExpired && isRootEthName(resolvedName)) {
       throw redirect(
         isFeatureEnabled('REGISTRATION_V2')
           ? {

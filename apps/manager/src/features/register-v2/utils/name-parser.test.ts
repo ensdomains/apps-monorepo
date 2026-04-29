@@ -1,5 +1,5 @@
 import { assert, describe, expect, it } from 'vitest'
-import { parseName } from './name-parser'
+import { isRootEthName, parseName } from './name-parser'
 
 describe('parseName', () => {
   it('parses a plain label as an .eth name', () => {
@@ -82,5 +82,23 @@ describe('parseName', () => {
       label: 'vitalik',
       tld: 'eth',
     })
+  })
+})
+
+describe('isRootEthName', () => {
+  it('returns true for root .eth names', () => {
+    expect(isRootEthName('vitalik.eth')).toBe(true)
+  })
+
+  it('returns false for .eth subnames', () => {
+    expect(isRootEthName('sub.vitalik.eth')).toBe(false)
+  })
+
+  it('returns false for non-.eth names', () => {
+    expect(isRootEthName('vitalik.xyz')).toBe(false)
+  })
+
+  it('returns false for invalid names', () => {
+    expect(isRootEthName('vitalik..eth')).toBe(false)
   })
 })

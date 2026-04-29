@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { getNotificationActionButtonClass } from '@/features/notifications/shared/primitives'
 import { NameCardTemplate } from '@/features/notifications/shared/templates'
+import { isRootEthName } from '@/features/register-v2/utils/name-parser'
 import { formatExpiryTime } from '@/utils/time'
 import type { KindComponent } from './contracts'
 
@@ -14,6 +15,7 @@ export const NameExpiryComponent: KindComponent<'name-expiry'> = ({
   onRemove,
 }) => {
   const expiry = formatExpiryTime(payload.expiryDate)
+  const isExtendable = isRootEthName(payload.name)
 
   return (
     <NameCardTemplate
@@ -26,7 +28,7 @@ export const NameExpiryComponent: KindComponent<'name-expiry'> = ({
           }}
           to="/p/$name"
         >
-          {expiry.isExpired ? 'View profile' : 'Extend'}
+          {expiry.isExpired || !isExtendable ? 'View profile' : 'Extend'}
         </Link>
       }
       category="Expiry"
