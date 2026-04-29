@@ -70,7 +70,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   // The subregistry is always the first element (index 0) in the registries array
   // For 2LD "foo.eth": [subregistry, ethRegistry, root]
   // For 3LD "sub.foo.eth": [subregistry, fooRegistry, ethRegistry, root]
-  const subregistryAddress = registriesData?.registries[0]
+  const subregistryAddress = registriesData?.[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
@@ -86,7 +86,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   })
 
   // Check if connected account can deploy a subregistry (ROLE_SET_SUBREGISTRY on parent registry)
-  const parentRegistryAddress = registriesData?.registries[1]
+  const parentRegistryAddress = registriesData?.[1]
   const firstLabel = name.split('.')[0]
   const { data: hasSetSubregistryRole } = useQuery({
     ...getHasRolesQueryOptions({
