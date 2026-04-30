@@ -4,7 +4,7 @@ import type { PropsWithChildren } from 'react'
 import type { Address, Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { DataRow } from '@/components/DataRow'
+import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -90,50 +90,56 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
+      <InfoCard title="Transaction details">
         {txHash && (
-          <DataRow label="Tx Hash">
-            <CopyableRecord
-              value={txHash}
-              displayValue={
-                <span className="flex items-center gap-1">
-                  {truncateAddress(txHash, 10, 8, '...')}
-                </span>
-              }
-              href={txUrl}
-            />
-          </DataRow>
+          <InfoRow label="Tx Hash">
+            <div className="pl-3.5">
+              <CopyableRecord
+                value={txHash}
+                displayValue={
+                  <span className="flex items-center gap-1">
+                    {truncateAddress(txHash, 10, 8, '...')}
+                  </span>
+                }
+                href={txUrl}
+              />
+            </div>
+          </InfoRow>
         )}
 
         {formattedTimestamp && (
-          <DataRow label="Timestamp">
-            <CopyableRecord
-              value={formattedTimestamp}
-              displayValue={<span>{formattedTimestamp} UTC</span>}
-            />
-          </DataRow>
+          <InfoRow label="Timestamp">
+            <div className="pl-3.5">
+              <CopyableRecord
+                value={formattedTimestamp}
+                displayValue={<span>{formattedTimestamp} UTC</span>}
+              />
+            </div>
+          </InfoRow>
         )}
 
         {txData && (
           <>
-            <DataRow label="Network">
-              <span>Sepolia</span>
-            </DataRow>
+            <InfoRow label="Network">
+              <span className="text-sm pl-3.5">Sepolia</span>
+            </InfoRow>
 
-            <DataRow label="From">
+            <InfoRow label="From">
               <AddressDisplay address={txData.from} />
-            </DataRow>
+            </InfoRow>
 
-            <DataRow label="To">
+            <InfoRow label="To">
               {txData.to ? (
                 <AddressDisplay address={txData.to} />
               ) : (
-                <span className="text-muted-foreground">Contract Creation</span>
+                <span className="text-sm pl-3.5 text-muted-foreground">
+                  Contract Creation
+                </span>
               )}
-            </DataRow>
+            </InfoRow>
           </>
         )}
-      </div>
+      </InfoCard>
 
       <div className="flex flex-col gap-4">
         <h3 className="text-lg font-semibold">1 event</h3>
