@@ -9,7 +9,7 @@ import {
 
 describe('registrationPricing', () => {
   describe('getStandardPricePerYear', () => {
-    it('returns $5 for 5+ character names', () => {
+    it('returns the standard $/year for 5+ character names', () => {
       expect(getStandardPricePerYear('hello')).toBe(STANDARD_PRICE_PER_YEAR_USD)
       expect(getStandardPricePerYear('hello.eth')).toBe(
         STANDARD_PRICE_PER_YEAR_USD,
@@ -38,25 +38,25 @@ describe('registrationPricing', () => {
     })
 
     it('computes discount as standard - actual', () => {
-      // 5-char name: $5/year. 3 years = $15 standard. Actual $12 = $3 discount
+      // 5+ char name: $8/year. 3 years = $24 standard. Actual $18 = $6 discount
       const durationSeconds = 3 * CONTRACT_SECONDS_PER_YEAR
       const result = getPricingBreakdown(
         'hello',
-        mockPrice(12),
+        mockPrice(18),
         durationSeconds,
       )
       expect(result.years).toBe(3)
-      expect(result.standardSubtotal).toBe(15)
-      expect(result.actualPrice).toBe(12)
-      expect(result.discountAmount).toBe(3)
-      expect(result.discountPercent).toBe(20)
+      expect(result.standardSubtotal).toBe(24)
+      expect(result.actualPrice).toBe(18)
+      expect(result.discountAmount).toBe(6)
+      expect(result.discountPercent).toBe(25)
     })
 
     it('returns zero discount when actual >= standard', () => {
       const durationSeconds = 3 * CONTRACT_SECONDS_PER_YEAR
       const result = getPricingBreakdown(
         'hello',
-        mockPrice(15),
+        mockPrice(24),
         durationSeconds,
       )
       expect(result.discountAmount).toBe(0)
