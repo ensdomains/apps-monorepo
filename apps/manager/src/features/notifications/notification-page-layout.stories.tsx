@@ -6,9 +6,9 @@ import {
   unreadCountQuery,
 } from '@/features/notifications/data/queries/notifications'
 import { preferencesQueryOptions } from '@/features/notifications/data/queries/preferences'
+import { AllNotificationsPage } from '@/routes/notifications/_authenticated/index'
+import { NotificationSettingsPage } from '@/routes/notifications/_authenticated/settings/index'
 import { withProviders } from '../../../.storybook/decorators'
-import { AllNotificationsPage } from './pages/all-notifications-page'
-import { NotificationSettingsPage } from './pages/notification-settings-page'
 
 /**
  * Stories for the real notification page components used by the routes
