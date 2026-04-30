@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { Badge } from '@/components/ui/badge'
 import { WalletMenu } from '@/components/WalletMenu'
 
 export const HomeHeader = () => (
