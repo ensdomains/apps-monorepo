@@ -31,6 +31,8 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               name={row.original.name}
               expiryDate={row.original.expiryDate}
               roleBitmap={row.original.roleBitmap}
+              v1Roles={row.original.v1Roles}
+              protocolVersion={row.original.protocolVersion}
               isSelected={row.getIsSelected()}
               onSelectChange={(selected) => row.toggleSelected(selected)}
             />

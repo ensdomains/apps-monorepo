@@ -8,12 +8,14 @@ import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { V1Roles } from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
+import type { ProtocolVersion } from '@/utils/types'
 
 export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
+  protocolVersion: ProtocolVersion
   recordCount?: number
   subdomainCount?: number
   isSelected?: boolean
@@ -26,6 +28,7 @@ export const NameMobileCard = ({
   expiryDate,
   roleBitmap,
   v1Roles,
+  protocolVersion,
   recordCount,
   subdomainCount,
   isSelected = false,
@@ -70,9 +73,8 @@ export const NameMobileCard = ({
             <span className="text-base">
               {formatDateTime(dateToPlainDate(expiryDate))}
             </span>
-            {getNameStatus(expiryDate, v1Roles === null) === 'grace' && (
-              <GraceBadge />
-            )}
+            {getNameStatus(expiryDate, protocolVersion === 'ENSv2') ===
+              'grace' && <GraceBadge />}
           </>
         ) : (
           <Badge variant="secondary" className="text-xs">

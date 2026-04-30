@@ -138,6 +138,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             expiryDate={name.expiryDate}
             roleBitmap={name.roleBitmap}
             v1Roles={name.v1Roles}
+            protocolVersion={name.protocolVersion}
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
             showCheckbox={false}

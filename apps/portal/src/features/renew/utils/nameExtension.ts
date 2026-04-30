@@ -18,7 +18,7 @@ export const getSelectedNames = (
     .filter((row): row is NameRow & { name: string } => row.name !== null)
     .map((row) => ({
       name: row.name,
-      isV2: row.v1Roles === null,
+      isV2: row.protocolVersion === 'ENSv2',
       expiryDate: row.expiryDate,
     }))
 

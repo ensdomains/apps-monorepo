@@ -217,7 +217,10 @@ const Profile = ({
   return (
     <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
       {grace.isInGrace && grace.graceEndDate && (
-        <GraceBanner graceEndDate={grace.graceEndDate} />
+        <GraceBanner
+          graceEndDate={grace.graceEndDate}
+          protocolVersion={resolvedProtocolVersion}
+        />
       )}
 
       {/* Header */}
