@@ -6,6 +6,11 @@ describe('isKnownPublicResolver', () => {
     ['null', null, false],
     ['empty string', '', false],
     [
+      'new v1 public resolver',
+      '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+      true,
+    ],
+    [
       'known resolver (lowercase)',
       '0x640294a2b2d87e7f522db3e3e3e876764bce170d',
       true,

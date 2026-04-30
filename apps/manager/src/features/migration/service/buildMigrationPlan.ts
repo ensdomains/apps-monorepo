@@ -10,7 +10,6 @@ import {
 } from 'viem'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { buildAllTransferCalls } from './buildMigrationCalls'
-import { buildPreMigrateCall } from './buildPreMigrateCalls'
 import { buildProfileReplayCall } from './buildProfileReplayCalls'
 import { buildRoleGrantCall } from './buildRoleGrantCalls'
 import {
@@ -87,15 +86,10 @@ export const buildNameBundle = (params: {
     migrationOwner,
     defaultResolver,
     ownedPermRes,
-    notReservedSet,
     parentRegistries,
     profiles,
   } = params
   const calls: ZeroDevCall[] = []
-
-  if (is2LD(name) && notReservedSet.has(name.domain.name)) {
-    calls.push(buildPreMigrateCall(name))
-  }
 
   calls.push(
     ...buildAllTransferCalls({
@@ -182,6 +176,20 @@ const computeNotReservedSet = async (
   if (twoLDs.length === 0) return new Set()
   const notReserved = await filterNotReserved(publicClient, twoLDs)
   return new Set(notReserved.map((n) => n.domain.name))
+}
+
+const assertPremigrationComplete = (
+  notReservedSet: ReadonlySet<string>,
+): void => {
+  if (notReservedSet.size === 0) return
+
+  const names = [...notReservedSet]
+  throw new MigrationPlanError({
+    cause: new Error(
+      `ENSv2 pre-migration is incomplete for ${formatNamesPreview(names)}. Run the BatchRegistrar pre-migration before users migrate these names.`,
+    ),
+    step: 'Pre-migration',
+  })
 }
 
 type SubnameParentResolution = {
@@ -281,6 +289,8 @@ export const buildMigrationPlan = async (params: {
     computeNotReservedSet(publicClient, classified),
     validateSubnameParents(publicClient, groups, classified),
   ])
+  assertPremigrationComplete(notReservedSet)
+
   const { resolvedRegistries, deferredChildren, deferredParentNames } =
     subnameResolution
 

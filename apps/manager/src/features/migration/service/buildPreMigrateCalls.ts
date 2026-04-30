@@ -1,6 +1,6 @@
 import type { ZeroDevCall } from '@ens-apps/transaction-manager'
 import { type Address, encodeFunctionData } from 'viem'
-import { PRE_MIGRATION_ABI } from '../contracts/abis'
+import { BATCH_REGISTRAR_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import type { ClassifiedName } from './classifyNames'
 
@@ -20,11 +20,11 @@ const getPreMigrateParams = (name: ClassifiedName) => ({
 export const buildPreMigrateCall = (name: ClassifiedName): ZeroDevCall => {
   const params = getPreMigrateParams(name)
   return {
-    to: V2_CONTRACTS.PreMigrationController,
+    to: V2_CONTRACTS.BatchRegistrar,
     data: encodeFunctionData({
-      abi: PRE_MIGRATION_ABI,
-      functionName: 'preMigrate',
-      args: [params.label, params.expiry, params.registry, params.resolver],
+      abi: BATCH_REGISTRAR_ABI,
+      functionName: 'batchRegister',
+      args: [params.registry, params.resolver, [params.label], [params.expiry]],
     }),
     value: 0n,
   }

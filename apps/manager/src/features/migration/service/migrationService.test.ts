@@ -175,6 +175,27 @@ describe('executeMigration', () => {
     expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
   })
 
+  it('rejects plans when v2 pre-migration has not reserved a 2LD', async () => {
+    filterNotReservedMock.mockResolvedValueOnce([
+      { domain: { name: 'alice.eth' } },
+    ] as never)
+
+    await expect(runExecute()).rejects.toSatisfy((e: unknown) => {
+      const error = e as {
+        cause?: unknown
+        name?: unknown
+        step?: unknown
+      }
+      return (
+        error.name === 'MigrationPlanError' &&
+        error.step === 'Pre-migration' &&
+        error.cause instanceof Error &&
+        /pre-migration is incomplete/i.test(error.cause.message)
+      )
+    })
+    expect(waitForTransactionMock).not.toHaveBeenCalled()
+  })
+
   it('skips approval phase when preflight.skipApprovalPhase is true', async () => {
     await runExecute({
       preflight: {

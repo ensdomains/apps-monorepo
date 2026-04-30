@@ -8,8 +8,8 @@ import type { V1Domain } from './v1SubgraphClient'
 
 const CUSTOM_RESOLVER = '0x00000000000000000000000000000000deadbeef'
 
-const preMigrateFn = parseAbiItem(
-  'function preMigrate(string label, uint64 expiry, address registry, address resolver)',
+const batchRegisterFn = parseAbiItem(
+  'function batchRegister(address registry, address resolver, string[] labels, uint64[] expires)',
 )
 
 const make = (opts: {
@@ -39,10 +39,10 @@ const make = (opts: {
 }
 
 const decodeArgs = (data: `0x${string}`) =>
-  decodeFunctionData({ abi: [preMigrateFn], data }).args
+  decodeFunctionData({ abi: [batchRegisterFn], data }).args
 
 describe('buildPreMigrateCall', () => {
-  it('targets the PreMigrationController with encoded preMigrate calldata', () => {
+  it('targets the BatchRegistrar with encoded batchRegister calldata', () => {
     const call = buildPreMigrateCall(
       make({
         label: 'alice',
@@ -50,17 +50,17 @@ describe('buildPreMigrateCall', () => {
         registrationExpiry: '100',
       }),
     )
-    expect(call.to).toBe(V2_CONTRACTS.PreMigrationController)
+    expect(call.to).toBe(V2_CONTRACTS.BatchRegistrar)
     expect(call.value).toBe(0n)
     const args = decodeArgs(call.data)
-    expect(args[0]).toBe('alice')
-    expect(args[1]).toBe(100n)
-    expect((args[2] as Address).toLowerCase()).toBe(
+    expect((args[0] as Address).toLowerCase()).toBe(
       V1_CONTRACTS.ENSRegistry.toLowerCase(),
     )
-    expect((args[3] as Address).toLowerCase()).toBe(
+    expect((args[1] as Address).toLowerCase()).toBe(
       CUSTOM_RESOLVER.toLowerCase(),
     )
+    expect(args[2]).toEqual(['alice'])
+    expect(args[3]).toEqual([100n])
   })
 
   it.each([
@@ -76,14 +76,14 @@ describe('buildPreMigrateCall', () => {
     ],
   ])('prefers %s', (_, overrides, expected) => {
     const call = buildPreMigrateCall(make({ label: 'alice', ...overrides }))
-    expect(decodeArgs(call.data)[1]).toBe(expected)
+    expect(decodeArgs(call.data)[3]).toEqual([expected])
   })
 
   it('falls back to the v1 PublicResolver when v1ResolverAddress is null', () => {
     const call = buildPreMigrateCall(
       make({ label: 'alice', registrationExpiry: '1' }),
     )
-    expect((decodeArgs(call.data)[3] as Address).toLowerCase()).toBe(
+    expect((decodeArgs(call.data)[1] as Address).toLowerCase()).toBe(
       V1_CONTRACTS.PublicResolver.toLowerCase(),
     )
   })

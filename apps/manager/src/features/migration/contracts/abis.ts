@@ -46,10 +46,10 @@ export const ETH_REGISTRY_V2_ABI = [
   ...eacGrantRolesSnippet,
 ] as const
 
-// TODO(ensjs): upstream `preMigrate(string,uint64,address,address)` on the
-// PreMigrationController to @ensdomains/ensjs-abi and drop this local snippet.
-export const PRE_MIGRATION_ABI = parseAbi([
-  'function preMigrate(string label, uint64 expiry, address registry, address resolver)',
+// TODO(ensjs): upstream `batchRegister(address,address,string[],uint64[])`
+// on BatchRegistrar to @ensdomains/ensjs-abi and drop this local snippet.
+export const BATCH_REGISTRAR_ABI = parseAbi([
+  'function batchRegister(address registry, address resolver, string[] labels, uint64[] expires)',
 ])
 
 export const VERIFIABLE_FACTORY_ABI = verifiableFactoryDeployProxySnippet
