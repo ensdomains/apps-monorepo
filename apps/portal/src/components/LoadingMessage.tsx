@@ -1,5 +1,4 @@
-import { Loader2 } from 'lucide-react'
-import { MessageCard } from '@/components/ui/message-card'
+import { ThreeDotsLoadingIcon } from '@/assets/icons'
 
 interface LoadingMessageProps {
   title?: string
@@ -7,15 +6,20 @@ interface LoadingMessageProps {
 }
 
 export function LoadingMessage({
-  title = 'Loading',
+  title = 'Surfacing everything you need.',
   description,
 }: LoadingMessageProps) {
   return (
-    <MessageCard
-      icon={<Loader2 size={30} className="animate-spin" strokeWidth={1.5} />}
-      title={title}
-      description={description}
-      className="bg-transparent"
-    />
+    <div className="min-h-screen flex flex-col justify-center items-center gap-4 p-6 text-center">
+      <ThreeDotsLoadingIcon className="size-9" />
+      <h2 className="font-serif text-[22px] font-[350] leading-[1.35] text-foreground">
+        {title}
+      </h2>
+      {description && (
+        <div className="text-base leading-relaxed text-foreground max-w-md">
+          {description}
+        </div>
+      )}
+    </div>
   )
 }

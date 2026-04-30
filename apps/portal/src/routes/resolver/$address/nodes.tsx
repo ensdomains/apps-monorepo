@@ -68,7 +68,7 @@ const createNodesColumns = (
             name={node.name}
             width="28px"
             height="28px"
-            rounded="rounded-full"
+            rounded="rounded-sm"
           />
           <span className="font-mono text-sm">{node.name}</span>
           <CopyButton value={node.name} />
@@ -158,7 +158,7 @@ function RouteComponent() {
     },
   })
 
-  if (isLoading) return <LoadingMessage title="Loading nodes" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage
@@ -209,7 +209,7 @@ function RouteComponent() {
                         name={node.name}
                         width="28px"
                         height="28px"
-                        rounded="rounded-full"
+                        rounded="rounded-sm"
                       />
                       <span className="font-mono text-sm truncate">
                         {node.name}

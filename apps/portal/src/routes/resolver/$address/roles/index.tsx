@@ -45,7 +45,7 @@ function RouteComponent() {
 
   const canManageRoles = Boolean(hasRootRole)
 
-  if (isLoading) return <LoadingMessage title="Loading roles" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage

@@ -41,7 +41,7 @@ export const MultiNameSummaryCard = ({
             name={selectedName.name}
             height="40px"
             width="40px"
-            rounded="rounded-md"
+            rounded="rounded-sm"
           />
         </div>
         <div className="flex flex-col w-full">
@@ -121,7 +121,7 @@ export const MultiNameSummaryCardSkeleton = ({
           name={name}
           height="40px"
           width="40px"
-          rounded="rounded-md"
+          rounded="rounded-sm"
         />
       </div>
       <div className="flex flex-col w-full">

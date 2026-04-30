@@ -28,7 +28,7 @@ function RouteComponent() {
       />
     )
 
-  if (isLoading) return <LoadingMessage title="Loading owner data" />
+  if (isLoading) return <LoadingMessage />
 
   if (!data) return null
 

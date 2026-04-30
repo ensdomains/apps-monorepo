@@ -46,7 +46,7 @@ function RouteComponent() {
     )
     .slice(0, RECENT_EVENT_LIMIT)
 
-  if (isLoading) return <LoadingMessage title="Loading resolver" />
+  if (isLoading) return <LoadingMessage />
 
   if (error)
     return (
