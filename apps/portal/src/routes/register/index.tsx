@@ -32,7 +32,6 @@ const RegisterPage = () => {
               </p>
             </div>
           }
-          badge="Alpha"
         />
       ) : (
         <RegisterName name={name} />
