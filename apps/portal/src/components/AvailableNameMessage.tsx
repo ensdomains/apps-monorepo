@@ -17,7 +17,7 @@ export type AvailableNameMessageProps = {
 export function AvailableNameMessage({
   name,
   description,
-  badge = 'Alpha',
+  badge,
   actionButton,
 }: AvailableNameMessageProps) {
   // Determine if this is a .eth name (registration) or DNS name (import)
@@ -31,13 +31,13 @@ export function AvailableNameMessage({
       <p>
         {isEthName
           ? 'This name is available to register. Click below to claim it.'
-          : 'This DNS name can be imported to ENS in the Manager Alpha.'}
+          : 'This DNS name can be imported to ENS in the Manager.'}
       </p>
     </div>
   )
 
   const defaultActionButton = {
-    label: isEthName ? 'Register' : 'Import in Manager Alpha',
+    label: isEthName ? 'Register' : 'Import in Manager',
     href: actionUrl,
     external: !isEthName,
   }
