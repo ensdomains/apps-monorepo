@@ -4,7 +4,8 @@ import { lingui } from '@lingui/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
+import { linguiMacroPlugin } from './lingui-macro-plugin'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -19,17 +20,18 @@ export default defineConfig({
     },
   },
   plugins: [
+    linguiMacroPlugin() as unknown as PluginOption,
     cloudflare({
       viteEnvironment: { name: 'ssr' },
-    }),
-    tanstackStart(),
+    }) as unknown as PluginOption,
+    tanstackStart() as unknown as PluginOption,
     viteReact({
       babel: {
         plugins: ['@lingui/babel-plugin-lingui-macro'],
       },
-    }),
-    lingui(),
-    tailwindcss(),
+    }) as unknown as PluginOption,
+    lingui() as unknown as PluginOption,
+    tailwindcss() as unknown as PluginOption,
   ],
   resolve: {
     alias: {
