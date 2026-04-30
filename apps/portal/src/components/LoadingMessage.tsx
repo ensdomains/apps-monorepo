@@ -12,7 +12,7 @@ export function LoadingMessage({
   return (
     <div className="min-h-screen flex flex-col justify-center items-center gap-4 p-6 text-center">
       <ThreeDotsLoadingIcon className="size-9" />
-      <h2 className="font-serif text-[22px] font-[350] leading-[1.35] text-foreground">
+      <h2 className="text-[22px] font-[350] leading-[1.35] text-foreground">
         {title}
       </h2>
       {description && (
