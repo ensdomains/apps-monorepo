@@ -73,7 +73,9 @@ const createWalletClient = (privateKey: string | undefined) => {
 
   return createClient({
     chain: sepolia,
-    transport: http('https://ethereum-sepolia-rpc.publicnode.com'),
+    transport: http(
+      'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811',
+    ),
     account: walletAccount,
   })
     .extend(publicActions)
