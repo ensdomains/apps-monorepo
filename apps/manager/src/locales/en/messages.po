@@ -218,7 +218,7 @@ msgstr "Address"
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 
-#: src/features/notifications/pages/all-notifications-page.tsx:72
+#: src/routes/notifications/_authenticated/index.tsx:74
 msgid "All Notifications"
 msgstr "All Notifications"
 
@@ -1271,11 +1271,11 @@ msgstr "Manage Renewals"
 msgid "Manage your notification preferences for your name(s) and ENS-related updates."
 msgstr "Manage your notification preferences for your name(s) and ENS-related updates."
 
-#: src/features/notifications/pages/all-notifications-page.tsx:110
+#: src/routes/notifications/_authenticated/index.tsx:112
 msgid "Mark all as read"
 msgstr "Mark all as read"
 
-#: src/features/notifications/pages/all-notifications-page.tsx:108
+#: src/routes/notifications/_authenticated/index.tsx:110
 msgid "Marking..."
 msgstr "Marking..."
 
@@ -1460,9 +1460,9 @@ msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and
 msgid "Notification Preferences"
 msgstr "Notification Preferences"
 
-#: src/features/notifications/pages/all-notifications-page.tsx:82
 #: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:21
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
+#: src/routes/notifications/_authenticated/index.tsx:84
 msgid "Notification Settings"
 msgstr "Notification Settings"
 
@@ -1959,8 +1959,8 @@ msgstr "Search name..."
 msgid "Search names"
 msgstr "Search names"
 
-#: src/features/notifications/pages/all-notifications-page.tsx:116
-#: src/features/notifications/pages/all-notifications-page.tsx:117
+#: src/routes/notifications/_authenticated/index.tsx:118
+#: src/routes/notifications/_authenticated/index.tsx:119
 msgid "Search notifications"
 msgstr "Search notifications"
 
@@ -2420,7 +2420,7 @@ msgstr "Try Again"
 msgid "Try searching for a different coin or chain"
 msgstr "Try searching for a different coin or chain"
 
-#: src/features/notifications/pages/all-notifications-page.tsx:97
+#: src/routes/notifications/_authenticated/index.tsx:99
 msgid "Unread only"
 msgstr "Unread only"
 
