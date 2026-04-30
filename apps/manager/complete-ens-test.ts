@@ -64,7 +64,8 @@ const PIMLICO_API_KEY = ''
 const RHINESTONE_API_KEY = ''
 const PRIVATE_KEY = '' as `0x${string}`
 
-const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
+const SEPOLIA_RPC_URL =
+  'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811'
 
 // FastTestETHRegistrar ABI (key functions) testname6208
 const FAST_TEST_REGISTRAR_ABI = [

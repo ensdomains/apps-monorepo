@@ -7,7 +7,7 @@ import { walletConnect } from 'wagmi/connectors'
 
 // Single source of truth for Sepolia RPC URL
 export const SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
+  'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811'
 
 // Create a custom Sepolia chain with working RPC
 export const customSepolia = {
