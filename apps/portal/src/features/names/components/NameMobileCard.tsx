@@ -1,7 +1,9 @@
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { V1Roles } from '@/utils/names/mergeNamesData'
@@ -64,9 +66,14 @@ export const NameMobileCard = ({
       <div className="text-sm font-medium text-muted-foreground">Expiry</div>
       <div className="flex items-center gap-2">
         {expiryDate ? (
-          <span className="text-base">
-            {formatDateTime(dateToPlainDate(expiryDate))}
-          </span>
+          <>
+            <span className="text-base">
+              {formatDateTime(dateToPlainDate(expiryDate))}
+            </span>
+            {getNameStatus(expiryDate, v1Roles === null) === 'grace' && (
+              <GraceBadge />
+            )}
+          </>
         ) : (
           <Badge variant="secondary" className="text-xs">
             Does not expire

@@ -9,6 +9,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
+import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
@@ -20,8 +21,10 @@ import { ResolverCard } from '@/features/profile/components/ResolverCard'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
@@ -88,6 +91,11 @@ const Profile = ({
   const availabilityQuery = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
     enabled: shouldCheckAvailability,
+  })
+
+  const grace = useGraceStatus({
+    name,
+    protocolVersion: ownerQuery.data?.protocolVersion,
   })
 
   // Loading states
@@ -208,9 +216,17 @@ const Profile = ({
 
   return (
     <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+      {grace.isInGrace && grace.graceEndDate && (
+        <GraceBanner graceEndDate={grace.graceEndDate} />
+      )}
+
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <h1 className="text-4xl font-medium leading-none">{name}</h1>
+        <ExtendNameButton
+          name={name}
+          protocolVersion={resolvedProtocolVersion}
+        />
       </div>
 
       {/* Main section: profile | metadata rows | counters */}
@@ -224,7 +240,11 @@ const Profile = ({
             name={name}
             protocolVersion={resolvedProtocolVersion}
           />
-          <Owner owner={ownerQuery.data.owner} asRow />
+          <Owner
+            owner={ownerQuery.data.owner}
+            asRow
+            label={grace.isInGrace ? 'Previous owner' : 'Owner'}
+          />
           <ParentName name={name} asRow />
           {resolverAddress && (
             <ResolverCard name={name} resolverAddress={resolverAddress} asRow />

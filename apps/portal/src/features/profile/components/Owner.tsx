@@ -32,7 +32,7 @@ export const Owner = ({
     if (asRow)
       return (
         <div className={cn('flex items-center gap-4 py-3', className)}>
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
+          <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
             {label}
           </span>
           <span className="text-sm text-muted-foreground">No data</span>
@@ -72,7 +72,7 @@ export const Owner = ({
             height="20px"
             name={ownerName || shortenedAddress}
           />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
+          <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
             {label}
           </span>
         </button>

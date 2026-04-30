@@ -6,9 +6,11 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { ExpiryWithRegistrationData } from '@/features/ownership/components/ExpiryWithRegistrationData'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
+import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 
 export const Route = createFileRoute('/$name/ownership')({
   component: RouteComponent,
@@ -19,6 +21,11 @@ function RouteComponent() {
   const { name } = Route.useParams()
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
+
+  const grace = useGraceStatus({
+    name,
+    protocolVersion: data?.protocolVersion,
+  })
 
   if (error)
     return (
@@ -34,6 +41,9 @@ function RouteComponent() {
 
   return (
     <div className="max-w-360 w-full mx-auto flex flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+      {grace.isInGrace && grace.graceEndDate && (
+        <GraceBanner graceEndDate={grace.graceEndDate} />
+      )}
       <div className="flex flex-row justify-between">
         <h1 className="font-medium text-heading">Ownership</h1>
       </div>
@@ -43,7 +53,10 @@ function RouteComponent() {
           protocolVersion={data.protocolVersion}
         />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-          <Owner owner={data.owner} label="Name owner" />
+          <Owner
+            owner={data.owner}
+            label={grace.isInGrace ? 'Previous owner' : 'Name owner'}
+          />
           <ParentName name={name} />
         </div>
         {data.protocolVersion === 'ENSv1' && (

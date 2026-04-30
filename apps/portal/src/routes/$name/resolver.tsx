@@ -243,17 +243,11 @@ const PermissionedResolverView = ({
   name: string
   resolverAddress: Address
 }) => (
-  <>
-    <ResolverBanner
-      name="ENS Permissioned Resolver"
-      docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
-    />
-    <ResolverInfoCard
-      name={name}
-      resolverAddress={resolverAddress}
-      type="Permissioned Resolver"
-    />
-  </>
+  <ResolverInfoCard
+    name={name}
+    resolverAddress={resolverAddress}
+    type="Permissioned Resolver"
+  />
 )
 
 const PublicResolverView = ({
@@ -263,17 +257,11 @@ const PublicResolverView = ({
   name: string
   resolverAddress: Address
 }) => (
-  <>
-    <ResolverBanner
-      name="ENS Public Resolver"
-      docsHref="https://docs.ens.domains/resolvers/public/"
-    />
-    <ResolverInfoCard
-      name={name}
-      resolverAddress={resolverAddress}
-      type="ENS Public Resolver"
-    />
-  </>
+  <ResolverInfoCard
+    name={name}
+    resolverAddress={resolverAddress}
+    type="ENS Public Resolver"
+  />
 )
 
 const CustomResolverView = ({
@@ -389,6 +377,18 @@ const ResolverView = ({
 
   return (
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
+      {permissionedResolverQuery.data ? (
+        <ResolverBanner
+          name="ENS Permissioned Resolver"
+          docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
+        />
+      ) : isOfficialPublicResolver ? (
+        <ResolverBanner
+          name="ENS Public Resolver"
+          docsHref="https://docs.ens.domains/resolvers/public/"
+        />
+      ) : null}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-heading font-medium">Resolver</h1>
         {address ? (

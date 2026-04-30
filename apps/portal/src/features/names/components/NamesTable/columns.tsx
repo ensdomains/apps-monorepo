@@ -3,7 +3,9 @@ import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { V1Roles } from '@/utils/names/mergeNamesData'
@@ -83,7 +85,14 @@ export const columns: ColumnDef<NameRow>[] = [
           </Badge>
         )
       }
-      return formatDateTime(dateToPlainDate(expiryDate))
+      const isV2 = row.original.v1Roles === null
+      const status = getNameStatus(expiryDate, isV2)
+      return (
+        <div className="flex items-center gap-2">
+          <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
+          {status === 'grace' && <GraceBadge />}
+        </div>
+      )
     },
   },
   {

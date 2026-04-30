@@ -187,7 +187,7 @@ function RouteComponent() {
     // Filter by status
     if (selectedStatuses.length > 0) {
       filtered = filtered.filter((row) => {
-        const status = getNameStatus(row.expiryDate)
+        const status = getNameStatus(row.expiryDate, row.v1Roles === null)
         return selectedStatuses.includes(status)
       })
     }
