@@ -68,7 +68,7 @@ const baseColumns: ColumnDef<ResolverAlias>[] = [
           name={row.original.fromName}
           width="28px"
           height="28px"
-          rounded="rounded-full"
+          rounded="rounded-sm"
         />
         <span className="font-mono text-sm truncate">
           {row.original.fromName}
@@ -96,7 +96,7 @@ const baseColumns: ColumnDef<ResolverAlias>[] = [
           name={row.original.toName}
           width="28px"
           height="28px"
-          rounded="rounded-full"
+          rounded="rounded-sm"
         />
         <span className="font-mono text-sm truncate">
           {row.original.toName}
@@ -194,7 +194,7 @@ function RouteComponent() {
     },
   })
 
-  if (isLoading) return <LoadingMessage title="Loading aliases" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage
@@ -262,7 +262,7 @@ function RouteComponent() {
                         name={row.original.fromName}
                         width="28px"
                         height="28px"
-                        rounded="rounded-full"
+                        rounded="rounded-sm"
                       />
                       <span className="font-mono text-sm truncate">
                         {row.original.fromName}
@@ -292,7 +292,7 @@ function RouteComponent() {
                         name={row.original.toName}
                         width="24px"
                         height="24px"
-                        rounded="rounded-full"
+                        rounded="rounded-sm"
                       />
                       <span className="font-mono text-sm truncate">
                         {row.original.toName}

@@ -79,7 +79,8 @@ function RouteComponent() {
       navigate({ to: '/resolver/$address/roles', params: { address } }),
   })
 
-  if (isLoading) return <LoadingMessage title="Loading resolver data" />
+  if (isLoading) return <LoadingMessage />
+
   if (error)
     return (
       <ErrorMessage
@@ -183,7 +184,7 @@ function RouteComponent() {
                           name={name}
                           width="24px"
                           height="24px"
-                          rounded="rounded-full"
+                          rounded="rounded-sm"
                         />
                         <span className="font-mono text-sm">{name}</span>
                         {node?.owner?.id && (

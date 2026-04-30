@@ -55,7 +55,7 @@ export const MultiNameExtensionSuccessCard = ({
           name={selectedName.name}
           height="40px"
           width="40px"
-          rounded="rounded-md"
+          rounded="rounded-sm"
         />
         <div className="flex flex-col w-full gap-1">
           <div className="flex items-center justify-between">
@@ -80,7 +80,7 @@ const MultiNameExtensionSuccessCardSkeleton = ({
   name,
 }: MultiNameExtensionSuccessCardSkeletonProps) => (
   <div className="border-b border-border px-4 py-3 flex items-center gap-3">
-    <NameAvatar name={name} height="40px" width="40px" rounded="rounded-md" />
+    <NameAvatar name={name} height="40px" width="40px" rounded="rounded-sm" />
     <div className="flex flex-col flex-1 gap-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground truncate">

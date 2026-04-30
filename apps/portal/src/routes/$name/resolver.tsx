@@ -529,9 +529,8 @@ function RouteComponent() {
     )
   }
 
-  if (ownerQuery.isLoading) return <LoadingMessage title="Loading owner data" />
-  if (resolverQuery.isLoading)
-    return <LoadingMessage title="Loading resolver address" />
+  if (ownerQuery.isLoading) return <LoadingMessage />
+  if (resolverQuery.isLoading) return <LoadingMessage />
 
   if (!ownerQuery.data)
     return (

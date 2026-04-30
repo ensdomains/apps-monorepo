@@ -191,7 +191,7 @@ const CreateSubnameForm = ({
   }
 
   if (registriesLoading) {
-    return <LoadingMessage title="Loading registry..." />
+    return <LoadingMessage />
   }
 
   if (registriesError) {
@@ -424,7 +424,7 @@ function RouteComponent() {
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (isLoading) {
-    return <LoadingMessage title="Loading..." />
+    return <LoadingMessage />
   }
 
   if (error) {
