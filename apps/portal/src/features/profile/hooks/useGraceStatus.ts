@@ -6,12 +6,12 @@ import { getV2RegistrationDataQueryOptions } from './useV2RegistrationData'
 
 const V2_GRACE_DURATION_SECONDS = V2_GRACE_PERIOD_DAYS * 24 * 60 * 60
 
-export type UseGraceStatusParams = {
+export type UseGraceStatusParameters = {
   name: string
   protocolVersion: ProtocolVersion | undefined
 }
 
-export type UseGraceStatusResult = {
+export type UseGraceStatusReturnType = {
   isInGrace: boolean
   graceEndDate: Date | null
   isLoading: boolean
@@ -20,7 +20,7 @@ export type UseGraceStatusResult = {
 export function useGraceStatus({
   name,
   protocolVersion,
-}: UseGraceStatusParams): UseGraceStatusResult {
+}: UseGraceStatusParameters): UseGraceStatusReturnType {
   const v1Query = useQuery({
     ...getV1ExpiryQueryOptions({ name }),
     enabled: protocolVersion === 'ENSv1',

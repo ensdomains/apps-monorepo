@@ -26,26 +26,30 @@ export const ExtendNameButton = ({
 }: ExtendNameButtonProps) => {
   const [open, setOpen] = useState(false)
   const [successFlow, setSuccessFlow] = useState<RenewalFlowType | null>(null)
-  const isV2 = protocolVersion === 'ENSv2'
 
   const v1ExpiryQuery = useQuery({
     ...getV1ExpiryQueryOptions({ name }),
-    enabled: !isV2,
+    enabled: protocolVersion === 'ENSv1',
   })
   const v2DataQuery = useQuery({
     ...getV2RegistrationDataQueryOptions({ name }),
-    enabled: isV2,
+    enabled: protocolVersion === 'ENSv2',
   })
 
-  const expirySeconds = isV2
-    ? (v2DataQuery.data?.expiry ?? null)
-    : v1ExpiryQuery.data?.expiry
-      ? Number(v1ExpiryQuery.data.expiry)
-      : null
+  const expirySeconds =
+    protocolVersion === 'ENSv2'
+      ? (v2DataQuery.data?.expiry ?? null)
+      : v1ExpiryQuery.data?.expiry
+        ? Number(v1ExpiryQuery.data.expiry)
+        : null
   const expiryDate =
     expirySeconds !== null ? new Date(expirySeconds * 1000) : undefined
 
-  const selectedName = { name, isV2, expiryDate }
+  const selectedName = {
+    name,
+    isV2: protocolVersion === 'ENSv2',
+    expiryDate,
+  }
 
   const { transactions, startFlow, clearIncompatibleRenewalState } =
     useRenewalTransactions({
