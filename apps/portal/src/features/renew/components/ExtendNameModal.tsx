@@ -127,7 +127,7 @@ export const ExtendNameModal = ({
                     name={selectedName.name}
                     height="40px"
                     width="40px"
-                    rounded="rounded-md"
+                    rounded="rounded-sm"
                   />
                   <span className="flex-1 text-left text-base font-medium text-foreground truncate">
                     {selectedName.name}

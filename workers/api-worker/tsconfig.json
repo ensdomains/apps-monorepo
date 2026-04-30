@@ -9,7 +9,6 @@
     "lib": ["ESNext"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "baseUrl": ".",
     "rootDir": "."
   },
   "include": ["src/**/*", "worker-configuration.gen.d.ts", "drizzle.config.ts"]

@@ -11,17 +11,18 @@
   "scripts": {
     "dev": "concurrently \"pnpm dev:vite\" \"pnpm dev:tsc\" --names \"vite,tsc\" --prefix-colors \"cyan,yellow\" --kill-others-on-fail --restart-tries 3 --restart-after 2000",
     "dev:vite": "vite dev",
-    "dev:tsc": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "dev:tsc": "tsgo -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "build:types": "tsgo -p tsconfig.build.json --emitDeclarationOnly",
     "build:vite": "vite build",
-    "build:tsc": "tsc -p tsconfig.build.json",
+    "build:tsc": "tsgo -p tsconfig.build.json",
     "build": "pnpm build:vite && pnpm build:tsc",
     "deploy": "pnpm build:vite && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings worker-configuration.gen.d.ts"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^1.0.2",
+    "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",
     "@hono/valibot-validator": "^0.5.3",
@@ -37,22 +38,22 @@
     "uuid": "^13.0.0",
     "valibot": "^1.1.0",
     "viem": "^2.37.4",
-    "workers-og": "^0.0.27",
-    "@ens-apps/shared-schema": "workspace:*"
+    "workers-og": "^0.0.27"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.12.3",
-    "@cloudflare/vitest-pool-workers": "^0.10.5",
+    "@cloudflare/vite-plugin": "catalog:",
+    "@cloudflare/vitest-pool-workers": "^0.14.9",
     "@grammyjs/types": "^3.22.2",
     "@sendgrid/helpers": "^8.0.0",
     "@types/node": "^24.3.1",
     "@types/pg": "^8.15.5",
+    "@typescript/native-preview": "catalog:",
     "concurrently": "^9.2.1",
     "dotenv": "^17.2.2",
     "drizzle-kit": "^0.31.4",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.5",
-    "vitest": "^3.2.4"
+    "typescript": "catalog:typescript6",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   },
   "imports": {
     "#*": "./src/*"

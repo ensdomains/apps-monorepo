@@ -69,7 +69,7 @@ const NodeOption = ({ node }: NodeOptionProps) => (
       name={node.name}
       width="28px"
       height="28px"
-      rounded="rounded-full"
+      rounded="rounded-sm"
     />
     <span className="font-mono text-sm">{node.name}</span>
     <CopyButton value={node.name} />
@@ -140,7 +140,7 @@ function RouteComponent() {
     mutation.mutate({ fromName, toName })
   }
 
-  if (isLoading) return <LoadingMessage title="Loading resolver data" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage
@@ -195,7 +195,7 @@ function RouteComponent() {
                 name={selectedFromNode.name}
                 width="40px"
                 height="40px"
-                rounded="rounded-full"
+                rounded="rounded-sm"
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
@@ -249,7 +249,7 @@ function RouteComponent() {
                 name={selectedToNode.name}
                 width="40px"
                 height="40px"
-                rounded="rounded-full"
+                rounded="rounded-sm"
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">

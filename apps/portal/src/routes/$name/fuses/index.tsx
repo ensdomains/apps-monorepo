@@ -125,7 +125,7 @@ function RouteComponent() {
   })
 
   if (wrapperDataQuery.isLoading) {
-    return <LoadingMessage title="Loading fuses..." />
+    return <LoadingMessage />
   }
 
   if (wrapperDataQuery.error) {

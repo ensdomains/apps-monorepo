@@ -14,8 +14,8 @@
     "test:run": "vitest run --typecheck"
   },
   "devDependencies": {
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "typescript": "catalog:typescript6",
+    "vitest": "catalog:"
   },
   "keywords": [],
   "dependencies": {

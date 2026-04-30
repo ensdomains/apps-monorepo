@@ -20,7 +20,7 @@ genuinely requires shared code updates (e.g., packages/).
 
 ## Type Checking
 
-Run `pnpm tsc` from the app directory (e.g. `apps/portal/`) to type-check.
+Run `pnpm typecheck` from the app directory (e.g. `apps/portal/`) to type-check.
 Do **not** use `npx tsc`, `pnpx tsc`, or `./node_modules/.bin/tsc` — they resolve to the wrong binary or skip project-level configuration.
 
 ## Package-Specific Documentation
