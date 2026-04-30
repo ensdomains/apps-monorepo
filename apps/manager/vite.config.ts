@@ -5,7 +5,8 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
+import { linguiMacroPlugin } from './lingui-macro-plugin'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -47,6 +48,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    linguiMacroPlugin() as unknown as PluginOption,
     cloudflare({
       viteEnvironment: { name: 'ssr' },
     }),
