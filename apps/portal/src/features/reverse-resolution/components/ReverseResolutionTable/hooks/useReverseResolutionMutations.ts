@@ -12,7 +12,6 @@ import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseReg
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import { useConnection, useWalletClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
@@ -56,7 +55,7 @@ export function useReverseResolutionMutations({
     [reverseRegistrarChainId],
   )
 
-  const { data: l1WalletClient } = useWalletClient({ chainId: sepolia.id })
+  const { data: l1WalletClient } = useWalletClient()
 
   const { isLoading: isEnsOwnerLoading } = useQuery({
     ...getEnsOwnerQueryOptions({ name: displayName }),

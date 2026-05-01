@@ -36,8 +36,8 @@ export const useChangeResolver = ({
 }: UseChangeResolverParams) => {
   const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const mutation = useMutation({
     mutationFn: async (

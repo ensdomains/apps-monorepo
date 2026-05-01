@@ -6,25 +6,13 @@ import {
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { type Chain, createClient, http } from 'viem'
-import {
-  arbitrumSepolia,
-  baseSepolia,
-  lineaSepolia,
-  optimismSepolia,
-  scrollSepolia,
-  sepolia,
-} from 'viem/chains'
+import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
 export const sepoliaWithEns = extendChainWithEns(sepolia)
 
 const DRPC_CHAIN_SLUGS: Record<number, string> = {
   11155111: 'sepolia',
-  11155420: 'optimism-sepolia',
-  421614: 'arbitrum-sepolia',
-  84532: 'base-sepolia',
-  59141: 'linea-sepolia',
-  534351: 'scroll-sepolia',
 }
 
 const getRpcUrl = (chain: Chain): string => {
@@ -42,14 +30,7 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [
-    sepoliaWithEns,
-    optimismSepolia,
-    arbitrumSepolia,
-    baseSepolia,
-    lineaSepolia,
-    scrollSepolia,
-  ],
+  chains: [sepoliaWithEns],
   connectors: connectorsForWallets(
     [
       {
