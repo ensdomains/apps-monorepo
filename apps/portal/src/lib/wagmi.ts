@@ -5,15 +5,27 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { type Chain, createClient, http } from 'viem'
+import { createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+
+// Tenderly virtual fork RPC — kept in sync with apps/manager/src/lib/wagmi.ts
+const SEPOLIA_RPC_URL =
+  'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811'
 
 // V1 ENS subgraph (ensnode) for the Tenderly fork
 const V1_SUBGRAPH_URL =
   'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
 
-const sepoliaWithEnsBase = extendChainWithEns(sepolia)
+const customSepolia = {
+  ...sepolia,
+  rpcUrls: {
+    default: { http: [SEPOLIA_RPC_URL] },
+    public: { http: [SEPOLIA_RPC_URL] },
+  },
+}
+
+const sepoliaWithEnsBase = extendChainWithEns(customSepolia)
 
 export const sepoliaWithEns = {
   ...sepoliaWithEnsBase,
@@ -22,15 +34,6 @@ export const sepoliaWithEns = {
     ens: { url: V1_SUBGRAPH_URL },
   },
 } as unknown as typeof sepoliaWithEnsBase
-
-const getRpcUrl = (chain: Chain): string => {
-  const drpcKey = import.meta.env.VITE_PUBLIC_DRPC_API_KEY
-  if (drpcKey) {
-    const slug = chain.name.toLowerCase().replace(/\s+/g, '-')
-    return `https://lb.drpc.live/${slug}/${drpcKey}`
-  }
-  return chain.rpcUrls.default.http[0]
-}
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
@@ -49,7 +52,7 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(getRpcUrl(chain), {
+      transport: http(SEPOLIA_RPC_URL, {
         batch: {
           wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
         },
