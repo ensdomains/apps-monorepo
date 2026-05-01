@@ -59,6 +59,19 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.selectedToken,
   )
+  const registerReadyTimestamp = useSelector(
+    actor,
+    (state) => state.context.registerReadyTimestamp,
+  )
+  // Surface the commit-reveal cooldown to the modal: while we're waiting for
+  // MIN_COMMITMENT_AGE to elapse the next user-facing step is the approval, so
+  // attach the deadline to that step.
+  const approveWaitUntil =
+    machineState === 'fetchingCommitmentAge' ||
+    machineState === 'commitmentCooldown' ||
+    machineState === 'checkingAllowance'
+      ? registerReadyTimestamp
+      : undefined
   const isSuccess = machineState === 'success'
   const isRegistering = isInProgressState(machineState)
 
@@ -140,6 +153,7 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.0003,
         onStart: handleProceed,
         onDone: handleProceed,
+        waitUntil: approveWaitUntil,
       },
       {
         id: REGISTRATION_TX_IDS.register,
@@ -150,7 +164,14 @@ export const useRegistrationTransactions = ({
         onDone: handleDone,
       },
     ],
-    [name, savedParams?.tokenSymbol, handleStart, handleProceed, handleDone],
+    [
+      name,
+      savedParams?.tokenSymbol,
+      approveWaitUntil,
+      handleStart,
+      handleProceed,
+      handleDone,
+    ],
   )
 
   const startFlow = (selectedTokenAddress: Address, tokenPrice: bigint) => {
