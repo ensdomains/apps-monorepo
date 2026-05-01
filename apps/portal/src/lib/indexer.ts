@@ -1,5 +1,5 @@
 import { GraphQLClient } from 'graphql-request'
 
 export const graphqlIndexerClient = new GraphQLClient(
-  'https://staging-graphql.ens.dev/',
+  'https://tenderly-ensv2.pff.sh/',
 )

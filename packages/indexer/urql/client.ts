@@ -7,7 +7,7 @@ import {
 } from '@urql/core'
 import { retryExchange } from '@urql/exchange-retry'
 
-export const INDEXER_GRAPHQL_URL = 'https://staging-graphql.ens.dev/'
+export const INDEXER_GRAPHQL_URL = 'https://tenderly-ensv2.pff.sh/'
 
 const forcePostExchange = mapExchange({
   onOperation(operation) {
