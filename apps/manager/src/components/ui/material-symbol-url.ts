@@ -27,11 +27,13 @@ export const MATERIAL_SYMBOLS = [
   'badge',
   'cached',
   'close',
+  'computer',
   'warning',
   'edit',
   'arrow_back',
   'calendar_month',
   'double_arrow',
+  'message',
 ] as const satisfies readonly string[]
 
 export type MaterialSymbol = (typeof MATERIAL_SYMBOLS)[number]

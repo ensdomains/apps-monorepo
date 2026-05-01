@@ -1,55 +1,15 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
+import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { Switch } from '@/components/ui/switch'
 import {
   preferencesQueryOptions,
   updatePreferenceMutationOptions,
 } from '@/features/notifications/data/queries/preferences'
-
-export const Preference = ({
-  icon,
-  label,
-  description,
-  checked,
-  disabled,
-  isLoading,
-  onChange,
-}: {
-  icon: React.ReactNode
-  label: string
-  description: string
-  checked: boolean
-  disabled?: boolean
-  isLoading?: boolean
-  onChange: (checked: boolean) => void
-}) => {
-  return (
-    <div className="flex items-start gap-2 rounded-lg bg-[#FAFAFB] p-5">
-      {icon}
-      <div className="flex flex-col gap-1.5">
-        <div className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
-          {label}
-        </div>
-        <div className="text-slate-600 text-sm">{description}</div>
-      </div>
-      {isLoading ? (
-        <Loader2Icon className="ml-auto size-5 animate-spin" />
-      ) : (
-        <Switch
-          checked={checked}
-          className="ml-auto"
-          disabled={disabled}
-          onCheckedChange={onChange}
-        />
-      )}
-    </div>
-  )
-}
+import { PreferenceCard } from '@/features/notifications/settings/preference-card'
 
 export const NotificationPreferences = () => {
   const { t } = useLingui()
@@ -93,64 +53,57 @@ export const NotificationPreferences = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="font-medium font-sans text-[#232222] text-base leading-ens-none">
-        <Trans>Notification Preferences</Trans>
-      </h2>
-      <div className="flex flex-col gap-3">
-        <form.Field name="ownedNameExpiry">
-          {(field) => (
-            <Preference
-              checked={field.state.value}
-              description={t`You'll be notified 30, 7, and 1 day before expiry`}
-              disabled={preferences.isRefetching}
-              icon={
-                <MSymbol
-                  className="ms-wght-300 text-ens-lapis-surface"
-                  symbol="schedule"
-                />
-              }
-              isLoading={preferences.isLoading}
-              label={t`Name Expiry`}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          )}
-        </form.Field>
-        <form.Field name="ensLabsUpdates">
-          {(field) => (
-            <Preference
-              checked={field.state.value}
-              description={t`Get updated on the latest releases and features`}
-              disabled={preferences.isRefetching}
-              icon={
-                <MSymbol
-                  className="ms-wght-300 text-ens-lapis-surface"
-                  symbol="search"
-                />
-              }
-              isLoading={preferences.isLoading}
-              label={t`ENS Labs Updates`}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          )}
-        </form.Field>
-        <form.Field name="favouritedNameExpiry">
-          {(field) => (
-            <Preference
-              checked={field.state.value}
-              description={t`Get notified when names in your favourites expire`}
-              disabled={preferences.isRefetching}
-              icon={
-                <MSymbol
-                  className="ms-wght-300 text-ens-lapis-surface"
-                  symbol="favorite"
-                />
-              }
-              isLoading={preferences.isLoading}
-              label={t`Favourited Name Expiry`}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          )}
-        </form.Field>
+      <div className="flex flex-col gap-1 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pb-2">
+          <h2 className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
+            <Trans>Preferences</Trans>
+          </h2>
+          <p className="text-ens-quartz-400 text-sm italic leading-ens-normal">
+            <Trans>In-app notifications are always enabled</Trans>
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <form.Field name="ownedNameExpiry">
+            {(field) => (
+              <PreferenceCard
+                checked={field.state.value}
+                description={t`You'll be notified 30, 7, and 1 day before expiry.`}
+                disabled={preferences.isRefetching}
+                icon={<MSymbol className="ms-wght-300" symbol="schedule" />}
+                isLoading={preferences.isLoading}
+                label={t`Name Expiry`}
+                onChange={(checked) => field.handleChange(checked)}
+                recommended
+              />
+            )}
+          </form.Field>
+          <form.Field name="ensLabsUpdates">
+            {(field) => (
+              <PreferenceCard
+                checked={field.state.value}
+                description={t`Get updated on the latest releases and features.`}
+                disabled={preferences.isRefetching}
+                icon={<EnsMobileIcon />}
+                isLoading={preferences.isLoading}
+                label={t`ENS Labs Updates`}
+                onChange={(checked) => field.handleChange(checked)}
+              />
+            )}
+          </form.Field>
+          <form.Field name="favouritedNameExpiry">
+            {(field) => (
+              <PreferenceCard
+                checked={field.state.value}
+                description={t`Get notified when names you favorited expire.`}
+                disabled={preferences.isRefetching}
+                icon={<MSymbol className="ms-wght-300" symbol="favorite" />}
+                isLoading={preferences.isLoading}
+                label={t`Favourites`}
+                onChange={(checked) => field.handleChange(checked)}
+              />
+            )}
+          </form.Field>
+        </div>
       </div>
       <div className="ml-auto w-full max-w-md">
         <form.Subscribe
