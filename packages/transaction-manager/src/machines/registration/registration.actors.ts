@@ -333,7 +333,7 @@ export function submitResolverDeploymentActor(input: {
         to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
         data: deployCalldata,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
@@ -454,7 +454,7 @@ export function submitCommitmentActor(input: {
         to: registrarAddress,
         data: commitmentData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: registrarAddress,
@@ -641,7 +641,7 @@ export function submitApprovalActor(input: {
         to: normalizedTokenAddress,
         data: approvalData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: normalizedTokenAddress,
@@ -735,7 +735,7 @@ export function submitRegistrationActor(input: {
         to: registrarAddress,
         data: registrationData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: registrarAddress,
@@ -826,7 +826,7 @@ export function submitApprovalAndRegistrationActor(input: {
         to: registrarAddress,
         data: registrationData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           { to: normalizedPaymentToken, data: approvalData, value: 0n },
           { to: registrarAddress, data: registrationData, value: 0n },
