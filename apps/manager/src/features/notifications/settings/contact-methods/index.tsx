@@ -16,8 +16,8 @@ export const ContactMethods = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="font-medium font-sans text-[#232222] text-base leading-ens-none">
-        Contact Methods
+      <h2 className="font-normal font-sans text-[#011a25] text-base leading-ens-normal">
+        Contact methods
       </h2>
       <EmailContactMethod email={channels.data?.email} />
       <TelegramContactMethod telegram={channels.data?.telegram} />

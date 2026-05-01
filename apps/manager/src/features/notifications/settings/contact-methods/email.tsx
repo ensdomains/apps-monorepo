@@ -106,7 +106,7 @@ const NewEmailContactMethod = () => {
       >
         {([canSubmit, isSubmitting]) => (
           <Button
-            className="uppercase"
+            className="w-full uppercase md:w-auto"
             disabled={!canSubmit || isSubmitting}
             onClick={(e) => {
               e.preventDefault()
@@ -278,7 +278,10 @@ export const EmailContactMethod = ({ email }: { email?: Channel }) => {
         ))
         .otherwise(() => null)}
       <div className="flex items-start gap-2">
-        <MSymbol className="ms-wght-300 text-ens-lapis-surface" symbol="mail" />
+        <MSymbol
+          className="ms-opsz-18 ms-wght-400 text-ens-lapis-core not-italic leading-[19.6px]"
+          symbol="mail"
+        />
         <div className="flex flex-col gap-1.5">
           <div className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
             <Trans>Email Notifications</Trans>
