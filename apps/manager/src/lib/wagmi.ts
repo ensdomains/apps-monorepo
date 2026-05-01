@@ -18,7 +18,19 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
+// V1 ENS subgraph (ensnode) for the Tenderly fork
+const V1_SUBGRAPH_URL =
+  'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
+
+const sepoliaWithEnsBase = extendChainWithEns(customSepolia)
+
+export const sepoliaWithEns = {
+  ...sepoliaWithEnsBase,
+  subgraphs: {
+    ...sepoliaWithEnsBase.subgraphs,
+    ens: { url: V1_SUBGRAPH_URL },
+  },
+} as unknown as typeof sepoliaWithEnsBase
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
