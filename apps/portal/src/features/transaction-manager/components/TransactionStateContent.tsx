@@ -21,6 +21,7 @@ import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
 import { getTransactionById } from '../utils/getTransactionById'
 import { TransactionFlowProgressBar } from './TransactionFlowProgressBar'
+import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
 type TransactionStateContentProps = {
   readonly transactions: readonly Transaction[]
@@ -120,6 +121,13 @@ export const TransactionStateContent = ({
                       <SquareArrowOutUpRight className="size-3" />
                     </a>
                   )}
+                  {transaction.waitUntil &&
+                  status === undefined &&
+                  transaction.waitUntil > Date.now() ? (
+                    <TransactionWaitCountdown
+                      waitUntil={transaction.waitUntil}
+                    />
+                  ) : null}
                 </div>
                 {transaction.steps && transaction.steps.length > 0 && (
                   <ul className="flex flex-col gap-1 text-sm">
