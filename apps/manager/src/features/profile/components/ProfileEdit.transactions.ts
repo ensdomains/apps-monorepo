@@ -429,7 +429,7 @@ async function buildRecordsUpdateRequest(params: {
  *   signer: account.signer,
  *   accountAddress: account.accountAddress,
  *   publicClient,
- *   chainId: 11155111,
+ *   chainId: publicClient.chain.id,
  *   resolverAddress,
  * })
  * ```

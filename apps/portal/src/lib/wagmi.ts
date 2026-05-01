@@ -11,16 +11,10 @@ import { createConfig } from 'wagmi'
 
 export const sepoliaWithEns = extendChainWithEns(sepolia)
 
-const DRPC_CHAIN_SLUGS: Record<number, string> = {
-  11155111: 'sepolia',
-}
-
 const getRpcUrl = (chain: Chain): string => {
   const drpcKey = import.meta.env.VITE_PUBLIC_DRPC_API_KEY
   if (drpcKey) {
-    const slug =
-      DRPC_CHAIN_SLUGS[chain.id] ??
-      chain.name.toLowerCase().replace(/\s+/g, '-')
+    const slug = chain.name.toLowerCase().replace(/\s+/g, '-')
     return `https://lb.drpc.live/${slug}/${drpcKey}`
   }
   return chain.rpcUrls.default.http[0]
