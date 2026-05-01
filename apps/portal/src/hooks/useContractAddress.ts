@@ -1,6 +1,6 @@
 import { getChainContractAddress } from 'viem'
 import { useClient } from 'wagmi'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import type { sepoliaWithEns } from '@/lib/wagmi'
 
 type SepoliaWithEns = typeof sepoliaWithEns
 export const useContractAddress = <
@@ -12,7 +12,7 @@ export const useContractAddress = <
   contract: TContractName
   blockNumber?: bigint
 }) => {
-  const client = useClient({ chainId: sepoliaWithEns.id })
+  const client = useClient()
 
   return getChainContractAddress({
     chain: client?.chain as SepoliaWithEns,

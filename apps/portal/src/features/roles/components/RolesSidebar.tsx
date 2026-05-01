@@ -45,7 +45,6 @@ import {
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -69,13 +68,12 @@ export const RolesSidebar = <
   registryAddress,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
-  const chainId = sepoliaWithEns.id
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null)
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
 
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const { grantRoles } = useGrantRoles()

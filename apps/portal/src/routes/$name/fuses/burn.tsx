@@ -9,7 +9,6 @@ import {
   ShieldX,
 } from 'lucide-react'
 import { useState } from 'react'
-import { sepolia } from 'viem/chains'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -24,6 +23,7 @@ import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapper
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/fuses/burn')({
   component: RouteComponent,
@@ -48,10 +48,10 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
   const queryClient = useQueryClient()
-  const chainId = sepolia.id
+  const chainId = sepoliaWithEns.id
 
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const wrapperDataQuery = useQuery({
     ...getWrapperDataQueryOptions({ name }),

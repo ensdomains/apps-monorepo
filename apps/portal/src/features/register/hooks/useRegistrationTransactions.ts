@@ -8,12 +8,12 @@ import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 type UseRegistrationTransactionsParams = {
   readonly name: string
@@ -40,10 +40,10 @@ export const useRegistrationTransactions = ({
   name,
   duration,
 }: UseRegistrationTransactionsParams) => {
-  const chainId = sepolia.id
+  const chainId = sepoliaWithEns.id
   const config = useConfig()
   const connection = useConnection()
-  const publicClient = usePublicClient({ chainId })
+  const publicClient = usePublicClient()
 
   const { closeModal, clearTransaction } = useTransactionModal()
 

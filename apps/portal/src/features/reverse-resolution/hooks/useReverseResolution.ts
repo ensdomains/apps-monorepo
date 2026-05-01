@@ -109,7 +109,10 @@ async function getL2ReverseRecord(
     REVERSE_RESOLUTION_NETWORK,
   ) as 11155420 | 421614 | 84532 | 59141 | 534351
 
-  const l2Client = wagmiConfig.getClient({ chainId })
+  // L2 chains are not in wagmiConfig (Tenderly fork = L1 only); cast keeps
+  // this dead branch type-checking. REVERSE_RESOLUTION_NETWORKS no longer
+  // produces L2 entries, so this code is unreachable in practice.
+  const l2Client = wagmiConfig.getClient({ chainId: chainId as never })
   if (!l2Client) {
     return createEmptyResult(network)
   }
