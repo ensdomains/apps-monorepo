@@ -9,7 +9,19 @@ import { type Chain, createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-export const sepoliaWithEns = extendChainWithEns(sepolia)
+// V1 ENS subgraph (ensnode) for the Tenderly fork
+const V1_SUBGRAPH_URL =
+  'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
+
+const sepoliaWithEnsBase = extendChainWithEns(sepolia)
+
+export const sepoliaWithEns = {
+  ...sepoliaWithEnsBase,
+  subgraphs: {
+    ...sepoliaWithEnsBase.subgraphs,
+    ens: { url: V1_SUBGRAPH_URL },
+  },
+} as unknown as typeof sepoliaWithEnsBase
 
 const getRpcUrl = (chain: Chain): string => {
   const drpcKey = import.meta.env.VITE_PUBLIC_DRPC_API_KEY
