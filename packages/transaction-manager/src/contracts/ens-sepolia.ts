@@ -7,9 +7,11 @@ export const ENS_SEPOLIA_CONTRACTS = {
   ETHRegistry: '0x796fff2e907449be8d5921bcc215b1b76d89d080' as const,
   // ETH Registrar Controller
   ETHRegistrarController: '0x99e517db3db5ec5424367b8b50cd11ddcb0008f1' as const,
-  // ETH Registrar (V2)
-  ETHRegistrar: '0x68586418353b771cf2425ed14a07512aa880c532' as const,
-  // Fast Test ETH Registrar - same as ETHRegistrar on new deployment
+  // ETH Registrar (V2) — canonical v2 registrar on the tenderly fork
+  ETHRegistrar: '0x29e8a042ea34b7ee720c12b52720027b5e9049c6' as const,
+  // Fast Test ETH Registrar (only present on test deployments with
+  // MIN_COMMITMENT_AGE=0). Kept for completeness; the registration flow now
+  // always uses the canonical ETHRegistrar so it works on any deployment.
   FastTestETHRegistrar: '0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39' as const,
   // Dedicated Resolver Implementation
   DedicatedResolverImpl: '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as const,
