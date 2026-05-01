@@ -17,18 +17,28 @@ const SEPOLIA_RPC_URL =
 const V1_SUBGRAPH_URL =
   'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
 
+// The Tenderly virtual sepolia fork advertises its own chain id, distinct from
+// real sepolia (11155111). Using a unique id forces wallets (MetaMask etc.) to
+// treat the fork as a custom network and route writes through our RPC instead
+// of submitting them to public sepolia.
+const TENDERLY_FORK_CHAIN_ID = 100022568359
+
 const customSepolia = {
   ...sepolia,
+  name: 'Tenderly Sepolia Fork',
   rpcUrls: {
     default: { http: [SEPOLIA_RPC_URL] },
     public: { http: [SEPOLIA_RPC_URL] },
   },
 }
 
+// extendChainWithEns refuses any chain id outside its supported list, so we
+// extend against the original sepolia id and then override the id afterwards.
 const sepoliaWithEnsBase = extendChainWithEns(customSepolia)
 
 export const sepoliaWithEns = {
   ...sepoliaWithEnsBase,
+  id: TENDERLY_FORK_CHAIN_ID,
   subgraphs: {
     ...sepoliaWithEnsBase.subgraphs,
     ens: { url: V1_SUBGRAPH_URL },
