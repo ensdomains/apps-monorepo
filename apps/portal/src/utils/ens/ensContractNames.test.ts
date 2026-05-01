@@ -66,12 +66,12 @@ describe('getEnsContractName', () => {
 
   it('returns correct labels for sepolia contracts', () => {
     const cases: [Address, string][] = [
-      ['0x6409609247722761b8ba96371485de92a6d7b83b', 'BaseRegistrar'],
-      ['0x7f86d816165baf4fd68bfd9a0706601cdd666ac4', 'BulkRenewal'],
-      ['0x99e517db3db5ec5424367b8b50cd11ddcb0008f1', 'ETHRegistrarController'],
-      ['0xc7e033b8836e4bd55d069d113f018b98478cb091', 'NameWrapper'],
-      ['0x796fff2e907449be8d5921bcc215b1b76d89d080', 'ENSRegistry'],
-      ['0x4dc74fef4fc6b5a810a1554d431f06c8d8b7451c', 'UniversalResolver'],
+      ['0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85', 'BaseRegistrar'],
+      ['0x6394b694a8C0DC716e447802E568F0Fb2c4E0965', 'BulkRenewal'],
+      ['0xfb3cE5D01e0f33f41DbB39035dB9745962F1f968', 'ETHRegistrarController'],
+      ['0x0635513f179D50A207757E05759CbD106d7dFcE8', 'NameWrapper'],
+      ['0x28356dacb84ee3ebdb007d1f5920b24c87e90d40', 'ENSRegistry'],
+      ['0x3c85752a5d47DD09D677C645Ff2A938B38fbFEbA', 'UniversalResolver'],
     ]
     for (const [address, expected] of cases) {
       expect(getEnsContractName(SEPOLIA, address)).toBe(expected)
