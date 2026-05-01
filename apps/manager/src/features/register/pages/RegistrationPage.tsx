@@ -5,7 +5,6 @@ import { useAtom } from '@xstate/store-react'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
 import { useCallback, useReducer, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { sepolia } from 'viem/chains'
 import { Button } from '@/components/ui/button'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { Pricing } from '@/features/register/components/Pricing'
@@ -13,7 +12,7 @@ import { PricingDomainHeader } from '@/features/register/components/Pricing/Pric
 import { RegistrationInProgress } from '@/features/register/components/RegistrationInProgress/RegistrationInProgress'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { publicClient } from '@/lib/wagmi'
+import { customSepolia, publicClient } from '@/lib/wagmi'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { inspect } from '@/utils/xstate'
 import { handleStartRegistration } from './RegistrationPage.handlers'
@@ -84,7 +83,7 @@ export const Registration = ({
 
   const actor = useActorRef(registrationMachine, {
     input: {
-      chainId: sepolia.id,
+      chainId: customSepolia.id,
     },
     inspect,
   })
