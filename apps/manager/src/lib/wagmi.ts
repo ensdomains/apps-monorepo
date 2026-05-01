@@ -13,7 +13,7 @@ export const SEPOLIA_RPC_URL =
 // real sepolia (11155111). Using a unique id forces wallets (MetaMask etc.) to
 // treat the fork as a custom network and route writes through our RPC instead
 // of submitting them to public sepolia.
-export const TENDERLY_FORK_CHAIN_ID = 100022568359
+export const TENDERLY_FORK_CHAIN_ID = 99911155111
 
 // Create a custom Sepolia chain with working RPC
 export const customSepolia = {

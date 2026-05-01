@@ -21,7 +21,7 @@ const V1_SUBGRAPH_URL =
 // real sepolia (11155111). Using a unique id forces wallets (MetaMask etc.) to
 // treat the fork as a custom network and route writes through our RPC instead
 // of submitting them to public sepolia.
-const TENDERLY_FORK_CHAIN_ID = 100022568359
+const TENDERLY_FORK_CHAIN_ID = 99911155111
 
 const customSepolia = {
   ...sepolia,
