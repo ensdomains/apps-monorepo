@@ -6,7 +6,6 @@ import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/en
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import {
   type ActorRefFrom,
   assign,
@@ -18,7 +17,7 @@ import {
 } from 'xstate'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
-import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import { customSepolia, publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import { SECONDS_IN_YEAR } from '../utils/time'
 
@@ -221,7 +220,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   },
   initial: 'pricing',
   context: () => ({
-    chainId: sepolia.id,
+    chainId: customSepolia.id,
     duration: SECONDS_IN_YEAR,
     selectedToken: undefined,
     lastErrorMessage: undefined,
