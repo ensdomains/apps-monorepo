@@ -486,6 +486,56 @@ export function submitCommitmentActor(input: {
 }
 
 /**
+ * Read MIN_COMMITMENT_AGE from the registrar contract so the cooldown timer
+ * matches the deployment (e.g. 0 on FastTestETHRegistrar, 60s on the standard
+ * v2 ETHRegistrar).
+ */
+export function readMinCommitmentAgeActor(input: {
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+}): ResultAsync<bigint, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  return fromPromise(
+    readContract(input.publicClient, {
+      address: registrarAddress,
+      abi: FAST_TEST_ETH_REGISTRAR_ABI,
+      functionName: 'MIN_COMMITMENT_AGE',
+    }) as Promise<bigint>,
+    (error) => {
+      console.warn(
+        '⚠️ [REGISTRATION ACTOR] Failed to read MIN_COMMITMENT_AGE, defaulting to 60s:',
+        error,
+      )
+      return error as Error
+    },
+  )
+}
+
+/**
+ * Read the current ERC20 allowance the spender (registrar) has on the user's
+ * payment token. Used to skip the approval step when the user already
+ * approved enough.
+ */
+export function readPaymentTokenAllowanceActor(input: {
+  owner: Address
+  selectedToken: 'USDC' | 'DAI'
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+}): ResultAsync<bigint, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+  return fromPromise(
+    readContract(input.publicClient, {
+      address: tokenAddress,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [input.owner, registrarAddress],
+    }) as Promise<bigint>,
+    (error) => error as Error,
+  )
+}
+
+/**
  * Validate commitment readiness before proceeding to registration
  * Checks commitmentAt timestamp and MIN_COMMITMENT_AGE from contract
  * This ensures the commitment is recorded on-chain before registration
