@@ -63,13 +63,15 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.registerReadyTimestamp,
   )
-  // Surface the commit-reveal cooldown to the modal: while we're waiting for
-  // MIN_COMMITMENT_AGE to elapse the next user-facing step is the approval, so
-  // attach the deadline to that step.
-  const approveWaitUntil =
+  // Surface the commit-reveal cooldown to the modal. Approval can happen at
+  // any time; only the actual register call is gated by MIN_COMMITMENT_AGE,
+  // so attach the deadline to the register step.
+  const registerWaitUntil =
     machineState === 'fetchingCommitmentAge' ||
     machineState === 'commitmentCooldown' ||
-    machineState === 'checkingAllowance'
+    machineState === 'checkingAllowance' ||
+    machineState === 'approvingToken' ||
+    machineState === 'waitingForApproval'
       ? registerReadyTimestamp
       : undefined
   const isSuccess = machineState === 'success'
@@ -153,7 +155,6 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.0003,
         onStart: handleProceed,
         onDone: handleProceed,
-        waitUntil: approveWaitUntil,
       },
       {
         id: REGISTRATION_TX_IDS.register,
@@ -162,12 +163,13 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.001,
         onStart: handleProceed,
         onDone: handleDone,
+        waitUntil: registerWaitUntil,
       },
     ],
     [
       name,
       savedParams?.tokenSymbol,
-      approveWaitUntil,
+      registerWaitUntil,
       handleStart,
       handleProceed,
       handleDone,
