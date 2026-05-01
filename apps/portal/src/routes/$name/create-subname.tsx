@@ -25,12 +25,12 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 
-const getClient = () => wagmiConfig.getClient({ chainId: sepoliaWithEns.id })
+const getClient = () => wagmiConfig.getClient()
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,

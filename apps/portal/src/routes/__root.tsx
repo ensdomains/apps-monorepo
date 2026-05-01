@@ -8,22 +8,21 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
-import { sepolia } from 'viem/chains'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { PHProvider } from '@/lib/posthog/provider'
-import { wagmiConfig } from '@/lib/wagmi'
+import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
 function TransactionManagerSetup({ children }: { children: ReactNode }) {
-  const publicClient = usePublicClient({ chainId: sepolia.id })
+  const publicClient = usePublicClient()
 
   useAutoFundOnLowBalance()
 
   useEffect(() => {
     if (publicClient) {
-      transactionManager.setPublicClient(sepolia.id, publicClient)
+      transactionManager.setPublicClient(sepoliaWithEns.id, publicClient)
     }
   }, [publicClient])
 
