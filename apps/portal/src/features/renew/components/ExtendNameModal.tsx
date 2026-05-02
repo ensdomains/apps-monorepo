@@ -1,14 +1,11 @@
-import { CheckCircle2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { dateToPlainDate } from '@/utils/temporal'
 import { useNamePricing } from '../hooks/useNamePricing'
 import type {
@@ -25,19 +22,15 @@ type ExtendNameModalProps = {
   readonly onClose: () => void
   readonly selectedName: SelectedName
   readonly onExtend: (config: StartFlowConfig) => void
-  readonly transactionCompleted: boolean
-  readonly onSuccessAcknowledged: () => void
 }
 
-type ExtendNameModalStep = 'disclaimer' | 'settings' | 'confirm' | 'success'
+type ExtendNameModalStep = 'disclaimer' | 'settings' | 'confirm'
 
 export const ExtendNameModal = ({
   open,
   onClose,
   selectedName,
   onExtend,
-  transactionCompleted,
-  onSuccessAcknowledged,
 }: ExtendNameModalProps) => {
   const [step, setStep] = useState<ExtendNameModalStep>('disclaimer')
   const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
@@ -54,16 +47,15 @@ export const ExtendNameModal = ({
   )
 
   useEffect(() => {
-    if (open && transactionCompleted) {
-      setStep('success')
+    if (!open) {
+      setStep('disclaimer')
     }
-  }, [open, transactionCompleted])
+  }, [open])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
     .with('settings', () => 'Extend name')
     .with('confirm', () => 'Confirm extension')
-    .with('success', () => undefined)
     .exhaustive()
 
   return (
@@ -72,7 +64,6 @@ export const ExtendNameModal = ({
       onOpenChange={(open) => {
         if (!open) {
           onClose()
-          setStep('disclaimer')
         }
       }}
     >
@@ -115,34 +106,6 @@ export const ExtendNameModal = ({
               />
             ) : null,
           )
-          .with('success', () => (
-            <div className="space-y-6">
-              <div className="flex flex-col items-center gap-2">
-                <CheckCircle2 className="size-10" />
-                <h2 className="text-3xl font-medium">Extension complete</h2>
-              </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="w-full flex items-center gap-3 px-4 py-3">
-                  <NameAvatar
-                    name={selectedName.name}
-                    height="40px"
-                    width="40px"
-                    rounded="rounded-sm"
-                  />
-                  <span className="flex-1 text-left text-base font-medium text-foreground truncate">
-                    {selectedName.name}
-                  </span>
-                </div>
-              </div>
-              <Button
-                className="w-full"
-                variant="default"
-                onClick={onSuccessAcknowledged}
-              >
-                Done
-              </Button>
-            </div>
-          ))
           .exhaustive()}
       </DialogContent>
     </Dialog>
