@@ -16,7 +16,7 @@ import {
   toHex,
   zeroAddress,
 } from 'viem'
-import { getBlock, readContract } from 'viem/actions'
+import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
@@ -560,24 +560,27 @@ export function verifyRegistrationActor(input: {
         functionName: 'REGISTRY',
       })) as Address
 
-      const [resolver, owner] = await Promise.all([
-        readContract(input.publicClient, {
-          address: registryAddress,
-          abi: parseAbi([
-            'function getResolver(string label) view returns (address)',
-          ]),
-          functionName: 'getResolver',
-          args: [cleanName],
-        }) as Promise<Address>,
-        readContract(input.publicClient, {
-          address: registryAddress,
-          abi: parseAbi([
-            'function getOwner(string label) view returns (address)',
-          ]),
-          functionName: 'getOwner',
-          args: [cleanName],
-        }) as Promise<Address>,
+      const registryAbi = parseAbi([
+        'function getResolver(string label) view returns (address)',
+        'function getOwner(string label) view returns (address)',
       ])
+      const [resolver, owner] = await multicall(input.publicClient, {
+        allowFailure: false,
+        contracts: [
+          {
+            address: registryAddress,
+            abi: registryAbi,
+            functionName: 'getResolver',
+            args: [cleanName],
+          },
+          {
+            address: registryAddress,
+            abi: registryAbi,
+            functionName: 'getOwner',
+            args: [cleanName],
+          },
+        ],
+      })
 
       // Guard against the front-running scenario: another address could have
       // claimed the label with the same resolver. Require both resolver and
