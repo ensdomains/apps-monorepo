@@ -536,6 +536,53 @@ export function readPaymentTokenAllowanceActor(input: {
 }
 
 /**
+ * Verify a name has actually been registered on-chain. Used as a fallback
+ * after the submit/poll path fails — if the wallet flaked but the tx
+ * landed, the registry will already reflect the new owner + resolver.
+ */
+export function verifyRegistrationActor(input: {
+  name: string
+  owner: Address
+  resolverAddress: Address
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+}): ResultAsync<{ verified: boolean }, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const cleanName = input.name.replace('.eth', '')
+  return fromPromise(
+    (async () => {
+      // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
+      // entries are stored. Read the registry, then look up the resolver.
+      const registryAddress = (await readContract(input.publicClient, {
+        address: registrarAddress,
+        abi: parseAbi(['function REGISTRY() view returns (address)']),
+        functionName: 'REGISTRY',
+      })) as Address
+
+      const resolver = (await readContract(input.publicClient, {
+        address: registryAddress,
+        abi: parseAbi([
+          'function getResolver(string label) view returns (address)',
+        ]),
+        functionName: 'getResolver',
+        args: [cleanName],
+      })) as Address
+
+      const matches =
+        resolver !== zeroAddress &&
+        resolver.toLowerCase() === input.resolverAddress.toLowerCase()
+
+      console.log(
+        `🔍 [REGISTRATION ACTOR] verifyRegistration ${cleanName}: registry=${registryAddress}, resolver=${resolver}, expected=${input.resolverAddress}, matches=${matches}`,
+      )
+
+      return { verified: matches }
+    })(),
+    (error) => error as Error,
+  )
+}
+
+/**
  * Validate commitment readiness before proceeding to registration
  * Checks commitmentAt timestamp and MIN_COMMITMENT_AGE from contract
  * This ensures the commitment is recorded on-chain before registration
