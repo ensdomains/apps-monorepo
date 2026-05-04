@@ -81,7 +81,7 @@ msgstr ""
 msgid "{durationYears} years"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:332
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:334
 #: src/features/dashboard/components/NameRow.tsx:67
 msgid "{label} avatar"
 msgstr ""
@@ -144,7 +144,7 @@ msgstr ""
 msgid "Account address:"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:93
+#: src/features/profile/components/ProfileEdit.tsx:95
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr ""
 
@@ -419,22 +419,22 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:392
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:394
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:266
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: src/features/profile/components/ProfileEdit.tsx:86
+#: src/features/profile/components/ProfileEdit.tsx:88
 msgid "Cannot save profile - ENS owner is not available."
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:104
+#: src/features/profile/components/ProfileEdit.tsx:106
 msgid "Cannot save profile - resolver address is not available."
 msgstr ""
 
@@ -479,7 +479,7 @@ msgstr ""
 msgid "Choose how you'd like to pay for your subscription."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:274
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:276
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
@@ -658,8 +658,8 @@ msgstr ""
 msgid "Copy to clipboard"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:158
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:138
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:160
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:140
 msgid "Could not find resolver for {name}"
 msgstr ""
 
@@ -984,16 +984,16 @@ msgstr ""
 msgid "Failed to resend email verification"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:192
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:172
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:194
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:174
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:106
 msgid "Failed to set primary name"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:365
 msgid "Failed to set primary name. Please try again."
 msgstr "Kunde inte ange primärt namn. Försök igen."
 
@@ -1012,7 +1012,7 @@ msgstr ""
 msgid "Failed to update preferences"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:67
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:69
 msgid "Failed to update resolver"
 msgstr ""
 
@@ -1368,8 +1368,8 @@ msgstr ""
 msgid "No eligible names found for this wallet"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:374
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:240
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:376
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:242
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
 
@@ -1377,7 +1377,7 @@ msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande
 msgid "No more records to add"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:305
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:307
 msgid "No names found"
 msgstr "Inga namn hittades"
 
@@ -1593,8 +1593,8 @@ msgstr ""
 msgid "Primary Name"
 msgstr "Primärt namn"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:207
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:209
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:70
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
 
@@ -1814,11 +1814,11 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:180
+#: src/features/profile/components/ProfileEdit.tsx:182
 msgid "Reset Changes"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:121
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:123
 msgid "Resolver address"
 msgstr ""
 
@@ -1839,7 +1839,7 @@ msgstr ""
 msgid "Review Changes"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Save"
 msgstr ""
 
@@ -1870,7 +1870,7 @@ msgstr ""
 msgid "Saving..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Saving…"
 msgstr ""
 
@@ -1930,7 +1930,7 @@ msgstr ""
 msgid "Select {0}"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:316
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:318
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
@@ -1961,8 +1961,8 @@ msgstr ""
 msgid "Sessions enabled! You can now transact without signing each time."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:408
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:410
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:274
 msgid "Set as Primary"
 msgstr "Ange som primärt"
 
@@ -1978,9 +1978,9 @@ msgstr ""
 msgid "Set primary name"
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:209
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:285
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:301
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:211
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:287
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:303
 msgid "Set Primary Name"
 msgstr ""
 
@@ -1992,15 +1992,15 @@ msgstr ""
 msgid "Set the content hash and ABI for your name"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:277
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:279
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:405
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
 msgid "Setting ETH address..."
 msgstr "Anger ETH-adress..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:268
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:270
 msgid "Setting ETH address…"
 msgstr ""
 
@@ -2008,11 +2008,11 @@ msgstr ""
 msgid "Setting up your v2 resolver"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
 msgid "Setting..."
 msgstr "Anger..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:270
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
 msgid "Setting…"
 msgstr ""
 
@@ -2235,8 +2235,8 @@ msgstr ""
 msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:373
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:234
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:375
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:236
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
 
@@ -2285,7 +2285,7 @@ msgstr ""
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:222
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:224
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr ""
 
@@ -2360,9 +2360,9 @@ msgstr ""
 msgid "Update failed"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:147
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:163
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:108
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:149
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:165
 msgid "Update Resolver"
 msgstr ""
 
@@ -2602,8 +2602,8 @@ msgstr ""
 msgid "Wallet funded successfully"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:232
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:181
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:234
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:183
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
 

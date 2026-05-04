@@ -418,6 +418,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@ens-apps/indexer':
+        specifier: workspace:*
+        version: link:../../packages/indexer
       '@ens-apps/l2-primary':
         specifier: workspace:*
         version: link:../../packages/l2-primary
@@ -659,6 +662,9 @@ importers:
 
   packages/indexer:
     dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@58509de(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@urql/core':
         specifier: ^6.0.1
         version: 6.0.1(graphql@16.12.0)
@@ -671,6 +677,9 @@ importers:
       graphql-tag:
         specifier: ^2.12.6
         version: 2.12.6(graphql@16.12.0)
+      viem:
+        specifier: ^2.40.3
+        version: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
     devDependencies:
       '@graphql-codegen/cli':
         specifier: ^6.0.1
@@ -1236,17 +1245,17 @@ packages:
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de':
-    resolution: {integrity: sha512-sR2t41/oANG54Vtd6eD0FiDApt+ZAorS+M5fSUGWGV5f/N1zVx7QKYN7CqfuackaNhU1cB0SNPIch1vWcMhd6g==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de42aaf90a8a109edb44ff45e5fad93d596':
-    resolution: {integrity: sha512-sR2t41/oANG54Vtd6eD0FiDApt+ZAorS+M5fSUGWGV5f/N1zVx7QKYN7CqfuackaNhU1cB0SNPIch1vWcMhd6g==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de42aaf90a8a109edb44ff45e5fad93d596}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de42aaf90a8a109edb44ff45e5fad93d596}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@58509de':
-    resolution: {integrity: sha512-c1nzPiqIb5bNXcRPsZDgWyQd66tcq+P7gNinELYeoxUhcvLG/yT92+nCmRyjoRP9Tef/AvWEie6CGNzBxdchig==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@58509de}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@58509de}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
