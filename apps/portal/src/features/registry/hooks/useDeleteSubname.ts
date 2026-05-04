@@ -11,6 +11,7 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { deleteSubname } from '../helpers/deleteSubname'
 
 interface UseDeleteSubnameParams {
@@ -86,9 +87,22 @@ export const useDeleteSubname = ({
       })
     },
     onSuccess: () => {
+      const subnamesQueryKey = getSubnamesQueryOptions({
+        name,
+        protocolVersion: 'ENSv2',
+      }).queryKey
+
       queryClient.invalidateQueries({
-        queryKey: getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' })
-          .queryKey,
+        queryKey: subnamesQueryKey,
+        refetchType: 'all',
+      })
+
+      pollForIndexerSync({
+        invalidateQueries: () =>
+          queryClient.invalidateQueries({
+            queryKey: subnamesQueryKey,
+            refetchType: 'all',
+          }),
       })
     },
   })

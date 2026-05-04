@@ -60,6 +60,8 @@ interface SubnamesTableProps {
   readonly onClearSelected?: (subnames: SubnameRow[]) => void
   /** True while a delete mutation is in flight; disables delete controls. */
   readonly isDeleting?: boolean
+  /** Names whose delete tx is currently in flight; rendered as dimmed/loading. */
+  readonly pendingNames?: readonly string[]
 }
 
 function buildColumns(
@@ -157,7 +159,9 @@ export const SubnamesTable = ({
   onDeleteSubname,
   onClearSelected,
   isDeleting,
+  pendingNames,
 }: SubnamesTableProps) => {
+  const pendingSet = useMemo(() => new Set(pendingNames ?? []), [pendingNames])
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [tableView] = useTableViewSettings()
@@ -273,10 +277,21 @@ export const SubnamesTable = ({
         {rows.length > 0 ? (
           rows.map((row) => {
             const isPendingDelete = pendingDeleteName === row.original.name
+            const isPendingTx = pendingSet.has(row.original.name)
 
             return (
               <React.Fragment key={row.id}>
-                <div className="border-b border-border px-6 py-4 flex flex-col gap-3">
+                <div
+                  className={cn(
+                    'border-b border-border px-6 py-4 flex flex-col gap-3',
+                    isPendingTx && 'opacity-50 pointer-events-none',
+                  )}
+                >
+                  {isPendingTx && (
+                    <span className="text-xs text-muted-foreground">
+                      Deleting…
+                    </span>
+                  )}
                   <div className="flex flex-row gap-2 items-center">
                     {onDeleteSubname && (
                       <Checkbox
@@ -384,6 +399,7 @@ export const SubnamesTable = ({
           {rows.length > 0 ? (
             rows.map((row) => {
               const isPendingDelete = pendingDeleteName === row.original.name
+              const isPendingTx = pendingSet.has(row.original.name)
 
               return (
                 <React.Fragment key={row.id}>
@@ -392,6 +408,7 @@ export const SubnamesTable = ({
                     className={cn(
                       'hover:bg-muted',
                       tableView.strippedRows && 'odd:bg-muted',
+                      isPendingTx && 'opacity-50 pointer-events-none',
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (

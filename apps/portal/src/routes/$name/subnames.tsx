@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { fromPromise } from 'neverthrow'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -125,7 +125,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   })
 
   const {
-    deleteSubname: deleteSubnameMutate,
     deleteSubnameAsync,
     isDeleting,
     error: deleteError,
@@ -133,6 +132,15 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     name,
     registryAddress: (subregistryAddress as Address) ?? zeroAddress,
   })
+
+  // Names whose delete tx is in flight — used to dim the row in the table.
+  const [pendingNames, setPendingNames] = useState<readonly string[]>([])
+  // Names whose delete tx already succeeded — hidden from the UI immediately
+  // so the user sees the result before the indexer catches up. Cleared
+  // automatically once the refreshed query no longer returns them.
+  const [optimisticallyDeleted, setOptimisticallyDeleted] = useState<
+    ReadonlySet<string>
+  >(() => new Set())
 
   /**
    * Extract the first label from a full subname.
@@ -149,31 +157,58 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     [name],
   )
 
+  const runDelete = useCallback(
+    async (subname: SubnameRow) => {
+      setPendingNames((prev) => [...prev, subname.name])
+      const result = await fromPromise(
+        deleteSubnameAsync({
+          subname: subname.name,
+          label: getLabel(subname.name),
+        }),
+        (error) => error as Error,
+      )
+      setPendingNames((prev) => prev.filter((n) => n !== subname.name))
+      if (result.isOk()) {
+        setOptimisticallyDeleted((prev) => {
+          const next = new Set(prev)
+          next.add(subname.name)
+          return next
+        })
+      }
+      return result
+    },
+    [deleteSubnameAsync, getLabel],
+  )
+
   const handleDeleteSubname = useCallback(
     (subname: SubnameRow) => {
-      deleteSubnameMutate({
-        subname: subname.name,
-        label: getLabel(subname.name),
-      })
+      void runDelete(subname)
     },
-    [deleteSubnameMutate, getLabel],
+    [runDelete],
   )
 
   const handleClearSelected = useCallback(
     async (selected: SubnameRow[]) => {
       for (const subname of selected) {
-        const result = await fromPromise(
-          deleteSubnameAsync({
-            subname: subname.name,
-            label: getLabel(subname.name),
-          }),
-          (error) => error as Error,
-        )
+        const result = await runDelete(subname)
         if (result.isErr()) break
       }
     },
-    [deleteSubnameAsync, getLabel],
+    [runDelete],
   )
+
+  // Once the indexer has caught up and stopped returning a name we
+  // optimistically deleted, drop it from the set — the row is naturally
+  // absent from the query data, so the local override is no longer needed.
+  useEffect(() => {
+    if (!subnames) return
+    const present = new Set(subnames.map((s) => s.name || ''))
+    setOptimisticallyDeleted((prev) => {
+      const next = new Set<string>()
+      for (const n of prev) if (present.has(n)) next.add(n)
+      return next.size === prev.size ? prev : next
+    })
+  }, [subnames])
 
   if (registriesLoading) {
     return <LoadingMessage title="Checking registry..." />
@@ -212,11 +247,13 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
 
   const canDeleteSubname = Boolean(hasUnregisterRole)
 
-  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
-    name: subname.name || '',
-    owner: subname.owner,
-    canDelete: canDeleteSubname,
-  }))
+  const subnameRows: SubnameRow[] = (subnames || [])
+    .filter((subname) => !optimisticallyDeleted.has(subname.name || ''))
+    .map((subname) => ({
+      name: subname.name || '',
+      owner: subname.owner,
+      canDelete: canDeleteSubname,
+    }))
 
   const canCreateSubname = Boolean(hasRegistrarRole)
 
@@ -229,6 +266,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
         onClearSelected={canDeleteSubname ? handleClearSelected : undefined}
         isDeleting={isDeleting}
+        pendingNames={pendingNames}
       />
       {deleteError && (
         <ErrorMessage
