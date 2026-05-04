@@ -11,6 +11,7 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
+import { isUseEoaEnabled } from '@/lib/featureFlags'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -132,7 +133,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           <PHProvider>
             <SmartAccountContextProvider>
               {children}
-              <SmartAccountSessionModal />
+              {!isUseEoaEnabled() && <SmartAccountSessionModal />}
             </SmartAccountContextProvider>
           </PHProvider>
         </ParaProvider>
