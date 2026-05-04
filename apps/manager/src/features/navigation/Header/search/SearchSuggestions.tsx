@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import { Loader2Icon } from 'lucide-react'
+import { useMemo } from 'react'
 import { match } from 'ts-pattern'
 import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
 import { AddressSuggestionItem, NameSuggestionItem } from './SuggestionItem'
@@ -21,14 +21,6 @@ export const SearchSuggestions = ({
   const suggestions = useSearchSuggestions(searchValue)
   const isShowingHistory = !searchValue.trim()
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center px-3 py-6">
-        <Loader2Icon className="size-4 animate-spin text-slate-500" />
-      </div>
-    )
-  }
-
   const visibleNames = useMemo(
     () => suggestions.flatMap((s) => (s.type === 'name' ? [s.value] : [])),
     [suggestions],
@@ -37,6 +29,14 @@ export const SearchSuggestions = ({
   const { data: avatarsByName } = useQuery(
     namesAvatarsByNameQuery(visibleNames),
   )
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center px-3 py-6">
+        <Loader2Icon className="size-4 animate-spin text-slate-500" />
+      </div>
+    )
+  }
 
   if (suggestions.length === 0) {
     if (isShowingHistory) {
