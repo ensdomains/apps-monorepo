@@ -2,7 +2,7 @@ import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link, linkOptions } from '@tanstack/react-router'
-import { Loader2Icon, XIcon } from 'lucide-react'
+import { Loader2Icon, WalletIcon, XIcon } from 'lucide-react'
 import { match } from 'ts-pattern'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
@@ -30,8 +30,6 @@ const LINK_OPTIONS = {
           search: {
             name,
           },
-          // Hacky solution to force reset state on register page
-          // TODO: Update register state logic to properly handle name input changes
           reloadDocument: location.pathname === '/register',
         }),
 } as const
@@ -56,14 +54,12 @@ export const NameSuggestionItem = ({
   isSupported = true,
 }: NameSuggestionItemProps) => {
   const isSubname = name.split('.').length > 2
-
   const needsSelfCheck =
     isSupported &&
     isRegisteredProp === undefined &&
     !isLoadingProp &&
     !isErrorProp
 
-  // 2LDs use the registrar contract, subnames use the indexer
   const registrarQuery = useQuery({
     ...getSearchNameQueryOptions(name),
     enabled: needsSelfCheck && !isSubname,
@@ -90,11 +86,11 @@ export const NameSuggestionItem = ({
     registrarQuery,
   })
     .with({ needsSelfCheck: false }, () => isRegisteredProp)
-    .with({ isSubname: true }, ({ indexerQuery: q }) =>
-      q.data ? q.data.domains.length > 0 : undefined,
+    .with({ isSubname: true }, ({ indexerQuery: query }) =>
+      query.data ? query.data.domains.length > 0 : undefined,
     )
-    .otherwise(({ registrarQuery: q }) =>
-      q.data ? !q.data.isAvailable : undefined,
+    .otherwise(({ registrarQuery: query }) =>
+      query.data ? !query.data.isAvailable : undefined,
     )
   const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
   const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
@@ -104,12 +100,12 @@ export const NameSuggestionItem = ({
   return (
     <Link
       className={tw(
-        'flex w-full items-center gap-3 px-3 py-2 text-left transition-colors',
+        'flex w-full items-center gap-3 p-3 text-left transition-colors',
         isDisabled ? 'cursor-default opacity-50' : 'hover:bg-slate-50',
       )}
-      onClick={(e) => {
+      onClick={(event) => {
         if (isDisabled) {
-          e.preventDefault()
+          event.preventDefault()
           return
         }
         searchHistoryStore.trigger.addToHistory({ kind: 'name', value: name })
@@ -117,7 +113,7 @@ export const NameSuggestionItem = ({
       }}
       {...LINK_OPTIONS[isAvailable ? 'register' : 'profile'](name)}
     >
-      <div className="relative size-8 shrink-0 overflow-hidden rounded-md bg-slate-100">
+      <div className="relative size-8 shrink-0 overflow-hidden rounded bg-slate-100">
         <ImageFallback.Root className="contents">
           <ImageFallback.Image
             alt={`${name} avatar`}
@@ -135,12 +131,7 @@ export const NameSuggestionItem = ({
         </span>
         {match({ isSupported, isSubname, isLoading, isError, isRegistered })
           .with({ isSupported: false }, () => (
-            <div
-              className={tw(
-                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                'bg-red-50 text-red-500',
-              )}
-            >
+            <div className="shrink-0 rounded-full bg-red-50 px-1.5 py-1 font-normal text-red-500 text-xs">
               <Trans>Not supported</Trans>
             </div>
           ))
@@ -151,23 +142,13 @@ export const NameSuggestionItem = ({
             <XIcon className="size-4 text-slate-500" />
           ))
           .with({ isRegistered: true }, () => (
-            <div
-              className={tw(
-                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                'bg-ens-white text-ens-lapis-core',
-              )}
-            >
+            <div className="shrink-0 rounded-full bg-ens-white px-1.5 py-1 font-normal text-ens-lapis-core text-xs">
               <Trans>Registered</Trans>
             </div>
           ))
           .with({ isSubname: true }, () => null)
           .with({ isRegistered: false }, () => (
-            <div
-              className={tw(
-                'shrink-0 rounded-full px-1.5 py-1 font-normal text-xs',
-                'bg-ens-peridot-bg text-ens-peridot-core',
-              )}
-            >
+            <div className="shrink-0 rounded-full bg-ens-peridot-bg px-1.5 py-1 font-normal text-ens-peridot-core text-xs">
               <Trans>Available</Trans>
             </div>
           ))
@@ -178,7 +159,7 @@ export const NameSuggestionItem = ({
 }
 
 type AddressSuggestionItemProps = {
-  readonly address: string
+  readonly address: Address
   readonly onNavigate?: () => void
 }
 
@@ -187,8 +168,10 @@ export const AddressSuggestionItem = ({
   onNavigate,
 }: AddressSuggestionItemProps) => {
   return (
-    <AddressSuggestionCard
-      address={address}
+    <Link
+      className={tw(
+        'flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-slate-50',
+      )}
       onClick={() => {
         searchHistoryStore.trigger.addToHistory({
           kind: 'address',
@@ -196,7 +179,17 @@ export const AddressSuggestionItem = ({
         })
         onNavigate?.()
       }}
-      variant="compact"
-    />
+      params={{ address }}
+      to="/$address"
+    >
+      <div className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded bg-slate-100">
+        <WalletIcon className="size-4 text-slate-600" />
+      </div>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
+          {address}
+        </span>
+      </div>
+    </Link>
   )
 }

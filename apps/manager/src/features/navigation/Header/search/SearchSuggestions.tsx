@@ -1,23 +1,33 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import { Loader2Icon } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
 import { AddressSuggestionItem, NameSuggestionItem } from './SuggestionItem'
-import { searchHistoryStore } from './useSearchHistory'
 import { useSearchSuggestions } from './useSearchSuggestions'
 
-interface SearchSuggestionsProps {
-  searchValue: string
-  onNavigate?: () => void
+type SearchSuggestionsProps = {
+  readonly searchValue: string
+  readonly isLoading: boolean
+  readonly onNavigate?: () => void
 }
 
 export const SearchSuggestions = ({
   searchValue,
+  isLoading,
   onNavigate,
 }: SearchSuggestionsProps) => {
   const suggestions = useSearchSuggestions(searchValue)
   const isShowingHistory = !searchValue.trim()
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center px-3 py-6">
+        <Loader2Icon className="size-4 animate-spin text-slate-500" />
+      </div>
+    )
+  }
 
   const visibleNames = useMemo(
     () => suggestions.flatMap((s) => (s.type === 'name' ? [s.value] : [])),
@@ -40,21 +50,7 @@ export const SearchSuggestions = ({
   }
 
   return (
-    <div>
-      {isShowingHistory && (
-        <div className="flex items-center justify-between px-3 py-2">
-          <span className="font-medium text-slate-500 text-xs">
-            <Trans>Recent</Trans>
-          </span>
-          <button
-            className="font-medium text-ens-blue-primary text-xs hover:underline"
-            onClick={() => searchHistoryStore.trigger.clearHistory()}
-            type="button"
-          >
-            <Trans>Clear</Trans>
-          </button>
-        </div>
-      )}
+    <>
       {suggestions.map((suggestion, index) =>
         match(suggestion)
           .with({ type: 'name' }, (name) => (
@@ -76,17 +72,20 @@ export const SearchSuggestions = ({
               onNavigate={onNavigate}
             />
           ))
-          .with({ type: 'separator' }, () => (
-            <div
-              className="h-px w-full bg-ens-gray-two"
-              key={`separator-${
-                // biome-ignore lint/suspicious/noArrayIndexKey: Doesn't need to be unique between separators
-                index
-              }`}
-            />
-          ))
+          .with(
+            { type: 'separator' },
+            () =>
+              index < suggestions.length - 1 && (
+                <div
+                  className="h-px w-full bg-ens-gray-two"
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Doesn't need to be unique between separators
+                  key={`separator-${index}`}
+                />
+              ),
+          )
+
           .exhaustive(),
       )}
-    </div>
+    </>
   )
 }

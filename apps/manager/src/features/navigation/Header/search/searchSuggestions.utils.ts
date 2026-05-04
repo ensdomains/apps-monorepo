@@ -3,10 +3,6 @@ import { isAddress } from 'viem'
 import { validateENSName } from '@/features/register/utils'
 import type { SearchHistoryItem } from './useSearchHistory'
 
-/**
- * Validates a name for search context. Unlike `validateENSName` (registration),
- * this allows subnames (e.g. "sub.name.eth") since they can be viewed.
- */
 const isSearchNameSupported = (name: string): boolean => {
   const trimmed = name.trim()
   if (!trimmed) return false
@@ -33,13 +29,11 @@ type AddressSuggestion = {
   readonly value: Address
 }
 
-type Suggestion = NameSuggestion | AddressSuggestion
-
 type Separator = {
   readonly type: 'separator'
 }
 
-export type SuggestionItem = Suggestion | Separator
+export type SuggestionItem = NameSuggestion | AddressSuggestion | Separator
 
 export type ParsedInput =
   | { readonly type: 'name'; readonly value: string }
@@ -99,7 +93,7 @@ export const buildSuggestions = ({
           value: item.value,
           isSupported: isSearchNameSupported(item.value),
         })
-      } else if (item.kind === 'address') {
+      } else {
         suggestions.push({ type: 'address', value: item.value })
       }
     }

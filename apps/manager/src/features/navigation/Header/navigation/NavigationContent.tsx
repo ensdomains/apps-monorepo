@@ -1,7 +1,7 @@
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
-import { Link } from '@tanstack/react-router'
+import { Link, type LinkOptions, linkOptions } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
   GithubIcon,
@@ -10,42 +10,68 @@ import {
   TwitterIcon,
   YoutubeIcon,
 } from 'lucide-react'
-
+import type React from 'react'
 import ensMobile from '@/assets/icons/ens-mobile.svg'
+import { MSymbol } from '@/components/ui/material-symbol'
+import { twm } from '@/utils/tailwind'
 
-interface NavigationContentProps {
-  onAction: () => void
+type NavigationContentProps = {
+  readonly onAction: () => void
 }
 
-interface NavigationLink {
-  label: MessageDescriptor
-  href?: string
-  to?: string
-  icon?: React.ReactNode
-  target?: '_blank'
-  rel?: 'noreferrer'
+type NavigationLink = {
+  readonly label: MessageDescriptor
+  readonly icon?: React.ReactNode
+  readonly className?: string
+  readonly suffix?: React.ReactNode
+} & (
+  | {
+      readonly href: string
+      readonly target?: '_blank'
+      readonly rel?: 'noreferrer'
+    }
+  | {
+      readonly linkOptions: LinkOptions
+    }
+)
+
+type NavigationSection = {
+  readonly title: MessageDescriptor | string
+  readonly links: readonly NavigationLink[]
 }
 
-interface NavigationSection {
-  title: MessageDescriptor | string
-  links: NavigationLink[]
-}
-
-interface SocialIcon {
-  href: string
-  icon: LucideIcon
+type SocialIcon = {
+  readonly href: string
+  readonly icon: LucideIcon
 }
 
 const LogoIconBlack = () => <img alt="Logo" src={ensMobile} />
 
-const navigationSections: NavigationSection[] = [
+const navigationSections: readonly NavigationSection[] = [
   {
     title: '',
     links: [
       {
-        label: msg`ENS App Homepage`,
-        href: '/',
+        label: msg`ENS app landing page`,
+        linkOptions: linkOptions({
+          to: '/',
+          search: {
+            landing: true,
+          },
+        }),
         icon: <LogoIconBlack />,
+        className: 'text-base',
+      },
+      {
+        label: msg`Go to ENS Explorer`,
+        href: 'https://explorer.ens.dev',
+        className: 'text-base gap-1',
+        suffix: (
+          <MSymbol
+            className="ms-opsz-30 hover:no-underline"
+            symbol="arrow_outward"
+          />
+        ),
       },
     ],
   },
@@ -69,15 +95,21 @@ const navigationSections: NavigationSection[] = [
     links: [
       {
         label: msg`Privacy Policy`,
-        to: '/legal/privacy-policy',
+        linkOptions: linkOptions({
+          to: '/legal/privacy-policy',
+        }),
       },
       {
         label: msg`Terms of Use`,
-        to: '/legal/terms-of-use',
+        linkOptions: linkOptions({
+          to: '/legal/terms-of-use',
+        }),
       },
       {
         label: msg`Trademark Guidelines`,
-        to: '/legal/trademark-guidelines',
+        linkOptions: linkOptions({
+          to: '/legal/trademark-guidelines',
+        }),
       },
       {
         label: msg`Bug bounty`,
@@ -106,7 +138,7 @@ const navigationSections: NavigationSection[] = [
   },
 ]
 
-const socialIcons: SocialIcon[] = [
+const socialIcons: readonly SocialIcon[] = [
   { href: 'https://x.com/ensdomains', icon: TwitterIcon },
   { href: 'https://github.com/ensdomains', icon: GithubIcon },
   { href: 'https://chat.ens.domains', icon: MessageCircleIcon },
@@ -116,9 +148,6 @@ const socialIcons: SocialIcon[] = [
 
 export const NavigationContent = ({ onAction }: NavigationContentProps) => {
   const { _ } = useLingui()
-  const handleLinkClick = () => {
-    onAction()
-  }
 
   const resolveTitle = (title: MessageDescriptor | string) =>
     typeof title === 'string' ? title : _(title)
@@ -131,40 +160,44 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
           <div key={title}>
             <div className="flex flex-col gap-3">
               {sectionIndex > 0 && <div className="border-gray-200 border-t" />}
-              <h3 className="font-medium text-base text-ens-lapis-core">
+              <h3 className="font-medium text-base text-ens-quartz-900">
                 {title}
               </h3>
               <div className="flex flex-col gap-4">
                 {section.links.map((link) => {
                   const label = _(link.label)
-                  return (
-                    <div
-                      className="flex items-center gap-2"
-                      key={`${title}-${label}-${link.to ?? link.href}`}
-                    >
+                  const isInternal = 'linkOptions' in link
+                  const className = twm(
+                    'text-ens-quartz-900 text-sm leading-ens-normal transition-colors flex items-center gap-2 group',
+                    link.className,
+                  )
+                  const content = (
+                    <>
                       {link.icon && <div className="size-6">{link.icon}</div>}
-                      {link.to ? (
-                        <Link
-                          className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
-                          key={label}
-                          onClick={handleLinkClick}
-                          to={link.to}
-                        >
-                          {label}
-                        </Link>
-                      ) : (
-                        <a
-                          className="text-ens-lapis-core text-sm leading-ens-normal transition-colors hover:underline"
-                          href={link.href}
-                          key={label}
-                          onClick={handleLinkClick}
-                          rel={link.rel}
-                          target={link.target}
-                        >
-                          {label}
-                        </a>
-                      )}
-                    </div>
+                      <span className="group-hover:underline">{label}</span>
+                      {link.suffix}
+                    </>
+                  )
+                  return isInternal ? (
+                    <Link
+                      className={className}
+                      onClick={onAction}
+                      {...link.linkOptions}
+                      key={`${title}-${label}-${link.linkOptions.to}`}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <a
+                      className={className}
+                      href={link.href}
+                      key={`${title}-${label}-${link.href}`}
+                      onClick={onAction}
+                      rel={link.rel}
+                      target={link.target}
+                    >
+                      {content}
+                    </a>
                   )
                 })}
               </div>
@@ -176,10 +209,10 @@ export const NavigationContent = ({ onAction }: NavigationContentProps) => {
       <div className="flex items-center justify-center gap-4">
         {socialIcons.map(({ href, icon: Icon }) => (
           <a
-            className="text-gray-500 transition-colors hover:text-ens-lapis-core"
+            className="text-gray-500 transition-colors hover:text-ens-quartz-900"
             href={href}
             key={href}
-            onClick={handleLinkClick}
+            onClick={onAction}
             rel="noreferrer"
             target="_blank"
           >

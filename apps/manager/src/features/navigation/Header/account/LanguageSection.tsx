@@ -6,8 +6,8 @@ import { toast } from 'sonner'
 import { isSupportedLocale, loadCatalog, setLocale } from '@/lib/locale'
 import { LOCALES, type SupportedLocale } from '@/lib/locales.config'
 
-interface LanguageSectionProps {
-  onAction: () => void
+type LanguageSectionProps = {
+  readonly onAction: () => void
 }
 
 const getLanguageLabel = (language: string) => {
@@ -58,7 +58,6 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
   }
 
   const resolvedLanguage = toComparableLanguage(i18n.locale)
-
   const selectedLanguage =
     availableLanguages.find(
       (language) => toComparableLanguage(language) === resolvedLanguage,
@@ -72,7 +71,7 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
     <div className="space-y-1">
       <label
         className="block px-3 py-1 font-medium text-foreground text-sm"
-        htmlFor="language-selector"
+        htmlFor="header-language-selector"
       >
         <Trans>Language</Trans>
       </label>
@@ -82,7 +81,7 @@ export const LanguageSection = ({ onAction }: LanguageSectionProps) => {
           aria-label={t`Language`}
           className="w-full bg-transparent text-foreground text-sm outline-none disabled:opacity-50"
           disabled={loadLocaleMutation.isPending}
-          id="language-selector"
+          id="header-language-selector"
           onChange={(event) =>
             loadLocaleMutation.mutate(event.target.value as SupportedLocale)
           }

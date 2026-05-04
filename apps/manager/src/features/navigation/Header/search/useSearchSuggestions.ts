@@ -7,7 +7,6 @@ import { searchHistoryStore } from './useSearchHistory'
 
 export const useSearchSuggestions = (searchValue: string) => {
   const parsedInput = parseSearchInput(searchValue)
-
   const primaryNameQuery = useQuery({
     ...profileReverseNameQuery(
       parsedInput.type === 'address' ? parsedInput.value : undefined,
@@ -20,7 +19,7 @@ export const useSearchSuggestions = (searchValue: string) => {
     (state) => state.context.history,
   )
 
-  const suggestions = useMemo(
+  return useMemo(
     () =>
       buildSuggestions({
         parsedInput,
@@ -29,6 +28,4 @@ export const useSearchSuggestions = (searchValue: string) => {
       }),
     [parsedInput, primaryNameQuery.data, history],
   )
-
-  return suggestions
 }
