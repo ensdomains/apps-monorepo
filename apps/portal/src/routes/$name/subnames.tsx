@@ -127,6 +127,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const {
     deleteSubname: deleteSubnameMutate,
     deleteSubnameAsync,
+    isDeleting,
     error: deleteError,
   } = useDeleteSubname({
     name,
@@ -225,8 +226,9 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         subnames={subnameRows}
         name={name}
         canCreateSubname={canCreateSubname}
-        onDeleteSubname={handleDeleteSubname}
-        onClearSelected={handleClearSelected}
+        onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
+        onClearSelected={canDeleteSubname ? handleClearSelected : undefined}
+        isDeleting={isDeleting}
       />
       {deleteError && (
         <ErrorMessage

@@ -37,7 +37,7 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 export interface SubnameRow {
   readonly name: string
   readonly owner: Address
-  /** Whether the connected user has ROLE_BURN for this specific subname. */
+  /** Whether the connected user has ROLE_UNREGISTER for this subname. */
   readonly canDelete?: boolean
 }
 
@@ -58,33 +58,38 @@ interface SubnamesTableProps {
   readonly onDeleteSubname?: (subname: SubnameRow) => void
   /** Called when user clicks Clear with selection. */
   readonly onClearSelected?: (subnames: SubnameRow[]) => void
+  /** True while a delete mutation is in flight; disables delete controls. */
+  readonly isDeleting?: boolean
 }
 
 function buildColumns(
   onDeleteClick?: (name: string) => void,
+  isDeleting?: boolean,
 ): ColumnDef<SubnameRow>[] {
+  const selectColumn: ColumnDef<SubnameRow> = {
+    enableSorting: false,
+    id: 'select',
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && 'indeterminate')
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+  }
+
   return [
-    {
-      enableSorting: false,
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-    },
+    ...(onDeleteClick ? [selectColumn] : []),
     {
       accessorKey: 'name',
       header: ({ column }) => (
@@ -135,6 +140,7 @@ function buildColumns(
             size="icon"
             className="size-8 text-muted-foreground hover:text-destructive"
             aria-label={`Delete ${row.original.name}`}
+            disabled={isDeleting}
             onClick={() => onDeleteClick(row.original.name)}
           >
             <Trash2 className="size-4" />
@@ -150,6 +156,7 @@ export const SubnamesTable = ({
   canCreateSubname,
   onDeleteSubname,
   onClearSelected,
+  isDeleting,
 }: SubnamesTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -176,8 +183,9 @@ export const SubnamesTable = ({
   )
 
   const columns = useMemo(
-    () => buildColumns(onDeleteSubname ? handleDeleteClick : undefined),
-    [onDeleteSubname, handleDeleteClick],
+    () =>
+      buildColumns(onDeleteSubname ? handleDeleteClick : undefined, isDeleting),
+    [onDeleteSubname, handleDeleteClick, isDeleting],
   )
 
   const table = useReactTable({
@@ -238,6 +246,7 @@ export const SubnamesTable = ({
               <Button
                 variant="outline"
                 className="flex items-center gap-2"
+                disabled={isDeleting}
                 onClick={() => onClearSelected(deletableSelected)}
               >
                 <Trash2 className="size-4" />
@@ -288,12 +297,13 @@ export const SubnamesTable = ({
                     >
                       {row.original.name}
                     </EntityBadgeWithActions>
-                    {row.original.canDelete && (
+                    {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="size-8 shrink-0 ml-auto text-muted-foreground hover:text-destructive"
                         aria-label={`Delete ${row.original.name}`}
+                        disabled={isDeleting}
                         onClick={() => setPendingDeleteName(row.original.name)}
                       >
                         <Trash2 className="size-4" />
@@ -331,6 +341,7 @@ export const SubnamesTable = ({
                         <Button
                           variant="danger"
                           size="sm"
+                          disabled={isDeleting}
                           onClick={() => handleConfirmDelete(row.original)}
                           className="gap-1"
                         >
@@ -418,6 +429,7 @@ export const SubnamesTable = ({
                             <Button
                               variant="danger"
                               size="sm"
+                              disabled={isDeleting}
                               onClick={() => handleConfirmDelete(row.original)}
                               className="gap-1"
                             >
