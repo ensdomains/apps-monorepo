@@ -10,7 +10,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Check, Plus, Search, Trash2, X } from 'lucide-react'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
@@ -170,26 +170,20 @@ export const SubnamesTable = ({
     null,
   )
 
-  const handleDeleteClick = useCallback((subnameName: string) => {
-    setPendingDeleteName(subnameName)
-  }, [])
+  const handleCancelDelete = () => setPendingDeleteName(null)
 
-  const handleCancelDelete = useCallback(() => {
+  const handleConfirmDelete = (subname: SubnameRow) => {
+    onDeleteSubname?.(subname)
     setPendingDeleteName(null)
-  }, [])
-
-  const handleConfirmDelete = useCallback(
-    (subname: SubnameRow) => {
-      onDeleteSubname?.(subname)
-      setPendingDeleteName(null)
-    },
-    [onDeleteSubname],
-  )
+  }
 
   const columns = useMemo(
     () =>
-      buildColumns(onDeleteSubname ? handleDeleteClick : undefined, isDeleting),
-    [onDeleteSubname, handleDeleteClick, isDeleting],
+      buildColumns(
+        onDeleteSubname ? setPendingDeleteName : undefined,
+        isDeleting,
+      ),
+    [onDeleteSubname, isDeleting],
   )
 
   const table = useReactTable({
