@@ -1,11 +1,10 @@
 import { Popover } from '@base-ui/react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { SearchInput } from './SearchInput'
 import { SearchSuggestions } from './SearchSuggestions'
 
 export const DesktopSearch = () => {
-  const triggerRef = useRef<HTMLDivElement>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
@@ -42,7 +41,6 @@ export const DesktopSearch = () => {
       />
       <Popover.Portal>
         <Popover.Positioner
-          anchor={triggerRef.current}
           className="isolate z-50 h-(--positioner-height) w-(--positioner-width) max-w-(--available-width)"
           positionMethod="fixed"
           sideOffset={4}

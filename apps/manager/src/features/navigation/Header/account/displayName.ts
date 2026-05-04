@@ -37,7 +37,7 @@ export const getHeaderDisplayName = ({
         break
       case 'telegram':
         if (embeddedAccount.telegramUserId) {
-          return `@${embeddedAccount.telegramUserId}`
+          return `${embeddedAccount.telegramUserId}`
         }
         break
       case 'externalWallet':

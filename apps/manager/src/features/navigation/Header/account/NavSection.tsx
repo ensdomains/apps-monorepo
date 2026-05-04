@@ -1,3 +1,4 @@
+import { Trans } from '@lingui/react/macro'
 import { Link, type LinkOptions, linkOptions } from '@tanstack/react-router'
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -19,7 +20,7 @@ const getNavItems = (
   {
     id: 'dashboard',
     icon: <MSymbol className="ms-opsz-20" symbol="dashboard" />,
-    label: 'Dashboard',
+    label: <Trans>Dashboard</Trans>,
     link: linkOptions({
       to: '/dashboard',
     }),
@@ -27,7 +28,7 @@ const getNavItems = (
   {
     id: 'profile',
     icon: <MSymbol className="ms-opsz-20" symbol="account_circle" />,
-    label: 'Primary Name Profile',
+    label: <Trans>Primary Name Profile</Trans>,
     link: linkOptions({
       to: '/$name',
       params: {
