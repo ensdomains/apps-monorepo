@@ -5,6 +5,7 @@ import type { SelectedName } from '@/features/renew/hooks/useRenewalTransactions
 export const MS_PER_SECOND = 1000
 export const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
 export const GRACE_PERIOD_DAYS = 90
+export const V2_GRACE_PERIOD_DAYS = 28
 export const PREMIUM_PERIOD_DAYS = 21
 
 export const getSelectedNames = (
@@ -17,16 +18,23 @@ export const getSelectedNames = (
     .filter((row): row is NameRow & { name: string } => row.name !== null)
     .map((row) => ({
       name: row.name,
-      isV2: row.v1Roles === null,
+      isV2: row.protocolVersion === 'ENSv2',
       expiryDate: row.expiryDate,
     }))
 
-export const getNameStatus = (expiryDate: Date | null | undefined): string => {
+export const getNameStatus = (
+  expiryDate: Date | null | undefined,
+  isV2 = false,
+): string => {
   if (!expiryDate) return 'no-expiry'
   const now = new Date()
-  const gracePeriodEnd = new Date(
-    expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY,
-  )
+  const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
+  const gracePeriodEnd = new Date(expiryDate.getTime() + graceDays * MS_PER_DAY)
+  if (isV2) {
+    if (now > gracePeriodEnd) return 'expired'
+    if (now > expiryDate) return 'grace'
+    return 'registered'
+  }
   const premiumPeriodEnd = new Date(
     gracePeriodEnd.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY,
   )

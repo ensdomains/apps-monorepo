@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { ProtocolVersion } from '@/utils/types'
 import {
   GRACE_PERIOD_DAYS,
   getSelectedNames,
@@ -109,6 +110,7 @@ describe('getSelectedNames', () => {
     expiryDate,
     roleBitmap: null,
     v1Roles: isV2 ? null : { owner: true, manager: true },
+    protocolVersion: (isV2 ? 'ENSv2' : 'ENSv1') as ProtocolVersion,
   })
 
   it('maps selected rows to SelectedName shape', () => {

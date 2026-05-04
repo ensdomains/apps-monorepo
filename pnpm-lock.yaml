@@ -10,10 +10,10 @@ catalogs:
       specifier: ^1.33.1
       version: 1.33.1
     '@ensdomains/ensjs':
-      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661
+      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6
       version: 5.0.0-alpha.1
     '@ensdomains/ensjs-abi':
-      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b095661
+      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6
       version: 5.0.0-alpha.1
     '@typescript/native-preview':
       specifier: 7.0.0-dev.20260421.2
@@ -104,7 +104,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
       vite:
         specifier: 'catalog:'
         version: 8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -134,10 +134,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b095661
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6
       '@getpara/evm-wallet-connectors':
         specifier: 2.12.0
         version: 2.12.0(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(bufferutil@4.0.9)(immer@10.2.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)(utf-8-validate@5.0.10)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))(wagmi@3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)))(zod@4.1.13)
@@ -321,7 +321,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
       '@crowdin/cli':
         specifier: ^4.14.0
         version: 4.14.0
@@ -418,6 +418,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.1.0
         version: 1.1.0(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@ens-apps/indexer':
+        specifier: workspace:*
+        version: link:../../packages/indexer
       '@ens-apps/l2-primary':
         specifier: workspace:*
         version: link:../../packages/l2-primary
@@ -432,10 +435,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b095661
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -469,6 +472,9 @@ importers:
       '@radix-ui/react-popover':
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@radix-ui/react-radio-group':
+        specifier: ^1.3.8
+        version: 1.3.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-separator':
         specifier: ^1.1.8
         version: 1.1.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -598,7 +604,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
       '@ensdomains/vite-plugin-i18next-loader':
         specifier: ^4.0.3
         version: 4.0.3(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -656,6 +662,9 @@ importers:
 
   packages/indexer:
     dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@urql/core':
         specifier: ^6.0.1
         version: 6.0.1(graphql@16.12.0)
@@ -668,6 +677,9 @@ importers:
       graphql-tag:
         specifier: ^2.12.6
         version: 2.12.6(graphql@16.12.0)
+      viem:
+        specifier: ^2.40.3
+        version: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
     devDependencies:
       '@graphql-codegen/cli':
         specifier: ^6.0.1
@@ -692,7 +704,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       viem:
         specifier: ^2.40.3
         version: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
@@ -726,7 +738,7 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@rhinestone/module-sdk':
         specifier: ^0.4.0
         version: 0.4.0(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -803,7 +815,7 @@ importers:
         version: link:../../packages/utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@hono/valibot-validator':
         specifier: ^0.5.3
         version: 0.5.3(hono@4.10.8)(valibot@1.2.0(typescript@6.0.3))
@@ -849,7 +861,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.14.9
         version: 0.14.9(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vitest@4.1.5)
@@ -1130,7 +1142,6 @@ packages:
     resolution: {integrity: sha512-bCwbMIPXW0bjvMWNiDEPmV4/Lc5nU/x3/yIGBrgMgxHa2caMvh6QaOplI7DUcHBpzMfz/0iQ0inVmyIuQ8eG4A==}
     peerDependencies:
       vite: ^6.1.0 || ^7.0.0 || ^8.0.0
-      wrangler: ^4.84.1
 
   '@cloudflare/vitest-pool-workers@0.14.9':
     resolution: {integrity: sha512-XLJTOd+3A3BB6vPzD7gi1LTVKFSVge9HhGWXnLouPzySphMLbg+6xXELykFxZKyqP1AEjT2tc28AkBjM9GteFQ==}
@@ -1232,18 +1243,18 @@ packages:
   '@ensdomains/content-hash@3.1.0-rc.1':
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b095661':
-    resolution: {integrity: sha512-E74Wq09AmDnrH1NSfDhm5u9Qgno6A2rV2B2Mnkgv5HY+U0lHhbJ8xuuQ9xsIrOW7dU4Z9qJBmS2g3LDjkRpWyA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b095661}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6':
+    resolution: {integrity: sha512-E74Wq09AmDnrH1NSfDhm5u9Qgno6A2rV2B2Mnkgv5HY+U0lHhbJ8xuuQ9xsIrOW7dU4Z9qJBmS2g3LDjkRpWyA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b0956615593c80362e1573e6e45c3f34043b4c2':
-    resolution: {integrity: sha512-E74Wq09AmDnrH1NSfDhm5u9Qgno6A2rV2B2Mnkgv5HY+U0lHhbJ8xuuQ9xsIrOW7dU4Z9qJBmS2g3LDjkRpWyA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b0956615593c80362e1573e6e45c3f34043b4c2}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6625d46b920dea3e5e560058bb0c9f0ca':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6625d46b920dea3e5e560058bb0c9f0ca}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661':
-    resolution: {integrity: sha512-XNAZQ+wndDE5gfP/lkbCyh1vqM62mgOD1NtGzrz0X8x3CBorfj8CGvgSTViQY+l+kWKyLL5fX1L+s+VQKZYT8g==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661}
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6':
+    resolution: {integrity: sha512-TGq+XEDXppB1fdTJQxUUh27GavFMjJ306C238m/Scs267mqdQ6C5J5JMow4L/zhRZm5IpDp2xB7ds9yWb4AaNQ==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -8912,7 +8923,7 @@ snapshots:
     optionalDependencies:
       workerd: 1.20260421.1
 
-  '@cloudflare/vite-plugin@1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))':
+  '@cloudflare/vite-plugin@1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)':
     dependencies:
       '@cloudflare/unenv-preset': 2.16.0(unenv@2.0.0-rc.24)(workerd@1.20260421.1)
       miniflare: 4.20260421.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -8921,6 +8932,7 @@ snapshots:
       wrangler: 4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
+      - '@cloudflare/workers-types'
       - bufferutil
       - utf-8-validate
       - workerd
@@ -9043,16 +9055,16 @@ snapshots:
       '@noble/curves': 1.9.7
       '@scure/base': 1.2.6
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b095661': {}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6': {}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b0956615593c80362e1573e6e45c3f34043b4c2': {}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6625d46b920dea3e5e560058bb0c9f0ca': {}
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8b095661(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@9b5a02a6(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
       '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8b0956615593c80362e1573e6e45c3f34043b4c2
+      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@9b5a02a6625d46b920dea3e5e560058bb0c9f0ca
       dns-packet: 5.6.1
       graphql: 16.12.0
       graphql-request: 7.2.0(graphql@16.12.0)

@@ -9,7 +9,9 @@ import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
+import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
@@ -54,7 +56,14 @@ const columns: ColumnDef<column>[] = [
           </Badge>
         )
       }
-      return formatDateTime(dateToPlainDate(expiryDate))
+      const isV2 = row.original.protocolVersion === 'ENSv2'
+      const status = getNameStatus(expiryDate, isV2)
+      return (
+        <div className="flex items-center gap-2">
+          <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
+          {status === 'grace' && <GraceBadge />}
+        </div>
+      )
     },
   },
   {
@@ -129,6 +138,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             expiryDate={name.expiryDate}
             roleBitmap={name.roleBitmap}
             v1Roles={name.v1Roles}
+            protocolVersion={name.protocolVersion}
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
             showCheckbox={false}

@@ -1,8 +1,8 @@
 import type { FC, PropsWithChildren } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
-import { DataRow } from '@/components/DataRow'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { InfoCard, InfoRow } from '@/components/InfoCard'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import {
@@ -83,14 +83,14 @@ const TransactionDetails = ({
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
+      <InfoCard title="Transaction details">
         {displayName && (
-          <DataRow label="Name">
+          <InfoRow label="Name">
             <NameDisplay name={displayName} />
-          </DataRow>
+          </InfoRow>
         )}
 
-        <DataRow label="Tx Hash">
+        <InfoRow label="Tx Hash">
           <EntityBadgeWithActions
             variant="tx"
             copyValue={txHash}
@@ -98,34 +98,36 @@ const TransactionDetails = ({
           >
             {truncateAddress(txHash, 10, 8, '...')}
           </EntityBadgeWithActions>
-        </DataRow>
+        </InfoRow>
 
         {formattedTimestamp && (
-          <DataRow label="Timestamp">
-            <span>{formattedTimestamp} UTC</span>
-          </DataRow>
+          <InfoRow label="Timestamp">
+            <span className="text-sm pl-3.5">{formattedTimestamp} UTC</span>
+          </InfoRow>
         )}
 
         {data && (
           <>
-            <DataRow label="Network">
-              <span>Sepolia</span>
-            </DataRow>
+            <InfoRow label="Network">
+              <span className="text-sm pl-3.5">Sepolia</span>
+            </InfoRow>
 
-            <DataRow label="From">
+            <InfoRow label="From">
               <AddressDisplay address={data.from} />
-            </DataRow>
+            </InfoRow>
 
-            <DataRow label="To">
+            <InfoRow label="To">
               {data.to ? (
                 <AddressDisplay address={data.to} variant="contract" />
               ) : (
-                <span className="text-muted-foreground">Contract Creation</span>
+                <span className="text-sm pl-3.5 text-muted-foreground">
+                  Contract Creation
+                </span>
               )}
-            </DataRow>
+            </InfoRow>
           </>
         )}
-      </div>
+      </InfoCard>
 
       <TransactionEvents events={events} txHash={txHash} />
     </div>

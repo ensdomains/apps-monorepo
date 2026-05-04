@@ -3,13 +3,11 @@ import { SirenIcon } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
-import { formatUnits } from 'viem'
 import { useConnection } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
-import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
   getRegistrationPriceQueryOptions,
@@ -17,12 +15,14 @@ import {
 } from '@/features/register/hooks/useRegistrationPrice'
 import { getPremiumLabel } from '@/features/register/utils/premium'
 import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
+import { getEffectivePricePerYear } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
   formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
+import { getStandardPricePerYear } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
@@ -63,7 +63,6 @@ export const RegisterNameCheckoutSummary = ({
   })
 
   const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
-  const baseRate = useBaseRate(name)
 
   const premiumDecayConfig = oracleData?.premiumDecay
 
@@ -115,12 +114,7 @@ export const RegisterNameCheckoutSummary = ({
           })
           .with({ hasPrice: true }, () =>
             price ? (
-              <PriceBreakdown
-                name={name}
-                price={price}
-                duration={duration}
-                baseRate={baseRate}
-              />
+              <PriceBreakdown name={name} price={price} duration={duration} />
             ) : null,
           )
           .otherwise(() => (
@@ -182,15 +176,6 @@ const PriceBreakdownSkeleton = () => (
       <hr className="border-border" />
 
       <SummaryRow label="Price:" value={<Skeleton className="h-5 w-20" />} />
-      <SummaryRow
-        label="Subtotal:"
-        value={
-          <span className="flex items-center gap-1">
-            <Skeleton className="h-5 w-14" />
-          </span>
-        }
-        valueClassName="flex items-center gap-1 m-0"
-      />
 
       <SummaryRow
         label="Total:"
@@ -211,26 +196,25 @@ type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
   readonly duration: number
-  readonly baseRate: bigint
 }
 
-const PriceBreakdown = ({
-  name,
-  price,
-  duration,
-  baseRate,
-}: PriceBreakdownProps) => {
+const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
   const { registrationPeriod, expiresFormatted } =
     getRegistrationDisplayDates(duration)
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
-  // baseRate is per-second in oracle units (12 decimals). Convert to USD/year.
-  const pricePerYear =
-    baseRate > 0n
-      ? Number(formatUnits(baseRate * BigInt(CONTRACT_SECONDS_PER_YEAR), 12))
-      : 0
-  const standardSubtotal = pricePerYear * years
+  // Effective per-year derived from the design's discount curve applied to the
+  // standard $/year baseline. Mirrors the year-preset chip values so the chip
+  // and breakdown stay in sync. May briefly differ from `Total / years` until
+  // the contract reflects the new curve.
+  const pricePerYear = getEffectivePricePerYear(
+    getStandardPricePerYear(name),
+    years,
+  )
   const premiumLabel = getPremiumLabel(name)
+  const roundedYears = Math.round(years)
+  const discountSublabel =
+    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   return (
     <div className="space-y-2">
@@ -242,7 +226,7 @@ const PriceBreakdown = ({
 
         {price.hasPremium && (
           <SummaryRow
-            label={'Temporary premium:'}
+            label={'Temp premium:'}
             value={formatPriceDisplay(price.premium, price.decimals)}
             labelClassName="font-medium text-foreground"
             valueClassName="font-medium text-foreground"
@@ -263,16 +247,16 @@ const PriceBreakdown = ({
                 'Price:'
               )
             }
-            value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
-          />
-        )}
-
-        {standardSubtotal > 0 && (
-          <SummaryRow
-            label="Subtotal:"
-            value={formatUsd(standardSubtotal)}
-            valueClassName="flex items-center gap-1 m-0 text-success-text"
-            labelClassName="text-success-text"
+            value={
+              <span className="flex flex-col items-end m-0">
+                <span>{`${formatUsd(pricePerYear)}/year`}</span>
+                {discountSublabel ? (
+                  <span className="text-xs text-success-text">
+                    {discountSublabel}
+                  </span>
+                ) : null}
+              </span>
+            }
           />
         )}
 
