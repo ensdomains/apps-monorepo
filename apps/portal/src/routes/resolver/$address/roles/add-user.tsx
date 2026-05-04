@@ -26,7 +26,7 @@ import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolve
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/resolver/$address/roles/add-user')({
@@ -35,13 +35,12 @@ export const Route = createFileRoute('/resolver/$address/roles/add-user')({
 })
 
 const ROOT_NODE_VALUE = ''
-const getClient = () => wagmiConfig.getClient({ chainId: sepoliaWithEns.id })
+const getClient = () => wagmiConfig.getClient()
 
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
-  const chainId = sepoliaWithEns.id
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
 
   const [userInput, setUserInput] = useState('')
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)

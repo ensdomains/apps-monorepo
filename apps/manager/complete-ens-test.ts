@@ -56,15 +56,16 @@ const ENS_CONTRACTS = {
 
 // Supported payment tokens on Sepolia ENS
 const SUPPORTED_TOKENS = {
-  USDC: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as `0x${string}`, // MockUSDC
-  DAI: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as `0x${string}`, // MockDAI
+  USDC: '0xc39c1eec68a9e3c08c4f6cbebbb0fbf7aa4be06b' as `0x${string}`, // MockUSDC
+  DAI: '0xa1ad79c31e9e8c4d2d0b73aaf0435a7a8a706170' as `0x${string}`, // MockDAI
 }
 
 const PIMLICO_API_KEY = ''
 const RHINESTONE_API_KEY = ''
 const PRIVATE_KEY = '' as `0x${string}`
 
-const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
+const SEPOLIA_RPC_URL =
+  'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811'
 
 // FastTestETHRegistrar ABI (key functions) testname6208
 const FAST_TEST_REGISTRAR_ABI = [

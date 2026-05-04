@@ -8,12 +8,12 @@ import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 type UseRegistrationTransactionsParams = {
   readonly name: string
@@ -40,10 +40,10 @@ export const useRegistrationTransactions = ({
   name,
   duration,
 }: UseRegistrationTransactionsParams) => {
-  const chainId = sepolia.id
+  const chainId = sepoliaWithEns.id
   const config = useConfig()
   const connection = useConnection()
-  const publicClient = usePublicClient({ chainId })
+  const publicClient = usePublicClient()
 
   const { closeModal, clearTransaction } = useTransactionModal()
 
@@ -59,6 +59,21 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.selectedToken,
   )
+  const registerReadyTimestamp = useSelector(
+    actor,
+    (state) => state.context.registerReadyTimestamp,
+  )
+  // Surface the commit-reveal cooldown to the modal. Approval can happen at
+  // any time; only the actual register call is gated by MIN_COMMITMENT_AGE,
+  // so attach the deadline to the register step.
+  const registerWaitUntil =
+    machineState === 'fetchingCommitmentAge' ||
+    machineState === 'commitmentCooldown' ||
+    machineState === 'checkingAllowance' ||
+    machineState === 'approvingToken' ||
+    machineState === 'waitingForApproval'
+      ? registerReadyTimestamp
+      : undefined
   const isSuccess = machineState === 'success'
   const isRegistering = isInProgressState(machineState)
 
@@ -97,7 +112,7 @@ export const useRegistrationTransactions = ({
       signer,
       accountAddress: connection.address,
       publicClient,
-      useFastRegistrar: true,
+      useFastRegistrar: false,
       sponsored: false,
     })
   }, [actor, name, duration, publicClient, connection, config, savedParams])
@@ -148,9 +163,17 @@ export const useRegistrationTransactions = ({
         estimatedGasCost: 0.001,
         onStart: handleProceed,
         onDone: handleDone,
+        waitUntil: registerWaitUntil,
       },
     ],
-    [name, savedParams?.tokenSymbol, handleStart, handleProceed, handleDone],
+    [
+      name,
+      savedParams?.tokenSymbol,
+      registerWaitUntil,
+      handleStart,
+      handleProceed,
+      handleDone,
+    ],
   )
 
   const startFlow = (selectedTokenAddress: Address, tokenPrice: bigint) => {

@@ -3,7 +3,6 @@ import { toast } from 'sonner'
 import { erc20Abi } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
-import { sepoliaWithEns } from '@/lib/wagmi'
 import { useFundWallet } from './useFundWallet'
 
 const LOW_BALANCE_THRESHOLD = 500n
@@ -25,7 +24,6 @@ export function useAutoFundOnLowBalance() {
       abi: erc20Abi,
       functionName: 'balanceOf',
       args: address ? [address] : undefined,
-      chainId: sepoliaWithEns.id,
     })),
     query: { enabled: Boolean(address) },
   })

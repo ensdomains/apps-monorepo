@@ -5,51 +5,51 @@ import {
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { type Chain, createClient, http } from 'viem'
-import {
-  arbitrumSepolia,
-  baseSepolia,
-  lineaSepolia,
-  optimismSepolia,
-  scrollSepolia,
-  sepolia,
-} from 'viem/chains'
+import { createClient, http } from 'viem'
+import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 
-export const sepoliaWithEns = extendChainWithEns(sepolia)
+// Tenderly virtual fork RPC — kept in sync with apps/manager/src/lib/wagmi.ts
+const SEPOLIA_RPC_URL =
+  'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811'
 
-const DRPC_CHAIN_SLUGS: Record<number, string> = {
-  11155111: 'sepolia',
-  11155420: 'optimism-sepolia',
-  421614: 'arbitrum-sepolia',
-  84532: 'base-sepolia',
-  59141: 'linea-sepolia',
-  534351: 'scroll-sepolia',
+// V1 ENS subgraph (ensnode) for the Tenderly fork
+const V1_SUBGRAPH_URL =
+  'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
+
+// The Tenderly virtual sepolia fork advertises its own chain id, distinct from
+// real sepolia (11155111). Using a unique id forces wallets (MetaMask etc.) to
+// treat the fork as a custom network and route writes through our RPC instead
+// of submitting them to public sepolia.
+const TENDERLY_FORK_CHAIN_ID = 99911155111
+
+const customSepolia = {
+  ...sepolia,
+  name: 'Tenderly Sepolia Fork',
+  rpcUrls: {
+    default: { http: [SEPOLIA_RPC_URL] },
+    public: { http: [SEPOLIA_RPC_URL] },
+  },
 }
 
-const getRpcUrl = (chain: Chain): string => {
-  const drpcKey = import.meta.env.VITE_PUBLIC_DRPC_API_KEY
-  if (drpcKey) {
-    const slug =
-      DRPC_CHAIN_SLUGS[chain.id] ??
-      chain.name.toLowerCase().replace(/\s+/g, '-')
-    return `https://lb.drpc.live/${slug}/${drpcKey}`
-  }
-  return chain.rpcUrls.default.http[0]
-}
+// extendChainWithEns refuses any chain id outside its supported list, so we
+// extend against the original sepolia id and then override the id afterwards.
+const sepoliaWithEnsBase = extendChainWithEns(customSepolia)
+
+export const sepoliaWithEns = {
+  ...sepoliaWithEnsBase,
+  id: TENDERLY_FORK_CHAIN_ID,
+  subgraphs: {
+    ...sepoliaWithEnsBase.subgraphs,
+    ens: { url: V1_SUBGRAPH_URL },
+  },
+} as unknown as typeof sepoliaWithEnsBase
 
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [
-    sepoliaWithEns,
-    optimismSepolia,
-    arbitrumSepolia,
-    baseSepolia,
-    lineaSepolia,
-    scrollSepolia,
-  ],
+  chains: [sepoliaWithEns],
   connectors: connectorsForWallets(
     [
       {
@@ -62,7 +62,7 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(getRpcUrl(chain), {
+      transport: http(SEPOLIA_RPC_URL, {
         batch: {
           wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
         },

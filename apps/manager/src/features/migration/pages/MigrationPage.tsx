@@ -26,7 +26,6 @@ import {
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { customSepolia } from '@/lib/wagmi'
 import {
   isMigrationQueryKey,
   selectDomainsFromNames,
@@ -101,7 +100,7 @@ export const MigrationPage = () => {
   const smartAccount = useSmartAccountContext()
   const { ownerAddress, accountAddress } = smartAccount
   const wagmiConfig = useConfig()
-  const publicClient = usePublicClient({ chainId: customSepolia.id })
+  const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress as Address | undefined,
