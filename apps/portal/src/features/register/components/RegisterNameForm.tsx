@@ -27,6 +27,7 @@ export const RegisterNameForm = ({
         duration={duration}
         setDuration={setDuration}
         disabled={disabled}
+        name={name}
       />
     </div>
   )

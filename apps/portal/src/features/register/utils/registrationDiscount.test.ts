@@ -18,34 +18,39 @@ describe('registrationDiscount', () => {
       expect(getEffectiveDiscountPercent(CONTRACT_SECONDS_PER_YEAR)).toBe(0)
     })
 
-    it('returns 5% for 2 years (0% + 10% over 2 years)', () => {
+    it('returns 12.5% for 2 years', () => {
       const result = getEffectiveDiscountPercent(2 * CONTRACT_SECONDS_PER_YEAR)
-      expect(result).toBeCloseTo(5, 1)
+      expect(result).toBeCloseTo(12.5, 2)
     })
 
-    it('returns 10% for 3 years (0% + 10% + 20% over 3 years)', () => {
+    it('returns 31.25% for 3 years', () => {
       const result = getEffectiveDiscountPercent(3 * CONTRACT_SECONDS_PER_YEAR)
-      expect(result).toBeCloseTo(10, 1)
+      expect(result).toBeCloseTo(31.25, 2)
     })
 
-    it('returns ~17.5% for 5 years', () => {
+    it('returns 41.25% for 5 years', () => {
       const result = getEffectiveDiscountPercent(5 * CONTRACT_SECONDS_PER_YEAR)
-      expect(result).toBeCloseTo(17.5, 1)
+      expect(result).toBeCloseTo(41.25, 2)
     })
 
-    it('returns ~25% for 10 years', () => {
+    it('returns 43.75% for 6 years (floor reached)', () => {
+      const result = getEffectiveDiscountPercent(6 * CONTRACT_SECONDS_PER_YEAR)
+      expect(result).toBeCloseTo(43.75, 2)
+    })
+
+    it('stays at 43.75% for 10+ years (extrapolated floor)', () => {
       const result = getEffectiveDiscountPercent(10 * CONTRACT_SECONDS_PER_YEAR)
-      expect(result).toBeCloseTo(25, 1)
+      expect(result).toBeCloseTo(43.75, 2)
     })
 
-    it('returns value between 0 and ~33 for valid durations', () => {
+    it('returns value between 0 and 44 for valid durations', () => {
       const oneYear = getEffectiveDiscountPercent(CONTRACT_SECONDS_PER_YEAR)
       const twentyYears = getEffectiveDiscountPercent(
         20 * CONTRACT_SECONDS_PER_YEAR,
       )
       expect(oneYear).toBeGreaterThanOrEqual(0)
       expect(twentyYears).toBeGreaterThanOrEqual(0)
-      expect(twentyYears).toBeLessThanOrEqual(35)
+      expect(twentyYears).toBeLessThanOrEqual(45)
     })
   })
 
@@ -104,9 +109,10 @@ describe('registrationDiscount', () => {
       expect(formatDiscountPercentForDisplay(17.5)).toBe('17.5%')
     })
 
-    it('matches getDiscountForYears output for 5 years (17.5%)', () => {
+    it('matches getDiscountForYears output for 5 years (rounded to 1dp)', () => {
       const { percent } = getDiscountForYears(5)
-      expect(formatDiscountPercentForDisplay(percent)).toBe('17.5%')
+      // 41.25% — formatter rounds to 1 decimal place → "41.3%"
+      expect(formatDiscountPercentForDisplay(percent)).toBe('41.3%')
     })
   })
 })

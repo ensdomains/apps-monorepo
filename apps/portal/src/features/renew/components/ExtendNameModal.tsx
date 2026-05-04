@@ -1,11 +1,15 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
+import { isAddressEqual } from 'viem'
+import { useAccount } from 'wagmi'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { dateToPlainDate } from '@/utils/temporal'
 import { useNamePricing } from '../hooks/useNamePricing'
 import type {
@@ -46,11 +50,30 @@ export const ExtendNameModal = ({
     open,
   )
 
+  const { address } = useAccount()
+  const { data: ownerData } = useQuery({
+    ...getEnsOwnerQueryOptions({ name: selectedName.name }),
+    enabled: open,
+  })
+  const isOwner = !!(
+    address &&
+    ownerData?.owner &&
+    isAddressEqual(address, ownerData.owner)
+  )
+
   useEffect(() => {
     if (!open) {
       setStep('disclaimer')
     }
   }, [open])
+
+  // Skip the disclaimer when the connected wallet owns the name —
+  // the warning ("Extending a name does not change the owner...") is noise for owners.
+  useEffect(() => {
+    if (open && isOwner) {
+      setStep((current) => (current === 'disclaimer' ? 'settings' : current))
+    }
+  }, [open, isOwner])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
@@ -83,7 +106,7 @@ export const ExtendNameModal = ({
               spanType={spanType}
               setSpanType={setSpanType}
               baseDate={baseDate}
-              onBack={() => setStep('disclaimer')}
+              onBack={isOwner ? undefined : () => setStep('disclaimer')}
               onNext={() => setStep('confirm')}
             />
           ))

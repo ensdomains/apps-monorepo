@@ -26,6 +26,8 @@ type ExtensionDurationOrExpiryPickerProps = {
   readonly expiryDate?: Date | null
   readonly spanType: ExtensionSpanType
   readonly setSpanType: (type: ExtensionSpanType) => void
+  /** Name used to compute per-year prices for preset chips. Chips hidden if absent. */
+  readonly name?: string
 }
 
 export const ExtensionDurationOrExpiryPicker = ({
@@ -35,6 +37,7 @@ export const ExtensionDurationOrExpiryPicker = ({
   expiryDate,
   spanType,
   setSpanType,
+  name,
 }: ExtensionDurationOrExpiryPickerProps) => {
   const baseDate = getExtensionBaseDate(expiryDate)
   const targetDate = getExtensionTargetDate({ baseDate, duration, spanType })
@@ -90,6 +93,7 @@ export const ExtensionDurationOrExpiryPicker = ({
             value={displayedYears}
             max={MAX_REGISTRATION_YEARS}
             onChange={(years) => setDuration(years)}
+            name={name}
           />
         ) : (
           <RegistrationExpiryDatePicker

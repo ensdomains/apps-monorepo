@@ -1,7 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -10,6 +9,7 @@ import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { AssuredWorkloadIcon, EditNoteIcon } from '@/assets/icons'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -121,21 +121,6 @@ const ResolverBanner = ({
   )
 }
 
-const InfoRow = ({
-  label,
-  children,
-}: {
-  label: string
-  children: ReactNode
-}) => (
-  <div className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-13">
-    <span className="w-28 shrink-0 text-sm font-medium text-muted-foreground">
-      {label}
-    </span>
-    <div className="flex-1 min-w-0">{children}</div>
-  </div>
-)
-
 const ResolverAddressValue = ({ address }: { address: Address }) => (
   <EntityBadgeWithActions
     variant="contract"
@@ -213,46 +198,41 @@ const ResolverInfoCard = ({
   const nodeHash = namehash(name)
 
   return (
-    <div className="rounded-sm bg-background overflow-hidden">
-      <div className="px-6 py-3">
-        <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
-          Resolver info
-        </span>
-      </div>
-      <div>
-        <InfoRow label="Type">
-          <span className="text-sm">{type}</span>
-        </InfoRow>
-        <InfoRow label="Contract">
-          <ResolverAddressValue address={resolverAddress} />
-        </InfoRow>
-        <InfoRow label="Node">
-          <div className="flex items-center gap-2">
-            <EntityBadgeWithActions
-              variant="name"
-              name={name}
-              avatar={
-                <NameAvatar
-                  name={name}
-                  width="20px"
-                  height="20px"
-                  rounded="rounded-sm"
-                />
-              }
-            >
-              {name}
-            </EntityBadgeWithActions>
-            {isAliased && <Badge variant="outline">Aliased</Badge>}
-          </div>
-        </InfoRow>
-        <InfoRow label="Namehash">
-          <span className="font-mono text-sm break-all">{nodeHash}</span>
-        </InfoRow>
-        <InfoRow label="Interfaces">
+    <InfoCard title="Resolver info">
+      <InfoRow label="Type">
+        <span className="text-sm pl-3.5">{type}</span>
+      </InfoRow>
+      <InfoRow label="Contract">
+        <ResolverAddressValue address={resolverAddress} />
+      </InfoRow>
+      <InfoRow label="Node">
+        <div className="flex items-center gap-2">
+          <EntityBadgeWithActions
+            variant="name"
+            name={name}
+            avatar={
+              <NameAvatar
+                name={name}
+                width="20px"
+                height="20px"
+                rounded="rounded-sm"
+              />
+            }
+          >
+            {name}
+          </EntityBadgeWithActions>
+          {isAliased && <Badge variant="outline">Aliased</Badge>}
+        </div>
+      </InfoRow>
+      <InfoRow label="Namehash">
+        <span className="font-mono text-sm break-all pl-3.5">{nodeHash}</span>
+      </InfoRow>
+      <InfoRow label="Interfaces">
+        <div className="pl-3.5">
           <FeatureLinks resolverAddress={resolverAddress} />
-        </InfoRow>
-      </div>
-    </div>
+        </div>
+      </InfoRow>
+    </InfoCard>
   )
 }
 
@@ -263,17 +243,11 @@ const PermissionedResolverView = ({
   name: string
   resolverAddress: Address
 }) => (
-  <>
-    <ResolverBanner
-      name="ENS Permissioned Resolver"
-      docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
-    />
-    <ResolverInfoCard
-      name={name}
-      resolverAddress={resolverAddress}
-      type="Permissioned Resolver"
-    />
-  </>
+  <ResolverInfoCard
+    name={name}
+    resolverAddress={resolverAddress}
+    type="Permissioned Resolver"
+  />
 )
 
 const PublicResolverView = ({
@@ -283,17 +257,11 @@ const PublicResolverView = ({
   name: string
   resolverAddress: Address
 }) => (
-  <>
-    <ResolverBanner
-      name="ENS Public Resolver"
-      docsHref="https://docs.ens.domains/resolvers/public/"
-    />
-    <ResolverInfoCard
-      name={name}
-      resolverAddress={resolverAddress}
-      type="ENS Public Resolver"
-    />
-  </>
+  <ResolverInfoCard
+    name={name}
+    resolverAddress={resolverAddress}
+    type="ENS Public Resolver"
+  />
 )
 
 const CustomResolverView = ({
@@ -409,6 +377,18 @@ const ResolverView = ({
 
   return (
     <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
+      {permissionedResolverQuery.data ? (
+        <ResolverBanner
+          name="ENS Permissioned Resolver"
+          docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
+        />
+      ) : isOfficialPublicResolver ? (
+        <ResolverBanner
+          name="ENS Public Resolver"
+          docsHref="https://docs.ens.domains/resolvers/public/"
+        />
+      ) : null}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-heading font-medium">Resolver</h1>
         {address ? (

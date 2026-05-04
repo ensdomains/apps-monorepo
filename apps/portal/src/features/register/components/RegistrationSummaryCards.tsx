@@ -1,9 +1,7 @@
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
-import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { dateToPlainDate } from '@/utils/temporal'
 
 type RegistrationSummaryCardsProps = {
@@ -38,13 +36,10 @@ export const RegistrationSummaryCards = ({
     price.decimals,
   )
 
-  const { discountAmount, discountPercent, discountLabel } =
-    getPricingBreakdown(domainName, price, durationSeconds)
-
+  const { years } = getPricingBreakdown(domainName, price, durationSeconds)
+  const roundedYears = Math.round(years)
   const discountText =
-    discountPercent > 0 && discountAmount > 0 && discountLabel
-      ? `${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}): -${formatUsd(discountAmount)}`
-      : undefined
+    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
@@ -72,7 +67,7 @@ export const RegistrationSummaryCards = ({
           {totalCost}
         </p>
         {discountText ? (
-          <p className="text-success text-xs mt-0.5">{discountText}</p>
+          <p className="text-success-text text-xs mt-0.5">{discountText}</p>
         ) : null}
       </div>
     </div>
