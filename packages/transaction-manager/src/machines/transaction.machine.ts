@@ -661,6 +661,19 @@ export const transactionMachine = setup({
                 return false
               }
 
+              // "Nonce too low" means the wallet's local nonce cache is
+              // desynced from the chain (or another tx already consumed the
+              // same nonce). Re-submitting with the same params will hit the
+              // same error — bail out and surface it to the user.
+              const message =
+                event.error instanceof Error ? event.error.message : ''
+              if (
+                /nonce too low|nonce.*lower than/i.test(message) ||
+                /NonceTooLowError/.test(message)
+              ) {
+                return false
+              }
+
               // Retry up to the retry count
               return context.retryCount < (context.options.retryCount || 3)
             },
