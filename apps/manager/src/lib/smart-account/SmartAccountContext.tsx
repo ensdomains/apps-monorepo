@@ -177,9 +177,13 @@ export const SmartAccountContextProvider = ({
     send({ type: 'SET_ACCOUNT_TYPE', accountType })
   }, [accountType, send])
 
+  // In EOA-only mode the smart-account state machine never runs — skip the
+  // wallet sync hook so we don't kick off Pimlico/Rhinestone initialization
+  // (which would trigger HCA registration via Warp etc.).
+  const useEoa = isUseEoaEnabled()
   useWalletConnectionSync(
-    paraWallet,
-    wagmiWalletClient as WalletClient | undefined,
+    useEoa ? undefined : paraWallet,
+    useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
     paraClient,
     snapshot.value as string,
     send,
