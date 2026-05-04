@@ -71,7 +71,7 @@ describe('getEnsContractName', () => {
       ['0xfb3cE5D01e0f33f41DbB39035dB9745962F1f968', 'ETHRegistrarController'],
       ['0x0635513f179D50A207757E05759CbD106d7dFcE8', 'NameWrapper'],
       ['0x28356dacb84ee3ebdb007d1f5920b24c87e90d40', 'ENSRegistry'],
-      ['0x3c85752a5d47DD09D677C645Ff2A938B38fbFEbA', 'UniversalResolver'],
+      ['0xd307d60cfee6f2f74b6daafebf878437e353c1f6', 'UniversalResolver'],
     ]
     for (const [address, expected] of cases) {
       expect(getEnsContractName(SEPOLIA, address)).toBe(expected)

@@ -1,3 +1,4 @@
+import { customSepolia, SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
 import {
   type RhinestoneAccount,
   RhinestoneSDK,
@@ -23,18 +24,6 @@ import {
   zeroHash,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { sepolia } from 'viem/chains'
-
-const SEPOLIA_RPC_URL =
-  'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811'
-
-const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
-  },
-}
 
 const SUPPORTED_TOKENS = {
   USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as const,
