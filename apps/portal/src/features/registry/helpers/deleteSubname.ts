@@ -3,7 +3,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { deleteSubnameV2WriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { deleteSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -47,8 +47,8 @@ export const deleteSubname = async (
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const writeParams = deleteSubnameV2WriteParameters(
-    walletClient as Parameters<typeof deleteSubnameV2WriteParameters>[0],
+  const writeParams = deleteSubnameWriteParameters(
+    walletClient as Parameters<typeof deleteSubnameWriteParameters>[0],
     { registryAddress, label },
   )
 
