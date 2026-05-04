@@ -107,7 +107,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       vite:
         specifier: 'catalog:'
         version: 8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -324,10 +324,10 @@ importers:
     devDependencies:
       '@base-ui/react':
         specifier: ^1.1.0
-        version: 1.1.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 1.1.0(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@crowdin/cli':
         specifier: ^4.14.0
         version: 4.14.0
@@ -607,7 +607,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@ensdomains/vite-plugin-i18next-loader':
         specifier: ^4.0.3
         version: 4.0.3(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -778,7 +778,7 @@ importers:
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.2)(@vitest/coverage-v8@4.1.5)(happy-dom@18.0.1)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
       wagmi:
         specifier: ^3.0.2
-        version: 3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: 3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(react@19.2.5)(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
 
   packages/utils:
     dependencies:
@@ -858,7 +858,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)
+        version: 1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.14.9
         version: 0.14.9(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vitest@4.1.5)
@@ -1139,6 +1139,7 @@ packages:
     resolution: {integrity: sha512-bCwbMIPXW0bjvMWNiDEPmV4/Lc5nU/x3/yIGBrgMgxHa2caMvh6QaOplI7DUcHBpzMfz/0iQ0inVmyIuQ8eG4A==}
     peerDependencies:
       vite: ^6.1.0 || ^7.0.0 || ^8.0.0
+      wrangler: ^4.84.1
 
   '@cloudflare/vitest-pool-workers@0.14.9':
     resolution: {integrity: sha512-XLJTOd+3A3BB6vPzD7gi1LTVKFSVge9HhGWXnLouPzySphMLbg+6xXELykFxZKyqP1AEjT2tc28AkBjM9GteFQ==}
@@ -9095,7 +9096,7 @@ snapshots:
     optionalDependencies:
       workerd: 1.20260421.1
 
-  '@cloudflare/vite-plugin@1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)':
+  '@cloudflare/vite-plugin@1.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))(workerd@1.20260421.1)(wrangler@4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))':
     dependencies:
       '@cloudflare/unenv-preset': 2.16.0(unenv@2.0.0-rc.24)(workerd@1.20260421.1)
       miniflare: 4.20260421.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -9104,7 +9105,6 @@ snapshots:
       wrangler: 4.84.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
-      - '@cloudflare/workers-types'
       - bufferutil
       - utf-8-validate
       - workerd
@@ -13317,6 +13317,14 @@ snapshots:
       '@metamask/sdk': 0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       typescript: 6.0.3
 
+  '@wagmi/connectors@7.0.2(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@wagmi/core@3.0.0(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.5)(typescript@6.0.3)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)))(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+    dependencies:
+      '@wagmi/core': 3.0.0(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.5)(typescript@6.0.3)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      viem: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+    optionalDependencies:
+      '@metamask/sdk': 0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      typescript: 6.0.3
+
   '@wagmi/connectors@7.1.1(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@wagmi/core@3.0.0(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(typescript@6.0.3)(use-sync-external-store@1.6.0(react@19.2.5))(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)))(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
       '@wagmi/core': 3.0.0(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(typescript@6.0.3)(use-sync-external-store@1.6.0(react@19.2.5))(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -13346,6 +13354,21 @@ snapshots:
       mipd: 0.0.7(typescript@6.0.3)
       viem: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
       zustand: 5.0.0(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
+    optionalDependencies:
+      '@tanstack/query-core': 5.90.12
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - react
+      - use-sync-external-store
+
+  '@wagmi/core@3.0.0(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.5)(typescript@6.0.3)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+    dependencies:
+      eventemitter3: 5.0.1
+      mipd: 0.0.7(typescript@6.0.3)
+      viem: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+      zustand: 5.0.0(@types/react@19.2.7)(react@19.2.5)(use-sync-external-store@1.4.0(react@19.2.5))
     optionalDependencies:
       '@tanstack/query-core': 5.90.12
       typescript: 6.0.3
@@ -17334,6 +17357,29 @@ snapshots:
       - immer
       - porto
 
+  wagmi@3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(react@19.2.5)(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)):
+    dependencies:
+      '@tanstack/react-query': 5.90.12(react@19.2.5)
+      '@wagmi/connectors': 7.0.2(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@wagmi/core@3.0.0(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.5)(typescript@6.0.3)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)))(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@wagmi/core': 3.0.0(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.5)(typescript@6.0.3)(use-sync-external-store@1.4.0(react@19.2.5))(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      react: 19.2.5
+      use-sync-external-store: 1.4.0(react@19.2.5)
+      viem: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+    optionalDependencies:
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - '@base-org/account'
+      - '@coinbase/wallet-sdk'
+      - '@gemini-wallet/core'
+      - '@metamask/sdk'
+      - '@safe-global/safe-apps-provider'
+      - '@safe-global/safe-apps-sdk'
+      - '@tanstack/query-core'
+      - '@types/react'
+      - '@walletconnect/ethereum-provider'
+      - immer
+      - porto
+
   walk-up-path@4.0.0: {}
 
   web-streams-polyfill@3.3.3: {}
@@ -17591,3 +17637,9 @@ snapshots:
       immer: 10.2.0
       react: 19.2.5
       use-sync-external-store: 1.6.0(react@19.2.5)
+
+  zustand@5.0.0(@types/react@19.2.7)(react@19.2.5)(use-sync-external-store@1.4.0(react@19.2.5)):
+    optionalDependencies:
+      '@types/react': 19.2.7
+      react: 19.2.5
+      use-sync-external-store: 1.4.0(react@19.2.5)
