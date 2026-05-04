@@ -2,8 +2,8 @@ import { AssuredWorkloadIcon } from '@/assets/icons'
 import type { ProtocolVersion } from '@/utils/types'
 
 type GraceBannerProps = {
-  graceEndDate: Date
-  protocolVersion: ProtocolVersion
+  readonly graceEndDate: Date
+  readonly protocolVersion: ProtocolVersion
 }
 
 export const GraceBanner = ({
