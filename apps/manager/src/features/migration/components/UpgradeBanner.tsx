@@ -3,21 +3,17 @@ import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
-import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
-import { useV1Names } from '@/features/migration/hooks/useV1Names'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
-  const { data: v1Names, isPending: isV1NamesPending } = useV1Names()
-  const { data: migratedCount, isPending: isMigratedCountPending } =
-    useMigratedNamesCount()
+  const { eligible, isPending } = useEligibleV1Names()
 
   if (!isConnected) return null
-  if (isV1NamesPending || isMigratedCountPending) return null
-  if (!v1Names?.length) return null
-  if ((migratedCount ?? 0) >= 1) return null
+  if (isPending) return null
+  if (eligible.length === 0) return null
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-6 md:py-8">

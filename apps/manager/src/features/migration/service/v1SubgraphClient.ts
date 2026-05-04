@@ -42,7 +42,7 @@ class GetV1NamesError extends TaggedError('GetV1NamesError')<{
   cause: unknown
 }> {}
 
-const PAGE_SIZE = 1000
+const PAGE_SIZE = 200
 
 const GET_NAMES_QUERY = `
 query getNamesForAddress($orderBy: Domain_orderBy, $orderDirection: OrderDirection, $first: Int, $skip: Int, $whereFilter: Domain_filter) {
@@ -84,7 +84,7 @@ const fetchPage = async (
 ): Promise<V1Domain[]> => {
   const baseFilters: Record<string, unknown>[] = [
     {
-      or: [{ owner: addr }, { registrant: addr }, { wrappedOwner: addr }],
+      or: [{ registrant: addr }, { wrappedOwner: addr }],
     },
     {
       parent_not:
@@ -167,7 +167,7 @@ export const getV1NamesForAddress = ResultFn(async function* (address: string) {
 
 const GET_PROFILES_QUERY = `
 query getProfilesForDomains($whereFilter: Domain_filter) {
-  domains(where: $whereFilter, first: 1000) {
+  domains(where: $whereFilter, first: 200) {
     id
     resolver {
       texts
@@ -187,7 +187,7 @@ class GetV1ProfilesError extends TaggedError('GetV1ProfilesError')<{
   cause: unknown
 }> {}
 
-const PROFILE_KEYS_CHUNK = 500
+const PROFILE_KEYS_CHUNK = 200
 
 const fetchProfileKeysChunk = async (
   ids: readonly string[],

@@ -35,26 +35,26 @@ describe('getV1NamesForAddress', () => {
   })
 
   it('paginates until a page returns fewer than PAGE_SIZE domains', async () => {
-    const p1 = page(Array.from({ length: 1000 }, (_, i) => `p1-${i}`))
+    const p1 = page(Array.from({ length: 200 }, (_, i) => `p1-${i}`))
     respondWith(p1, page(['p2-0']))
     const result = await getV1NamesForAddress(OWNER)
     assert(result.isOk())
-    expect(result.value).toHaveLength(1001)
+    expect(result.value).toHaveLength(201)
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('stops paginating on exactly PAGE_SIZE boundary once a partial page arrives', async () => {
-    respondWith(page(Array.from({ length: 1000 }, (_, i) => `${i}`)), page([]))
+    respondWith(page(Array.from({ length: 200 }, (_, i) => `${i}`)), page([]))
     const result = await getV1NamesForAddress(OWNER)
     assert(result.isOk())
-    expect(result.value).toHaveLength(1000)
+    expect(result.value).toHaveLength(200)
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('paginates using id_gt cursor from the last domain of the previous page', async () => {
     const first = page(
       Array.from(
-        { length: 1000 },
+        { length: 200 },
         (_, i) => `0x${i.toString(16).padStart(4, '0')}`,
       ),
     )
@@ -80,9 +80,23 @@ describe('getV1NamesForAddress', () => {
   it('lowercases the address in the query variables', async () => {
     respondWith([])
     await getV1NamesForAddress('0xABCDEF0123456789ABCDEF0123456789ABCDEF01')
-    expect(readBody().variables.whereFilter.and[0].or[0].owner).toBe(
+    expect(readBody().variables.whereFilter.and[0].or[0].registrant).toBe(
       '0xabcdef0123456789abcdef0123456789abcdef01',
     )
+    expect(readBody().variables.whereFilter.and[0].or[1].wrappedOwner).toBe(
+      '0xabcdef0123456789abcdef0123456789abcdef01',
+    )
+  })
+
+  it('does not fetch registry-manager-only rows as migration candidates', async () => {
+    respondWith([])
+    await getV1NamesForAddress(OWNER)
+
+    const ownershipFilter = readBody().variables.whereFilter.and[0]
+    expect(ownershipFilter.or).toEqual([
+      { registrant: OWNER },
+      { wrappedOwner: OWNER },
+    ])
   })
 
   it.each([
@@ -165,13 +179,13 @@ describe('getV1ProfileKeys', () => {
     expect(result.error._tag).toBe('GetV1ProfilesError')
   })
 
-  it('chunks large id_in arrays into batches of 500 and merges results', async () => {
-    const ids = Array.from({ length: 501 }, (_, i) => `0x${i.toString(16)}`)
+  it('chunks large id_in arrays into batches of 200 and merges results', async () => {
+    const ids = Array.from({ length: 201 }, (_, i) => `0x${i.toString(16)}`)
     fetchMock
       .mockResolvedValueOnce(
         jsonResponse({
           data: {
-            domains: Array.from({ length: 500 }, (_, i) => ({
+            domains: Array.from({ length: 200 }, (_, i) => ({
               id: `0x${i.toString(16)}`,
               resolver: { texts: [], coinTypes: [] },
             })),
@@ -182,7 +196,7 @@ describe('getV1ProfileKeys', () => {
         jsonResponse({
           data: {
             domains: [
-              { id: '0x1f4', resolver: { texts: ['email'], coinTypes: [] } },
+              { id: '0xc8', resolver: { texts: ['email'], coinTypes: [] } },
             ],
           },
         }),
@@ -190,9 +204,9 @@ describe('getV1ProfileKeys', () => {
 
     const result = await getV1ProfileKeys(ids)
     assert(result.isOk())
-    expect(result.value).toHaveLength(501)
+    expect(result.value).toHaveLength(201)
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(readBody(0).variables.whereFilter.id_in).toHaveLength(500)
+    expect(readBody(0).variables.whereFilter.id_in).toHaveLength(200)
     expect(readBody(1).variables.whereFilter.id_in).toHaveLength(1)
   })
 })

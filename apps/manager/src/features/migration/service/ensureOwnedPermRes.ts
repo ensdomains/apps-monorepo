@@ -27,6 +27,7 @@ const proxyDeployedEvent = parseAbiItem(
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 )
 const PROXY_DEPLOYED_TOPIC: Hex = toEventSelector(proxyDeployedEvent)
+const OWNED_RESOLVER_FACTORY = V2_CONTRACTS.OwnedResolverVerifiableFactory
 
 const parseProxyAddress = (
   logs: readonly { topics: readonly Hex[]; data: Hex }[],
@@ -53,7 +54,7 @@ export const findExistingPermRes = async (params: {
   const expectedSalt = computeOwnedResolverSalt(eoa, 0n)
   const impl = V2_CONTRACTS.PermissionedResolverImpl.toLowerCase()
   const logs = await publicClient.getLogs({
-    address: V2_CONTRACTS.VerifiableFactory,
+    address: OWNED_RESOLVER_FACTORY,
     event: proxyDeployedEvent,
     args: { sender: eoa },
     fromBlock: V2_DEPLOY_BLOCK,
@@ -76,7 +77,7 @@ export const predictOwnedPermResAddress = async (params: {
   if (existing) return existing
   const salt = computeOwnedResolverSalt(eoa, 0n)
   const { result } = await publicClient.simulateContract({
-    address: V2_CONTRACTS.VerifiableFactory,
+    address: OWNED_RESOLVER_FACTORY,
     abi: VERIFIABLE_FACTORY_ABI,
     functionName: 'deployProxy',
     args: [
@@ -105,7 +106,7 @@ export const ensureOwnedPermRes = async (params: {
   let hash: Hex
   try {
     hash = await writeContract(wagmiConfig, {
-      address: V2_CONTRACTS.VerifiableFactory,
+      address: OWNED_RESOLVER_FACTORY,
       abi: VERIFIABLE_FACTORY_ABI,
       functionName: 'deployProxy',
       args: [

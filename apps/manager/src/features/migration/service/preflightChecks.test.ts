@@ -10,12 +10,9 @@ import {
   publicClient,
 } from './_fixtures'
 import { FUSES } from './classifyNames'
-import { getRegisteredV2Names } from './getRegisteredV2Names'
 import {
   checkFrozenApproval,
   checkOwnership,
-  checkV2Status,
-  filterNotReserved,
   resolveParentRegistries,
   runEligibilityChecks,
 } from './preflightChecks'
@@ -25,19 +22,12 @@ vi.mock('viem/actions', () => ({
   readContract: vi.fn(),
 }))
 
-vi.mock('./getRegisteredV2Names', () => ({
-  getRegisteredV2Names: vi.fn(),
-}))
-
 const multicallMock = vi.mocked(multicall)
 const readContractMock = vi.mocked(readContract)
-const getRegisteredV2NamesMock = vi.mocked(getRegisteredV2Names)
 
 beforeEach(() => {
   multicallMock.mockReset()
   readContractMock.mockReset()
-  getRegisteredV2NamesMock.mockReset()
-  getRegisteredV2NamesMock.mockResolvedValue(new Set())
 })
 
 describe('checkOwnership', () => {
@@ -95,31 +85,6 @@ describe('checkOwnership', () => {
   })
 })
 
-describe('checkV2Status', () => {
-  it('returns empty set for empty input and issues no subgraph call', async () => {
-    expect((await checkV2Status([])).size).toBe(0)
-    expect(getRegisteredV2NamesMock).not.toHaveBeenCalled()
-  })
-
-  it('marks names present in the v2 subgraph (case-insensitive)', async () => {
-    getRegisteredV2NamesMock.mockResolvedValue(new Set(['alice.eth']))
-    const ids = await checkV2Status([
-      makeClassified({ id: '0xa1', name: 'ALICE.ETH' }),
-      makeClassified({ id: '0xb1', name: 'bob.eth' }),
-    ])
-    expect([...ids]).toEqual(['0xa1'])
-    expect(multicallMock).not.toHaveBeenCalled()
-  })
-
-  it('propagates subgraph errors instead of falling back to RPC', async () => {
-    getRegisteredV2NamesMock.mockRejectedValueOnce(new Error('subgraph down'))
-    await expect(
-      checkV2Status([makeClassified({ id: '0xa1' })]),
-    ).rejects.toThrow('subgraph down')
-    expect(multicallMock).not.toHaveBeenCalled()
-  })
-})
-
 describe('checkFrozenApproval', () => {
   it('returns empty set when no candidates', async () => {
     expect((await checkFrozenApproval(publicClient, [])).size).toBe(0)
@@ -145,32 +110,6 @@ describe('checkFrozenApproval', () => {
   })
 })
 
-describe('filterNotReserved', () => {
-  it('returns empty when no 2LDs in the input', async () => {
-    const result = await filterNotReserved(publicClient, [
-      makeClassified({ tokenType: 'locked-child', parentName: 'raffy.eth' }),
-    ])
-    expect(result).toEqual([])
-    expect(multicallMock).not.toHaveBeenCalled()
-  })
-
-  it('keeps 2LDs whose v2 resolver is zero (= not reserved)', async () => {
-    multicallMock.mockResolvedValueOnce([ok(zeroAddress), ok(OTHER)])
-    const result = await filterNotReserved(publicClient, [
-      makeClassified({ id: '0xa1', label: 'a' }),
-      makeClassified({ id: '0xb1', label: 'b' }),
-    ])
-    expect(result.map((n) => n.domain.id)).toEqual(['0xa1'])
-  })
-
-  it('treats a failed multicall entry as reserved', async () => {
-    multicallMock.mockResolvedValueOnce([fail()])
-    expect(
-      await filterNotReserved(publicClient, [makeClassified({ id: '0xa1' })]),
-    ).toEqual([])
-  })
-})
-
 describe('runEligibilityChecks', () => {
   it('returns empty buckets for empty input and issues no RPC', async () => {
     const result = await runEligibilityChecks(publicClient, [], OWNER)
@@ -178,7 +117,7 @@ describe('runEligibilityChecks', () => {
     expect(multicallMock).not.toHaveBeenCalled()
   })
 
-  it('composes ownership, v2-status and frozen into the three buckets', async () => {
+  it('composes ownership and frozen approval into the three buckets', async () => {
     const A = makeClassified({ id: '0xa1', label: 'a', name: 'a.eth' })
     const B = makeClassified({
       id: '0xb1',
@@ -196,7 +135,6 @@ describe('runEligibilityChecks', () => {
         ok(OWNER),
       ]) // ownership
       .mockResolvedValueOnce([ok(OTHER)]) // frozen-approval (only B)
-    getRegisteredV2NamesMock.mockResolvedValueOnce(new Set()) // v2 subgraph
 
     const result = await runEligibilityChecks(publicClient, [A, B, C], OWNER)
 

@@ -118,7 +118,6 @@ type PackFn = (params: {
   migrationOwner: Address
   defaultResolver: Address
   ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
   parentRegistries: ReadonlyMap<string, Address>
   profiles: ReadonlyMap<Hex, Profile>
 }) => NameBundle[][]
@@ -131,7 +130,6 @@ export const packPlanBatches = (params: {
   migrationOwner: Address
   defaultResolver: Address
   ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
   profiles: ReadonlyMap<Hex, Profile>
   pack: PackFn
 }): { batches: NameBundle[][]; deferredBatches: NameBundle[][] } => {

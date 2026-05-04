@@ -122,7 +122,7 @@ describe('findExistingPermRes', () => {
     })
     expect(getLogsSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        address: V2_CONTRACTS.VerifiableFactory,
+        address: V2_CONTRACTS.OwnedResolverVerifiableFactory,
         args: { sender: EOA },
       }),
     )
@@ -157,6 +157,12 @@ describe('ensureOwnedPermRes', () => {
     })
     expect(result.toLowerCase()).toBe(PROXY_B.toLowerCase())
     expect(writeContractMock).toHaveBeenCalledTimes(1)
+    expect(writeContractMock).toHaveBeenCalledWith(
+      wagmiConfig,
+      expect.objectContaining({
+        address: V2_CONTRACTS.OwnedResolverVerifiableFactory,
+      }),
+    )
   })
 
   it.each([

@@ -22,7 +22,6 @@ import {
   type GroupedNames,
   groupClassifiedNames,
   type IneligibleName,
-  is2LD,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { predictOwnedPermResAddress } from './ensureOwnedPermRes'
@@ -38,7 +37,7 @@ import {
   packPlanBatches,
   partitionChildrenByInPlan,
 } from './migrationPlan.helpers'
-import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
+import { resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
 export const MAX_BATCH_RAW_BYTES = 50_000
@@ -63,7 +62,6 @@ export type MigrationPlan = {
   preflight: MigrationPreflight
   ownedPermRes: Address | null
   profiles: ReadonlyMap<Hex, Profile>
-  notReservedSet: ReadonlySet<string>
   parentRegistries: ReadonlyMap<string, Address>
   batches: readonly NameBundle[][]
   deferredChildren: readonly ClassifiedName[]
@@ -77,7 +75,6 @@ export const buildNameBundle = (params: {
   migrationOwner: Address
   defaultResolver: Address
   ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
   parentRegistries: ReadonlyMap<string, Address>
   profiles: ReadonlyMap<Hex, Profile>
 }): NameBundle => {
@@ -125,7 +122,6 @@ export const packNamesByPayload = (params: {
   migrationOwner: Address
   defaultResolver: Address
   ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
   parentRegistries: ReadonlyMap<string, Address>
   profiles: ReadonlyMap<Hex, Profile>
   maxBatchBytes?: number
@@ -165,30 +161,6 @@ const fetchProfilesForNames = async (params: {
         v1ResolverAddress: n.v1ResolverAddress as Address,
       })),
     publicClient,
-  })
-}
-
-const computeNotReservedSet = async (
-  publicClient: PublicClient,
-  classified: readonly ClassifiedName[],
-): Promise<Set<string>> => {
-  const twoLDs = classified.filter(is2LD)
-  if (twoLDs.length === 0) return new Set()
-  const notReserved = await filterNotReserved(publicClient, twoLDs)
-  return new Set(notReserved.map((n) => n.domain.name))
-}
-
-const assertPremigrationComplete = (
-  notReservedSet: ReadonlySet<string>,
-): void => {
-  if (notReservedSet.size === 0) return
-
-  const names = [...notReservedSet]
-  throw new MigrationPlanError({
-    cause: new Error(
-      `ENSv2 pre-migration is incomplete for ${formatNamesPreview(names)}. Run the BatchRegistrar pre-migration before users migrate these names.`,
-    ),
-    step: 'Pre-migration',
   })
 }
 
@@ -284,12 +256,10 @@ export const buildMigrationPlan = async (params: {
       }))
   }
 
-  const [profiles, notReservedSet, subnameResolution] = await Promise.all([
+  const [profiles, subnameResolution] = await Promise.all([
     fetchProfilesForNames({ namesToOwnedPermRes, preflight, publicClient }),
-    computeNotReservedSet(publicClient, classified),
     validateSubnameParents(publicClient, groups, classified),
   ])
-  assertPremigrationComplete(notReservedSet)
 
   const { resolvedRegistries, deferredChildren, deferredParentNames } =
     subnameResolution
@@ -302,7 +272,6 @@ export const buildMigrationPlan = async (params: {
     migrationOwner,
     defaultResolver: V2_CONTRACTS.ENSV2Resolver,
     ownedPermRes,
-    notReservedSet,
     profiles,
     pack: packNamesByPayload,
   })
@@ -321,7 +290,6 @@ export const buildMigrationPlan = async (params: {
     preflight,
     ownedPermRes,
     profiles,
-    notReservedSet,
     parentRegistries: resolvedRegistries,
     batches,
     deferredChildren,
@@ -365,7 +333,6 @@ export const resolveDeferredBatches = async (params: {
         migrationOwner: plan.migrationOwner,
         defaultResolver: V2_CONTRACTS.ENSV2Resolver,
         ownedPermRes: plan.ownedPermRes,
-        notReservedSet: plan.notReservedSet,
         parentRegistries: combinedRegistries,
         profiles: plan.profiles,
       }),
@@ -415,7 +382,6 @@ export const adjustPlanForRetry = (
     migrationOwner: plan.migrationOwner,
     defaultResolver: V2_CONTRACTS.ENSV2Resolver,
     ownedPermRes: plan.ownedPermRes,
-    notReservedSet: plan.notReservedSet,
     profiles: plan.profiles,
     pack: packNamesByPayload,
   })

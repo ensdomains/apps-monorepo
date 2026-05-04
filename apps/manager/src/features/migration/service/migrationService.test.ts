@@ -38,10 +38,8 @@ vi.mock('./fetchV1Profiles', () => ({
 }))
 
 vi.mock('./preflightChecks', () => ({
-  filterNotReserved: vi.fn(() => Promise.resolve([])),
   resolveParentRegistries: vi.fn(() => Promise.resolve(new Map())),
   checkOwnership: vi.fn(),
-  checkV2Status: vi.fn(),
   checkFrozenApproval: vi.fn(),
   runEligibilityChecks: vi.fn(),
 }))
@@ -70,7 +68,6 @@ import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
 import { fetchV1Profiles } from './fetchV1Profiles'
 import { executeMigration, type MigrationProgress } from './migrationService'
-import { filterNotReserved } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
 const waitForTransactionMock = vi.mocked(waitForTransaction)
@@ -79,7 +76,6 @@ const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
 const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
 const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
 const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
-const filterNotReservedMock = vi.mocked(filterNotReserved)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
@@ -97,7 +93,6 @@ const unwrappedDomain = (id: string): V1Domain =>
     labelName: id,
     labelhash:
       '0x0000000000000000000000000000000000000000000000000000000000000002',
-    isMigrated: false,
     createdAt: '0',
     resolvedAddress: null,
     resolver: { id: 'r', address: V1_RESOLVER },
@@ -145,7 +140,6 @@ beforeEach(() => {
     baseRegistrarApproved: true,
     nameWrapperApproved: true,
   })
-  filterNotReservedMock.mockResolvedValue([])
   fetchV1ProfilesMock.mockResolvedValue(new Map())
   ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({
@@ -173,27 +167,6 @@ describe('executeMigration', () => {
     expect(result.txHashes).toEqual(['0xdeadbeef'])
     expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
     expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
-  })
-
-  it('rejects plans when v2 pre-migration has not reserved a 2LD', async () => {
-    filterNotReservedMock.mockResolvedValueOnce([
-      { domain: { name: 'alice.eth' } },
-    ] as never)
-
-    await expect(runExecute()).rejects.toSatisfy((e: unknown) => {
-      const error = e as {
-        cause?: unknown
-        name?: unknown
-        step?: unknown
-      }
-      return (
-        error.name === 'MigrationPlanError' &&
-        error.step === 'Pre-migration' &&
-        error.cause instanceof Error &&
-        /pre-migration is incomplete/i.test(error.cause.message)
-      )
-    })
-    expect(waitForTransactionMock).not.toHaveBeenCalled()
   })
 
   it('skips approval phase when preflight.skipApprovalPhase is true', async () => {
