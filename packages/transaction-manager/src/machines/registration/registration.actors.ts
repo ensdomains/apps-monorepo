@@ -9,6 +9,7 @@ import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
   decodeEventLog,
   encodeFunctionData,
+  isAddressEqual,
   keccak256,
   parseAbi,
   stringToBytes,
@@ -559,22 +560,35 @@ export function verifyRegistrationActor(input: {
         functionName: 'REGISTRY',
       })) as Address
 
-      const resolver = (await readContract(input.publicClient, {
-        address: registryAddress,
-        abi: parseAbi([
-          'function getResolver(string label) view returns (address)',
-        ]),
-        functionName: 'getResolver',
-        args: [cleanName],
-      })) as Address
+      const [resolver, owner] = await Promise.all([
+        readContract(input.publicClient, {
+          address: registryAddress,
+          abi: parseAbi([
+            'function getResolver(string label) view returns (address)',
+          ]),
+          functionName: 'getResolver',
+          args: [cleanName],
+        }) as Promise<Address>,
+        readContract(input.publicClient, {
+          address: registryAddress,
+          abi: parseAbi([
+            'function getOwner(string label) view returns (address)',
+          ]),
+          functionName: 'getOwner',
+          args: [cleanName],
+        }) as Promise<Address>,
+      ])
 
-      const matches =
-        resolver !== zeroAddress &&
-        resolver.toLowerCase() === input.resolverAddress.toLowerCase()
-
-      console.log(
-        `🔍 [REGISTRATION ACTOR] verifyRegistration ${cleanName}: registry=${registryAddress}, resolver=${resolver}, expected=${input.resolverAddress}, matches=${matches}`,
-      )
+      // Guard against the front-running scenario: another address could have
+      // claimed the label with the same resolver. Require both resolver and
+      // owner to match the expected values.
+      const resolverMatches =
+        !isAddressEqual(resolver, zeroAddress) &&
+        isAddressEqual(resolver, input.resolverAddress)
+      const ownerMatches =
+        !isAddressEqual(owner, zeroAddress) &&
+        isAddressEqual(owner, input.owner)
+      const matches = resolverMatches && ownerMatches
 
       return { verified: matches }
     })(),
