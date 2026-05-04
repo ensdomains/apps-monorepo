@@ -1,6 +1,5 @@
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import {
-  REFERER_ADDRESS,
   type SUPPORTED_TOKEN,
   SUPPORTED_TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
@@ -13,8 +12,8 @@ import {
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
-import { type Address, encodeFunctionData } from 'viem'
+import { encodeRenewEthRegistrarNameData } from '@ensdomains/ensjs/wallet/v2'
+import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
 import { IS_PAYMENT_TOKEN_SNIPPET } from '@/features/register/services/nameChainContractService'
@@ -78,10 +77,10 @@ const startRenewalTransaction = async ({
     )
   }
 
-  const txData = encodeFunctionData({
-    abi: l2EthRegistrarRenewSnippet,
-    functionName: 'renew',
-    args: [label, duration, normalizedPaymentToken, REFERER_ADDRESS],
+  const txData = encodeRenewEthRegistrarNameData({
+    name: `${label}.eth`,
+    duration,
+    paymentToken: normalizedPaymentToken,
   })
 
   const request = createTransactionRequest({
@@ -138,17 +137,17 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.duration.set'; duration: number }
       | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
       | {
-          type: 'renewal.start'
-          label: string
-          duration: bigint
-          token: SUPPORTED_TOKEN
-          /** Price in token units */
-          priceRaw: bigint
-          signer: Signer
+        type: 'renewal.start'
+        label: string
+        duration: bigint
+        token: SUPPORTED_TOKEN
+        /** Price in token units */
+        priceRaw: bigint
+        signer: Signer
 
-          /** Formatted base price */
-          priceNumber: number
-        }
+        /** Formatted base price */
+        priceNumber: number
+      }
       | { type: 'retry' }
       | { type: 'cancel' }
       | { type: 'label.changed' },
@@ -197,13 +196,13 @@ export const renewalUiMachine = setup({
       submissionData: ({ event }) =>
         event.type === 'renewal.start'
           ? {
-              label: event.label,
-              duration: event.duration,
-              signer: event.signer,
-              token: event.token,
-              priceRaw: event.priceRaw,
-              priceNumber: event.priceNumber,
-            }
+            label: event.label,
+            duration: event.duration,
+            signer: event.signer,
+            token: event.token,
+            priceRaw: event.priceRaw,
+            priceNumber: event.priceNumber,
+          }
           : undefined,
     }),
     invalidateNameQueries: ({ context }) => {
