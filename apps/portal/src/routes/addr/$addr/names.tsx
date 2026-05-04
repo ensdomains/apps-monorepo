@@ -153,6 +153,7 @@ function RouteComponent() {
           owner: relation.registrant || relation.wrappedOwner,
           manager: relation.owner || relation.wrappedOwner,
         },
+        protocolVersion: 'ENSv1',
       }),
     )
 
@@ -162,6 +163,7 @@ function RouteComponent() {
         expiryDate: expiryDate ? new Date(expiryDate * MS_PER_SECOND) : null,
         roleBitmap,
         v1Roles: null,
+        protocolVersion: 'ENSv2',
       }),
     )
 
@@ -187,7 +189,10 @@ function RouteComponent() {
     // Filter by status
     if (selectedStatuses.length > 0) {
       filtered = filtered.filter((row) => {
-        const status = getNameStatus(row.expiryDate)
+        const status = getNameStatus(
+          row.expiryDate,
+          row.protocolVersion === 'ENSv2',
+        )
         return selectedStatuses.includes(status)
       })
     }

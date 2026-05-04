@@ -24,6 +24,8 @@ type RegistrationDurationOrExpiryPickerProps = {
   readonly setDuration: (duration: number) => void
   /** Anchor for picker date math; defaults to today. Pass current expiry for extensions. */
   readonly baseDate?: Date
+  /** Name used to compute per-year prices for preset chips. Chips hidden if absent. */
+  readonly name?: string
 }
 
 export const RegistrationDurationOrExpiryPicker = ({
@@ -32,6 +34,7 @@ export const RegistrationDurationOrExpiryPicker = ({
   duration,
   setDuration,
   baseDate,
+  name,
 }: RegistrationDurationOrExpiryPickerProps) => {
   const anchor = baseDate ? dateToPlainDate(baseDate) : undefined
   const [registrationSpanType, setRegistrationSpanType] =
@@ -87,6 +90,7 @@ export const RegistrationDurationOrExpiryPicker = ({
             onChange={(years) =>
               setDuration(getDurationInSecondsFromYears(years))
             }
+            name={name}
           />
         ) : (
           <RegistrationExpiryDatePicker

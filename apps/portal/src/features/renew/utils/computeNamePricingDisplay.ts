@@ -1,4 +1,5 @@
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
+import { getEffectivePricePerYear } from '@/features/register/utils/registrationDiscount'
 import {
   getRegistrationDisplayDates,
   getStartOfToday,
@@ -7,7 +8,10 @@ import {
   formatPriceDisplay,
   formatRegistrationTotal,
 } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
+import {
+  getPricingBreakdown,
+  getStandardPricePerYear,
+} from '@/features/register/utils/registrationPricing'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { dateToPlainDate } from '@/utils/temporal'
@@ -18,10 +22,12 @@ export type NamePricingDisplay = {
   readonly registrationPeriod: string
   /** e.g. "Mar 11, 2029" */
   readonly newExpiryFormatted: string
-  /** "Price:" or "Price (25% discount):" */
+  /** Always "Price:" — the discount is surfaced via discountSublabel */
   readonly priceLabel: string
-  /** e.g. "$650/year × 3" */
+  /** e.g. "$650/year" — per-year only; total is shown on the Total row */
   readonly priceValue: string
+  /** Small green sublabel under price, e.g. "3+ yr discount price". `undefined` when no discount. */
+  readonly discountSublabel: string | undefined
   /** Formatted base price e.g. "$1,462.50" */
   readonly subtotal: string
   /** Formatted base + premium total e.g. "$1,462.50" */
@@ -49,27 +55,41 @@ export function computeNamePricingDisplay(
     : getStartOfToday()
   const newExpiryFormatted = formatExpiryDate(baseDate.add({ days }))
 
-  const { pricePerYear, years, discountAmount, discountPercent } =
-    getPricingBreakdown(selectedName.name, price, duration)
+  const { years, discountAmount } = getPricingBreakdown(
+    selectedName.name,
+    price,
+    duration,
+  )
 
-  const priceLabel =
-    discountPercent > 0
-      ? `Price (${Math.round(discountPercent)}% discount):`
-      : 'Price:'
+  const roundedYears = Math.round(years)
+  const discountSublabel =
+    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+
+  // Effective per-year derived from the design's discount curve applied to the
+  // standard $/year baseline. Mirrors the year-preset chip values so the chip
+  // and breakdown stay in sync. May briefly differ from `Total / years` until
+  // the contract reflects the new curve.
+  const effectivePerYear = getEffectivePricePerYear(
+    getStandardPricePerYear(selectedName.name),
+    years,
+  )
 
   const priceValue =
     Math.round(years * 12) >= 12
-      ? `${formatUsd(pricePerYear)}/year × ${Math.round(years)}`
-      : formatUsd(pricePerYear)
+      ? `${formatUsd(effectivePerYear)}/year`
+      : formatUsd(effectivePerYear)
+
+  const actualPrice = Number(price.base) / 10 ** price.decimals
 
   return {
     registrationPeriod,
     newExpiryFormatted,
-    priceLabel,
+    priceLabel: 'Price:',
     priceValue,
+    discountSublabel,
     subtotal: formatPriceDisplay(price.base, price.decimals),
     total: formatRegistrationTotal(price.base, price.premium, price.decimals),
-    actualPrice: Number(price.base) / 10 ** price.decimals,
+    actualPrice,
     discountAmount,
   }
 }

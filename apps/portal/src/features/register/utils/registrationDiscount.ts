@@ -7,13 +7,14 @@ import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
  * @see contracts-v2/contracts/deploy/02_StandardRentPriceOracle.ts
  * @see contracts-v2/contracts/src/registrar/StandardRentPriceOracle.sol
  */
+// Integrated piecewise-constant discount curve. Average discount over N years:
+//   1y→0%, 2y→12.5%, 3y→31.25%, 4y→37.5%, 5y→41.25%, 6y→43.75%, 7y+→43.75% (extrapolated)
 const DISCOUNT_POINTS: readonly [seconds: number, rate: number][] = [
-  [CONTRACT_SECONDS_PER_YEAR, 0], // Year 1: 0%
-  [CONTRACT_SECONDS_PER_YEAR, 0.1], // Year 2: 10%
-  [CONTRACT_SECONDS_PER_YEAR, 0.2], // Year 3: 20%
-  [CONTRACT_SECONDS_PER_YEAR * 2, 0.2875], // Years 4–5: 28.75%
-  [CONTRACT_SECONDS_PER_YEAR * 5, 0.325], // Years 6–10: 32.5%
-  [CONTRACT_SECONDS_PER_YEAR * 15, 1 / 3], // Years 11–25: 33.33%
+  [CONTRACT_SECONDS_PER_YEAR, 0], // Year 1: 0% interval rate
+  [CONTRACT_SECONDS_PER_YEAR, 0.25], // Year 2: 25% interval rate
+  [CONTRACT_SECONDS_PER_YEAR, 0.6875], // Year 3: 68.75% interval rate
+  [CONTRACT_SECONDS_PER_YEAR * 3, 0.5625], // Years 4–6: 56.25% interval rate
+  // Years 7+: integratedDiscount() extrapolates with the running average (= 43.75%)
 ]
 
 /**
@@ -90,4 +91,18 @@ export function getDiscountForYears(years: number): {
     percent: Math.round(percent * 100) / 100,
     label: `${Math.floor(years)}+ year${Math.floor(years) === 1 ? '' : 's'}`,
   }
+}
+
+/**
+ * Returns the effective per-year price (after duration discount) for a given
+ * base price and number of years. Used by the year preset chips.
+ */
+export function getEffectivePricePerYear(
+  basePricePerYear: number,
+  years: number,
+): number {
+  if (basePricePerYear <= 0 || years <= 0) return 0
+  const durationSeconds = years * CONTRACT_SECONDS_PER_YEAR
+  const percent = getEffectiveDiscountPercent(durationSeconds)
+  return basePricePerYear * (1 - percent / 100)
 }

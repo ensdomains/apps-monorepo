@@ -64,48 +64,63 @@ describe('computeNamePricingDisplay', () => {
   })
 
   describe('priceLabel', () => {
-    it('returns "Price:" when there is no discount', () => {
-      // 5-char name: $5/year standard. 1 year actual = $5 → no discount
+    it('always returns "Price:" — discount is surfaced via discountSublabel', () => {
+      const noDiscount = computeNamePricingDisplay(
+        selectedName('hello.eth'),
+        mockPrice(5),
+        ONE_YEAR,
+      )
+      expect(noDiscount.priceLabel).toBe('Price:')
+
+      const withDiscount = computeNamePricingDisplay(
+        selectedName('hello.eth'),
+        mockPrice(12),
+        THREE_YEARS,
+      )
+      expect(withDiscount.priceLabel).toBe('Price:')
+    })
+  })
+
+  describe('discountSublabel', () => {
+    it('is undefined for 1-year durations', () => {
       const result = computeNamePricingDisplay(
         selectedName('hello.eth'),
         mockPrice(5),
         ONE_YEAR,
       )
-      expect(result.priceLabel).toBe('Price:')
+      expect(result.discountSublabel).toBeUndefined()
     })
 
-    it('includes discount percentage when there is a discount', () => {
-      // 5-char name: $5/year. 3 years standard = $15. Actual $12 → 20% off
+    it('shows "X+ yr discount price" for multi-year durations', () => {
       const result = computeNamePricingDisplay(
         selectedName('hello.eth'),
         mockPrice(12),
         THREE_YEARS,
       )
-      expect(result.priceLabel).toBe('Price (20% discount):')
+      expect(result.discountSublabel).toBe('3+ yr discount price')
     })
   })
 
   describe('priceValue', () => {
-    it('shows $/year × N for multi-year durations', () => {
+    it('shows curve-derived $/year for multi-year durations', () => {
+      // 5+ char baseline $8/yr, 3-year discount avg 31.25% → $5.50/year
       const result = computeNamePricingDisplay(
         selectedName('hello.eth'),
         mockPrice(15),
         THREE_YEARS,
       )
-      // 5-char name: $5/year
-      expect(result.priceValue).toBe('$5.00/year × 3')
+      expect(result.priceValue).toBe('$5.50/year')
+      expect(result.priceValue).not.toContain('×')
     })
 
-    it('shows just the price without × N for sub-year durations', () => {
-      const sixMonths = Math.floor(ONE_YEAR / 2)
+    it('shows the baseline $/year for 1-year durations', () => {
+      // 5+ char baseline $8/yr, 1-year discount 0% → $8.00/year
       const result = computeNamePricingDisplay(
         selectedName('hello.eth'),
-        mockPrice(2.5),
-        sixMonths,
+        mockPrice(8),
+        ONE_YEAR,
       )
-      // Sub-year: no "/year × N" — just the formatted price
-      expect(result.priceValue).toBe('$5.00')
-      expect(result.priceValue).not.toContain('×')
+      expect(result.priceValue).toBe('$8.00/year')
     })
   })
 
@@ -170,27 +185,26 @@ describe('computeNamePricingDisplay', () => {
   })
 
   describe('3-letter names', () => {
-    it('uses $640/year as the standard price', () => {
-      // 3-char, 1 year, actual = $640 → no discount. 1yr hits the >= 12 month
-      // threshold so format is "$640.00/year × 1"
+    it('shows $640/year (no discount) for 1-year', () => {
       const result = computeNamePricingDisplay(
         selectedName('abc.eth'),
         mockPrice(640),
         ONE_YEAR,
       )
       expect(result.priceLabel).toBe('Price:')
-      expect(result.priceValue).toBe('$640.00/year × 1')
+      expect(result.priceValue).toBe('$640.00/year')
     })
 
-    it('shows discount against $640/year standard for multi-year', () => {
-      // 3-char, 3 years standard = $1920. Actual $1500 → ~21.9% off
+    it('shows curve-derived $/year + discount sublabel for multi-year', () => {
+      // 3-letter baseline $640/yr, 3-year discount 31.25% → $440/year
       const result = computeNamePricingDisplay(
         selectedName('abc.eth'),
         mockPrice(1500),
         THREE_YEARS,
       )
-      expect(result.priceLabel).toMatch(/Price \(\d+% discount\):/)
-      expect(result.priceValue).toContain('/year × 3')
+      expect(result.priceLabel).toBe('Price:')
+      expect(result.priceValue).toBe('$440.00/year')
+      expect(result.discountSublabel).toBe('3+ yr discount price')
     })
   })
 })
