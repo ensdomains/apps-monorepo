@@ -9,7 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address, Hex } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { deleteSubname } from '../helpers/deleteSubname'
 
 interface UseDeleteSubnameParams {
@@ -29,8 +29,6 @@ interface DeleteSubnameMutationInput {
   readonly subname: string
   /** The label portion of the subname (e.g., 'cold') */
   readonly label: string
-  /** The current owner of the subname */
-  readonly owner: Address
 }
 
 /**
@@ -57,7 +55,7 @@ export const useDeleteSubname = ({
   name,
   registryAddress,
 }: UseDeleteSubnameParams) => {
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
   const queryClient = useQueryClient()
@@ -80,7 +78,6 @@ export const useDeleteSubname = ({
         name: input.subname,
         label: input.label,
         registryAddress,
-        owner: input.owner,
         walletClient,
         publicClient,
         signer,

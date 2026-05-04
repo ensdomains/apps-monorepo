@@ -88,12 +88,12 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
 
-  // Check if connected account has ROLE_BURN on the subregistry ROOT resource
-  const { data: hasBurnRole } = useQuery({
+  // Check if connected account has ROLE_UNREGISTER on the subregistry ROOT resource
+  const { data: hasUnregisterRole } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: subregistryAddress as Address,
       label: '',
-      roles: ['ROLE_BURN'],
+      roles: ['ROLE_UNREGISTER'],
       account: connectedAccount as Address,
     }),
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
@@ -153,7 +153,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
       deleteSubnameMutate({
         subname: subname.name,
         label: getLabel(subname.name),
-        owner: subname.owner,
       })
     },
     [deleteSubnameMutate, getLabel],
@@ -166,7 +165,6 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           deleteSubnameAsync({
             subname: subname.name,
             label: getLabel(subname.name),
-            owner: subname.owner,
           }),
           (error) => error as Error,
         )
@@ -211,7 +209,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     )
   }
 
-  const canDeleteSubname = Boolean(hasBurnRole)
+  const canDeleteSubname = Boolean(hasUnregisterRole)
 
   const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
     name: subname.name || '',

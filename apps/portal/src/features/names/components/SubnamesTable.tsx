@@ -133,7 +133,7 @@ function buildColumns(
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-gray-500 hover:text-red-600"
+            className="size-8 text-muted-foreground hover:text-destructive"
             aria-label={`Delete ${row.original.name}`}
             onClick={() => onDeleteClick(row.original.name)}
           >
@@ -282,14 +282,17 @@ export const SubnamesTable = ({
                       width="20px"
                       rounded="rounded-sm"
                     />
-                    <EntityBadgeWithActions variant="name" name={row.original.name}>
+                    <EntityBadgeWithActions
+                      variant="name"
+                      name={row.original.name}
+                    >
                       {row.original.name}
                     </EntityBadgeWithActions>
                     {row.original.canDelete && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 shrink-0 ml-auto text-muted-foreground hover:text-red-600"
+                        className="size-8 shrink-0 ml-auto text-muted-foreground hover:text-destructive"
                         aria-label={`Delete ${row.original.name}`}
                         onClick={() => setPendingDeleteName(row.original.name)}
                       >
@@ -298,7 +301,9 @@ export const SubnamesTable = ({
                     )}
                   </div>
                   <div className="flex flex-row gap-2 items-center">
-                    <span className="text-sm text-muted-foreground">Owner:</span>
+                    <span className="text-sm text-muted-foreground">
+                      Owner:
+                    </span>
                     <EntityBadgeWithActions
                       variant="address"
                       address={row.original.owner}
@@ -324,7 +329,7 @@ export const SubnamesTable = ({
                           <X className="size-4" />
                         </Button>
                         <Button
-                          variant="default"
+                          variant="danger"
                           size="sm"
                           onClick={() => handleConfirmDelete(row.original)}
                           className="gap-1"
@@ -411,7 +416,7 @@ export const SubnamesTable = ({
                               <X className="size-4" />
                             </Button>
                             <Button
-                              variant="default"
+                              variant="danger"
                               size="sm"
                               onClick={() => handleConfirmDelete(row.original)}
                               className="gap-1"
