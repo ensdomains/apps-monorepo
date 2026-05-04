@@ -18,6 +18,10 @@ import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+
+const DELETE_SUBNAME_TRANSACTION_ID = 'tx-delete-ens-subname'
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -133,6 +137,15 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     registryAddress: (subregistryAddress as Address) ?? zeroAddress,
   })
 
+  const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
+  // The row queued for deletion when the modal is open. Read by the modal's
+  // onStart so it knows which subname to delete.
+  const [queuedDelete, setQueuedDelete] = useState<SubnameRow | null>(null)
   // Names whose delete tx is in flight — used to dim the row in the table.
   const [pendingNames, setPendingNames] = useState<readonly string[]>([])
   // Names whose delete tx already succeeded — hidden from the UI immediately
@@ -158,12 +171,13 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   )
 
   const runDelete = useCallback(
-    async (subname: SubnameRow) => {
+    async (subname: SubnameRow, id: string) => {
       setPendingNames((prev) => [...prev, subname.name])
       const result = await fromPromise(
         deleteSubnameAsync({
           subname: subname.name,
           label: getLabel(subname.name),
+          id,
         }),
         (error) => error as Error,
       )
@@ -182,15 +196,30 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
 
   const handleDeleteSubname = useCallback(
     (subname: SubnameRow) => {
-      void runDelete(subname)
+      setQueuedDelete(subname)
+      openTransactionModal()
     },
-    [runDelete],
+    [openTransactionModal],
   )
+
+  const handleStartDelete = useCallback(() => {
+    if (!queuedDelete) return
+    void runDelete(queuedDelete, DELETE_SUBNAME_TRANSACTION_ID)
+  }, [queuedDelete, runDelete])
+
+  const handleDoneDelete = useCallback(() => {
+    closeTransactionModal()
+    clearTransaction()
+    setQueuedDelete(null)
+  }, [closeTransactionModal, clearTransaction])
 
   const handleClearSelected = useCallback(
     async (selected: SubnameRow[]) => {
       for (const subname of selected) {
-        const result = await runDelete(subname)
+        const result = await runDelete(
+          subname,
+          `${DELETE_SUBNAME_TRANSACTION_ID}-${subname.name}`,
+        )
         if (result.isErr()) break
       }
     },
@@ -274,6 +303,20 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           description={deleteError.message}
         />
       )}
+      <TransactionModal
+        transactions={[
+          {
+            id: DELETE_SUBNAME_TRANSACTION_ID,
+            title: 'Delete subname',
+            transactionName: queuedDelete
+              ? `Delete ${queuedDelete.name}`
+              : 'Delete subname',
+            estimatedGasCost: 0.0001,
+            onStart: handleStartDelete,
+            onDone: handleDoneDelete,
+          },
+        ]}
+      />
     </>
   )
 }

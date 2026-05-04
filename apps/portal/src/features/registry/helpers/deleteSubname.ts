@@ -19,6 +19,8 @@ export interface DeleteSubnameParameters {
   readonly label: string
   /** The parent registry (subregistry) address that manages this subname */
   readonly registryAddress: Address
+  /** Transaction id used by transactionManager and TransactionModal */
+  readonly id: string
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
   readonly signer: Signer
@@ -37,6 +39,7 @@ export const deleteSubname = async (
     name,
     label,
     registryAddress,
+    id,
     walletClient,
     publicClient,
     signer,
@@ -72,6 +75,7 @@ export const deleteSubname = async (
     },
     signer,
     {
+      id,
       description: `Delete subname ${name}`,
       publicClient,
       chainId,

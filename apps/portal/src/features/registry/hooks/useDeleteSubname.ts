@@ -31,6 +31,8 @@ interface DeleteSubnameMutationInput {
   readonly subname: string
   /** The label portion of the subname (e.g., 'cold') */
   readonly label: string
+  /** Transaction id for the transaction manager / modal */
+  readonly id: string
 }
 
 /**
@@ -80,6 +82,7 @@ export const useDeleteSubname = ({
         name: input.subname,
         label: input.label,
         registryAddress,
+        id: input.id,
         walletClient,
         publicClient,
         signer,
