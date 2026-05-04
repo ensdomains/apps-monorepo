@@ -189,8 +189,11 @@ export const SmartAccountContextProvider = ({
     send,
   )
 
-  const accountAddress = snapshot.context.accountAddress
-  const ownerAddress = snapshot.context.ownerAddress
+  const eoaAddress = wagmiWalletClient?.account?.address ?? null
+  // In EOA-only mode the wagmi wallet client _is_ the account; otherwise pull
+  // both addresses from the smart-account state machine.
+  const accountAddress = useEoa ? eoaAddress : snapshot.context.accountAddress
+  const ownerAddress = useEoa ? eoaAddress : snapshot.context.ownerAddress
 
   const balances = useSmartAccountBalances({
     accountAddress,
@@ -424,7 +427,6 @@ export const SmartAccountContextProvider = ({
     })
   }, [actorRef, send])
 
-  const eoaAddress = wagmiWalletClient?.account?.address ?? null
   const isConnected = isUseEoaEnabled()
     ? !!wagmiWalletClient && !!eoaAddress
     : !!snapshot.context.walletSource &&
