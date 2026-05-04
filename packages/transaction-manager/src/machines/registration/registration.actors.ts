@@ -9,6 +9,7 @@ import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
   decodeEventLog,
   encodeFunctionData,
+  erc20Abi,
   isAddressEqual,
   keccak256,
   parseAbi,
@@ -19,7 +20,6 @@ import {
 import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
-import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import {
@@ -146,7 +146,7 @@ function encodeTokenApprovalData(
   registrarAddress: Address,
 ): Hash {
   return encodeFunctionData({
-    abi: ERC20_ABI,
+    abi: erc20Abi,
     functionName: 'approve',
     args: [registrarAddress, amount * 2n],
   })
@@ -528,7 +528,7 @@ export function readPaymentTokenAllowanceActor(input: {
   return fromPromise(
     readContract(input.publicClient, {
       address: tokenAddress,
-      abi: ERC20_ABI,
+      abi: erc20Abi,
       functionName: 'allowance',
       args: [input.owner, registrarAddress],
     }) as Promise<bigint>,
