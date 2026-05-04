@@ -17,7 +17,7 @@ import {
 } from 'xstate'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
-import { customSepolia, publicClient as defaultPublicClient } from '@/lib/wagmi'
+import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import { SECONDS_IN_YEAR } from '../utils/time'
 
@@ -78,10 +78,15 @@ type Events =
   | { type: 'label.changed' }
   | { type: '$error'; error: Error }
 
+type Input = {
+  chainId: number
+}
+
 const machineSetup = setup({
   types: {
     context: {} as Context,
     events: {} as Events,
+    input: {} as Input,
     children: {} as {
       [REGISTRATION_V2_ACTOR_ID]: 'registrationFlow'
     },
@@ -219,8 +224,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     ],
   },
   initial: 'pricing',
-  context: () => ({
-    chainId: customSepolia.id,
+  context: ({ input }) => ({
+    chainId: input.chainId,
     duration: SECONDS_IN_YEAR,
     selectedToken: undefined,
     lastErrorMessage: undefined,
