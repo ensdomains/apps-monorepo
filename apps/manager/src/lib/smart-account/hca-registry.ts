@@ -8,7 +8,6 @@ import {
 import { errAsync, fromPromise, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
 import { encodeFunctionData, zeroAddress } from 'viem'
-import { customSepolia } from '@/lib/wagmi'
 import { HCA_FACTORY_ABI } from '../hca-factory.abi'
 
 /**
@@ -106,6 +105,16 @@ export function registerHCAOwnership(
       },
     ]
 
+    const chainId = publicClient.chain?.id
+    if (!chainId) {
+      return errAsync(
+        new HCARegistrationError(
+          'read-failed',
+          new Error('publicClient is missing a chain configuration'),
+        ),
+      )
+    }
+
     // Build request based on signer type
     let request: TransactionRequest
     if (signer.type === 'zerodev') {
@@ -115,7 +124,7 @@ export function registerHCAOwnership(
         to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
         data,
         value: 0n,
-        chainId: customSepolia.id,
+        chainId,
         zerodevParams: {
           calls,
           sponsored: true,
@@ -129,7 +138,7 @@ export function registerHCAOwnership(
         to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
         data,
         value: 0n,
-        chainId: customSepolia.id,
+        chainId,
         rhinestoneParams: {
           calls,
           sponsored: true,

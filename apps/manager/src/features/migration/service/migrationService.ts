@@ -12,7 +12,7 @@ import {
   writeContract,
 } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
-import { customSepolia } from '@/lib/wagmi'
+
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -197,6 +197,11 @@ const buildSCARequest = (
   const firstCall = calls[0]
   if (!firstCall) throw new Error('No calls to submit')
 
+  const chainId = ctx.publicClient.chain?.id
+  if (!chainId) {
+    throw new Error('publicClient is missing a chain configuration')
+  }
+
   if (ctx.signer.type === 'zerodev') {
     return {
       type: 'zerodev',
@@ -204,7 +209,7 @@ const buildSCARequest = (
       to: firstCall.to,
       data: firstCall.data,
       value: 0n,
-      chainId: customSepolia.id,
+      chainId,
       zerodevParams: {
         calls,
         sponsored: true,
@@ -218,7 +223,7 @@ const buildSCARequest = (
     to: firstCall.to,
     data: firstCall.data,
     value: 0n,
-    chainId: customSepolia.id,
+    chainId,
     rhinestoneParams: {
       calls,
       sponsored: true,

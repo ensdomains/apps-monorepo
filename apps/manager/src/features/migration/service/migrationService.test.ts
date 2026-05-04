@@ -87,7 +87,7 @@ const V1_RESOLVER: Address = '0x000000000000000000000000000000000000d003'
 const PERM_RES: Address = '0x000000000000000000000000000000000000d002'
 
 const WAGMI = {} as WagmiConfig
-const PUBLIC_CLIENT = {} as PublicClient
+const PUBLIC_CLIENT = { chain: { id: 11155111 } } as unknown as PublicClient
 const SIGNER = { type: 'zerodev' } as unknown as Signer
 
 const unwrappedDomain = (id: string): V1Domain =>
