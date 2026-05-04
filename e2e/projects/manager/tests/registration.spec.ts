@@ -35,9 +35,6 @@ test.describe('ENS name registration', () => {
       .getByRole('button', { name: /pay with stablecoins/i })
       .click()
     await page.getByText('USDC', { exact: true }).click()
-    await page
-      .getByRole('button', { name: /confirm payment/i })
-      .click()
 
     const monitor = createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
@@ -101,7 +98,6 @@ test.describe('ENS name registration', () => {
     await payButton.waitFor({ state: 'visible', timeout: 15_000 })
     await payButton.click()
     await page.getByText('USDC', { exact: true }).click()
-    await page.getByRole('button', { name: /confirm payment/i }).click()
     await page.getByRole('button', { name: /buy name/i }).click()
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')

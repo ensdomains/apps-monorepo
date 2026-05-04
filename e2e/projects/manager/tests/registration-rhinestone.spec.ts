@@ -32,9 +32,6 @@ test.describe('ENS name registration (Rhinestone)', () => {
       .getByRole('button', { name: /pay with stablecoins/i })
       .click()
     await page.getByText('USDC', { exact: true }).click()
-    await page
-      .getByRole('button', { name: /confirm payment/i })
-      .click()
 
     const monitor = createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
