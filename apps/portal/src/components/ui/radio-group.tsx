@@ -31,8 +31,9 @@ function RadioGroupItem({
         'bg-border',
         // checked
         'data-[state=checked]:bg-primary',
-        // hover (unchecked) — keep flat color but allow caller to layer
-        'hover:bg-quartz-200 data-[state=checked]:hover:bg-primary',
+        // hover — semi-transparent foreground overlay so it adapts in both
+        // themes (darkens in light mode, lightens in dark mode)
+        'hover:bg-foreground/15 data-[state=checked]:hover:bg-primary',
         // disabled — unchecked
         'disabled:bg-secondary disabled:hover:bg-secondary',
         // disabled — checked
