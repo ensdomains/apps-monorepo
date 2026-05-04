@@ -11,10 +11,10 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
-import { isUseEoaEnabled } from '@/lib/featureFlags'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
 import { getParaClient, setParaConnectionCookie } from './para'
@@ -133,7 +133,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           <PHProvider>
             <SmartAccountContextProvider>
               {children}
-              {!isUseEoaEnabled() && <SmartAccountSessionModal />}
+              {!isFeatureEnabled('USE_EOA') && <SmartAccountSessionModal />}
             </SmartAccountContextProvider>
           </PHProvider>
         </ParaProvider>

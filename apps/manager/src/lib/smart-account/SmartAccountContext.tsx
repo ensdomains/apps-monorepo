@@ -26,9 +26,9 @@ import type { Address, Hex, WalletClient } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
-import { isUseEoaEnabled } from '@/lib/featureFlags'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import type { RhinestoneConfig } from './rhinestone'
 import {
   selectIsCreatingSession,
@@ -180,7 +180,7 @@ export const SmartAccountContextProvider = ({
   // In EOA-only mode the smart-account state machine never runs — skip the
   // wallet sync hook so we don't kick off Pimlico/Rhinestone initialization
   // (which would trigger HCA registration via Warp etc.).
-  const useEoa = isUseEoaEnabled()
+  const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
     useEoa ? undefined : paraWallet,
     useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
@@ -287,7 +287,7 @@ export const SmartAccountContextProvider = ({
     // EOA-only mode: skip smart account machinery entirely and sign with the
     // wagmi wallet client directly. This is the only viable signer on the
     // tenderly fork where Pimlico/Rhinestone bundlers are unavailable.
-    if (isUseEoaEnabled()) {
+    if (isFeatureEnabled('USE_EOA')) {
       if (!wagmiWalletClient || !wagmiWalletClient.account) return null
       return {
         type: 'eoa',
@@ -427,18 +427,18 @@ export const SmartAccountContextProvider = ({
     })
   }, [actorRef, send])
 
-  const isConnected = isUseEoaEnabled()
+  const isConnected = isFeatureEnabled('USE_EOA')
     ? !!wagmiWalletClient && !!eoaAddress
     : !!snapshot.context.walletSource &&
       !!(snapshot.context.sessionClient ?? snapshot.context.client)
-  const hasInitialized = isUseEoaEnabled()
+  const hasInitialized = isFeatureEnabled('USE_EOA')
     ? !isParaWalletPending
     : !isParaWalletPending && snapshot.value !== 'initializing'
-  const isAccountReady = isUseEoaEnabled()
+  const isAccountReady = isFeatureEnabled('USE_EOA')
     ? !!eoaAddress
     : !!snapshot.context.client && !!snapshot.context.accountAddress
 
-  const contextValue: SmartAccountContextValue = isUseEoaEnabled()
+  const contextValue: SmartAccountContextValue = isFeatureEnabled('USE_EOA')
     ? {
         // In EOA-only mode the wagmi wallet client is both the EOA and the
         // "smart account" address. All smart-account-specific fields are
