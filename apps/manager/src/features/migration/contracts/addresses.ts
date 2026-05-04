@@ -13,15 +13,15 @@ export const V2_DEPLOY_BLOCK = 10462885n
 // shared `@ensdomains/ensjs` export so every consumer uses one source of
 // truth. Remove this local table once the upstream addresses export lands.
 export const V2_CONTRACTS = {
-  ETHRegistry: '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address,
+  ETHRegistry: '0x31a2bb5d933557cce1b3129993193896d074db92' as Address,
   UnlockedMigrationController:
-    '0x76ae358d9ad91651b78463ae609dadc9e7ce4402' as Address,
+    '0x5587003f8eeee1bc236d48ab39059cbfd99207d7' as Address,
   LockedMigrationController:
-    '0x22cd7e6a89f5bf4510ef22b3dd4ef190d22f95c3' as Address,
-  ENSV2Resolver: '0x18cb116a1c88531a4bb2996e4fef136a31e11a80' as Address,
+    '0x7ca1ded4d929ebd8b09e24c2da8e909014abecd8' as Address,
+  ENSV2Resolver: '0x078a7ae41974a74c62233bca5590c86218aa1f1e' as Address,
   PreMigrationController:
     '0xee63749b063c08dedee9478504177c27bf9193d7' as Address,
-  VerifiableFactory: '0x9240c5f31d747d60b3d9aed2f57995094342b1ed' as Address,
+  VerifiableFactory: '0x26997c9d0f3dcbae3f78c69e621a3926ee30bb98' as Address,
   PermissionedResolverImpl:
     '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as Address,
 } as const

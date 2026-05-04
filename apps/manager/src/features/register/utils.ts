@@ -136,7 +136,7 @@ export const STABLECOINS = {
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6,
-    address: '0xc39c1eec68a9e3c08c4f6cbebbb0fbf7aa4be06b', // MockUSDC
+    address: '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6', // MockUSDC
     icon: USDCIcon,
   },
   DAI: {
@@ -144,7 +144,7 @@ export const STABLECOINS = {
     name: 'Dai Stablecoin',
     symbol: 'DAI',
     decimals: 18,
-    address: '0xa1ad79c31e9e8c4d2d0b73aaf0435a7a8a706170', // MockDAI
+    address: '0xb21412bb6816601dd840b93a5d19a8fe671cb74e', // MockDAI
     icon: DAI,
   },
   USDT: {

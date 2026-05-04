@@ -2,7 +2,6 @@ import {
   customSepolia,
   SEPOLIA_RPC_URL,
   sepoliaWithEns,
-  TENDERLY_FORK_CHAIN_ID,
   WALLETCONNECT_PROJECT_ID,
 } from '@ens-apps/indexer/chain'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
@@ -20,7 +19,6 @@ export {
   customSepolia,
   SEPOLIA_RPC_URL,
   sepoliaWithEns,
-  TENDERLY_FORK_CHAIN_ID,
   WALLETCONNECT_PROJECT_ID,
 }
 
