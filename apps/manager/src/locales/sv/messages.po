@@ -954,12 +954,12 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:244
+#: src/lib/smart-account/SmartAccountContext.tsx:242
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:245
+#: src/lib/smart-account/SmartAccountContext.tsx:243
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -1052,11 +1052,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:215
+#: src/lib/smart-account/SmartAccountContext.tsx:213
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:216
+#: src/lib/smart-account/SmartAccountContext.tsx:214
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -2582,7 +2582,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:233
+#: src/lib/smart-account/SmartAccountContext.tsx:231
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2598,7 +2598,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:232
+#: src/lib/smart-account/SmartAccountContext.tsx:230
 msgid "Wallet funded successfully"
 msgstr ""
 
