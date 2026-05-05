@@ -197,31 +197,29 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         return next
       })
 
-      try {
-        const result = await fromPromise(
-          deleteSubnameAsync({
-            subname: subname.name,
-            label: getLabel(subname.name),
-            id,
-          }),
-          (error) => error as Error,
-        )
-        setPendingNames((prev) => {
-          if (!prev.has(subname.name)) return prev
+      const result = await fromPromise(
+        deleteSubnameAsync({
+          subname: subname.name,
+          label: getLabel(subname.name),
+          id,
+        }),
+        (error) => error as Error,
+      )
+
+      setPendingNames((prev) => {
+        if (!prev.has(subname.name)) return prev
+        const next = new Set(prev)
+        next.delete(subname.name)
+        return next
+      })
+      if (result.isOk()) {
+        setOptimisticallyDeleted((prev) => {
           const next = new Set(prev)
-          next.delete(subname.name)
+          next.add(subname.name)
           return next
         })
-        if (result.isOk()) {
-          setOptimisticallyDeleted((prev) => {
-            const next = new Set(prev)
-            next.add(subname.name)
-            return next
-          })
-        }
-      } finally {
-        inFlightRef.current.delete(subname.name)
       }
+      inFlightRef.current.delete(subname.name)
     },
     [deleteSubnameAsync, getLabel],
   )
