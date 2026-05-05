@@ -263,7 +263,7 @@ export const HomeSearchInput = ({
               onKeyDown={onSearchKeyDown}
             />
             <InputGroupAddon align="inline-end">
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
+              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
                 <span className="translate-y-px">
                   {formatForDisplay('Mod+K')}
                 </span>
