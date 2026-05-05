@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { fromPromise } from 'neverthrow'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -249,19 +249,12 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const handleClearSelected = (selected: SubnameRow[]) =>
     queueForDeletion(selected)
 
-  const handleAllDone = () => {
-    closeTransactionModal()
-    clearTransaction()
-    setQueuedDeletes([])
-  }
-
   // One Transaction entry per queued subname. The modal walks through them
   // top-to-bottom; intermediate onDone fires the next one's onStart so the
   // user gets sequential wallet popups without having to click "Next" between
   // each. Last onDone wraps up the modal session.
-  const deleteTransactions = useMemo<readonly Transaction[]>(() => {
-    if (queuedDeletes.length === 0) return []
-    return queuedDeletes.map((subname, i) => {
+  const deleteTransactions: readonly Transaction[] = queuedDeletes.map(
+    (subname, i) => {
       const id = deleteTxId(subname.name)
       const isLast = i === queuedDeletes.length - 1
       const next = queuedDeletes[i + 1]
@@ -274,13 +267,17 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           void runDelete(subname, id)
         },
         onDone: isLast
-          ? handleAllDone
+          ? () => {
+              closeTransactionModal()
+              clearTransaction()
+              setQueuedDeletes([])
+            }
           : () => {
               void runDelete(next, deleteTxId(next.name))
             },
       }
-    })
-  }, [queuedDeletes, runDelete, handleAllDone])
+    },
+  )
 
   // When the modal closes (success path or user dismissal), reset the queue
   // and drop any pre-marked names that haven't actually started — runDelete
