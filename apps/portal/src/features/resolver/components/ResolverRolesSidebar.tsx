@@ -291,7 +291,6 @@ export const ResolverRolesSidebar = ({
                 <div className="flex gap-2">
                   <Button
                     variant="default"
-                    className="text-primary"
                     disabled={
                       !hasChanges ||
                       saveMutation.isPending ||
@@ -304,7 +303,6 @@ export const ResolverRolesSidebar = ({
                   </Button>
                   <Button
                     variant="default"
-                    className="text-primary"
                     disabled={
                       removeUserMutation.isPending || !isWalletConnected
                     }
