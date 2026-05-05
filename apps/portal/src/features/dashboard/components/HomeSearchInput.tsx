@@ -264,7 +264,9 @@ export const HomeSearchInput = ({
             />
             <InputGroupAddon align="inline-end">
               <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
-                {formatForDisplay('Mod+K')}
+                <span className="translate-y-px">
+                  {formatForDisplay('Mod+K')}
+                </span>
               </kbd>
             </InputGroupAddon>
           </InputGroup>
