@@ -6,7 +6,7 @@ import { error } from '../../utils/result'
 
 // Single source of truth for Sepolia RPC URL
 export const SEPOLIA_RPC_URL =
-  'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811'
+  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j'
 
 // Create a custom Sepolia chain with working RPC
 export const customSepolia = {
