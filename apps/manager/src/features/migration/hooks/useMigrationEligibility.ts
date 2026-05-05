@@ -1,6 +1,6 @@
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
-import type { Address, PublicClient } from 'viem'
+import type { PublicClient } from 'viem'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import { runEligibilityChecks } from '@/features/migration/service/preflightChecks'
 import { publicClient } from '@/lib/wagmi'
@@ -18,11 +18,7 @@ export const useMigrationEligibility = (
       domainIds,
     }),
     queryFn: () =>
-      runEligibilityChecks(
-        publicClient as PublicClient,
-        [...names],
-        ownerAddress as Address,
-      ),
+      runEligibilityChecks(publicClient as PublicClient, [...names]),
     enabled: !!ownerAddress && names.length > 0,
     staleTime: ELIGIBILITY_STALE_MS,
   })

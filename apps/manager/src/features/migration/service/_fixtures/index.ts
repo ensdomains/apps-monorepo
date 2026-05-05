@@ -49,7 +49,6 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
     labelName: o.labelName === undefined ? 'alice' : o.labelName,
     labelhash: o.labelhash ?? '0xlabelhash',
     name: o.name ?? 'alice.eth',
-    isMigrated: false,
     createdAt: '0',
     resolvedAddress: null,
     resolver:

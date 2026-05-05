@@ -10,9 +10,8 @@ import {
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { ProfileCardPreview } from '@/features/migration/components/ProfileCardPreview'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
-import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
-import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const AUTO_SCROLL_INTERVAL_MS = 5000
@@ -22,14 +21,8 @@ const SLIDE_DATA = [{ id: 'profiles' }] as const
 export const MigrationModal = () => {
   const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
-  const { data: v1Names, isPending: isV1NamesPending } = useV1Names()
-  const { data: migratedCount, isPending: isMigratedCountPending } =
-    useMigratedNamesCount()
-  const hasUnstartedMigration =
-    !isV1NamesPending &&
-    !isMigratedCountPending &&
-    (v1Names?.length ?? 0) > 0 &&
-    (migratedCount ?? 0) === 0
+  const { eligible, isPending: isV1Pending } = useEligibleV1Names()
+  const hasUnstartedMigration = !isV1Pending && eligible.length > 0
   const { open, dismiss } = useOpenModalOnFirstVisit(
     isConnected,
     hasUnstartedMigration,
@@ -149,11 +142,12 @@ export const MigrationModal = () => {
             onClick={dismiss}
           >
             <UpgradeNamesButton className="w-full tracking-[1.68px]" />
-            {v1Names && v1Names.length > 0 && (
+            {eligible.length > 0 && (
               <p className="w-full font-semi-mono text-[10px] text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.1px]">
                 <Trans>
-                  You have <span className="font-medium">{v1Names.length}</span>{' '}
-                  names that are eligible for upgrade
+                  You have{' '}
+                  <span className="font-medium">{eligible.length}</span> names
+                  that are eligible for upgrade
                 </Trans>
               </p>
             )}

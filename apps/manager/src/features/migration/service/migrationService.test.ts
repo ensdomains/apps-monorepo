@@ -39,8 +39,6 @@ vi.mock('./fetchV1Profiles', () => ({
 
 vi.mock('./preflightChecks', () => ({
   resolveParentRegistries: vi.fn(() => Promise.resolve(new Map())),
-  checkOwnership: vi.fn(),
-  checkV2Status: vi.fn(),
   checkFrozenApproval: vi.fn(),
   runEligibilityChecks: vi.fn(),
 }))
@@ -94,7 +92,6 @@ const unwrappedDomain = (id: string): V1Domain =>
     labelName: id,
     labelhash:
       '0x0000000000000000000000000000000000000000000000000000000000000002',
-    isMigrated: false,
     createdAt: '0',
     resolvedAddress: null,
     resolver: { id: 'r', address: V1_RESOLVER },
