@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
+import { fromPromise } from 'neverthrow'
+import { useCallback, useEffect, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -13,8 +15,13 @@ import {
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+
+const DELETE_SUBNAME_TRANSACTION_ID = 'tx-delete-ens-subname'
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -85,6 +92,17 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
   })
 
+  // Check if connected account has ROLE_UNREGISTER on the subregistry ROOT resource
+  const { data: hasUnregisterRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: subregistryAddress as Address,
+      label: '',
+      roles: ['ROLE_UNREGISTER'],
+      account: connectedAccount as Address,
+    }),
+    enabled: Boolean(hasSubregistry) && Boolean(connectedAccount),
+  })
+
   // Check if connected account can deploy a subregistry (ROLE_SET_SUBREGISTRY on parent registry)
   const parentRegistryAddress = registriesData?.[1]
   const firstLabel = name.split('.')[0]
@@ -109,6 +127,117 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
     enabled: Boolean(hasSubregistry),
   })
+
+  const {
+    deleteSubnameAsync,
+    isDeleting,
+    error: deleteError,
+  } = useDeleteSubname({
+    name,
+    registryAddress: (subregistryAddress as Address) ?? zeroAddress,
+  })
+
+  const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
+  // The row queued for deletion when the modal is open. Read by the modal's
+  // onStart so it knows which subname to delete.
+  const [queuedDelete, setQueuedDelete] = useState<SubnameRow | null>(null)
+  // Names whose delete tx is in flight — used to dim the row in the table.
+  const [pendingNames, setPendingNames] = useState<readonly string[]>([])
+  // Names whose delete tx already succeeded — hidden from the UI immediately
+  // so the user sees the result before the indexer catches up. Cleared
+  // automatically once the refreshed query no longer returns them.
+  const [optimisticallyDeleted, setOptimisticallyDeleted] = useState<
+    ReadonlySet<string>
+  >(() => new Set())
+
+  /**
+   * Extract the first label from a full subname.
+   * e.g. "cold.domico.eth" → "cold"
+   */
+  const getLabel = useCallback(
+    (subname: string) => {
+      const suffix = `.${name}`
+      if (subname.endsWith(suffix)) {
+        return subname.slice(0, -suffix.length)
+      }
+      return subname.split('.')[0]
+    },
+    [name],
+  )
+
+  const runDelete = useCallback(
+    async (subname: SubnameRow, id: string) => {
+      setPendingNames((prev) => [...prev, subname.name])
+      const result = await fromPromise(
+        deleteSubnameAsync({
+          subname: subname.name,
+          label: getLabel(subname.name),
+          id,
+        }),
+        (error) => error as Error,
+      )
+      setPendingNames((prev) => prev.filter((n) => n !== subname.name))
+      if (result.isOk()) {
+        setOptimisticallyDeleted((prev) => {
+          const next = new Set(prev)
+          next.add(subname.name)
+          return next
+        })
+      }
+      return result
+    },
+    [deleteSubnameAsync, getLabel],
+  )
+
+  const handleDeleteSubname = useCallback(
+    (subname: SubnameRow) => {
+      setQueuedDelete(subname)
+      openTransactionModal()
+    },
+    [openTransactionModal],
+  )
+
+  const handleStartDelete = useCallback(() => {
+    if (!queuedDelete) return
+    void runDelete(queuedDelete, DELETE_SUBNAME_TRANSACTION_ID)
+  }, [queuedDelete, runDelete])
+
+  const handleDoneDelete = useCallback(() => {
+    closeTransactionModal()
+    clearTransaction()
+    setQueuedDelete(null)
+  }, [closeTransactionModal, clearTransaction])
+
+  const handleClearSelected = useCallback(
+    async (selected: SubnameRow[]) => {
+      for (const subname of selected) {
+        const result = await runDelete(
+          subname,
+          `${DELETE_SUBNAME_TRANSACTION_ID}-${subname.name}`,
+        )
+        if (result.isErr()) break
+      }
+    },
+    [runDelete],
+  )
+
+  // Once the indexer has caught up and stopped returning a name we
+  // optimistically deleted, drop it from the set — the row is naturally
+  // absent from the query data, so the local override is no longer needed.
+  useEffect(() => {
+    if (!subnames) return
+    const present = new Set(subnames.map((s) => s.name || ''))
+    setOptimisticallyDeleted((prev) => {
+      const next = new Set<string>()
+      for (const n of prev) if (present.has(n)) next.add(n)
+      return next.size === prev.size ? prev : next
+    })
+  }, [subnames])
 
   if (registriesLoading) {
     return <LoadingMessage title="Checking registry..." />
@@ -145,19 +274,50 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     )
   }
 
-  const subnameRows: SubnameRow[] = (subnames || []).map((subname) => ({
-    name: subname.name || '',
-    owner: subname.owner,
-  }))
+  const canDeleteSubname = Boolean(hasUnregisterRole)
+
+  const subnameRows: SubnameRow[] = (subnames || [])
+    .filter((subname) => !optimisticallyDeleted.has(subname.name || ''))
+    .map((subname) => ({
+      name: subname.name || '',
+      owner: subname.owner,
+      canDelete: canDeleteSubname,
+    }))
 
   const canCreateSubname = Boolean(hasRegistrarRole)
 
   return (
-    <SubnamesTable
-      subnames={subnameRows}
-      name={name}
-      canCreateSubname={canCreateSubname}
-    />
+    <>
+      <SubnamesTable
+        subnames={subnameRows}
+        name={name}
+        canCreateSubname={canCreateSubname}
+        onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
+        onClearSelected={canDeleteSubname ? handleClearSelected : undefined}
+        isDeleting={isDeleting}
+        pendingNames={pendingNames}
+      />
+      {deleteError && (
+        <ErrorMessage
+          title="Failed to delete subname"
+          description={deleteError.message}
+        />
+      )}
+      <TransactionModal
+        transactions={[
+          {
+            id: DELETE_SUBNAME_TRANSACTION_ID,
+            title: 'Delete subname',
+            transactionName: queuedDelete
+              ? `Delete ${queuedDelete.name}`
+              : 'Delete subname',
+            estimatedGasCost: 0.0001,
+            onStart: handleStartDelete,
+            onDone: handleDoneDelete,
+          },
+        ]}
+      />
+    </>
   )
 }
 
