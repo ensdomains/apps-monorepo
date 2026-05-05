@@ -91,9 +91,10 @@ export const ResolverRolesSidebar = ({
   const publicClient = usePublicClient({ chainId })
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
-  const selectedAccount = row?.original.account
-  const decodedRoles = row?.original.decodedRoles ?? []
+  const selectedAccount = row?.original.account as Address
+  const decodedRoles = (row?.original.decodedRoles ?? []) as ResolverRoleKey[]
   const resolvedNames = row?.original.resolvedNames ?? []
+
   const roleName = resolvedNames.find((n) => n !== '(root)') ?? ''
   const originalPermissions = useMemo(
     () => roleToPermissions(decodedRoles),
@@ -227,9 +228,9 @@ export const ResolverRolesSidebar = ({
     setPendingAction({
       type: 'save',
       name: roleName,
-      account: selectedAccount as Address,
-      rolesToGrant: rolesToGrant as ResolverRole[],
-      rolesToRevoke: rolesToRevoke as ResolverRoleKey[],
+      account: selectedAccount,
+      rolesToGrant: rolesToGrant,
+      rolesToRevoke: rolesToRevoke,
     })
     openModal()
   }
@@ -246,8 +247,8 @@ export const ResolverRolesSidebar = ({
     setPendingAction({
       type: 'remove',
       name: roleName,
-      account: selectedAccount as Address,
-      roles: decodedRoles as ResolverRoleKey[],
+      account: selectedAccount,
+      roles: decodedRoles,
     })
     openModal()
   }
