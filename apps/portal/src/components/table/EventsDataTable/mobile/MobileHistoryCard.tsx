@@ -29,7 +29,7 @@ export const MobileHistoryCard = <TEvent extends BaseEvent = BaseEvent>({
   const hasNetwork = table.getAllColumns().some((col) => col.id === 'network')
 
   return (
-    <div className="flex flex-col gap-2 px-6 py-4 bg-card border-b border-border">
+    <div className="flex flex-col gap-2 px-6 py-4 bg-background border-b border-border">
       <MobileCardHeader row={row} table={table} hasSidebar={hasSidebar} />
 
       {/* Date */}
