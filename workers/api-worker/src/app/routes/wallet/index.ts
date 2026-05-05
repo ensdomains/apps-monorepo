@@ -14,17 +14,18 @@ import { sepolia } from 'viem/chains'
 import { encodeFunctionData, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
+import { SEPOLIA_RPC_URL } from '#core/eth/client.js'
 import { logger } from '#utils/logger.js'
 import { ethAddress } from '#utils/validation.js'
 
 const TOKENS = {
   USDC: {
-    address: '0xc39c1eec68a9e3c08c4f6cbebbb0fbf7aa4be06b',
+    address: '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6',
     decimals: 6,
     mintAmount: parseUnits('1000', 6),
   },
   DAI: {
-    address: '0xa1ad79c31e9e8c4d2d0b73aaf0435a7a8a706170',
+    address: '0xb21412bb6816601dd840b93a5d19a8fe671cb74e',
     decimals: 18,
     mintAmount: parseUnits('1000', 18),
   },
@@ -73,9 +74,7 @@ const createWalletClient = (privateKey: string | undefined) => {
 
   return createClient({
     chain: sepolia,
-    transport: http(
-      'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811',
-    ),
+    transport: http(SEPOLIA_RPC_URL),
     account: walletAccount,
   })
     .extend(publicActions)

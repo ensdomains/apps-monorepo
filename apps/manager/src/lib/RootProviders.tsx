@@ -17,7 +17,7 @@ import { backendAuthStore } from '@/utils/backend-client'
 import { tw } from '@/utils/tailwind'
 import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
 import { getParaClient, setParaConnectionCookie } from './para'
-import { customSepolia } from './wagmi'
+import { sepoliaWithEns } from './wagmi'
 
 const onWalletChange = () => {
   const client = getParaClient()
@@ -93,7 +93,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
             createLinkedEmbeddedForExternalWallets: [],
             evmConnector: {
               config: {
-                chains: [customSepolia],
+                chains: [sepoliaWithEns],
               },
             },
             // walletConnect: {

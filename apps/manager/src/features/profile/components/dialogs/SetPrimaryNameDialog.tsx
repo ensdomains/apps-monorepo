@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address, PublicClient } from 'viem'
 import { getAddress, namehash } from 'viem'
+import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,7 +31,7 @@ import {
 } from '@/components/ui/drawer'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { customSepolia, publicClient } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import {
   getEthAddressFromRecords,
@@ -82,9 +83,10 @@ export const SetPrimaryNameDialog = ({
   const queryClient = useQueryClient()
   const account = useSmartAccountContext()
   const isDesktop = useMediaQuery('(min-width: 768px)')
+  const chainId = useChainId()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
-    input: { chainId: customSepolia.id },
+    input: { chainId },
   })
 
   const primaryNameState = useSelector(primaryNameActor, (state) => state)
@@ -163,7 +165,7 @@ export const SetPrimaryNameDialog = ({
         signer: account.signer,
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
-        chainId: customSepolia.id,
+        chainId,
         resolverAddress,
       })
     },
