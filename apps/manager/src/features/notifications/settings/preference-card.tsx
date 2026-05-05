@@ -1,11 +1,12 @@
 import { Trans } from '@lingui/react/macro'
 import { Loader2Icon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface PreferenceCardProps {
-  icon: React.ReactNode
-  label: string
-  description: string
+  icon: ReactNode
+  label: ReactNode
+  description: ReactNode
   recommended?: boolean
   checked: boolean
   disabled?: boolean
@@ -27,7 +28,7 @@ export const PreferenceCard = ({
     <button
       aria-pressed={checked}
       className={cn(
-        'relative flex w-full items-start gap-4 overflow-hidden rounded-lg border border-solid p-4 text-left transition-colors',
+        'relative flex h-full w-full items-start gap-4 overflow-hidden rounded-lg border border-solid p-4 text-left transition-colors',
         checked
           ? 'border-ens-lapis-500 bg-[#dbf0f8]'
           : 'border-[#dededf] bg-[#faf9f7] hover:bg-[#f1efeb]',

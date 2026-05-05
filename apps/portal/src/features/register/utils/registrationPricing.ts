@@ -10,13 +10,13 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getLabel } from '@/utils/token/getLabel'
 
 /** Standard price per year for names with more than 4 characters */
-export const STANDARD_PRICE_PER_YEAR_USD = 5
+export const STANDARD_PRICE_PER_YEAR_USD = 8
 
 /**
  * Returns the standard (full) price per year for a name based on its label length.
  * - 3 letters: $640/year
  * - 4 letters: $160/year
- * - 5+ chars: $5/year
+ * - 5+ chars: $8/year
  */
 export function getStandardPricePerYear(name: string): number {
   try {

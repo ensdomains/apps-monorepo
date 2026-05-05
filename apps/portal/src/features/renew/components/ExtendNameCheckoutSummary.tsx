@@ -31,7 +31,7 @@ export const ExtendNameCheckoutSummary = ({
 
   return (
     <section
-      className="border border-border rounded-sm bg-card py-5"
+      className="border border-border rounded-sm py-5"
       aria-label="Extension summary"
     >
       {match({ isLoading, isError, hasDisplay: display !== null })
@@ -78,12 +78,7 @@ const SummaryRow = ({
   valueClassName,
 }: SummaryRowProps) => (
   <div className={cn('flex items-center justify-between px-5', className)}>
-    <dt
-      className={cn(
-        'text-base font-normal text-muted-foreground',
-        labelClassName,
-      )}
-    >
+    <dt className={cn('text-base font-normal text-foreground', labelClassName)}>
       {label}
     </dt>
     <dd className={cn('m-0 font-normal text-foreground', valueClassName)}>
@@ -98,7 +93,6 @@ const ExtensionSkeleton = () => (
     <SummaryRow label="New expiry:" value={<Skeleton className="h-5 w-24" />} />
     <hr className="border-border" />
     <SummaryRow label="Price:" value={<Skeleton className="h-5 w-20" />} />
-    <SummaryRow label="Subtotal:" value={<Skeleton className="h-5 w-20" />} />
     <SummaryRow
       label="Total:"
       value={<Skeleton className="h-7 w-14" />}
@@ -118,7 +112,7 @@ const ExtensionPriceBreakdown = ({
     newExpiryFormatted,
     priceLabel,
     priceValue,
-    subtotal,
+    discountSublabel,
     total,
   } = display
 
@@ -129,12 +123,18 @@ const ExtensionPriceBreakdown = ({
 
       <hr className="border-border my-3" />
 
-      <SummaryRow label={priceLabel} value={priceValue} />
-
       <SummaryRow
-        label="Subtotal:"
-        value={subtotal}
-        valueClassName="flex items-center gap-1 m-0"
+        label={priceLabel}
+        value={
+          <span className="flex flex-col items-end m-0">
+            <span>{priceValue}</span>
+            {discountSublabel ? (
+              <span className="text-xs text-success-text">
+                {discountSublabel}
+              </span>
+            ) : null}
+          </span>
+        }
       />
 
       <SummaryRow

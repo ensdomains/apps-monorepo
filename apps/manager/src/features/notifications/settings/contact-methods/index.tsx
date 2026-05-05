@@ -15,7 +15,7 @@ export const ContactMethods = () => {
   })
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       <h2 className="font-normal font-sans text-[#011a25] text-base leading-ens-normal">
         Contact methods
       </h2>

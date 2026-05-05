@@ -107,7 +107,7 @@ export const NotificationSettings = ({
         </div>
 
         {/* Preferences card */}
-        <div className="order-1 flex flex-col gap-1 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)] md:order-2">
+        <div className="order-1 flex flex-col gap-2 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)] md:order-2">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pb-2">
             <h2 className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
               <Trans>Preferences</Trans>
@@ -116,16 +116,19 @@ export const NotificationSettings = ({
               <Trans>In-app notifications are always enabled</Trans>
             </p>
           </div>
-
           <form.Field name="ownedNameExpiry">
             {(field) => (
               <PreferenceCard
                 checked={field.state.value}
-                description={t`You'll be notified 30, 7, and 1 day before expiry.`}
+                description={
+                  <Trans>
+                    You'll be notified 30, 7, and 1 day before expiry.
+                  </Trans>
+                }
                 disabled={preferences.isRefetching}
                 icon={<MSymbol className="ms-wght-300" symbol="schedule" />}
                 isLoading={preferences.isLoading}
-                label={t`Name Expiry`}
+                label={<Trans>Name Expiry</Trans>}
                 onChange={(checked) => field.handleChange(checked)}
                 recommended
               />
@@ -135,11 +138,15 @@ export const NotificationSettings = ({
             {(field) => (
               <PreferenceCard
                 checked={field.state.value}
-                description={t`Get updated on the latest releases and features.`}
+                description={
+                  <Trans>
+                    Get updated on the latest releases and features.
+                  </Trans>
+                }
                 disabled={preferences.isRefetching}
                 icon={<EnsMobileIcon />}
                 isLoading={preferences.isLoading}
-                label={t`ENS Labs Updates`}
+                label={<Trans>ENS Labs Updates</Trans>}
                 onChange={(checked) => field.handleChange(checked)}
               />
             )}
@@ -148,11 +155,13 @@ export const NotificationSettings = ({
             {(field) => (
               <PreferenceCard
                 checked={field.state.value}
-                description={t`Get notified when names you favorited expire.`}
+                description={
+                  <Trans>Get notified when names you favorited expire.</Trans>
+                }
                 disabled={preferences.isRefetching}
                 icon={<MSymbol className="ms-wght-300" symbol="favorite" />}
                 isLoading={preferences.isLoading}
-                label={t`Favourites`}
+                label={<Trans>Favourites</Trans>}
                 onChange={(checked) => field.handleChange(checked)}
               />
             )}

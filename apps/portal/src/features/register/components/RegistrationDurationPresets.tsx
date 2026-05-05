@@ -1,19 +1,22 @@
 import { Badge } from '@/components/ui/badge'
+import { getEffectivePricePerYear } from '@/features/register/utils/registrationDiscount'
+import { getStandardPricePerYear } from '@/features/register/utils/registrationPricing'
 import { cn } from '@/lib/utils'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
-export const PRESET_YEARS = [1, 3, 5, 10] as const
+export const PRESET_YEARS = [1, 2, 3, 5] as const
 
 type RegistrationDurationPresetsProps = {
   readonly value: number
   readonly onSelect: (years: number) => void
-  /** Discount percent keyed by preset year, derived from getPrice() vs base rate. */
-  readonly discounts?: Partial<Record<(typeof PRESET_YEARS)[number], number>>
+  /** Name used to determine the standard $/year baseline (3-letter, 4-letter, 5+) */
+  readonly name?: string
 }
 
 export const RegistrationDurationPresets = ({
   value,
   onSelect,
-  discounts,
+  name,
 }: RegistrationDurationPresetsProps) => {
   const selectedYears = PRESET_YEARS.includes(
     value as (typeof PRESET_YEARS)[number],
@@ -21,12 +24,16 @@ export const RegistrationDurationPresets = ({
     ? value
     : undefined
 
+  const basePricePerYear = name ? getStandardPricePerYear(name) : 0
+
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex gap-2 items-center flex-wrap">
       {PRESET_YEARS.map((years) => {
-        const percent = discounts?.[years] ?? 0
-        const discount = percent > 0 ? `${Math.round(percent)}% off` : undefined
         const isSelected = selectedYears === years
+        const effective =
+          basePricePerYear > 0
+            ? getEffectivePricePerYear(basePricePerYear, years)
+            : 0
 
         return (
           <Badge
@@ -47,15 +54,15 @@ export const RegistrationDurationPresets = ({
               isSelected && 'border-transparent',
             )}
           >
-            {`${years} year${years > 1 ? 's' : ''}`}{' '}
-            {discount ? (
+            {`${years} years`}{' '}
+            {effective > 0 ? (
               <span
                 className={cn(
                   'font-normal',
-                  isSelected ? 'text-primary' : 'text-success',
+                  isSelected ? 'text-primary' : 'text-success-text',
                 )}
               >
-                {discount}
+                {`${formatUsd(effective)}/yr`}
               </span>
             ) : null}
           </Badge>

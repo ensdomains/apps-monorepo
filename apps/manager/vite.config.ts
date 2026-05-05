@@ -1,10 +1,11 @@
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
-import { lingui } from '@lingui/vite-plugin'
+import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin'
+import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig, type PluginOption } from 'vite'
+import { defineConfig } from 'vite'
 import { linguiMacroPlugin } from './lingui-macro-plugin'
 
 // https://vitejs.dev/config/
@@ -20,22 +21,28 @@ export default defineConfig({
     },
   },
   plugins: [
-    linguiMacroPlugin() as unknown as PluginOption,
+    linguiMacroPlugin(),
     cloudflare({
       viteEnvironment: { name: 'ssr' },
-    }) as unknown as PluginOption,
-    tanstackStart() as unknown as PluginOption,
-    viteReact({
-      babel: {
-        plugins: ['@lingui/babel-plugin-lingui-macro'],
-      },
-    }) as unknown as PluginOption,
-    lingui() as unknown as PluginOption,
-    tailwindcss() as unknown as PluginOption,
+    }),
+    tanstackStart(),
+    viteReact(),
+    babel({
+      presets: [linguiTransformerBabelPreset()],
+    }),
+    lingui(),
+    tailwindcss(),
   ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
+  build: {
+    rolldownOptions: {
+      experimental: {
+        lazyBarrel: true, // Reduces compiled modules for barrel exports
+      },
     },
   },
 })

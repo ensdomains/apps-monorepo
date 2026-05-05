@@ -17,7 +17,6 @@ export const NotificationSettingsPage = () => {
           updates.
         </p>
       </div>
-
       <ContactMethods />
 
       <NotificationPreferences />

@@ -1,17 +1,11 @@
-import { Trans, useLingui } from '@lingui/react/macro'
-import { useForm } from '@tanstack/react-form'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { Trans } from '@lingui/react/macro'
 import { useSelector as useStoreSelector } from '@xstate/store-react'
-import { toast } from 'sonner'
-import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
-import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  preferencesQueryOptions,
-  updatePreferenceMutationOptions,
-} from '@/features/notifications/data/queries/preferences'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
-import { PreferenceCard } from '@/features/notifications/settings/preference-card'
+import {
+  NotificationPreferencesFields,
+  useNotificationPreferencesForm,
+} from '@/features/notifications/settings/preferences'
 import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 
 export interface NotificationSettingsProps {
@@ -23,44 +17,14 @@ export const NotificationSettingsStep = ({
   onConfirm,
   onSkip,
 }: NotificationSettingsProps) => {
-  const { t } = useLingui()
   const isAuthed = useStoreSelector(isBackendAuthed)
 
-  const preferences = useQuery({
-    ...preferencesQueryOptions,
-    enabled: isAuthed,
-  })
-
-  const updatePreferencesMutation = useMutation({
-    ...updatePreferenceMutationOptions,
-    onSuccess: () => {
-      toast.success(t`Preferences updated`)
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || t`Failed to update preferences`)
-    },
-  })
-
-  const form = useForm({
-    defaultValues: {
-      // Name Expiry defaults to enabled — it's the recommended preference.
-      ownedNameExpiry: preferences.data?.settings?.ownedNameExpiry ?? true,
-      ensLabsUpdates: preferences.data?.settings?.ensLabsUpdates ?? false,
-      favouritedNameExpiry:
-        preferences.data?.settings?.favouritedNameExpiry ?? false,
-    },
-    onSubmit: async ({ formApi, value }) => {
-      await updatePreferencesMutation.mutateAsync(value)
-
-      await preferences.refetch()
-
-      formApi.reset()
-      onConfirm()
-    },
-  })
-
-  const hasVerifiedChannels =
-    (preferences.data?.verifiedChannels?.length ?? 0) > 0
+  const { form, preferences, hasVerifiedChannels } =
+    useNotificationPreferencesForm({
+      preferencesQueryEnabled: isAuthed,
+      nameExpiryDefaultWhenUnset: true,
+      onPersistSuccess: onConfirm,
+    })
 
   return (
     <div className="mx-auto w-full max-w-5xl px-2 py-8 lg:my-5">
@@ -93,57 +57,12 @@ export const NotificationSettingsStep = ({
               <ContactMethods />
             </div>
 
-            {/* Preferences card */}
-            <div className="order-1 flex flex-col gap-1 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)] md:order-2">
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pb-2">
-                <h2 className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
-                  <Trans>Preferences</Trans>
-                </h2>
-                <p className="text-ens-quartz-400 text-sm italic leading-ens-normal">
-                  <Trans>In-app notifications are always enabled</Trans>
-                </p>
-              </div>
-
-              <form.Field name="ownedNameExpiry">
-                {(field) => (
-                  <PreferenceCard
-                    checked={field.state.value}
-                    description={t`You'll be notified 30, 7, and 1 day before expiry.`}
-                    disabled={preferences.isRefetching}
-                    icon={<MSymbol className="ms-wght-300" symbol="schedule" />}
-                    isLoading={preferences.isLoading}
-                    label={t`Name Expiry`}
-                    onChange={(checked) => field.handleChange(checked)}
-                    recommended
-                  />
-                )}
-              </form.Field>
-              <form.Field name="ensLabsUpdates">
-                {(field) => (
-                  <PreferenceCard
-                    checked={field.state.value}
-                    description={t`Get updated on the latest releases and features.`}
-                    disabled={preferences.isRefetching}
-                    icon={<EnsMobileIcon />}
-                    isLoading={preferences.isLoading}
-                    label={t`ENS Labs Updates`}
-                    onChange={(checked) => field.handleChange(checked)}
-                  />
-                )}
-              </form.Field>
-              <form.Field name="favouritedNameExpiry">
-                {(field) => (
-                  <PreferenceCard
-                    checked={field.state.value}
-                    description={t`Get notified when names you favorited expire.`}
-                    disabled={preferences.isRefetching}
-                    icon={<MSymbol className="ms-wght-300" symbol="favorite" />}
-                    isLoading={preferences.isLoading}
-                    label={t`Favourites`}
-                    onChange={(checked) => field.handleChange(checked)}
-                  />
-                )}
-              </form.Field>
+            {/* Preferences card — same fields as notification settings `NotificationPreferences` */}
+            <div className="order-1 flex flex-col gap-4 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)] md:order-2">
+              <NotificationPreferencesFields
+                form={form}
+                preferences={preferences}
+              />
             </div>
           </div>
 

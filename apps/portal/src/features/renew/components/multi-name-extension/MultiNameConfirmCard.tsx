@@ -26,7 +26,7 @@ export const MultiNameConfirmCard = ({
             name={selectedName.name}
             height="40px"
             width="40px"
-            rounded="rounded-md"
+            rounded="rounded-sm"
           />
         </div>
         <div className="flex flex-col w-full gap-1">
@@ -60,7 +60,7 @@ const MultiNameConfirmCardSkeleton = ({
   name,
 }: MultiNameConfirmCardSkeletonProps) => (
   <div className="border-b border-border px-4 py-3 flex items-center gap-3">
-    <NameAvatar name={name} height="40px" width="40px" rounded="rounded-md" />
+    <NameAvatar name={name} height="40px" width="40px" rounded="rounded-sm" />
     <div className="flex flex-col flex-1 gap-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium truncate">{name}</span>
