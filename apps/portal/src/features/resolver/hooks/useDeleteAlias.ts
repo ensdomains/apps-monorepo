@@ -9,6 +9,7 @@ interface UseDeleteAliasOptions {
   readonly walletClient: WalletClient | undefined
   readonly publicClient: PublicClient | undefined
   readonly chainId: number
+  readonly id: string
 }
 
 export const useDeleteAlias = ({
@@ -16,6 +17,7 @@ export const useDeleteAlias = ({
   walletClient,
   publicClient,
   chainId,
+  id,
 }: UseDeleteAliasOptions) => {
   const queryClient = useQueryClient()
 
@@ -31,6 +33,7 @@ export const useDeleteAlias = ({
         publicClient,
         signer: createEOASigner(walletClient),
         chainId,
+        id,
       })
     },
     onSuccess: async () => {

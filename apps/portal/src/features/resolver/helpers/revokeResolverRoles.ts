@@ -1,5 +1,15 @@
-import type { Address, Hash, WalletClient } from 'viem'
-import { writeContract } from 'viem/actions'
+import {
+  type Signer,
+  transactionManager,
+  waitForTransaction,
+} from '@ens-apps/transaction-manager'
+import {
+  type Address,
+  encodeFunctionData,
+  type Hash,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
 import { packetToBytes } from 'viem/ens'
 import { toHex } from 'viem/utils'
 import { type ResolverRoleKey, resolverRoles } from '@/lib/roles/resolverRoles'
@@ -32,12 +42,26 @@ export interface RevokeResolverRolesParameters {
   readonly account: Address
   readonly roles: readonly ResolverRoleKey[]
   readonly walletClient: WalletClient
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly chainId: number
+  readonly id: string
 }
 
 export const revokeResolverRoles = async (
   params: RevokeResolverRolesParameters,
 ): Promise<Hash> => {
-  const { resolverAddress, name, account, roles, walletClient } = params
+  const {
+    resolverAddress,
+    name,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    id,
+  } = params
 
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
@@ -49,13 +73,32 @@ export const revokeResolverRoles = async (
 
   const roleBitmap = encodeRoleBitmapFromKeys(roles)
   const dnsName = name === '' ? '0x00' : toHex(packetToBytes(name))
-
-  return writeContract(walletClient, {
-    address: resolverAddress,
+  const data = encodeFunctionData({
     abi: revokeNameRolesSnippet,
     functionName: 'revokeNameRoles',
     args: [dnsName, roleBitmap, account],
-    chain: walletClient.chain,
-    account: walletClient.account,
   })
+
+  const txId = transactionManager.startTransaction(
+    {
+      type: 'custom',
+      request: {
+        type: 'eoa',
+        from: walletClient.account.address,
+        to: resolverAddress,
+        data,
+        value: 0n,
+        chainId,
+      },
+    },
+    signer,
+    {
+      id,
+      description: `Revoke resolver roles for ${name || '(root)'}`,
+      publicClient,
+      chainId,
+    },
+  )
+  const result = await waitForTransaction(txId)
+  return result.hash
 }
