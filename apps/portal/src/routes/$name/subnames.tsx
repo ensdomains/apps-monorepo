@@ -243,21 +243,17 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     [openTransactionModal],
   )
 
-  const handleDeleteSubname = useCallback(
-    (subname: SubnameRow) => queueForDeletion([subname]),
-    [queueForDeletion],
-  )
+  const handleDeleteSubname = (subname: SubnameRow) =>
+    queueForDeletion([subname])
 
-  const handleClearSelected = useCallback(
-    (selected: SubnameRow[]) => queueForDeletion(selected),
-    [queueForDeletion],
-  )
+  const handleClearSelected = (selected: SubnameRow[]) =>
+    queueForDeletion(selected)
 
-  const handleAllDone = useCallback(() => {
+  const handleAllDone = () => {
     closeTransactionModal()
     clearTransaction()
     setQueuedDeletes([])
-  }, [closeTransactionModal, clearTransaction])
+  }
 
   // One Transaction entry per queued subname. The modal walks through them
   // top-to-bottom; intermediate onDone fires the next one's onStart so the
