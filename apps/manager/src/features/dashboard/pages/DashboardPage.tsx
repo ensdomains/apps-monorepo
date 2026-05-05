@@ -14,6 +14,7 @@ import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
@@ -32,6 +33,7 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
+  const migrationEnabled = useFeatureFlag('MIGRATION')
 
   const { data: reverseName } = useSuspenseQuery({
     ...profileReverseNameQuery(ownerAddress ?? undefined),
@@ -61,11 +63,13 @@ export const DashboardPage = () => {
 
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-col items-start gap-4 py-6 md:flex-row md:gap-8 md:px-[58px] md:py-10">
-      <MigrationModal />
+      {migrationEnabled && <MigrationModal />}
       <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
-        <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
-          <UpgradeBanner />
-        </motion.div>
+        {migrationEnabled && (
+          <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
+            <UpgradeBanner />
+          </motion.div>
+        )}
         <motion.div
           className="flex items-center gap-3 px-4 md:px-0"
           {...stagger(1, shouldReduceMotion)}
@@ -112,10 +116,13 @@ export const DashboardPage = () => {
           {...stagger(hasProfile ? 3 : 2, shouldReduceMotion)}
         >
           <div className="space-y-5">
-            <NamesTable primaryLabel={defaultName} />
+            <NamesTable
+              migrationEnabled={migrationEnabled}
+              primaryLabel={defaultName}
+            />
           </div>
         </motion.div>
-        <MigrationProgressBanner />
+        {migrationEnabled && <MigrationProgressBanner />}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
           {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}

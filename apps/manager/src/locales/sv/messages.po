@@ -778,7 +778,7 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:334
+#: src/features/dashboard/components/MyNamesList.tsx:341
 msgid "Eligible for upgrade"
 msgstr ""
 
@@ -886,7 +886,7 @@ msgstr ""
 msgid "Enter your email"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:181
+#: src/features/dashboard/components/MyNamesList.tsx:188
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
@@ -907,7 +907,7 @@ msgstr ""
 msgid "expires {expiryDateString}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:364
+#: src/features/dashboard/components/MyNamesList.tsx:371
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -921,15 +921,15 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:255
+#: src/features/dashboard/components/MyNamesList.tsx:262
 msgid "Expiry"
 msgstr "Utgång"
 
-#: src/features/dashboard/components/MyNamesList.tsx:210
+#: src/features/dashboard/components/MyNamesList.tsx:217
 msgid "Expiry date (Earliest)"
 msgstr "Utgångsdatum (tidigast)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:213
+#: src/features/dashboard/components/MyNamesList.tsx:220
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
@@ -1020,7 +1020,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:119
+#: src/features/dashboard/components/NamesTable.tsx:123
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1105,7 +1105,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:74
+#: src/features/dashboard/pages/DashboardPage.tsx:78
 msgid "Hello"
 msgstr "Hej"
 
@@ -1276,23 +1276,23 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:114
+#: src/features/dashboard/components/NamesTable.tsx:118
 msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:236
+#: src/features/dashboard/components/MyNamesList.tsx:243
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:164
-#: src/features/dashboard/components/MyNamesList.tsx:204
+#: src/features/dashboard/components/MyNamesList.tsx:211
 msgid "Name (A-Z)"
 msgstr "Namn (A-Ö)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:167
-#: src/features/dashboard/components/MyNamesList.tsx:207
+#: src/features/dashboard/components/MyNamesList.tsx:214
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
@@ -1343,7 +1343,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:290
-#: src/features/dashboard/components/MyNamesList.tsx:389
+#: src/features/dashboard/components/MyNamesList.tsx:396
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
 msgstr ""
@@ -1387,7 +1387,7 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:227
 #: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:286
+#: src/features/dashboard/components/MyNamesList.tsx:293
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1580,7 +1580,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:281
-#: src/features/dashboard/components/MyNamesList.tsx:380
+#: src/features/dashboard/components/MyNamesList.tsx:387
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
 msgstr ""
@@ -1887,7 +1887,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:157
+#: src/features/dashboard/components/NamesTable.tsx:161
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
@@ -1895,7 +1895,7 @@ msgstr "Sök mitt namn..."
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/dashboard/components/NamesTable.tsx:157
+#: src/features/dashboard/components/NamesTable.tsx:161
 msgid "Search name..."
 msgstr "Sök namn..."
 
@@ -1974,7 +1974,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:95
+#: src/features/dashboard/pages/DashboardPage.tsx:99
 msgid "Set primary name"
 msgstr ""
 
@@ -2029,7 +2029,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:399
+#: src/features/dashboard/components/MyNamesList.tsx:406
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -2037,7 +2037,7 @@ msgstr "Visar dina namn"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:122
+#: src/features/dashboard/components/NamesTable.tsx:126
 msgid "Sign in to view favorites"
 msgstr "Logga in för att se favoriter"
 
@@ -2111,34 +2111,34 @@ msgid "Social Links"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:141
-#: src/features/dashboard/components/MyNamesList.tsx:192
+#: src/features/dashboard/components/MyNamesList.tsx:199
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:244
+#: src/features/dashboard/components/MyNamesList.tsx:251
 msgid "Sort by expiry, currently ascending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:245
+#: src/features/dashboard/components/MyNamesList.tsx:252
 msgid "Sort by expiry, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:246
+#: src/features/dashboard/components/MyNamesList.tsx:253
 msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:185
-#: src/features/dashboard/components/MyNamesList.tsx:225
+#: src/features/dashboard/components/MyNamesList.tsx:232
 msgid "Sort by name, currently ascending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:186
-#: src/features/dashboard/components/MyNamesList.tsx:226
+#: src/features/dashboard/components/MyNamesList.tsx:233
 msgid "Sort by name, currently descending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:187
-#: src/features/dashboard/components/MyNamesList.tsx:227
+#: src/features/dashboard/components/MyNamesList.tsx:234
 msgid "Sort by name, currently unsorted"
 msgstr ""
 
@@ -2146,7 +2146,7 @@ msgstr ""
 msgid "Sort favorites by"
 msgstr "Sortera favoriter efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:195
+#: src/features/dashboard/components/MyNamesList.tsx:202
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
@@ -2371,7 +2371,7 @@ msgid "Updating profile"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx:172
-#: src/features/migration/components/UpgradeNamesButton.tsx:21
+#: src/features/migration/components/UpgradeNamesButton.tsx:26
 msgid "Upgrade Names"
 msgstr ""
 
