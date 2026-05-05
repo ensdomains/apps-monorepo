@@ -76,7 +76,7 @@ export const TransactionsOverviewContent = ({
           {ensName ? (
             <div className="flex flex-col items-center gap-2 pt-10">
               <NameAvatar name={ensName} height="80px" width="80px" />
-              <h2 className="text-3xl font-medium w-max text-foreground">
+              <h2 className="text-3xl font-medium text-foreground text-center max-w-full break-all">
                 {ensName}
               </h2>
             </div>
@@ -120,9 +120,9 @@ export const TransactionsOverviewContent = ({
                   }}
                 >
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-base font-medium w-max text-foreground">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <h4 className="text-base font-medium text-foreground min-w-0 break-words">
                           {transaction.title}
                         </h4>
                         {match(getStatus(transaction.id, activeTransactionsMap))

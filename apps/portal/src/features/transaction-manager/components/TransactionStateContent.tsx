@@ -107,7 +107,7 @@ export const TransactionStateContent = ({
               </div>
               <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-medium truncate text-wrap">
+                  <h3 className="text-base font-medium whitespace-normal leading-snug break-all min-w-0">
                     {transaction.transactionName}
                   </h3>
                   {blockExplorerTxUrl && (
