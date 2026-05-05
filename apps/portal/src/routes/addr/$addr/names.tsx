@@ -32,10 +32,7 @@ import {
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
-import {
-  type RenewalFlowType,
-  useRenewalTransactions,
-} from '@/features/renew/hooks/useRenewalTransactions'
+import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
 import {
   getNameLength,
   getNameStatus,
@@ -106,8 +103,6 @@ function RouteComponent() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [extendModalOpen, setExtendModalOpen] = useState(false)
-  const [renewalSuccessFlow, setRenewalSuccessFlow] =
-    useState<RenewalFlowType | null>(null)
 
   const {
     transactions: renewalTransactions,
@@ -115,15 +110,15 @@ function RouteComponent() {
     startMultiFlow,
     clearIncompatibleRenewalState,
   } = useRenewalTransactions({
-    onComplete: (flowType) => {
+    onComplete: () => {
       setRowSelection({})
+      setExtendModalOpen(false)
       void queryClient.invalidateQueries({
         queryKey: ['get-names-for-address'],
       })
       void queryClient.invalidateQueries({
         queryKey: ['get-v2-names-with-roles-for-address'],
       })
-      setRenewalSuccessFlow(flowType)
     },
   })
 
@@ -353,18 +348,9 @@ function RouteComponent() {
       {extendableNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen && !isTransactionModalOpen}
-          onClose={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
+          onClose={() => setExtendModalOpen(false)}
           selectedName={extendableNames[0]}
-          transactionCompleted={renewalSuccessFlow === 'single'}
-          onSuccessAcknowledged={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
           onExtend={(config) => {
-            setRenewalSuccessFlow(null)
             startFlow(extendableNames[0], config)
             openModal()
           }}
@@ -373,18 +359,9 @@ function RouteComponent() {
       {extendableNames.length > 1 && (
         <MultiNameExtendModal
           open={extendModalOpen && !isTransactionModalOpen}
-          onClose={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
-          transactionCompleted={renewalSuccessFlow === 'multi'}
-          onSuccessAcknowledged={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
+          onClose={() => setExtendModalOpen(false)}
           selectedNames={extendableNames}
           onExtend={(config) => {
-            setRenewalSuccessFlow(null)
             startMultiFlow({
               renewals: config.renewals,
               tokenAddress: config.token.address,

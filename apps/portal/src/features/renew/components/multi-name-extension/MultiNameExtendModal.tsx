@@ -20,7 +20,6 @@ import { ExtendNameDisclaimer } from '../ExtendNameDisclaimer'
 import type { ExtensionSpanType } from '../ExtensionDurationOrExpiryPicker'
 import { MultiNameExtendSettings } from './MultiNameExtendSettings'
 import { MultiNameExtendSummary } from './MultiNameExtendSummary'
-import { MultiNameExtensionSuccess } from './MultiNameExtensionSuccess'
 
 type MultiRenewConfig = {
   readonly renewals: readonly MultiRenewalEntry[]
@@ -32,23 +31,15 @@ type MultiNameExtendModalProps = {
   readonly onClose: () => void
   readonly selectedNames: readonly SelectedName[]
   readonly onExtend: (config: MultiRenewConfig) => void
-  readonly transactionCompleted: boolean
-  readonly onSuccessAcknowledged: () => void
 }
 
-export type MultiNameExtendModalStep =
-  | 'disclaimer'
-  | 'settings'
-  | 'summary'
-  | 'success'
+export type MultiNameExtendModalStep = 'disclaimer' | 'settings' | 'summary'
 
 export const MultiNameExtendModal = ({
   open,
   onClose,
   selectedNames,
   onExtend,
-  transactionCompleted,
-  onSuccessAcknowledged,
 }: MultiNameExtendModalProps) => {
   const { address } = useConnection()
   const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
@@ -68,16 +59,15 @@ export const MultiNameExtendModal = ({
   }))
 
   useEffect(() => {
-    if (open && transactionCompleted) {
-      setStep('success')
+    if (!open) {
+      setStep('disclaimer')
     }
-  }, [open, transactionCompleted])
+  }, [open])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
     .with('settings', () => 'Extend names')
     .with('summary', () => 'Confirm extension')
-    .with('success', () => undefined)
     .exhaustive()
 
   return (
@@ -87,7 +77,6 @@ export const MultiNameExtendModal = ({
         if (!isOpen) {
           onClose()
         }
-        setStep('disclaimer')
       }}
     >
       <DialogContent className="sm:max-w-[460px] max-h-[80vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -124,12 +113,6 @@ export const MultiNameExtendModal = ({
               onNext={(token) => {
                 onExtend({ renewals, token })
               }}
-            />
-          ))
-          .with('success', () => (
-            <MultiNameExtensionSuccess
-              pricingData={pricingData}
-              onClose={onSuccessAcknowledged}
             />
           ))
           .exhaustive()}
