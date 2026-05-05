@@ -15,6 +15,7 @@ import {
   submitRegistrationActor,
   submitResolverDeploymentActor,
   validateCommitmentActor,
+  verifyRegistrationActor,
 } from './registration.actors'
 
 /**
@@ -256,6 +257,17 @@ export const registrationMachine = setup({
         useFastRegistrar: boolean
       }) => {
         return readPaymentTokenAllowanceActor(input)
+      },
+    ),
+    verifyRegistration: fromResultAsync(
+      (input: {
+        name: string
+        owner: Address
+        resolverAddress: Address
+        publicClient: PublicClient
+        useFastRegistrar: boolean
+      }) => {
+        return verifyRegistrationActor(input)
       },
     ),
   },
@@ -975,11 +987,62 @@ export const registrationMachine = setup({
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
         onDone: 'success',
+        // If the poll fails (wallet flake, retry storm, persistence loss…)
+        // fall back to a fresh on-chain check before declaring the flow
+        // failed. The user may have already paid for and received the name.
+        onError: {
+          target: 'verifyingRegistration',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    verifyingRegistration: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'verifyRegistration',
+        input: ({ context }) => ({
+          name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          resolverAddress: context.resolverAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+        }),
+        onDone: [
+          {
+            guard: ({ event }) => event.output.verified,
+            target: 'success',
+            actions: assign({
+              error: () => undefined,
+            }),
+          },
+          {
+            target: 'error',
+            actions: [
+              assign({
+                retryTarget: () => 'registeringDomain' as const,
+              }),
+              ({ context }) => {
+                console.error(
+                  '❌ [REGISTRATION] Registration not present on-chain after fallback check:',
+                  context.error,
+                )
+              },
+            ],
+          },
+        ],
         onError: {
           target: 'error',
           actions: [
             assign({
-              error: ({ event }) => event.error as Error,
               retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {

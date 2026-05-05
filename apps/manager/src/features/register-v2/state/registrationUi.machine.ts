@@ -185,7 +185,11 @@ const startRegistrationAction = machineSetup.createAction(
         accountAddress: event.account.accountAddress,
         ownerAddress,
         publicClient: defaultPublicClient,
-        useFastRegistrar: true,
+        // The canonical v2 ETHRegistrar handles both fork and prod deployments
+        // and has the current MockUSDC/MockDAI in its payment-token whitelist.
+        // FastTestETHRegistrar from the previous fork still exists on the new
+        // fork but with a stale whitelist, so leave it disabled.
+        useFastRegistrar: false,
         sponsored:
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true
