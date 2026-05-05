@@ -138,8 +138,8 @@ function RouteComponent() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [tableView] = useTableViewSettings()
   const chainId = sepoliaWithEns.id
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
   const { address: accountAddress } = useConnection()
 
   const {

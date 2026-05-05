@@ -65,7 +65,7 @@ export function useSmartAccountBalances(
 
         const results = await Promise.allSettled(
           Object.entries(SUPPORTED_TOKENS).map(
-            async ([tokenName, tokenAddress]) => {
+            async ([tokenName, tokenAddress]): Promise<StablecoinBalance> => {
               const [balance, decimals] = await Promise.all([
                 readContract(publicClient, {
                   address: tokenAddress,

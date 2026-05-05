@@ -1,3 +1,4 @@
+import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
@@ -77,10 +78,7 @@ export class NameChainContractError extends TaggedError(
 export const EMPTY_ADDRESS = zeroAddress
 export const REFERER_ADDRESS = zeroHash
 
-export const SUPPORTED_TOKENS = {
-  USDC: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as Address, // USDC (matches ensjs chain config)
-  DAI: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as Address, // DAI (matches SUPPORTED_TOKENS in transaction-manager)
-} as const
+export { SUPPORTED_TOKENS }
 
 // Default payment token - USDC
 export const DEFAULT_PAYMENT_TOKEN = SUPPORTED_TOKENS.USDC

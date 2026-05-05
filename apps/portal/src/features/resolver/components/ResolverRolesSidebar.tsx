@@ -41,7 +41,6 @@ import {
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 type ResolverRolesSidebarProps = PropsWithChildren<{
@@ -62,10 +61,9 @@ export const ResolverRolesSidebar = ({
 }: ResolverRolesSidebarProps) => {
   const isMobile = useIsMobile()
   const queryClient = useQueryClient()
-  const chainId = sepoliaWithEns.id
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
 
   const selectedAccount = row?.original.account
   const decodedRoles = row?.original.decodedRoles ?? []
