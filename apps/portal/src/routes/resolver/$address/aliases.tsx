@@ -134,8 +134,9 @@ const deleteColumn: ColumnDef<ResolverAlias> = {
   enableSorting: false,
 }
 
+const DELETE_ALIAS_TX_ID = 'tx-delete-alias'
+
 function RouteComponent() {
-  const DELETE_ALIAS_TX_ID = 'tx-delete-alias'
   const { address } = Route.useParams()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')

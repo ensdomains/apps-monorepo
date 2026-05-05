@@ -55,6 +55,9 @@ type ResolverRolesSidebarProps = PropsWithChildren<{
   readonly canManageRoles: boolean
 }>
 
+const SAVE_RESOLVER_ROLES_TX_ID = 'tx-save-resolver-roles'
+const REMOVE_RESOLVER_USER_TX_ID = 'tx-remove-resolver-user'
+
 export const ResolverRolesSidebar = ({
   children,
   row,
@@ -63,8 +66,6 @@ export const ResolverRolesSidebar = ({
   resolverAddress,
   canManageRoles,
 }: ResolverRolesSidebarProps) => {
-  const SAVE_RESOLVER_ROLES_TX_ID = 'tx-save-resolver-roles'
-  const REMOVE_RESOLVER_USER_TX_ID = 'tx-remove-resolver-user'
   const isMobile = useIsMobile()
   const queryClient = useQueryClient()
   const chainId = sepoliaWithEns.id

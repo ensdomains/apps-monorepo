@@ -78,8 +78,9 @@ const NodeOption = ({ node }: NodeOptionProps) => (
   </div>
 )
 
+const CREATE_ALIAS_TX_ID = 'tx-create-alias'
+
 function RouteComponent() {
-  const CREATE_ALIAS_TX_ID = 'tx-create-alias'
   const { address } = Route.useParams()
   const navigate = useNavigate()
   const { address: accountAddress, isConnected } = useConnection()

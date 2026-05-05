@@ -37,9 +37,9 @@ export const Route = createFileRoute('/resolver/$address/roles/add-user')({
 })
 
 const ROOT_NODE_VALUE = ''
+const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
 
 function RouteComponent() {
-  const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
   const { address } = Route.useParams()
   const navigate = useNavigate()
   const chainId = sepoliaWithEns.id
