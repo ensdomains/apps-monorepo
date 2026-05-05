@@ -167,6 +167,9 @@ export const ResolverRolesSidebar = ({
       }
     },
     onSuccess: async () => {
+      closeModal()
+      clearTransaction()
+      setPendingAction(null)
       setOpen(false)
       await pollForIndexerSync({
         invalidateQueries: () =>
@@ -206,6 +209,9 @@ export const ResolverRolesSidebar = ({
       })
     },
     onSuccess: async () => {
+      closeModal()
+      clearTransaction()
+      setPendingAction(null)
       setOpen(false)
       await pollForIndexerSync({
         invalidateQueries: () =>

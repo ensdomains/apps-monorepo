@@ -90,8 +90,12 @@ function RouteComponent() {
     publicClient,
     chainId,
     id: GRANT_RESOLVER_ROLES_TX_ID,
-    onSuccess: () =>
-      navigate({ to: '/resolver/$address/roles', params: { address } }),
+    onSuccess: () => {
+      closeModal()
+      clearTransaction()
+      setPendingRoleGrant(null)
+      navigate({ to: '/resolver/$address/roles', params: { address } })
+    },
   })
 
   if (isLoading) return <LoadingMessage />
