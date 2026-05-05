@@ -182,7 +182,6 @@ describe('packPlanBatches', () => {
       migrationOwner: PARENT_A,
       defaultResolver: PARENT_B,
       ownedPermRes: null,
-      notReservedSet: new Set(),
       profiles: new Map(),
       pack,
     })
@@ -202,7 +201,6 @@ describe('packPlanBatches', () => {
       migrationOwner: PARENT_A,
       defaultResolver: PARENT_B,
       ownedPermRes: null,
-      notReservedSet: new Set(),
       profiles: new Map(),
       pack,
     })

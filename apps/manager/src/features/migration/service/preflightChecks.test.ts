@@ -15,7 +15,6 @@ import {
   checkFrozenApproval,
   checkOwnership,
   checkV2Status,
-  filterNotReserved,
   resolveParentRegistries,
   runEligibilityChecks,
 } from './preflightChecks'
@@ -142,32 +141,6 @@ describe('checkFrozenApproval', () => {
     ])
     expect([...ids]).toEqual(['0xa1'])
     warn.mockRestore()
-  })
-})
-
-describe('filterNotReserved', () => {
-  it('returns empty when no 2LDs in the input', async () => {
-    const result = await filterNotReserved(publicClient, [
-      makeClassified({ tokenType: 'locked-child', parentName: 'raffy.eth' }),
-    ])
-    expect(result).toEqual([])
-    expect(multicallMock).not.toHaveBeenCalled()
-  })
-
-  it('keeps 2LDs whose v2 resolver is zero (= not reserved)', async () => {
-    multicallMock.mockResolvedValueOnce([ok(zeroAddress), ok(OTHER)])
-    const result = await filterNotReserved(publicClient, [
-      makeClassified({ id: '0xa1', label: 'a' }),
-      makeClassified({ id: '0xb1', label: 'b' }),
-    ])
-    expect(result.map((n) => n.domain.id)).toEqual(['0xa1'])
-  })
-
-  it('treats a failed multicall entry as reserved', async () => {
-    multicallMock.mockResolvedValueOnce([fail()])
-    expect(
-      await filterNotReserved(publicClient, [makeClassified({ id: '0xa1' })]),
-    ).toEqual([])
   })
 })
 

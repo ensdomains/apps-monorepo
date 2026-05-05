@@ -41,7 +41,7 @@
 
 ## Migration Assumptions
 
-- Premigration has occurred
+- Reservation state is maintained by the v2 deployment, not by the manager migration flow
     - Expiries “too close” (TBD: 7 days?) to ENSv2 launch will be extended in ENSv1
     - Every ENSv1 name is `RESERVED` on `ETHRegistry` with synced ENSv1 expiry and resolver set to `ENSV1Resolver` which performs wildcard fallback to ENSv1
     - ENSv1 .eth registration is disabled
@@ -75,7 +75,7 @@
 5. Resolver is cleared
 6. Token is transferred to `Graveyard`
 7. `Data.label` is registered in `ETHRegistry` 
-    1. Since premigration has occurred and  `UnlockedMigrationController` only has `ROLE_RESERVE_REGISTER`, `Data.label` is `RESERVED` and has the correct `expiry`
+    1. Because `Data.label` is already `RESERVED` and `UnlockedMigrationController` only has `ROLE_RESERVE_REGISTER`, it keeps the correct `expiry`
     2. `Data.owner`, `Data.resolver` and `Data.subregistry` are used accordingly
     3. The token roles are the same as `ETHRegistrar.register()`
 
@@ -95,7 +95,7 @@
 6. Resolver is cleared
     - Note: `CANNOT_SET_RESOLVER` cannot be burned while **Unlocked**
 7. `Data.label` is registered in `ETHRegistry` 
-    1. Since premigration has occurred and  `UnlockedMigrationController` only has `ROLE_RESERVE_REGISTER`, `Data.label` is `RESERVED` and has the correct `expiry`
+    1. Because `Data.label` is already `RESERVED` and `UnlockedMigrationController` only has `ROLE_RESERVE_REGISTER`, it keeps the correct `expiry`
     2. `Data.owner`, `Data.resolver` and `Data.subregistry` are used accordingly
     3. The token roles are the same as `ETHRegistrar.register()`
 
@@ -129,7 +129,7 @@
 4. `Data.label` is registered in the parent registry: 
     1. The parent registry is derived from the receiver:
         1. For 2LD, `LockedMigrationController._getRegistry() = ETHRegistry` 
-            - Since premigration has occurred and  `LockedMigrationController` only has `ROLE_RESERVE_REGISTER`, `Data.label` is `RESERVED` and has the correct `expiry`
+            - Because `Data.label` is already `RESERVED` and `LockedMigrationController` only has `ROLE_RESERVE_REGISTER`, it keeps the correct `expiry`
         2. For 3LD+, every `WrapperRegistry._getRegistry()` is itself
             - The `expiry` is copied from the **Locked** token
             - `WrapperRegistry._inject()` registers the name without needing `ROLE_REGISTER`

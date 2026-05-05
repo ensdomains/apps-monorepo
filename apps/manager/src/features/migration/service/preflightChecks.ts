@@ -12,30 +12,6 @@ import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
 import { getRegisteredV2Names } from './getRegisteredV2Names'
 
-export const filterNotReserved = async (
-  publicClient: PublicClient,
-  names: readonly ClassifiedName[],
-): Promise<ClassifiedName[]> => {
-  const twoLDs = names.filter(is2LD)
-  if (twoLDs.length === 0) return []
-
-  const results = await batchedMulticall<Address>(
-    publicClient,
-    twoLDs.map((name) => ({
-      address: V2_CONTRACTS.ETHRegistry,
-      abi: ETH_REGISTRY_V2_ABI,
-      functionName: 'getResolver' as const,
-      args: [name.label] as const,
-    })),
-  )
-
-  return twoLDs.filter((_, i) => {
-    const r = results[i]
-    if (!r || r.status === 'failure') return false
-    return r.result === zeroAddress
-  })
-}
-
 export type EligibilityResult = {
   eligible: ClassifiedName[]
   frozen: ClassifiedName[]

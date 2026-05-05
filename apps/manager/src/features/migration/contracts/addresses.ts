@@ -19,8 +19,6 @@ export const V2_CONTRACTS = {
   LockedMigrationController:
     '0x7ca1ded4d929ebd8b09e24c2da8e909014abecd8' as Address,
   ENSV2Resolver: '0x078a7ae41974a74c62233bca5590c86218aa1f1e' as Address,
-  PreMigrationController:
-    '0xee63749b063c08dedee9478504177c27bf9193d7' as Address,
   VerifiableFactory: '0x26997c9d0f3dcbae3f78c69e621a3926ee30bb98' as Address,
   PermissionedResolverImpl:
     '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as Address,
