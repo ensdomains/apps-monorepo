@@ -28,12 +28,20 @@ interface NameDisplayProps {
 
 const NameDisplay = ({ name }: NameDisplayProps) => {
   return (
-    <div className="flex flex-row items-center gap-2">
-      <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-      <EntityBadgeWithActions variant="name" name={name}>
-        {name}
-      </EntityBadgeWithActions>
-    </div>
+    <EntityBadgeWithActions
+      variant="name"
+      name={name}
+      avatar={
+        <NameAvatar
+          name={name}
+          height="20px"
+          width="20px"
+          rounded="rounded-sm"
+        />
+      }
+    >
+      {name}
+    </EntityBadgeWithActions>
   )
 }
 
@@ -102,14 +110,14 @@ const TransactionDetails = ({
 
         {formattedTimestamp && (
           <InfoRow label="Timestamp">
-            <span className="text-sm pl-3.5">{formattedTimestamp} UTC</span>
+            <span className="text-sm">{formattedTimestamp} UTC</span>
           </InfoRow>
         )}
 
         {data && (
           <>
             <InfoRow label="Network">
-              <span className="text-sm pl-3.5">Sepolia</span>
+              <span className="text-sm">Sepolia</span>
             </InfoRow>
 
             <InfoRow label="From">
@@ -120,7 +128,7 @@ const TransactionDetails = ({
               {data.to ? (
                 <AddressDisplay address={data.to} variant="contract" />
               ) : (
-                <span className="text-sm pl-3.5 text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   Contract Creation
                 </span>
               )}

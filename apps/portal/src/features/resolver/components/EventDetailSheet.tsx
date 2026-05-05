@@ -120,7 +120,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
         {txData && (
           <>
             <InfoRow label="Network">
-              <span className="text-sm pl-3.5">Sepolia</span>
+              <span className="text-sm">Sepolia</span>
             </InfoRow>
 
             <InfoRow label="From">
@@ -131,7 +131,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
               {txData.to ? (
                 <AddressDisplay address={txData.to} />
               ) : (
-                <span className="text-sm pl-3.5 text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   Contract Creation
                 </span>
               )}

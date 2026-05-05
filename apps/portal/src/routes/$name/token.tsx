@@ -65,11 +65,11 @@ const TokenInfoCard = ({
   return (
     <InfoCard title="Token info">
       <InfoRow label="Protocol">
-        <span className="text-sm pl-3.5">{protocolVersion}</span>
+        <span className="text-sm">{protocolVersion}</span>
       </InfoRow>
 
       <InfoRow label="Token Standard">
-        <div className="pl-3.5">
+        <div>
           <CopyableRecord value={tokenStandard} />
         </div>
       </InfoRow>
@@ -81,7 +81,7 @@ const TokenInfoCard = ({
       </InfoRow>
 
       <InfoRow label="Token ID">
-        <div className="flex items-center gap-4 justify-between w-full pl-3.5">
+        <div className="flex items-center gap-4 justify-between w-full ">
           <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
           <Sheet>
             <SheetTrigger asChild>
@@ -102,19 +102,19 @@ const TokenInfoCard = ({
               <div className="flex flex-col gap-6 py-6">
                 <InfoCard title="Token ID details">
                   <InfoRow label="Hash">
-                    <div className="pl-3.5">
+                    <div>
                       <CopyableRecord value={tokenId} />
                     </div>
                   </InfoRow>
 
                   <InfoRow label="HEX">
-                    <div className="pl-3.5">
+                    <div>
                       <CopyableRecord value={hex} />
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Last changed">
-                    <span className="font-mono text-sm pl-3.5">—</span>
+                    <span className="font-mono text-sm ">—</span>
                   </InfoRow>
                 </InfoCard>
 
@@ -284,7 +284,7 @@ function RouteComponent() {
 
       <InfoCard title="Normalization">
         <InfoRow label="Input">
-          <div className="flex flex-row gap-1 flex-wrap items-center pl-3.5">
+          <div className="flex flex-row gap-1 flex-wrap items-center">
             {parts.map((label, idx) => (
               <div
                 key={String.fromCodePoint(...label.input)}
@@ -300,7 +300,7 @@ function RouteComponent() {
         </InfoRow>
 
         <InfoRow label="Normalization">
-          <div className="flex flex-row gap-2 items-center flex-wrap pl-3.5">
+          <div className="flex flex-row gap-2 items-center flex-wrap">
             <span className="font-mono text-sm">
               {hasEmoji ? `${encoding} + Emoji` : encoding}
             </span>
@@ -328,25 +328,25 @@ function RouteComponent() {
         </InfoRow>
 
         <InfoRow label="Unicode">
-          <div className="pl-3.5">
+          <div>
             <CopyableRecord value={escapeUnicode(name)} />
           </div>
         </InfoRow>
 
         <InfoRow label="ASCII">
-          <div className="pl-3.5">
+          <div>
             <CopyableRecord value={ascii} />
           </div>
         </InfoRow>
 
         <InfoRow label="DNS encoded">
-          <div className="pl-3.5">
+          <div>
             <CopyableRecord value={dnsEncode} className="max-w-full" />
           </div>
         </InfoRow>
 
         <InfoRow label="Namehash">
-          <div className="pl-3.5">
+          <div>
             <CopyableRecord value={hash} className="max-w-full" />
           </div>
         </InfoRow>
@@ -379,31 +379,29 @@ function RouteComponent() {
               return (
                 <TabsContent className="m-0" value={label} key={label}>
                   <InfoRow label="Input">
-                    <div className="pl-3.5">
+                    <div>
                       <CopyableRecord value={escapeUnicode(label)} />
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Normalization">
-                    <span className="text-sm pl-3.5">
-                      {part.type as string}
-                    </span>
+                    <span className="text-sm ">{part.type as string}</span>
                   </InfoRow>
 
                   <InfoRow label="Bytes">
-                    <div className="pl-3.5">
+                    <div>
                       <CopyableRecord value={labelBytes} />
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Characters">
-                    <div className="pl-3.5">
+                    <div>
                       <CopyableRecord value={labelChars} />
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Labelhash">
-                    <div className="pl-3.5">
+                    <div>
                       <CopyableRecord value={labelhash(label)} />
                     </div>
                   </InfoRow>
