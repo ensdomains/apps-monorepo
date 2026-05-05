@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { fromPromise } from 'neverthrow'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -20,8 +20,11 @@ import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import type { Transaction } from '@/features/transaction-manager/types'
 
-const DELETE_SUBNAME_TRANSACTION_ID = 'tx-delete-ens-subname'
+const DELETE_SUBNAME_TX_ID_PREFIX = 'tx-delete-ens-subname'
+const deleteTxId = (subnameName: string) =>
+  `${DELETE_SUBNAME_TX_ID_PREFIX}-${subnameName}`
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -138,16 +141,21 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   })
 
   const {
+    isOpen: isTransactionModalOpen,
     openModal: openTransactionModal,
     closeModal: closeTransactionModal,
     clearTransaction,
   } = useTransactionModal()
 
-  // The row queued for deletion when the modal is open. Read by the modal's
-  // onStart so it knows which subname to delete.
-  const [queuedDelete, setQueuedDelete] = useState<SubnameRow | null>(null)
+  // Subnames queued for the current modal session. Length 1 for single delete
+  // (inline confirm), N for bulk Clear. The modal walks through them in order.
+  const [queuedDeletes, setQueuedDeletes] = useState<readonly SubnameRow[]>([])
   // Names whose delete tx is in flight — used to dim the row in the table.
-  const [pendingNames, setPendingNames] = useState<readonly string[]>([])
+  // A Set keeps adds idempotent (bulk Clear pre-marks every selected name
+  // before runDelete fires, and runDelete also self-marks).
+  const [pendingNames, setPendingNames] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
   // Names whose delete tx already succeeded — hidden from the UI immediately
   // so the user sees the result before the indexer catches up. Cleared
   // automatically once the refreshed query no longer returns them.
@@ -172,7 +180,12 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
 
   const runDelete = useCallback(
     async (subname: SubnameRow, id: string) => {
-      setPendingNames((prev) => [...prev, subname.name])
+      setPendingNames((prev) => {
+        if (prev.has(subname.name)) return prev
+        const next = new Set(prev)
+        next.add(subname.name)
+        return next
+      })
       const result = await fromPromise(
         deleteSubnameAsync({
           subname: subname.name,
@@ -181,7 +194,12 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         }),
         (error) => error as Error,
       )
-      setPendingNames((prev) => prev.filter((n) => n !== subname.name))
+      setPendingNames((prev) => {
+        if (!prev.has(subname.name)) return prev
+        const next = new Set(prev)
+        next.delete(subname.name)
+        return next
+      })
       if (result.isOk()) {
         setOptimisticallyDeleted((prev) => {
           const next = new Set(prev)
@@ -194,37 +212,83 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     [deleteSubnameAsync, getLabel],
   )
 
-  const handleDeleteSubname = useCallback(
-    (subname: SubnameRow) => {
-      setQueuedDelete(subname)
+  const queueForDeletion = useCallback(
+    (rows: readonly SubnameRow[]) => {
+      if (rows.length === 0) return
+      setQueuedDeletes(rows)
+      // Pre-mark every queued name as pending so all rows dim immediately,
+      // not just the one currently being signed. runDelete pops each name
+      // off as its tx settles; the close-cleanup effect handles abandons.
+      setPendingNames((prev) => {
+        const next = new Set(prev)
+        for (const r of rows) next.add(r.name)
+        return next
+      })
       openTransactionModal()
     },
     [openTransactionModal],
   )
 
-  const handleStartDelete = useCallback(() => {
-    if (!queuedDelete) return
-    void runDelete(queuedDelete, DELETE_SUBNAME_TRANSACTION_ID)
-  }, [queuedDelete, runDelete])
-
-  const handleDoneDelete = useCallback(() => {
-    closeTransactionModal()
-    clearTransaction()
-    setQueuedDelete(null)
-  }, [closeTransactionModal, clearTransaction])
+  const handleDeleteSubname = useCallback(
+    (subname: SubnameRow) => queueForDeletion([subname]),
+    [queueForDeletion],
+  )
 
   const handleClearSelected = useCallback(
-    async (selected: SubnameRow[]) => {
-      for (const subname of selected) {
-        const result = await runDelete(
-          subname,
-          `${DELETE_SUBNAME_TRANSACTION_ID}-${subname.name}`,
-        )
-        if (result.isErr()) break
-      }
-    },
-    [runDelete],
+    (selected: SubnameRow[]) => queueForDeletion(selected),
+    [queueForDeletion],
   )
+
+  const handleAllDone = useCallback(() => {
+    closeTransactionModal()
+    clearTransaction()
+    setQueuedDeletes([])
+  }, [closeTransactionModal, clearTransaction])
+
+  // One Transaction entry per queued subname. The modal walks through them
+  // top-to-bottom; intermediate onDone fires the next one's onStart so the
+  // user gets sequential wallet popups without having to click "Next" between
+  // each. Last onDone wraps up the modal session.
+  const deleteTransactions = useMemo<readonly Transaction[]>(() => {
+    if (queuedDeletes.length === 0) return []
+    return queuedDeletes.map((subname, i) => {
+      const id = deleteTxId(subname.name)
+      const isLast = i === queuedDeletes.length - 1
+      const next = queuedDeletes[i + 1]
+      return {
+        id,
+        title: 'Delete subname',
+        transactionName: `Delete ${subname.name}`,
+        estimatedGasCost: 0.0001,
+        onStart: () => {
+          void runDelete(subname, id)
+        },
+        onDone: isLast
+          ? handleAllDone
+          : () => {
+              void runDelete(next, deleteTxId(next.name))
+            },
+      }
+    })
+  }, [queuedDeletes, runDelete, handleAllDone])
+
+  // When the modal closes (success path or user dismissal), reset the queue
+  // and drop any pre-marked names that haven't actually started — runDelete
+  // is the source of truth for in-flight names, and it manages its own entry.
+  useEffect(() => {
+    if (isTransactionModalOpen) return
+    if (queuedDeletes.length === 0) return
+    const queuedNames = new Set(queuedDeletes.map((r) => r.name))
+    setQueuedDeletes([])
+    setPendingNames((prev) => {
+      let changed = false
+      const next = new Set(prev)
+      for (const n of queuedNames) {
+        if (next.delete(n)) changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [isTransactionModalOpen, queuedDeletes])
 
   // Once the indexer has caught up and stopped returning a name we
   // optimistically deleted, drop it from the set — the row is naturally
@@ -303,20 +367,9 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
           description={deleteError.message}
         />
       )}
-      <TransactionModal
-        transactions={[
-          {
-            id: DELETE_SUBNAME_TRANSACTION_ID,
-            title: 'Delete subname',
-            transactionName: queuedDelete
-              ? `Delete ${queuedDelete.name}`
-              : 'Delete subname',
-            estimatedGasCost: 0.0001,
-            onStart: handleStartDelete,
-            onDone: handleDoneDelete,
-          },
-        ]}
-      />
+      {deleteTransactions.length > 0 && (
+        <TransactionModal transactions={deleteTransactions} />
+      )}
     </>
   )
 }

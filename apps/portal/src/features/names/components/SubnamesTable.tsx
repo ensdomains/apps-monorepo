@@ -41,6 +41,8 @@ export interface SubnameRow {
   readonly canDelete?: boolean
 }
 
+const EMPTY_PENDING_SET: ReadonlySet<string> = new Set()
+
 const OwnerCell = ({ owner }: { owner: Address }) => (
   <div className="flex flex-row gap-2 items-center">
     <NameAvatar name={owner} height="20px" width="20px" rounded="rounded-sm" />
@@ -61,7 +63,7 @@ interface SubnamesTableProps {
   /** True while a delete mutation is in flight; disables delete controls. */
   readonly isDeleting?: boolean
   /** Names whose delete tx is currently in flight; rendered as dimmed/loading. */
-  readonly pendingNames?: readonly string[]
+  readonly pendingNames?: ReadonlySet<string>
 }
 
 function buildColumns(
@@ -161,7 +163,7 @@ export const SubnamesTable = ({
   isDeleting,
   pendingNames,
 }: SubnamesTableProps) => {
-  const pendingSet = useMemo(() => new Set(pendingNames ?? []), [pendingNames])
+  const pendingSet = pendingNames ?? EMPTY_PENDING_SET
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [tableView] = useTableViewSettings()
