@@ -43,6 +43,7 @@ function RouteComponent() {
 
   const labels = name.split('.')
   const is3LD = labels.length === 3
+  const is2LD = labels.length === 2
 
   const { data: ownerData } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
@@ -202,6 +203,7 @@ function RouteComponent() {
             {permissions.map((permission) => {
               const isManagerRoleDisabled = !isManagerRoleSettable(
                 permission.key,
+                { is2LD },
               )
 
               return (
