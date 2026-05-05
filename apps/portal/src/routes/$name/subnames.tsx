@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
 import { fromPromise } from 'neverthrow'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -178,36 +178,50 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
     [name],
   )
 
+  // Tracks names whose deleteSubnameAsync mutation is currently in flight.
+  // Prevents double-submission when both the modal's auto-advance onDone
+  // and the user's "Open wallet" click attempt to fire the same tx for the
+  // same subname — the second runDelete call is a no-op until the first
+  // settles.
+  const inFlightRef = useRef<Set<string>>(new Set())
+
   const runDelete = useCallback(
     async (subname: SubnameRow, id: string) => {
+      if (inFlightRef.current.has(subname.name)) return
+      inFlightRef.current.add(subname.name)
+
       setPendingNames((prev) => {
         if (prev.has(subname.name)) return prev
         const next = new Set(prev)
         next.add(subname.name)
         return next
       })
-      const result = await fromPromise(
-        deleteSubnameAsync({
-          subname: subname.name,
-          label: getLabel(subname.name),
-          id,
-        }),
-        (error) => error as Error,
-      )
-      setPendingNames((prev) => {
-        if (!prev.has(subname.name)) return prev
-        const next = new Set(prev)
-        next.delete(subname.name)
-        return next
-      })
-      if (result.isOk()) {
-        setOptimisticallyDeleted((prev) => {
+
+      try {
+        const result = await fromPromise(
+          deleteSubnameAsync({
+            subname: subname.name,
+            label: getLabel(subname.name),
+            id,
+          }),
+          (error) => error as Error,
+        )
+        setPendingNames((prev) => {
+          if (!prev.has(subname.name)) return prev
           const next = new Set(prev)
-          next.add(subname.name)
+          next.delete(subname.name)
           return next
         })
+        if (result.isOk()) {
+          setOptimisticallyDeleted((prev) => {
+            const next = new Set(prev)
+            next.add(subname.name)
+            return next
+          })
+        }
+      } finally {
+        inFlightRef.current.delete(subname.name)
       }
-      return result
     },
     [deleteSubnameAsync, getLabel],
   )

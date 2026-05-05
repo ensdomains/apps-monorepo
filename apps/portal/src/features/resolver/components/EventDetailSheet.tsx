@@ -143,7 +143,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
       <div className="flex flex-col gap-4">
         <h3 className="text-lg font-semibold">1 event</h3>
 
-        <div className="px-6 border rounded-sm border-b">
+        <div className="border rounded-sm overflow-hidden">
           <div className="border-b px-6 py-3 bg-muted">
             <span className="text-sm font-medium">{event.type}</span>
           </div>

@@ -168,7 +168,7 @@ export const TransactionEvents = ({
   return (
     <div className="flex flex-col gap-4">
       <h3 className="text-lg font-semibold">{events.length} events</h3>
-      <div className="px-6 border rounded-sm border-b">
+      <div className="border rounded-sm overflow-hidden">
         <Tabs defaultValue={firstEventId} className="w-full">
           <div className="overflow-x-auto">
             <TabsList className="w-full justify-start rounded-none p-0 inline-flex">
