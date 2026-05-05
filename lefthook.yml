@@ -6,12 +6,8 @@
 # Formatting errors will still be fixed, but linting errors won't block commits
 pre-commit:
   commands:
-    # Set SKIP_LINGUI_EXTRACT=1 if `lingui extract` hangs on your machine (then run
-    # `pnpm --filter manager i18n:extract --clean` manually when you change manager copy).
     lingui-extract:
       glob: "apps/manager/src/**/*.{ts,tsx}"
-      skip:
-        - run: test "${SKIP_LINGUI_EXTRACT:-}" = "1"
       run: pnpm --filter manager i18n:extract --clean && git add apps/manager/src/locales/
       priority: 1
     biome-check:
