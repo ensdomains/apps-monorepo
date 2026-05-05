@@ -243,6 +243,9 @@ export const HomeSearchInput = ({
             )}
             onClick={(e) => e.preventDefault()}
           >
+            <InputGroupAddon align="inline-start">
+              <Search className="size-4" />
+            </InputGroupAddon>
             <InputGroupInput
               id={listboxId}
               role="combobox"
@@ -259,11 +262,10 @@ export const HomeSearchInput = ({
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={onSearchKeyDown}
             />
-            <InputGroupAddon align="inline-end" className="gap-2">
+            <InputGroupAddon align="inline-end">
               <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
                 {formatForDisplay('Mod+K')}
               </kbd>
-              <Search className="size-4" />
             </InputGroupAddon>
           </InputGroup>
         </PopoverTrigger>
