@@ -93,7 +93,7 @@ export const NotificationPreferencesFields = ({
           <Trans>In-app notifications are always enabled</Trans>
         </p>
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
         <form.Field name="ownedNameExpiry">
           {(field) => (
             <PreferenceCard
