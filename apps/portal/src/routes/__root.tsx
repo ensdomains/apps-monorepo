@@ -10,6 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
@@ -37,6 +38,18 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
   )
 }
 
+const SepoliaNoticeBanner = () => (
+  <div className="w-full px-4 py-3 sm:px-6">
+    <Alert variant="warning" className="mx-auto max-w-7xl">
+      <AlertDescription>
+        Notice: ENS v2 is in active development. Registered names on Sepolia and
+        state data may be reset periodically due to routine contract
+        deployments. The most recent deployment was on May 6, 2026.
+      </AlertDescription>
+    </Alert>
+  </div>
+)
+
 export const Route = createRootRoute({
   staticData: { hideSidebar: true },
   component: () => {
@@ -47,6 +60,7 @@ export const Route = createRootRoute({
             <RainbowKitProvider>
               <TransactionManagerSetup>
                 <PHProvider>
+                  <SepoliaNoticeBanner />
                   <Outlet />
                 </PHProvider>
               </TransactionManagerSetup>
