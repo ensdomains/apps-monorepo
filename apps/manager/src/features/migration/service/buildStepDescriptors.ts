@@ -4,7 +4,6 @@ import type { MigrationPreflight } from './computeMigrationPreflight'
 export const MAX_NAMES_PER_BATCH = 10
 
 export type MigrationStepDescriptor =
-  | { type: 'approve-sca'; count: number }
   | { type: 'ensure-resolver' }
   | {
       type: 'migrate-batch'
@@ -13,26 +12,16 @@ export type MigrationStepDescriptor =
       count: number
     }
 
-export const needsSCAApproval = (groups: GroupedNames): boolean =>
-  groups.unwrapped.length > 0 ||
-  groups.unlocked.length > 0 ||
-  groups.locked2ld.length > 0 ||
-  groups.childNames.size > 0
-
 const getBatchCount = (nameCount: number): number =>
   Math.ceil(nameCount / MAX_NAMES_PER_BATCH)
 
 export const buildStepDescriptors = (
   classified: readonly ClassifiedName[],
-  groups: GroupedNames,
+  _groups: GroupedNames,
   preflight: MigrationPreflight,
   batchSizes?: readonly number[],
 ): MigrationStepDescriptor[] => {
   const descriptors: MigrationStepDescriptor[] = []
-
-  if (needsSCAApproval(groups) && !preflight.skipApprovalPhase) {
-    descriptors.push({ type: 'approve-sca', count: classified.length })
-  }
 
   const needsOwnedPermRes = classified.some(
     (n) => n.resolverStrategy === 'to-owned-permres',

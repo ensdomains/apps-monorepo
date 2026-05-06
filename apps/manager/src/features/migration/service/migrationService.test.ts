@@ -1,4 +1,4 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { EOASigner, Signer } from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,8 +12,6 @@ vi.mock('@wagmi/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@wagmi/core')>()
   return {
     ...actual,
-    writeContract: vi.fn(),
-    waitForTransactionReceipt: vi.fn(),
     readContract: vi.fn(),
   }
 })
@@ -43,26 +41,8 @@ vi.mock('./preflightChecks', () => ({
   runEligibilityChecks: vi.fn(),
 }))
 
-vi.mock('./checkSCAApprovals', () => ({
-  approvalNeedsFor: vi.fn((groups) => ({
-    hasUnwrapped: groups.unwrapped.length > 0,
-    hasWrapped:
-      groups.unlocked.length > 0 ||
-      groups.locked2ld.length > 0 ||
-      groups.childNames.size > 0,
-  })),
-  checkSCAApprovals: vi.fn(() =>
-    Promise.resolve({
-      baseRegistrarApproved: true,
-      nameWrapperApproved: true,
-    }),
-  ),
-}))
-
 import { waitForTransaction } from '@ens-apps/transaction-manager'
-import { waitForTransactionReceipt, writeContract } from '@wagmi/core'
 import { buildMigrationPlan } from './buildMigrationPlan'
-import { checkSCAApprovals } from './checkSCAApprovals'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
 import { fetchV1Profiles } from './fetchV1Profiles'
@@ -70,20 +50,19 @@ import { executeMigration, type MigrationProgress } from './migrationService'
 import type { V1Domain } from './v1SubgraphClient'
 
 const waitForTransactionMock = vi.mocked(waitForTransaction)
-const writeContractMock = vi.mocked(writeContract)
-const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
 const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
 const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
-const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
-const SCA: Address = '0x0000000000000000000000000000000000000002'
 const V1_RESOLVER: Address = '0x000000000000000000000000000000000000d003'
 const PERM_RES: Address = '0x000000000000000000000000000000000000d002'
 
 const WAGMI = {} as WagmiConfig
 const PUBLIC_CLIENT = { chain: { id: 11155111 } } as unknown as PublicClient
-const SIGNER = { type: 'zerodev' } as unknown as Signer
+const SIGNER = {
+  type: 'eoa',
+  walletClient: { account: { address: OWNER } },
+} as unknown as EOASigner
 
 const unwrappedDomain = (id: string): V1Domain =>
   ({
@@ -127,7 +106,7 @@ const runExecute = async (
     wagmiConfig: WAGMI,
     publicClient: PUBLIC_CLIENT,
     signer: SIGNER,
-    accountAddress: SCA,
+    accountAddress: OWNER,
     onProgress: (p) => progressEvents.push(p),
   })
   return { result, progressEvents }
@@ -135,18 +114,11 @@ const runExecute = async (
 
 beforeEach(() => {
   vi.clearAllMocks()
-  checkSCAApprovalsMock.mockResolvedValue({
-    baseRegistrarApproved: true,
-    nameWrapperApproved: true,
-  })
   fetchV1ProfilesMock.mockResolvedValue(new Map())
   ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({
     hash: '0xdeadbeef' as Hex,
   } as Awaited<ReturnType<typeof waitForTransaction>>)
-  waitForTransactionReceiptMock.mockResolvedValue({
-    status: 'success',
-  } as Awaited<ReturnType<typeof waitForTransactionReceipt>>)
 })
 
 describe('executeMigration', () => {
@@ -168,28 +140,15 @@ describe('executeMigration', () => {
     expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
   })
 
-  it('skips approval phase when preflight.skipApprovalPhase is true', async () => {
+  it('does not perform token approval when migrating from an EOA', async () => {
     await runExecute({
       preflight: {
         preExistingOwnedPermRes: null,
-        skipApprovalPhase: true,
+        skipApprovalPhase: false,
         skipFetchProfilesPhase: true,
       },
     })
-    expect(checkSCAApprovalsMock).not.toHaveBeenCalled()
-    expect(writeContractMock).not.toHaveBeenCalled()
-  })
-
-  it('calls writeContract for BaseRegistrar when unwrapped names need approval', async () => {
-    checkSCAApprovalsMock.mockResolvedValueOnce({
-      baseRegistrarApproved: false,
-      nameWrapperApproved: true,
-    })
-    writeContractMock.mockResolvedValueOnce('0xapproval' as Hex)
-    const { result } = await runExecute()
-    expect(writeContractMock).toHaveBeenCalledTimes(1)
-    expect(result.txHashes[0]).toBe('0xapproval')
-    expect(result.txHashes).toContain('0xdeadbeef')
+    expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
   })
 
   it('uses preExistingOwnedPermRes without calling ensureOwnedPermRes', async () => {
@@ -225,6 +184,30 @@ describe('executeMigration', () => {
     await expect(runExecute()).rejects.toSatisfy(
       (e) => e instanceof Error && e.name === 'MigrationError',
     )
+  })
+
+  it('rejects smart-account signers', async () => {
+    const plan = await buildMigrationPlan({
+      domains: [unwrappedDomain('alice')],
+      migrationOwner: OWNER,
+      wagmiConfig: WAGMI,
+      publicClient: PUBLIC_CLIENT,
+      preflight: DEFAULT_PREFLIGHT,
+    })
+
+    await expect(
+      executeMigration({
+        plan,
+        wagmiConfig: WAGMI,
+        publicClient: PUBLIC_CLIENT,
+        signer: { type: 'zerodev' } as unknown as Signer,
+        accountAddress: OWNER,
+        onProgress: () => {},
+      }),
+    ).rejects.toSatisfy(
+      (e) => e instanceof Error && e.name === 'MigrationError',
+    )
+    expect(waitForTransactionMock).not.toHaveBeenCalled()
   })
 
   it('ineligible names are returned and not counted as completed', async () => {

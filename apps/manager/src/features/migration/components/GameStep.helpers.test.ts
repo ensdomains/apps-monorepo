@@ -92,14 +92,6 @@ describe('describeNextStep', () => {
       { kind: 'preparing' },
     ],
     [
-      'approve-sca descriptor',
-      {
-        done: false,
-        descriptor: descriptor({ type: 'approve-sca', count: 1 }),
-      },
-      { kind: 'approve-sca' },
-    ],
-    [
       'ensure-resolver descriptor',
       {
         done: false,

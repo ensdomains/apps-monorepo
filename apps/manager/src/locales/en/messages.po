@@ -266,10 +266,6 @@ msgstr "Approving"
 msgid "Approving payment token"
 msgstr "Approving payment token"
 
-#: src/features/migration/components/GameStep.tsx:56
-msgid "Approving smart account"
-msgstr "Approving smart account"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:102
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
@@ -319,7 +315,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:206
+#: src/features/migration/pages/MigrationPage.tsx:210
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
@@ -355,7 +351,7 @@ msgstr "Back to Settings"
 msgid "Backup Card"
 msgstr "Backup Card"
 
-#: src/features/migration/components/GameStep.tsx:68
+#: src/features/migration/components/GameStep.tsx:67
 msgid "Batch {batch}/{total}: upgrading {count} name(s)"
 msgstr "Batch {batch}/{total}: upgrading {count} name(s)"
 
@@ -1253,7 +1249,7 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#: src/features/migration/pages/MigrationPage.tsx:182
+#: src/features/migration/pages/MigrationPage.tsx:186
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1817,7 +1813,7 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/pages/MigrationPage.tsx:213
+#: src/features/migration/pages/MigrationPage.tsx:217
 msgid "Retry"
 msgstr "Retry"
 
@@ -1999,7 +1995,7 @@ msgstr "Setting ETH address..."
 msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
-#: src/features/migration/components/GameStep.tsx:59
+#: src/features/migration/components/GameStep.tsx:58
 msgid "Setting up your v2 resolver"
 msgstr "Setting up your v2 resolver"
 
@@ -2378,11 +2374,11 @@ msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profi
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:63
+#: src/features/migration/components/GameStep.tsx:62
 msgid "Upgrading {count} name(s) to v2"
 msgstr "Upgrading {count} name(s) to v2"
 
-#: src/features/migration/components/GameStep.tsx:92
+#: src/features/migration/components/GameStep.tsx:91
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

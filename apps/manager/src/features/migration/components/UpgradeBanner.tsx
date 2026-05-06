@@ -1,14 +1,14 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
+import { useAccount } from 'wagmi'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
-  const { isConnected } = useSmartAccountContext()
+  const { isConnected } = useAccount()
   const { eligible, isPending: isV1Pending } = useEligibleV1Names()
 
   if (!isConnected) return null

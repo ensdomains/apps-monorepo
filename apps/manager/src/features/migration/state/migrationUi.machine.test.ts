@@ -1,4 +1,4 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { EOASigner } from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -29,8 +29,10 @@ import { migrationUiMachine } from './migrationUi.machine'
 const executeMigrationMock = vi.mocked(executeMigration)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
-const SCA: Address = '0x0000000000000000000000000000000000000002'
-const SIGNER = {} as Signer
+const SIGNER = {
+  type: 'eoa',
+  walletClient: { account: { address: OWNER } },
+} as unknown as EOASigner
 const WAGMI = {} as WagmiConfig
 
 const domain = (id: string): V1Domain =>
@@ -95,7 +97,7 @@ const start = (domains: V1Domain[] = [domain('alice')]) => {
     type: 'migration.start',
     plan: makePlan(domains),
     signer: SIGNER,
-    accountAddress: SCA,
+    accountAddress: OWNER,
   })
   return actor
 }
@@ -146,7 +148,7 @@ describe('migrationUiMachine', () => {
         type: 'migration.start',
         plan: makePlan([], { classified: [] }),
         signer: SIGNER,
-        accountAddress: SCA,
+        accountAddress: OWNER,
       })
       expect(actor.getSnapshot().value).toBe('select')
     })
@@ -254,7 +256,7 @@ describe('migrationUiMachine', () => {
         type: 'migration.start',
         plan: makePlan([domain('alice'), domain('bob')]),
         signer: SIGNER,
-        accountAddress: SCA,
+        accountAddress: OWNER,
       })
 
       await vi.advanceTimersByTimeAsync(1500)

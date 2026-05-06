@@ -1,10 +1,10 @@
 import type { Address } from 'viem'
 
 export const V1_CONTRACTS = {
-  BaseRegistrar: '0x6409609247722761b8ba96371485de92a6d7b83b' as Address,
-  NameWrapper: '0xc7e033b8836e4bd55d069d113f018b98478cb091' as Address,
-  ENSRegistry: '0x7e89b563f936c68c31a360840eb7f9a4aacaf014' as Address,
-  PublicResolver: '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address,
+  BaseRegistrar: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85' as Address,
+  NameWrapper: '0x0635513f179D50A207757E05759CbD106d7dFcE8' as Address,
+  ENSRegistry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as Address,
+  PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address,
 } as const
 
 export const V2_DEPLOY_BLOCK = 10462885n
@@ -13,13 +13,13 @@ export const V2_DEPLOY_BLOCK = 10462885n
 // shared `@ensdomains/ensjs` export so every consumer uses one source of
 // truth. Remove this local table once the upstream addresses export lands.
 export const V2_CONTRACTS = {
-  ETHRegistry: '0x31a2bb5d933557cce1b3129993193896d074db92' as Address,
+  ETHRegistry: '0x28356dacb84ee3ebdb007d1f5920b24c87e90d40' as Address,
   UnlockedMigrationController:
-    '0x5587003f8eeee1bc236d48ab39059cbfd99207d7' as Address,
+    '0xf9108e0797406c45ca43f103b176cbd902a12fba' as Address,
   LockedMigrationController:
-    '0x7ca1ded4d929ebd8b09e24c2da8e909014abecd8' as Address,
-  ENSV2Resolver: '0x078a7ae41974a74c62233bca5590c86218aa1f1e' as Address,
-  VerifiableFactory: '0x26997c9d0f3dcbae3f78c69e621a3926ee30bb98' as Address,
+    '0x806c44f027a6f6ee75ade3f6dbf1c6db496ffc67' as Address,
+  ENSV2Resolver: '0xcc8eff4ad952de82990264d5adb32fc9399ecb64' as Address,
+  VerifiableFactory: '0x04fd5ee60b015b6efd21a54d1e662d68868683c5' as Address,
   PermissionedResolverImpl:
     '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as Address,
 } as const

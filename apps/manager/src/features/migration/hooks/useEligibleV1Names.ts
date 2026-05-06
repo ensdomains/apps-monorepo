@@ -1,15 +1,16 @@
 import { useMemo } from 'react'
 import type { Address } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { useMigrationEligibility } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   type ClassifiedName,
   classifyNames,
 } from '@/features/migration/service/classifyNames'
-import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const useEligibleV1Names = () => {
-  const { ownerAddress } = useSmartAccountContext()
+  const { data: walletClient } = useWalletClient()
+  const ownerAddress = walletClient?.account?.address
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names()
 
   const classified = useMemo<ClassifiedName[]>(() => {

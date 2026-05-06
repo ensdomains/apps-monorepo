@@ -1,8 +1,8 @@
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken, useQuery } from '@tanstack/react-query'
+import { useWalletClient } from 'wagmi'
 import { getV1NamesForAddress } from '@/features/migration/service/v1SubgraphClient'
-import { useSmartAccountContext } from '@/lib/smart-account'
 
 const v1NamesQueryOptions = (address?: string | null) =>
   resultQueryOptions({
@@ -14,6 +14,7 @@ const v1NamesQueryOptions = (address?: string | null) =>
   })
 
 export const useV1Names = () => {
-  const { ownerAddress } = useSmartAccountContext()
+  const { data: walletClient } = useWalletClient()
+  const ownerAddress = walletClient?.account?.address
   return useQuery(v1NamesQueryOptions(ownerAddress))
 }

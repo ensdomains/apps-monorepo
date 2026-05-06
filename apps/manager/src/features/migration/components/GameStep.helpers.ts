@@ -71,7 +71,6 @@ export type StepDescription =
   | { readonly kind: 'done' }
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
-  | { readonly kind: 'approve-sca' }
   | { readonly kind: 'ensure-resolver' }
   | { readonly kind: 'batch-single'; readonly count: number }
   | {
@@ -94,9 +93,6 @@ export const describeNextStep = (params: {
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
-    .with({ descriptor: { type: 'approve-sca' } }, () => ({
-      kind: 'approve-sca' as const,
-    }))
     .with({ descriptor: { type: 'ensure-resolver' } }, () => ({
       kind: 'ensure-resolver' as const,
     }))

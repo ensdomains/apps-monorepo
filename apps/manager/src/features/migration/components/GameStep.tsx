@@ -53,7 +53,6 @@ export const GameStep = () => {
     .with({ kind: 'done' }, () => t`Almost there...`)
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Preparing migration...`)
-    .with({ kind: 'approve-sca' }, () => `${t`Approving smart account`}...`)
     .with(
       { kind: 'ensure-resolver' },
       () => `${t`Setting up your v2 resolver`}...`,

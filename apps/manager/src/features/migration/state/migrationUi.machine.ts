@@ -1,4 +1,4 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { EOASigner } from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
@@ -31,7 +31,7 @@ type Context = {
   wagmiConfig: WagmiConfig
   selectedNames: string[]
   plan?: MigrationPlan
-  signer?: Signer
+  signer?: EOASigner
   accountAddress?: Address
   migratedNames: string[]
   txHashes: readonly Hex[]
@@ -45,7 +45,7 @@ type Events =
   | {
       type: 'migration.start'
       plan: MigrationPlan
-      signer: Signer
+      signer: EOASigner
       accountAddress: Address
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
@@ -91,7 +91,7 @@ export const migrationUiMachine = setup({
       {
         wagmiConfig: WagmiConfig
         plan: MigrationPlan
-        signer: Signer
+        signer: EOASigner
         accountAddress: Address
       }
     >(({ input, sendBack }) => {

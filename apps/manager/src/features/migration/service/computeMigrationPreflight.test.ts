@@ -1,4 +1,3 @@
-import type { Config as WagmiConfig } from '@wagmi/core'
 import { err, ok, type Result } from 'neverthrow'
 import type { Address, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,7 +6,6 @@ import {
   makeDomain,
   DEFAULT_RESOLVER as RESOLVER,
 } from './_fixtures'
-import { checkSCAApprovals } from './checkSCAApprovals'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { findExistingPermRes } from './ensureOwnedPermRes'
 import { getV1ProfileKeys } from './v1SubgraphClient'
@@ -19,32 +17,19 @@ vi.mock('./v1SubgraphClient', async (importActual) => ({
   ...(await importActual<typeof import('./v1SubgraphClient')>()),
   getV1ProfileKeys: vi.fn(),
 }))
-vi.mock('./checkSCAApprovals', async (importActual) => ({
-  ...(await importActual<typeof import('./checkSCAApprovals')>()),
-  checkSCAApprovals: vi.fn(),
-}))
 
 const findExistingPermResMock = vi.mocked(findExistingPermRes)
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
-const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
 
-const SCA: Address = '0x0000000000000000000000000000000000000002'
 const EXISTING_PERMRES: Address = '0x00000000000000000000000000000000000000f0'
 
 const run = (
   opts: {
     domain?: Parameters<typeof makeDomain>[0]
-    approvals?: { baseRegistrarApproved: boolean; nameWrapperApproved: boolean }
     permRes?: Address | null
     profileKeys?: Result<unknown, unknown>
   } = {},
 ) => {
-  checkSCAApprovalsMock.mockResolvedValueOnce(
-    opts.approvals ?? {
-      baseRegistrarApproved: true,
-      nameWrapperApproved: true,
-    },
-  )
   if (opts.permRes !== undefined) {
     findExistingPermResMock.mockResolvedValueOnce(opts.permRes)
   }
@@ -53,9 +38,7 @@ const run = (
   }
   return computeMigrationPreflight({
     eoa: EOA,
-    scaAddress: SCA,
     domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
-    wagmiConfig: {} as WagmiConfig,
     publicClient: {} as PublicClient,
   })
 }
@@ -63,7 +46,6 @@ const run = (
 beforeEach(() => {
   findExistingPermResMock.mockReset()
   getV1ProfileKeysMock.mockReset()
-  checkSCAApprovalsMock.mockReset()
 })
 
 describe('computeMigrationPreflight — preExistingOwnedPermRes', () => {
@@ -84,37 +66,11 @@ describe('computeMigrationPreflight — preExistingOwnedPermRes', () => {
 })
 
 describe('computeMigrationPreflight — skipApprovalPhase', () => {
-  it.each([
-    [
-      'both approvals granted',
-      { baseRegistrarApproved: true, nameWrapperApproved: true },
-      { isWrapped: false },
-      true,
-    ],
-    [
-      'only unwrapped + BaseRegistrar approved (wrapped irrelevant)',
-      { baseRegistrarApproved: true, nameWrapperApproved: false },
-      { isWrapped: false },
-      true,
-    ],
-    [
-      'BaseRegistrar not approved and unwrapped present',
-      { baseRegistrarApproved: false, nameWrapperApproved: true },
-      { isWrapped: false },
-      false,
-    ],
-    [
-      'NameWrapper not approved and wrapped present',
-      { baseRegistrarApproved: true, nameWrapperApproved: false },
-      { isWrapped: true },
-      false,
-    ],
-  ] as const)('is %s → %s', async (_, approvals, domain, expected) => {
+  it('always skips approval because migration is EOA-only', async () => {
     const result = await run({
-      domain: { ...domain, resolverAddress: RESOLVER },
-      approvals,
+      domain: { isWrapped: true, resolverAddress: RESOLVER },
     })
-    expect(result.skipApprovalPhase).toBe(expected)
+    expect(result.skipApprovalPhase).toBe(true)
   })
 })
 

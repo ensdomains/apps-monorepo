@@ -1,6 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAccount } from 'wagmi'
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,6 @@ import { ProfileCardPreview } from '@/features/migration/components/ProfileCardP
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
-import { useSmartAccountContext } from '@/lib/smart-account'
 
 const AUTO_SCROLL_INTERVAL_MS = 5000
 
@@ -20,7 +20,7 @@ const SLIDE_DATA = [{ id: 'profiles' }] as const
 
 export const MigrationModal = () => {
   const { t } = useLingui()
-  const { isConnected } = useSmartAccountContext()
+  const { isConnected } = useAccount()
   const { eligible, isPending: isV1Pending } = useEligibleV1Names()
   const hasUnstartedMigration = !isV1Pending && eligible.length > 0
   const { open, dismiss } = useOpenModalOnFirstVisit(

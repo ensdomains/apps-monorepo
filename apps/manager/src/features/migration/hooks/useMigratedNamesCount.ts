@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { useWalletClient } from 'wagmi'
 import { migratedNamesCountQueryOptions } from '@/features/migration/service/getMigratedNamesCount'
-import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const useMigratedNamesCount = () => {
-  const { ownerAddress } = useSmartAccountContext()
+  const { data: walletClient } = useWalletClient()
+  const ownerAddress = walletClient?.account?.address
   return useQuery(migratedNamesCountQueryOptions(ownerAddress ?? undefined))
 }

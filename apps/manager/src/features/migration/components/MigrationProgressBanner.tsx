@@ -1,13 +1,13 @@
 import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
+import { useAccount } from 'wagmi'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
-import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const MigrationProgressBanner = () => {
   const navigate = useNavigate()
-  const { isConnected } = useSmartAccountContext()
+  const { isConnected } = useAccount()
   const { eligible: eligibleV1Names, isPending: isV1Pending } =
     useEligibleV1Names()
   const { data: migratedCount, isPending: isCountPending } =

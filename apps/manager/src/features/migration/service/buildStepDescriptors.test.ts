@@ -4,7 +4,6 @@ import { makeClassified } from './_fixtures'
 import {
   buildStepDescriptors,
   MAX_NAMES_PER_BATCH,
-  needsSCAApproval,
 } from './buildStepDescriptors'
 import type { GroupedNames } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
@@ -36,40 +35,6 @@ const build = (
     preflight(p),
   )
 
-describe('needsSCAApproval', () => {
-  const classified = (tokenType: 'unlocked' | 'locked-2ld' | 'locked-child') =>
-    makeClassified({ tokenType })
-
-  it.each([
-    ['empty groups', emptyGroups(), false],
-    [
-      'any unwrapped',
-      { ...emptyGroups(), unwrapped: [makeClassified()] },
-      true,
-    ],
-    [
-      'any unlocked',
-      { ...emptyGroups(), unlocked: [classified('unlocked')] },
-      true,
-    ],
-    [
-      'any locked-2ld',
-      { ...emptyGroups(), locked2ld: [classified('locked-2ld')] },
-      true,
-    ],
-    [
-      'any child parent group',
-      {
-        ...emptyGroups(),
-        childNames: new Map([['raffy.eth', [classified('locked-child')]]]),
-      },
-      true,
-    ],
-  ] as const)('returns %s → %s', (_, groups, expected) => {
-    expect(needsSCAApproval(groups)).toBe(expected)
-  })
-})
-
 describe('buildStepDescriptors', () => {
   const keepV1 = { resolverStrategy: 'keep-v1' as const }
 
@@ -77,25 +42,6 @@ describe('buildStepDescriptors', () => {
     expect(build([keepV1])).toEqual([
       { type: 'migrate-batch', batch: 1, totalBatches: 1, count: 1 },
     ])
-  })
-
-  it('prepends approve-sca when approval is required and not skipped', () => {
-    expect(
-      build([keepV1], {
-        unwrapped: [makeClassified(keepV1)],
-      })[0],
-    ).toEqual({ type: 'approve-sca', count: 1 })
-  })
-
-  it('skips approve-sca when skipApprovalPhase is true', () => {
-    const d = build(
-      [keepV1],
-      { unwrapped: [makeClassified(keepV1)] },
-      {
-        skipApprovalPhase: true,
-      },
-    )
-    expect(d.find((x) => x.type === 'approve-sca')).toBeUndefined()
   })
 
   it.each([
@@ -155,12 +101,12 @@ describe('buildStepDescriptors', () => {
     })
   })
 
-  it('orders descriptors as approve-sca → ensure-resolver → migrate-batch', () => {
+  it('orders descriptors as ensure-resolver → migrate-batch', () => {
     expect(
       build([{ resolverStrategy: 'to-owned-permres' }], {
         unwrapped: [makeClassified()],
       }).map((d) => d.type),
-    ).toEqual(['approve-sca', 'ensure-resolver', 'migrate-batch'])
+    ).toEqual(['ensure-resolver', 'migrate-batch'])
   })
 
   it('returns no descriptors for an empty classified list', () => {

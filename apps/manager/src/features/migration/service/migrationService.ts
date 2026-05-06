@@ -1,4 +1,5 @@
 import {
+  type EOASigner,
   type Signer,
   type TransactionRequest,
   transactionManager,
@@ -6,26 +7,16 @@ import {
   type ZeroDevCall,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import {
-  type Config as WagmiConfig,
-  waitForTransactionReceipt,
-  writeContract,
-} from '@wagmi/core'
+import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
 
-import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
-import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import { V2_CONTRACTS } from '../contracts/addresses'
 import {
   type MigrationPlan,
   type NameBundle,
   resolveDeferredBatches,
 } from './buildMigrationPlan'
-import { approvalNeedsFor, checkSCAApprovals } from './checkSCAApprovals'
-import type {
-  ClassifiedName,
-  GroupedNames,
-  IneligibleName,
-} from './classifyNames'
+import type { ClassifiedName, IneligibleName } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
 
@@ -90,7 +81,7 @@ const createTracker = (
 type MigrationCtx = {
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
-  signer: Signer
+  signer: EOASigner
   accountAddress: Address
   migrationOwner: Address
   defaultResolver: Address
@@ -98,77 +89,6 @@ type MigrationCtx = {
 }
 
 const PENDING_TX_HASH = '0x0' as Hex
-const APPROVAL_RECEIPT_TIMEOUT_MS = 300_000
-
-const ensureApprovals = async (
-  ctx: MigrationCtx,
-  groups: GroupedNames,
-): Promise<Hex[]> => {
-  const hashes: Hex[] = []
-  const needs = approvalNeedsFor(groups)
-  const approvals = await checkSCAApprovals({
-    eoa: ctx.migrationOwner,
-    scaAddress: ctx.accountAddress,
-    needs,
-    wagmiConfig: ctx.wagmiConfig,
-  })
-
-  if (needs.hasUnwrapped && !approvals.baseRegistrarApproved) {
-    ctx.tracker.emit(
-      'Approving your smart account on BaseRegistrar',
-      PENDING_TX_HASH,
-    )
-    const hash = await writeContract(ctx.wagmiConfig, {
-      address: V1_CONTRACTS.BaseRegistrar,
-      abi: BASE_REGISTRAR_ABI,
-      functionName: 'setApprovalForAll',
-      args: [ctx.accountAddress, true],
-    })
-    const receipt = await waitForTransactionReceipt(ctx.wagmiConfig, {
-      hash,
-      timeout: APPROVAL_RECEIPT_TIMEOUT_MS,
-    })
-    if (receipt.status !== 'success') {
-      throw new MigrationError({
-        cause: new Error(
-          `BaseRegistrar setApprovalForAll reverted (tx ${hash})`,
-        ),
-        step: 'Approving SCA',
-      })
-    }
-    hashes.push(hash)
-  }
-
-  if (needs.hasWrapped && !approvals.nameWrapperApproved) {
-    ctx.tracker.emit(
-      'Approving your smart account on NameWrapper',
-      PENDING_TX_HASH,
-    )
-    const hash = await writeContract(ctx.wagmiConfig, {
-      address: V1_CONTRACTS.NameWrapper,
-      abi: NAME_WRAPPER_ABI,
-      functionName: 'setApprovalForAll',
-      args: [ctx.accountAddress, true],
-    })
-    const receipt = await waitForTransactionReceipt(ctx.wagmiConfig, {
-      hash,
-      timeout: APPROVAL_RECEIPT_TIMEOUT_MS,
-    })
-    if (receipt.status !== 'success') {
-      throw new MigrationError({
-        cause: new Error(`NameWrapper setApprovalForAll reverted (tx ${hash})`),
-        step: 'Approving SCA',
-      })
-    }
-    hashes.push(hash)
-  }
-
-  ctx.tracker.next()
-  if (hashes.length > 0) {
-    ctx.tracker.emit('Smart account approved')
-  }
-  return hashes
-}
 
 const ensureResolver = async (
   ctx: MigrationCtx,
@@ -190,47 +110,6 @@ const ensureResolver = async (
   return resolver
 }
 
-const buildSCARequest = (
-  ctx: MigrationCtx,
-  calls: ZeroDevCall[],
-): TransactionRequest => {
-  const firstCall = calls[0]
-  if (!firstCall) throw new Error('No calls to submit')
-
-  const chainId = ctx.publicClient.chain?.id
-  if (!chainId) {
-    throw new Error('publicClient is missing a chain configuration')
-  }
-
-  if (ctx.signer.type === 'zerodev') {
-    return {
-      type: 'zerodev',
-      from: ctx.accountAddress,
-      to: firstCall.to,
-      data: firstCall.data,
-      value: 0n,
-      chainId,
-      zerodevParams: {
-        calls,
-        sponsored: true,
-      },
-    } as TransactionRequest
-  }
-
-  return {
-    type: 'rhinestone-intent',
-    from: ctx.accountAddress,
-    to: firstCall.to,
-    data: firstCall.data,
-    value: 0n,
-    chainId,
-    rhinestoneParams: {
-      calls,
-      sponsored: true,
-    },
-  } as TransactionRequest
-}
-
 const buildEOARequest = (
   ctx: MigrationCtx,
   call: ZeroDevCall,
@@ -250,57 +129,58 @@ const buildEOARequest = (
   }
 }
 
-const submitBatchedUserOp = async (
+const submitEOACalls = async (
   ctx: MigrationCtx,
   calls: ZeroDevCall[],
   description: string,
 ): Promise<Hex> => {
-  // EOA mode (Tenderly fork etc.) cannot batch + sponsor — fall back to
-  // submitting each call sequentially as a plain EOA tx. We surface the
-  // last hash as the "batch hash" for downstream tracking, matching the
-  // SCA path's contract.
-  if (ctx.signer.type === 'eoa') {
-    let lastHash: Hex | undefined
-    for (const [i, call] of calls.entries()) {
-      const stepDescription =
-        calls.length > 1
-          ? `${description} (${i + 1}/${calls.length})`
-          : description
+  let lastHash: Hex | undefined
+  for (const [i, call] of calls.entries()) {
+    const stepDescription =
+      calls.length > 1
+        ? `${description} (${i + 1}/${calls.length})`
+        : description
 
-      const txId = transactionManager.startTransaction(
-        { type: 'custom', request: buildEOARequest(ctx, call) },
-        ctx.signer,
-        {
-          description: stepDescription,
-          publicClient: ctx.publicClient,
-        },
-      )
+    const txId = transactionManager.startTransaction(
+      { type: 'custom', request: buildEOARequest(ctx, call) },
+      ctx.signer,
+      {
+        description: stepDescription,
+        publicClient: ctx.publicClient,
+      },
+    )
 
-      ctx.tracker.emit(stepDescription, PENDING_TX_HASH)
+    ctx.tracker.emit(stepDescription, PENDING_TX_HASH)
 
-      const result = await waitForTransaction(txId)
-      lastHash = result.hash as Hex
-    }
-
-    if (!lastHash) throw new Error('No calls to submit')
-    return lastHash
+    const result = await waitForTransaction(txId)
+    lastHash = result.hash as Hex
   }
 
-  const request = buildSCARequest(ctx, calls)
+  if (!lastHash) throw new Error('No calls to submit')
+  return lastHash
+}
 
-  const txId = transactionManager.startTransaction(
-    { type: 'custom', request },
-    ctx.signer,
-    {
-      description,
-      publicClient: ctx.publicClient,
-    },
-  )
-
-  ctx.tracker.emit(description, PENDING_TX_HASH)
-
-  const result = await waitForTransaction(txId)
-  return result.hash as Hex
+const requireEOASigner = (
+  signer: Signer,
+  accountAddress: Address,
+): EOASigner => {
+  if (signer.type !== 'eoa') {
+    throw new MigrationError({
+      cause: new Error('Migration must be submitted from the connected EOA'),
+      step: 'Preparing migration',
+    })
+  }
+  const signerAddress = signer.walletClient.account?.address
+  if (
+    signerAddress &&
+    signerAddress.toLowerCase() !== accountAddress.toLowerCase()
+  ) {
+    throw new MigrationError({
+      cause: new Error('Migration signer does not match the migration account'),
+      step: 'Preparing migration',
+    })
+  }
+  return signer
 }
 
 const wrapBatchError = (
@@ -336,7 +216,7 @@ const submitBatches = async (
 
     let lastHash: Hex
     try {
-      lastHash = await submitBatchedUserOp(
+      lastHash = await submitEOACalls(
         ctx,
         combinedCalls,
         `Migrate batch ${batchNum}/${totalBatches} (${nameCount} names)`,
@@ -376,14 +256,7 @@ export const executeMigration = async (params: {
     onProgress,
     onBatchComplete,
   } = params
-  const {
-    classified,
-    ineligible,
-    groups,
-    preflight,
-    batches,
-    stepDescriptors,
-  } = plan
+  const { classified, ineligible, preflight, batches, stepDescriptors } = plan
 
   if (classified.length === 0) {
     return {
@@ -396,16 +269,12 @@ export const executeMigration = async (params: {
   const ctx: MigrationCtx = {
     wagmiConfig,
     publicClient,
-    signer,
+    signer: requireEOASigner(signer, accountAddress),
     accountAddress,
     migrationOwner: plan.migrationOwner,
     defaultResolver: V2_CONTRACTS.ENSV2Resolver,
     tracker: createTracker(onProgress, stepDescriptors.length),
   }
-
-  const approvalHashes = preflight.skipApprovalPhase
-    ? []
-    : await ensureApprovals(ctx, groups)
 
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
@@ -422,7 +291,7 @@ export const executeMigration = async (params: {
 
   return {
     completed: classified.length,
-    txHashes: [...approvalHashes, ...batchHashes, ...deferredHashes],
+    txHashes: [...batchHashes, ...deferredHashes],
     ineligible: [...ineligible],
   }
 }
