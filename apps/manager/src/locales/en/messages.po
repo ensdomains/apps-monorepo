@@ -2008,7 +2008,7 @@ msgstr "Set the content hash and ABI for your name"
 msgid "Set up later"
 msgstr "Set up later"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:277
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:279
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Set which ENS name displays as your identity across apps and wallets."
 
