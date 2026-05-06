@@ -65,6 +65,19 @@
   --quartz-500: #5d5751;
   --quartz-900: #191919;
 
+  /* 🪜 Neutral layers */
+  /* ───────────────── */
+  --neutral-0: #ffffff;
+  --neutral-1: #f9f9f7;
+  --neutral-2: #f2f2f2;
+  --neutral-3: #e1e1e0;
+  --neutral-4: #c7c6c4;
+  --neutral-5: #a1a1a1;
+  --neutral-6: #737373;
+  --neutral-7: #595755;
+  --neutral-8: #191919;
+  --neutral-9: #000000;
+
   /* 🚦 Signal ramps */
   /* ─────────────── */
   --signal-danger-100: #ffedeb;
@@ -188,6 +201,16 @@
   --color-quartz-400: var(--quartz-400);
   --color-quartz-500: var(--quartz-500);
   --color-quartz-900: var(--quartz-900);
+  --color-neutral-0: var(--neutral-0);
+  --color-neutral-1: var(--neutral-1);
+  --color-neutral-2: var(--neutral-2);
+  --color-neutral-3: var(--neutral-3);
+  --color-neutral-4: var(--neutral-4);
+  --color-neutral-5: var(--neutral-5);
+  --color-neutral-6: var(--neutral-6);
+  --color-neutral-7: var(--neutral-7);
+  --color-neutral-8: var(--neutral-8);
+  --color-neutral-9: var(--neutral-9);
   --color-signal-danger-100: var(--signal-danger-100);
   --color-signal-danger-200: var(--signal-danger-200);
   --color-signal-danger-300: var(--signal-danger-300);
@@ -307,6 +330,18 @@
   --message-success-text: var(--signal-success-300);
   --message-warning-fill: var(--signal-warning-900);
   --message-warning-text: var(--signal-warning-300);
+
+  /* 🪜 Neutral layers — dark */
+  --neutral-0: #191919;
+  --neutral-1: #242424;
+  --neutral-2: #2b2b2b;
+  --neutral-3: #383838;
+  --neutral-4: #4b4b4b;
+  --neutral-5: #808080;
+  --neutral-6: #bbbbbb;
+  --neutral-7: #e1e1e0;
+  --neutral-8: #faf9f7;
+  --neutral-9: #ffffff;
 }
 
 @layer base {
