@@ -1,3 +1,5 @@
+import { DomainDocument, type DomainQuery } from '@ens-apps/indexer'
+import indexerClient from '@ens-apps/indexer/urql'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -17,11 +19,47 @@ import {
   textRecords,
 } from '../data/records'
 import { DEBUG_PROFILE } from '../MOCK'
-import { getIndexerRecords } from './getIndexerRecords'
 
 class GetProfileRecordsError extends TaggedError('GetProfileRecordsError')<{
   cause: unknown
 }> {}
+
+type IndexerResolver = NonNullable<
+  NonNullable<DomainQuery['domain']>['resolver']
+>
+type IndexerCoinAddress = NonNullable<IndexerResolver['addresses']>[number]
+
+type IndexerRecords = {
+  isMigrated: true
+  createdAt: { date: Date; value: number }
+  texts: string[]
+  coins: number[]
+  resolverAddress?: string
+  coinAddresses: IndexerCoinAddress[]
+  contentHash: string | null
+}
+
+const indexerDomainInflight = new Map<string, Promise<DomainQuery>>()
+
+function fetchIndexerDomain(name: string): Promise<DomainQuery> {
+  const existing = indexerDomainInflight.get(name)
+  if (existing) return existing
+
+  const promise = indexerClient
+    .query<DomainQuery>(DomainDocument, { id: name })
+    .toPromise()
+    .then((result) => {
+      if (result.error) throw result.error
+      if (!result.data) throw new Error('Indexer query returned no data')
+      return result.data
+    })
+    .finally(() => {
+      indexerDomainInflight.delete(name)
+    })
+
+  indexerDomainInflight.set(name, promise)
+  return promise
+}
 
 const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
 
@@ -48,12 +86,25 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
       _rawSubgraphRecords: {
         isMigrated: false,
         createdAt: new Date(),
-      } as unknown as NonNullable<typeof indexerRecords>,
+      } as unknown as IndexerRecords,
     })
   }
 
   const client = yield* safeGetClient()
-  const indexerRecords = yield* getIndexerRecords(name)
+  const indexerDomain = yield* fromPromise(
+    fetchIndexerDomain(name),
+    (error) => new GetProfileRecordsError({ cause: error }),
+  )
+  const resolver = indexerDomain.domain?.resolver
+  const indexerRecords: IndexerRecords = {
+    isMigrated: true,
+    createdAt: { date: new Date(), value: Date.now() },
+    texts: resolver?.texts ?? [],
+    coins: resolver?.addresses?.map((address) => address.coinType) ?? [],
+    resolverAddress: resolver?.address,
+    coinAddresses: resolver?.addresses ?? [],
+    contentHash: resolver?.contentHash ?? null,
+  }
 
   const texts = unique([
     ...staticTextRecords,
