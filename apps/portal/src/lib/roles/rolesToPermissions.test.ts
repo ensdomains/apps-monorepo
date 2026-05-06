@@ -20,13 +20,16 @@ describe('roleToPermissions', () => {
   })
 
   it('should map admin roles (with _ADMIN suffix)', () => {
-    const result = roleToPermissions(['ROLE_RENEW_ADMIN', 'ROLE_BURN_ADMIN'])
+    const result = roleToPermissions([
+      'ROLE_RENEW_ADMIN',
+      'ROLE_UNREGISTER_ADMIN',
+    ])
 
     expect(result.get('ROLE_RENEW')).toEqual({
       admin: true,
       manager: false,
     })
-    expect(result.get('ROLE_BURN')).toEqual({
+    expect(result.get('ROLE_UNREGISTER')).toEqual({
       admin: true,
       manager: false,
     })
