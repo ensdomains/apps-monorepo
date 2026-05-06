@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,6 +15,7 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -58,6 +59,22 @@ function RouteComponent() {
   const registryAddress = is3LD
     ? getSubnameRegistryAddress(registriesData ?? null)
     : ownerData?.registryAddress
+
+  const callerAddress = walletClient?.account?.address
+  const { data: callerRolesData } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress: registryAddress ?? zeroAddress,
+      label: labels[0],
+      account: callerAddress ?? zeroAddress,
+    }),
+    enabled: Boolean(registryAddress) && Boolean(callerAddress),
+  })
+
+  const callerAdminRoles = new Set<Role>(
+    (callerRolesData?.decoded ?? []).filter((r): r is Role =>
+      r.endsWith('_ADMIN'),
+    ),
+  )
 
   const {
     data: address,
@@ -201,10 +218,11 @@ function RouteComponent() {
             aria-invalid={invalidField === 'roles'}
           >
             {permissions.map((permission) => {
-              const isManagerRoleDisabled = !isManagerRoleSettable(
-                permission.key,
-                { is2LD },
-              )
+              const adminKey = `${permission.key}_ADMIN` as Role
+              const callerLacksAdmin = !callerAdminRoles.has(adminKey)
+              const isManagerRoleDisabled =
+                !isManagerRoleSettable(permission.key, { is2LD }) ||
+                callerLacksAdmin
 
               return (
                 <div
@@ -213,6 +231,11 @@ function RouteComponent() {
                     'flex items-center justify-between p-4 gap-4',
                     isManagerRoleDisabled && 'text-muted-foreground',
                   )}
+                  title={
+                    callerLacksAdmin
+                      ? `Your account does not hold ${adminKey} on this name and cannot grant this role.`
+                      : undefined
+                  }
                 >
                   <div className="flex flex-col gap-1 flex-1">
                     <div className="font-medium">{permission.title}</div>
