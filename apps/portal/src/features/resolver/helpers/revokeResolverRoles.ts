@@ -3,6 +3,8 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import { revokeResolverRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
@@ -10,31 +12,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { packetToBytes } from 'viem/ens'
-import { toHex } from 'viem/utils'
-import { type ResolverRoleKey, resolverRoles } from '@/lib/roles/resolverRoles'
-
-const revokeNameRolesSnippet = [
-  {
-    name: 'revokeNameRoles',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'toName', type: 'bytes' },
-      { name: 'roleBitmap', type: 'uint256' },
-      { name: 'account', type: 'address' },
-    ],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-] as const
-
-function encodeRoleBitmapFromKeys(roles: readonly ResolverRoleKey[]): bigint {
-  let bitmap = 0n
-  for (const role of roles) {
-    bitmap |= resolverRoles[role]
-  }
-  return bitmap
-}
+import type { ResolverRoleKey } from '@/lib/roles/resolverRoles'
 
 export interface RevokeResolverRolesParameters {
   readonly resolverAddress: Address
@@ -71,13 +49,29 @@ export const revokeResolverRoles = async (
     throw new Error('At least one role must be selected')
   }
 
-  const roleBitmap = encodeRoleBitmapFromKeys(roles)
-  const dnsName = name === '' ? '0x00' : toHex(packetToBytes(name))
+  const writeParams = revokeResolverRolesWriteParameters(
+    walletClient as Parameters<typeof revokeResolverRolesWriteParameters>[0],
+    name === ''
+      ? {
+        resolverAddress,
+        targetAccount: account,
+        scope: 'root',
+        roles: roles as ResolverRole[],
+      }
+      : {
+        resolverAddress,
+        targetAccount: account,
+        scope: 'name',
+        name,
+        roles: roles as ResolverRole[],
+      },
+  )
+
   const data = encodeFunctionData({
-    abi: revokeNameRolesSnippet,
-    functionName: 'revokeNameRoles',
-    args: [dnsName, roleBitmap, account],
-  })
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
 
   const txId = transactionManager.startTransaction(
     {
