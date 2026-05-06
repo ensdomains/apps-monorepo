@@ -1,7 +1,11 @@
+import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { fromPromise, type ResultAsync } from 'neverthrow'
-import { type Address, encodeFunctionData, type PublicClient } from 'viem'
-import { readContract } from 'viem/actions'
-import { ETH_REGISTRY_ABI } from '../../contracts/abis/ETHRegistry.abi'
+import {
+  type Address,
+  encodeFunctionData,
+  labelhash,
+  type PublicClient,
+} from 'viem'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
@@ -110,15 +114,12 @@ export function submitResolverUpdateActor(input: {
           : getSmartAccountAddress(input.signer)
       const cleanName = input.name.replace('.eth', '')
 
-      const [tokenId] = (await readContract(input.publicClient, {
-        address: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-        abi: ETH_REGISTRY_ABI,
-        functionName: 'getNameData',
-        args: [cleanName],
-      })) as [bigint, unknown]
+      // V2 permissioned registry derives tokenId from labelhash directly,
+      // so no on-chain lookup is needed.
+      const tokenId = BigInt(labelhash(cleanName))
 
       const data = encodeFunctionData({
-        abi: ETH_REGISTRY_ABI,
+        abi: permissionedRegistrySetResolverSnippet,
         functionName: 'setResolver',
         args: [tokenId, input.newResolver],
       })

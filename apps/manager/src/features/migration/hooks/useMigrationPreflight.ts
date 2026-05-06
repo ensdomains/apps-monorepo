@@ -7,7 +7,6 @@ import {
   type MigrationPreflight,
 } from '@/features/migration/service/computeMigrationPreflight'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
-import { customSepolia } from '@/lib/wagmi'
 
 type HookParams = {
   eoa: Address | undefined
@@ -15,7 +14,7 @@ type HookParams = {
 }
 
 export const useMigrationPreflight = ({ eoa, scaAddress }: HookParams) => {
-  const publicClient = usePublicClient({ chainId: customSepolia.id })
+  const publicClient = usePublicClient()
   const wagmiConfig = useConfig()
   const queryClient = useQueryClient()
 

@@ -10,7 +10,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { PanelRightOpen, Search } from 'lucide-react'
+import { ArrowRightFromLineIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
@@ -108,7 +108,7 @@ const createNodesColumns = (
               meta?.onMoreClick?.(row)
             }}
           >
-            <PanelRightOpen className="h-4 w-4" />
+            <ArrowRightFromLineIcon className="h-4 w-4" />
             <span className="text-sm font-medium">More</span>
           </Button>
         </div>
@@ -229,7 +229,7 @@ function RouteComponent() {
                       setSheetOpen(true)
                     }}
                   >
-                    <PanelRightOpen className="h-4 w-4" />
+                    <ArrowRightFromLineIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">More</span>
                   </Button>
                 </div>

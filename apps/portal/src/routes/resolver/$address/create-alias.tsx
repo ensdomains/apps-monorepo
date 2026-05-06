@@ -81,8 +81,8 @@ function RouteComponent() {
   const navigate = useNavigate()
   const { address: accountAddress, isConnected } = useConnection()
   const chainId = sepoliaWithEns.id
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const [fromName, setFromName] = useState<string | null>(null)
   const [toName, setToName] = useState<string | null>(null)

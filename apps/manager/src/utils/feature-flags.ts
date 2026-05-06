@@ -47,8 +47,20 @@ const FEATURE_FLAGS_INTERNAL = {
   LANGUAGE_SELECTOR: {
     enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
   },
+  MIGRATION: {
+    enabled: import.meta.env.VITE_FF_MIGRATION === 'true',
+  },
   REGISTRATION_V2: {
     enabled: true,
+  },
+  /**
+   * Force the transaction manager to use plain EOA signing only — bypasses
+   * the Rhinestone / Pimlico / ZeroDev smart-account flows entirely. Useful
+   * for environments (e.g. the Tenderly virtual sepolia fork) where
+   * ERC-4337 bundler infrastructure isn't available.
+   */
+  USE_EOA: {
+    enabled: import.meta.env.VITE_FF_USE_EOA === 'true',
   },
 } as const satisfies Record<string, FeatureFlagConfig | boolean>
 

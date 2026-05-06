@@ -44,7 +44,7 @@ export const NameMobileCard = ({
     recordCount !== undefined || subdomainCount !== undefined
 
   return (
-    <div className="flex flex-col gap-2 px-6 py-4 bg-card border-b border-border last:border-b-0">
+    <div className="flex flex-col gap-2 px-6 py-4 bg-background border-b border-border last:border-b-0">
       {/* Name row with checkbox, avatar and copy */}
       <div className="flex flex-row gap-3 items-center">
         {showCheckbox && (

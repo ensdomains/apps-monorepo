@@ -22,8 +22,8 @@ export const useSetForwardResolution = ({
   id,
 }: UseSetForwardResolutionParams) => {
   const queryClient = useQueryClient()
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const mutation = useMutation({
     mutationFn: async (params: {

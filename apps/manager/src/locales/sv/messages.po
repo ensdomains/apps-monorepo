@@ -81,7 +81,7 @@ msgstr ""
 msgid "{durationYears} years"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:332
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:334
 #: src/features/dashboard/components/NameRow.tsx:67
 msgid "{label} avatar"
 msgstr ""
@@ -144,7 +144,7 @@ msgstr ""
 msgid "Account address:"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:93
+#: src/features/profile/components/ProfileEdit.tsx:95
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr ""
 
@@ -329,7 +329,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:207
+#: src/features/migration/pages/MigrationPage.tsx:206
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
@@ -425,22 +425,22 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:392
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:394
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:132
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:266
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: src/features/profile/components/ProfileEdit.tsx:86
+#: src/features/profile/components/ProfileEdit.tsx:88
 msgid "Cannot save profile - ENS owner is not available."
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:104
+#: src/features/profile/components/ProfileEdit.tsx:106
 msgid "Cannot save profile - resolver address is not available."
 msgstr ""
 
@@ -485,7 +485,7 @@ msgstr ""
 msgid "Choose how you'd like to pay for your subscription."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:274
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:276
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
@@ -668,8 +668,8 @@ msgstr ""
 msgid "Copy to clipboard"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:158
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:138
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:160
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:140
 msgid "Could not find resolver for {name}"
 msgstr ""
 
@@ -788,7 +788,7 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:334
+#: src/features/dashboard/components/MyNamesList.tsx:372
 msgid "Eligible for upgrade"
 msgstr ""
 
@@ -895,7 +895,7 @@ msgstr ""
 msgid "Enter your email"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:181
+#: src/features/dashboard/components/MyNamesList.tsx:210
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
@@ -916,7 +916,7 @@ msgstr ""
 msgid "expires {expiryDateString}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:364
+#: src/features/dashboard/components/MyNamesList.tsx:402
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -930,15 +930,15 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:255
+#: src/features/dashboard/components/MyNamesList.tsx:293
 msgid "Expiry"
 msgstr "Utgång"
 
-#: src/features/dashboard/components/MyNamesList.tsx:210
+#: src/features/dashboard/components/MyNamesList.tsx:248
 msgid "Expiry date (Earliest)"
 msgstr "Utgångsdatum (tidigast)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:213
+#: src/features/dashboard/components/MyNamesList.tsx:251
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
@@ -963,12 +963,12 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:234
+#: src/lib/smart-account/SmartAccountContext.tsx:242
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:235
+#: src/lib/smart-account/SmartAccountContext.tsx:243
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -993,16 +993,16 @@ msgstr ""
 msgid "Failed to resend email verification"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:192
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:172
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:194
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:174
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:106
 msgid "Failed to set primary name"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:365
 msgid "Failed to set primary name. Please try again."
 msgstr "Kunde inte ange primärt namn. Försök igen."
 
@@ -1020,7 +1020,7 @@ msgstr ""
 msgid "Failed to update preferences"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:67
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:69
 msgid "Failed to update resolver"
 msgstr ""
 
@@ -1028,7 +1028,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:119
+#: src/features/dashboard/components/NamesTable.tsx:123
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1059,11 +1059,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:205
+#: src/lib/smart-account/SmartAccountContext.tsx:213
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:206
+#: src/lib/smart-account/SmartAccountContext.tsx:214
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -1110,7 +1110,7 @@ msgstr ""
 msgid "Go to slide {0}"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:74
+#: src/features/dashboard/pages/DashboardPage.tsx:78
 msgid "Hello"
 msgstr "Hej"
 
@@ -1263,7 +1263,7 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:183
+#: src/features/migration/pages/MigrationPage.tsx:182
 msgid "Migration failed"
 msgstr ""
 
@@ -1281,23 +1281,23 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:114
+#: src/features/dashboard/components/NamesTable.tsx:118
 msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:236
+#: src/features/dashboard/components/MyNamesList.tsx:274
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:164
-#: src/features/dashboard/components/MyNamesList.tsx:204
+#: src/features/dashboard/components/MyNamesList.tsx:242
 msgid "Name (A-Z)"
 msgstr "Namn (A-Ö)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:167
-#: src/features/dashboard/components/MyNamesList.tsx:207
+#: src/features/dashboard/components/MyNamesList.tsx:245
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
@@ -1352,7 +1352,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:290
-#: src/features/dashboard/components/MyNamesList.tsx:389
+#: src/features/dashboard/components/MyNamesList.tsx:427
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
 msgstr ""
@@ -1377,8 +1377,8 @@ msgstr ""
 msgid "No eligible names found for this wallet"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:374
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:240
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:376
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:242
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
 
@@ -1386,7 +1386,7 @@ msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande
 msgid "No more records to add"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:305
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:307
 msgid "No names found"
 msgstr "Inga namn hittades"
 
@@ -1396,7 +1396,7 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:227
 #: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:286
+#: src/features/dashboard/components/MyNamesList.tsx:324
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1588,7 +1588,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:281
-#: src/features/dashboard/components/MyNamesList.tsx:380
+#: src/features/dashboard/components/MyNamesList.tsx:418
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
 msgstr ""
@@ -1601,8 +1601,8 @@ msgstr ""
 msgid "Primary Name"
 msgstr "Primärt namn"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:207
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:209
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:70
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
 
@@ -1826,15 +1826,15 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:180
+#: src/features/profile/components/ProfileEdit.tsx:182
 msgid "Reset Changes"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:121
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:123
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:214
+#: src/features/migration/pages/MigrationPage.tsx:213
 msgid "Retry"
 msgstr ""
 
@@ -1851,7 +1851,7 @@ msgstr ""
 msgid "Review Changes"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Save"
 msgstr ""
 
@@ -1885,7 +1885,7 @@ msgstr ""
 msgid "Saving..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:135
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Saving…"
 msgstr ""
 
@@ -1902,7 +1902,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:157
+#: src/features/dashboard/components/NamesTable.tsx:161
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
@@ -1910,7 +1910,7 @@ msgstr "Sök mitt namn..."
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/dashboard/components/NamesTable.tsx:157
+#: src/features/dashboard/components/NamesTable.tsx:161
 msgid "Search name..."
 msgstr "Sök namn..."
 
@@ -1945,7 +1945,7 @@ msgstr ""
 msgid "Select {0}"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:316
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:318
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
@@ -1976,8 +1976,8 @@ msgstr ""
 msgid "Sessions enabled! You can now transact without signing each time."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:408
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:410
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:274
 msgid "Set as Primary"
 msgstr "Ange som primärt"
 
@@ -1989,13 +1989,13 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:95
+#: src/features/dashboard/pages/DashboardPage.tsx:99
 msgid "Set primary name"
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:209
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:285
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:301
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:211
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:287
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:303
 msgid "Set Primary Name"
 msgstr ""
 
@@ -2013,15 +2013,15 @@ msgstr ""
 msgid "Set up later"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:277
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:279
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:405
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
 msgid "Setting ETH address..."
 msgstr "Anger ETH-adress..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:268
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:270
 msgid "Setting ETH address…"
 msgstr ""
 
@@ -2029,11 +2029,11 @@ msgstr ""
 msgid "Setting up your v2 resolver"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
 msgid "Setting..."
 msgstr "Anger..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:270
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
 msgid "Setting…"
 msgstr ""
 
@@ -2050,7 +2050,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:399
+#: src/features/dashboard/components/MyNamesList.tsx:437
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -2058,7 +2058,7 @@ msgstr "Visar dina namn"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:122
+#: src/features/dashboard/components/NamesTable.tsx:126
 msgid "Sign in to view favorites"
 msgstr "Logga in för att se favoriter"
 
@@ -2129,35 +2129,39 @@ msgstr ""
 msgid "Social Links"
 msgstr ""
 
+#: src/features/dashboard/components/MyNamesList.tsx:222
+msgid "Some names could not be loaded"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:141
-#: src/features/dashboard/components/MyNamesList.tsx:192
+#: src/features/dashboard/components/MyNamesList.tsx:230
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:244
+#: src/features/dashboard/components/MyNamesList.tsx:282
 msgid "Sort by expiry, currently ascending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:245
+#: src/features/dashboard/components/MyNamesList.tsx:283
 msgid "Sort by expiry, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:246
+#: src/features/dashboard/components/MyNamesList.tsx:284
 msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:185
-#: src/features/dashboard/components/MyNamesList.tsx:225
+#: src/features/dashboard/components/MyNamesList.tsx:263
 msgid "Sort by name, currently ascending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:186
-#: src/features/dashboard/components/MyNamesList.tsx:226
+#: src/features/dashboard/components/MyNamesList.tsx:264
 msgid "Sort by name, currently descending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:187
-#: src/features/dashboard/components/MyNamesList.tsx:227
+#: src/features/dashboard/components/MyNamesList.tsx:265
 msgid "Sort by name, currently unsorted"
 msgstr ""
 
@@ -2165,7 +2169,7 @@ msgstr ""
 msgid "Sort favorites by"
 msgstr "Sortera favoriter efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:195
+#: src/features/dashboard/components/MyNamesList.tsx:233
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
@@ -2254,8 +2258,8 @@ msgstr ""
 msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:373
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:234
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:375
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:236
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
 
@@ -2304,7 +2308,7 @@ msgstr ""
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:222
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:224
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr ""
 
@@ -2379,9 +2383,9 @@ msgstr ""
 msgid "Update failed"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:106
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:147
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:163
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:108
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:149
+#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:165
 msgid "Update Resolver"
 msgstr ""
 
@@ -2390,7 +2394,7 @@ msgid "Updating profile"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx:172
-#: src/features/migration/components/UpgradeNamesButton.tsx:21
+#: src/features/migration/components/UpgradeNamesButton.tsx:26
 msgid "Upgrade Names"
 msgstr ""
 
@@ -2599,7 +2603,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:223
+#: src/lib/smart-account/SmartAccountContext.tsx:231
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2615,12 +2619,12 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:222
+#: src/lib/smart-account/SmartAccountContext.tsx:230
 msgid "Wallet funded successfully"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:232
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:181
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:234
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:183
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
 

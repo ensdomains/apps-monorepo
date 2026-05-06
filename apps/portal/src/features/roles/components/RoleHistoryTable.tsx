@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, PanelRightOpen } from 'lucide-react'
+import { ArrowRight, ArrowRightFromLineIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -88,14 +88,14 @@ const RoleCountChange = ({ entry }: { readonly entry: RoleHistoryEntry }) => (
 
 const MoreButton = ({ onClick }: { readonly onClick: () => void }) => (
   <Button
-    variant="secondary"
+    variant="default"
     size="sm"
     onClick={(e) => {
       e.stopPropagation()
       onClick()
     }}
   >
-    <PanelRightOpen className="h-4 w-4" />
+    <ArrowRightFromLineIcon className="h-4 w-4" />
     <span className="text-sm font-medium">More</span>
   </Button>
 )
@@ -107,7 +107,7 @@ const RoleHistoryMobileCard = ({
   readonly entry: RoleHistoryEntry
   readonly onMoreClick: () => void
 }) => (
-  <div className="flex flex-col gap-2 px-6 py-4 bg-card border-b border-border">
+  <div className="flex flex-col gap-2 px-6 py-4 bg-background border-b border-border">
     <div className="flex justify-end">
       <MoreButton onClick={onMoreClick} />
     </div>

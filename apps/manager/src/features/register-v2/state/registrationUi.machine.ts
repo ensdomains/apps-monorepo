@@ -6,7 +6,6 @@ import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/en
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import {
   type ActorRefFrom,
   assign,
@@ -79,10 +78,15 @@ type Events =
   | { type: 'label.changed' }
   | { type: '$error'; error: Error }
 
+type Input = {
+  chainId: number
+}
+
 const machineSetup = setup({
   types: {
     context: {} as Context,
     events: {} as Events,
+    input: {} as Input,
     children: {} as {
       [REGISTRATION_V2_ACTOR_ID]: 'registrationFlow'
     },
@@ -181,7 +185,11 @@ const startRegistrationAction = machineSetup.createAction(
         accountAddress: event.account.accountAddress,
         ownerAddress,
         publicClient: defaultPublicClient,
-        useFastRegistrar: true,
+        // The canonical v2 ETHRegistrar handles both fork and prod deployments
+        // and has the current MockUSDC/MockDAI in its payment-token whitelist.
+        // FastTestETHRegistrar from the previous fork still exists on the new
+        // fork but with a stale whitelist, so leave it disabled.
+        useFastRegistrar: false,
         sponsored:
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true
@@ -220,8 +228,8 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     ],
   },
   initial: 'pricing',
-  context: () => ({
-    chainId: sepolia.id,
+  context: ({ input }) => ({
+    chainId: input.chainId,
     duration: SECONDS_IN_YEAR,
     selectedToken: undefined,
     lastErrorMessage: undefined,

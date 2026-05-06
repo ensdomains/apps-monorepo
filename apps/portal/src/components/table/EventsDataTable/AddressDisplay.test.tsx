@@ -28,13 +28,16 @@ vi.mock('@/components/EntityBadge', () => ({
     name,
     address,
     variant,
+    avatar,
   }: {
     children: React.ReactNode
     name?: string
     address?: string
     variant: string
+    avatar?: React.ReactNode
   }) => (
     <span data-testid="entity-badge" data-variant={variant}>
+      {avatar}
       {children}
       <a
         href={variant === 'name' ? `/$name/${name}` : `/addr/$addr/${address}`}
@@ -201,16 +204,17 @@ describe('AddressDisplay', () => {
     expect(screen.getByText('0x1234...5678')).toBeInTheDocument()
   })
 
-  it('should render with correct flex layout', () => {
+  it('should render avatar inside the entity badge', () => {
     vi.mocked(useEnsName).mockReturnValue({
       data: 'test.eth',
       isLoading: false,
     } as any)
 
-    const { container } = render(<AddressDisplay address={mockAddress} />)
+    render(<AddressDisplay address={mockAddress} />)
 
-    const flexContainer = container.querySelector('.flex.flex-row.items-center')
-    expect(flexContainer).toBeInTheDocument()
+    const badge = screen.getByTestId('entity-badge')
+    const avatar = screen.getByTestId('name-avatar')
+    expect(badge).toContainElement(avatar)
   })
 
   it('should handle different address formats', () => {
