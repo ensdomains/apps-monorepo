@@ -262,7 +262,7 @@ const Profile = ({
 
         {/* Right: counter cards */}
         <div className="flex flex-col gap-3 shrink-0">
-          <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
+          <SubnameCount name={name} />
           <ProtocolVersionWithCounter
             name={name}
             protocolVersion={resolvedProtocolVersion}

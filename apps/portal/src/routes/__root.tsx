@@ -6,11 +6,13 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { OmnigraphProvider } from 'enskit/react/omnigraph'
 import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
+import { ensNodeClient } from '@/lib/ensnode/client'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
@@ -42,17 +44,19 @@ export const Route = createRootRoute({
   component: () => {
     return (
       <>
-        <WagmiProvider config={wagmiConfig}>
-          <QueryClientProvider client={queryClient}>
-            <RainbowKitProvider>
-              <TransactionManagerSetup>
-                <PHProvider>
-                  <Outlet />
-                </PHProvider>
-              </TransactionManagerSetup>
-            </RainbowKitProvider>
-          </QueryClientProvider>
-        </WagmiProvider>
+        <OmnigraphProvider client={ensNodeClient}>
+          <WagmiProvider config={wagmiConfig}>
+            <QueryClientProvider client={queryClient}>
+              <RainbowKitProvider>
+                <TransactionManagerSetup>
+                  <PHProvider>
+                    <Outlet />
+                  </PHProvider>
+                </TransactionManagerSetup>
+              </RainbowKitProvider>
+            </QueryClientProvider>
+          </WagmiProvider>
+        </OmnigraphProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
         <TanStackRouterDevtools position="bottom-right" />

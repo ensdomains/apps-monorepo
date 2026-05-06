@@ -38,6 +38,7 @@
     "@biomejs/biome": "^2.3.8",
     "knip": "^5.70.2",
     "lefthook": "^2.1.6",
+    "typescript": "catalog:typescript6",
     "wrangler": "catalog:"
   },
   "pnpm": {
