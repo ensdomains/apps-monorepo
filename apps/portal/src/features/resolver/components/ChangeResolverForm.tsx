@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -57,6 +57,7 @@ export const ChangeResolverForm = ({
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  const deployedResolverAddressRef = useRef<Address | null>(null)
 
   const {
     openModal: openTransactionModal,
@@ -122,20 +123,29 @@ export const ChangeResolverForm = ({
     changeResolver(resolverToUse)
   }
 
-  const handleDeployResolverStart = () => {
-    deployPermissionedResolverAsync({ id: DEPLOY_RESOLVER_TX_ID })
+  const handleDeployResolverStart = async () => {
+    const result = await deployPermissionedResolverAsync({
+      id: DEPLOY_RESOLVER_TX_ID,
+    })
+    deployedResolverAddressRef.current = result.resolverAddress
+    changeResolver(result.resolverAddress)
   }
 
   const handleDeployResolverDone = () => {
-    if (!deployedResolverAddress) return
-    // gets deployed resolver address from query client
-    changeResolver(deployedResolverAddress)
+    if (deployedResolverAddressRef.current) {
+      changeResolver(deployedResolverAddressRef.current)
+      return
+    }
+    if (deployedResolverAddress) {
+      changeResolver(deployedResolverAddress)
+    }
   }
 
   const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
     setResolverAddress('')
+    deployedResolverAddressRef.current = null
     setShowSuccessButtonLabel(true)
     setTimeout(
       () => setShowSuccessButtonLabel(false),
