@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { getAddress, namehash } from 'viem'
+import { useChainId } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Button } from '@/components/ui/button'
@@ -40,7 +41,7 @@ import {
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { customSepolia, publicClient } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 
@@ -59,9 +60,10 @@ export const ChoosePrimaryNameDialog = ({
   const { data: wallet } = useWallet()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
+  const chainId = useChainId()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
-    input: { chainId: customSepolia.id },
+    input: { chainId },
   })
 
   const primaryNameState = useSelector(primaryNameActor, (state) => state)
@@ -183,7 +185,7 @@ export const ChoosePrimaryNameDialog = ({
         signer: account.signer,
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
-        chainId: customSepolia.id,
+        chainId,
         resolverAddress,
       })
     },

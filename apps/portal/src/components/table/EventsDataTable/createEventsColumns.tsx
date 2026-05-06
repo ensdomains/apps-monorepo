@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
+import { ArrowRightFromLineIcon, ChevronDown, ChevronUp } from 'lucide-react'
 import type { Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
@@ -158,7 +158,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
                 meta?.onMoreClick?.(row)
               }}
             >
-              <PanelRightOpen className="h-4 w-4" />
+              <ArrowRightFromLineIcon className="h-4 w-4" />
               <span className="text-sm font-medium">More</span>
             </Button>
           </div>

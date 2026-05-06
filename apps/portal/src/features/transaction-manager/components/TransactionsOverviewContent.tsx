@@ -23,6 +23,7 @@ import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
+import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
 type TransactionsOverviewContentProps = {
   readonly address: Address | undefined
@@ -125,6 +126,14 @@ export const TransactionsOverviewContent = ({
                         <h4 className="text-base font-medium text-foreground min-w-0 break-words">
                           {transaction.title}
                         </h4>
+                        {transaction.waitUntil &&
+                        getStatus(transaction.id, activeTransactionsMap) ===
+                          undefined &&
+                        transaction.waitUntil > Date.now() ? (
+                          <TransactionWaitCountdown
+                            waitUntil={transaction.waitUntil}
+                          />
+                        ) : null}
                         {match(getStatus(transaction.id, activeTransactionsMap))
                           .with(undefined, () => (
                             <Badge variant="ghost" className="font-normal">

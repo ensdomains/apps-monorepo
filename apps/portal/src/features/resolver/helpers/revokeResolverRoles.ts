@@ -53,18 +53,18 @@ export const revokeResolverRoles = async (
     walletClient as Parameters<typeof revokeResolverRolesWriteParameters>[0],
     name === ''
       ? {
-        resolverAddress,
-        targetAccount: account,
-        scope: 'root',
-        roles: roles as ResolverRole[],
-      }
+          resolverAddress,
+          targetAccount: account,
+          scope: 'root',
+          roles: roles as ResolverRole[],
+        }
       : {
-        resolverAddress,
-        targetAccount: account,
-        scope: 'name',
-        name,
-        roles: roles as ResolverRole[],
-      },
+          resolverAddress,
+          targetAccount: account,
+          scope: 'name',
+          name,
+          roles: roles as ResolverRole[],
+        },
   )
 
   const data = encodeFunctionData({

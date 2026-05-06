@@ -12,9 +12,11 @@ import type { BaseEvent, EventsTableData } from '../types'
 
 // Mock icons
 vi.mock('lucide-react', () => ({
+  ArrowRightFromLineIcon: () => (
+    <span data-testid="icon-arrow-right-from-line" />
+  ),
   ChevronDown: () => <span data-testid="icon-chevron-down" />,
   ChevronUp: () => <span data-testid="icon-chevron-up" />,
-  PanelRightOpen: () => <span data-testid="icon-panel-right-open" />,
 }))
 
 // Mock Button component
@@ -169,7 +171,7 @@ describe('MobileCardHeader', () => {
 
     const moreButton = screen.getByRole('button', { name: /more/i })
     expect(moreButton).toBeInTheDocument()
-    expect(screen.getByTestId('icon-panel-right-open')).toBeInTheDocument()
+    expect(screen.getByTestId('icon-arrow-right-from-line')).toBeInTheDocument()
   })
 
   it('should not render more button when sidebar is disabled', () => {

@@ -6,8 +6,8 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@58509de
-  "@ensdomains/ensjs-abi": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de
+  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@58509de42aaf90a8a109edb44ff45e5fad93d596
+  "@ensdomains/ensjs-abi": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de42aaf90a8a109edb44ff45e5fad93d596
   xstate: ^5.24.0
   "@typescript/native-preview": 7.0.0-dev.20260421.2
   vite: ^8.0.10
@@ -33,4 +33,4 @@ resolutionMode: highest
 
 trustPolicy: no-downgrade
 
-trustPolicyIgnoreAfter: 1440
+trustPolicyIgnoreAfter: 10080 # 1 week

@@ -7,6 +7,7 @@
  */
 
 import {
+  type EOATransactionRequest,
   type RhinestoneTransactionRequest,
   type Signer,
   type TransactionRequest,
@@ -227,6 +228,19 @@ function createTransactionRequest(params: {
 }): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
 
+  if (signer.type === 'eoa') {
+    // EOA submits a single direct transaction (no batching support).
+    // `calls` is ignored; profile updates already use a single multicall to the resolver.
+    return {
+      type: 'eoa',
+      from,
+      to,
+      data,
+      value,
+      chainId,
+    } as EOATransactionRequest
+  }
+
   if (signer.type === 'rhinestone') {
     return {
       type: 'rhinestone-intent',
@@ -429,7 +443,7 @@ async function buildRecordsUpdateRequest(params: {
  *   signer: account.signer,
  *   accountAddress: account.accountAddress,
  *   publicClient,
- *   chainId: 11155111,
+ *   chainId: publicClient.chain.id,
  *   resolverAddress,
  * })
  * ```

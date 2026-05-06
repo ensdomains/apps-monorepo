@@ -35,7 +35,7 @@ const userPermissionedResolversQueryKey = createQueryKey<
 export const useUserPermissionedResolvers = ({
   senderAddress,
 }: UseUserPermissionedResolversParams) => {
-  const publicClient = usePublicClient({ chainId: sepoliaWithEns.id })
+  const publicClient = usePublicClient()
 
   return useQuery({
     queryKey: userPermissionedResolversQueryKey({ senderAddress }),

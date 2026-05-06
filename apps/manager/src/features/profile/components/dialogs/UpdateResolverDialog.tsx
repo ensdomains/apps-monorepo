@@ -3,6 +3,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
 import type { PublicClient } from 'viem'
+import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -23,7 +24,7 @@ import {
 import { FloatingInput } from '@/components/ui/floating-input'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { customSepolia, publicClient } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import {
   handleResolverCancel,
   handleResolverUpdate,
@@ -47,9 +48,10 @@ export const UpdateResolverDialog = ({
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
   const account = useSmartAccountContext()
   const isDesktop = useMediaQuery('(min-width: 768px)')
+  const chainId = useChainId()
 
   const resolverActor = useActorRef(resolverMachine, {
-    input: { chainId: customSepolia.id },
+    input: { chainId },
   })
 
   const resolverState = useSelector(resolverActor, (state) => state)
