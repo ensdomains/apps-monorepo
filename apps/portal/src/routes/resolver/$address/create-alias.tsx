@@ -139,12 +139,6 @@ function RouteComponent() {
     publicClient,
     chainId,
     id: CREATE_ALIAS_TX_ID,
-    onSuccess: () => {
-      closeModal()
-      clearTransaction()
-      setPendingAlias(null)
-      navigate({ to: '/resolver/$address/aliases', params: { address } })
-    },
   })
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -341,6 +335,10 @@ function RouteComponent() {
               closeModal()
               clearTransaction()
               setPendingAlias(null)
+              navigate({
+                to: '/resolver/$address/aliases',
+                params: { address },
+              })
             },
           },
         ]}
