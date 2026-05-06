@@ -730,6 +730,10 @@ msgstr ""
 msgid "DAO Forum"
 msgstr ""
 
+#: src/features/navigation/Header/account/NavSection.tsx:23
+msgid "Dashboard"
+msgstr ""
+
 #: src/features/dashboard/components/FavoritesList.tsx:173
 msgid "Date added (Newest)"
 msgstr "Datum tillagt (nyast)"
@@ -1608,6 +1612,10 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryBadge.tsx:20
 msgid "Primary Name"
 msgstr "Primärt namn"
+
+#: src/features/navigation/Header/account/NavSection.tsx:31
+msgid "Primary Name Profile"
+msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:207
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69

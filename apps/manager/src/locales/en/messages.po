@@ -725,6 +725,10 @@ msgstr "CVV"
 msgid "DAO Forum"
 msgstr "DAO Forum"
 
+#: src/features/navigation/Header/account/NavSection.tsx:23
+msgid "Dashboard"
+msgstr "Dashboard"
+
 #: src/features/dashboard/components/FavoritesList.tsx:173
 msgid "Date added (Newest)"
 msgstr "Date added (Newest)"
@@ -1603,6 +1607,10 @@ msgstr "Previous slide"
 #: src/features/dashboard/components/PrimaryBadge.tsx:20
 msgid "Primary Name"
 msgstr "Primary Name"
+
+#: src/features/navigation/Header/account/NavSection.tsx:31
+msgid "Primary Name Profile"
+msgstr "Primary Name Profile"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:207
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
