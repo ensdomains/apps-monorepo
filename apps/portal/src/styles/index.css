@@ -156,6 +156,14 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Disable Tailwind's default gray namespaces — use --neutral-* instead. */
+  --color-gray-*: initial;
+  --color-zinc-*: initial;
+  --color-neutral-*: initial;
+  --color-slate-*: initial;
+  --color-stone-*: initial;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
