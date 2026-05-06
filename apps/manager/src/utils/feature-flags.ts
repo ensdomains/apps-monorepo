@@ -47,6 +47,9 @@ const FEATURE_FLAGS_INTERNAL = {
   LANGUAGE_SELECTOR: {
     enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
   },
+  MIGRATION: {
+    enabled: import.meta.env.VITE_FF_MIGRATION === 'true',
+  },
   REGISTRATION_V2: {
     enabled: true,
   },

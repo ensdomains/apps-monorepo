@@ -36,6 +36,7 @@ const PAGE_SIZE = 5
 type Sort = `${SortField}-${SortDir}`
 
 interface MyNamesListProps {
+  readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
 }
@@ -92,6 +93,7 @@ const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
 }
 
 export const MyNamesList = ({
+  migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
@@ -103,6 +105,10 @@ export const MyNamesList = ({
 
   const { eligible: v1Classified, isPending: isV1Pending } =
     useEligibleV1Names()
+  const visibleV1Classified = useMemo(
+    () => (migrationEnabled ? v1Classified : []),
+    [migrationEnabled, v1Classified],
+  )
 
   const normalizedAddress = wallet?.address?.toLowerCase()
 
@@ -129,12 +135,12 @@ export const MyNamesList = ({
     () =>
       buildMergedNamesList({
         v2Names,
-        v1Classified,
+        v1Classified: visibleV1Classified,
         searchQuery,
         sortField,
         sortDir,
       }),
-    [v2Names, v1Classified, searchQuery, sortField, sortDir],
+    [v2Names, visibleV1Classified, searchQuery, sortField, sortDir],
   )
 
   const totalPages = Math.max(
@@ -173,7 +179,8 @@ export const MyNamesList = ({
   const { data: pageAvatars } = useQuery(namesAvatarsQuery(avatarLookups))
 
   const isPending =
-    (isV2Pending && normalizedAddress !== undefined) || isV1Pending
+    (isV2Pending && normalizedAddress !== undefined) ||
+    (migrationEnabled && isV1Pending)
 
   if (isError) {
     return (
@@ -319,7 +326,7 @@ export const MyNamesList = ({
                         },
                       })}
                 >
-                  {isV1 && (
+                  {migrationEnabled && isV1 && (
                     <div className="mb-[10px]">
                       <Link
                         className="inline-flex items-center gap-1 rounded-full bg-[#feeaf0] px-1 py-0.5 transition-colors hover:bg-[#fcdbe5]"
@@ -345,7 +352,7 @@ export const MyNamesList = ({
                     <NameRow
                       avatarUrl={avatarUrl}
                       label={label}
-                      linkToMigration={isV1}
+                      linkToMigration={migrationEnabled && isV1}
                     />
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
