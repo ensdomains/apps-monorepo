@@ -231,7 +231,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator className="self-center data-[orientation=horizontal]:w-[calc(100%-3rem)]" />
+      <SidebarSeparator className="self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
 
       <SidebarFooter className="px-6 py-6 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-4 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:gap-3.5">
