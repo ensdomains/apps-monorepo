@@ -1,7 +1,11 @@
-import type { DomainFragment } from '@ens-apps/indexer'
+import {
+  Domain_OrderBy,
+  type DomainFragment,
+  OrderDirection,
+} from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ChevronDown,
@@ -27,7 +31,7 @@ import {
   namesAvatarsQuery,
 } from '@/features/profile/service/profileAvatar'
 import { tw } from '@/utils/tailwind'
-import { getAllDomainsQuery } from '../service/queries/getAllDashboardDomains'
+import { getAllDomainsInfiniteQuery } from '../service/queries/getAllDashboardDomains'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -102,6 +106,7 @@ export const MyNamesList = ({
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<Sort>('name-desc')
+  const { field: sortField, dir: sortDir } = parseSort(sort)
 
   const { eligible: v1Classified, isPending: isV1Pending } =
     useEligibleV1Names()
@@ -115,21 +120,37 @@ export const MyNamesList = ({
   const {
     data: v2Data,
     isPending: isV2Pending,
-    isError,
-  } = useQuery(
-    getAllDomainsQuery(
-      normalizedAddress ? { owner: normalizedAddress } : undefined,
+    isError: isV2Error,
+    fetchNextPage: fetchNextV2Page,
+    hasNextPage: hasNextV2Page,
+    isFetchingNextPage: isFetchingNextV2Page,
+  } = useInfiniteQuery(
+    getAllDomainsInfiniteQuery(
+      normalizedAddress
+        ? {
+            where: { owner: normalizedAddress },
+            orderBy:
+              sortField === 'expiry'
+                ? Domain_OrderBy.ExpiryDate
+                : Domain_OrderBy.Name,
+            orderDirection:
+              sortDir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+          }
+        : undefined,
     ),
   )
 
   const v2Names: DomainFragment[] = v2Data ?? []
 
-  const { field: sortField, dir: sortDir } = parseSort(sort)
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
     setPage(1)
   }, [searchQuery, wallet?.address])
+
+  useEffect(() => {
+    if (isV2Error || !hasNextV2Page || isFetchingNextV2Page) return
+    void fetchNextV2Page()
+  }, [fetchNextV2Page, hasNextV2Page, isFetchingNextV2Page, isV2Error])
 
   const mergedSortedFiltered = useMemo(
     () =>
@@ -182,7 +203,7 @@ export const MyNamesList = ({
     (isV2Pending && normalizedAddress !== undefined) ||
     (migrationEnabled && isV1Pending)
 
-  if (isError) {
+  if (isV2Error && v2Names.length === 0) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
         <Trans>Error loading names</Trans>

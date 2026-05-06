@@ -773,7 +773,7 @@ msgstr "Done"
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
-#: src/features/dashboard/components/MyNamesList.tsx:341
+#: src/features/dashboard/components/MyNamesList.tsx:362
 msgid "Eligible for upgrade"
 msgstr "Eligible for upgrade"
 
@@ -881,7 +881,7 @@ msgstr "Enter wallet address"
 msgid "Enter your email"
 msgstr "Enter your email"
 
-#: src/features/dashboard/components/MyNamesList.tsx:188
+#: src/features/dashboard/components/MyNamesList.tsx:209
 msgid "Error loading names"
 msgstr "Error loading names"
 
@@ -902,7 +902,7 @@ msgstr "Expires {0}"
 msgid "expires {expiryDateString}"
 msgstr "expires {expiryDateString}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:371
+#: src/features/dashboard/components/MyNamesList.tsx:392
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Expires in {daysUntilExpiry} days"
 
@@ -916,15 +916,15 @@ msgstr "Expires:"
 msgid "expiring on"
 msgstr "expiring on"
 
-#: src/features/dashboard/components/MyNamesList.tsx:262
+#: src/features/dashboard/components/MyNamesList.tsx:283
 msgid "Expiry"
 msgstr "Expiry"
 
-#: src/features/dashboard/components/MyNamesList.tsx:217
+#: src/features/dashboard/components/MyNamesList.tsx:238
 msgid "Expiry date (Earliest)"
 msgstr "Expiry date (Earliest)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:220
+#: src/features/dashboard/components/MyNamesList.tsx:241
 msgid "Expiry date (Latest)"
 msgstr "Expiry date (Latest)"
 
@@ -1276,18 +1276,18 @@ msgid "My Names"
 msgstr "My Names"
 
 #: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:243
+#: src/features/dashboard/components/MyNamesList.tsx:264
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Name"
 
 #: src/features/dashboard/components/FavoritesList.tsx:164
-#: src/features/dashboard/components/MyNamesList.tsx:211
+#: src/features/dashboard/components/MyNamesList.tsx:232
 msgid "Name (A-Z)"
 msgstr "Name (A-Z)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:167
-#: src/features/dashboard/components/MyNamesList.tsx:214
+#: src/features/dashboard/components/MyNamesList.tsx:235
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
@@ -1338,7 +1338,7 @@ msgid "Next card"
 msgstr "Next card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:290
-#: src/features/dashboard/components/MyNamesList.tsx:396
+#: src/features/dashboard/components/MyNamesList.tsx:417
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
 msgstr "Next page"
@@ -1382,7 +1382,7 @@ msgstr "No names match your search"
 
 #: src/features/dashboard/components/FavoritesList.tsx:227
 #: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:293
+#: src/features/dashboard/components/MyNamesList.tsx:314
 msgid "No names to display"
 msgstr "No names to display"
 
@@ -1575,7 +1575,7 @@ msgid "Previous card"
 msgstr "Previous card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:281
-#: src/features/dashboard/components/MyNamesList.tsx:387
+#: src/features/dashboard/components/MyNamesList.tsx:408
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
 msgstr "Previous page"
@@ -2024,7 +2024,7 @@ msgstr "Short Description"
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:406
+#: src/features/dashboard/components/MyNamesList.tsx:427
 msgid "Showing your names"
 msgstr "Showing your names"
 
@@ -2106,34 +2106,34 @@ msgid "Social Links"
 msgstr "Social Links"
 
 #: src/features/dashboard/components/FavoritesList.tsx:141
-#: src/features/dashboard/components/MyNamesList.tsx:199
+#: src/features/dashboard/components/MyNamesList.tsx:220
 msgid "Sort by"
 msgstr "Sort by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:251
+#: src/features/dashboard/components/MyNamesList.tsx:272
 msgid "Sort by expiry, currently ascending"
 msgstr "Sort by expiry, currently ascending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:252
+#: src/features/dashboard/components/MyNamesList.tsx:273
 msgid "Sort by expiry, currently descending"
 msgstr "Sort by expiry, currently descending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:253
+#: src/features/dashboard/components/MyNamesList.tsx:274
 msgid "Sort by expiry, currently unsorted"
 msgstr "Sort by expiry, currently unsorted"
 
 #: src/features/dashboard/components/FavoritesList.tsx:185
-#: src/features/dashboard/components/MyNamesList.tsx:232
+#: src/features/dashboard/components/MyNamesList.tsx:253
 msgid "Sort by name, currently ascending"
 msgstr "Sort by name, currently ascending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:186
-#: src/features/dashboard/components/MyNamesList.tsx:233
+#: src/features/dashboard/components/MyNamesList.tsx:254
 msgid "Sort by name, currently descending"
 msgstr "Sort by name, currently descending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:187
-#: src/features/dashboard/components/MyNamesList.tsx:234
+#: src/features/dashboard/components/MyNamesList.tsx:255
 msgid "Sort by name, currently unsorted"
 msgstr "Sort by name, currently unsorted"
 
@@ -2141,7 +2141,7 @@ msgstr "Sort by name, currently unsorted"
 msgid "Sort favorites by"
 msgstr "Sort favorites by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:202
+#: src/features/dashboard/components/MyNamesList.tsx:223
 msgid "Sort names by"
 msgstr "Sort names by"
 
