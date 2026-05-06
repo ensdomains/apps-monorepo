@@ -6,10 +6,10 @@
 # Formatting errors will still be fixed, but linting errors won't block commits
 pre-commit:
   commands:
-    # lingui-extract:
-    #   glob: "apps/manager/src/**/*.{ts,tsx}"
-    #   run: pnpm --filter manager i18n:extract --clean && git add apps/manager/src/locales/
-    #   priority: 1
+    lingui-extract:
+      glob: "apps/manager/src/**/*.{ts,tsx}"
+      run: pnpm --filter manager i18n:extract --clean && git add apps/manager/src/locales/
+      priority: 1
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json,jsonc}"
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
