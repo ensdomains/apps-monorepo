@@ -5,7 +5,6 @@ import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { type Address, encodeFunctionData, erc20Abi } from 'viem'
-import { sepolia } from 'viem/chains'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -122,7 +121,7 @@ function buildApproveTransaction(
         to: params.tokenAddress,
         data: approveData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: sepoliaWithEns.id,
       },
     },
     signer,
@@ -159,7 +158,7 @@ function buildRenewTransaction(
         to: ethRegistrar,
         data: renewData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: sepoliaWithEns.id,
       },
     },
     signer,
@@ -241,7 +240,7 @@ export const useRenewalTransactions = ({
 }: UseRenewalTransactionsOptions = {}) => {
   const config = useConfig()
   const connection = useConnection()
-  const publicClient = usePublicClient({ chainId: sepolia.id })
+  const publicClient = usePublicClient()
   const { closeModal, clearTransaction } = useTransactionModal()
   const [savedParams, setSavedParams] = useState<SavedRenewalParams | null>(
     null,

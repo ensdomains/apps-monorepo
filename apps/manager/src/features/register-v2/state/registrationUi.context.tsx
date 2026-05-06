@@ -1,6 +1,7 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
+import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import {
   getRegistrationV2ChildActor,
@@ -28,7 +29,10 @@ export const RegistrationV2UiProvider = ({
   children: React.ReactNode
   label: string
 }) => {
-  const registrationV2UiActor = useActorRef(registrationV2UiMachine)
+  const chainId = useChainId()
+  const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
+    input: { chainId },
+  })
   const registrationActor = useSelector(
     registrationV2UiActor,
     getRegistrationV2ChildActor,

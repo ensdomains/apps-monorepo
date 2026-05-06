@@ -8,7 +8,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
+import { ArrowRightFromLineIcon, ChevronDown, ChevronUp } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
@@ -138,7 +138,7 @@ const moreColumn: ColumnDef<ResolverEventRow> = {
           meta?.onMoreClick?.(row.original)
         }}
       >
-        <PanelRightOpen className="h-4 w-4" />
+        <ArrowRightFromLineIcon className="h-4 w-4" />
         <span className="text-sm font-medium">More</span>
       </Button>
     </div>
@@ -226,7 +226,7 @@ export const ResolverEventsTable = ({
                     setSidebarOpen(true)
                   }}
                 >
-                  <PanelRightOpen className="h-4 w-4" />
+                  <ArrowRightFromLineIcon className="h-4 w-4" />
                   <span className="text-sm font-medium">More</span>
                 </Button>
               )}

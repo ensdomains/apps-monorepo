@@ -20,10 +20,10 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 
 const GRANT_ROLES_TRANSACTION_ID = 'tx-grant-roles'
-const client = wagmiConfig.getClient({ chainId: sepoliaWithEns.id })
+const client = wagmiConfig.getClient()
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
@@ -39,8 +39,7 @@ function RouteComponent() {
     roles: Role[]
   } | null>(null)
 
-  const chainId = sepoliaWithEns.id
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
 
   const labels = name.split('.')
   const is3LD = labels.length === 3
