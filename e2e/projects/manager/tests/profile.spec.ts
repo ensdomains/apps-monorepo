@@ -4,6 +4,7 @@ import {
     ensureProfilePillField,
     goToEditProfile,
     goToProfile,
+    renewFor28Days,
     saveProfileChanges,
     waitForProfileUpdated,
 } from '../../../helpers/profile-helpers.js'
@@ -222,5 +223,39 @@ test.describe('ENS profile', () => {
         })
 
         console.log(`[profile] ✅ Favouriting a non-owned name succeeded for ${name}`)
+    })
+
+    test('extend owned name by 28 days', async ({
+        authenticatedPage: page,
+        registerName,
+    }) => {
+        const name = await registerName('extendowned')
+        console.log(`[profile] name for extend-owned test: ${name}`)
+
+        await goToProfile(page, name)
+        await page.getByRole('link', { name: /extend name/i }).click()
+        await page.waitForLoadState('networkidle')
+        await page.waitForTimeout(2_000)
+
+        const expiry = await renewFor28Days(page)
+        console.log(`[profile] ✅ Extend owned name by 28 days succeeded for ${name}, expires ${expiry}`)
+    })
+
+    test('extend unowned name by 28 days', async ({
+        authenticatedPage: page,
+    }) => {
+        const name = 'tester-other.eth'
+        console.log(`[profile] name for extend-unowned test: ${name}`)
+
+        await page.goto(`${MANAGER_APP_URL}/p/${name}`)
+        await page.waitForLoadState('networkidle')
+        await page.waitForTimeout(3_000)
+
+        await page.getByRole('link', { name: /extend name/i }).click()
+        await page.waitForLoadState('networkidle')
+        await page.waitForTimeout(2_000)
+
+        const expiry = await renewFor28Days(page)
+        console.log(`[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
 })
