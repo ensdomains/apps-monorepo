@@ -33,24 +33,24 @@ export const AddressDisplay = ({
   const variant = ensName ? 'name' : variantProp
 
   return (
-    <div className="flex flex-row items-center gap-2">
-      {ensName ? (
-        <NameAvatar
-          name={ensName}
-          height="20px"
-          width="20px"
-          rounded="rounded-sm"
-        />
-      ) : (
-        <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
-      )}
-      <EntityBadgeWithActions
-        variant={variant}
-        name={ensName ?? undefined}
-        address={address}
-      >
-        {displayName}
-      </EntityBadgeWithActions>
-    </div>
+    <EntityBadgeWithActions
+      variant={variant}
+      name={ensName ?? undefined}
+      address={address}
+      avatar={
+        ensName ? (
+          <NameAvatar
+            name={ensName}
+            height="20px"
+            width="20px"
+            rounded="rounded-sm"
+          />
+        ) : (
+          <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
+        )
+      }
+    >
+      {displayName}
+    </EntityBadgeWithActions>
   )
 }

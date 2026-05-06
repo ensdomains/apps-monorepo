@@ -256,7 +256,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-card overflow-y-auto"
+          className="sm:max-w-[880px] bg-background overflow-y-auto"
         >
           <div className="p-6 flex flex-col gap-6">
             <div className="text-muted-foreground text-center py-12">
@@ -346,7 +346,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-card overflow-y-auto"
+        className="sm:max-w-[880px] bg-background overflow-y-auto"
       >
         <div className="p-6 flex flex-col gap-6">
           <SheetHeader>

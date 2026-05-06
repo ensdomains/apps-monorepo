@@ -1,3 +1,4 @@
+import { ensL1Contracts } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { getEnsContractName } from './ensContractNames'
@@ -5,6 +6,8 @@ import { getEnsContractName } from './ensContractNames'
 const MAINNET = 1
 const SEPOLIA = 11155111
 const UNKNOWN_CHAIN = 99999
+
+const sepoliaContracts = ensL1Contracts[SEPOLIA]
 
 describe('getEnsContractName', () => {
   it('returns undefined for an unknown chain ID', () => {
@@ -66,12 +69,18 @@ describe('getEnsContractName', () => {
 
   it('returns correct labels for sepolia contracts', () => {
     const cases: [Address, string][] = [
-      ['0x6409609247722761b8ba96371485de92a6d7b83b', 'BaseRegistrar'],
-      ['0x7f86d816165baf4fd68bfd9a0706601cdd666ac4', 'BulkRenewal'],
-      ['0x99e517db3db5ec5424367b8b50cd11ddcb0008f1', 'ETHRegistrarController'],
-      ['0xc7e033b8836e4bd55d069d113f018b98478cb091', 'NameWrapper'],
-      ['0x796fff2e907449be8d5921bcc215b1b76d89d080', 'ENSRegistry'],
-      ['0x4dc74fef4fc6b5a810a1554d431f06c8d8b7451c', 'UniversalResolver'],
+      [
+        sepoliaContracts.ensBaseRegistrarImplementation.address,
+        'BaseRegistrar',
+      ],
+      [sepoliaContracts.ensBulkRenewal.address, 'BulkRenewal'],
+      [
+        sepoliaContracts.ensEthRegistrarController.address,
+        'ETHRegistrarController',
+      ],
+      [sepoliaContracts.ensNameWrapper.address, 'NameWrapper'],
+      [sepoliaContracts.ensRegistry.address, 'ENSRegistry'],
+      [sepoliaContracts.ensUniversalResolver.address, 'UniversalResolver'],
     ]
     for (const [address, expected] of cases) {
       expect(getEnsContractName(SEPOLIA, address)).toBe(expected)

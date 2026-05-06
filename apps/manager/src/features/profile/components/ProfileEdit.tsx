@@ -7,9 +7,10 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
+import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { customSepolia, publicClient } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import { createDiff } from '../utils/createDiff'
@@ -53,6 +54,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   })
 
   const account = useSmartAccountContext()
+  const chainId = useChainId()
   const queryClient = useQueryClient()
 
   const saveRecordsMutation = useMutation({
@@ -126,7 +128,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       signer: account.signer,
       accountAddress,
       publicClient: publicClient as PublicClient,
-      chainId: customSepolia.id,
+      chainId,
       resolverAddress,
     })
   }
