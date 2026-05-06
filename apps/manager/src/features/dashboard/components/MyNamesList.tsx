@@ -202,6 +202,7 @@ export const MyNamesList = ({
   const isPending =
     (isV2Pending && normalizedAddress !== undefined) ||
     (migrationEnabled && isV1Pending)
+  const hasPartialV2Error = isV2Error && v2Names.length > 0
 
   if (isV2Error && v2Names.length === 0) {
     return (
@@ -213,6 +214,15 @@ export const MyNamesList = ({
 
   return (
     <div className="w-full">
+      {hasPartialV2Error ? (
+        <div
+          className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-red-600 text-sm"
+          role="alert"
+        >
+          <Trans>Some names could not be loaded</Trans>
+        </div>
+      ) : null}
+
       {/* Mobile Sort Dropdown */}
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">

@@ -6,7 +6,7 @@ import {
   getRegistrationDate as ensjsv2_getRegistrationDate,
   type GetRegistrationDateErrorType,
 } from '@ensdomains/ensjs/public/v2'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName } from './profileName'
@@ -16,6 +16,31 @@ class GetProfileRegistrationError extends TaggedError(
 )<{
   cause: GetRegistrationDateErrorType
 }> {}
+
+class UnsafeRegistrationDateError extends TaggedError(
+  'UnsafeRegistrationDateError',
+)<{
+  readonly registrationDate: string
+}> {}
+
+const MIN_SAFE_INTEGER_BIGINT = BigInt(Number.MIN_SAFE_INTEGER)
+const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER)
+
+const registrationDateToNumber = (registrationDate: bigint) => {
+  if (
+    registrationDate < MIN_SAFE_INTEGER_BIGINT ||
+    registrationDate > MAX_SAFE_INTEGER_BIGINT
+  ) {
+    return err(
+      new UnsafeRegistrationDateError({
+        message: 'Registration date exceeds Number safe integer range',
+        registrationDate: registrationDate.toString(),
+      }),
+    )
+  }
+
+  return ok(Number(registrationDate))
+}
 
 const ENS_REGISTRY = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -42,10 +67,13 @@ export const getRegistration = ResultFn(async function* (name: string) {
       }),
   )
 
-  return ok({
-    registrationDate:
-      registrationDate === null ? null : Number(registrationDate),
-  })
+  if (registrationDate === null) {
+    return ok({ registrationDate: null })
+  }
+
+  const safeRegistrationDate = yield* registrationDateToNumber(registrationDate)
+
+  return ok({ registrationDate: safeRegistrationDate })
 })
 
 export const profileRegistrationQuery = (name: string) =>
