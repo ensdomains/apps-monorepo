@@ -295,7 +295,7 @@ describe('buildSearchSuggestions', () => {
       const result = buildSearchSuggestions({
         ...defaultOptions,
         value: 'fresh.e',
-        validTlds: ['eth', 'xyz', 'box', 'com', 'lol'],
+        validTlds: ['eth', 'xyz', 'com', 'lol'],
       })
       expect(result.length).toBe(1)
       expect(result[0].label).toBe('fresh.eth')
@@ -305,7 +305,7 @@ describe('buildSearchSuggestions', () => {
       const result = buildSearchSuggestions({
         ...defaultOptions,
         value: 'fresh.c',
-        validTlds: ['eth', 'xyz', 'box', 'com', 'lol'],
+        validTlds: ['eth', 'xyz', 'com', 'lol'],
       })
       expect(result.length).toBe(2)
       expect(result.map((s) => s.label)).toEqual(['fresh.eth', 'fresh.com'])

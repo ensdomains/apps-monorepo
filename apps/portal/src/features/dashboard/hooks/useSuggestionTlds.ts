@@ -6,7 +6,7 @@ import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSec
  * TLDs to suggest in search when user types a single label.
  * "eth" is always valid (native ENS). Others are checked for DNSSEC via useSuggestionTlds.
  */
-const SUGGESTION_TLDs = ['eth', 'xyz', 'box', 'com', 'lol'] as const
+const SUGGESTION_TLDs = ['eth', 'xyz', 'com', 'lol'] as const
 
 /**
  * TLDs that are always valid (no DNSSEC check).
