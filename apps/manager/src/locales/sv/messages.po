@@ -199,6 +199,10 @@ msgstr ""
 msgid "Add more"
 msgstr ""
 
+#: src/features/notifications/settings/contact-methods/index.tsx:44
+msgid "Add more contact methods"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:23
 #: src/routes/payment/list.tsx:29
 msgid "Add Payment Method"

@@ -47,6 +47,89 @@ export const NotificationPreferences = () => {
   const hasVerifiedChannels =
     (preferences.data?.verifiedChannels?.length ?? 0) > 0
 
+  return { form, preferences, hasVerifiedChannels }
+}
+
+type NotificationPreferencesFieldsProps = Pick<
+  ReturnType<typeof useNotificationPreferencesForm>,
+  'form' | 'preferences'
+>
+
+/** Shared header + three preference toggles (used by settings page and registration step). */
+export const NotificationPreferencesFields = ({
+  form,
+  preferences,
+}: NotificationPreferencesFieldsProps) => {
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pb-2">
+        <h2 className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
+          <Trans>Preferences</Trans>
+        </h2>
+        <p className="text-ens-quartz-400 text-sm italic leading-ens-normal">
+          <Trans>In-app notifications are always enabled</Trans>
+        </p>
+      </div>
+      <div className="flex flex-col gap-1">
+        <form.Field name="ownedNameExpiry">
+          {(field) => (
+            <PreferenceCard
+              checked={field.state.value}
+              description={
+                <Trans>
+                  You'll be notified 30, 7, and 1 day before expiry.
+                </Trans>
+              }
+              disabled={preferences.isRefetching}
+              icon={<MSymbol className="ms-wght-300" symbol="schedule" />}
+              isLoading={preferences.isLoading}
+              label={<Trans>Name Expiry</Trans>}
+              onChange={(checked) => field.handleChange(checked)}
+              recommended
+            />
+          )}
+        </form.Field>
+        <form.Field name="ensLabsUpdates">
+          {(field) => (
+            <PreferenceCard
+              checked={field.state.value}
+              description={
+                <Trans>Get updated on the latest releases and features.</Trans>
+              }
+              disabled={preferences.isRefetching}
+              icon={<EnsMobileIcon />}
+              isLoading={preferences.isLoading}
+              label={<Trans>ENS Labs Updates</Trans>}
+              onChange={(checked) => field.handleChange(checked)}
+            />
+          )}
+        </form.Field>
+        <form.Field name="favouritedNameExpiry">
+          {(field) => (
+            <PreferenceCard
+              checked={field.state.value}
+              description={
+                <Trans>Get notified when names you favorited expire.</Trans>
+              }
+              disabled={preferences.isRefetching}
+              icon={<MSymbol className="ms-wght-300" symbol="favorite" />}
+              isLoading={preferences.isLoading}
+              label={<Trans>Favourites</Trans>}
+              onChange={(checked) => field.handleChange(checked)}
+            />
+          )}
+        </form.Field>
+      </div>
+    </>
+  )
+}
+
+export const NotificationPreferences = () => {
+  const { form, preferences, hasVerifiedChannels } =
+    useNotificationPreferencesForm({
+      nameExpiryDefaultWhenUnset: false,
+    })
+
   if (!hasVerifiedChannels) {
     return null
   }
