@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
+import { ResultAsync } from 'neverthrow'
 import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -124,10 +125,17 @@ export const ChangeResolverForm = ({
   }
 
   const handleDeployResolverStart = async () => {
-    const result = await deployPermissionedResolverAsync({
-      id: DEPLOY_RESOLVER_TX_ID,
-    })
-    deployedResolverAddressRef.current = result.resolverAddress
+    await ResultAsync.fromPromise(
+      deployPermissionedResolverAsync({
+        id: DEPLOY_RESOLVER_TX_ID,
+      }),
+      () => undefined,
+    ).match(
+      (result) => {
+        deployedResolverAddressRef.current = result.resolverAddress
+      },
+      () => undefined,
+    )
   }
 
   const handleChangeResolverAfterDeployStart = () => {
