@@ -35,4 +35,20 @@ describe('permissions', () => {
     expect(isManagerRoleSettable('ROLE_RENEW')).toBe(false)
     expect(isManagerRoleSettable('ROLE_UNREGISTER')).toBe(true)
   })
+
+  it('should disable ROLE_UNREGISTER for 2LDs', () => {
+    expect(isManagerRoleSettable('ROLE_UNREGISTER', { is2LD: true })).toBe(
+      false,
+    )
+    expect(isManagerRoleSettable('ROLE_UNREGISTER', { is2LD: false })).toBe(
+      true,
+    )
+    // other roles unaffected by 2LD context
+    expect(isManagerRoleSettable('ROLE_SET_RESOLVER', { is2LD: true })).toBe(
+      true,
+    )
+    expect(isManagerRoleSettable('ROLE_SET_SUBREGISTRY', { is2LD: true })).toBe(
+      true,
+    )
+  })
 })

@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import * as v from 'valibot'
 import patternBg from '@/assets/pattern-bg.svg'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
@@ -58,6 +59,7 @@ const LandingPage = () => {
 
 const useRedirectToDashboard = () => {
   const navigate = useNavigate()
+  const { landing } = Route.useSearch()
   const { ownerAddress } = useSmartAccountContext()
 
   const hasDomains = useQuery({
@@ -72,16 +74,30 @@ const useRedirectToDashboard = () => {
   })
 
   useEffect(() => {
-    if (hasDomains.data && hasDomains.isSuccess && !hasDomains.isPaused) {
+    if (
+      hasDomains.data &&
+      hasDomains.isSuccess &&
+      !hasDomains.isPaused &&
+      !landing
+    ) {
       navigate({ to: '/dashboard' })
     }
-  }, [hasDomains.data, hasDomains.isSuccess, hasDomains.isPaused, navigate])
+  }, [
+    hasDomains.data,
+    hasDomains.isSuccess,
+    hasDomains.isPaused,
+    navigate,
+    landing,
+  ])
 }
 
 export const Route = createFileRoute('/')({
   component: LandingPage,
-
-  beforeLoad: async ({ context: { queryClient } }) => {
+  validateSearch: v.object({
+    /** Force landing page to be shown, don't redirect to dashboard */
+    landing: v.optional(v.boolean()),
+  }),
+  beforeLoad: async ({ context: { queryClient }, search: { landing } }) => {
     // Cookie based check for wallet connection which allows server side redirects and faster loading times
     const connectedAddress = getParaConnectionCookie()
 
@@ -96,7 +112,7 @@ export const Route = createFileRoute('/')({
         }),
       )
 
-      if (domains.domains.length > 0) {
+      if (domains.domains.length > 0 && !landing) {
         throw redirect({ to: '/dashboard' })
       }
     }

@@ -1,14 +1,15 @@
-import { CheckCircle2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { Button } from '@/components/ui/button'
+import { isAddressEqual } from 'viem'
+import { useAccount } from 'wagmi'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { dateToPlainDate } from '@/utils/temporal'
 import { useNamePricing } from '../hooks/useNamePricing'
 import type {
@@ -25,8 +26,6 @@ type ExtendNameModalProps = {
   readonly onClose: () => void
   readonly selectedName: SelectedName
   readonly onExtend: (config: StartFlowConfig) => void
-  readonly transactionCompleted?: boolean
-  readonly onSuccessAcknowledged?: () => void
 }
 
 type ExtendNameModalStep = 'disclaimer' | 'settings' | 'confirm'
@@ -36,8 +35,6 @@ export const ExtendNameModal = ({
   onClose,
   selectedName,
   onExtend,
-  transactionCompleted = false,
-  onSuccessAcknowledged,
 }: ExtendNameModalProps) => {
   const [step, setStep] = useState<ExtendNameModalStep>('disclaimer')
   const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
@@ -53,19 +50,38 @@ export const ExtendNameModal = ({
     open,
   )
 
+  const { address } = useAccount()
+  // Query runs eagerly (not gated on `open`) so ownership is known before
+  // the modal opens — otherwise owners see the disclaimer flash for the
+  // duration of the network round-trip before being skipped to settings.
+  const { data: ownerData } = useQuery(
+    getEnsOwnerQueryOptions({ name: selectedName.name }),
+  )
+  const isOwner = !!(
+    address &&
+    ownerData?.owner &&
+    isAddressEqual(address, ownerData.owner)
+  )
+
   useEffect(() => {
     if (!open) {
       setStep('disclaimer')
     }
   }, [open])
 
-  const stepTitle = transactionCompleted
-    ? 'Extension complete'
-    : match(step)
-        .with('disclaimer', () => undefined)
-        .with('settings', () => 'Extend name')
-        .with('confirm', () => 'Confirm extension')
-        .exhaustive()
+  // Skip the disclaimer when the connected wallet owns the name —
+  // the warning ("Extending a name does not change the owner...") is noise for owners.
+  useEffect(() => {
+    if (open && isOwner) {
+      setStep((current) => (current === 'disclaimer' ? 'settings' : current))
+    }
+  }, [open, isOwner])
+
+  const stepTitle = match(step)
+    .with('disclaimer', () => undefined)
+    .with('settings', () => 'Extend name')
+    .with('confirm', () => 'Confirm extension')
+    .exhaustive()
 
   return (
     <Dialog
@@ -80,65 +96,42 @@ export const ExtendNameModal = ({
         <DialogHeader className={stepTitle ? '' : 'sr-only'}>
           <DialogTitle className="text-xl">{stepTitle}</DialogTitle>
         </DialogHeader>
-        {transactionCompleted ? (
-          <div className="mt-2 space-y-6">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <NameAvatar name={selectedName.name} height="60px" width="60px" />
-              <div className="flex flex-col items-center gap-2">
-                <CheckCircle2 className="size-8 text-peridot-600" aria-hidden />
-                <p className="text-muted-foreground text-sm">
-                  <span className="font-medium text-foreground">
-                    {selectedName.name}
-                  </span>{' '}
-                  has been extended.
-                </p>
-              </div>
-            </div>
-            <Button
-              className="w-full"
-              onClick={() => (onSuccessAcknowledged ?? onClose)()}
-            >
-              Done
-            </Button>
-          </div>
-        ) : (
-          match(step)
-            .with('disclaimer', () => (
-              <ExtendNameDisclaimer onContinue={() => setStep('settings')} />
-            ))
-            .with('settings', () => (
-              <ExtendNameSettings
+        {match(step)
+          .with('disclaimer', () => (
+            <ExtendNameDisclaimer onContinue={() => setStep('settings')} />
+          ))
+          .with('settings', () => (
+            <ExtendNameSettings
+              selectedName={selectedName}
+              duration={duration}
+              setDuration={setDuration}
+              spanType={spanType}
+              setSpanType={setSpanType}
+              baseDate={baseDate}
+              onBack={isOwner ? undefined : () => setStep('disclaimer')}
+              onNext={() => setStep('confirm')}
+            />
+          ))
+          .with('confirm', () =>
+            price ? (
+              <ExtendNameConfirmation
                 selectedName={selectedName}
-                duration={duration}
-                setDuration={setDuration}
-                spanType={spanType}
-                setSpanType={setSpanType}
-                baseDate={baseDate}
-                onBack={() => setStep('disclaimer')}
-                onNext={() => setStep('confirm')}
+                durationSeconds={durationSeconds}
+                price={price}
+                onBack={() => setStep('settings')}
+                onConfirm={(token) =>
+                  onExtend({
+                    duration: durationSeconds,
+                    tokenAddress: token.address,
+                    tokenPrice: token.price.total,
+                    tokenAllowance: token.allowance,
+                  })
+                }
+                isRegistering={false}
               />
-            ))
-            .with('confirm', () =>
-              price ? (
-                <ExtendNameConfirmation
-                  selectedName={selectedName}
-                  durationSeconds={durationSeconds}
-                  price={price}
-                  onBack={() => setStep('settings')}
-                  onConfirm={(token) =>
-                    onExtend({
-                      duration: durationSeconds,
-                      tokenAddress: token.address,
-                      tokenPrice: token.price.total,
-                      tokenAllowance: token.allowance,
-                    })
-                  }
-                  isRegistering={false}
-                />
-              ) : null,
-            )
-            .exhaustive()
-        )}
+            ) : null,
+          )
+          .exhaustive()}
       </DialogContent>
     </Dialog>
   )
