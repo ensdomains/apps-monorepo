@@ -51,10 +51,12 @@ export const ExtendNameModal = ({
   )
 
   const { address } = useAccount()
-  const { data: ownerData } = useQuery({
-    ...getEnsOwnerQueryOptions({ name: selectedName.name }),
-    enabled: open,
-  })
+  // Query runs eagerly (not gated on `open`) so ownership is known before
+  // the modal opens — otherwise owners see the disclaimer flash for the
+  // duration of the network round-trip before being skipped to settings.
+  const { data: ownerData } = useQuery(
+    getEnsOwnerQueryOptions({ name: selectedName.name }),
+  )
   const isOwner = !!(
     address &&
     ownerData?.owner &&

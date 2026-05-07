@@ -87,9 +87,10 @@ export const ExtendNameButton = ({
             return
           }
           // Stale terminal-state transactions (success/error) block the modal;
-          // clear them so a fresh extend flow can start.
+          // remove only that entry so a fresh extend flow can start without
+          // touching any other in-flight transactions in the manager.
           if (activeTxState) {
-            transactionManager.clear()
+            transactionManager.cancelTransaction(activeTxState.txId)
           }
           clearIncompatibleRenewalState('single')
           setOpen(true)
