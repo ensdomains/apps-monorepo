@@ -65,9 +65,9 @@ export const ExtendNameModal = ({
 
   useEffect(() => {
     if (!open) {
-      setStep('disclaimer')
+      setStep(isOwner ? 'settings' : 'disclaimer')
     }
-  }, [open])
+  }, [open, isOwner])
 
   // Skip the disclaimer when the connected wallet owns the name —
   // the warning ("Extending a name does not change the owner...") is noise for owners.
