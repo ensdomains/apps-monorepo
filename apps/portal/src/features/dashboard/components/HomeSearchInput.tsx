@@ -273,7 +273,7 @@ export const HomeSearchInput = ({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="p-1 w-(--radix-popover-trigger-width) min-w-(--radix-popover-trigger-width) max-h-[min(60vh,400px)] overflow-y-auto"
+          className="p-1 w-max min-w-[max(var(--radix-popover-trigger-width),20rem)] max-w-md max-h-[min(60vh,400px)] overflow-y-auto"
           sideOffset={4}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
