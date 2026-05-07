@@ -10,7 +10,6 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
@@ -48,7 +47,6 @@ export const Route = createRootRoute({
             <RainbowKitProvider>
               <TransactionManagerSetup>
                 <PHProvider>
-                  <SepoliaNoticeBanner />
                   <Outlet />
                 </PHProvider>
               </TransactionManagerSetup>

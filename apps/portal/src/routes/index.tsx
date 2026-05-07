@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import {
   HomeHeader,
   HomeSearchInput,
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/')({
 function RouteComponent() {
   return (
     <main className="min-h-screen flex flex-col items-center gap-24 px-6 pt-6 pb-18">
+      <SepoliaNoticeBanner />
       <HomeHeader />
 
       <section className="flex flex-col gap-12 items-center w-full max-w-3xl">
