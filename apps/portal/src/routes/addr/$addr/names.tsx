@@ -1,3 +1,4 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
 import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -41,7 +42,10 @@ import {
   MS_PER_SECOND,
 } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
+import {
+  isTransactionInFlight,
+  useActiveTransactionState,
+} from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
@@ -292,11 +296,16 @@ function RouteComponent() {
               size="sm"
               disabled={extendableNames.length === 0}
               onClick={() => {
-                if (activeTxState) {
+                if (isTransactionInFlight(activeTxState)) {
                   openModal()
                   return
                 }
-
+                // Stale terminal-state transactions (success/error) block the
+                // modal; remove only that entry so a fresh extend flow can
+                // start without touching any other in-flight transactions.
+                if (activeTxState) {
+                  transactionManager.cancelTransaction(activeTxState.txId)
+                }
                 clearIncompatibleRenewalState(
                   extendableNames.length === 1 ? 'single' : 'multi',
                 )

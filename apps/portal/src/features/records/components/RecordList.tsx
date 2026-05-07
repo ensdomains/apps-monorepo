@@ -5,11 +5,10 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
-  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Search, XIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { EditNoteIcon } from '@/assets/icons'
 import { Button } from '@/components/ui/button'
@@ -36,13 +35,6 @@ export const RecordList = ({
   /** The protocol version of the name */
   protocolVersion?: ProtocolVersion
 }) => {
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-
-  const rowCount = useMemo(
-    () => Object.keys(rowSelection).length,
-    [rowSelection],
-  )
-
   const [sorting, setSorting] = useState<SortingState>([])
   const records = useMemo(() => recordsToTableData(rawRecords), [rawRecords])
 
@@ -56,10 +48,8 @@ export const RecordList = ({
     getSortedRowModel: getSortedRowModel(),
     state: {
       sorting,
-      rowSelection,
       columnFilters,
     },
-    onRowSelectionChange: setRowSelection,
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
     globalFilterFn: 'includesString',
@@ -87,50 +77,23 @@ export const RecordList = ({
             </Button>
           )}
         </div>
-        {rowCount > 0 ? (
-          <div className="flex flex-col lg:flex-row w-full lg:justify-between lg:items-center gap-4">
-            <div className="flex flex-row items-center gap-1 shrink-0">
-              <button
-                type="button"
-                className="cursor-pointer"
-                onClick={() => setRowSelection({})}
-              >
-                <XIcon className="size-6" />
-              </button>
-              {rowCount} selected
-            </div>
-            {/*<div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-              <Button variant="default" className="w-auto whitespace-nowrap">
-                <PencilLineIcon className="size-6" /> Edit
-              </Button>
-              <Button variant="default" className="w-auto whitespace-nowrap">
-                <FileInputIcon className="size-6" /> Export
-              </Button>
-              <Button variant="default" className="w-auto whitespace-nowrap">
-                <TrashIcon className="size-6" /> Delete
-              </Button>
-            </div>*/}
-          </div>
-        ) : (
-          <InputGroup className="bg-background rounded-sm">
-            <InputGroupInput
-              id={searchRecordsId}
-              className="w-full"
-              placeholder="Search records..."
-              onChange={(event) => table.setGlobalFilter(event.target.value)}
-            />
-            <InputGroupAddon>
-              <Search />
-            </InputGroupAddon>
-          </InputGroup>
-        )}
+        <InputGroup className="bg-background rounded-sm">
+          <InputGroupInput
+            id={searchRecordsId}
+            className="w-full"
+            placeholder="Search records..."
+            onChange={(event) => table.setGlobalFilter(event.target.value)}
+          />
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
       </header>
       <div className="overflow-x-auto">
         <RecordsTable
           name={name}
           table={table}
           protocolVersion={protocolVersion}
-          {...{ rowSelection, setRowSelection }}
         />
       </div>
     </>

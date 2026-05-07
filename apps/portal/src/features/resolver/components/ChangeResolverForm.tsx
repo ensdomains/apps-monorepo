@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ResultAsync } from 'neverthrow'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -57,6 +58,7 @@ export const ChangeResolverForm = ({
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  const deployedResolverAddressRef = useRef<Address | null>(null)
 
   const {
     openModal: openTransactionModal,
@@ -122,20 +124,35 @@ export const ChangeResolverForm = ({
     changeResolver(resolverToUse)
   }
 
-  const handleDeployResolverStart = () => {
-    deployPermissionedResolverAsync({ id: DEPLOY_RESOLVER_TX_ID })
+  const handleDeployResolverStart = async () => {
+    await ResultAsync.fromPromise(
+      deployPermissionedResolverAsync({
+        id: DEPLOY_RESOLVER_TX_ID,
+      }),
+      () => undefined,
+    ).match(
+      (result) => {
+        deployedResolverAddressRef.current = result.resolverAddress
+      },
+      () => undefined,
+    )
   }
 
-  const handleDeployResolverDone = () => {
-    if (!deployedResolverAddress) return
-    // gets deployed resolver address from query client
-    changeResolver(deployedResolverAddress)
+  const handleChangeResolverAfterDeployStart = () => {
+    if (deployedResolverAddressRef.current) {
+      changeResolver(deployedResolverAddressRef.current)
+      return
+    }
+    if (deployedResolverAddress) {
+      changeResolver(deployedResolverAddress)
+    }
   }
 
   const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
     setResolverAddress('')
+    deployedResolverAddressRef.current = null
     setShowSuccessButtonLabel(true)
     setTimeout(
       () => setShowSuccessButtonLabel(false),
@@ -300,14 +317,14 @@ export const ChangeResolverForm = ({
                   transactionName: `Deploy resolver for ${name}`,
                   estimatedGasCost: 0.001,
                   onStart: handleDeployResolverStart,
-                  onDone: handleDeployResolverDone,
+                  onDone: handleChangeResolverAfterDeployStart,
                 },
                 {
                   id: CHANGE_RESOLVER_TX_ID,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   estimatedGasCost: 0.0001,
-                  onStart: handleDeployResolverDone,
+                  onStart: handleChangeResolverAfterDeployStart,
                   onDone: handleChangeResolverTransactionDone,
                 },
               ]

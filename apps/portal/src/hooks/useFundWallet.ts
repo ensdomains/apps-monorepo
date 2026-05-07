@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import type { Address } from 'viem'
 
-const WALLET_FUND_API_URL = 'https://app-api.ens.dev'
+const WALLET_FUND_API_URL = 'https://ensjs-v2-app-api-worker.ens-cf.workers.dev'
 
 export function useFundWallet(options?: {
   onSuccess?: (data: { txHash: string | null }) => void
