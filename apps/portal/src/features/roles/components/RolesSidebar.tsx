@@ -216,6 +216,7 @@ export const RolesSidebar = <
                     const roleKey = permission.key
                     const isManagerRoleDisabled = !isManagerRoleSettable(
                       permission.key,
+                      { is2LD: name.split('.').length === 2 },
                     )
                     const rolePerms = editedPermissions.get(roleKey) || {
                       admin: false,
