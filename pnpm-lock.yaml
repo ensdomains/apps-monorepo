@@ -36,7 +36,7 @@ catalogs:
       version: 6.0.3
 
 overrides:
-  '@rhinestone/sdk': 1.4.2
+  '@rhinestone/sdk': 1.5.1
   available-typed-arrays: npm:@socketregistry/available-typed-arrays@^1
   es-define-property: npm:@socketregistry/es-define-property@^1
   for-each: npm:@socketregistry/for-each@^1
@@ -205,8 +205,8 @@ importers:
         specifier: ^2.2.8
         version: 2.2.10(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))(wagmi@3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)))
       '@rhinestone/sdk':
-        specifier: 1.4.2
-        version: 1.4.2(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)
+        specifier: 1.5.1
+        version: 1.5.1(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@tailwindcss/vite':
         specifier: ^4.2.4
         version: 4.2.4(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -752,8 +752,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@rhinestone/sdk':
-        specifier: 1.4.2
-        version: 1.4.2(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)
+        specifier: 1.5.1
+        version: 1.5.1(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@xstate/react':
         specifier: ^4.0.0-beta.12
         version: 4.1.3(@types/react@19.2.7)(react@19.2.5)(xstate@5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5))
@@ -3837,10 +3837,17 @@ packages:
     peerDependencies:
       viem: ^2.0.0
 
-  '@rhinestone/sdk@1.4.2':
-    resolution: {integrity: sha512-7p/tCYYWvOD8gpCrYn5ZrfjeHnysx17AX/qvlwThI54GH4QR7qVZMzHQlSRC3hkeaDFhc2QIAQRb6VED+YIKrA==}
+  '@rhinestone/sdk@1.5.1':
+    resolution: {integrity: sha512-bhHxCWIj/rxzbZuzShWknpw3oWSrtz3yl2aMh66L8iDEXnUPj812JnvJgIr3g8RY8kghfAl21FbLXQgWGKeczw==}
     peerDependencies:
+      express: '>=4'
+      jose: '>=5.0.0'
       viem: ^2.38.0
+    peerDependenciesMeta:
+      express:
+        optional: true
+      jose:
+        optional: true
 
   '@rhinestone/shared-configs@1.4.139':
     resolution: {integrity: sha512-ogN9gBu76BcmYMSZ5oymPonUsPDi6uT+EG6kxQt7h94jSNcpuA1WeKZq3AipJEMjVUl48Fpa4ubwhFk8mRw+Ig==}
@@ -7072,14 +7079,6 @@ packages:
   ora@9.3.0:
     resolution: {integrity: sha512-lBX72MWFduWEf7v7uWf5DHp9Jn5BI8bNPGuFgtXMmr2uDz2Gz2749y3am3agSDdkhHPHYmmxEGSKH85ZLGzgXw==}
     engines: {node: '>=20'}
-
-  ox@0.11.3:
-    resolution: {integrity: sha512-1bWYGk/xZel3xro3l8WGg6eq4YEKlaqvyMtVhfMFpbJzK2F6rj4EDRtqDCWVEJMkzcmEi9uW2QxsqELokOlarw==}
-    peerDependencies:
-      typescript: '>=5.4.0'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
 
   ox@0.9.3:
     resolution: {integrity: sha512-KzyJP+fPV4uhuuqrTZyok4DC7vFzi7HLUFiUNEmpbyh59htKWkOC98IONC1zgXJPbHAhQgqs6B0Z6StCGhmQvg==}
@@ -12087,15 +12086,13 @@ snapshots:
       tslib: 2.8.1
       viem: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
 
-  '@rhinestone/sdk@1.4.2(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))(zod@4.1.13)':
+  '@rhinestone/sdk@1.5.1(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
       '@rhinestone/shared-configs': 1.4.139(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
-      ox: 0.11.3(typescript@6.0.3)(zod@4.1.13)
       solady: 0.1.26
       viem: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
     transitivePeerDependencies:
       - typescript
-      - zod
 
   '@rhinestone/shared-configs@1.4.139(typescript@6.0.3)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
@@ -15683,21 +15680,6 @@ snapshots:
       log-symbols: 7.0.1
       stdin-discarder: 0.3.1
       string-width: 8.1.0
-
-  ox@0.11.3(typescript@6.0.3)(zod@4.1.13):
-    dependencies:
-      '@adraffy/ens-normalize': 1.11.1
-      '@noble/ciphers': 1.3.0
-      '@noble/curves': 1.9.1
-      '@noble/hashes': 1.8.0
-      '@scure/bip32': 1.7.0
-      '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@6.0.3)(zod@4.1.13)
-      eventemitter3: 5.0.1
-    optionalDependencies:
-      typescript: 6.0.3
-    transitivePeerDependencies:
-      - zod
 
   ox@0.9.3(typescript@6.0.3)(zod@4.1.13):
     dependencies:
