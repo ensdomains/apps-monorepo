@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, AlertClose, AlertDescription } from '@/components/ui/alert'
 
 const LAST_SEPOLIA_DEPLOYMENT_DATE = 'May 6, 2026'
-const SEPOLIA_NOTICE_DISMISSED_KEY = 'sepolia-notice-dismissed'
+const SEPOLIA_NOTICE_DISMISSED_KEY = `sepolia-notice-dismissed-${LAST_SEPOLIA_DEPLOYMENT_DATE}`
 
 export const SepoliaNoticeBanner = () => {
   const [isVisible, setIsVisible] = useState(false)
