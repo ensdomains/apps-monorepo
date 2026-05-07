@@ -7,12 +7,20 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Check, Trash2, X, XIcon } from 'lucide-react'
+import { Check, Trash2, X } from 'lucide-react'
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -98,6 +106,7 @@ export const EditRecordsTable = ({
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [tableView] = useTableViewSettings()
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   // Store validation errors in a ref so the columns don't need to depend on it
   // This prevents input focus loss when validation errors change
@@ -263,6 +272,8 @@ export const EditRecordsTable = ({
       onDeleteRecord?.(row.original)
     }
     setRowSelection({})
+    setPendingDeleteId(null)
+    setBulkDeleteOpen(false)
   }, [table, onDeleteRecord])
 
   return (
@@ -276,14 +287,14 @@ export const EditRecordsTable = ({
               onClick={() => setRowSelection({})}
               aria-label="Clear selection"
             >
-              <XIcon className="size-5" />
+              <X className="size-5" />
             </button>
             <span>{selectedRowCount} selected</span>
           </div>
           <Button
             variant="default"
             size="sm"
-            onClick={handleBulkDelete}
+            onClick={() => setBulkDeleteOpen(true)}
             className="gap-2 whitespace-nowrap"
           >
             <Trash2 className="size-4" />
@@ -387,6 +398,25 @@ export const EditRecordsTable = ({
           )}
         </TableBody>
       </Table>
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove {selectedRowCount} records?</DialogTitle>
+            <DialogDescription>
+              The selected records will be marked for removal. Changes are
+              applied on-chain when you click Save Changes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="default" onClick={handleBulkDelete}>
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
