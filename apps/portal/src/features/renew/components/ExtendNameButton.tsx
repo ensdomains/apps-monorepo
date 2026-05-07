@@ -10,25 +10,11 @@ import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransac
 import { isExtendable2LD } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
-  type ActiveTransactionState,
+  isTransactionInFlight,
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { ProtocolVersion } from '@/utils/types'
-
-const IN_FLIGHT_STATES: ReadonlySet<string> = new Set([
-  'preparing',
-  'submitting',
-  'pending',
-  'confirming',
-  'retrying',
-  'checkingFallback',
-])
-
-const isTransactionInFlight = (state: ActiveTransactionState | undefined) =>
-  !!state &&
-  typeof state.machineState === 'string' &&
-  IN_FLIGHT_STATES.has(state.machineState)
 
 type ExtendNameButtonProps = {
   name: string
