@@ -14,6 +14,7 @@ import { sepolia } from 'viem/chains'
 import { encodeFunctionData, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
+import { SEPOLIA_RPC_URL } from '#core/eth/client.js'
 import { logger } from '#utils/logger.js'
 import { ethAddress } from '#utils/validation.js'
 
@@ -73,9 +74,7 @@ const createWalletClient = (privateKey: string | undefined) => {
 
   return createClient({
     chain: sepolia,
-    transport: http(
-      'https://virtual.sepolia.us-east.rpc.tenderly.co/881ddb0f-475d-45ac-b93d-e1aca2841811',
-    ),
+    transport: http(SEPOLIA_RPC_URL),
     account: walletAccount,
   })
     .extend(publicActions)

@@ -200,7 +200,7 @@ const ResolverInfoCard = ({
   return (
     <InfoCard title="Resolver info">
       <InfoRow label="Type">
-        <span className="text-sm pl-3.5">{type}</span>
+        <span className="text-sm">{type}</span>
       </InfoRow>
       <InfoRow label="Contract">
         <ResolverAddressValue address={resolverAddress} />
@@ -225,10 +225,10 @@ const ResolverInfoCard = ({
         </div>
       </InfoRow>
       <InfoRow label="Namehash">
-        <span className="font-mono text-sm break-all pl-3.5">{nodeHash}</span>
+        <span className="font-mono text-sm break-all">{nodeHash}</span>
       </InfoRow>
       <InfoRow label="Interfaces">
-        <div className="pl-3.5">
+        <div>
           <FeatureLinks resolverAddress={resolverAddress} />
         </div>
       </InfoRow>

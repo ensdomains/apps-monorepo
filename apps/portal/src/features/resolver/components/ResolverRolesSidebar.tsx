@@ -216,7 +216,7 @@ export const ResolverRolesSidebar = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-card overflow-y-auto p-8"
+        className="sm:max-w-[880px] bg-background overflow-y-auto p-8"
       >
         <div className="p-6 flex flex-col gap-6 h-screen">
           <SheetHeader className="p-0">

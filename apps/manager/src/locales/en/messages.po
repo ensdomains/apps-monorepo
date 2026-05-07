@@ -769,7 +769,7 @@ msgstr "Done"
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
-#: src/features/dashboard/components/MyNamesList.tsx:334
+#: src/features/dashboard/components/MyNamesList.tsx:372
 msgid "Eligible for upgrade"
 msgstr "Eligible for upgrade"
 
@@ -877,7 +877,7 @@ msgstr "Enter wallet address"
 msgid "Enter your email"
 msgstr "Enter your email"
 
-#: src/features/dashboard/components/MyNamesList.tsx:181
+#: src/features/dashboard/components/MyNamesList.tsx:210
 msgid "Error loading names"
 msgstr "Error loading names"
 
@@ -898,7 +898,7 @@ msgstr "Expires {0}"
 msgid "expires {expiryDateString}"
 msgstr "expires {expiryDateString}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:364
+#: src/features/dashboard/components/MyNamesList.tsx:402
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Expires in {daysUntilExpiry} days"
 
@@ -912,15 +912,15 @@ msgstr "Expires:"
 msgid "expiring on"
 msgstr "expiring on"
 
-#: src/features/dashboard/components/MyNamesList.tsx:255
+#: src/features/dashboard/components/MyNamesList.tsx:293
 msgid "Expiry"
 msgstr "Expiry"
 
-#: src/features/dashboard/components/MyNamesList.tsx:210
+#: src/features/dashboard/components/MyNamesList.tsx:248
 msgid "Expiry date (Earliest)"
 msgstr "Expiry date (Earliest)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:213
+#: src/features/dashboard/components/MyNamesList.tsx:251
 msgid "Expiry date (Latest)"
 msgstr "Expiry date (Latest)"
 
@@ -1011,7 +1011,7 @@ msgstr "Failed to update resolver"
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
 
-#: src/features/dashboard/components/NamesTable.tsx:119
+#: src/features/dashboard/components/NamesTable.tsx:123
 msgid "Favorites"
 msgstr "Favorites"
 
@@ -1096,7 +1096,7 @@ msgstr "Go to Profile"
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:74
+#: src/features/dashboard/pages/DashboardPage.tsx:78
 msgid "Hello"
 msgstr "Hello"
 
@@ -1267,23 +1267,23 @@ msgstr "Modified"
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr "Multi-year Discount ({discountPercentage}%)"
 
-#: src/features/dashboard/components/NamesTable.tsx:114
+#: src/features/dashboard/components/NamesTable.tsx:118
 msgid "My Names"
 msgstr "My Names"
 
 #: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:236
+#: src/features/dashboard/components/MyNamesList.tsx:274
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Name"
 
 #: src/features/dashboard/components/FavoritesList.tsx:164
-#: src/features/dashboard/components/MyNamesList.tsx:204
+#: src/features/dashboard/components/MyNamesList.tsx:242
 msgid "Name (A-Z)"
 msgstr "Name (A-Z)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:167
-#: src/features/dashboard/components/MyNamesList.tsx:207
+#: src/features/dashboard/components/MyNamesList.tsx:245
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
@@ -1334,7 +1334,7 @@ msgid "Next card"
 msgstr "Next card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:290
-#: src/features/dashboard/components/MyNamesList.tsx:389
+#: src/features/dashboard/components/MyNamesList.tsx:427
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
 msgstr "Next page"
@@ -1378,7 +1378,7 @@ msgstr "No names match your search"
 
 #: src/features/dashboard/components/FavoritesList.tsx:227
 #: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:286
+#: src/features/dashboard/components/MyNamesList.tsx:324
 msgid "No names to display"
 msgstr "No names to display"
 
@@ -1571,7 +1571,7 @@ msgid "Previous card"
 msgstr "Previous card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:281
-#: src/features/dashboard/components/MyNamesList.tsx:380
+#: src/features/dashboard/components/MyNamesList.tsx:418
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
 msgstr "Previous page"
@@ -1878,7 +1878,7 @@ msgstr "Search coins"
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
-#: src/features/dashboard/components/NamesTable.tsx:157
+#: src/features/dashboard/components/NamesTable.tsx:161
 msgid "Search my name..."
 msgstr "Search my name..."
 
@@ -1886,7 +1886,7 @@ msgstr "Search my name..."
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
-#: src/features/dashboard/components/NamesTable.tsx:157
+#: src/features/dashboard/components/NamesTable.tsx:161
 msgid "Search name..."
 msgstr "Search name..."
 
@@ -1965,7 +1965,7 @@ msgstr "Set it as your primary name. You can do this from your profile page in t
 msgid "Set multiple records: ETH, BTC, email"
 msgstr "Set multiple records: ETH, BTC, email"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:95
+#: src/features/dashboard/pages/DashboardPage.tsx:99
 msgid "Set primary name"
 msgstr "Set primary name"
 
@@ -2020,7 +2020,7 @@ msgstr "Short Description"
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:399
+#: src/features/dashboard/components/MyNamesList.tsx:437
 msgid "Showing your names"
 msgstr "Showing your names"
 
@@ -2028,7 +2028,7 @@ msgstr "Showing your names"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
-#: src/features/dashboard/components/NamesTable.tsx:122
+#: src/features/dashboard/components/NamesTable.tsx:126
 msgid "Sign in to view favorites"
 msgstr "Sign in to view favorites"
 
@@ -2101,35 +2101,39 @@ msgstr "Smart sessions are required to use this app."
 msgid "Social Links"
 msgstr "Social Links"
 
+#: src/features/dashboard/components/MyNamesList.tsx:222
+msgid "Some names could not be loaded"
+msgstr "Some names could not be loaded"
+
 #: src/features/dashboard/components/FavoritesList.tsx:141
-#: src/features/dashboard/components/MyNamesList.tsx:192
+#: src/features/dashboard/components/MyNamesList.tsx:230
 msgid "Sort by"
 msgstr "Sort by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:244
+#: src/features/dashboard/components/MyNamesList.tsx:282
 msgid "Sort by expiry, currently ascending"
 msgstr "Sort by expiry, currently ascending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:245
+#: src/features/dashboard/components/MyNamesList.tsx:283
 msgid "Sort by expiry, currently descending"
 msgstr "Sort by expiry, currently descending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:246
+#: src/features/dashboard/components/MyNamesList.tsx:284
 msgid "Sort by expiry, currently unsorted"
 msgstr "Sort by expiry, currently unsorted"
 
 #: src/features/dashboard/components/FavoritesList.tsx:185
-#: src/features/dashboard/components/MyNamesList.tsx:225
+#: src/features/dashboard/components/MyNamesList.tsx:263
 msgid "Sort by name, currently ascending"
 msgstr "Sort by name, currently ascending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:186
-#: src/features/dashboard/components/MyNamesList.tsx:226
+#: src/features/dashboard/components/MyNamesList.tsx:264
 msgid "Sort by name, currently descending"
 msgstr "Sort by name, currently descending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:187
-#: src/features/dashboard/components/MyNamesList.tsx:227
+#: src/features/dashboard/components/MyNamesList.tsx:265
 msgid "Sort by name, currently unsorted"
 msgstr "Sort by name, currently unsorted"
 
@@ -2137,7 +2141,7 @@ msgstr "Sort by name, currently unsorted"
 msgid "Sort favorites by"
 msgstr "Sort favorites by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:195
+#: src/features/dashboard/components/MyNamesList.tsx:233
 msgid "Sort names by"
 msgstr "Sort names by"
 
@@ -2362,7 +2366,7 @@ msgid "Updating profile"
 msgstr "Updating profile"
 
 #: src/features/migration/components/SelectNamesStep.tsx:172
-#: src/features/migration/components/UpgradeNamesButton.tsx:21
+#: src/features/migration/components/UpgradeNamesButton.tsx:26
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
 

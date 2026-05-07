@@ -224,7 +224,9 @@ export const EntityBadgeWithActions = ({
     <div
       className={cn(
         'relative group/entity',
-        inline ? 'inline-flex' : 'flex w-full',
+        // Compensate the badge's internal hover padding so the visible content
+        // sits flush with the container's left edge.
+        inline ? 'inline-flex -ml-1.5' : 'flex w-full -ml-3.5',
       )}
     >
       {/*

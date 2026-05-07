@@ -179,7 +179,7 @@ export const RolesSidebar = <
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-card overflow-y-auto p-8"
+          className="sm:max-w-[880px] bg-background overflow-y-auto p-8"
         >
           <div className="p-6 flex flex-col gap-6 h-screen">
             <SheetHeader className="p-0">
@@ -216,6 +216,7 @@ export const RolesSidebar = <
                     const roleKey = permission.key
                     const isManagerRoleDisabled = !isManagerRoleSettable(
                       permission.key,
+                      { is2LD: name.split('.').length === 2 },
                     )
                     const rolePerms = editedPermissions.get(roleKey) || {
                       admin: false,
@@ -291,7 +292,7 @@ export const RolesSidebar = <
                   })}
 
                   {/* Save Changes Button */}
-                  <div className="flex justify-end px-6 py-4 border-t border-border bg-card">
+                  <div className="flex justify-end px-6 py-4 border-t border-border">
                     <Button
                       variant="default"
                       disabled={!hasChanges || !isWalletConnected}
