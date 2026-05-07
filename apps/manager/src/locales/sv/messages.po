@@ -132,7 +132,7 @@ msgid "A scrappy generalist builder with taste. Senior Product Designer and Rese
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:36
-#: src/routes/index.tsx:37
+#: src/routes/index.tsx:38
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
 
@@ -316,7 +316,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:171
+#: src/features/navigation/Header/search/SuggestionItem.tsx:152
 msgid "Available"
 msgstr ""
 
@@ -377,7 +377,7 @@ msgstr ""
 msgid "Bio"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:94
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:126
 msgid "Blog"
 msgstr ""
 
@@ -397,7 +397,7 @@ msgstr ""
 msgid "Browser notifications enabled"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:83
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:115
 msgid "Bug bounty"
 msgstr ""
 
@@ -484,16 +484,16 @@ msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
 #: src/features/register/pages/CheckDomainPage.tsx:28
-#: src/routes/index.tsx:29
+#: src/routes/index.tsx:30
 msgid "Claim your"
 msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:54
-msgid "Clear"
-msgstr ""
+#~ msgid "Clear"
+#~ msgstr ""
 
 #: src/components/molecules/SearchField/SearchField.tsx:93
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
+#: src/features/navigation/Header/search/SearchInput.tsx:65
 msgid "Clear search"
 msgstr ""
 
@@ -577,7 +577,8 @@ msgstr ""
 msgid "Confirming commitment"
 msgstr ""
 
-#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+#: src/features/navigation/Header/desktop/DisconnectedRightBlock.tsx:19
+#: src/features/navigation/Header/mobile/MobileConnectButton.tsx:16
 msgid "Connect"
 msgstr ""
 
@@ -625,7 +626,7 @@ msgstr ""
 msgid "Connection Details"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:62
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:88
 msgid "Contact"
 msgstr ""
 
@@ -645,7 +646,7 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:54
+#: src/features/navigation/Header/account/WalletSection.tsx:42
 msgid "Copied!"
 msgstr ""
 
@@ -725,8 +726,12 @@ msgstr ""
 msgid "CVV"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:100
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:132
 msgid "DAO Forum"
+msgstr ""
+
+#: src/features/navigation/Header/account/NavSection.tsx:23
+msgid "Dashboard"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:173
@@ -758,7 +763,7 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:153
+#: src/features/navigation/Header/account/WalletSection.tsx:97
 msgid "Disconnect"
 msgstr ""
 
@@ -832,12 +837,16 @@ msgstr ""
 msgid "Enabling sessions…"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:94
 msgid "ENS"
 msgstr ""
 
 #: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:46
-msgid "ENS App Homepage"
+#~ msgid "ENS App Homepage"
+#~ msgstr ""
+
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:55
+msgid "ENS app landing page"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:131
@@ -977,8 +986,8 @@ msgid "Failed to remove Telegram channel"
 msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/TokenSection.tsx:49
-msgid "Failed to request test tokens"
-msgstr ""
+#~ msgid "Failed to request test tokens"
+#~ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:149
 msgid "Failed to resend email verification"
@@ -1002,7 +1011,7 @@ msgstr "Kunde inte ange primärt namn. Försök igen."
 msgid "Failed to sign in. Please try again."
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:39
+#: src/features/navigation/Header/account/LanguageSection.tsx:39
 msgid "Failed to switch language"
 msgstr ""
 
@@ -1041,8 +1050,8 @@ msgid "for"
 msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/TokenSection.tsx:15
-msgid "For this alpha release, accounts are automatically funded with test tokens."
-msgstr ""
+#~ msgid "For this alpha release, accounts are automatically funded with test tokens."
+#~ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Frequently Asked Questions"
@@ -1096,6 +1105,10 @@ msgstr ""
 msgid "Go back home"
 msgstr ""
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:66
+msgid "Go to ENS Explorer"
+msgstr ""
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:248
 msgid "Go to Profile"
 msgstr ""
@@ -1137,6 +1150,10 @@ msgstr ""
 msgid "Image not available"
 msgstr ""
 
+#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:29
+msgid "Inbox"
+msgstr ""
+
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx:72
 msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
 msgstr ""
@@ -1149,7 +1166,7 @@ msgstr ""
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:91
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:123
 msgid "Join the community"
 msgstr ""
 
@@ -1157,8 +1174,8 @@ msgstr ""
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
 
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:77
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
+#: src/features/navigation/Header/account/LanguageSection.tsx:76
+#: src/features/navigation/Header/account/LanguageSection.tsx:81
 msgid "Language"
 msgstr "Språk"
 
@@ -1209,7 +1226,6 @@ msgstr ""
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:215
 #: src/features/dashboard/components/PrimaryNameCard.tsx:53
 #: src/features/dashboard/components/PrimaryNameCard.tsx:56
-#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:74
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
@@ -1237,7 +1253,7 @@ msgstr ""
 msgid "Manage notification settings"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:73
+#: src/features/navigation/Header/account/WalletSection.tsx:61
 msgid "Manage Para Wallet"
 msgstr ""
 
@@ -1326,7 +1342,7 @@ msgstr ""
 msgid "Need ${0}"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:53
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:79
 msgid "Need help?"
 msgstr ""
 
@@ -1399,7 +1415,7 @@ msgstr ""
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
+#: src/features/navigation/Header/search/SearchSuggestions.tsx:45
 msgid "No recent searches"
 msgstr ""
 
@@ -1419,7 +1435,7 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:144
+#: src/features/navigation/Header/search/SuggestionItem.tsx:135
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:146
 msgid "Not supported"
 msgstr ""
@@ -1441,7 +1457,7 @@ msgstr ""
 msgid "Notification Settings"
 msgstr ""
 
-#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
+#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:18
 #: src/features/notifications/dropdown/notification-dropdown.tsx:28
 msgid "Notifications"
 msgstr ""
@@ -1452,6 +1468,10 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx:27
 msgid "One username <0/><1>everywhere</1>"
+msgstr ""
+
+#: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx:19
+msgid "Open navigation"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx:99
@@ -1593,12 +1613,16 @@ msgstr ""
 msgid "Primary Name"
 msgstr "Primärt namn"
 
+#: src/features/navigation/Header/account/NavSection.tsx:31
+msgid "Primary Name Profile"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:209
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:70
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:71
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:97
 msgid "Privacy Policy"
 msgstr ""
 
@@ -1619,8 +1643,8 @@ msgid "Receive notifications via email for important domain events"
 msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:47
-msgid "Recent"
-msgstr ""
+#~ msgid "Recent"
+#~ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:54
 msgid "Reconnect the wallet used for notifications, then sign in again."
@@ -1638,7 +1662,7 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:125
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:160
+#: src/features/navigation/Header/search/SuggestionItem.tsx:146
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1798,8 +1822,8 @@ msgid "Renewing for"
 msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/TokenSection.tsx:42
-msgid "Requesting test tokens..."
-msgstr ""
+#~ msgid "Requesting test tokens..."
+#~ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:203
 msgid "Resend Verification"
@@ -1875,15 +1899,15 @@ msgid "Saving…"
 msgstr ""
 
 #: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
-msgid "Search"
-msgstr ""
+#~ msgid "Search"
+#~ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:264
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:267
 msgid "Search coins"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
+#: src/features/navigation/Header/search/SearchInput.tsx:49
 msgid "Search for a name or address"
 msgstr ""
 
@@ -1891,7 +1915,7 @@ msgstr ""
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
+#: src/features/navigation/Header/search/SearchInput.tsx:53
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
@@ -2016,6 +2040,10 @@ msgstr "Anger..."
 msgid "Setting…"
 msgstr ""
 
+#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:40
+msgid "Settings"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:93
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:132
 msgid "Share"
@@ -2095,12 +2123,12 @@ msgid "Smart Account"
 msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/WalletSection.tsx:100
-msgid "Smart Session Active"
-msgstr ""
+#~ msgid "Smart Session Active"
+#~ msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/WalletSection.tsx:102
-msgid "Smart Session Disabled"
-msgstr ""
+#~ msgid "Smart Session Disabled"
+#~ msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx:120
 msgid "Smart sessions are required to use this app."
@@ -2203,7 +2231,7 @@ msgstr ""
 msgid "Successfully connected! You can now use the application."
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:56
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:82
 msgid "Support"
 msgstr ""
 
@@ -2227,7 +2255,7 @@ msgstr ""
 msgid "Telegram Notifications"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:75
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:103
 msgid "Terms of Use"
 msgstr ""
 
@@ -2306,8 +2334,8 @@ msgid "To:"
 msgstr ""
 
 #: src/features/navigation/Header/ProfileSection/TokenSection.tsx:12
-msgid "TOKEN BALANCES"
-msgstr ""
+#~ msgid "TOKEN BALANCES"
+#~ msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:11
 msgid "Too short"
@@ -2332,7 +2360,7 @@ msgstr ""
 msgid "Total Paid"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:79
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:109
 msgid "Trademark Guidelines"
 msgstr ""
 
@@ -2474,7 +2502,7 @@ msgstr ""
 msgid "Verify Wallet"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:134
+#: src/features/navigation/Header/account/WalletSection.tsx:78
 #: src/features/notifications/RequireBackendAuth.tsx:117
 msgid "Verify wallet ownership"
 msgstr ""
@@ -2624,7 +2652,7 @@ msgid "We sent a verification code to your email address."
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:32
-#: src/routes/index.tsx:33
+#: src/routes/index.tsx:34
 msgid "web3 username"
 msgstr ""
 
