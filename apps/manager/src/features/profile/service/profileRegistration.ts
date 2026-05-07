@@ -1,17 +1,79 @@
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok } from 'neverthrow'
-import { getIndexerDomain } from './getIndexerDomain'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import {
+  getRegistrationDate as ensjsv2_getRegistrationDate,
+  type GetRegistrationDateErrorType,
+} from '@ensdomains/ensjs/public/v2'
+import { err, fromPromise, ok } from 'neverthrow'
+import { sepoliaWithEns } from '@/lib/wagmi'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+import { normalizeEth2LdName } from './profileName'
+
+class GetProfileRegistrationError extends TaggedError(
+  'GetProfileRegistrationError',
+)<{
+  cause: GetRegistrationDateErrorType
+}> {}
+
+class UnsafeRegistrationDateError extends TaggedError(
+  'UnsafeRegistrationDateError',
+)<{
+  readonly registrationDate: string
+}> {}
+
+const MIN_SAFE_INTEGER_BIGINT = BigInt(Number.MIN_SAFE_INTEGER)
+const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER)
+
+const registrationDateToNumber = (registrationDate: bigint) => {
+  if (
+    registrationDate < MIN_SAFE_INTEGER_BIGINT ||
+    registrationDate > MAX_SAFE_INTEGER_BIGINT
+  ) {
+    return err(
+      new UnsafeRegistrationDateError({
+        message: 'Registration date exceeds Number safe integer range',
+        registrationDate: registrationDate.toString(),
+      }),
+    )
+  }
+
+  return ok(Number(registrationDate))
+}
+
+const ENS_REGISTRY = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
 
 export const getRegistration = ResultFn(async function* (name: string) {
-  const domain = yield* getIndexerDomain(name)
+  const ethName = normalizeEth2LdName(name)
 
-  if (!domain) {
+  if (!ethName) {
     return ok({ registrationDate: null })
   }
 
-  return ok({ registrationDate: domain.createdAt })
+  const client = yield* safeGetClient()
+
+  const registrationDate = yield* fromPromise(
+    ensjsv2_getRegistrationDate(client, {
+      label: ethName.label,
+      registryAddress: ENS_REGISTRY,
+    }),
+    (e) =>
+      new GetProfileRegistrationError({
+        cause: e as GetRegistrationDateErrorType,
+      }),
+  )
+
+  if (registrationDate === null) {
+    return ok({ registrationDate: null })
+  }
+
+  const safeRegistrationDate = yield* registrationDateToNumber(registrationDate)
+
+  return ok({ registrationDate: safeRegistrationDate })
 })
 
 export const profileRegistrationQuery = (name: string) =>

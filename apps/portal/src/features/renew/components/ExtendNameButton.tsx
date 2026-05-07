@@ -5,10 +5,7 @@ import { Button } from '@/components/ui/button'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
-import {
-  type RenewalFlowType,
-  useRenewalTransactions,
-} from '@/features/renew/hooks/useRenewalTransactions'
+import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
 import { isExtendable2LD } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
@@ -25,7 +22,6 @@ export const ExtendNameButton = ({
   protocolVersion,
 }: ExtendNameButtonProps) => {
   const [open, setOpen] = useState(false)
-  const [successFlow, setSuccessFlow] = useState<RenewalFlowType | null>(null)
 
   const v1ExpiryQuery = useQuery({
     ...getV1ExpiryQueryOptions({ name }),
@@ -53,8 +49,8 @@ export const ExtendNameButton = ({
 
   const { transactions, startFlow, clearIncompatibleRenewalState } =
     useRenewalTransactions({
-      onComplete: (flowType) => {
-        setSuccessFlow(flowType)
+      onComplete: () => {
+        setOpen(false)
       },
     })
 
@@ -83,16 +79,9 @@ export const ExtendNameButton = ({
         open={open && !isTransactionModalOpen}
         onClose={() => {
           setOpen(false)
-          setSuccessFlow(null)
         }}
         selectedName={selectedName}
-        transactionCompleted={successFlow === 'single'}
-        onSuccessAcknowledged={() => {
-          setOpen(false)
-          setSuccessFlow(null)
-        }}
         onExtend={(config) => {
-          setSuccessFlow(null)
           startFlow(selectedName, config)
           openModal()
         }}

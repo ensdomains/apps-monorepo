@@ -10,6 +10,11 @@
   --leading-ens-normal: 120%;
 
   /* Experimental new brand colors */
+  --color-ens-lapis-100: #dbf0f8;
+  --color-ens-lapis-300: #80c4e0;
+  --color-ens-lapis-400: #39b4ea;
+  --color-ens-lapis-500: #0082bb;
+  --color-ens-lapis-900: #02293b;
   --color-ens-lapis-dust: #cee1e8;
   --color-ens-lapis-surface: #79b1d0;
   --color-ens-lapis-core: #0080bc;
@@ -20,6 +25,11 @@
   --color-ens-bronzite-core: #674d49;
   --color-ens-bronzite-dense: #431c11;
 
+  --color-ens-peridot-100: #d1eedf;
+  --color-ens-peridot-300: #65d388;
+  --color-ens-peridot-400: #1cbf46;
+  --color-ens-peridot-500: #007c20;
+  --color-ens-peridot-900: #033010;
   --color-ens-peridot-dust: #c5ddcc;
   --color-ens-peridot-surface: #74ac76;
   --color-ens-peridot-core: #007c23;
@@ -32,8 +42,11 @@
   --color-ens-garnet-50: #fff6f9;
   --color-ens-garnet-100: #feeaf0;
   --color-ens-garnet-200: #ffc6e0;
+  --color-ens-garnet-300: #ffb0d0;
+  --color-ens-garnet-400: #f569ab;
   --color-ens-garnet-500: #e72a96;
   --color-ens-garnet-800: #4a0326;
+  --color-ens-garnet-900: #5a0024;
   --color-ens-garnet-dust: #f2c4da;
   --color-ens-garnet-surface: #f886b6;
   --color-ens-garnet-core: #f53293;
@@ -41,7 +54,51 @@
   --color-ens-garnet-900: #5a0024;
   --color-ens-error: #f53f3f;
 
+  --color-ens-citrine-100: #f8f7e2;
+  --color-ens-citrine-300: #e1b77e;
+  --color-ens-citrine-400: #e7a259;
+  --color-ens-citrine-500: #984d1b;
+  --color-ens-citrine-900: #441b03;
+
+  --color-ens-quartz-0: #ffffff;
+  --color-ens-quartz-50: #faf9f7;
+  --color-ens-quartz-100: #eeeded;
+  --color-ens-quartz-200: #e1e1e0;
+  --color-ens-quartz-300: #c7c6c4;
+  --color-ens-quartz-350: #a1a1a1;
   --color-ens-quartz-400: #737373;
+  --color-ens-quartz-500: #595755;
+  --color-ens-quartz-900: #191919;
+
+  --color-ens-signal-danger-100: #ffedeb;
+  --color-ens-signal-danger-200: #ffdad6;
+  --color-ens-signal-danger-300: #ffc9c4;
+  --color-ens-signal-danger-400: #ffb3ac;
+  --color-ens-signal-danger-500: #c82e1f;
+  --color-ens-signal-danger-600: #b42013;
+  --color-ens-signal-danger-700: #9a1b10;
+  --color-ens-signal-danger-800: #821a11;
+  --color-ens-signal-danger-900: #440e09;
+
+  --color-ens-signal-success-100: #e3f7e9;
+  --color-ens-signal-success-200: #d7f4df;
+  --color-ens-signal-success-300: #c6efd1;
+  --color-ens-signal-success-400: #aae9ba;
+  --color-ens-signal-success-500: #15a571;
+  --color-ens-signal-success-600: #167e30;
+  --color-ens-signal-success-700: #105c23;
+  --color-ens-signal-success-800: #0e4a1d;
+  --color-ens-signal-success-900: #0a3816;
+
+  --color-ens-signal-warning-100: #fffaeb;
+  --color-ens-signal-warning-200: #fff7e0;
+  --color-ens-signal-warning-300: #fef3d5;
+  --color-ens-signal-warning-400: #feeec4;
+  --color-ens-signal-warning-500: #fccf57;
+  --color-ens-signal-warning-600: #e1a31e;
+  --color-ens-signal-warning-700: #955b14;
+  --color-ens-signal-warning-800: #79490e;
+  --color-ens-signal-warning-900: #5c2d00;
 
   /* Old brand colors */
   --color-ens-blue: #0080bc;
