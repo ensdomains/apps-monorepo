@@ -1,6 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { SortButton } from '@/components/table/SortButton'
-import { Checkbox } from '@/components/ui/checkbox'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 
@@ -17,27 +16,6 @@ export type NameRecord = { value: string } & (
 )
 
 export const columns: ColumnDef<NameRecord>[] = [
-  {
-    enableSorting: false,
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && 'indeterminate')
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-  },
   {
     accessorKey: 'type',
     header: ({ column }) => (

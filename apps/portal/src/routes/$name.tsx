@@ -7,6 +7,7 @@ import {
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
+import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getDnsSecEnabled } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -55,6 +56,7 @@ function RouteComponent() {
       <ProfileSidebar name={name} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
+        <SepoliaNoticeBanner />
         <Outlet />
       </SidebarInset>
     </SidebarProvider>

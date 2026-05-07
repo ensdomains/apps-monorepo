@@ -59,6 +59,7 @@ const getItems = (addr: string) => [
       params: { addr },
       activeOptions: { exact: true },
     },
+    disabled: true,
   }),
   defineAddrSidebarItem({
     title: 'Reverse Resolution',
@@ -68,6 +69,7 @@ const getItems = (addr: string) => [
       params: { addr },
       activeOptions: { exact: true },
     },
+    disabled: true,
   }),
   defineAddrSidebarItem({
     title: 'History',

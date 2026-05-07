@@ -3,6 +3,7 @@ import { type Address, checksumAddress, isAddress } from 'viem'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { ResolverSidebar } from '@/components/ResolverSidebar'
+import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 export const Route = createFileRoute('/resolver/$address')({
@@ -24,6 +25,7 @@ function RouteComponent() {
       />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
+        <SepoliaNoticeBanner />
         <Outlet />
       </SidebarInset>
     </SidebarProvider>

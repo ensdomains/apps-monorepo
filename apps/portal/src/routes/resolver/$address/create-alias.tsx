@@ -25,6 +25,8 @@ import {
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
@@ -76,6 +78,8 @@ const NodeOption = ({ node }: NodeOptionProps) => (
   </div>
 )
 
+const CREATE_ALIAS_TX_ID = 'tx-create-alias'
+
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
@@ -86,6 +90,11 @@ function RouteComponent() {
 
   const [fromName, setFromName] = useState<string | null>(null)
   const [toName, setToName] = useState<string | null>(null)
+  const [pendingAlias, setPendingAlias] = useState<{
+    readonly fromName: string
+    readonly toName: string
+  } | null>(null)
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const {
     data: resolver,
@@ -129,15 +138,15 @@ function RouteComponent() {
     walletClient,
     publicClient,
     chainId,
-    onSuccess: () =>
-      navigate({ to: '/resolver/$address/aliases', params: { address } }),
+    id: CREATE_ALIAS_TX_ID,
   })
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!fromName || !toName) return
     mutation.reset()
-    mutation.mutate({ fromName, toName })
+    setPendingAlias({ fromName, toName })
+    openModal()
   }
 
   if (isLoading) return <LoadingMessage />
@@ -311,6 +320,29 @@ function RouteComponent() {
           )}
         </Button>
       </form>
+      <TransactionModal
+        transactions={[
+          {
+            id: CREATE_ALIAS_TX_ID,
+            title: 'Create alias',
+            transactionName: `Alias ${pendingAlias?.fromName ?? ''} -> ${pendingAlias?.toName ?? ''}`,
+            estimatedGasCost: 0.0001,
+            onStart: () => {
+              if (!pendingAlias) return
+              mutation.mutate(pendingAlias)
+            },
+            onDone: () => {
+              closeModal()
+              clearTransaction()
+              setPendingAlias(null)
+              navigate({
+                to: '/resolver/$address/aliases',
+                params: { address },
+              })
+            },
+          },
+        ]}
+      />
     </div>
   )
 }
