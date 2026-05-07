@@ -128,10 +128,9 @@ export const ChangeResolverForm = ({
       id: DEPLOY_RESOLVER_TX_ID,
     })
     deployedResolverAddressRef.current = result.resolverAddress
-    changeResolver(result.resolverAddress)
   }
 
-  const handleDeployResolverDone = () => {
+  const handleChangeResolverAfterDeployStart = () => {
     if (deployedResolverAddressRef.current) {
       changeResolver(deployedResolverAddressRef.current)
       return
@@ -310,14 +309,14 @@ export const ChangeResolverForm = ({
                   transactionName: `Deploy resolver for ${name}`,
                   estimatedGasCost: 0.001,
                   onStart: handleDeployResolverStart,
-                  onDone: handleDeployResolverDone,
+                  onDone: handleChangeResolverAfterDeployStart,
                 },
                 {
                   id: CHANGE_RESOLVER_TX_ID,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   estimatedGasCost: 0.0001,
-                  onStart: handleDeployResolverDone,
+                  onStart: handleChangeResolverAfterDeployStart,
                   onDone: handleChangeResolverTransactionDone,
                 },
               ]
