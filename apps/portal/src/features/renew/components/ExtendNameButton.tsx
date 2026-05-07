@@ -1,3 +1,4 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { FastForward } from 'lucide-react'
 import { useState } from 'react'
@@ -8,7 +9,10 @@ import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
 import { isExtendable2LD } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
+import {
+  isTransactionInFlight,
+  useActiveTransactionState,
+} from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -64,9 +68,15 @@ export const ExtendNameButton = ({
       <Button
         variant="default"
         onClick={() => {
-          if (activeTxState) {
+          if (isTransactionInFlight(activeTxState)) {
             openModal()
             return
+          }
+          // Stale terminal-state transactions (success/error) block the modal;
+          // remove only that entry so a fresh extend flow can start without
+          // touching any other in-flight transactions in the manager.
+          if (activeTxState) {
+            transactionManager.cancelTransaction(activeTxState.txId)
           }
           clearIncompatibleRenewalState('single')
           setOpen(true)

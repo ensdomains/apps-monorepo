@@ -11,6 +11,27 @@ export type ActiveTransactionState = {
   readonly error: Error | undefined
 }
 
+const IN_FLIGHT_STATES: ReadonlySet<string> = new Set([
+  'preparing',
+  'submitting',
+  'pending',
+  'confirming',
+  'retrying',
+  'checkingFallback',
+])
+
+/**
+ * True when the transaction is in a non-terminal state (still moving toward
+ * success/error). Used to gate "open existing modal" vs "start a fresh flow"
+ * — a stale terminal-state transaction should not block a new flow.
+ */
+export const isTransactionInFlight = (
+  state: ActiveTransactionState | undefined,
+) =>
+  !!state &&
+  typeof state.machineState === 'string' &&
+  IN_FLIGHT_STATES.has(state.machineState)
+
 /**
  * Derives the state of the most recent active transaction from the transaction
  * manager. Subscribes to the active actor so state transitions (pending →
