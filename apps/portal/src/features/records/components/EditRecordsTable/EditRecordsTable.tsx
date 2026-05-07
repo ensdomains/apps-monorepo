@@ -7,7 +7,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Check, Trash2, X } from 'lucide-react'
+import { Check, Trash2, X, XIcon } from 'lucide-react'
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { SortButton } from '@/components/table/SortButton'
@@ -255,102 +255,138 @@ export const EditRecordsTable = ({
     globalFilterFn: 'includesString',
   })
 
-  return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <TableHead key={header.id}>
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-              </TableHead>
-            ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows?.length ? (
-          table.getRowModel().rows.map((row) => {
-            const rowId = getRecordId(row.original)
-            const isPendingDelete = pendingDeleteId === rowId
+  const selectedRowCount = Object.keys(rowSelection).length
 
-            return (
-              <React.Fragment key={row.id}>
-                <TableRow
-                  data-state={row.getIsSelected() && 'selected'}
-                  className={cn(
-                    'hover:bg-muted',
-                    tableView.strippedRows && 'odd:bg-muted',
-                  )}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        'px-4 sm:px-6',
-                        tableView.compact ? 'py-2' : 'py-4',
-                      )}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                {isPendingDelete && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={editColumns.length}
-                      className="px-4 sm:px-6 py-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">
-                          Remove {getRecordDisplayName(row.original)}?
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCancelDelete}
-                            className="gap-1"
-                          >
-                            Cancel
-                            <X className="size-4" />
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleConfirmDelete(row.original)}
-                            className="gap-1"
-                          >
-                            Confirm
-                            <Check className="size-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            )
-          })
-        ) : (
-          <TableRow>
-            <TableCell
-              colSpan={editColumns.length}
-              className="h-24 text-center"
+  const handleBulkDelete = useCallback(() => {
+    const selected = table.getSelectedRowModel().rows
+    for (const row of selected) {
+      onDeleteRecord?.(row.original)
+    }
+    setRowSelection({})
+  }, [table, onDeleteRecord])
+
+  return (
+    <>
+      {selectedRowCount > 0 && (
+        <div className="flex flex-row items-center justify-between gap-4 px-4 sm:px-6 py-3 border-b border-border">
+          <div className="flex flex-row items-center gap-2 shrink-0">
+            <button
+              type="button"
+              className="cursor-pointer"
+              onClick={() => setRowSelection({})}
+              aria-label="Clear selection"
             >
-              No records found.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+              <XIcon className="size-5" />
+            </button>
+            <span>{selectedRowCount} selected</span>
+          </div>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleBulkDelete}
+            className="gap-2 whitespace-nowrap"
+          >
+            <Trash2 className="size-4" />
+            Delete
+          </Button>
+        </div>
+      )}
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => {
+              const rowId = getRecordId(row.original)
+              const isPendingDelete = pendingDeleteId === rowId
+
+              return (
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    data-state={row.getIsSelected() && 'selected'}
+                    className={cn(
+                      'hover:bg-muted',
+                      tableView.strippedRows && 'odd:bg-muted',
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          'px-4 sm:px-6',
+                          tableView.compact ? 'py-2' : 'py-4',
+                        )}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {isPendingDelete && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={editColumns.length}
+                        className="px-4 sm:px-6 py-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            Remove {getRecordDisplayName(row.original)}?
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelDelete}
+                              className="gap-1"
+                            >
+                              Cancel
+                              <X className="size-4" />
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleConfirmDelete(row.original)}
+                              className="gap-1"
+                            >
+                              Confirm
+                              <Check className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              )
+            })
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={editColumns.length}
+                className="h-24 text-center"
+              >
+                No records found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </>
   )
 }
