@@ -38,5 +38,22 @@ export const permissions: Permission[] = [
 
 const nonSettableManagerRoles = new Set<Role>(['ROLE_REGISTRAR', 'ROLE_RENEW'])
 
-export const isManagerRoleSettable = (role: Role) =>
-  !nonSettableManagerRoles.has(role)
+/**
+ * The .eth registry rejects ROLE_UNREGISTER grants for 2LDs because only the
+ * registrar is permitted to unregister .eth 2LDs. Disable it in the UI to
+ * avoid a guaranteed revert at grant time.
+ */
+const nonSettableManagerRolesFor2LD = new Set<Role>(['ROLE_UNREGISTER'])
+
+export type IsManagerRoleSettableContext = {
+  is2LD?: boolean
+}
+
+export const isManagerRoleSettable = (
+  role: Role,
+  { is2LD = false }: IsManagerRoleSettableContext = {},
+) => {
+  if (nonSettableManagerRoles.has(role)) return false
+  if (is2LD && nonSettableManagerRolesFor2LD.has(role)) return false
+  return true
+}

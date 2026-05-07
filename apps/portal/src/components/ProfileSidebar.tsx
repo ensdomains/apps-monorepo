@@ -173,9 +173,9 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
         )}
       </SidebarHeader>
 
-      <SidebarSeparator className="my-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
+      <SidebarSeparator className="mt-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
 
-      <SidebarContent className="gap-3">
+      <SidebarContent className="gap-3 py-6">
         {/* Name section */}
         <div className="px-6 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
           <Link
@@ -231,9 +231,9 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator className="my-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)]" />
+      <SidebarSeparator className="self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
 
-      <SidebarFooter className="px-6 pb-6 group-data-[collapsible=icon]:px-2">
+      <SidebarFooter className="px-6 py-6 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-4 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:gap-3.5">
           <div className="flex-1 group-data-[collapsible=icon]:flex-none">
             <WalletMenu />

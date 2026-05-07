@@ -122,7 +122,6 @@ export const useRegistrationTransactions = ({
     }
 
     const walletClient = await getWalletClient(config, {
-      connector: connection.connector,
       account: connection.address,
     })
 
