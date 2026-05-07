@@ -1,30 +1,18 @@
-import type { Address, Hash, WalletClient } from 'viem'
-import { writeContract } from 'viem/actions'
-import { packetToBytes } from 'viem/ens'
-import { toHex } from 'viem/utils'
-import { type ResolverRoleKey, resolverRoles } from '@/lib/roles/resolverRoles'
-
-const revokeNameRolesSnippet = [
-  {
-    name: 'revokeNameRoles',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'toName', type: 'bytes' },
-      { name: 'roleBitmap', type: 'uint256' },
-      { name: 'account', type: 'address' },
-    ],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-] as const
-
-function encodeRoleBitmapFromKeys(roles: readonly ResolverRoleKey[]): bigint {
-  let bitmap = 0n
-  for (const role of roles) {
-    bitmap |= resolverRoles[role]
-  }
-  return bitmap
-}
+import {
+  type Signer,
+  transactionManager,
+  waitForTransaction,
+} from '@ens-apps/transaction-manager'
+import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import { revokeResolverRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import {
+  type Address,
+  encodeFunctionData,
+  type Hash,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
+import type { ResolverRoleKey } from '@/lib/roles/resolverRoles'
 
 export interface RevokeResolverRolesParameters {
   readonly resolverAddress: Address
@@ -32,12 +20,26 @@ export interface RevokeResolverRolesParameters {
   readonly account: Address
   readonly roles: readonly ResolverRoleKey[]
   readonly walletClient: WalletClient
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly chainId: number
+  readonly id: string
 }
 
 export const revokeResolverRoles = async (
   params: RevokeResolverRolesParameters,
 ): Promise<Hash> => {
-  const { resolverAddress, name, account, roles, walletClient } = params
+  const {
+    resolverAddress,
+    name,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    id,
+  } = params
 
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
@@ -47,15 +49,50 @@ export const revokeResolverRoles = async (
     throw new Error('At least one role must be selected')
   }
 
-  const roleBitmap = encodeRoleBitmapFromKeys(roles)
-  const dnsName = name === '' ? '0x00' : toHex(packetToBytes(name))
+  const writeParams = revokeResolverRolesWriteParameters(
+    walletClient as Parameters<typeof revokeResolverRolesWriteParameters>[0],
+    name === ''
+      ? {
+          resolverAddress,
+          targetAccount: account,
+          scope: 'root',
+          roles: roles as ResolverRole[],
+        }
+      : {
+          resolverAddress,
+          targetAccount: account,
+          scope: 'name',
+          name,
+          roles: roles as ResolverRole[],
+        },
+  )
 
-  return writeContract(walletClient, {
-    address: resolverAddress,
-    abi: revokeNameRolesSnippet,
-    functionName: 'revokeNameRoles',
-    args: [dnsName, roleBitmap, account],
-    chain: walletClient.chain,
-    account: walletClient.account,
-  })
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  const txId = transactionManager.startTransaction(
+    {
+      type: 'custom',
+      request: {
+        type: 'eoa',
+        from: walletClient.account.address,
+        to: resolverAddress,
+        data,
+        value: 0n,
+        chainId,
+      },
+    },
+    signer,
+    {
+      id,
+      description: `Revoke resolver roles for ${name || '(root)'}`,
+      publicClient,
+      chainId,
+    },
+  )
+  const result = await waitForTransaction(txId)
+  return result.hash
 }

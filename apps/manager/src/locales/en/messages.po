@@ -483,10 +483,6 @@ msgstr "Choose Primary Name"
 msgid "Claim your"
 msgstr "Claim your"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:54
-#~ msgid "Clear"
-#~ msgstr "Clear"
-
 #: src/components/molecules/SearchField/SearchField.tsx:93
 #: src/features/navigation/Header/search/SearchInput.tsx:65
 msgid "Clear search"
@@ -836,10 +832,6 @@ msgstr "Enabling sessions…"
 msgid "ENS"
 msgstr "ENS"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:46
-#~ msgid "ENS App Homepage"
-#~ msgstr "ENS App Homepage"
-
 #: src/features/navigation/Header/navigation/NavigationContent.tsx:55
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
@@ -980,10 +972,6 @@ msgstr "Failed to remove email channel"
 msgid "Failed to remove Telegram channel"
 msgstr "Failed to remove Telegram channel"
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:49
-#~ msgid "Failed to request test tokens"
-#~ msgstr "Failed to request test tokens"
-
 #: src/features/notifications/settings/contact-methods/email.tsx:149
 msgid "Failed to resend email verification"
 msgstr "Failed to resend email verification"
@@ -1043,10 +1031,6 @@ msgstr "Finalizing registration"
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr "for"
-
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:15
-#~ msgid "For this alpha release, accounts are automatically funded with test tokens."
-#~ msgstr "For this alpha release, accounts are automatically funded with test tokens."
 
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Frequently Asked Questions"
@@ -1637,10 +1621,6 @@ msgstr "Receive crypto from any chain"
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:47
-#~ msgid "Recent"
-#~ msgstr "Recent"
-
 #: src/features/notifications/RequireBackendAuth.tsx:54
 msgid "Reconnect the wallet used for notifications, then sign in again."
 msgstr "Reconnect the wallet used for notifications, then sign in again."
@@ -1816,10 +1796,6 @@ msgstr "Renewing"
 msgid "Renewing for"
 msgstr "Renewing for"
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:42
-#~ msgid "Requesting test tokens..."
-#~ msgstr "Requesting test tokens..."
-
 #: src/features/notifications/settings/contact-methods/email.tsx:203
 msgid "Resend Verification"
 msgstr "Resend Verification"
@@ -1892,10 +1868,6 @@ msgstr "Saving..."
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Saving…"
 msgstr "Saving…"
-
-#: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
-#~ msgid "Search"
-#~ msgstr "Search"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:264
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:267
@@ -2117,14 +2089,6 @@ msgstr "Slide {0}"
 msgid "Smart Account"
 msgstr "Smart Account"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:100
-#~ msgid "Smart Session Active"
-#~ msgstr "Smart Session Active"
-
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:102
-#~ msgid "Smart Session Disabled"
-#~ msgstr "Smart Session Disabled"
-
 #: src/features/wallet/components/EnableSessionModal.tsx:120
 msgid "Smart sessions are required to use this app."
 msgstr "Smart sessions are required to use this app."
@@ -2327,10 +2291,6 @@ msgstr "To finish connecting Telegram, you need to <0>start the ENS Notification
 #: src/features/profile/components/dialogs/DiffDialog.tsx:202
 msgid "To:"
 msgstr "To:"
-
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:12
-#~ msgid "TOKEN BALANCES"
-#~ msgstr "TOKEN BALANCES"
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:11
 msgid "Too short"

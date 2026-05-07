@@ -488,10 +488,6 @@ msgstr "Välj primärt namn"
 msgid "Claim your"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:54
-#~ msgid "Clear"
-#~ msgstr ""
-
 #: src/components/molecules/SearchField/SearchField.tsx:93
 #: src/features/navigation/Header/search/SearchInput.tsx:65
 msgid "Clear search"
@@ -841,10 +837,6 @@ msgstr ""
 msgid "ENS"
 msgstr ""
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:46
-#~ msgid "ENS App Homepage"
-#~ msgstr ""
-
 #: src/features/navigation/Header/navigation/NavigationContent.tsx:55
 msgid "ENS app landing page"
 msgstr ""
@@ -985,10 +977,6 @@ msgstr ""
 msgid "Failed to remove Telegram channel"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:49
-#~ msgid "Failed to request test tokens"
-#~ msgstr ""
-
 #: src/features/notifications/settings/contact-methods/email.tsx:149
 msgid "Failed to resend email verification"
 msgstr ""
@@ -1048,10 +1036,6 @@ msgstr ""
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr ""
-
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:15
-#~ msgid "For this alpha release, accounts are automatically funded with test tokens."
-#~ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Frequently Asked Questions"
@@ -1642,10 +1626,6 @@ msgstr ""
 msgid "Receive notifications via email for important domain events"
 msgstr ""
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:47
-#~ msgid "Recent"
-#~ msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx:54
 msgid "Reconnect the wallet used for notifications, then sign in again."
 msgstr ""
@@ -1821,10 +1801,6 @@ msgstr ""
 msgid "Renewing for"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:42
-#~ msgid "Requesting test tokens..."
-#~ msgstr ""
-
 #: src/features/notifications/settings/contact-methods/email.tsx:203
 msgid "Resend Verification"
 msgstr ""
@@ -1897,10 +1873,6 @@ msgstr ""
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Saving…"
 msgstr ""
-
-#: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
-#~ msgid "Search"
-#~ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:264
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:267
@@ -2122,14 +2094,6 @@ msgstr ""
 msgid "Smart Account"
 msgstr ""
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:100
-#~ msgid "Smart Session Active"
-#~ msgstr ""
-
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:102
-#~ msgid "Smart Session Disabled"
-#~ msgstr ""
-
 #: src/features/wallet/components/EnableSessionModal.tsx:120
 msgid "Smart sessions are required to use this app."
 msgstr ""
@@ -2332,10 +2296,6 @@ msgstr ""
 #: src/features/profile/components/dialogs/DiffDialog.tsx:202
 msgid "To:"
 msgstr ""
-
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:12
-#~ msgid "TOKEN BALANCES"
-#~ msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:11
 msgid "Too short"
