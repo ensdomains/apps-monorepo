@@ -21,6 +21,7 @@ import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { buildRegistrationSessionActions } from './build-registration-session'
 import type { RhinestoneStoredSession } from './types'
 import { SessionError } from './zerodev-session'
 
@@ -68,14 +69,22 @@ export function createRhinestoneSession(
       const sessionPrivateKey = generatePrivateKey()
       const sessionAccount = privateKeyToAccount(sessionPrivateKey)
 
-      // 2. Define session with sudo policy (unrestricted — security policies to be added later)
+      // 2. Define session scoped to the registration / renewal flows.
+      //    See ./build-registration-session.ts for the action set + threat
+      //    model. The same actions array MUST be reproduced byte-for-byte at
+      //    signer-construction time (SmartAccountContext.tsx) — the
+      //    PermissionId is derived from this config; mismatch yields
+      //    `InvalidSignature()` at runtime.
       const sdkSession: Session = {
         owners: {
           type: 'ecdsa' as const,
           accounts: [sessionAccount],
         },
         chain,
-        actions: [{ policies: [{ type: 'sudo' as const }] }],
+        actions: buildRegistrationSessionActions({
+          smartAccountAddress,
+          eoaAddress: ownerAddress,
+        }),
       }
 
       // 3. Get session details (on-chain validation data)

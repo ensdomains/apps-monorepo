@@ -159,8 +159,19 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
+    // On the rhinestone-session path the smart-session policy pins
+    // `register.owner == SCA` (see lib/smart-account/sessions/build-registration-session.ts).
+    // HCAEquivalence resolves SCA → EOA at lookup time, so the human-owner
+    // display is unchanged. Forcing SCA here keeps the runtime call shape
+    // aligned with the policy; any other value would be rejected by the
+    // SmartSession validator.
+    //
+    // Other signer types (eoa, zerodev) keep the previous EOA-preferred
+    // behaviour for now.
     const ownerAddress =
-      event.account.ownerAddress ?? event.account.accountAddress
+      event.account.signer?.type === 'rhinestone'
+        ? event.account.accountAddress
+        : (event.account.ownerAddress ?? event.account.accountAddress)
 
     enqueue.assign({
       confirmedData: {
