@@ -5,7 +5,7 @@ import { match, P } from 'ts-pattern'
 import { useCountdown } from '@/hooks/useCountdown'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
-import { NotificationSettingsStep } from './components/NotificationSettingsStep'
+import { NotificationSettings } from './components/NotificationSettings'
 import { RegistrationCompletionBanner } from './components/RegistrationCompletionBanner'
 import { RegistrationDetails } from './components/RegistrationDetails'
 import { RegistrationProgressBar } from './components/RegistrationProgressBar'
@@ -101,7 +101,7 @@ export const RegisteringStep = () => {
       <div className="mx-auto w-full-[32px] max-w-6xl space-y-6.5">
         {match(uiStage)
           .with({ notifications: 'settings' }, () => (
-            <NotificationSettingsStep
+            <NotificationSettings
               onConfirm={() => {
                 uiActor.send({ type: 'notifications.step.next' })
               }}

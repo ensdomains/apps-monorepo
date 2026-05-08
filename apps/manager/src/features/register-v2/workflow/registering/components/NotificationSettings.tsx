@@ -23,7 +23,7 @@ export interface NotificationSettingsProps {
   onSkip: () => void
 }
 
-export const NotificationSettingsStep = ({
+export const NotificationSettings = ({
   onConfirm,
   onSkip,
 }: NotificationSettingsProps) => {
