@@ -707,7 +707,7 @@ export const registrationMachine = setup({
             guard: 'isRhinestoneSigner',
             target: 'submittingRhinestoneBundle',
           },
-          { target: 'registeringDomain' },
+          { target: 'checkingAllowance' },
         ],
         onError: {
           target: 'error',
