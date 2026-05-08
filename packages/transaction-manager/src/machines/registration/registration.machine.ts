@@ -735,9 +735,10 @@ export const registrationMachine = setup({
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
-          const targetTimestamp =
-            context.registerReadyTimestamp ??
-            Date.now() + COMMITMENT_WAIT_DURATION_MS
+          // If the ready timestamp is missing (for example after restoring an
+          // older snapshot), do not reintroduce an artificial cooldown when the
+          // commitment has already been validated as old enough on-chain.
+          const targetTimestamp = context.registerReadyTimestamp ?? Date.now()
           const delayMs = Math.max(0, targetTimestamp - Date.now())
           return { delayMs }
         },
