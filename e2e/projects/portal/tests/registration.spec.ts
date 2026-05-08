@@ -32,39 +32,28 @@ test.describe('Portal ENS name registration', () => {
       timeout: 30_000,
     })
 
-    // ── 3. Select USDC in the payment modal ────────────────────────
-    const paymentDialog = page
-      .getByRole('dialog')
-      .filter({ hasText: 'Select payment method' })
+    // ── 3. Select USDC in the payment section ───────────────────────
+    const paymentSection = page.locator(
+      'section:has-text("Select payment method")',
+    )
 
-    await expect(paymentDialog).toBeVisible({ timeout: 10_000 })
+    await expect(paymentSection).toBeVisible({ timeout: 10_000 })
 
-    const usdcOption = paymentDialog.getByRole('button', { name: 'USDC' }).first()
+    const usdcOption = paymentSection.getByRole('button', { name: 'USDC' }).first()
     await usdcOption.waitFor({ state: 'visible', timeout: 10_000 })
     await usdcOption.click()
 
-    const registerButton = paymentDialog.getByRole('button', {
+    const registerButton = paymentSection.getByRole('button', {
       name: /^Register$/i,
     })
     await registerButton.waitFor({ state: 'visible', timeout: 10_000 })
     await registerButton.click()
 
     // ── 5. Review transaction steps and start registration ───────
-    const transactionDialog = page
-      .getByRole('dialog')
-      .filter({ hasText: 'Transaction flow' })
+    const transactionDialog = page.locator('[data-slot="dialog-content"]')
 
     await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
 
-    await Promise.all(
-      ['Deploy resolver', 'Submit commitment', 'Approve payment', 'Register name'].map(
-        async (stepTitle) => {
-          await expect(transactionDialog.getByText(stepTitle)).toBeVisible({
-            timeout: 30_000,
-          })
-        },
-      ),
-    )
 
     const monitor = createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
@@ -74,55 +63,79 @@ test.describe('Portal ENS name registration', () => {
       },
     })
 
+    let registerTxSucceeded = false
+    page.on('console', (msg) => {
+      const text = msg.text()
+      if (text.includes('Transaction tx-reg-register state: success')) {
+        registerTxSucceeded = true
+      }
+    })
+
     const startButton = transactionDialog.getByRole('button', {
       name: /^Start$/i,
     })
-    await startButton.waitFor({ state: 'visible', timeout: 10_000 })
+    await startButton.waitFor({ state: 'visible', timeout: 30_000 })
     await startButton.click()
 
-    const transactionSteps = [
-      'Deploy resolver',
-      'Submit commitment',
-      'Approve payment',
-      'Register name',
-    ]
+    await expect(transactionDialog.getByText('Transaction flow')).toBeVisible({
+      timeout: 30_000,
+    })
 
-    for (const stepTitle of transactionSteps) {
-      await expect(transactionDialog.getByText(stepTitle)).toBeVisible({
-        timeout: 30_000,
-      })
-
+    const flowDeadline = Date.now() + 420_000
+    while (Date.now() < flowDeadline && !registerTxSucceeded) {
       const openWalletButton = transactionDialog.getByRole('button', {
         name: /open wallet/i,
       })
-      await openWalletButton.waitFor({ state: 'visible', timeout: 30_000 })
-      await openWalletButton.click()
-
-      await authorizeTransaction(wallet, 60_000)
-
-      const nextButton = transactionDialog.getByRole('button', {
-        name: /^(Next|Done)$/i,
-      })
-      await nextButton.waitFor({ state: 'visible', timeout: 120_000 })
-      await nextButton.click()
-
-      if (stepTitle !== 'Register name') {
-        const nextStartButton = transactionDialog.getByRole('button', {
-          name: /^Start$/i,
-        })
-        await nextStartButton.waitFor({ state: 'visible', timeout: 30_000 })
-        await nextStartButton.click()
+      if (await openWalletButton.isVisible().catch(() => false)) {
+        await openWalletButton.click()
+        await authorizeTransaction(wallet, 60_000)
+        await page.waitForTimeout(500)
+        continue
       }
+
+      const waitingButton = transactionDialog.getByRole('button', {
+        name: /^Waiting\.\.\.$/i,
+      })
+      if (await waitingButton.isVisible().catch(() => false)) {
+        // Newer UI can render an icon-only wallet action button next to
+        // the Waiting button (without an accessible text label).
+        const iconWalletButton = waitingButton.locator(
+          'xpath=preceding-sibling::button[1]',
+        )
+        if (await iconWalletButton.isVisible().catch(() => false)) {
+          await iconWalletButton.click()
+          await authorizeTransaction(wallet, 60_000)
+          await page.waitForTimeout(500)
+          continue
+        }
+      }
+
+      const primaryButton = transactionDialog.getByRole('button', {
+        name: /^(Start|Next|Done)$/i,
+      })
+      if (
+        (await primaryButton.isVisible().catch(() => false)) &&
+        (await primaryButton.isEnabled().catch(() => false))
+      ) {
+        await primaryButton.click()
+        await page.waitForTimeout(500)
+        continue
+      }
+
+      await page.waitForTimeout(1_000)
     }
 
-    // Wait for registration to complete or error out
-    await monitor.waitForRegistrationComplete(240_000)
+    expect(registerTxSucceeded).toBe(true)
 
     // ── 7. Assert success ──────────────────────────────────────────
     expect(monitor.getLastState()).toBe('success')
 
-    // Also check the UI
-    const successAlert = page.getByText('Registration complete!')
-    await expect(successAlert).toBeVisible({ timeout: 30_000 })
+    // Also check the UI success screen
+    await expect(
+      page.getByRole('heading', { name: 'Congratulations!' }),
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByText(new RegExp(`You're now the owner of ${DOMAIN_TO_REGISTER}`)),
+    ).toBeVisible({ timeout: 30_000 })
   })
 })

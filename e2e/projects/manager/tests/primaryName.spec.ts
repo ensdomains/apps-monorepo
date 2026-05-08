@@ -3,11 +3,13 @@ import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
-async function viewProfile(page: Page) {
+async function viewProfile(page: Page, name: string) {
   // Navigate directly to the profile page — avoids search dropdown
   // flakiness caused by React re-renders detaching DOM elements in CI.
-  await page.goto(`${MANAGER_APP_URL}/p/primetest.eth`)
-  await page.waitForURL(/\/p\/primetest\.eth$/, { timeout: 15_000 })
+  // The app may redirect owned names to /p/{name}/edit, so accept both.
+  const escapedName = name.replace(/\./g, '\\.')
+  await page.goto(`${MANAGER_APP_URL}/p/${name}`)
+  await page.waitForURL(new RegExp(`/p/${escapedName}(/edit)?$`), { timeout: 15_000 })
   await page.waitForLoadState('networkidle')
   await page.waitForTimeout(2_000)
 
@@ -24,18 +26,18 @@ async function viewProfile(page: Page) {
 test.describe('ENS primary name', () => {
   test.describe.configure({ timeout: 300_000 })
 
-  test('Set primary name', async ({ authenticatedPage: page }) => {
-    await viewProfile(page)
+  test('Set primary name', async ({ authenticatedPage: page, makeV2Name }) => {
+    const name = await makeV2Name({ label: 'primetest' })
+    console.log(`[primaryName] name for set-primary test: ${name}`)
+
+    await viewProfile(page, name)
 
     await page.getByRole('button', { name: /set primary name/i }).click()
     await page.getByRole('button', { name: /set as primary/i }).click()
 
-    // $ anchor ensures we wait for navigation away from /edit, not the current URL
-    await page.waitForURL(/\/p\/primetest\.eth$/, { timeout: 120_000 })
-
-    // click on view profile link
-    // await page.getByText('View Profile').click()
-    // await page.waitForURL(/\/p\/primetest\.eth$/, { timeout: 120_000 })
+    const escapedName = name.replace(/\./g, '\\.')
+    // Wait for navigation to the profile view (may include /edit for owned names)
+    await page.waitForURL(new RegExp(`/p/${escapedName}(/edit)?$`), { timeout: 120_000 })
 
     // edit profile link should be visible
     const editProfileLink = page.getByText('Edit Profile')

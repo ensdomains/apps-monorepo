@@ -7,8 +7,8 @@ import type { Address, Hash } from 'viem'
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
 import { bytesToHex } from 'viem'
 import { authenticateWithPara } from '../helpers/para-auth.js'
-import { findSearchInput } from '../helpers/search-input.js'
 import { createMakeName } from './makeName.js'
+import { createMakeV2Name } from './makeV2Name.js'
 import { createTime, type Time } from './time.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -68,8 +68,14 @@ type ManagerFixtures = {
   /** Register names on the anvil fork (supports expired / premium states). */
   makeName: ReturnType<typeof createMakeName>
   /**
-   * Register a fresh .eth name via the UI registration flow (search → USDC →
-   * buy). The authenticated Para user becomes the owner. Returns the full name.
+   * Register a V2 .eth name on-chain to the authenticated user's smart account.
+   * Much faster than `registerName` (contract calls vs UI flow).
+   * Each name gets a dedicated resolver proxy so profile editing works.
+   */
+  makeV2Name: ReturnType<typeof createMakeV2Name>
+  /**
+   * Register a fresh .eth name via the UI registration flow. The authenticated
+   * Para user becomes the owner. Returns the full name.
    */
   registerName: (labelPrefix: string) => Promise<string>
 }
@@ -113,26 +119,29 @@ export const test = base.extend<ManagerFixtures>({
     await use(createMakeName({ accounts, time }))
   },
 
+  makeV2Name: async ({}, use) => {
+    await use(createMakeV2Name())
+  },
+
   registerName: async ({ authenticatedPage }, use) => {
     const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
     await use(async (labelPrefix: string): Promise<string> => {
       const uniqueLabel = `${labelPrefix}-${Date.now().toString(36)}`
       const fullName = `${uniqueLabel}.eth`
-
-      const searchInput = await findSearchInput(authenticatedPage)
-      await searchInput.click()
-      await searchInput.fill(uniqueLabel)
-      await authenticatedPage.getByText(fullName).first().click()
+      await authenticatedPage.goto(
+        `${baseURL}/register/${encodeURIComponent(fullName)}`,
+      )
 
       await authenticatedPage
         .getByRole('button', { name: /pay with stablecoins/i })
         .click()
-      await authenticatedPage.getByText('USDC', { exact: true }).click()
+      await authenticatedPage
+        .getByRole('button', { name: /select usdc/i })
+        .click()
       await authenticatedPage
         .getByRole('button', { name: /buy name/i })
         .click()
-
-      const successBanner = authenticatedPage.locator('p.text-ens-peridot-text-dark')
+      const successBanner = authenticatedPage.getByText('Registration Complete!')
       await successBanner.waitFor({ state: 'visible', timeout: 90_000 })
 
       // Navigate back to the dashboard so the test starts from a clean state

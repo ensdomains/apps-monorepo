@@ -3,7 +3,14 @@ import { fileURLToPath } from 'node:url'
 import type { Page } from '@playwright/test'
 import { test as base } from '@playwright/test'
 import { config as loadEnv } from 'dotenv'
-import { type Account, type Address, bytesToHex, type Hash } from 'viem'
+import {
+  type Account,
+  type Address,
+  bytesToHex,
+  encodeFunctionData,
+  type Hash,
+  parseAbi,
+} from 'viem'
 import {
   mnemonicToAccount,
   nonceManager,
@@ -20,6 +27,11 @@ import {
 } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
 import { createTime, type Time } from './time.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../helpers/anvil-client.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
 // The headless provider's internal walletClient uses this RPC URL
@@ -42,6 +54,15 @@ loadEnv({ path: path.resolve(__dirname, '..', '.env') })
 // ---------------------------------------------------------------------------
 const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
+const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
+const MOCK_DAI = '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as const
+const ANVIL_FUNDER = privateKeyToAccount(
+  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+)
+const ERC20_ABI = parseAbi([
+  'function mint(address to, uint256 amount)',
+  'function balanceOf(address owner) view returns (uint256)',
+])
 
 const users = ['user', 'user2', 'user3', 'user4'] as const
 export type User = (typeof users)[number]
@@ -82,6 +103,59 @@ export function createAccounts(): PortalAccounts {
   }
 }
 
+async function waitForTx(hash: Hash) {
+  await publicClient.waitForTransactionReceipt({ hash })
+}
+
+async function ensurePortalStablecoinBalances(address: Address) {
+  // The default Anvil account has contract code on Sepolia.
+  // Clearing code avoids ERC1155 receiver checks failing during registration.
+  await testClient.setCode({ address, bytecode: '0x' })
+
+  const [usdcBalance, daiBalance] = await Promise.all([
+    publicClient.readContract({
+      address: MOCK_USDC,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [address],
+    }),
+    publicClient.readContract({
+      address: MOCK_DAI,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [address],
+    }),
+  ])
+
+  if (usdcBalance < 10_000_000_000n) {
+    const mintUsdcData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: 'mint',
+      args: [address, 10_000_000_000n], // 10_000 USDC (6 decimals)
+    })
+    const hash = await walletClient.sendTransaction({
+      account: ANVIL_FUNDER,
+      to: MOCK_USDC,
+      data: mintUsdcData,
+    })
+    await waitForTx(hash)
+  }
+
+  if (daiBalance < 10_000_000_000_000_000_000_000n) {
+    const mintDaiData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: 'mint',
+      args: [address, 10_000_000_000_000_000_000_000n], // 10_000 DAI (18 decimals)
+    })
+    const hash = await walletClient.sendTransaction({
+      account: ANVIL_FUNDER,
+      to: MOCK_DAI,
+      data: mintDaiData,
+    })
+    await waitForTx(hash)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -104,6 +178,7 @@ export const test = base.extend<PortalFixtures>({
   },
 
   wallet: async ({ page, accounts }, use) => {
+    await ensurePortalStablecoinBalances(accounts.getAddress('user'))
     const privateKeys = accounts.getAllPrivateKeys()
     const wallet = await injectHeadlessWeb3Provider({
       page,

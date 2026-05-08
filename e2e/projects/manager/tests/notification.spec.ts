@@ -23,9 +23,8 @@ test.describe('Notifications email flow', () => {
 
     // authenticatedPage fixture already navigates to the app, so we start from there
 
-    // Open notifications dropdown and settings
-    await page.getByRole('button', { name: /Notifications/i }).click()
-    await page.locator('a[href="/notifications/settings"]').click()
+    // Navigate directly to notification settings after sign-in.
+    await page.goto('/notifications/settings')
     await expect(page).toHaveURL(/\/notifications\/settings/)
 
     // Add email for verification
@@ -87,5 +86,32 @@ test.describe('Notifications email flow', () => {
       90_000,
     )
     expect(welcomeMessage.subject).toBe('Welcome to ENS Notifications')
+
+    // Navigate back to settings and remove the email
+    await page.goto('/notifications/settings')
+    await expect(page).toHaveURL(/\/notifications\/settings/)
+
+    // Find the email container by locating the text of the email address
+    const emailContainer = page.locator('text=' + email).first()
+    await emailContainer.waitFor({ state: 'visible', timeout: 10_000 })
+
+    // Click the menu button for that email entry
+    const menuButton = emailContainer.locator('xpath=following::button[1]')
+    await menuButton.waitFor({ state: 'visible', timeout: 10_000 })
+    await menuButton.click()
+
+    // Click the Remove item in the opened dropdown menu
+    const removeMenuItem = page.getByRole('menuitem', { name: /Remove/i }).first()
+    await removeMenuItem.waitFor({ state: 'visible', timeout: 10_000 })
+    await removeMenuItem.click()
+
+    // Confirm removal in the dialog
+    // const removeDialog = page.getByText("Remove Email Contact Method?")
+    // await removeDialog.waitFor({ state: 'visible', timeout: 10_000 })
+    const confirmRemoveButton = page.getByRole('button', { name: /Remove/i }).first()
+    await confirmRemoveButton.click()
+
+    // Verify the email has been removed
+    await expect(emailContainer).toBeHidden()
   })
 })

@@ -16,9 +16,9 @@ test.describe('ENS profile', () => {
 
     test('add lots of records to profile', async ({
         authenticatedPage: page,
-        registerName,
+        makeV2Name,
     }) => {
-        const name = await registerName('profileadd')
+        const name = await makeV2Name({ label: 'profileadd' })
         console.log(`[profile] name for add-records test: ${name}`)
 
         await goToEditProfile(page, name)
@@ -75,9 +75,9 @@ test.describe('ENS profile', () => {
 
     test('remove records from profile', async ({
         authenticatedPage: page,
-        registerName,
+        makeV2Name,
     }) => {
-        const name = await registerName('profilerem')
+        const name = await makeV2Name({ label: 'profilerem' })
         console.log(`[profile] name for remove-records test: ${name}`)
 
         // First pass — add two records and save
@@ -121,9 +121,9 @@ test.describe('ENS profile', () => {
 
     test('shows validation errors for invalid records', async ({
         authenticatedPage: page,
-        registerName,
+        makeV2Name,
     }) => {
-        const name = await registerName('profileval')
+        const name = await makeV2Name({ label: 'profileval' })
         console.log(`[profile] name for validation-error test: ${name}`)
 
         await goToEditProfile(page, name)
@@ -155,9 +155,9 @@ test.describe('ENS profile', () => {
 
     test('add and remove name from favourites', async ({
         authenticatedPage: page,
-        registerName,
+        makeV2Name,
     }) => {
-        const name = await registerName('profilefav')
+        const name = await makeV2Name({ label: 'profilefav' })
         console.log(`[profile] name for favourites test: ${name}`)
 
         // Add a bio so the profile has content, then navigate to the view page
@@ -227,9 +227,9 @@ test.describe('ENS profile', () => {
 
     test('extend owned name by 28 days', async ({
         authenticatedPage: page,
-        registerName,
+        makeV2Name,
     }) => {
-        const name = await registerName('extendowned')
+        const name = await makeV2Name({ label: 'extendowned' })
         console.log(`[profile] name for extend-owned test: ${name}`)
 
         await goToProfile(page, name)

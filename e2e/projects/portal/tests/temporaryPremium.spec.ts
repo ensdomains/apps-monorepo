@@ -66,7 +66,7 @@ test.describe('Temporary Premium Names', () => {
 
     // ── 5. Verify "Temporary premium:" line in price breakdown ────
     console.log('[test:5] Checking for "Temporary premium:" line item...')
-    await expect(page.getByText('Temporary premium:')).toBeVisible({
+    await expect(page.getByText('Temporary premium')).toBeVisible({
       timeout: 15_000,
     })
     console.log('[test:5] ✅ Temporary premium line item visible')
@@ -146,7 +146,7 @@ test.describe('Temporary Premium Names', () => {
     console.log('[test:4] ✅ Temporary premium alert visible')
 
     console.log('[test:5] Checking for "Temporary premium:" line...')
-    await expect(page.getByText('Temporary premium:')).toBeVisible({
+    await expect(page.getByText('Temporary premium')).toBeVisible({
       timeout: 15_000,
     })
     console.log('[test:5] ✅ Temporary premium line visible')
@@ -189,7 +189,7 @@ test.describe('Temporary Premium Names', () => {
     console.log('[test:4] ✅ No temporary premium alert (correct)')
 
     console.log('[test:5] Verifying NO "Temporary premium:" line...')
-    await expect(page.getByText('Temporary premium:')).not.toBeVisible({
+    await expect(page.getByText('Temporary premium')).not.toBeVisible({
       timeout: 5_000,
     })
     console.log('[test:5] ✅ No temporary premium line (correct)')
