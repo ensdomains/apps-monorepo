@@ -19,7 +19,7 @@
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/module-sdk": "^0.4.0",
-    "@rhinestone/sdk": "1.4.2",
+    "@rhinestone/sdk": "1.5.1",
     "@xstate/react": "^4.0.0-beta.12",
     "@zerodev/sdk": "^5.5.7",
     "idb": "^8.0.3",

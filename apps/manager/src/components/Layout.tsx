@@ -9,10 +9,10 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-[#FCFBFB]">
       <Header />
 
-      <main className="relative isolate flex flex-1 flex-col bg-[#FCFBFB]">
+      <main className="relative isolate flex flex-1 flex-col">
         <SepoliaNoticeBanner />
         {children}
       </main>

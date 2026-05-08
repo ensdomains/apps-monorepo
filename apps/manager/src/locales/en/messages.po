@@ -127,7 +127,7 @@ msgid "A scrappy generalist builder with taste. Senior Product Designer and Rese
 msgstr "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
 
 #: src/features/register/pages/CheckDomainPage.tsx:36
-#: src/routes/index.tsx:37
+#: src/routes/index.tsx:38
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
@@ -311,7 +311,7 @@ msgstr "Autorenews on"
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:171
+#: src/features/navigation/Header/search/SuggestionItem.tsx:152
 msgid "Available"
 msgstr "Available"
 
@@ -372,7 +372,7 @@ msgstr "Billing zip code"
 msgid "Bio"
 msgstr "Bio"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:94
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:126
 msgid "Blog"
 msgstr "Blog"
 
@@ -392,7 +392,7 @@ msgstr "Browser notifications disabled"
 msgid "Browser notifications enabled"
 msgstr "Browser notifications enabled"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:83
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:115
 msgid "Bug bounty"
 msgstr "Bug bounty"
 
@@ -479,16 +479,12 @@ msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
 #: src/features/register/pages/CheckDomainPage.tsx:28
-#: src/routes/index.tsx:29
+#: src/routes/index.tsx:30
 msgid "Claim your"
 msgstr "Claim your"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:54
-msgid "Clear"
-msgstr "Clear"
-
 #: src/components/molecules/SearchField/SearchField.tsx:93
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:43
+#: src/features/navigation/Header/search/SearchInput.tsx:65
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -572,7 +568,8 @@ msgstr "Confirming approval"
 msgid "Confirming commitment"
 msgstr "Confirming commitment"
 
-#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
+#: src/features/navigation/Header/desktop/DisconnectedRightBlock.tsx:19
+#: src/features/navigation/Header/mobile/MobileConnectButton.tsx:16
 msgid "Connect"
 msgstr "Connect"
 
@@ -620,7 +617,7 @@ msgstr "Connecting to {connectingConnector}... Please approve the connection in 
 msgid "Connection Details"
 msgstr "Connection Details"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:62
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:88
 msgid "Contact"
 msgstr "Contact"
 
@@ -640,7 +637,7 @@ msgstr "Continue to Settings"
 msgid "Copied"
 msgstr "Copied"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:54
+#: src/features/navigation/Header/account/WalletSection.tsx:42
 msgid "Copied!"
 msgstr "Copied!"
 
@@ -720,9 +717,13 @@ msgstr "Customize your profile to share what matters"
 msgid "CVV"
 msgstr "CVV"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:100
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:132
 msgid "DAO Forum"
 msgstr "DAO Forum"
+
+#: src/features/navigation/Header/account/NavSection.tsx:23
+msgid "Dashboard"
+msgstr "Dashboard"
 
 #: src/features/dashboard/components/FavoritesList.tsx:173
 msgid "Date added (Newest)"
@@ -753,7 +754,7 @@ msgstr "Deploying the resolver"
 msgid "Did You Know?"
 msgstr "Did You Know?"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:153
+#: src/features/navigation/Header/account/WalletSection.tsx:97
 msgid "Disconnect"
 msgstr "Disconnect"
 
@@ -773,7 +774,7 @@ msgstr "Done"
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
-#: src/features/dashboard/components/MyNamesList.tsx:341
+#: src/features/dashboard/components/MyNamesList.tsx:372
 msgid "Eligible for upgrade"
 msgstr "Eligible for upgrade"
 
@@ -827,13 +828,13 @@ msgstr "Enable Smart Sessions"
 msgid "Enabling sessions…"
 msgstr "Enabling sessions…"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:68
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:94
 msgid "ENS"
 msgstr "ENS"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:46
-msgid "ENS App Homepage"
-msgstr "ENS App Homepage"
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:55
+msgid "ENS app landing page"
+msgstr "ENS app landing page"
 
 #: src/features/notifications/settings/preferences.tsx:131
 #: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:94
@@ -881,7 +882,7 @@ msgstr "Enter wallet address"
 msgid "Enter your email"
 msgstr "Enter your email"
 
-#: src/features/dashboard/components/MyNamesList.tsx:188
+#: src/features/dashboard/components/MyNamesList.tsx:210
 msgid "Error loading names"
 msgstr "Error loading names"
 
@@ -902,7 +903,7 @@ msgstr "Expires {0}"
 msgid "expires {expiryDateString}"
 msgstr "expires {expiryDateString}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:371
+#: src/features/dashboard/components/MyNamesList.tsx:402
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Expires in {daysUntilExpiry} days"
 
@@ -916,15 +917,15 @@ msgstr "Expires:"
 msgid "expiring on"
 msgstr "expiring on"
 
-#: src/features/dashboard/components/MyNamesList.tsx:262
+#: src/features/dashboard/components/MyNamesList.tsx:293
 msgid "Expiry"
 msgstr "Expiry"
 
-#: src/features/dashboard/components/MyNamesList.tsx:217
+#: src/features/dashboard/components/MyNamesList.tsx:248
 msgid "Expiry date (Earliest)"
 msgstr "Expiry date (Earliest)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:220
+#: src/features/dashboard/components/MyNamesList.tsx:251
 msgid "Expiry date (Latest)"
 msgstr "Expiry date (Latest)"
 
@@ -971,10 +972,6 @@ msgstr "Failed to remove email channel"
 msgid "Failed to remove Telegram channel"
 msgstr "Failed to remove Telegram channel"
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:49
-msgid "Failed to request test tokens"
-msgstr "Failed to request test tokens"
-
 #: src/features/notifications/settings/contact-methods/email.tsx:149
 msgid "Failed to resend email verification"
 msgstr "Failed to resend email verification"
@@ -997,7 +994,7 @@ msgstr "Failed to set primary name. Please try again."
 msgid "Failed to sign in. Please try again."
 msgstr "Failed to sign in. Please try again."
 
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:39
+#: src/features/navigation/Header/account/LanguageSection.tsx:39
 msgid "Failed to switch language"
 msgstr "Failed to switch language"
 
@@ -1034,10 +1031,6 @@ msgstr "Finalizing registration"
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr "for"
-
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:15
-msgid "For this alpha release, accounts are automatically funded with test tokens."
-msgstr "For this alpha release, accounts are automatically funded with test tokens."
 
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Frequently Asked Questions"
@@ -1091,6 +1084,10 @@ msgstr "Go Back"
 msgid "Go back home"
 msgstr "Go back home"
 
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:66
+msgid "Go to ENS Explorer"
+msgstr "Go to ENS Explorer"
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:248
 msgid "Go to Profile"
 msgstr "Go to Profile"
@@ -1132,6 +1129,10 @@ msgstr "Image must be under {MAX_FILE_SIZE_MB}MB"
 msgid "Image not available"
 msgstr "Image not available"
 
+#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:29
+msgid "Inbox"
+msgstr "Inbox"
+
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx:72
 msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
 msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
@@ -1144,7 +1145,7 @@ msgstr "Invalid character"
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:91
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:123
 msgid "Join the community"
 msgstr "Join the community"
 
@@ -1152,8 +1153,8 @@ msgstr "Join the community"
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:77
-#: src/features/navigation/Header/ProfileSection/LanguageSection.tsx:82
+#: src/features/navigation/Header/account/LanguageSection.tsx:76
+#: src/features/navigation/Header/account/LanguageSection.tsx:81
 msgid "Language"
 msgstr "Language"
 
@@ -1204,7 +1205,6 @@ msgstr "Loading your stablecoin balances..."
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:215
 #: src/features/dashboard/components/PrimaryNameCard.tsx:53
 #: src/features/dashboard/components/PrimaryNameCard.tsx:56
-#: src/features/navigation/Header/DisconnectedHeaderContent.tsx:28
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:74
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
@@ -1232,7 +1232,7 @@ msgstr "Makes crypto addresses human-readable"
 msgid "Manage notification settings"
 msgstr "Manage notification settings"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:73
+#: src/features/navigation/Header/account/WalletSection.tsx:61
 msgid "Manage Para Wallet"
 msgstr "Manage Para Wallet"
 
@@ -1276,18 +1276,18 @@ msgid "My Names"
 msgstr "My Names"
 
 #: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:243
+#: src/features/dashboard/components/MyNamesList.tsx:274
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Name"
 
 #: src/features/dashboard/components/FavoritesList.tsx:164
-#: src/features/dashboard/components/MyNamesList.tsx:211
+#: src/features/dashboard/components/MyNamesList.tsx:242
 msgid "Name (A-Z)"
 msgstr "Name (A-Z)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:167
-#: src/features/dashboard/components/MyNamesList.tsx:214
+#: src/features/dashboard/components/MyNamesList.tsx:245
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
@@ -1321,7 +1321,7 @@ msgstr "Need {0}"
 msgid "Need ${0}"
 msgstr "Need ${0}"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:53
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:79
 msgid "Need help?"
 msgstr "Need help?"
 
@@ -1338,7 +1338,7 @@ msgid "Next card"
 msgstr "Next card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:290
-#: src/features/dashboard/components/MyNamesList.tsx:396
+#: src/features/dashboard/components/MyNamesList.tsx:427
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
 msgstr "Next page"
@@ -1382,7 +1382,7 @@ msgstr "No names match your search"
 
 #: src/features/dashboard/components/FavoritesList.tsx:227
 #: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:293
+#: src/features/dashboard/components/MyNamesList.tsx:324
 msgid "No names to display"
 msgstr "No names to display"
 
@@ -1394,7 +1394,7 @@ msgstr "No payment methods found."
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:35
+#: src/features/navigation/Header/search/SearchSuggestions.tsx:45
 msgid "No recent searches"
 msgstr "No recent searches"
 
@@ -1414,7 +1414,7 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:144
+#: src/features/navigation/Header/search/SuggestionItem.tsx:135
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:146
 msgid "Not supported"
 msgstr "Not supported"
@@ -1440,7 +1440,7 @@ msgstr "Notification Preferences"
 msgid "Notification Settings"
 msgstr "Notification Settings"
 
-#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:22
+#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:18
 #: src/features/notifications/dropdown/notification-dropdown.tsx:28
 msgid "Notifications"
 msgstr "Notifications"
@@ -1452,6 +1452,10 @@ msgstr "Notifications blocked"
 #: src/features/landing/FeaturesCarousel.tsx:27
 msgid "One username <0/><1>everywhere</1>"
 msgstr "One username <0/><1>everywhere</1>"
+
+#: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx:19
+msgid "Open navigation"
+msgstr "Open navigation"
 
 #: src/routes/notifications/channels/email/verify.tsx:99
 msgid "Open the verification link from your email to finish setup."
@@ -1579,7 +1583,7 @@ msgid "Previous card"
 msgstr "Previous card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:281
-#: src/features/dashboard/components/MyNamesList.tsx:387
+#: src/features/dashboard/components/MyNamesList.tsx:418
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
 msgstr "Previous page"
@@ -1592,12 +1596,16 @@ msgstr "Previous slide"
 msgid "Primary Name"
 msgstr "Primary Name"
 
+#: src/features/navigation/Header/account/NavSection.tsx:31
+msgid "Primary Name Profile"
+msgstr "Primary Name Profile"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:209
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:70
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:71
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:97
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
 
@@ -1617,10 +1625,6 @@ msgstr "Receive crypto from any chain"
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
 
-#: src/features/navigation/Header/SearchSection/SearchSuggestions.tsx:47
-msgid "Recent"
-msgstr "Recent"
-
 #: src/features/notifications/RequireBackendAuth.tsx:54
 msgid "Reconnect the wallet used for notifications, then sign in again."
 msgstr "Reconnect the wallet used for notifications, then sign in again."
@@ -1637,7 +1641,7 @@ msgstr "Register to date"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:125
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/SearchSection/SuggestionItem.tsx:160
+#: src/features/navigation/Header/search/SuggestionItem.tsx:146
 msgid "Registered"
 msgstr "Registered"
 
@@ -1796,10 +1800,6 @@ msgstr "Renewing"
 msgid "Renewing for"
 msgstr "Renewing for"
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:42
-msgid "Requesting test tokens..."
-msgstr "Requesting test tokens..."
-
 #: src/features/notifications/settings/contact-methods/email.tsx:203
 msgid "Resend Verification"
 msgstr "Resend Verification"
@@ -1873,16 +1873,12 @@ msgstr "Saving..."
 msgid "Saving…"
 msgstr "Saving…"
 
-#: src/features/navigation/Header/SearchSection/SearchTriggerButton.tsx:11
-msgid "Search"
-msgstr "Search"
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:264
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:267
 msgid "Search coins"
 msgstr "Search coins"
 
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:35
+#: src/features/navigation/Header/search/SearchInput.tsx:49
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
@@ -1890,7 +1886,7 @@ msgstr "Search for a name or address"
 msgid "Search my name..."
 msgstr "Search my name..."
 
-#: src/features/navigation/Header/SearchSection/SearchSection.tsx:55
+#: src/features/navigation/Header/search/SearchInput.tsx:53
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
@@ -2015,6 +2011,10 @@ msgstr "Setting..."
 msgid "Setting…"
 msgstr "Setting…"
 
+#: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:40
+msgid "Settings"
+msgstr "Settings"
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:93
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:132
 msgid "Share"
@@ -2028,7 +2028,7 @@ msgstr "Short Description"
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:406
+#: src/features/dashboard/components/MyNamesList.tsx:437
 msgid "Showing your names"
 msgstr "Showing your names"
 
@@ -2093,14 +2093,6 @@ msgstr "Slide {0}"
 msgid "Smart Account"
 msgstr "Smart Account"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:100
-msgid "Smart Session Active"
-msgstr "Smart Session Active"
-
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:102
-msgid "Smart Session Disabled"
-msgstr "Smart Session Disabled"
-
 #: src/features/wallet/components/EnableSessionModal.tsx:120
 msgid "Smart sessions are required to use this app."
 msgstr "Smart sessions are required to use this app."
@@ -2109,35 +2101,39 @@ msgstr "Smart sessions are required to use this app."
 msgid "Social Links"
 msgstr "Social Links"
 
+#: src/features/dashboard/components/MyNamesList.tsx:222
+msgid "Some names could not be loaded"
+msgstr "Some names could not be loaded"
+
 #: src/features/dashboard/components/FavoritesList.tsx:141
-#: src/features/dashboard/components/MyNamesList.tsx:199
+#: src/features/dashboard/components/MyNamesList.tsx:230
 msgid "Sort by"
 msgstr "Sort by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:251
+#: src/features/dashboard/components/MyNamesList.tsx:282
 msgid "Sort by expiry, currently ascending"
 msgstr "Sort by expiry, currently ascending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:252
+#: src/features/dashboard/components/MyNamesList.tsx:283
 msgid "Sort by expiry, currently descending"
 msgstr "Sort by expiry, currently descending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:253
+#: src/features/dashboard/components/MyNamesList.tsx:284
 msgid "Sort by expiry, currently unsorted"
 msgstr "Sort by expiry, currently unsorted"
 
 #: src/features/dashboard/components/FavoritesList.tsx:185
-#: src/features/dashboard/components/MyNamesList.tsx:232
+#: src/features/dashboard/components/MyNamesList.tsx:263
 msgid "Sort by name, currently ascending"
 msgstr "Sort by name, currently ascending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:186
-#: src/features/dashboard/components/MyNamesList.tsx:233
+#: src/features/dashboard/components/MyNamesList.tsx:264
 msgid "Sort by name, currently descending"
 msgstr "Sort by name, currently descending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:187
-#: src/features/dashboard/components/MyNamesList.tsx:234
+#: src/features/dashboard/components/MyNamesList.tsx:265
 msgid "Sort by name, currently unsorted"
 msgstr "Sort by name, currently unsorted"
 
@@ -2145,7 +2141,7 @@ msgstr "Sort by name, currently unsorted"
 msgid "Sort favorites by"
 msgstr "Sort favorites by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:202
+#: src/features/dashboard/components/MyNamesList.tsx:233
 msgid "Sort names by"
 msgstr "Sort names by"
 
@@ -2198,7 +2194,7 @@ msgstr "Submitting your ENS profile update. This may take a few moments."
 msgid "Successfully connected! You can now use the application."
 msgstr "Successfully connected! You can now use the application."
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:56
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:82
 msgid "Support"
 msgstr "Support"
 
@@ -2222,7 +2218,7 @@ msgstr "Telegram channel removed"
 msgid "Telegram Notifications"
 msgstr "Telegram Notifications"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:75
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:103
 msgid "Terms of Use"
 msgstr "Terms of Use"
 
@@ -2300,10 +2296,6 @@ msgstr "To finish connecting Telegram, you need to <0>start the ENS Notification
 msgid "To:"
 msgstr "To:"
 
-#: src/features/navigation/Header/ProfileSection/TokenSection.tsx:12
-msgid "TOKEN BALANCES"
-msgstr "TOKEN BALANCES"
-
 #: src/features/register/components/CheckAvailability/ValidationError.tsx:11
 msgid "Too short"
 msgstr "Too short"
@@ -2327,7 +2319,7 @@ msgstr "TOTAL"
 msgid "Total Paid"
 msgstr "Total Paid"
 
-#: src/features/navigation/Header/NavigationMenu/NavigationContent.tsx:79
+#: src/features/navigation/Header/navigation/NavigationContent.tsx:109
 msgid "Trademark Guidelines"
 msgstr "Trademark Guidelines"
 
@@ -2469,7 +2461,7 @@ msgstr "Verify Email Address"
 msgid "Verify Wallet"
 msgstr "Verify Wallet"
 
-#: src/features/navigation/Header/ProfileSection/WalletSection.tsx:134
+#: src/features/navigation/Header/account/WalletSection.tsx:78
 #: src/features/notifications/RequireBackendAuth.tsx:117
 msgid "Verify wallet ownership"
 msgstr "Verify wallet ownership"
@@ -2619,7 +2611,7 @@ msgid "We sent a verification code to your email address."
 msgstr "We sent a verification code to your email address."
 
 #: src/features/register/pages/CheckDomainPage.tsx:32
-#: src/routes/index.tsx:33
+#: src/routes/index.tsx:34
 msgid "web3 username"
 msgstr "web3 username"
 

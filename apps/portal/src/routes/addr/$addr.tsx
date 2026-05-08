@@ -3,6 +3,7 @@ import { type Address, checksumAddress, isAddress } from 'viem'
 import { AddrSidebar } from '@/components/AddrSidebar'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 export const Route = createFileRoute('/addr/$addr')({
@@ -22,6 +23,7 @@ function RouteComponent() {
       <AddrSidebar addr={checksumAddress(addr as Address)} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
+        <SepoliaNoticeBanner />
         <Outlet />
       </SidebarInset>
     </SidebarProvider>

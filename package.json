@@ -48,10 +48,11 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
+      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch",
+      "class-variance-authority": "patches/class-variance-authority.patch"
     },
     "overrides": {
-      "@rhinestone/sdk": "1.4.2",
+      "@rhinestone/sdk": "1.5.1",
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",
       "es-define-property": "npm:@socketregistry/es-define-property@^1",
       "for-each": "npm:@socketregistry/for-each@^1",
