@@ -13,7 +13,8 @@ type ExtendNameSettingsProps = {
   readonly spanType: ExtensionSpanType
   readonly setSpanType: (type: ExtensionSpanType) => void
   readonly baseDate?: Temporal.PlainDate
-  readonly onBack: () => void
+  /** When omitted, the back button is hidden — used when there's no preceding disclaimer step */
+  readonly onBack?: () => void
   readonly onNext: () => void
 }
 
@@ -41,6 +42,7 @@ export const ExtendNameSettings = ({
         expiryDate={selectedName.expiryDate}
         spanType={spanType}
         setSpanType={setSpanType}
+        name={selectedName.name}
       />
       <ExtendNameCheckoutSummary
         selectedName={selectedName}
@@ -49,10 +51,12 @@ export const ExtendNameSettings = ({
         baseDate={baseDate}
       />
       <div className="flex gap-2">
-        <Button variant="outline" size="icon" onClick={onBack}>
-          <ArrowLeft className="size-4" />
-        </Button>
-        <Button className="flex-1" variant="secondary" onClick={onNext}>
+        {onBack ? (
+          <Button variant="outline" size="icon" onClick={onBack}>
+            <ArrowLeft className="size-4" />
+          </Button>
+        ) : null}
+        <Button className="flex-1" variant="default" onClick={onNext}>
           Next
         </Button>
       </div>

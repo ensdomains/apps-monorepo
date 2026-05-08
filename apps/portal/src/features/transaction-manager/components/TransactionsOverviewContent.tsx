@@ -23,6 +23,7 @@ import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
+import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
 type TransactionsOverviewContentProps = {
   readonly address: Address | undefined
@@ -76,12 +77,12 @@ export const TransactionsOverviewContent = ({
           {ensName ? (
             <div className="flex flex-col items-center gap-2 pt-10">
               <NameAvatar name={ensName} height="80px" width="80px" />
-              <h2 className="text-3xl font-medium w-max text-foreground">
+              <h2 className="text-3xl font-medium text-foreground text-center max-w-full break-all">
                 {ensName}
               </h2>
             </div>
           ) : null}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             {transactions.map((transaction) => {
               const activeTxSnapshot = activeTransactionsMap
                 .get(transaction.id)
@@ -100,7 +101,7 @@ export const TransactionsOverviewContent = ({
                   role="button"
                   tabIndex={0}
                   className={cn(
-                    'flex flex-col gap-4 p-4 rounded-sm border',
+                    'flex flex-col gap-4 p-4 rounded-sm border min-w-0',
                     'border-border text-foreground cursor-pointer',
                   )}
                   onClick={() =>
@@ -119,12 +120,20 @@ export const TransactionsOverviewContent = ({
                     }
                   }}
                 >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-base font-medium w-max text-foreground">
+                  <div className="flex flex-col gap-2 min-w-0">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <h4 className="text-base font-medium text-foreground truncate">
                           {transaction.title}
                         </h4>
+                        {transaction.waitUntil &&
+                        getStatus(transaction.id, activeTransactionsMap) ===
+                          undefined &&
+                        transaction.waitUntil > Date.now() ? (
+                          <TransactionWaitCountdown
+                            waitUntil={transaction.waitUntil}
+                          />
+                        ) : null}
                         {match(getStatus(transaction.id, activeTransactionsMap))
                           .with(undefined, () => (
                             <Badge variant="ghost" className="font-normal">
@@ -202,7 +211,7 @@ export const TransactionsOverviewContent = ({
           </div>
           <Button
             className="w-full mb-0"
-            variant="secondary"
+            variant="default"
             onClick={() => {
               if (transactionStatus === 'success' && !hasNextTransaction) {
                 activeTransaction.onDone()

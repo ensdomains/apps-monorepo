@@ -3,6 +3,7 @@ import { CalendarIcon, ClockIcon, PlusCircleIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import type { ProtocolVersion } from '@/utils/types'
+import { useGraceStatus } from '../hooks/useGraceStatus'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
@@ -39,7 +40,19 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   )
 }
 
+const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
+  <div className="flex items-center gap-4 py-3">
+    <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
+    <span className="text-sm text-muted-foreground w-24 shrink-0">
+      Grace ends
+    </span>
+    <Timestamp timestamp={Math.floor(graceEndDate.getTime() / 1000)} />
+  </div>
+)
+
 const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
+  const grace = useGraceStatus({ name, protocolVersion: 'ENSv1' })
+
   const [nameHistory, expiry] = useQueries({
     queries: [
       getNameHistoryQueryOptions({ name, orderDirection: 'asc', first: 1 }),
@@ -73,11 +86,16 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
         </div>
       )}
       {blockNumber && <RegistrationData blockNumber={blockNumber} />}
+      {grace.isInGrace && grace.graceEndDate && (
+        <GraceEndsRow graceEndDate={grace.graceEndDate} />
+      )}
     </>
   )
 }
 
 const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
+  const grace = useGraceStatus({ name, protocolVersion: 'ENSv2' })
+
   const { data, error, isLoading } = useQuery(
     getV2RegistrationDataQueryOptions({ name }),
   )
@@ -97,14 +115,18 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      {data.expiry !== null && (
-        <div className="flex items-center gap-4 py-3">
-          <ClockIcon className="size-4 text-muted-foreground shrink-0" />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Expires
-          </span>
-          <Timestamp timestamp={data.expiry} />
-        </div>
+      {grace.isInGrace && grace.graceEndDate ? (
+        <GraceEndsRow graceEndDate={grace.graceEndDate} />
+      ) : (
+        data.expiry !== null && (
+          <div className="flex items-center gap-4 py-3">
+            <ClockIcon className="size-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground w-24 shrink-0">
+              Expires
+            </span>
+            <Timestamp timestamp={data.expiry} />
+          </div>
+        )
       )}
 
       {data.registeredAt !== null && (

@@ -106,7 +106,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center">
         <h3 className="text-2xl font-medium">History</h3>
-        <Button variant="secondary" size="sm" asChild>
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/$name/history" params={{ name }}>
             <Clock className="size-4" />
             Full history
@@ -256,7 +256,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-card overflow-y-auto"
+          className="sm:max-w-[880px] bg-background overflow-y-auto"
         >
           <div className="p-6 flex flex-col gap-6">
             <div className="text-muted-foreground text-center py-12">
@@ -346,7 +346,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-card overflow-y-auto"
+        className="sm:max-w-[880px] bg-background overflow-y-auto"
       >
         <div className="p-6 flex flex-col gap-6">
           <SheetHeader>
@@ -440,7 +440,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   />
                   <Button
                     type="submit"
-                    variant="secondary"
+                    variant="default"
                     disabled={
                       !isConnected ||
                       !nameInput ||

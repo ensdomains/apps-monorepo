@@ -4,7 +4,7 @@ import type { Row } from '@tanstack/react-table'
 import { Save, Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -25,9 +25,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantResolverRoles } from '@/features/resolver/helpers/grantResolverRoles'
 import { revokeResolverRoles } from '@/features/resolver/helpers/revokeResolverRoles'
 import { useResetMutationsOnAccountChange } from '@/features/roles/hooks/useResetMutationsOnAccountChange'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { AccountRoleGroup } from '@/lib/roles/resolverRoles'
 import {
@@ -52,6 +55,9 @@ type ResolverRolesSidebarProps = PropsWithChildren<{
   readonly canManageRoles: boolean
 }>
 
+const SAVE_RESOLVER_ROLES_TX_ID = 'tx-save-resolver-roles'
+const REMOVE_RESOLVER_USER_TX_ID = 'tx-remove-resolver-user'
+
 export const ResolverRolesSidebar = ({
   children,
   row,
@@ -64,12 +70,31 @@ export const ResolverRolesSidebar = ({
   const queryClient = useQueryClient()
   const chainId = sepoliaWithEns.id
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState<
+    | {
+        readonly type: 'save'
+        readonly name: string
+        readonly account: Address
+        readonly rolesToGrant: ResolverRole[]
+        readonly rolesToRevoke: ResolverRoleKey[]
+      }
+    | {
+        readonly type: 'remove'
+        readonly name: string
+        readonly account: Address
+        readonly roles: readonly ResolverRoleKey[]
+      }
+    | null
+  >(null)
 
   const { data: walletClient } = useWalletClient({ chainId })
+  const publicClient = usePublicClient({ chainId })
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
-  const selectedAccount = row?.original.account
-  const decodedRoles = row?.original.decodedRoles ?? []
+  const selectedAccount = row?.original.account as Address
+  const decodedRoles = (row?.original.decodedRoles ?? []) as ResolverRoleKey[]
   const resolvedNames = row?.original.resolvedNames ?? []
+
   const roleName = resolvedNames.find((n) => n !== '(root)') ?? ''
   const originalPermissions = useMemo(
     () => roleToPermissions(decodedRoles),
@@ -97,36 +122,51 @@ export const ResolverRolesSidebar = ({
   )
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!walletClient?.account) {
+    mutationFn: async ({
+      name,
+      account,
+      rolesToGrant,
+      rolesToRevoke,
+    }: {
+      readonly name: string
+      readonly account: Address
+      readonly rolesToGrant: ResolverRole[]
+      readonly rolesToRevoke: ResolverRoleKey[]
+    }) => {
+      if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
       }
-      if (!selectedAccount) {
-        throw new Error('No account selected')
-      }
+      const signer = createEOASigner(walletClient)
 
       if (rolesToGrant.length > 0) {
         await grantResolverRoles({
           resolverAddress,
-          name: roleName,
-          account: selectedAccount as Address,
-          roles: rolesToGrant as ResolverRole[],
+          name,
+          account,
+          roles: rolesToGrant,
           walletClient,
+          publicClient,
+          signer,
+          chainId,
+          id: SAVE_RESOLVER_ROLES_TX_ID,
         })
       }
 
       if (rolesToRevoke.length > 0) {
         await revokeResolverRoles({
           resolverAddress,
-          name: roleName,
-          account: selectedAccount as Address,
-          roles: rolesToRevoke as ResolverRoleKey[],
+          name,
+          account,
+          roles: rolesToRevoke,
           walletClient,
+          publicClient,
+          signer,
+          chainId,
+          id: SAVE_RESOLVER_ROLES_TX_ID,
         })
       }
     },
     onSuccess: async () => {
-      setOpen(false)
       await pollForIndexerSync({
         invalidateQueries: () =>
           queryClient.invalidateQueries({
@@ -147,9 +187,10 @@ export const ResolverRolesSidebar = ({
       readonly account: Address
       readonly roles: readonly ResolverRoleKey[]
     }) => {
-      if (!walletClient?.account) {
+      if (!walletClient?.account || !publicClient) {
         throw new Error('Wallet not connected')
       }
+      const signer = createEOASigner(walletClient)
 
       return revokeResolverRoles({
         resolverAddress,
@@ -157,10 +198,13 @@ export const ResolverRolesSidebar = ({
         account,
         roles,
         walletClient,
+        publicClient,
+        signer,
+        chainId,
+        id: REMOVE_RESOLVER_USER_TX_ID,
       })
     },
     onSuccess: async () => {
-      setOpen(false)
       await pollForIndexerSync({
         invalidateQueries: () =>
           queryClient.invalidateQueries({
@@ -179,7 +223,14 @@ export const ResolverRolesSidebar = ({
 
   const handleSaveChanges = () => {
     if (!selectedAccount || saveMutation.isPending) return
-    saveMutation.mutate()
+    setPendingAction({
+      type: 'save',
+      name: roleName,
+      account: selectedAccount,
+      rolesToGrant: rolesToGrant,
+      rolesToRevoke: rolesToRevoke,
+    })
+    openModal()
   }
 
   const handleRemoveUser = () => {
@@ -191,11 +242,13 @@ export const ResolverRolesSidebar = ({
       return
 
     removeUserMutation.reset()
-    removeUserMutation.mutate({
+    setPendingAction({
+      type: 'remove',
       name: roleName,
-      account: selectedAccount as Address,
-      roles: decodedRoles as ResolverRoleKey[],
+      account: selectedAccount,
+      roles: decodedRoles,
     })
+    openModal()
   }
 
   const handlePermissionChange = (
@@ -218,7 +271,7 @@ export const ResolverRolesSidebar = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-card overflow-y-auto p-8"
+        className="sm:max-w-[880px] bg-background overflow-y-auto p-8"
       >
         <div className="p-6 flex flex-col gap-6 h-screen">
           <SheetHeader className="p-0">
@@ -229,8 +282,7 @@ export const ResolverRolesSidebar = ({
               {canManageRoles && selectedAccount && (
                 <div className="flex gap-2">
                   <Button
-                    variant="secondary"
-                    className="text-primary"
+                    variant="default"
                     disabled={
                       !hasChanges ||
                       saveMutation.isPending ||
@@ -242,8 +294,7 @@ export const ResolverRolesSidebar = ({
                     {saveMutation.isPending ? 'Saving...' : 'Save changes'}
                   </Button>
                   <Button
-                    variant="secondary"
-                    className="text-primary"
+                    variant="default"
                     disabled={
                       removeUserMutation.isPending || !isWalletConnected
                     }
@@ -393,6 +444,48 @@ export const ResolverRolesSidebar = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <TransactionModal
+          transactions={[
+            {
+              id:
+                pendingAction?.type === 'remove'
+                  ? REMOVE_RESOLVER_USER_TX_ID
+                  : SAVE_RESOLVER_ROLES_TX_ID,
+              title:
+                pendingAction?.type === 'remove'
+                  ? 'Remove resolver user'
+                  : 'Save resolver role changes',
+              transactionName:
+                pendingAction?.type === 'remove'
+                  ? `Remove user ${pendingAction.account}`
+                  : `Update roles for ${pendingAction?.account ?? ''}`,
+              estimatedGasCost: 0.0001,
+              onStart: () => {
+                if (!pendingAction) return
+                if (pendingAction.type === 'remove') {
+                  removeUserMutation.mutate({
+                    name: pendingAction.name,
+                    account: pendingAction.account,
+                    roles: pendingAction.roles,
+                  })
+                  return
+                }
+                saveMutation.mutate({
+                  name: pendingAction.name,
+                  account: pendingAction.account,
+                  rolesToGrant: pendingAction.rolesToGrant,
+                  rolesToRevoke: pendingAction.rolesToRevoke,
+                })
+              },
+              onDone: () => {
+                closeModal()
+                clearTransaction()
+                setPendingAction(null)
+                setOpen(false)
+              },
+            },
+          ]}
+        />
       </SheetContent>
     </Sheet>
   )

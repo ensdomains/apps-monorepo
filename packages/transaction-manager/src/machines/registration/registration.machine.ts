@@ -6,6 +6,8 @@ import type { Signer } from '../../types/signer.types'
 import {
   generateCommitmentActor,
   pollTransactionStatusActor,
+  readMinCommitmentAgeActor,
+  readPaymentTokenAllowanceActor,
   resolveResolverDeploymentActor,
   submitApprovalActor,
   submitApprovalAndRegistrationActor,
@@ -13,6 +15,7 @@ import {
   submitRegistrationActor,
   submitResolverDeploymentActor,
   validateCommitmentActor,
+  verifyRegistrationActor,
 } from './registration.actors'
 
 /**
@@ -241,6 +244,32 @@ export const registrationMachine = setup({
         return validateCommitmentActor(input)
       },
     ),
+    readMinCommitmentAge: fromResultAsync(
+      (input: { publicClient: PublicClient; useFastRegistrar: boolean }) => {
+        return readMinCommitmentAgeActor(input)
+      },
+    ),
+    readPaymentTokenAllowance: fromResultAsync(
+      (input: {
+        owner: Address
+        selectedToken: 'USDC' | 'DAI'
+        publicClient: PublicClient
+        useFastRegistrar: boolean
+      }) => {
+        return readPaymentTokenAllowanceActor(input)
+      },
+    ),
+    verifyRegistration: fromResultAsync(
+      (input: {
+        name: string
+        owner: Address
+        resolverAddress: Address
+        publicClient: PublicClient
+        useFastRegistrar: boolean
+      }) => {
+        return verifyRegistrationActor(input)
+      },
+    ),
   },
 
   guards: {
@@ -294,6 +323,10 @@ export const registrationMachine = setup({
 
     clearRegisterReadyTimestamp: assign({
       registerReadyTimestamp: () => undefined,
+    }),
+
+    setFallbackRegisterReadyTimestamp: assign({
+      registerReadyTimestamp: () => Date.now() + COMMITMENT_WAIT_DURATION_MS,
     }),
 
     logRegistrationDuration: ({ context }) => {
@@ -583,19 +616,9 @@ export const registrationMachine = setup({
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.commitmentTxId! }),
-        onDone: [
-          {
-            guard: ({ context }) => context.useFastRegistrar,
-            target: 'validatingCommitment',
-          },
-          {
-            target: 'commitmentCooldown',
-            actions: assign({
-              registerReadyTimestamp: () =>
-                Date.now() + COMMITMENT_WAIT_DURATION_MS,
-            }),
-          },
-        ],
+        onDone: {
+          target: 'fetchingCommitmentAge',
+        },
         onError: {
           target: 'error',
           actions: [
@@ -611,6 +634,57 @@ export const registrationMachine = setup({
             },
           ],
         },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    fetchingCommitmentAge: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'readMinCommitmentAge',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+        }),
+        onDone: [
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) => {
+                const minAgeSeconds = Number(event.output as bigint)
+                return Date.now() + minAgeSeconds * 1000
+              },
+            }),
+          },
+          {
+            target: 'checkingAllowance',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) => {
+                const minAgeSeconds = Number(event.output as bigint)
+                return Date.now() + minAgeSeconds * 1000
+              },
+            }),
+          },
+        ],
+        onError: [
+          {
+            // Bundled approve+register cannot approve early, so it still waits
+            // before submitting the combined transaction.
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: 'setFallbackRegisterReadyTimestamp',
+          },
+          {
+            // Fall back to the default cooldown so registration can still
+            // proceed even if the read fails.
+            target: 'checkingAllowance',
+            actions: 'setFallbackRegisterReadyTimestamp',
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
@@ -633,7 +707,7 @@ export const registrationMachine = setup({
             guard: 'isRhinestoneSigner',
             target: 'submittingRhinestoneBundle',
           },
-          { target: 'approvingToken' },
+          { target: 'checkingAllowance' },
         ],
         onError: {
           target: 'error',
@@ -661,9 +735,10 @@ export const registrationMachine = setup({
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
-          const targetTimestamp =
-            context.registerReadyTimestamp ??
-            Date.now() + COMMITMENT_WAIT_DURATION_MS
+          // If the ready timestamp is missing (for example after restoring an
+          // older snapshot), do not reintroduce an artificial cooldown when the
+          // commitment has already been validated as old enough on-chain.
+          const targetTimestamp = context.registerReadyTimestamp ?? Date.now()
           const delayMs = Math.max(0, targetTimestamp - Date.now())
           return { delayMs }
         },
@@ -672,7 +747,7 @@ export const registrationMachine = setup({
             guard: 'isRhinestoneSigner',
             target: 'submittingRhinestoneBundle',
           },
-          { target: 'approvingToken' },
+          { target: 'registeringDomain' },
         ],
         onError: {
           target: 'error',
@@ -766,12 +841,43 @@ export const registrationMachine = setup({
       },
     },
 
+    checkingAllowance: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'readPaymentTokenAllowance',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          owner: context.ownerAddress ?? context.accountAddress!,
+          selectedToken: context.selectedToken,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+        }),
+        onDone: [
+          {
+            // Skip approval entirely when the registrar already has enough
+            // allowance for this registration's price.
+            guard: ({ context, event }) => {
+              const allowance = event.output as bigint
+              return allowance >= context.tokenPrice
+            },
+            target: 'commitmentCooldown',
+          },
+          { target: 'approvingToken' },
+        ],
+        onError: {
+          // If the read fails for any reason, fall back to running the
+          // approval step rather than blocking the flow.
+          target: 'approvingToken',
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
     approvingToken: {
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'clearRegisterReadyTimestamp',
-      ],
+      entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'submitApproval',
         input: ({ context }) => ({
@@ -818,7 +924,7 @@ export const registrationMachine = setup({
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.approvalTxId! }),
-        onDone: 'registeringDomain',
+        onDone: 'commitmentCooldown',
         onError: {
           target: 'error',
           actions: [
@@ -896,11 +1002,62 @@ export const registrationMachine = setup({
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
         onDone: 'success',
+        // If the poll fails (wallet flake, retry storm, persistence loss…)
+        // fall back to a fresh on-chain check before declaring the flow
+        // failed. The user may have already paid for and received the name.
+        onError: {
+          target: 'verifyingRegistration',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    verifyingRegistration: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'verifyRegistration',
+        input: ({ context }) => ({
+          name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          resolverAddress: context.resolverAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          useFastRegistrar: context.useFastRegistrar,
+        }),
+        onDone: [
+          {
+            guard: ({ event }) => event.output.verified,
+            target: 'success',
+            actions: assign({
+              error: () => undefined,
+            }),
+          },
+          {
+            target: 'error',
+            actions: [
+              assign({
+                retryTarget: () => 'registeringDomain' as const,
+              }),
+              ({ context }) => {
+                console.error(
+                  '❌ [REGISTRATION] Registration not present on-chain after fallback check:',
+                  context.error,
+                )
+              },
+            ],
+          },
+        ],
         onError: {
           target: 'error',
           actions: [
             assign({
-              error: ({ event }) => event.error as Error,
               retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {

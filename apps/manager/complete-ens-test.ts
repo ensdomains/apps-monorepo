@@ -23,6 +23,7 @@
  * - Ready for integration into your app
  */
 
+import { SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import {
   type Chain,
@@ -56,15 +57,13 @@ const ENS_CONTRACTS = {
 
 // Supported payment tokens on Sepolia ENS
 const SUPPORTED_TOKENS = {
-  USDC: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as `0x${string}`, // MockUSDC
-  DAI: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as `0x${string}`, // MockDAI
+  USDC: '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6' as `0x${string}`, // MockUSDC
+  DAI: '0xb21412bb6816601dd840b93a5d19a8fe671cb74e' as `0x${string}`, // MockDAI
 }
 
 const PIMLICO_API_KEY = ''
 const RHINESTONE_API_KEY = ''
 const PRIVATE_KEY = '' as `0x${string}`
-
-const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
 
 // FastTestETHRegistrar ABI (key functions) testname6208
 const FAST_TEST_REGISTRAR_ABI = [

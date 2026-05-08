@@ -1,7 +1,11 @@
-import type { DomainFragment } from '@ens-apps/indexer'
+import {
+  Domain_OrderBy,
+  type DomainFragment,
+  OrderDirection,
+} from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ChevronDown,
@@ -13,6 +17,7 @@ import {
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import type { Address } from 'viem'
 import ensMarkBadge from '@/assets/ens-mark-badge.svg'
 import {
   buildMergedNamesList,
@@ -21,9 +26,12 @@ import {
   type SortField,
 } from '@/features/dashboard/mergedNames'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  type AvatarLookupEntry,
+  namesAvatarsQuery,
+} from '@/features/profile/service/profileAvatar'
 import { tw } from '@/utils/tailwind'
-import { getAllDomainsQuery } from '../service/queries/getAllDashboardDomains'
+import { getAllDomainsInfiniteQuery } from '../service/queries/getAllDashboardDomains'
 import { NameRow } from './NameRow'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -32,6 +40,7 @@ const PAGE_SIZE = 5
 type Sort = `${SortField}-${SortDir}`
 
 interface MyNamesListProps {
+  readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
 }
@@ -88,6 +97,7 @@ const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
 }
 
 export const MyNamesList = ({
+  migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
 }: MyNamesListProps) => {
@@ -96,41 +106,62 @@ export const MyNamesList = ({
   const { data: wallet } = useWallet()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<Sort>('name-desc')
+  const { field: sortField, dir: sortDir } = parseSort(sort)
 
   const { eligible: v1Classified, isPending: isV1Pending } =
     useEligibleV1Names()
+  const visibleV1Classified = useMemo(
+    () => (migrationEnabled ? v1Classified : []),
+    [migrationEnabled, v1Classified],
+  )
 
   const normalizedAddress = wallet?.address?.toLowerCase()
 
   const {
     data: v2Data,
     isPending: isV2Pending,
-    isError,
-  } = useQuery(
-    getAllDomainsQuery(
-      normalizedAddress ? { owner: normalizedAddress } : undefined,
+    isError: isV2Error,
+    fetchNextPage: fetchNextV2Page,
+    hasNextPage: hasNextV2Page,
+    isFetchingNextPage: isFetchingNextV2Page,
+  } = useInfiniteQuery(
+    getAllDomainsInfiniteQuery(
+      normalizedAddress
+        ? {
+            where: { owner: normalizedAddress },
+            orderBy:
+              sortField === 'expiry'
+                ? Domain_OrderBy.ExpiryDate
+                : Domain_OrderBy.Name,
+            orderDirection:
+              sortDir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+          }
+        : undefined,
     ),
   )
 
   const v2Names: DomainFragment[] = v2Data ?? []
-
-  const { field: sortField, dir: sortDir } = parseSort(sort)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
     setPage(1)
   }, [searchQuery, wallet?.address])
 
+  useEffect(() => {
+    if (isV2Error || !hasNextV2Page || isFetchingNextV2Page) return
+    void fetchNextV2Page()
+  }, [fetchNextV2Page, hasNextV2Page, isFetchingNextV2Page, isV2Error])
+
   const mergedSortedFiltered = useMemo(
     () =>
       buildMergedNamesList({
         v2Names,
-        v1Classified,
+        v1Classified: visibleV1Classified,
         searchQuery,
         sortField,
         sortDir,
       }),
-    [v2Names, v1Classified, searchQuery, sortField, sortDir],
+    [v2Names, visibleV1Classified, searchQuery, sortField, sortDir],
   )
 
   const totalPages = Math.max(
@@ -153,20 +184,27 @@ export const MyNamesList = ({
     setPage(1)
   }
 
-  const avatarQueries = useQueries({
-    queries: pageItems.map((item) =>
-      parseAvatarQuery(
-        item.kind === 'v2'
-          ? (item.domain.resolver?.avatar ?? undefined)
-          : undefined,
-      ),
-    ),
-  })
+  const avatarLookups = useMemo<AvatarLookupEntry[]>(
+    () =>
+      pageItems.flatMap((item) => {
+        if (item.kind !== 'v2') return []
+        const resolverAddress = item.domain.resolver?.address as
+          | Address
+          | undefined
+        if (!resolverAddress) return []
+        return [{ name: item.sortName, resolverAddress }]
+      }),
+    [pageItems],
+  )
+
+  const { data: pageAvatars } = useQuery(namesAvatarsQuery(avatarLookups))
 
   const isPending =
-    (isV2Pending && normalizedAddress !== undefined) || isV1Pending
+    (isV2Pending && normalizedAddress !== undefined) ||
+    (migrationEnabled && isV1Pending)
+  const hasPartialV2Error = isV2Error && v2Names.length > 0
 
-  if (isError) {
+  if (isV2Error && v2Names.length === 0) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
         <Trans>Error loading names</Trans>
@@ -176,6 +214,15 @@ export const MyNamesList = ({
 
   return (
     <div className="w-full">
+      {hasPartialV2Error ? (
+        <div
+          className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-red-600 text-sm"
+          role="alert"
+        >
+          <Trans>Some names could not be loaded</Trans>
+        </div>
+      ) : null}
+
       {/* Mobile Sort Dropdown */}
       <div className="mb-4 flex md:hidden">
         <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
@@ -291,7 +338,7 @@ export const MyNamesList = ({
               } = mergedRowMetadata(
                 item,
                 primaryLabel,
-                avatarQueries[index]?.data,
+                pageAvatars?.[item.sortName],
               )
 
               return (
@@ -310,7 +357,7 @@ export const MyNamesList = ({
                         },
                       })}
                 >
-                  {isV1 && (
+                  {migrationEnabled && isV1 && (
                     <div className="mb-[10px]">
                       <Link
                         className="inline-flex items-center gap-1 rounded-full bg-[#feeaf0] px-1 py-0.5 transition-colors hover:bg-[#fcdbe5]"
@@ -336,7 +383,7 @@ export const MyNamesList = ({
                     <NameRow
                       avatarUrl={avatarUrl}
                       label={label}
-                      linkToMigration={isV1}
+                      linkToMigration={migrationEnabled && isV1}
                     />
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">

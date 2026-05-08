@@ -1,3 +1,4 @@
+import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { NameAvailabilityError } from './machines/searchNameMachine'
 
@@ -136,7 +137,7 @@ export const STABLECOINS = {
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6,
-    address: '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65', // MockUSDC
+    address: SUPPORTED_TOKENS.USDC,
     icon: USDCIcon,
   },
   DAI: {
@@ -144,7 +145,7 @@ export const STABLECOINS = {
     name: 'Dai Stablecoin',
     symbol: 'DAI',
     decimals: 18,
-    address: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4', // MockDAI
+    address: SUPPORTED_TOKENS.DAI,
     icon: DAI,
   },
   USDT: {

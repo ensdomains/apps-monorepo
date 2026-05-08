@@ -1,19 +1,16 @@
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import {
+  customSepolia,
+  SEPOLIA_RPC_URL,
+  sepoliaWithEns,
+  WALLETCONNECT_PROJECT_ID,
+} from '@ens-apps/indexer/chain'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
   frameWallet,
   injectedWallet,
   metaMaskWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { type Chain, createClient, http } from 'viem'
-import {
-  arbitrumSepolia,
-  baseSepolia,
-  lineaSepolia,
-  optimismSepolia,
-  scrollSepolia,
-  sepolia,
-} from 'viem/chains'
+import { createClient, http } from 'viem'
 import { createConfig } from 'wagmi'
 
 // Single source of truth for Sepolia RPC URL.
@@ -67,14 +64,7 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
-  chains: [
-    sepoliaWithEns,
-    optimismSepolia,
-    arbitrumSepolia,
-    baseSepolia,
-    lineaSepolia,
-    scrollSepolia,
-  ],
+  chains: [sepoliaWithEns],
   connectors: connectorsForWallets(
     [
       {
@@ -82,12 +72,12 @@ export const wagmiConfig = createConfig({
         wallets: [injectedWallet, metaMaskWallet, frameWallet],
       },
     ],
-    { projectId: 'YOUR_PROJECT_ID', appName: 'demo' },
+    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'demo' },
   ),
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(getRpcUrl(chain), {
+      transport: http(SEPOLIA_RPC_URL, {
         batch: {
           wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
         },

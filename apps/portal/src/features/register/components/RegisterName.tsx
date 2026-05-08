@@ -134,7 +134,6 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             </p>
           </div>
         }
-        badge="Alpha"
         actionButton={{
           label: 'Try again',
           onClick: () => refetch(),
@@ -156,7 +155,6 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
             </p>
           </div>
         }
-        badge="Alpha"
         actionButton={{
           label: `View ${name}`,
           href: `/${name}`,

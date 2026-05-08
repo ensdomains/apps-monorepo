@@ -1,3 +1,4 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
 import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -32,10 +33,7 @@ import {
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
-import {
-  type RenewalFlowType,
-  useRenewalTransactions,
-} from '@/features/renew/hooks/useRenewalTransactions'
+import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
 import {
   getNameLength,
   getNameStatus,
@@ -44,7 +42,10 @@ import {
   MS_PER_SECOND,
 } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
+import {
+  isTransactionInFlight,
+  useActiveTransactionState,
+} from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
@@ -106,8 +107,6 @@ function RouteComponent() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [extendModalOpen, setExtendModalOpen] = useState(false)
-  const [renewalSuccessFlow, setRenewalSuccessFlow] =
-    useState<RenewalFlowType | null>(null)
 
   const {
     transactions: renewalTransactions,
@@ -115,15 +114,15 @@ function RouteComponent() {
     startMultiFlow,
     clearIncompatibleRenewalState,
   } = useRenewalTransactions({
-    onComplete: (flowType) => {
+    onComplete: () => {
       setRowSelection({})
+      setExtendModalOpen(false)
       void queryClient.invalidateQueries({
         queryKey: ['get-names-for-address'],
       })
       void queryClient.invalidateQueries({
         queryKey: ['get-v2-names-with-roles-for-address'],
       })
-      setRenewalSuccessFlow(flowType)
     },
   })
 
@@ -153,6 +152,7 @@ function RouteComponent() {
           owner: relation.registrant || relation.wrappedOwner,
           manager: relation.owner || relation.wrappedOwner,
         },
+        protocolVersion: 'ENSv1',
       }),
     )
 
@@ -162,6 +162,7 @@ function RouteComponent() {
         expiryDate: expiryDate ? new Date(expiryDate * MS_PER_SECOND) : null,
         roleBitmap,
         v1Roles: null,
+        protocolVersion: 'ENSv2',
       }),
     )
 
@@ -187,7 +188,10 @@ function RouteComponent() {
     // Filter by status
     if (selectedStatuses.length > 0) {
       filtered = filtered.filter((row) => {
-        const status = getNameStatus(row.expiryDate)
+        const status = getNameStatus(
+          row.expiryDate,
+          row.protocolVersion === 'ENSv2',
+        )
         return selectedStatuses.includes(status)
       })
     }
@@ -288,15 +292,20 @@ function RouteComponent() {
               {rowCount} selected
             </div>
             <Button
-              variant="secondary"
+              variant="default"
               size="sm"
               disabled={extendableNames.length === 0}
               onClick={() => {
-                if (activeTxState) {
+                if (isTransactionInFlight(activeTxState)) {
                   openModal()
                   return
                 }
-
+                // Stale terminal-state transactions (success/error) block the
+                // modal; remove only that entry so a fresh extend flow can
+                // start without touching any other in-flight transactions.
+                if (activeTxState) {
+                  transactionManager.cancelTransaction(activeTxState.txId)
+                }
                 clearIncompatibleRenewalState(
                   extendableNames.length === 1 ? 'single' : 'multi',
                 )
@@ -348,18 +357,9 @@ function RouteComponent() {
       {extendableNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen && !isTransactionModalOpen}
-          onClose={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
+          onClose={() => setExtendModalOpen(false)}
           selectedName={extendableNames[0]}
-          transactionCompleted={renewalSuccessFlow === 'single'}
-          onSuccessAcknowledged={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
           onExtend={(config) => {
-            setRenewalSuccessFlow(null)
             startFlow(extendableNames[0], config)
             openModal()
           }}
@@ -368,18 +368,9 @@ function RouteComponent() {
       {extendableNames.length > 1 && (
         <MultiNameExtendModal
           open={extendModalOpen && !isTransactionModalOpen}
-          onClose={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
-          transactionCompleted={renewalSuccessFlow === 'multi'}
-          onSuccessAcknowledged={() => {
-            setExtendModalOpen(false)
-            setRenewalSuccessFlow(null)
-          }}
+          onClose={() => setExtendModalOpen(false)}
           selectedNames={extendableNames}
           onExtend={(config) => {
-            setRenewalSuccessFlow(null)
             startMultiFlow({
               renewals: config.renewals,
               tokenAddress: config.token.address,

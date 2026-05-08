@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
-import { Badge } from '@/components/ui/badge'
 import { WalletMenu } from '@/components/WalletMenu'
 
 export const HomeHeader = () => (
@@ -23,12 +22,6 @@ export const HomeHeader = () => (
 
     {/* Explorer + Alpha badge */}
     <div className="sm:order-2 self-center inline-grid place-items-start">
-      <Badge
-        variant="accent"
-        className="col-start-1 row-start-1 self-start ml-33.75 z-10"
-      >
-        Alpha
-      </Badge>
       <span className="col-start-1 row-start-1 text-4xl font-normal text-foreground leading-none">
         Explorer
       </span>

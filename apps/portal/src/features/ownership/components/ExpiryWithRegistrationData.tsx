@@ -2,7 +2,9 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { BlockCard } from '@/features/dashboard/components'
 import { Timestamp } from '@/features/profile/components/Timestamp'
+import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
@@ -29,19 +31,43 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
-      <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
-        <CalendarIcon className="size-5 text-secondary-foreground" />
+    <BlockCard className="gap-3">
+      <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+          <CalendarIcon className="size-4 shrink-0" />
+          <span className="text-sm truncate">Registered</span>
+        </div>
+        <span className="text-sm font-medium text-foreground shrink-0">
+          <RegistrationDate blockNumber={blockNumber} />
+        </span>
       </div>
-      <div className="flex flex-col">
-        <span className="font-medium">Registered</span>
-        <RegistrationDate blockNumber={blockNumber} />
-      </div>
-    </div>
+    </BlockCard>
   )
 }
 
+const GraceCard = ({
+  graceEndDate,
+  label,
+}: {
+  graceEndDate: Date
+  label: 'Grace' | 'Grace ends'
+}) => (
+  <BlockCard className="gap-3">
+    <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+      <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+        <CalendarIcon className="size-4 shrink-0" />
+        <span className="text-sm truncate">{label}</span>
+      </div>
+      <span className="text-sm font-medium text-foreground shrink-0">
+        <Timestamp timestamp={Math.floor(graceEndDate.getTime() / 1000)} />
+      </span>
+    </div>
+  </BlockCard>
+)
+
 const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
+  const grace = useGraceStatus({ name, protocolVersion: 'ENSv1' })
+
   const [nameHistory, expiry] = useQueries({
     queries: [
       getNameHistoryQueryOptions({ name, orderDirection: 'asc', first: 1 }),
@@ -66,37 +92,29 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {expiry.data && (
-        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
-          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
-            <ClockIcon className="size-5 text-secondary-foreground" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-medium">Expiry</span>
-            <span className="flex flex-row gap-1 items-center">
+        <BlockCard className="gap-3">
+          <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+              <ClockIcon className="size-4 shrink-0" />
+              <span className="text-sm truncate">Expiry</span>
+            </div>
+            <span className="text-sm font-medium text-foreground shrink-0">
               <Timestamp timestamp={expiry.data.expiry} />
             </span>
           </div>
-        </div>
+        </BlockCard>
       )}
       {blockNumber && <RegistrationData blockNumber={blockNumber} />}
-      {expiry.data?.gracePeriod && (
-        <div className="flex flex-row gap-4 w-full lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
-          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
-            <CalendarIcon className="size-5 text-secondary-foreground" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-medium">Grace</span>
-            <span className="flex flex-row gap-1 items-center">
-              <Timestamp timestamp={expiry.data.gracePeriod} />
-            </span>
-          </div>
-        </div>
+      {grace.graceEndDate && (
+        <GraceCard graceEndDate={grace.graceEndDate} label="Grace" />
       )}
     </>
   )
 }
 
 const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
+  const grace = useGraceStatus({ name, protocolVersion: 'ENSv2' })
+
   const { data, error, isLoading } = useQuery(
     getV2RegistrationDataQueryOptions({ name }),
   )
@@ -117,26 +135,34 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {!!data.registeredAt && (
-        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
-          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
-            <CalendarIcon className="size-5 text-secondary-foreground" />
+        <BlockCard className="gap-3">
+          <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+              <CalendarIcon className="size-4 shrink-0" />
+              <span className="text-sm truncate">Registered</span>
+            </div>
+            <span className="text-sm font-medium text-foreground shrink-0">
+              <Timestamp timestamp={data.registeredAt} />
+            </span>
           </div>
-          <div className="flex flex-col">
-            <span className="font-medium">Registered</span>
-            <Timestamp timestamp={data.registeredAt} />
-          </div>
-        </div>
+        </BlockCard>
       )}
-      {!!data.expiry && (
-        <div className="w-full flex flex-row gap-4 lg:gap-6 p-4 lg:p-6 items-center border border-border rounded-sm">
-          <div className="flex items-center justify-center size-9 rounded-full bg-secondary">
-            <ClockIcon className="size-5 text-secondary-foreground" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-medium">Expiry</span>
-            <Timestamp timestamp={data.expiry} />
-          </div>
-        </div>
+      {grace.isInGrace && grace.graceEndDate ? (
+        <GraceCard graceEndDate={grace.graceEndDate} label="Grace ends" />
+      ) : (
+        !!data.expiry && (
+          <BlockCard className="gap-3">
+            <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+              <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                <ClockIcon className="size-4 shrink-0" />
+                <span className="text-sm truncate">Expiry</span>
+              </div>
+              <span className="text-sm font-medium text-foreground shrink-0">
+                <Timestamp timestamp={data.expiry} />
+              </span>
+            </div>
+          </BlockCard>
+        )
       )}
     </>
   )

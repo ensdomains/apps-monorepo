@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { LanguagesIcon } from 'lucide-react'
+import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { MessageCard } from '@/components/ui/message-card'
 import { RegisterName } from '@/features/register/components'
 import {
@@ -16,6 +17,7 @@ const RegisterPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SepoliaNoticeBanner />
       <div className="py-12 flex flex-col items-center gap-6">
         <HomeHeader />
         <HomeSearchInput className="bg-card dark:bg-transparent w-91.75 max-w-full rounded-lg border-border shadow-none" />
@@ -32,7 +34,6 @@ const RegisterPage = () => {
               </p>
             </div>
           }
-          badge="Alpha"
         />
       ) : (
         <RegisterName name={name} />

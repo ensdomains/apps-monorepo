@@ -10,7 +10,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { PanelRightOpen, Search } from 'lucide-react'
+import { ArrowRightFromLineIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
@@ -68,7 +68,7 @@ const createNodesColumns = (
             name={node.name}
             width="28px"
             height="28px"
-            rounded="rounded-full"
+            rounded="rounded-sm"
           />
           <span className="font-mono text-sm">{node.name}</span>
           <CopyButton value={node.name} />
@@ -98,7 +98,7 @@ const createNodesColumns = (
       return (
         <div className="flex justify-end pr-4">
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             onClick={(e) => {
               e.stopPropagation()
@@ -108,7 +108,7 @@ const createNodesColumns = (
               meta?.onMoreClick?.(row)
             }}
           >
-            <PanelRightOpen className="h-4 w-4" />
+            <ArrowRightFromLineIcon className="h-4 w-4" />
             <span className="text-sm font-medium">More</span>
           </Button>
         </div>
@@ -158,7 +158,7 @@ function RouteComponent() {
     },
   })
 
-  if (isLoading) return <LoadingMessage title="Loading nodes" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage
@@ -209,7 +209,7 @@ function RouteComponent() {
                         name={node.name}
                         width="28px"
                         height="28px"
-                        rounded="rounded-full"
+                        rounded="rounded-sm"
                       />
                       <span className="font-mono text-sm truncate">
                         {node.name}
@@ -221,7 +221,7 @@ function RouteComponent() {
                     </Badge>
                   </div>
                   <Button
-                    variant="secondary"
+                    variant="default"
                     size="sm"
                     className="self-start"
                     onClick={() => {
@@ -229,7 +229,7 @@ function RouteComponent() {
                       setSheetOpen(true)
                     }}
                   >
-                    <PanelRightOpen className="h-4 w-4" />
+                    <ArrowRightFromLineIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">More</span>
                   </Button>
                 </div>

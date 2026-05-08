@@ -45,7 +45,6 @@ import {
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -69,13 +68,12 @@ export const RolesSidebar = <
   registryAddress,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
-  const chainId = sepoliaWithEns.id
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null)
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
 
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const { grantRoles } = useGrantRoles()
@@ -181,7 +179,7 @@ export const RolesSidebar = <
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-card overflow-y-auto p-8"
+          className="sm:max-w-[880px] bg-background overflow-y-auto p-8"
         >
           <div className="p-6 flex flex-col gap-6 h-screen">
             <SheetHeader className="p-0">
@@ -202,7 +200,7 @@ export const RolesSidebar = <
                   </div>
                   {canManageRoles && selectedAccount && (
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!isWalletConnected}
                       onClick={() => setConfirmOpen(true)}
                     >
@@ -218,6 +216,7 @@ export const RolesSidebar = <
                     const roleKey = permission.key
                     const isManagerRoleDisabled = !isManagerRoleSettable(
                       permission.key,
+                      { is2LD: name.split('.').length === 2 },
                     )
                     const rolePerms = editedPermissions.get(roleKey) || {
                       admin: false,
@@ -293,9 +292,9 @@ export const RolesSidebar = <
                   })}
 
                   {/* Save Changes Button */}
-                  <div className="flex justify-end px-6 py-4 border-t border-border bg-card">
+                  <div className="flex justify-end px-6 py-4 border-t border-border">
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!hasChanges || !isWalletConnected}
                       onClick={handleSaveChanges}
                     >
@@ -311,7 +310,7 @@ export const RolesSidebar = <
                     <h3 className="text-2xl font-medium leading-snug">
                       History
                     </h3>
-                    <Button variant="secondary">
+                    <Button variant="ghost">
                       <Clock className="size-4" />
                       Full history
                     </Button>

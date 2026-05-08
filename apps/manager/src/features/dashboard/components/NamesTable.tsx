@@ -76,9 +76,13 @@ const DashboardTabButton = ({
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
+  readonly migrationEnabled?: boolean
 }
 
-export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
+export const NamesTable = ({
+  migrationEnabled = false,
+  primaryLabel,
+}: NamesTableProps) => {
   const { t } = useLingui()
   const [activeTab, setActiveTab] = useState<TabKey>('myNames')
   const [searchQuery, setSearchQuery] = useState('')
@@ -100,7 +104,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   })
 
   const { eligible: eligibleV1Names } = useEligibleV1Names()
-  const v1NamesCount = eligibleV1Names.length
+  const v1NamesCount = migrationEnabled ? eligibleV1Names.length : 0
 
   const { data: favorites = [] } = favoritesQuery
   const { data: ownedNamesCount } = ownedNamesCountQuery
@@ -181,6 +185,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
                   })}
             >
               <MyNamesList
+                migrationEnabled={migrationEnabled}
                 primaryLabel={primaryLabel}
                 searchQuery={searchQuery}
               />

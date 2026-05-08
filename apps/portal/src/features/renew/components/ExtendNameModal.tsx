@@ -1,14 +1,15 @@
-import { CheckCircle2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { Button } from '@/components/ui/button'
+import { isAddressEqual } from 'viem'
+import { useAccount } from 'wagmi'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { dateToPlainDate } from '@/utils/temporal'
 import { useNamePricing } from '../hooks/useNamePricing'
 import type {
@@ -25,19 +26,15 @@ type ExtendNameModalProps = {
   readonly onClose: () => void
   readonly selectedName: SelectedName
   readonly onExtend: (config: StartFlowConfig) => void
-  readonly transactionCompleted: boolean
-  readonly onSuccessAcknowledged: () => void
 }
 
-type ExtendNameModalStep = 'disclaimer' | 'settings' | 'confirm' | 'success'
+type ExtendNameModalStep = 'disclaimer' | 'settings' | 'confirm'
 
 export const ExtendNameModal = ({
   open,
   onClose,
   selectedName,
   onExtend,
-  transactionCompleted,
-  onSuccessAcknowledged,
 }: ExtendNameModalProps) => {
   const [step, setStep] = useState<ExtendNameModalStep>('disclaimer')
   const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
@@ -53,17 +50,31 @@ export const ExtendNameModal = ({
     open,
   )
 
+  const { address } = useAccount()
+  // Query runs eagerly (not gated on `open`) so ownership is known before
+  // the modal opens — otherwise owners see the disclaimer flash for the
+  // duration of the network round-trip before being skipped to settings.
+  const { data: ownerData } = useQuery(
+    getEnsOwnerQueryOptions({ name: selectedName.name }),
+  )
+  const isOwner = !!(
+    address &&
+    ownerData?.owner &&
+    isAddressEqual(address, ownerData.owner)
+  )
+
+  // Skip the disclaimer when the connected wallet owns the name —
+  // the warning ("Extending a name does not change the owner...") is noise for owners.
   useEffect(() => {
-    if (open && transactionCompleted) {
-      setStep('success')
+    if (open && isOwner) {
+      setStep((current) => (current === 'disclaimer' ? 'settings' : current))
     }
-  }, [open, transactionCompleted])
+  }, [open, isOwner])
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)
     .with('settings', () => 'Extend name')
     .with('confirm', () => 'Confirm extension')
-    .with('success', () => undefined)
     .exhaustive()
 
   return (
@@ -72,7 +83,7 @@ export const ExtendNameModal = ({
       onOpenChange={(open) => {
         if (!open) {
           onClose()
-          setStep('disclaimer')
+          setStep(isOwner ? 'settings' : 'disclaimer')
         }
       }}
     >
@@ -92,7 +103,7 @@ export const ExtendNameModal = ({
               spanType={spanType}
               setSpanType={setSpanType}
               baseDate={baseDate}
-              onBack={() => setStep('disclaimer')}
+              onBack={isOwner ? undefined : () => setStep('disclaimer')}
               onNext={() => setStep('confirm')}
             />
           ))
@@ -115,34 +126,6 @@ export const ExtendNameModal = ({
               />
             ) : null,
           )
-          .with('success', () => (
-            <div className="space-y-6">
-              <div className="flex flex-col items-center gap-2">
-                <CheckCircle2 className="size-10" />
-                <h2 className="text-3xl font-medium">Extension complete</h2>
-              </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="w-full flex items-center gap-3 px-4 py-3">
-                  <NameAvatar
-                    name={selectedName.name}
-                    height="40px"
-                    width="40px"
-                    rounded="rounded-md"
-                  />
-                  <span className="flex-1 text-left text-base font-medium text-foreground truncate">
-                    {selectedName.name}
-                  </span>
-                </div>
-              </div>
-              <Button
-                className="w-full"
-                variant="secondary"
-                onClick={onSuccessAcknowledged}
-              >
-                Done
-              </Button>
-            </div>
-          ))
           .exhaustive()}
       </DialogContent>
     </Dialog>

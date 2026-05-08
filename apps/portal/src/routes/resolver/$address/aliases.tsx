@@ -41,6 +41,8 @@ import {
   getResolverOverviewQueryOptions,
   type ResolverAlias,
 } from '@/features/resolver/hooks/useResolverOverview'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
@@ -68,7 +70,7 @@ const baseColumns: ColumnDef<ResolverAlias>[] = [
           name={row.original.fromName}
           width="28px"
           height="28px"
-          rounded="rounded-full"
+          rounded="rounded-sm"
         />
         <span className="font-mono text-sm truncate">
           {row.original.fromName}
@@ -96,7 +98,7 @@ const baseColumns: ColumnDef<ResolverAlias>[] = [
           name={row.original.toName}
           width="28px"
           height="28px"
-          rounded="rounded-full"
+          rounded="rounded-sm"
         />
         <span className="font-mono text-sm truncate">
           {row.original.toName}
@@ -132,15 +134,20 @@ const deleteColumn: ColumnDef<ResolverAlias> = {
   enableSorting: false,
 }
 
+const DELETE_ALIAS_TX_ID = 'tx-delete-alias'
+
 function RouteComponent() {
   const { address } = Route.useParams()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [tableView] = useTableViewSettings()
   const chainId = sepoliaWithEns.id
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
   const { address: accountAddress } = useConnection()
+  const [pendingDeleteAlias, setPendingDeleteAlias] =
+    useState<ResolverAlias | null>(null)
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const {
     data: resolver,
@@ -171,11 +178,13 @@ function RouteComponent() {
     walletClient,
     publicClient,
     chainId,
+    id: DELETE_ALIAS_TX_ID,
   })
 
   const handleDelete = (alias: ResolverAlias) => {
     deleteMutation.reset()
-    deleteMutation.mutate(alias.fromName)
+    setPendingDeleteAlias(alias)
+    openModal()
   }
 
   const table = useReactTable({
@@ -194,7 +203,7 @@ function RouteComponent() {
     },
   })
 
-  if (isLoading) return <LoadingMessage title="Loading aliases" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage
@@ -235,6 +244,25 @@ function RouteComponent() {
           <AlertDescription>{deleteMutation.error.message}</AlertDescription>
         </Alert>
       )}
+      <TransactionModal
+        transactions={[
+          {
+            id: DELETE_ALIAS_TX_ID,
+            title: 'Delete alias',
+            transactionName: `Delete alias ${pendingDeleteAlias?.fromName ?? ''}`,
+            estimatedGasCost: 0.0001,
+            onStart: () => {
+              if (!pendingDeleteAlias) return
+              deleteMutation.mutate(pendingDeleteAlias.fromName)
+            },
+            onDone: () => {
+              closeModal()
+              clearTransaction()
+              setPendingDeleteAlias(null)
+            },
+          },
+        ]}
+      />
 
       {aliases.length === 0 ? (
         <NoResultsMessage
@@ -262,7 +290,7 @@ function RouteComponent() {
                         name={row.original.fromName}
                         width="28px"
                         height="28px"
-                        rounded="rounded-full"
+                        rounded="rounded-sm"
                       />
                       <span className="font-mono text-sm truncate">
                         {row.original.fromName}
@@ -292,7 +320,7 @@ function RouteComponent() {
                         name={row.original.toName}
                         width="24px"
                         height="24px"
-                        rounded="rounded-full"
+                        rounded="rounded-sm"
                       />
                       <span className="font-mono text-sm truncate">
                         {row.original.toName}

@@ -57,7 +57,7 @@ const getSuggestionDescription = ({
 const AvatarPlaceholder = ({ isLoading = false }: { isLoading?: boolean }) => (
   <div
     className={cn(
-      'shrink-0 rounded-md',
+      'shrink-0 rounded-sm',
       isLoading
         ? 'bg-muted animate-pulse'
         : '[background:var(--avatar-placeholder-gradient)]',
@@ -185,7 +185,7 @@ export const SearchResultsList = ({
                     name={suggestion.inputValue}
                     width={AVATAR_SIZE}
                     height={AVATAR_SIZE}
-                    rounded="rounded-md"
+                    rounded="rounded-sm"
                   />
                 ) : (
                   <AvatarPlaceholder isLoading={!ownerResolved} />
@@ -242,7 +242,7 @@ export const SearchResultsList = ({
                     name={suggestion.inputValue}
                     width={AVATAR_SIZE}
                     height={AVATAR_SIZE}
-                    rounded="rounded-md"
+                    rounded="rounded-sm"
                   />
                 ) : (
                   <AvatarPlaceholder />
@@ -302,7 +302,7 @@ export const SearchResultsList = ({
                     name={d.name}
                     width={AVATAR_SIZE}
                     height={AVATAR_SIZE}
-                    rounded="rounded-md"
+                    rounded="rounded-sm"
                   />,
                   d.name,
                   'View',
@@ -330,7 +330,7 @@ export const SearchResultsList = ({
                       name={d.name}
                       width={AVATAR_SIZE}
                       height={AVATAR_SIZE}
-                      rounded="rounded-md"
+                      rounded="rounded-sm"
                     />,
                     d.name,
                     'View',

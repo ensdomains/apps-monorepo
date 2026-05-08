@@ -1,5 +1,5 @@
 import { flexRender, type Row, type RowData } from '@tanstack/react-table'
-import { PanelRightOpenIcon } from 'lucide-react'
+import { ArrowRightFromLineIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
@@ -37,14 +37,14 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
       {showMoreButton && (
         <TableCell>
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             onClick={() => {
               setClickedRow(row)
               setOpen(!open)
             }}
           >
-            <PanelRightOpenIcon className="h-4 w-4" />
+            <ArrowRightFromLineIcon className="h-4 w-4" />
             <span className="text-sm font-medium">More</span>
           </Button>
         </TableCell>

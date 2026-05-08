@@ -29,7 +29,7 @@ function RouteComponent() {
     error,
   } = useQuery(getResolverOverviewQueryOptions({ address: address as Address }))
 
-  if (isLoading) return <LoadingMessage title="Loading history" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage

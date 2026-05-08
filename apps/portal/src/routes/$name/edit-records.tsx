@@ -244,14 +244,7 @@ const EditRecordsContent = ({
     onSyncComplete: handleSyncComplete,
   })
 
-  const handleSaveRecords = () => {
-    if (isWrongChain) {
-      switchToRequiredNetwork()
-      return
-    }
-
-    openTransactionModal()
-
+  const handleStartSaveRecordsTransaction = () => {
     saveRecords({
       name,
       resolverAddress,
@@ -259,6 +252,15 @@ const EditRecordsContent = ({
       pendingChanges,
       id: SAVE_RECORDS_TRANSACTION_ID,
     })
+  }
+
+  const handleOpenSaveRecordsFlow = () => {
+    if (isWrongChain) {
+      switchToRequiredNetwork()
+      return
+    }
+
+    openTransactionModal()
   }
 
   // Compute counts for each tab (excluding deleted records)
@@ -405,7 +407,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 justify-end">
             <span className="text-xs text-transparent select-none">Action</span>
             <Button
-              variant="secondary"
+              variant="default"
               onClick={handleAddRecord}
               disabled={!selectedType || (requiresKey && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
@@ -482,7 +484,7 @@ const EditRecordsContent = ({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={handleSaveRecords}
+        onSave={handleOpenSaveRecordsFlow}
         onDiscard={discardAll}
         onDismissError={resetSaveError}
         isSaving={isWriting || isConfirming}
@@ -500,7 +502,7 @@ const EditRecordsContent = ({
             title: 'Save records',
             transactionName: 'Set resolver records',
             estimatedGasCost: 0.0001,
-            onStart: handleSaveRecords,
+            onStart: handleStartSaveRecordsTransaction,
             onDone: () => {
               closeTransactionModal()
               clearTransaction()

@@ -39,7 +39,7 @@ export const DashboardProfilePreview = () => {
           </div>
           <Button
             onClick={() => disconnect(wagmiConfig)}
-            variant="secondary"
+            variant="default"
             className="w-max"
           >
             Disconnect

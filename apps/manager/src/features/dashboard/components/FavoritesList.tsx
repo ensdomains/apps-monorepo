@@ -1,6 +1,6 @@
 import { OrderDirection } from '@ens-apps/indexer'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
   CircleArrowLeft,
@@ -10,8 +10,7 @@ import {
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -100,20 +99,14 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
   const startIndex = paginatedData.startIndex
   const endIndex = paginatedData.endIndex
 
-  const recordsQueries = useQueries({
-    queries: paginatedFavorites.map((fav) => ({
-      ...profileRecordsQuery(fav.label),
-      select: (
-        data: { texts: Array<{ key: string; value: string }> } | undefined,
-      ) => data?.texts.find((text) => text.key === 'avatar')?.value,
-    })),
-  })
+  const visibleLabels = useMemo(
+    () => paginatedFavorites.map((fav) => fav.label),
+    [paginatedFavorites],
+  )
 
-  const avatarQueries = useQueries({
-    queries: recordsQueries.map((query) =>
-      parseAvatarQuery(query.data ?? undefined),
-    ),
-  })
+  const { data: avatarsByName } = useQuery(
+    namesAvatarsByNameQuery(visibleLabels),
+  )
 
   const handlePrev = () => {
     if (page > 1) {
@@ -248,7 +241,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
           ))
           .otherwise(({ paginatedFavorites }) =>
             paginatedFavorites.map((fav, index) => {
-              const avatarUrl = avatarQueries[index]?.data ?? undefined
+              const avatarUrl = avatarsByName?.[fav.label]
 
               return (
                 <motion.div

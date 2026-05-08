@@ -1,7 +1,11 @@
-import { extendChainWithEns } from '@ensdomains/ensjs/chain'
+import {
+  customSepolia,
+  SEPOLIA_RPC_URL,
+  sepoliaWithEns,
+  WALLETCONNECT_PROJECT_ID,
+} from '@ens-apps/indexer/chain'
 import { injected } from '@wagmi/core'
 import { createPublicClient, http } from 'viem'
-import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 
@@ -36,8 +40,6 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
-
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
   transport: http(SEPOLIA_RPC_URL),
@@ -52,12 +54,12 @@ export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
   transports: {
-    [customSepolia.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
+    [sepoliaWithEns.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
   },
   connectors: [
     injected(),
     walletConnect({
-      projectId: '1cb2e088d817de31a39a54154b265f68',
+      projectId: WALLETCONNECT_PROJECT_ID,
       name: 'WalletConnect',
     }),
   ],

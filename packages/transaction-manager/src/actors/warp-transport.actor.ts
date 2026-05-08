@@ -162,6 +162,33 @@ export function submitWarpTransaction(
 
       return txHash
     })(),
-    (error: unknown) => new TransactionSubmissionError(request, error as Error),
+    (error: unknown) => {
+      // Surface full orchestrator error context (errorType, traceId, simulations)
+      // SDK throws SimulationFailedError / OrchestratorError with rich fields the
+      // default Error.message hides. Logging here so the next 400 is debuggable.
+      try {
+        const e = error as {
+          message?: string
+          context?: unknown
+          errorType?: string
+          traceId?: string
+          statusCode?: number
+          simulations?: unknown
+          name?: string
+        }
+        logger.error('🛑 [WARP] Orchestrator error detail:', {
+          name: e.name,
+          message: e.message,
+          errorType: e.errorType,
+          traceId: e.traceId,
+          statusCode: e.statusCode,
+          context: e.context,
+          simulations: e.simulations,
+        })
+      } catch {
+        logger.error('🛑 [WARP] Orchestrator error (unserializable):', error)
+      }
+      return new TransactionSubmissionError(request, error as Error)
+    },
   )
 }

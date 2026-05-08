@@ -12,7 +12,7 @@ import {
   writeContract,
 } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
-import { customSepolia } from '@/lib/wagmi'
+
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
@@ -197,6 +197,11 @@ const buildSCARequest = (
   const firstCall = calls[0]
   if (!firstCall) throw new Error('No calls to submit')
 
+  const chainId = ctx.publicClient.chain?.id
+  if (!chainId) {
+    throw new Error('publicClient is missing a chain configuration')
+  }
+
   if (ctx.signer.type === 'zerodev') {
     return {
       type: 'zerodev',
@@ -204,7 +209,7 @@ const buildSCARequest = (
       to: firstCall.to,
       data: firstCall.data,
       value: 0n,
-      chainId: customSepolia.id,
+      chainId,
       zerodevParams: {
         calls,
         sponsored: true,
@@ -218,7 +223,7 @@ const buildSCARequest = (
     to: firstCall.to,
     data: firstCall.data,
     value: 0n,
-    chainId: customSepolia.id,
+    chainId,
     rhinestoneParams: {
       calls,
       sponsored: true,
@@ -226,11 +231,61 @@ const buildSCARequest = (
   } as TransactionRequest
 }
 
+const buildEOARequest = (
+  ctx: MigrationCtx,
+  call: ZeroDevCall,
+): TransactionRequest => {
+  const chainId = ctx.publicClient.chain?.id
+  if (!chainId) {
+    throw new Error('publicClient is missing a chain configuration')
+  }
+
+  return {
+    type: 'eoa',
+    from: ctx.accountAddress,
+    to: call.to,
+    data: call.data,
+    value: call.value,
+    chainId,
+  }
+}
+
 const submitBatchedUserOp = async (
   ctx: MigrationCtx,
   calls: ZeroDevCall[],
   description: string,
 ): Promise<Hex> => {
+  // EOA mode (Tenderly fork etc.) cannot batch + sponsor — fall back to
+  // submitting each call sequentially as a plain EOA tx. We surface the
+  // last hash as the "batch hash" for downstream tracking, matching the
+  // SCA path's contract.
+  if (ctx.signer.type === 'eoa') {
+    let lastHash: Hex | undefined
+    for (const [i, call] of calls.entries()) {
+      const stepDescription =
+        calls.length > 1
+          ? `${description} (${i + 1}/${calls.length})`
+          : description
+
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request: buildEOARequest(ctx, call) },
+        ctx.signer,
+        {
+          description: stepDescription,
+          publicClient: ctx.publicClient,
+        },
+      )
+
+      ctx.tracker.emit(stepDescription, PENDING_TX_HASH)
+
+      const result = await waitForTransaction(txId)
+      lastHash = result.hash as Hex
+    }
+
+    if (!lastHash) throw new Error('No calls to submit')
+    return lastHash
+  }
+
   const request = buildSCARequest(ctx, calls)
 
   const txId = transactionManager.startTransaction(

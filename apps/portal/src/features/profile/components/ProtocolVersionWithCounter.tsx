@@ -3,8 +3,11 @@ import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircleIcon } from 'lucide-react'
 import { ShieldIcon } from '@/assets/icons'
-import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import {
+  DataBlockCard,
+  DataBlockCardError,
+} from '@/features/dashboard/components'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -31,25 +34,21 @@ const RoleCount = ({ name }: { name: string }) => {
 
   if (error)
     return (
-      <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
-        <CounterCardRow icon={AlertCircleIcon}>
-          <span className="text-sm text-muted-foreground">
-            Failed to load roles
-          </span>
-        </CounterCardRow>
-      </div>
+      <DataBlockCardError
+        icon={AlertCircleIcon}
+        message="Failed to load roles"
+      />
     )
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <CounterCard to="/$name/roles" params={{ name }}>
-      <CounterCardRow icon={ShieldIcon}>
-        <span className="font-medium text-foreground">
-          {(data || { size: 0 }).size}
-        </span>{' '}
-        <span className="text-muted-foreground">roles</span>
-      </CounterCardRow>
-    </CounterCard>
+    <DataBlockCard
+      to="/$name/roles"
+      params={{ name }}
+      icon={ShieldIcon}
+      label="Role holders"
+      value={(data || { size: 0 }).size}
+    />
   )
 }
 
@@ -60,25 +59,23 @@ const FuseCount = ({ name }: { name: string }) => {
 
   if (error)
     return (
-      <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
-        <CounterCardRow icon={AlertCircleIcon}>
-          <span className="text-sm text-muted-foreground">
-            Failed to load fuses
-          </span>
-        </CounterCardRow>
-      </div>
+      <DataBlockCardError
+        icon={AlertCircleIcon}
+        message="Failed to load fuses"
+      />
     )
   if (isLoading) return <LoadingSpinner />
 
   if (data === null) return null
 
   return (
-    <CounterCard to="/$name/fuses" params={{ name }}>
-      <CounterCardRow icon={ShieldIcon}>
-        <span className="font-medium text-foreground">{data}</span>{' '}
-        <span className="text-muted-foreground">fuses burned</span>
-      </CounterCardRow>
-    </CounterCard>
+    <DataBlockCard
+      to="/$name/fuses"
+      params={{ name }}
+      icon={ShieldIcon}
+      label="Fuses burned"
+      value={data}
+    />
   )
 }
 

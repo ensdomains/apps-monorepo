@@ -1,3 +1,4 @@
+import { INDEXER_GRAPHQL_URL } from '@ens-apps/indexer/urql'
 import { GraphQLClient } from 'graphql-request'
 
 function getIndexerUrl(): string {

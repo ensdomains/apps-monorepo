@@ -5,7 +5,7 @@ import { useAtom } from '@xstate/store-react'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
 import { useCallback, useReducer, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { sepolia } from 'viem/chains'
+import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { Pricing } from '@/features/register/components/Pricing'
@@ -81,10 +81,11 @@ export const Registration = ({
   initialDuration,
 }: RegistrationProps) => {
   const navigate = useNavigate()
+  const chainId = useChainId()
 
   const actor = useActorRef(registrationMachine, {
     input: {
-      chainId: sepolia.id,
+      chainId,
     },
     inspect,
   })

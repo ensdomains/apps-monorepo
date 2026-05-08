@@ -10,9 +10,9 @@ import {
 import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { DataRow } from '@/components/DataRow'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -63,27 +63,29 @@ const TokenInfoCard = ({
   protocolVersion: ProtocolVersion
 }) => {
   return (
-    <div className="flex border border-border rounded-sm w-full p-6 flex-col gap-4">
-      <DataRow label="Protocol" tooltip="The ENS protocol version">
-        <span className="text-base">{protocolVersion}</span>
-      </DataRow>
+    <InfoCard title="Token info">
+      <InfoRow label="Protocol">
+        <span className="text-sm">{protocolVersion}</span>
+      </InfoRow>
 
-      <DataRow label="Token Standard" tooltip="The token standard used">
-        <CopyableRecord value={tokenStandard} />
-      </DataRow>
+      <InfoRow label="Token Standard">
+        <div>
+          <CopyableRecord value={tokenStandard} />
+        </div>
+      </InfoRow>
 
-      <DataRow label="Contract" tooltip="The smart contract address">
+      <InfoRow label="Contract">
         <EntityBadgeWithActions variant="contract" address={contractAddress}>
           {contractAddress}
         </EntityBadgeWithActions>
-      </DataRow>
+      </InfoRow>
 
-      <DataRow label="Token ID" tooltip="The token identifier">
-        <div className="flex items-center gap-4 justify-between w-full">
+      <InfoRow label="Token ID">
+        <div className="flex items-center gap-4 justify-between w-full ">
           <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="secondary" size="sm" className="gap-1 shrink-0">
+              <Button variant="default" size="sm" className="gap-1 shrink-0">
                 <ArrowRightFromLineIcon className="size-4" />
                 <span className="text-xs font-medium">More</span>
               </Button>
@@ -97,34 +99,37 @@ const TokenInfoCard = ({
                   Token ID
                 </SheetTitle>
               </SheetHeader>
-              <div className="flex flex-col gap-6 px-8 py-6">
-                <div className="flex flex-col gap-4">
-                  <DataRow label="Hash" tooltip="The full token ID hash">
-                    <CopyableRecord value={tokenId} />
-                  </DataRow>
+              <div className="flex flex-col gap-6 py-6">
+                <InfoCard title="Token ID details">
+                  <InfoRow label="Hash">
+                    <div>
+                      <CopyableRecord value={tokenId} />
+                    </div>
+                  </InfoRow>
 
-                  <DataRow label="HEX" tooltip="The token ID in hexadecimal">
-                    <CopyableRecord value={hex} />
-                  </DataRow>
+                  <InfoRow label="HEX">
+                    <div>
+                      <CopyableRecord value={hex} />
+                    </div>
+                  </InfoRow>
 
-                  <DataRow
-                    label="Last changed"
-                    tooltip="When the token ID was last updated"
-                  >
-                    <span className="font-mono text-base">—</span>
-                  </DataRow>
-                </div>
+                  <InfoRow label="Last changed">
+                    <span className="font-mono text-sm ">—</span>
+                  </InfoRow>
+                </InfoCard>
 
-                <div className="bg-muted rounded-sm p-3 flex gap-2 items-start">
+                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start mx-8">
                   <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-base">
                     The Token ID will change anytime the roles are updated.
                   </p>
                 </div>
 
-                <div>
-                  <h3 className="text-2xl font-medium mb-4">History</h3>
-                  <div className="border border-border rounded-sm overflow-hidden">
+                <div className="px-8">
+                  <h3 className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground mb-4">
+                    History
+                  </h3>
+                  <div className="border border-secondary rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="border-b-2">
@@ -151,8 +156,8 @@ const TokenInfoCard = ({
             </SheetContent>
           </Sheet>
         </div>
-      </DataRow>
-    </div>
+      </InfoRow>
+    </InfoCard>
   )
 }
 
@@ -277,78 +282,85 @@ function RouteComponent() {
         <TokenV2Name name={name} registryAddress={data.registryAddress} />
       ) : null}
 
-      {/* Normalization Section */}
-      <h2 className="font-medium text-2xl">Normalization</h2>
-      <div className="flex border border-border rounded-sm flex-col">
-        <div className="flex flex-col w-full p-6 gap-4">
-          <DataRow label="Input" tooltip="The input name parts">
-            <div className="flex flex-row gap-1 flex-wrap items-center">
-              {parts.map((label, idx) => (
-                <div
-                  key={String.fromCodePoint(...label.input)}
-                  className="contents"
-                >
-                  <span className="px-2 py-1 font-mono border border-border rounded">
-                    {String.fromCodePoint(...label.input)}
-                  </span>
-                  {idx < parts.length - 1 && <span className="mx-0.5">.</span>}
-                </div>
-              ))}
-            </div>
-          </DataRow>
-
-          <DataRow label="Normalization" tooltip="The normalization status">
-            <div className="flex flex-row gap-2 items-center flex-wrap">
-              <span className="font-mono">
-                {hasEmoji ? `${encoding} + Emoji` : encoding}
-              </span>
+      <InfoCard title="Normalization">
+        <InfoRow label="Input">
+          <div className="flex flex-row gap-1 flex-wrap items-center">
+            {parts.map((label, idx) => (
               <div
+                key={String.fromCodePoint(...label.input)}
+                className="contents"
+              >
+                <span className="px-2 py-1 font-mono border border-border rounded">
+                  {String.fromCodePoint(...label.input)}
+                </span>
+                {idx < parts.length - 1 && <span className="mx-0.5">.</span>}
+              </div>
+            ))}
+          </div>
+        </InfoRow>
+
+        <InfoRow label="Normalization">
+          <div className="flex flex-row gap-2 items-center flex-wrap">
+            <span className="font-mono text-sm">
+              {hasEmoji ? `${encoding} + Emoji` : encoding}
+            </span>
+            <div
+              className={cn(
+                'px-2 py-1 rounded-full flex flex-row items-center gap-1',
+                normalized ? 'bg-peridot-100' : 'bg-garnet-100',
+              )}
+            >
+              {normalized ? (
+                <CheckCircleIcon className="size-4 text-peridot-500" />
+              ) : (
+                <XCircleIcon className="size-4 text-garnet-500" />
+              )}
+              <span
                 className={cn(
-                  'px-2 py-1 rounded-full flex flex-row items-center gap-1',
-                  normalized ? 'bg-peridot-100' : 'bg-garnet-100',
+                  'text-xs font-medium',
+                  normalized ? 'text-peridot-900' : 'text-garnet-900',
                 )}
               >
-                {normalized ? (
-                  <CheckCircleIcon className="size-4 text-peridot-500" />
-                ) : (
-                  <XCircleIcon className="size-4 text-garnet-500" />
-                )}
-                <span
-                  className={cn(
-                    'text-xs font-medium',
-                    normalized ? 'text-peridot-900' : 'text-garnet-900',
-                  )}
-                >
-                  {normalized ? 'Normalized' : 'Not Normalized'}
-                </span>
-              </div>
+                {normalized ? 'Normalized' : 'Not Normalized'}
+              </span>
             </div>
-          </DataRow>
+          </div>
+        </InfoRow>
 
-          <DataRow label="Unicode" tooltip="The Unicode representation">
+        <InfoRow label="Unicode">
+          <div>
             <CopyableRecord value={escapeUnicode(name)} />
-          </DataRow>
+          </div>
+        </InfoRow>
 
-          <DataRow label="ASCII" tooltip="The ASCII representation">
+        <InfoRow label="ASCII">
+          <div>
             <CopyableRecord value={ascii} />
-          </DataRow>
+          </div>
+        </InfoRow>
 
-          <DataRow label="DNS encoded" tooltip="The DNS-encoded representation">
+        <InfoRow label="DNS encoded">
+          <div>
             <CopyableRecord value={dnsEncode} className="max-w-full" />
-          </DataRow>
+          </div>
+        </InfoRow>
 
-          <DataRow label="Namehash" tooltip="The namehash of the name">
+        <InfoRow label="Namehash">
+          <div>
             <CopyableRecord value={hash} className="max-w-full" />
-          </DataRow>
-        </div>
-      </div>
+          </div>
+        </InfoRow>
+      </InfoCard>
 
-      {/* Labels Section */}
-      <h2 className="font-medium text-2xl">Labels</h2>
       {labels[0] ? (
-        <div className="border border-border rounded-sm overflow-hidden">
+        <div className="rounded-sm bg-background overflow-hidden">
+          <div className="px-6 py-3">
+            <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
+              Labels
+            </span>
+          </div>
           <Tabs defaultValue={labels[0]} className="gap-0">
-            <div className="px-6 border-b border-border flex items-center gap-2">
+            <div className="px-6 flex items-center gap-2">
               <TabsList>
                 {labels.map((label, idx) => (
                   <div key={label} className="contents">
@@ -365,46 +377,41 @@ function RouteComponent() {
               const labelBytes = new TextEncoder().encode(label).length
               const labelChars = [...label].length
               return (
-                <TabsContent
-                  className="flex flex-col gap-4 m-0"
-                  value={label}
-                  key={label}
-                >
-                  <DataRow label="Input" tooltip="The label input">
-                    <CopyableRecord value={escapeUnicode(label)} />
-                  </DataRow>
+                <TabsContent className="m-0" value={label} key={label}>
+                  <InfoRow label="Input">
+                    <div>
+                      <CopyableRecord value={escapeUnicode(label)} />
+                    </div>
+                  </InfoRow>
 
-                  <DataRow
-                    label="Normalization"
-                    tooltip="The normalization type"
-                  >
-                    <span>{part.type as string}</span>
-                  </DataRow>
+                  <InfoRow label="Normalization">
+                    <span className="text-sm ">{part.type as string}</span>
+                  </InfoRow>
 
-                  <DataRow label="Bytes" tooltip="The byte length of the label">
-                    <CopyableRecord value={labelBytes} />
-                  </DataRow>
+                  <InfoRow label="Bytes">
+                    <div>
+                      <CopyableRecord value={labelBytes} />
+                    </div>
+                  </InfoRow>
 
-                  <DataRow
-                    label="Characters"
-                    tooltip="The character count of the label"
-                  >
-                    <CopyableRecord value={labelChars} />
-                  </DataRow>
+                  <InfoRow label="Characters">
+                    <div>
+                      <CopyableRecord value={labelChars} />
+                    </div>
+                  </InfoRow>
 
-                  <DataRow
-                    label="Labelhash"
-                    tooltip="The labelhash of this label"
-                  >
-                    <CopyableRecord value={labelhash(label)} />
-                  </DataRow>
+                  <InfoRow label="Labelhash">
+                    <div>
+                      <CopyableRecord value={labelhash(label)} />
+                    </div>
+                  </InfoRow>
                 </TabsContent>
               )
             })}
           </Tabs>
         </div>
       ) : (
-        <div className="border border-border rounded-sm p-6">
+        <div className="rounded-sm bg-background p-6">
           Invalid name: no labels
         </div>
       )}

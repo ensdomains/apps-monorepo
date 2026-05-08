@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { BlockCard } from '@/features/dashboard/components'
 import { NameAvatar } from './NameAvatar'
 
 export const ParentName = ({
@@ -23,7 +24,7 @@ export const ParentName = ({
         </div>
       )
     return (
-      <div className="flex items-center gap-4 py-3 rounded hover:bg-muted/50 w-full">
+      <div className="flex items-center gap-4 rounded hover:bg-muted/50 w-full">
         <button
           type="button"
           className="flex items-center gap-4 text-left cursor-pointer"
@@ -44,27 +45,30 @@ export const ParentName = ({
 
   if (parent === name)
     return (
-      <div className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted">
+      <BlockCard>
         <div className="flex flex-col">
           <span className="text-sm text-muted-foreground">Parent</span>
           <span>Root</span>
         </div>
-      </div>
+      </BlockCard>
     )
 
   return (
-    <div className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted w-full">
-      <button
-        type="button"
-        className="flex items-center gap-6 text-left cursor-pointer"
-        onClick={() => navigate({ to: '/$name', params: { name: parent } })}
-      >
-        <NameAvatar width="40px" height="40px" name={parent} />
-        <span className="font-medium">Parent</span>
-      </button>
-      <EntityBadgeWithActions variant="name" name={parent}>
-        {parent}
-      </EntityBadgeWithActions>
-    </div>
+    <BlockCard className="gap-3">
+      <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+          <NameAvatar
+            width="20px"
+            height="20px"
+            name={parent}
+            rounded="rounded-sm"
+          />
+          <span className="text-sm truncate">Parent</span>
+        </div>
+        <EntityBadgeWithActions inline variant="name" name={parent}>
+          {parent}
+        </EntityBadgeWithActions>
+      </div>
+    </BlockCard>
   )
 }

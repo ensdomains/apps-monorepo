@@ -10,9 +10,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import {
+  ArrowRightFromLineIcon,
   ChevronDown,
   ChevronUp,
-  PanelRightOpen,
   UserIcon,
   UserLockIcon,
 } from 'lucide-react'
@@ -120,14 +120,14 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
       return (
         <div className="flex justify-end pr-4">
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             onClick={(e) => {
               e.stopPropagation()
               meta?.onMoreClick?.(row)
             }}
           >
-            <PanelRightOpen className="h-4 w-4" />
+            <ArrowRightFromLineIcon className="h-4 w-4" />
             <span className="text-sm font-medium">More</span>
           </Button>
         </div>
@@ -207,14 +207,14 @@ export const ResolverRolesTable = ({
                     )}
                   </div>
                   <Button
-                    variant="secondary"
+                    variant="default"
                     size="sm"
                     onClick={() => {
                       setClickedRow(row)
                       setSidebarOpen(true)
                     }}
                   >
-                    <PanelRightOpen className="h-4 w-4" />
+                    <ArrowRightFromLineIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">More</span>
                   </Button>
                 </div>

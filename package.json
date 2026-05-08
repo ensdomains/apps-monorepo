@@ -37,8 +37,8 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "knip": "^5.70.2",
-    "lefthook": "^2.0.4",
-    "wrangler": "^4.51.0"
+    "lefthook": "^2.1.6",
+    "wrangler": "catalog:"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -55,10 +55,11 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
+      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch",
+      "class-variance-authority": "patches/class-variance-authority.patch"
     },
     "overrides": {
-      "@rhinestone/sdk": "1.4.2",
+      "@rhinestone/sdk": "1.5.1",
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",
       "es-define-property": "npm:@socketregistry/es-define-property@^1",
       "for-each": "npm:@socketregistry/for-each@^1",
@@ -84,7 +85,8 @@
       "string.prototype.codepointat": "npm:@socketregistry/string.prototype.codepointat@^1",
       "typed-array-buffer": "npm:@socketregistry/typed-array-buffer@^1",
       "which-typed-array": "npm:@socketregistry/which-typed-array@^1",
-      "es-set-tostringtag": "npm:@socketregistry/es-set-tostringtag@^1"
+      "es-set-tostringtag": "npm:@socketregistry/es-set-tostringtag@^1",
+      "vite@8.0.10>rolldown": "1.0.0-rc.18"
     }
   }
 }

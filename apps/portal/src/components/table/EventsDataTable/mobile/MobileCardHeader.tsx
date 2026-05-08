@@ -1,5 +1,5 @@
 import type { Row, Table as TableData } from '@tanstack/react-table'
-import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
+import { ArrowRightFromLineIcon, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BaseEvent, EventsTableData } from '../types'
 
@@ -34,7 +34,7 @@ export const MobileCardHeader = <TEvent extends BaseEvent = BaseEvent>({
       )}
       {hasSidebar && (
         <Button
-          variant="secondary"
+          variant="default"
           size="sm"
           onClick={(e) => {
             e.stopPropagation()
@@ -44,7 +44,7 @@ export const MobileCardHeader = <TEvent extends BaseEvent = BaseEvent>({
             meta?.onMoreClick?.(row)
           }}
         >
-          <PanelRightOpen className="h-4 w-4" />
+          <ArrowRightFromLineIcon className="h-4 w-4" />
           <span className="text-sm font-medium">More</span>
         </Button>
       )}

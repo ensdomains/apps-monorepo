@@ -87,7 +87,7 @@ export const RegistrationSuccess = ({
           Register another
         </Button>
         <Button
-          variant="secondary"
+          variant="default"
           onClick={handleViewProfile}
           disabled={isViewProfileLoading}
         >

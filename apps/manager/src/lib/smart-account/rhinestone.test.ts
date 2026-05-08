@@ -12,21 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
 vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
 
-const {
-  MOCK_OWNER_ADDRESS,
-  MOCK_SMART_ACCOUNT_ADDRESS,
-  mockRhinestoneAccount,
-} = vi.hoisted(() => ({
+const { MOCK_OWNER_ADDRESS, MOCK_SMART_ACCOUNT_ADDRESS } = vi.hoisted(() => ({
   MOCK_OWNER_ADDRESS: '0x2222222222222222222222222222222222222222' as const,
   MOCK_SMART_ACCOUNT_ADDRESS:
     '0x1111111111111111111111111111111111111111' as const,
-  mockRhinestoneAccount: {
-    getAddress: () => '0x1111111111111111111111111111111111111111' as const,
-    isDeployed: vi.fn().mockResolvedValue(true),
-    deploy: vi.fn().mockResolvedValue(true),
-    sendTransaction: vi.fn().mockResolvedValue('mock-hca-tx'),
-    waitForExecution: vi.fn().mockResolvedValue({ fill: { hash: '0x01' } }),
-  },
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
@@ -36,10 +25,18 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 }))
 
 // Mock RhinestoneSDK
-vi.mock('@rhinestone/sdk', () => ({
-  RhinestoneSDK: vi.fn().mockImplementation(() => ({
-    createAccount: vi.fn().mockResolvedValue(mockRhinestoneAccount),
-  })),
+vi.mock(import('@rhinestone/sdk'), () => ({
+  RhinestoneSDK: vi.fn(function (this: RhinestoneSDK) {
+    this.createAccount = vi.fn().mockResolvedValue({
+      getAddress: () => '0x1111111111111111111111111111111111111111' as const,
+      isDeployed: vi.fn().mockResolvedValue(true),
+      deploy: vi.fn().mockResolvedValue(true),
+      sendTransaction: vi.fn().mockResolvedValue('mock-hca-tx'),
+      waitForExecution: vi.fn().mockResolvedValue({ fill: { hash: '0x01' } }),
+    })
+
+    return this
+  }),
 }))
 
 vi.mock('./utils', () => ({

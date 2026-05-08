@@ -4,9 +4,8 @@ import type { PropsWithChildren } from 'react'
 import type { Address, Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { DataRow } from '@/components/DataRow'
+import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
-import { Card, CardContent } from '@/components/ui/card'
 import {
   Sheet,
   SheetContent,
@@ -90,169 +89,173 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4 p-6 border border-border rounded-sm">
+      <InfoCard title="Transaction details">
         {txHash && (
-          <DataRow label="Tx Hash">
-            <CopyableRecord
-              value={txHash}
-              displayValue={
-                <span className="flex items-center gap-1">
-                  {truncateAddress(txHash, 10, 8, '...')}
-                </span>
-              }
-              href={txUrl}
-            />
-          </DataRow>
+          <InfoRow label="Tx Hash">
+            <div className="pl-3.5">
+              <CopyableRecord
+                value={txHash}
+                displayValue={
+                  <span className="flex items-center gap-1">
+                    {truncateAddress(txHash, 10, 8, '...')}
+                  </span>
+                }
+                href={txUrl}
+              />
+            </div>
+          </InfoRow>
         )}
 
         {formattedTimestamp && (
-          <DataRow label="Timestamp">
-            <CopyableRecord
-              value={formattedTimestamp}
-              displayValue={<span>{formattedTimestamp} UTC</span>}
-            />
-          </DataRow>
+          <InfoRow label="Timestamp">
+            <div className="pl-3.5">
+              <CopyableRecord
+                value={formattedTimestamp}
+                displayValue={<span>{formattedTimestamp} UTC</span>}
+              />
+            </div>
+          </InfoRow>
         )}
 
         {txData && (
           <>
-            <DataRow label="Network">
-              <span>Sepolia</span>
-            </DataRow>
+            <InfoRow label="Network">
+              <span className="text-sm">Sepolia</span>
+            </InfoRow>
 
-            <DataRow label="From">
+            <InfoRow label="From">
               <AddressDisplay address={txData.from} />
-            </DataRow>
+            </InfoRow>
 
-            <DataRow label="To">
+            <InfoRow label="To">
               {txData.to ? (
                 <AddressDisplay address={txData.to} />
               ) : (
-                <span className="text-muted-foreground">Contract Creation</span>
+                <span className="text-sm text-muted-foreground">
+                  Contract Creation
+                </span>
               )}
-            </DataRow>
+            </InfoRow>
           </>
         )}
-      </div>
+      </InfoCard>
 
       <div className="flex flex-col gap-4">
         <h3 className="text-lg font-semibold">1 event</h3>
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="border-b px-6 py-3 bg-muted">
-              <span className="text-sm font-medium">{event.type}</span>
-            </div>
+        <div className="border rounded-sm overflow-hidden">
+          <div className="border-b px-6 py-3 bg-muted">
+            <span className="text-sm font-medium">{event.type}</span>
+          </div>
 
-            <div className="p-6 flex flex-col gap-8">
-              <div className="flex flex-col gap-4 w-full">
-                <CopyableRecord
-                  value={event.type}
-                  displayValue={
-                    <h3 className="text-xl font-medium">{event.type}</h3>
-                  }
-                />
+          <div className="p-6 flex flex-col gap-8">
+            <div className="flex flex-col gap-4 w-full">
+              <CopyableRecord
+                value={event.type}
+                displayValue={
+                  <h3 className="text-xl font-medium">{event.type}</h3>
+                }
+              />
 
-                {txHash && (
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
-                    <span className="text-base font-semibold shrink-0 sm:min-w-40">
-                      Transaction
-                    </span>
-                    <CopyableRecord
-                      value={txHash}
-                      displayValue={
-                        <span className="flex items-center gap-1">
-                          {truncateAddress(txHash, 10, 8, '...')}
-                        </span>
-                      }
-                      className="text-sm flex-1 min-w-0"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-row gap-6 items-center">
-                  <span className="text-base font-semibold sm:min-w-40">
-                    Event
+              {txHash && (
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
+                  <span className="text-base font-semibold shrink-0 sm:min-w-40">
+                    Transaction
                   </span>
                   <CopyableRecord
-                    value={getEventSignature(event.type)}
+                    value={txHash}
                     displayValue={
-                      <div className="w-full max-w-110">
-                        {getEventSignature(event.type)}
-                      </div>
+                      <span className="flex items-center gap-1">
+                        {truncateAddress(txHash, 10, 8, '...')}
+                      </span>
                     }
-                    truncate={false}
+                    className="text-sm flex-1 min-w-0"
                   />
                 </div>
-              </div>
-
-              {parsedResult.match(
-                (parsed) => (
-                  <div>
-                    <h4 className="text-base font-semibold mb-3">Data</h4>
-                    <div className="border rounded-sm overflow-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground w-12">
-                              #
-                            </th>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
-                              Name
-                            </th>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
-                              Type
-                            </th>
-                            <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
-                              Data
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(parsed).map(([key, value], index) => (
-                            <tr key={key} className="border-t">
-                              <td className="px-4 py-3 text-sm">{index}</td>
-                              <td className="px-4 py-3 text-sm">{key}</td>
-                              <td className="px-4 py-3 text-sm">
-                                {getEventFieldType(event.type, key)}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <CopyableRecord
-                                  value={String(value)}
-                                  displayValue={
-                                    <span className="break-all">{value}</span>
-                                  }
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ),
-                (parseError) => (
-                  <div>
-                    <h4 className="text-base font-semibold mb-3">Data</h4>
-                    <div className="border rounded-sm p-4 flex flex-col gap-2">
-                      <span className="text-sm text-danger">
-                        Unable to parse event data
-                      </span>
-                      <CopyableRecord
-                        value={parseError.raw}
-                        displayValue={
-                          <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
-                            {parseError.raw}
-                          </pre>
-                        }
-                      />
-                    </div>
-                  </div>
-                ),
               )}
+
+              <div className="flex flex-row gap-6 items-center">
+                <span className="text-base font-semibold sm:min-w-40">
+                  Event
+                </span>
+                <CopyableRecord
+                  value={getEventSignature(event.type)}
+                  displayValue={
+                    <div className="w-full max-w-110">
+                      {getEventSignature(event.type)}
+                    </div>
+                  }
+                  truncate={false}
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {parsedResult.match(
+              (parsed) => (
+                <div>
+                  <h4 className="text-base font-semibold mb-3">Data</h4>
+                  <div className="border rounded-sm overflow-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-foreground w-12">
+                            #
+                          </th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
+                            Name
+                          </th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
+                            Type
+                          </th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
+                            Data
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(parsed).map(([key, value], index) => (
+                          <tr key={key} className="border-t">
+                            <td className="px-4 py-3 text-sm">{index}</td>
+                            <td className="px-4 py-3 text-sm">{key}</td>
+                            <td className="px-4 py-3 text-sm">
+                              {getEventFieldType(event.type, key)}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <CopyableRecord
+                                value={String(value)}
+                                displayValue={
+                                  <span className="break-all">{value}</span>
+                                }
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ),
+              (parseError) => (
+                <div>
+                  <h4 className="text-base font-semibold mb-3">Data</h4>
+                  <div className="border rounded-sm p-4 flex flex-col gap-2">
+                    <span className="text-sm text-danger">
+                      Unable to parse event data
+                    </span>
+                    <CopyableRecord
+                      value={parseError.raw}
+                      displayValue={
+                        <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
+                          {parseError.raw}
+                        </pre>
+                      }
+                    />
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -271,7 +274,7 @@ export const EventDetailSheet = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-card p-0 flex flex-col h-dvh"
+        className="sm:max-w-[880px] bg-background p-0 flex flex-col h-dvh"
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>

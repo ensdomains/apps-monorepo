@@ -21,6 +21,7 @@ import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
 import { getTransactionById } from '../utils/getTransactionById'
 import { TransactionFlowProgressBar } from './TransactionFlowProgressBar'
+import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
 type TransactionStateContentProps = {
   readonly transactions: readonly Transaction[]
@@ -107,7 +108,7 @@ export const TransactionStateContent = ({
               </div>
               <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-medium truncate text-wrap">
+                  <h3 className="text-base font-medium whitespace-normal leading-snug break-all min-w-0">
                     {transaction.transactionName}
                   </h3>
                   {blockExplorerTxUrl && (
@@ -120,6 +121,13 @@ export const TransactionStateContent = ({
                       <SquareArrowOutUpRight className="size-3" />
                     </a>
                   )}
+                  {transaction.waitUntil &&
+                  status === undefined &&
+                  transaction.waitUntil > Date.now() ? (
+                    <TransactionWaitCountdown
+                      waitUntil={transaction.waitUntil}
+                    />
+                  ) : null}
                 </div>
                 {transaction.steps && transaction.steps.length > 0 && (
                   <ul className="flex flex-col gap-1 text-sm">
@@ -158,7 +166,7 @@ export const TransactionStateContent = ({
         {match(activeTxStatus)
           .with(undefined, () => (
             <Button
-              variant="secondary"
+              variant="default"
               className="flex-1"
               onClick={activeTransaction.onStart}
             >
@@ -167,7 +175,7 @@ export const TransactionStateContent = ({
           ))
           .with('success', () => (
             <Button
-              variant="secondary"
+              variant="default"
               className="flex-1"
               onClick={activeTransaction.onDone}
             >
@@ -176,7 +184,7 @@ export const TransactionStateContent = ({
           ))
           .with('error', () => (
             <Button
-              variant="secondary"
+              variant="default"
               className="flex-1"
               onClick={activeTransaction.onStart}
             >

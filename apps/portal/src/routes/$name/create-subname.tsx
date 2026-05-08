@@ -25,12 +25,12 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 
-const getClient = () => wagmiConfig.getClient({ chainId: sepoliaWithEns.id })
+const getClient = () => wagmiConfig.getClient()
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,
@@ -124,7 +124,7 @@ const CreateSubnameForm = ({
     error: registriesError,
   } = useQuery(getNameRegistriesQueryOptions({ name }))
 
-  const subregistryAddress = registriesData?.registries[0]
+  const subregistryAddress = registriesData?.[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
@@ -191,7 +191,7 @@ const CreateSubnameForm = ({
   }
 
   if (registriesLoading) {
-    return <LoadingMessage title="Loading registry..." />
+    return <LoadingMessage />
   }
 
   if (registriesError) {
@@ -211,7 +211,7 @@ const CreateSubnameForm = ({
           This name does not have a subregistry. You must deploy one first to
           create subnames.
         </p>
-        <Button asChild variant="secondary" className="w-fit">
+        <Button asChild variant="default" className="w-fit">
           <Link to="/$name/registry" params={{ name }}>
             Deploy subregistry
           </Link>
@@ -424,7 +424,7 @@ function RouteComponent() {
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (isLoading) {
-    return <LoadingMessage title="Loading..." />
+    return <LoadingMessage />
   }
 
   if (error) {

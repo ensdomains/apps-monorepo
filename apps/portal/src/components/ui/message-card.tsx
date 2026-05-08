@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-sm p-6 sm:min-w-96 xl:min-w-160 flex flex-col items-center gap-4 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
+  'rounded-lg p-6 flex items-start gap-3 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
   {
     variants: {
       variant: {
         primary:
-          'bg-accent-fill **:data-[slot=icon]:text-accent-text **:data-[slot=title]:text-accent-text',
+          'bg-secondary **:data-[slot=icon]:text-foreground **:data-[slot=title]:text-foreground',
         success:
           'bg-message-success-fill **:data-[slot=icon]:text-message-success-text **:data-[slot=title]:text-message-success-text',
         danger:
@@ -70,11 +70,14 @@ export function MessageCard({
         </Badge>
       )}
 
-      <div className="flex flex-col items-center gap-3 text-center w-full">
-        <div data-slot="icon" className="flex items-center justify-center">
-          {icon}
-        </div>
+      <div
+        data-slot="icon"
+        className="flex items-center justify-center mt-2 shrink-0"
+      >
+        {icon}
+      </div>
 
+      <div className="flex flex-col items-start gap-6 flex-1 min-w-0">
         <h2
           data-slot="title"
           className={cn(
@@ -85,38 +88,39 @@ export function MessageCard({
           {title}
         </h2>
 
-        <div
-          className={cn(
-            'text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-foreground',
-            descriptionClassName,
-          )}
-        >
-          {description}
-        </div>
-      </div>
+        {description && (
+          <div
+            className={cn(
+              'text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-foreground',
+              descriptionClassName,
+            )}
+          >
+            {description}
+          </div>
+        )}
 
-      {actionButton && (
-        <Button
-          variant={actionButton.variant || 'outline'}
-          onClick={actionButton.onClick}
-          asChild={!!actionButton.href}
-          className="mt-2"
-        >
-          {actionButton.href ? (
-            <a
-              href={actionButton.href}
-              {...(actionButton.external && {
-                target: '_blank',
-                rel: 'noopener noreferrer',
-              })}
-            >
-              {actionButton.label}
-            </a>
-          ) : (
-            actionButton.label
-          )}
-        </Button>
-      )}
+        {actionButton && (
+          <Button
+            variant={actionButton.variant || 'default'}
+            onClick={actionButton.onClick}
+            asChild={!!actionButton.href}
+          >
+            {actionButton.href ? (
+              <a
+                href={actionButton.href}
+                {...(actionButton.external && {
+                  target: '_blank',
+                  rel: 'noopener noreferrer',
+                })}
+              >
+                {actionButton.label}
+              </a>
+            ) : (
+              actionButton.label
+            )}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

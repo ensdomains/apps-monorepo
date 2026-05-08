@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
-import { lingui } from '@lingui/vite-plugin'
+import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin'
+import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -50,12 +51,11 @@ export default defineConfig({
       viteEnvironment: { name: 'ssr' },
     }),
     tanstackStart(),
-    viteReact({
-      babel: {
-        plugins: ['@lingui/babel-plugin-lingui-macro'],
-      },
-    }),
+    viteReact(),
     lingui(),
+    babel({
+      presets: [linguiTransformerBabelPreset()],
+    }),
     tailwindcss(),
   ],
   optimizeDeps: {
@@ -76,6 +76,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
+  build: {
+    rolldownOptions: {
+      experimental: {
+        lazyBarrel: true, // Reduces compiled modules for barrel exports
+      },
     },
   },
 })

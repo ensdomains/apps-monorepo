@@ -21,7 +21,6 @@ import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { normalizeSessionDetailsForEip712Signing } from '../utils'
 import type { RhinestoneStoredSession } from './types'
 import { SessionError } from './zerodev-session'
 
@@ -83,7 +82,13 @@ export function createRhinestoneSession(
       const sessionDetails =
         await rhinestoneAccount.experimental_getSessionDetails([sdkSession])
 
-      normalizeSessionDetailsForEip712Signing(sessionDetails)
+      // NOTE: previously we ran normalizeSessionDetailsForEip712Signing here
+      // to coerce expires/nonce/chainId values for older SDKs. With
+      // @rhinestone/sdk@1.5.1 the SDK returns canonical values and any
+      // rewrite makes the owner-signed EIP-712 digest disagree with what
+      // the on-chain smart-session validator reconstructs, producing
+      // `InvalidSignature()` reverts at orchestrator simulation time.
+      // Leaving the payload as the SDK returns it.
 
       // 4. Sign enablement (owner EIP-712 — MultiChainSession)
       const enableSignature =
