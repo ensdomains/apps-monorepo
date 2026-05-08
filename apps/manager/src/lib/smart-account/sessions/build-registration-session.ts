@@ -29,20 +29,52 @@ import {
   ENS_SEPOLIA_CONTRACTS,
   SUPPORTED_TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import {
+  ethRegistrarCommitSnippet,
+  ethRegistrarRegisterSnippet,
+  ethRegistrarRenewSnippet,
+} from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Session } from '@rhinestone/sdk'
-import type { Address, Hex } from 'viem'
+import type { Address } from 'viem'
+import { erc20Abi, getAbiItem, toFunctionSelector } from 'viem'
+import { HCA_FACTORY_ABI } from '@/lib/hca-factory.abi'
 
 /** Default session lifetime: 30 days. */
 export const REGISTRATION_SESSION_VALIDITY_SECONDS = 30 * 24 * 60 * 60
 
-/** Function selectors (computed via `cast sig` — see fix-sca-permisssions plan). */
+/**
+ * Function selectors derived from canonical ABIs at module load.
+ *
+ * `@ensdomains/ensjs-abi` ships per-function snippets that bundle the
+ * function with its associated errors, so we use `getAbiItem` with the
+ * function name to pick the function entry. With concrete (literal) abi
+ * + name, TypeScript narrows the return type to the matching
+ * `AbiFunction` — no `as` cast required.
+ *
+ * Result: selector typos are compile errors, and any upstream ABI change
+ * regenerates the selectors automatically.
+ */
 const SELECTORS = {
-  commit: '0xf14fcbc8' satisfies Hex,
-  register: '0xcff3e7c2' satisfies Hex,
-  renew: '0x89d779c3' satisfies Hex,
-  approve: '0x095ea7b3' satisfies Hex,
-  deployProxy: '0x5d84121a' satisfies Hex,
-  setAccountOwner: '0x2dbe1821' satisfies Hex,
+  commit: toFunctionSelector(
+    getAbiItem({ abi: ethRegistrarCommitSnippet, name: 'commit' }),
+  ),
+  register: toFunctionSelector(
+    getAbiItem({ abi: ethRegistrarRegisterSnippet, name: 'register' }),
+  ),
+  renew: toFunctionSelector(
+    getAbiItem({ abi: ethRegistrarRenewSnippet, name: 'renew' }),
+  ),
+  approve: toFunctionSelector(getAbiItem({ abi: erc20Abi, name: 'approve' })),
+  deployProxy: toFunctionSelector(
+    getAbiItem({
+      abi: verifiableFactoryDeployProxySnippet,
+      name: 'deployProxy',
+    }),
+  ),
+  setAccountOwner: toFunctionSelector(
+    getAbiItem({ abi: HCA_FACTORY_ABI, name: 'setAccountOwner' }),
+  ),
 } as const
 
 export interface BuildRegistrationSessionActionsParams {
