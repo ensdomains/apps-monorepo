@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { Header } from '@/features/navigation/Header/Header'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
 
@@ -12,6 +13,7 @@ export const Layout = ({ children }: LayoutProps) => {
       <Header />
 
       <main className="relative isolate flex flex-1 flex-col bg-[#FCFBFB]">
+        <SepoliaNoticeBanner />
         {children}
       </main>
       <BackendAuthModal />

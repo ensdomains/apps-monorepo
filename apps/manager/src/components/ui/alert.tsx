@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority'
+import { XIcon } from 'lucide-react'
 import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
@@ -17,6 +18,8 @@ const alertVariants = cva(
         default: 'bg-card text-card-foreground',
         destructive:
           'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg,&>.material-symbol]:text-current',
+        warning:
+          'border-amber-200 bg-amber-50 text-amber-900 *:data-[slot=alert-description]:text-amber-900/90 [&>svg,&>.material-symbol]:text-current',
       },
     },
     defaultVariants: {
@@ -75,4 +78,25 @@ function AlertDescription({
   )
 }
 
-export { Alert, AlertTitle, AlertDescription }
+function AlertClose({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<'button'>) {
+  return (
+    <button
+      className={cn(
+        'absolute top-2 right-2 inline-flex size-7 items-center justify-center rounded-xs opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        className,
+      )}
+      data-slot="alert-close"
+      type="button"
+      {...props}
+    >
+      {children ?? <XIcon className="size-4" />}
+      <span className="sr-only">Dismiss</span>
+    </button>
+  )
+}
+
+export { Alert, AlertTitle, AlertDescription, AlertClose }
