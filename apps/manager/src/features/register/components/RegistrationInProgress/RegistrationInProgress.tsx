@@ -3,8 +3,8 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useSelector } from '@xstate/react'
 import type { ActorRefFrom } from 'xstate'
+import { NotificationSettings } from '@/features/register-v2/workflow/registering/components/NotificationSettings'
 import { calculateExpirationDate } from '@/features/register/components/Pricing/utils'
-import { NotificationSettings } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
 import {
   ProgressBar,
   type ProgressStage,

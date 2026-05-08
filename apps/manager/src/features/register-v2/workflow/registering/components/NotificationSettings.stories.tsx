@@ -6,13 +6,13 @@ import { preferencesQueryOptions } from '@/features/notifications/data/queries/p
 import { browserPushStateQueryOptions } from '@/features/notifications/data/queries/push'
 import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 import { withProviders } from '../../../../../../.storybook/decorators'
-import { NotificationSettingsStep } from './NotificationSettingsStep'
+import { NotificationSettings } from './NotificationSettings'
 
 /**
- * Register v2 notification step. Unlike v1 `NotificationSettings`, this
- * component gates the grid on `isBackendAuthed` and disables the preferences
- * query until the wallet is verified — stories seed `backendAuthStore` via
- * `WaitForBackendAuth` so both branches render predictably in Storybook.
+ * Registration notification step. Gates the contact-methods + preferences
+ * grid on `isBackendAuthed` and disables the preferences query until the
+ * wallet is verified — stories seed `backendAuthStore` via `WaitForBackendAuth`
+ * so both branches render predictably in Storybook.
  */
 
 const STORY_AUTH_KEY = 'storybook-notification-settings-step'
@@ -90,8 +90,8 @@ const storyDecorators = (
 ]
 
 const meta = {
-  title: 'Features/Register v2/NotificationSettingsStep',
-  component: NotificationSettingsStep,
+  title: 'Features/Register v2/NotificationSettings',
+  component: NotificationSettings,
   parameters: { layout: 'fullscreen' },
   tags: ['autodocs'],
   args: {
@@ -102,7 +102,7 @@ const meta = {
       console.log('Skip clicked')
     },
   },
-} satisfies Meta<typeof NotificationSettingsStep>
+} satisfies Meta<typeof NotificationSettings>
 
 export default meta
 type Story = StoryObj<typeof meta>
