@@ -1429,7 +1429,7 @@ msgstr ""
 msgid "Nothing here yet!"
 msgstr ""
 
-#: src/components/SepoliaNoticeBanner.tsx:13
+#: src/components/SepoliaNoticeBanner.tsx:11
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr ""
 
