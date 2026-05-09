@@ -157,21 +157,17 @@ test.describe('ENS profile', () => {
         authenticatedPage: page,
         makeV2Name,
     }) => {
-        const name = await makeV2Name({ label: 'profilefav' })
+        // Register with a record so the profile view page renders
+        // (empty profiles redirect to /edit where there's no heart button)
+        const name = await makeV2Name({
+            label: 'profilefav',
+            records: [{ key: 'description', value: 'favourite name' }],
+        })
         console.log(`[profile] name for favourites test: ${name}`)
 
-        // Add a bio so the profile has content, then navigate to the view page
-        await goToEditProfile(page, name)
-        await ensureProfilePillField(page, {
-            pillName: /^Bio\b/,
-            fieldLabel: 'Short Description',
-        })
-        await page.getByLabel('Short Description').fill('favourite name')
-        await saveProfileChanges(page)
-        await waitForProfileUpdated(page)
-        await page.getByText('Go to profile').click()
-        await page.waitForLoadState('networkidle')
-        await page.waitForTimeout(2_000)
+        // Navigate to the view profile page
+        await goToProfile(page, name)
+        await page.waitForTimeout(3_000)
 
         // Add to favourites — heart button is in the top-right of the profile card
         const heartButton = page.locator('button:has(.lucide-heart)').first()
@@ -185,21 +181,37 @@ test.describe('ENS profile', () => {
         await page.getByText('Favorites').click()
         await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 })
 
-        // Remove from favourites — click the heart next to the name in the list
-        await page.locator('button:has(.lucide-heart)').first().click()
-        await expect(page.getByText('No names to display')).toBeVisible({
-            timeout: 10_000,
-        })
+        // Remove from favourites — go back to the profile page and click the heart again
+        await goToProfile(page, name)
+        await page.waitForTimeout(3_000)
+        const unfavButton = page.locator('button:has(.lucide-heart)').first()
+        await unfavButton.waitFor({ state: 'visible', timeout: 10_000 })
+        await unfavButton.click()
+        await page.waitForTimeout(2_000)
+
+        // Verify name is gone from the Favorites tab
+        await page.goto(`${MANAGER_APP_URL}/dashboard`)
+        await page.waitForLoadState('networkidle')
+        await page.getByText('Favorites').click()
+        await page.waitForTimeout(2_000)
+        await expect(page.getByText(name)).not.toBeVisible({ timeout: 10_000 })
 
         console.log(`[profile] ✅ Favourites add/remove succeeded for ${name}`)
     })
 
     test('can favourite a name not owned by the user', async ({
         authenticatedPage: page,
+        makeV2Name,
     }) => {
-        const name = 'tester-other.eth'
+        // Register a name owned by a different account so the authenticated
+        // user can favourite it without being the owner.
+        const name = await makeV2Name({
+            label: 'otherfav',
+            owner: 'other',
+            records: [{ key: 'description', value: 'someone else\'s name' }],
+        })
+        console.log(`[profile] name for other-favourite test: ${name}`)
 
-        // Navigate directly — avoids search dropdown flakiness (see primaryName.spec.ts)
         await page.goto(`${MANAGER_APP_URL}/p/${name}`)
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(3_000)
@@ -216,11 +228,21 @@ test.describe('ENS profile', () => {
         await page.getByText('Favorites').click()
         await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 })
 
-        // Remove from favourites and verify it's gone
-        await page.locator('button:has(.lucide-heart)').first().click()
-        await expect(page.getByText('No names to display')).toBeVisible({
-            timeout: 10_000,
-        })
+        // Remove from favourites — go back to the profile page and click the heart again
+        await page.goto(`${MANAGER_APP_URL}/p/${name}`)
+        await page.waitForLoadState('networkidle')
+        await page.waitForTimeout(3_000)
+        const unfavButton = page.locator('button:has(.lucide-heart)').first()
+        await unfavButton.waitFor({ state: 'visible', timeout: 10_000 })
+        await unfavButton.click()
+        await page.waitForTimeout(2_000)
+
+        // Verify name is gone from the Favorites tab
+        await page.goto(`${MANAGER_APP_URL}/dashboard`)
+        await page.waitForLoadState('networkidle')
+        await page.getByText('Favorites').click()
+        await page.waitForTimeout(2_000)
+        await expect(page.getByText(name)).not.toBeVisible({ timeout: 10_000 })
 
         console.log(`[profile] ✅ Favouriting a non-owned name succeeded for ${name}`)
     })

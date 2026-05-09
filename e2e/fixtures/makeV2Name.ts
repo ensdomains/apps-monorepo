@@ -24,6 +24,7 @@ import {
   decodeEventLog,
   encodeFunctionData,
   keccak256,
+  namehash,
   parseAbi,
   stringToBytes,
   toHex,
@@ -86,6 +87,10 @@ const RESOLVER_INIT_ABI = parseAbi([
   'function initialize(address owner, uint256 bitmap)',
 ])
 
+const RESOLVER_ABI = parseAbi([
+  'function setText(bytes32 node, string key, string value)',
+])
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -123,6 +128,14 @@ export type V2NameConfig = {
   label: string
   /** Duration in seconds (default: 28 days minimum). */
   duration?: number
+  /** Optional text records to set on the resolver after registration. */
+  records?: { key: string; value: string }[]
+  /**
+   * Who should own the name:
+   * - `'user'` (default): the Para test EOA (authenticated user)
+   * - `'other'`: Anvil's first account (not the authenticated user)
+   */
+  owner?: 'user' | 'other'
 }
 
 // ---------------------------------------------------------------------------
@@ -150,8 +163,9 @@ export function createMakeV2Name() {
   return async function makeV2Name(
     config: V2NameConfig,
   ): Promise<string> {
-    const ownerAddress = PARA_EOA.address
-    const ownerAccount = PARA_EOA
+    const isOther = config.owner === 'other'
+    const ownerAddress = isOther ? ANVIL_FUNDER.address : PARA_EOA.address
+    const ownerAccount = isOther ? ANVIL_FUNDER : PARA_EOA
     const timestamp = Math.floor(Date.now() / 1000)
     const uniqueLabel = `${config.label}-${timestamp}`
     const registrationDuration = Math.max(
@@ -297,6 +311,28 @@ export function createMakeV2Name() {
     await waitForTx(registerTx)
 
     const ethName = `${uniqueLabel}.eth`
+
+    // ── 9. Set text records (if any) ──────────────────────────────────
+    if (config.records?.length) {
+      const node = namehash(ethName)
+      for (const { key, value } of config.records) {
+        const setTextData = encodeFunctionData({
+          abi: RESOLVER_ABI,
+          functionName: 'setText',
+          args: [node, key, value],
+        })
+        const setTextTx = await walletClient.sendTransaction({
+          account: ownerAccount,
+          to: resolverAddress,
+          data: setTextData,
+        })
+        await waitForTx(setTextTx)
+      }
+      console.log(
+        `[makeV2Name] set ${config.records.length} record(s) on ${ethName}`,
+      )
+    }
+
     console.log(`[makeV2Name] ✅ registered ${ethName}`)
     return ethName
   }
