@@ -1,7 +1,6 @@
 // e2e/projects/manager/tests/registration.spec.ts
 // import { test, expect } from '@playwright/test'
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
-import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { fillParaOtpInput, clickParaSignInButton } from '../../../helpers/para-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
@@ -36,20 +35,9 @@ test.describe('ENS name registration', () => {
       .click()
     await page.getByText('USDC', { exact: true }).click()
 
-    const monitor = createConsoleMonitor(page, {
-      onStateChange: (state, allStates) => {
-        console.log(
-          `[Registration] ${state} (seen: ${allStates.join(' → ')})`,
-        )
-      },
-    })
-
     await page
       .getByRole('button', { name: /buy name/i })
       .click()
-
-    // await monitor.waitForRegistrationComplete(120_000)
-    // expect(monitor.getLastState()).toBe('success')
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     await expect(successBanner).toContainText('Registration Complete', {
