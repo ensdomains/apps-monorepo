@@ -129,7 +129,7 @@ jobs:
           fi
 
           # Enable Vite dep optimization logging to catch late-discovered deps
-          DEBUG=vite:deps pnpm --filter "$APP_FILTER" dev > /tmp/app-dev.log 2>&1 &
+          DEBUG=vite:deps pnpm --filter "$APP_FILTER" dev -- --port ${APP_PORT} > /tmp/app-dev.log 2>&1 &
           APP_PID=$!
           timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
           echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
