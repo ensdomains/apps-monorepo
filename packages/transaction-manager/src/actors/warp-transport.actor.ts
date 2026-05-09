@@ -13,6 +13,7 @@
  */
 
 import { logger } from '@ens-apps/utils/logger'
+import type { Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -105,7 +106,7 @@ export function submitWarpTransaction(
         )
       }
 
-      const sdkParams: Record<string, unknown> = {
+      const sdkParams = {
         sourceChains: [chain],
         targetChain: chain,
         calls,
@@ -113,7 +114,7 @@ export function submitWarpTransaction(
         // Local mockestrator requires empty tokenRequests to skip balance validation
         tokenRequests: [],
         ...(sessionSigners ? { signers: sessionSigners } : {}),
-      }
+      } satisfies Transaction
 
       logger.debug(
         '📤 [WARP] SDK sendTransaction params:',
@@ -131,7 +132,7 @@ export function submitWarpTransaction(
         ),
       )
 
-      const transaction = await account.sendTransaction(sdkParams as any)
+      const transaction = await account.sendTransaction(sdkParams)
       const sendLatencyMs = nowMs() - sendStart
 
       logger.debug(
