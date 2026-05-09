@@ -7,8 +7,9 @@ import type { Address, Hash } from 'viem'
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
 import { bytesToHex } from 'viem'
 import { authenticateWithPara } from '../helpers/para-auth.js'
+import { createIndexerMock } from '../helpers/mock-indexer.js'
 import { createMakeName } from './makeName.js'
-import { createMakeV2Name } from './makeV2Name.js'
+import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
 import { createTime, type Time } from './time.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -61,6 +62,17 @@ function createAnvilAccounts() {
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
+/** Para test account EOA address (matches makeV2Name.ts). */
+const PARA_EOA_ADDRESS = (() => {
+  const key =
+    (process.env.ANVIL_PARA_PRIVATE_KEY ??
+      '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`
+  return privateKeyToAccount(key).address
+})()
+
+// Shared indexer mock — active only when E2E_MOCK_INDEXER=true.
+const indexerMock = createIndexerMock()
+
 type ManagerFixtures = {
   authenticatedPage: Page
   /** Time fixture for syncing anvil block time with the browser clock. */
@@ -71,8 +83,10 @@ type ManagerFixtures = {
    * Register a V2 .eth name on-chain to the authenticated user's smart account.
    * Much faster than `registerName` (contract calls vs UI flow).
    * Each name gets a dedicated resolver proxy so profile editing works.
+   * When E2E_MOCK_INDEXER=true, registered names are automatically fed
+   * into the mock so dashboard/profile queries return them.
    */
-  makeV2Name: ReturnType<typeof createMakeV2Name>
+  makeV2Name: (config: V2NameConfig) => Promise<string>
   /**
    * Register a fresh .eth name via the UI registration flow. The authenticated
    * Para user becomes the owner. Returns the full name.
@@ -87,6 +101,9 @@ type ManagerFixtures = {
  */
 export const test = base.extend<ManagerFixtures>({
   authenticatedPage: async ({ page }, use) => {
+    // When E2E_MOCK_INDEXER=true, intercept indexer GraphQL before any navigation.
+    await indexerMock.installIfEnabled(page)
+
     const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
     await page.goto(baseURL)
     // Brief wait for app initialisation; cap at 5 s so HMR websocket doesn't block
@@ -120,7 +137,24 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   makeV2Name: async ({}, use) => {
-    await use(createMakeV2Name())
+    const inner = createMakeV2Name()
+    await use(async (config: V2NameConfig) => {
+      const name = await inner(config)
+      // Feed the registered name into the indexer mock so subsequent
+      // page navigations (dashboard, profile) return it in queries.
+      if (indexerMock.enabled) {
+        const ownerAddress =
+          config.owner === 'other'
+            ? '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' // Anvil funder
+            : PARA_EOA_ADDRESS
+        indexerMock.addName({
+          name,
+          owner: ownerAddress,
+          records: config.records,
+        })
+      }
+      return name
+    })
   },
 
   registerName: async ({ authenticatedPage }, use) => {
