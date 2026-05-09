@@ -3,6 +3,8 @@
 // outside a Vite context (e.g. `pnpm typecheck` in CI).
 interface ImportMetaEnv {
   readonly VITE_INDEXER_GRAPHQL_URL?: string
+  readonly VITE_SEPOLIA_RPC_URL?: string
+  readonly VITE_SEPOLIA_RPC_URL_SERVER?: string
 }
 
 interface ImportMeta {
