@@ -13,7 +13,7 @@
  */
 
 import { logger } from '@ens-apps/utils/logger'
-import type { Transaction } from '@rhinestone/sdk'
+import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -113,7 +113,10 @@ export function submitWarpTransaction(
         sponsored: sponsored ?? true,
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).
-        tokenRequests: tokenRequests ?? [],
+        // Cast needed: SDK's internal TokenRequests is a strict discriminated union
+        // not assignable from TokenRequest[], but semantically equivalent here.
+        tokenRequests: (tokenRequests ?? []) as TokenRequest[] &
+          Transaction['tokenRequests'],
         ...(sessionSigners ? { signers: sessionSigners } : {}),
       } satisfies Transaction
 
