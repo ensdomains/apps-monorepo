@@ -59,6 +59,8 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   rhinestoneParams: {
     calls: RhinestoneCall[]
     sponsored?: boolean
+    /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
+    tokenRequests?: { address: Address; amount?: bigint }[]
   }
 }
 

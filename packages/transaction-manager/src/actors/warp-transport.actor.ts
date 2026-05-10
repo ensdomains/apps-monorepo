@@ -43,7 +43,7 @@ export function submitWarpTransaction(
     )
   }
 
-  const { calls, sponsored } = request.rhinestoneParams
+  const { calls, sponsored, tokenRequests } = request.rhinestoneParams
 
   if (!calls || calls.length === 0) {
     return errAsync(
@@ -111,8 +111,9 @@ export function submitWarpTransaction(
         targetChain: chain,
         calls,
         sponsored: sponsored ?? true,
-        // Local mockestrator requires empty tokenRequests to skip balance validation
-        tokenRequests: [],
+        // Pass through caller-provided tokenRequests (for cross-chain txs).
+        // Defaults to [] which skips balance validation (needed for local mockestrator).
+        tokenRequests: tokenRequests ?? [],
         ...(sessionSigners ? { signers: sessionSigners } : {}),
       } satisfies Transaction
 
