@@ -30,6 +30,7 @@ import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import type { RhinestoneConfig } from './rhinestone'
+import { buildRegistrationSessionActions } from './sessions/build-registration-session'
 import {
   selectIsCreatingSession,
   selectIsLoading,
@@ -312,6 +313,15 @@ export const SmartAccountContextProvider = ({
         logger.error('Rhinestone API key not configured - cannot create signer')
         return null
       }
+      // The session policy pins both `register.owner == SCA` and
+      // `HCAFactory.setAccountOwner.eoa == EOA`. Without a known EOA we
+      // cannot reproduce the actions baked into the enable signature, so
+      // refuse to construct the signer rather than risk an
+      // `InvalidSignature()` revert at orchestrator time.
+      if (!ownerAddress) {
+        logger.error('Rhinestone signer: missing EOA owner address')
+        return null
+      }
 
       const rhinestoneSessionClient = sessionClient as {
         sessionPrivateKey: Hex
@@ -352,7 +362,14 @@ export const SmartAccountContextProvider = ({
                     ],
                   },
                   chain: customSepolia,
-                  actions: [{ policies: [{ type: 'sudo' as const }] }],
+                  // Must match the actions baked into the EIP-712 enable
+                  // signature produced in sessions/rhinestone-session.ts at
+                  // session creation time. Any divergence breaks the
+                  // PermissionId and yields `InvalidSignature()`.
+                  actions: buildRegistrationSessionActions({
+                    smartAccountAddress: accountAddress,
+                    eoaAddress: ownerAddress,
+                  }),
                 },
                 enableData: {
                   userSignature: rhinestoneSessionClient.enableSignature,
@@ -392,6 +409,7 @@ export const SmartAccountContextProvider = ({
     baseClient,
     sessionClient,
     accountAddress,
+    ownerAddress,
     accountType,
     isSessionClient,
     provider,

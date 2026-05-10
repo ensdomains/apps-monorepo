@@ -21,6 +21,10 @@ import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import {
+  buildRegistrationSessionActions,
+  REGISTRATION_SESSION_VALIDITY_SECONDS,
+} from './build-registration-session'
 import type { RhinestoneStoredSession } from './types'
 import { SessionError } from './zerodev-session'
 
@@ -68,14 +72,22 @@ export function createRhinestoneSession(
       const sessionPrivateKey = generatePrivateKey()
       const sessionAccount = privateKeyToAccount(sessionPrivateKey)
 
-      // 2. Define session with sudo policy (unrestricted — security policies to be added later)
+      // 2. Define session scoped to the registration / renewal flows.
+      //    See ./build-registration-session.ts for the action set + threat
+      //    model. The same actions array MUST be reproduced byte-for-byte at
+      //    signer-construction time (SmartAccountContext.tsx) — the
+      //    PermissionId is derived from this config; mismatch yields
+      //    `InvalidSignature()` at runtime.
       const sdkSession: Session = {
         owners: {
           type: 'ecdsa' as const,
           accounts: [sessionAccount],
         },
         chain,
-        actions: [{ policies: [{ type: 'sudo' as const }] }],
+        actions: buildRegistrationSessionActions({
+          smartAccountAddress,
+          eoaAddress: ownerAddress,
+        }),
       }
 
       // 3. Get session details (on-chain validation data)
@@ -105,6 +117,20 @@ export function createRhinestoneSession(
         ),
       )
 
+      // Default to a 30-day client-side expiry. This is enforced in
+      // `restoreRhinestoneSession`; the on-chain SmartSession validator
+      // does not yet receive a `validUntil` because the high-level
+      // `Session` type in `@rhinestone/sdk@1.5.1` does not expose userOp-
+      // level policies. A stolen session key is therefore bounded by:
+      //  (a) this client-side expiry — the dApp refuses to use the key
+      //      after it lapses, and
+      //  (b) explicit revocation via `removeSession(permissionId)`.
+      // Plumbing `validUntil` into the on-chain policy is tracked as a
+      // mainnet-blocking follow-up.
+      const validUntil =
+        config?.validUntil ??
+        Math.floor(Date.now() / 1000) + REGISTRATION_SESSION_VALIDITY_SECONDS
+
       const session: RhinestoneStoredSession = {
         id: crypto.randomUUID(),
         provider: 'rhinestone',
@@ -113,7 +139,7 @@ export function createRhinestoneSession(
         ownerAddress,
         createdAt: Date.now(),
         chainId,
-        validUntil: config?.validUntil,
+        validUntil,
         sessionPrivateKey,
         sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId }),
         serializedSessionAccount: '',
