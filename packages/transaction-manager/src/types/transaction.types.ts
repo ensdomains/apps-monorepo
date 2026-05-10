@@ -1,3 +1,4 @@
+import type { TokenRequest } from '@rhinestone/sdk'
 import type {
   Address,
   Chain,
@@ -7,7 +8,6 @@ import type {
   TransactionReceipt,
   WalletClient,
 } from 'viem'
-
 import type { TransactionInfra } from './signer.types'
 
 export type TransactionType =
@@ -60,7 +60,7 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
     calls: RhinestoneCall[]
     sponsored?: boolean
     /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
-    tokenRequests?: { address: Address; amount?: bigint }[]
+    tokenRequests?: TokenRequest[]
   }
 }
 
