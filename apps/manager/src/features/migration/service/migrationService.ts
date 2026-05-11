@@ -4,21 +4,21 @@ import {
   type TransactionRequest,
   transactionManager,
   waitForTransaction,
-  type ZeroDevCall,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Address, Hex, PublicClient } from 'viem'
-
-import { V2_CONTRACTS } from '../contracts/addresses'
 import {
-  type MigrationPlan,
-  type NameBundle,
-  resolveDeferredBatches,
-} from './buildMigrationPlan'
-import type { ClassifiedName, IneligibleName } from './classifyNames'
-import type { MigrationPreflight } from './computeMigrationPreflight'
-import { ensureOwnedPermRes } from './ensureOwnedPermRes'
+  type Address,
+  encodeFunctionData,
+  type Hex,
+  type PublicClient,
+} from 'viem'
+
+import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import type { MigrationCall } from './buildMigrationCalls'
+import type { MigrationPlan } from './buildMigrationPlan'
+import type { IneligibleName } from './classifyNames'
 
 export type { MigrationPlan, NameBundle } from './buildMigrationPlan'
 export type { MigrationStepDescriptor } from './buildStepDescriptors'
@@ -79,40 +79,17 @@ const createTracker = (
 }
 
 type MigrationCtx = {
-  wagmiConfig: WagmiConfig
   publicClient: PublicClient
   signer: EOASigner
   accountAddress: Address
-  migrationOwner: Address
-  defaultResolver: Address
   tracker: Tracker
 }
 
 const PENDING_TX_HASH = '0x0' as Hex
 
-const ensureResolver = async (
-  ctx: MigrationCtx,
-  namesToOwnedPermRes: readonly ClassifiedName[],
-  preflight: MigrationPreflight,
-): Promise<Address | null> => {
-  if (namesToOwnedPermRes.length === 0) return preflight.preExistingOwnedPermRes
-
-  if (preflight.preExistingOwnedPermRes)
-    return preflight.preExistingOwnedPermRes
-
-  ctx.tracker.emit('Setting up your v2 resolver', PENDING_TX_HASH)
-  const resolver = await ensureOwnedPermRes({
-    eoa: ctx.migrationOwner,
-    wagmiConfig: ctx.wagmiConfig,
-    publicClient: ctx.publicClient,
-  })
-  ctx.tracker.next()
-  return resolver
-}
-
 const buildEOARequest = (
   ctx: MigrationCtx,
-  call: ZeroDevCall,
+  call: MigrationCall,
 ): TransactionRequest => {
   const chainId = ctx.publicClient.chain?.id
   if (!chainId) {
@@ -129,35 +106,24 @@ const buildEOARequest = (
   }
 }
 
-const submitEOACalls = async (
+const submitEOACall = async (
   ctx: MigrationCtx,
-  calls: ZeroDevCall[],
+  call: MigrationCall,
   description: string,
 ): Promise<Hex> => {
-  let lastHash: Hex | undefined
-  for (const [i, call] of calls.entries()) {
-    const stepDescription =
-      calls.length > 1
-        ? `${description} (${i + 1}/${calls.length})`
-        : description
+  const txId = transactionManager.startTransaction(
+    { type: 'custom', request: buildEOARequest(ctx, call) },
+    ctx.signer,
+    {
+      description,
+      publicClient: ctx.publicClient,
+    },
+  )
 
-    const txId = transactionManager.startTransaction(
-      { type: 'custom', request: buildEOARequest(ctx, call) },
-      ctx.signer,
-      {
-        description: stepDescription,
-        publicClient: ctx.publicClient,
-      },
-    )
+  ctx.tracker.emit(description, PENDING_TX_HASH)
 
-    ctx.tracker.emit(stepDescription, PENDING_TX_HASH)
-
-    const result = await waitForTransaction(txId)
-    lastHash = result.hash as Hex
-  }
-
-  if (!lastHash) throw new Error('No calls to submit')
-  return lastHash
+  const result = await waitForTransaction(txId)
+  return result.hash as Hex
 }
 
 const requireEOASigner = (
@@ -183,7 +149,7 @@ const requireEOASigner = (
   return signer
 }
 
-const wrapBatchError = (
+const wrapMigrationError = (
   error: unknown,
   step: string,
 ): MigrationUserRejectedError | MigrationError => {
@@ -193,49 +159,91 @@ const wrapBatchError = (
   return new MigrationError({ cause: error, step })
 }
 
-export type OnBatchComplete = (names: readonly string[], txHash: Hex) => void
+const buildApprovalCall = (params: {
+  token: Address
+  abi: typeof BASE_REGISTRAR_ABI | typeof NAME_WRAPPER_ABI
+}): MigrationCall => ({
+  to: params.token,
+  data: encodeFunctionData({
+    abi: params.abi,
+    functionName: 'setApprovalForAll',
+    args: [V2_CONTRACTS.MigrationHelper, true],
+  }),
+  value: 0n,
+})
 
-const submitBatches = async (
-  ctx: MigrationCtx,
-  batches: readonly NameBundle[][],
-  onBatchComplete?: OnBatchComplete,
-): Promise<Hex[]> => {
-  const totalBatches = batches.length
-  const hashes: Hex[] = []
+const submitApprovalIfNeeded = async (params: {
+  ctx: MigrationCtx
+  needed: boolean
+  token: Address
+  abi: typeof BASE_REGISTRAR_ABI | typeof NAME_WRAPPER_ABI
+  description: string
+  step: string
+}): Promise<Hex | null> => {
+  if (!params.needed) return null
 
-  for (const [i, bundle] of batches.entries()) {
-    const batchNum = i + 1
-    const batchLabel = `Batch ${batchNum}/${totalBatches}`
-    const nameCount = bundle.length
-
-    ctx.tracker.emit(
-      `Upgrading batch ${batchNum}/${totalBatches} (${nameCount} names)`,
+  try {
+    const hash = await submitEOACall(
+      params.ctx,
+      buildApprovalCall({ token: params.token, abi: params.abi }),
+      params.description,
     )
-
-    const combinedCalls = bundle.flatMap((b) => b.calls)
-
-    let lastHash: Hex
-    try {
-      lastHash = await submitEOACalls(
-        ctx,
-        combinedCalls,
-        `Migrate batch ${batchNum}/${totalBatches} (${nameCount} names)`,
-      )
-      hashes.push(lastHash)
-    } catch (error) {
-      throw wrapBatchError(error, batchLabel)
-    }
-
-    onBatchComplete?.(
-      bundle.map((b) => b.name.domain.name),
-      lastHash,
-    )
-
-    ctx.tracker.next()
-    ctx.tracker.emit(`Batch ${batchNum}/${totalBatches} complete!`, lastHash)
+    params.ctx.tracker.next()
+    return hash
+  } catch (error) {
+    throw wrapMigrationError(error, params.step)
   }
+}
+
+const submitApprovals = async (
+  ctx: MigrationCtx,
+  plan: MigrationPlan,
+): Promise<Hex[]> => {
+  const hashes: Hex[] = []
+  const baseRegistrarHash = await submitApprovalIfNeeded({
+    ctx,
+    needed: plan.preflight.needsBaseRegistrarApproval,
+    token: V1_CONTRACTS.BaseRegistrar,
+    abi: BASE_REGISTRAR_ABI,
+    description: 'Approve .eth registrar for migration',
+    step: 'Approve .eth registrar',
+  })
+  if (baseRegistrarHash) hashes.push(baseRegistrarHash)
+
+  const nameWrapperHash = await submitApprovalIfNeeded({
+    ctx,
+    needed: plan.preflight.needsNameWrapperApproval,
+    token: V1_CONTRACTS.NameWrapper,
+    abi: NAME_WRAPPER_ABI,
+    description: 'Approve NameWrapper for migration',
+    step: 'Approve NameWrapper',
+  })
+  if (nameWrapperHash) hashes.push(nameWrapperHash)
 
   return hashes
+}
+
+export type OnBatchComplete = (names: readonly string[], txHash: Hex) => void
+
+const submitHelperMigration = async (
+  ctx: MigrationCtx,
+  plan: MigrationPlan,
+  onBatchComplete?: OnBatchComplete,
+): Promise<Hex> => {
+  const nameCount = plan.classified.length
+  const description = `Migrate ${nameCount} name(s) with MigrationHelper`
+
+  try {
+    const hash = await submitEOACall(ctx, plan.helperCall, description)
+    onBatchComplete?.(
+      plan.classified.map((name) => name.domain.name),
+      hash,
+    )
+    ctx.tracker.next()
+    return hash
+  } catch (error) {
+    throw wrapMigrationError(error, 'MigrationHelper migration')
+  }
 }
 
 export const executeMigration = async (params: {
@@ -249,14 +257,13 @@ export const executeMigration = async (params: {
 }): Promise<MigrationResult> => {
   const {
     plan,
-    wagmiConfig,
     publicClient,
     signer,
     accountAddress,
     onProgress,
     onBatchComplete,
   } = params
-  const { classified, ineligible, preflight, batches, stepDescriptors } = plan
+  const { classified, ineligible, stepDescriptors } = plan
 
   if (classified.length === 0) {
     return {
@@ -267,31 +274,18 @@ export const executeMigration = async (params: {
   }
 
   const ctx: MigrationCtx = {
-    wagmiConfig,
     publicClient,
     signer: requireEOASigner(signer, accountAddress),
     accountAddress,
-    migrationOwner: plan.migrationOwner,
-    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
     tracker: createTracker(onProgress, stepDescriptors.length),
   }
 
-  const namesToOwnedPermRes = classified.filter(
-    (n) => n.resolverStrategy === 'to-owned-permres',
-  )
-  await ensureResolver(ctx, namesToOwnedPermRes, preflight)
-
-  const batchHashes = await submitBatches(ctx, batches, onBatchComplete)
-
-  let deferredHashes: Hex[] = []
-  if (plan.deferredBatches.length > 0) {
-    const rebuilt = await resolveDeferredBatches({ plan, publicClient })
-    deferredHashes = await submitBatches(ctx, rebuilt, onBatchComplete)
-  }
+  const approvalHashes = await submitApprovals(ctx, plan)
+  const migrationHash = await submitHelperMigration(ctx, plan, onBatchComplete)
 
   return {
     completed: classified.length,
-    txHashes: [...batchHashes, ...deferredHashes],
+    txHashes: [...approvalHashes, migrationHash],
     ineligible: [...ineligible],
   }
 }

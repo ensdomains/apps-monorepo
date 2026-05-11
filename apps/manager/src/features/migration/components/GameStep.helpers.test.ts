@@ -92,38 +92,33 @@ describe('describeNextStep', () => {
       { kind: 'preparing' },
     ],
     [
-      'ensure-resolver descriptor',
+      'base registrar approval descriptor',
       {
         done: false,
-        descriptor: descriptor({ type: 'ensure-resolver' }),
+        descriptor: descriptor({ type: 'approve-base-registrar' }),
       },
-      { kind: 'ensure-resolver' },
+      { kind: 'approve-base-registrar' },
     ],
     [
-      'migrate-batch with 1 batch total → batch-single',
+      'name wrapper approval descriptor',
       {
         done: false,
         descriptor: descriptor({
-          type: 'migrate-batch',
-          batch: 1,
-          totalBatches: 1,
+          type: 'approve-name-wrapper',
+        }),
+      },
+      { kind: 'approve-name-wrapper' },
+    ],
+    [
+      'helper migration descriptor',
+      {
+        done: false,
+        descriptor: descriptor({
+          type: 'migrate-helper',
           count: 3,
         }),
       },
-      { kind: 'batch-single', count: 3 },
-    ],
-    [
-      'migrate-batch with >1 batches → batch-multi',
-      {
-        done: false,
-        descriptor: descriptor({
-          type: 'migrate-batch',
-          batch: 2,
-          totalBatches: 3,
-          count: 4,
-        }),
-      },
-      { kind: 'batch-multi', batch: 2, total: 3, count: 4 },
+      { kind: 'migrate-helper', count: 3 },
     ],
   ] as const)('%s', (_, params, expected) => {
     expect(describeNextStep(params)).toEqual(expected)

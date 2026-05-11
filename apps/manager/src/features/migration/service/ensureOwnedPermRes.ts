@@ -13,7 +13,7 @@ import {
   toEventSelector,
 } from 'viem'
 import { VERIFIABLE_FACTORY_ABI } from '../contracts/abis'
-import { V2_CONTRACTS, V2_DEPLOY_BLOCK } from '../contracts/addresses'
+import { V2_CONTRACTS } from '../contracts/addresses'
 import {
   computeOwnedResolverSalt,
   getOwnedPermResInitCalldata,
@@ -56,7 +56,7 @@ export const findExistingPermRes = async (params: {
     address: V2_CONTRACTS.VerifiableFactory,
     event: proxyDeployedEvent,
     args: { sender: eoa },
-    fromBlock: V2_DEPLOY_BLOCK,
+    fromBlock: 0n,
     toBlock: 'latest',
   })
   for (const log of [...logs].reverse()) {

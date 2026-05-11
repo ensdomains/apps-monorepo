@@ -13,6 +13,10 @@ vi.mock('@/features/migration/service/migrationService', () => ({
   executeMigration: vi.fn(),
 }))
 
+import {
+  buildMigrationHelperCall,
+  emptyMigrationHelperPayload,
+} from '@/features/migration/service/buildMigrationCalls'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import type {
   ClassifiedName,
@@ -74,8 +78,10 @@ const makePlan = (
   groups: EMPTY_GROUPS,
   preflight: {
     preExistingOwnedPermRes: null,
-    skipApprovalPhase: false,
-    skipFetchProfilesPhase: false,
+    skipApprovalPhase: true,
+    skipFetchProfilesPhase: true,
+    needsBaseRegistrarApproval: false,
+    needsNameWrapperApproval: false,
   },
   ownedPermRes: null,
   profiles: new Map(),
@@ -84,6 +90,8 @@ const makePlan = (
   deferredChildren: [],
   deferredParentNames: [],
   deferredBatches: [],
+  helperPayload: emptyMigrationHelperPayload(),
+  helperCall: buildMigrationHelperCall(emptyMigrationHelperPayload()),
   stepDescriptors: [],
   ...overrides,
 })

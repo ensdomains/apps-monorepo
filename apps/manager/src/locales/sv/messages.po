@@ -267,6 +267,14 @@ msgstr ""
 msgid "Approving"
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:58
+msgid "Approving .eth registrar migration"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:62
+msgid "Approving NameWrapper migration"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Approving payment token"
 msgstr ""
@@ -354,10 +362,6 @@ msgstr ""
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx:67
-msgid "Batch {batch}/{total}: upgrading {count} name(s)"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:44
@@ -1254,6 +1258,10 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
+#: src/features/migration/components/GameStep.tsx:66
+msgid "Migrating {count} name(s) to v2"
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx:186
 msgid "Migration failed"
 msgstr ""
@@ -1996,10 +2004,6 @@ msgstr "Anger ETH-adress..."
 msgid "Setting ETH address…"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:58
-msgid "Setting up your v2 resolver"
-msgstr ""
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
 msgid "Setting..."
 msgstr "Anger..."
@@ -2371,11 +2375,7 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:62
-msgid "Upgrading {count} name(s) to v2"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx:91
+#: src/features/migration/components/GameStep.tsx:90
 msgid "Upgrading your names..."
 msgstr ""
 

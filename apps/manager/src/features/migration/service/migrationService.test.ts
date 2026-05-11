@@ -1,61 +1,28 @@
-import type { EOASigner, Signer } from '@ens-apps/transaction-manager'
+import {
+  type EOASigner,
+  type Signer,
+  type TransactionRequest,
+  transactionManager,
+  waitForTransaction,
+} from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Address, Hex, PublicClient } from 'viem'
+import { decodeFunctionData, type Hex, type PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MIGRATION_HELPER_ABI } from '../contracts/abis'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import { makeDomain, OWNER } from './_fixtures'
+import { buildMigrationPlan } from './buildMigrationPlan'
+import type { MigrationPreflight } from './computeMigrationPreflight'
+import { executeMigration, type MigrationProgress } from './migrationService'
+import type { V1Domain } from './v1SubgraphClient'
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: { startTransaction: vi.fn(() => 'tx-id') },
   waitForTransaction: vi.fn(),
 }))
 
-vi.mock('@wagmi/core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@wagmi/core')>()
-  return {
-    ...actual,
-    readContract: vi.fn(),
-  }
-})
-
-vi.mock('./ensureOwnedPermRes', () => ({
-  ensureOwnedPermRes: vi.fn(),
-  findExistingPermRes: vi.fn(),
-  predictOwnedPermResAddress: vi.fn(() =>
-    Promise.resolve('0x000000000000000000000000000000000000d002'),
-  ),
-  OwnedResolverDeployError: class OwnedResolverDeployError extends Error {
-    name = 'OwnedResolverDeployError'
-  },
-}))
-
-vi.mock('./fetchV1Profiles', () => ({
-  fetchV1Profiles: vi.fn(() => Promise.resolve(new Map())),
-  profileMapKey: (h: Hex): Hex => h.toLowerCase() as Hex,
-  ProfileFetchError: class ProfileFetchError extends Error {
-    phase: 'subgraph' | 'onchain' = 'subgraph'
-  },
-}))
-
-vi.mock('./preflightChecks', () => ({
-  resolveParentRegistries: vi.fn(() => Promise.resolve(new Map())),
-  checkFrozenApproval: vi.fn(),
-  runEligibilityChecks: vi.fn(),
-}))
-
-import { waitForTransaction } from '@ens-apps/transaction-manager'
-import { buildMigrationPlan } from './buildMigrationPlan'
-import type { MigrationPreflight } from './computeMigrationPreflight'
-import { ensureOwnedPermRes } from './ensureOwnedPermRes'
-import { fetchV1Profiles } from './fetchV1Profiles'
-import { executeMigration, type MigrationProgress } from './migrationService'
-import type { V1Domain } from './v1SubgraphClient'
-
 const waitForTransactionMock = vi.mocked(waitForTransaction)
-const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
-const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
-
-const OWNER: Address = '0x0000000000000000000000000000000000000001'
-const V1_RESOLVER: Address = '0x000000000000000000000000000000000000d003'
-const PERM_RES: Address = '0x000000000000000000000000000000000000d002'
+const startTransactionMock = vi.mocked(transactionManager.startTransaction)
 
 const WAGMI = {} as WagmiConfig
 const PUBLIC_CLIENT = { chain: { id: 11155111 } } as unknown as PublicClient
@@ -64,32 +31,41 @@ const SIGNER = {
   walletClient: { account: { address: OWNER } },
 } as unknown as EOASigner
 
-const unwrappedDomain = (id: string): V1Domain =>
-  ({
-    id,
-    name: `${id}.eth`,
-    labelName: id,
-    labelhash:
-      '0x0000000000000000000000000000000000000000000000000000000000000002',
-    createdAt: '0',
-    resolvedAddress: null,
-    resolver: { id: 'r', address: V1_RESOLVER },
-    owner: { id: OWNER },
-    registrant: { id: OWNER },
-    wrappedOwner: null,
-    parent: { name: 'eth', id: '0xparent', wrappedDomain: null },
-    registration: null,
-    wrappedDomain: null,
-  }) as V1Domain
-
 const DEFAULT_PREFLIGHT: MigrationPreflight = {
   preExistingOwnedPermRes: null,
-  skipApprovalPhase: false,
-  skipFetchProfilesPhase: false,
+  skipApprovalPhase: true,
+  skipFetchProfilesPhase: true,
+  needsBaseRegistrarApproval: false,
+  needsNameWrapperApproval: false,
 }
 
+const unwrappedDomain = (label: string): V1Domain =>
+  makeDomain({
+    id: `0x${label}`,
+    labelName: label,
+    name: `${label}.eth`,
+    isWrapped: false,
+    registrantId: OWNER,
+    ownerId: OWNER,
+  })
+
+const wrappedDomain = (label: string): V1Domain =>
+  makeDomain({
+    id: `0x${label}`,
+    labelName: label,
+    name: `${label}.eth`,
+    isWrapped: true,
+    registrantId: null,
+    wrappedOwnerId: OWNER,
+    ownerId: OWNER,
+  })
+
 const runExecute = async (
-  overrides: { domains?: V1Domain[]; preflight?: MigrationPreflight } = {},
+  overrides: {
+    domains?: V1Domain[]
+    preflight?: MigrationPreflight
+    onBatchComplete?: (names: readonly string[], txHash: Hex) => void
+  } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
   const domains = overrides.domains ?? [unwrappedDomain('alice')]
@@ -108,14 +84,21 @@ const runExecute = async (
     signer: SIGNER,
     accountAddress: OWNER,
     onProgress: (p) => progressEvents.push(p),
+    onBatchComplete: overrides.onBatchComplete,
   })
-  return { result, progressEvents }
+  return { result, progressEvents, plan }
+}
+
+const requestAt = (index: number): TransactionRequest => {
+  const intent = startTransactionMock.mock.calls[index]?.[0]
+  if (!intent || intent.type !== 'custom') {
+    throw new Error(`Missing custom transaction at index ${index}`)
+  }
+  return intent.request
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  fetchV1ProfilesMock.mockResolvedValue(new Map())
-  ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({
     hash: '0xdeadbeef' as Hex,
   } as Awaited<ReturnType<typeof waitForTransaction>>)
@@ -124,51 +107,80 @@ beforeEach(() => {
 describe('executeMigration', () => {
   it('returns empty result when there are no classifiable domains', async () => {
     const { result } = await runExecute({
-      domains: [{ ...unwrappedDomain('x'), labelName: null } as V1Domain],
+      domains: [makeDomain({ labelName: null })],
     })
+
     expect(result.completed).toBe(0)
     expect(result.txHashes).toEqual([])
     expect(result.ineligible.map((n) => n.reason)).toEqual(['unknown-label'])
     expect(waitForTransactionMock).not.toHaveBeenCalled()
   })
 
-  it('submits one batch for a single classified name and returns its tx hash', async () => {
-    const { result, progressEvents } = await runExecute()
+  it('submits one EOA MigrationHelper transaction for classified names', async () => {
+    const onBatchComplete = vi.fn()
+    const { result, progressEvents } = await runExecute({ onBatchComplete })
+
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual(['0xdeadbeef'])
     expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
-    expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
+    expect(startTransactionMock).toHaveBeenCalledTimes(1)
+
+    const request = requestAt(0)
+    expect(request.type).toBe('eoa')
+    expect(request.from).toBe(OWNER)
+    expect(request.to).toBe(V2_CONTRACTS.MigrationHelper)
+    if (!request.data) throw new Error('Migration request data missing')
+
+    const decoded = decodeFunctionData({
+      abi: MIGRATION_HELPER_ABI,
+      data: request.data,
+    })
+    expect(decoded.functionName).toBe('migrate')
+    expect(request.data).not.toContain('b88d4fde')
+    expect(request.data).not.toContain('f242432a')
+    expect(onBatchComplete).toHaveBeenCalledWith(['alice.eth'], '0xdeadbeef')
+    expect(progressEvents.at(-1)?.description).toMatch(/MigrationHelper/i)
   })
 
-  it('does not perform token approval when migrating from an EOA', async () => {
-    await runExecute({
+  it('submits BaseRegistrar approval, NameWrapper approval, then helper migrate via EOA', async () => {
+    waitForTransactionMock
+      .mockResolvedValueOnce({ hash: '0xbase' as Hex } as Awaited<
+        ReturnType<typeof waitForTransaction>
+      >)
+      .mockResolvedValueOnce({ hash: '0xwrapper' as Hex } as Awaited<
+        ReturnType<typeof waitForTransaction>
+      >)
+      .mockResolvedValueOnce({ hash: '0xmigrate' as Hex } as Awaited<
+        ReturnType<typeof waitForTransaction>
+      >)
+
+    const { result } = await runExecute({
+      domains: [unwrappedDomain('alice'), wrappedDomain('bob')],
       preflight: {
-        preExistingOwnedPermRes: null,
+        ...DEFAULT_PREFLIGHT,
         skipApprovalPhase: false,
-        skipFetchProfilesPhase: true,
+        needsBaseRegistrarApproval: true,
+        needsNameWrapperApproval: true,
       },
     })
-    expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
-  })
 
-  it('uses preExistingOwnedPermRes without calling ensureOwnedPermRes', async () => {
-    await runExecute({
-      preflight: {
-        preExistingOwnedPermRes: PERM_RES,
-        skipApprovalPhase: true,
-        skipFetchProfilesPhase: true,
-      },
-      domains: [
-        {
-          ...unwrappedDomain('alice'),
-          resolver: null,
-        } as V1Domain,
-      ],
+    expect(result.txHashes).toEqual(['0xbase', '0xwrapper', '0xmigrate'])
+    expect(startTransactionMock).toHaveBeenCalledTimes(3)
+    expect(requestAt(0)).toMatchObject({
+      type: 'eoa',
+      to: V1_CONTRACTS.BaseRegistrar,
     })
-    expect(ensureOwnedPermResMock).not.toHaveBeenCalled()
+    expect(requestAt(1)).toMatchObject({
+      type: 'eoa',
+      to: V1_CONTRACTS.NameWrapper,
+    })
+    expect(requestAt(2)).toMatchObject({
+      type: 'eoa',
+      to: V2_CONTRACTS.MigrationHelper,
+    })
   })
 
-  it('throws MigrationUserRejectedError on user rejection of a batch', async () => {
+  it('throws MigrationUserRejectedError on user rejection', async () => {
     const rejection = Object.assign(new Error('user rejected the request'), {
       name: 'UserRejectedRequestError',
     })
@@ -179,8 +191,9 @@ describe('executeMigration', () => {
     )
   })
 
-  it('throws MigrationError wrapping the cause on non-rejection batch failures', async () => {
+  it('throws MigrationError wrapping the cause on non-rejection failures', async () => {
     waitForTransactionMock.mockRejectedValueOnce(new Error('rpc broke'))
+
     await expect(runExecute()).rejects.toSatisfy(
       (e) => e instanceof Error && e.name === 'MigrationError',
     )
@@ -211,13 +224,17 @@ describe('executeMigration', () => {
   })
 
   it('ineligible names are returned and not counted as completed', async () => {
-    const bad = {
-      ...unwrappedDomain('bad'),
-      wrappedOwner: { id: OWNER },
-      wrappedDomain: { fuses: 1 | 4, expiryDate: '100' },
-    } as V1Domain
+    const bad = makeDomain({
+      id: 'bad',
+      name: 'bad.eth',
+      labelName: 'bad',
+      isWrapped: true,
+      wrappedOwnerId: OWNER,
+      fuses: 1 | 4,
+    })
     const good = unwrappedDomain('good')
     const { result } = await runExecute({ domains: [bad, good] })
+
     expect(result.completed).toBe(1)
     expect(result.ineligible.map((n) => n.domain.id)).toEqual(['bad'])
   })

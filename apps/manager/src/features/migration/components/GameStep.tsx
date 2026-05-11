@@ -54,17 +54,16 @@ export const GameStep = () => {
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Preparing migration...`)
     .with(
-      { kind: 'ensure-resolver' },
-      () => `${t`Setting up your v2 resolver`}...`,
+      { kind: 'approve-base-registrar' },
+      () => `${t`Approving .eth registrar migration`}...`,
     )
     .with(
-      { kind: 'batch-single' },
-      ({ count }) => `${t`Upgrading ${count} name(s) to v2`}...`,
+      { kind: 'approve-name-wrapper' },
+      () => `${t`Approving NameWrapper migration`}...`,
     )
     .with(
-      { kind: 'batch-multi' },
-      ({ batch, total, count }) =>
-        `${t`Batch ${batch}/${total}: upgrading ${count} name(s)`}...`,
+      { kind: 'migrate-helper' },
+      ({ count }) => `${t`Migrating ${count} name(s) to v2`}...`,
     )
     .exhaustive()
 

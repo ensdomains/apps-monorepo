@@ -262,6 +262,14 @@ msgstr "Approve the signature in your wallet, then wait for on-chain confirmatio
 msgid "Approving"
 msgstr "Approving"
 
+#: src/features/migration/components/GameStep.tsx:58
+msgid "Approving .eth registrar migration"
+msgstr "Approving .eth registrar migration"
+
+#: src/features/migration/components/GameStep.tsx:62
+msgid "Approving NameWrapper migration"
+msgstr "Approving NameWrapper migration"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Approving payment token"
 msgstr "Approving payment token"
@@ -350,10 +358,6 @@ msgstr "Back to Settings"
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
 msgstr "Backup Card"
-
-#: src/features/migration/components/GameStep.tsx:67
-msgid "Batch {batch}/{total}: upgrading {count} name(s)"
-msgstr "Batch {batch}/{total}: upgrading {count} name(s)"
 
 #: src/features/payment/components/add.tsx:44
 msgid "Billing country"
@@ -1249,6 +1253,10 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
+#: src/features/migration/components/GameStep.tsx:66
+msgid "Migrating {count} name(s) to v2"
+msgstr "Migrating {count} name(s) to v2"
+
 #: src/features/migration/pages/MigrationPage.tsx:186
 msgid "Migration failed"
 msgstr "Migration failed"
@@ -1991,10 +1999,6 @@ msgstr "Setting ETH address..."
 msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
-#: src/features/migration/components/GameStep.tsx:58
-msgid "Setting up your v2 resolver"
-msgstr "Setting up your v2 resolver"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
 msgid "Setting..."
 msgstr "Setting..."
@@ -2366,11 +2370,7 @@ msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profi
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:62
-msgid "Upgrading {count} name(s) to v2"
-msgstr "Upgrading {count} name(s) to v2"
-
-#: src/features/migration/components/GameStep.tsx:91
+#: src/features/migration/components/GameStep.tsx:90
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

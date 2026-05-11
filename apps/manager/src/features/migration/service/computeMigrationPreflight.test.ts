@@ -1,110 +1,96 @@
-import { err, ok, type Result } from 'neverthrow'
 import type { Address, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  OWNER as EOA,
-  makeDomain,
-  DEFAULT_RESOLVER as RESOLVER,
-} from './_fixtures'
+import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import { OWNER as EOA, makeDomain } from './_fixtures'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
-import { findExistingPermRes } from './ensureOwnedPermRes'
-import { getV1ProfileKeys } from './v1SubgraphClient'
 
-vi.mock('./ensureOwnedPermRes', () => ({
-  findExistingPermRes: vi.fn(),
-}))
-vi.mock('./v1SubgraphClient', async (importActual) => ({
-  ...(await importActual<typeof import('./v1SubgraphClient')>()),
-  getV1ProfileKeys: vi.fn(),
-}))
+const readContract = vi.fn()
 
-const findExistingPermResMock = vi.mocked(findExistingPermRes)
-const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
-
-const EXISTING_PERMRES: Address = '0x00000000000000000000000000000000000000f0'
+const publicClient = {
+  readContract,
+} as unknown as PublicClient
 
 const run = (
-  opts: {
-    domain?: Parameters<typeof makeDomain>[0]
-    permRes?: Address | null
-    profileKeys?: Result<unknown, unknown>
-  } = {},
-) => {
-  if (opts.permRes !== undefined) {
-    findExistingPermResMock.mockResolvedValueOnce(opts.permRes)
-  }
-  if (opts.profileKeys !== undefined) {
-    getV1ProfileKeysMock.mockReturnValueOnce(opts.profileKeys as never)
-  }
-  return computeMigrationPreflight({
+  domains: readonly Parameters<typeof makeDomain>[0][],
+): ReturnType<typeof computeMigrationPreflight> =>
+  computeMigrationPreflight({
     eoa: EOA,
-    domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
-    publicClient: {} as PublicClient,
+    domains: domains.map(makeDomain),
+    publicClient,
   })
-}
 
 beforeEach(() => {
-  findExistingPermResMock.mockReset()
-  getV1ProfileKeysMock.mockReset()
+  readContract.mockReset()
 })
 
-describe('computeMigrationPreflight — preExistingOwnedPermRes', () => {
-  it('skips findExistingPermRes when no name routes to owned-permres', async () => {
-    const result = await run()
-    expect(result.preExistingOwnedPermRes).toBeNull()
-    expect(findExistingPermResMock).not.toHaveBeenCalled()
+describe('computeMigrationPreflight', () => {
+  it('checks BaseRegistrar helper approval when unwrapped names exist', async () => {
+    readContract.mockResolvedValueOnce(false)
+
+    const result = await run([{ isWrapped: false }])
+
+    expect(readContract).toHaveBeenCalledWith({
+      address: V1_CONTRACTS.BaseRegistrar,
+      abi: BASE_REGISTRAR_ABI,
+      functionName: 'isApprovedForAll',
+      args: [EOA, V2_CONTRACTS.MigrationHelper],
+    })
+    expect(result.needsBaseRegistrarApproval).toBe(true)
+    expect(result.needsNameWrapperApproval).toBe(false)
+    expect(result.skipApprovalPhase).toBe(false)
   })
 
-  it('returns the existing permres when findExistingPermRes resolves to one', async () => {
-    const result = await run({
-      domain: { resolverAddress: null },
-      permRes: EXISTING_PERMRES,
-      profileKeys: ok([]),
-    })
-    expect(result.preExistingOwnedPermRes).toBe(EXISTING_PERMRES)
-  })
-})
+  it('checks NameWrapper helper approval when wrapped names exist', async () => {
+    readContract.mockResolvedValueOnce(false)
 
-describe('computeMigrationPreflight — skipApprovalPhase', () => {
-  it('always skips approval because migration is EOA-only', async () => {
-    const result = await run({
-      domain: { isWrapped: true, resolverAddress: RESOLVER },
+    const result = await run([
+      {
+        isWrapped: true,
+        registrantId: null,
+        wrappedOwnerId: EOA,
+        fuses: 0,
+      },
+    ])
+
+    expect(readContract).toHaveBeenCalledWith({
+      address: V1_CONTRACTS.NameWrapper,
+      abi: NAME_WRAPPER_ABI,
+      functionName: 'isApprovedForAll',
+      args: [EOA, V2_CONTRACTS.MigrationHelper],
     })
+    expect(result.needsBaseRegistrarApproval).toBe(false)
+    expect(result.needsNameWrapperApproval).toBe(true)
+    expect(result.skipApprovalPhase).toBe(false)
+  })
+
+  it('skips approval phase when required approvals already exist', async () => {
+    readContract.mockResolvedValueOnce(true)
+    readContract.mockResolvedValueOnce(true)
+
+    const result = await run([
+      { isWrapped: false },
+      {
+        isWrapped: true,
+        registrantId: null,
+        wrappedOwnerId: EOA,
+        fuses: 0,
+      },
+    ])
+
+    expect(result.needsBaseRegistrarApproval).toBe(false)
+    expect(result.needsNameWrapperApproval).toBe(false)
     expect(result.skipApprovalPhase).toBe(true)
-  })
-})
-
-describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
-  it('is true when no name routes to owned-permres', async () => {
-    const result = await run()
     expect(result.skipFetchProfilesPhase).toBe(true)
-    expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
+    expect(result.preExistingOwnedPermRes).toBeNull()
   })
 
-  it('is true when all profile keys are empty', async () => {
-    const result = await run({
-      domain: { resolverAddress: null },
-      permRes: null,
-      profileKeys: ok([{ id: '0xabc', texts: [], coinTypes: [] }]),
-    })
-    expect(result.skipFetchProfilesPhase).toBe(true)
-  })
+  it('does not check approvals when no owned names are classifiable', async () => {
+    const result = await run([
+      { registrantId: '0x00000000000000000000000000000000000000aa' as Address },
+    ])
 
-  it('is false when any profile has at least one text or coin type', async () => {
-    const result = await run({
-      domain: { resolverAddress: null },
-      permRes: null,
-      profileKeys: ok([{ id: '0xabc', texts: ['email'], coinTypes: [] }]),
-    })
-    expect(result.skipFetchProfilesPhase).toBe(false)
-  })
-
-  it('defaults to false when the subgraph query returns an Err', async () => {
-    const result = await run({
-      domain: { resolverAddress: null },
-      permRes: null,
-      profileKeys: err(new Error('subgraph down')),
-    })
-    expect(result.skipFetchProfilesPhase).toBe(false)
+    expect(readContract).not.toHaveBeenCalled()
+    expect(result.skipApprovalPhase).toBe(true)
   })
 })

@@ -56,3 +56,48 @@ export const PERMISSIONED_RESOLVER_ABI = [
   ...publicResolverTextSnippet,
   ...publicResolverMultiAddrSnippet,
 ] as const
+
+const migrationDataAbiComponents = [
+  { name: 'label', type: 'string' },
+  { name: 'owner', type: 'address' },
+  { name: 'subregistry', type: 'address' },
+  { name: 'resolver', type: 'address' },
+] as const
+
+export const MIGRATION_HELPER_ABI = [
+  {
+    type: 'function',
+    name: 'migrate',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        name: 'unwrapped',
+        type: 'tuple[]',
+        components: migrationDataAbiComponents,
+      },
+      {
+        name: 'unlockedGroups',
+        type: 'tuple[][]',
+        components: migrationDataAbiComponents,
+      },
+      {
+        name: 'lockedGroups',
+        type: 'tuple[][]',
+        components: migrationDataAbiComponents,
+      },
+      {
+        name: 'lockedChildrenGroups',
+        type: 'tuple[]',
+        components: [
+          { name: 'parentName', type: 'bytes' },
+          {
+            name: 'groups',
+            type: 'tuple[][]',
+            components: migrationDataAbiComponents,
+          },
+        ],
+      },
+    ],
+    outputs: [],
+  },
+] as const

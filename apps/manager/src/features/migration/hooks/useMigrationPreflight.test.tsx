@@ -17,7 +17,9 @@ vi.mock('@/features/migration/service/computeMigrationPreflight', () => ({
   EMPTY_PREFLIGHT: {
     preExistingOwnedPermRes: null,
     skipApprovalPhase: true,
-    skipFetchProfilesPhase: false,
+    skipFetchProfilesPhase: true,
+    needsBaseRegistrarApproval: false,
+    needsNameWrapperApproval: false,
   },
 }))
 
@@ -37,6 +39,13 @@ const wrapper = ({ children }: { children: ReactNode }) => {
 }
 
 const EOA = '0x0000000000000000000000000000000000000001' as const
+const emptyPreflight = {
+  preExistingOwnedPermRes: null,
+  skipApprovalPhase: true,
+  skipFetchProfilesPhase: true,
+  needsBaseRegistrarApproval: false,
+  needsNameWrapperApproval: false,
+} as const
 
 const domain = (id: string): V1Domain =>
   ({
@@ -62,11 +71,7 @@ describe('useMigrationPreflight', () => {
       },
     )
     const preflight = await result.current.ensure([domain('alice')])
-    expect(preflight).toEqual({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: true,
-      skipFetchProfilesPhase: false,
-    })
+    expect(preflight).toEqual(emptyPreflight)
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
 
@@ -77,11 +82,7 @@ describe('useMigrationPreflight', () => {
       wrapper,
     })
     const preflight = await result.current.ensure([domain('alice')])
-    expect(preflight).toEqual({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: true,
-      skipFetchProfilesPhase: false,
-    })
+    expect(preflight).toEqual(emptyPreflight)
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
 
@@ -91,6 +92,8 @@ describe('useMigrationPreflight', () => {
         '0x00000000000000000000000000000000000000f0' as const,
       skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
+      needsBaseRegistrarApproval: false,
+      needsNameWrapperApproval: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
@@ -101,11 +104,7 @@ describe('useMigrationPreflight', () => {
   })
 
   it('caches across calls with the same inputs (no duplicate compute)', async () => {
-    computeMigrationPreflightMock.mockResolvedValue({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: true,
-      skipFetchProfilesPhase: false,
-    })
+    computeMigrationPreflightMock.mockResolvedValue(emptyPreflight)
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
     })
@@ -116,11 +115,7 @@ describe('useMigrationPreflight', () => {
   })
 
   it('cache key is invariant under domain ordering (sorts ids)', async () => {
-    computeMigrationPreflightMock.mockResolvedValue({
-      preExistingOwnedPermRes: null,
-      skipApprovalPhase: true,
-      skipFetchProfilesPhase: false,
-    })
+    computeMigrationPreflightMock.mockResolvedValue(emptyPreflight)
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
     })

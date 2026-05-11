@@ -71,14 +71,9 @@ export type StepDescription =
   | { readonly kind: 'done' }
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
-  | { readonly kind: 'ensure-resolver' }
-  | { readonly kind: 'batch-single'; readonly count: number }
-  | {
-      readonly kind: 'batch-multi'
-      readonly batch: number
-      readonly total: number
-      readonly count: number
-    }
+  | { readonly kind: 'approve-base-registrar' }
+  | { readonly kind: 'approve-name-wrapper' }
+  | { readonly kind: 'migrate-helper'; readonly count: number }
 
 export const describeNextStep = (params: {
   readonly done: boolean
@@ -93,19 +88,16 @@ export const describeNextStep = (params: {
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
-    .with({ descriptor: { type: 'ensure-resolver' } }, () => ({
-      kind: 'ensure-resolver' as const,
+    .with({ descriptor: { type: 'approve-base-registrar' } }, () => ({
+      kind: 'approve-base-registrar' as const,
     }))
-    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) =>
-      descriptor.totalBatches === 1
-        ? ({ kind: 'batch-single' as const, count: descriptor.count } as const)
-        : ({
-            kind: 'batch-multi' as const,
-            batch: descriptor.batch,
-            total: descriptor.totalBatches,
-            count: descriptor.count,
-          } as const),
-    )
+    .with({ descriptor: { type: 'approve-name-wrapper' } }, () => ({
+      kind: 'approve-name-wrapper' as const,
+    }))
+    .with({ descriptor: { type: 'migrate-helper' } }, ({ descriptor }) => ({
+      kind: 'migrate-helper' as const,
+      count: descriptor.count,
+    }))
     .exhaustive()
 
 export type GiantMode = 'collapsed' | 'excited' | 'idle'

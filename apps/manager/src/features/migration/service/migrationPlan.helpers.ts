@@ -1,5 +1,5 @@
-import type { ZeroDevCall } from '@ens-apps/transaction-manager'
 import type { Address, Hex } from 'viem'
+import type { MigrationCall } from './buildMigrationCalls'
 import type { NameBundle } from './buildMigrationPlan'
 import type { ClassifiedName, GroupedNames } from './classifyNames'
 import type { Profile } from './fetchV1Profiles'
@@ -7,7 +7,7 @@ import type { Profile } from './fetchV1Profiles'
 const DEFERRED_PARENT_PLACEHOLDER: Address =
   '0x00000000000000000000000000000000deadbeef'
 
-export const calcBundleBytes = (calls: readonly ZeroDevCall[]): number => {
+export const calcBundleBytes = (calls: readonly MigrationCall[]): number => {
   let total = 0
   for (const c of calls) {
     total += Math.max(0, (c.data.length - 2) / 2)

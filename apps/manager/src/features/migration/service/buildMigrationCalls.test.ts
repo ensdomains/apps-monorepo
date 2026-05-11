@@ -1,12 +1,12 @@
-import { type Address, decodeFunctionData, zeroAddress } from 'viem'
-import { assert, describe, expect, it } from 'vitest'
-import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
-import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { makeClassified, OWNER } from './_fixtures'
+import { type Address, decodeFunctionData, toHex, zeroAddress } from 'viem'
+import { packetToBytes } from 'viem/ens'
+import { describe, expect, it } from 'vitest'
+import { MIGRATION_HELPER_ABI } from '../contracts/abis'
+import { V2_CONTRACTS } from '../contracts/addresses'
+import { makeClassified, OTHER, OWNER } from './_fixtures'
 import {
-  buildAllTransferCalls,
-  buildUnwrappedTransferCall,
-  buildWrappedTransferCall,
+  buildMigrationHelperCall,
+  buildMigrationHelperPayload,
   resolverFor,
 } from './buildMigrationCalls'
 
@@ -14,15 +14,14 @@ const DEFAULT_RESOLVER: Address = '0x000000000000000000000000000000000000d001'
 const PERM_RES: Address = '0x000000000000000000000000000000000000d002'
 const V1_RESOLVER: Address = '0x000000000000000000000000000000000000d003'
 
+const dnsPacketHex = (name: string) => toHex(packetToBytes(name))
+
 const classified = (o: Parameters<typeof makeClassified>[0] = {}) =>
   makeClassified({
     v1ResolverAddress: V1_RESOLVER,
     resolverStrategy: 'keep-v1',
     ...o,
   })
-
-const decodeNameWrapperCall = (data: `0x${string}`) =>
-  decodeFunctionData({ abi: NAME_WRAPPER_ABI, data })
 
 describe('resolverFor', () => {
   it.each([
@@ -32,7 +31,7 @@ describe('resolverFor', () => {
       V1_RESOLVER,
     ],
     [
-      'keep-v1 without v1 address → defaultResolver',
+      'keep-v1 without v1 address -> defaultResolver',
       { resolverStrategy: 'keep-v1' as const, v1ResolverAddress: null },
       DEFAULT_RESOLVER,
     ],
@@ -68,149 +67,153 @@ describe('resolverFor', () => {
   })
 })
 
-describe('buildUnwrappedTransferCall', () => {
-  it('targets BaseRegistrar with safeTransferFrom to UnlockedMigrationController', () => {
-    const call = buildUnwrappedTransferCall({
-      name: classified({ labelhash: '0x2a' }),
-      migrationOwner: OWNER,
-      defaultResolver: DEFAULT_RESOLVER,
-      ownedPermRes: null,
-    })
-    expect(call.to).toBe(V1_CONTRACTS.BaseRegistrar)
-    expect(call.value).toBe(0n)
-
-    const { functionName, args } = decodeFunctionData({
-      abi: BASE_REGISTRAR_ABI,
-      data: call.data,
-    })
-    expect(functionName).toBe('safeTransferFrom')
-    const [from, to, tokenId] = args as [Address, Address, bigint, unknown]
-    expect(from.toLowerCase()).toBe(OWNER.toLowerCase())
-    expect(to.toLowerCase()).toBe(
-      V2_CONTRACTS.UnlockedMigrationController.toLowerCase(),
-    )
-    expect(tokenId).toBe(BigInt('0x2a'))
-  })
-})
-
-describe('buildWrappedTransferCall', () => {
-  it('targets NameWrapper with safeTransferFrom(value=1) to receiver', () => {
-    const receiver = V2_CONTRACTS.LockedMigrationController
-    const call = buildWrappedTransferCall({
-      name: classified({ tokenType: 'locked-2ld', id: '0x99' }),
-      migrationOwner: OWNER,
-      defaultResolver: DEFAULT_RESOLVER,
-      ownedPermRes: null,
-      target: receiver,
-    })
-    expect(call.to).toBe(V1_CONTRACTS.NameWrapper)
-
-    const { functionName, args } = decodeNameWrapperCall(call.data)
-    expect(functionName).toBe('safeTransferFrom')
-    const [from, to, tokenId, value] = args as [
-      Address,
-      Address,
-      bigint,
-      bigint,
-      unknown,
-    ]
-    expect(from.toLowerCase()).toBe(OWNER.toLowerCase())
-    expect(to.toLowerCase()).toBe(receiver.toLowerCase())
-    expect(tokenId).toBe(BigInt('0x99'))
-    expect(value).toBe(1n)
-  })
-})
-
-describe('buildAllTransferCalls dispatcher', () => {
-  const parentRegistry: Address = '0x0000000000000000000000000000000000000a01'
+describe('buildMigrationHelperPayload', () => {
   const build = (names: Parameters<typeof makeClassified>[0][]) =>
-    buildAllTransferCalls({
+    buildMigrationHelperPayload({
       classified: names.map(classified),
       migrationOwner: OWNER,
       defaultResolver: DEFAULT_RESOLVER,
       ownedPermRes: null,
-      parentRegistries: new Map([['raffy.eth', parentRegistry]]),
     })
 
-  it.each([
-    [
-      'unwrapped → BaseRegistrar',
-      { tokenType: 'unwrapped' as const },
-      V1_CONTRACTS.BaseRegistrar,
-      undefined,
-    ],
-    [
-      'unlocked → NameWrapper → UnlockedMigrationController',
-      { tokenType: 'unlocked' as const },
-      V1_CONTRACTS.NameWrapper,
-      V2_CONTRACTS.UnlockedMigrationController,
-    ],
-    [
-      'locked-2ld → NameWrapper → LockedMigrationController',
-      { tokenType: 'locked-2ld' as const },
-      V1_CONTRACTS.NameWrapper,
-      V2_CONTRACTS.LockedMigrationController,
-    ],
-    [
-      'locked-child → NameWrapper → parent registry',
+  it('builds the mixed 2LD + 3LD helper shape', () => {
+    const payload = build([
+      { tokenType: 'unwrapped', label: 'alice', name: 'alice.eth' },
       {
-        tokenType: 'locked-child' as const,
-        parentName: 'raffy.eth',
-        name: 'sub.raffy.eth',
+        tokenType: 'unlocked',
+        label: 'bob',
+        name: 'bob.eth',
+        tokenHolder: OWNER,
       },
-      V1_CONTRACTS.NameWrapper,
-      parentRegistry,
-    ],
-    [
-      'detached-child → NameWrapper → parent registry',
       {
-        tokenType: 'detached-child' as const,
-        parentName: 'raffy.eth',
-        name: 'sub.raffy.eth',
+        tokenType: 'locked-2ld',
+        label: 'raffy',
+        name: 'raffy.eth',
+        tokenHolder: OWNER,
       },
-      V1_CONTRACTS.NameWrapper,
-      parentRegistry,
-    ],
-  ])('routes %s', (_, overrides, expectedTo, expectedReceiver) => {
-    const [call] = build([overrides])
-    assert(call)
-    expect(call.to).toBe(expectedTo)
-    if (expectedReceiver) {
-      const { args } = decodeNameWrapperCall(call.data)
-      expect((args as [unknown, Address])[1].toLowerCase()).toBe(
-        expectedReceiver.toLowerCase(),
-      )
-    }
-  })
+      {
+        tokenType: 'locked-child',
+        label: 'sub',
+        name: 'sub.raffy.eth',
+        parentName: 'raffy.eth',
+        tokenHolder: OWNER,
+      },
+      {
+        tokenType: 'detached-child',
+        label: 'detached',
+        name: 'detached.raffy.eth',
+        parentName: 'raffy.eth',
+        tokenHolder: OWNER,
+      },
+    ])
 
-  it('throws when the parent registry is missing for a child', () => {
-    expect(() =>
-      buildAllTransferCalls({
-        classified: [
-          classified({
-            tokenType: 'locked-child',
-            parentName: 'missing.eth',
-            name: 'sub.missing.eth',
-          }),
+    expect(payload.unwrapped.map((d) => d.label)).toEqual(['alice'])
+    expect(payload.unlockedGroups.map((g) => g.map((d) => d.label))).toEqual([
+      ['bob'],
+    ])
+    expect(payload.lockedGroups.map((g) => g.map((d) => d.label))).toEqual([
+      ['raffy'],
+    ])
+    expect(payload.lockedChildrenGroups).toEqual([
+      {
+        parentName: dnsPacketHex('raffy.eth'),
+        groups: [
+          [
+            expect.objectContaining({ label: 'sub' }),
+            expect.objectContaining({ label: 'detached' }),
+          ],
         ],
-        migrationOwner: OWNER,
-        defaultResolver: DEFAULT_RESOLVER,
-        ownedPermRes: null,
-        parentRegistries: new Map(),
-      }),
-    ).toThrow(/Parent registry not found/i)
+      },
+    ])
   })
 
-  it('preserves order and emits one call per classified name', () => {
-    const calls = build([
-      { tokenType: 'unwrapped', id: '0x10' },
-      { tokenType: 'unlocked', id: '0x11' },
-      { tokenType: 'locked-2ld', id: '0x12' },
+  it('groups wrapped names by tokenHolder because safeBatchTransferFrom has one from address', () => {
+    const payload = build([
+      { tokenType: 'unlocked', label: 'owned', tokenHolder: OWNER },
+      { tokenType: 'unlocked', label: 'approved', tokenHolder: OTHER },
     ])
-    expect(calls.map((c) => c.to)).toEqual([
-      V1_CONTRACTS.BaseRegistrar,
-      V1_CONTRACTS.NameWrapper,
-      V1_CONTRACTS.NameWrapper,
+
+    expect(payload.unlockedGroups.map((g) => g.map((d) => d.label))).toEqual([
+      ['owned'],
+      ['approved'],
     ])
+  })
+
+  it('groups locked children by DNS-encoded parent name and then tokenHolder', () => {
+    const payload = build([
+      {
+        tokenType: 'locked-child',
+        label: 'a',
+        name: 'a.raffy.eth',
+        parentName: 'raffy.eth',
+        tokenHolder: OWNER,
+      },
+      {
+        tokenType: 'locked-child',
+        label: 'b',
+        name: 'b.raffy.eth',
+        parentName: 'raffy.eth',
+        tokenHolder: OTHER,
+      },
+    ])
+
+    expect(payload.lockedChildrenGroups).toHaveLength(1)
+    expect(payload.lockedChildrenGroups[0]?.parentName).toBe(
+      dnsPacketHex('raffy.eth'),
+    )
+    expect(
+      payload.lockedChildrenGroups[0]?.groups.map((g) => g.map((d) => d.label)),
+    ).toEqual([['a'], ['b']])
+  })
+
+  it('orders child parent groups by name depth before lexical tie-breaks', () => {
+    const payload = build([
+      {
+        tokenType: 'locked-child',
+        label: 'deep',
+        name: 'deep.sub.raffy.eth',
+        parentName: 'sub.raffy.eth',
+      },
+      {
+        tokenType: 'locked-child',
+        label: 'shallow',
+        name: 'shallow.raffy.eth',
+        parentName: 'raffy.eth',
+      },
+    ])
+
+    expect(payload.lockedChildrenGroups.map((g) => g.parentName)).toEqual([
+      dnsPacketHex('raffy.eth'),
+      dnsPacketHex('sub.raffy.eth'),
+    ])
+  })
+})
+
+describe('buildMigrationHelperCall', () => {
+  it('targets MigrationHelper.migrate without per-token safeTransferFrom calls', () => {
+    const payload = buildMigrationHelperPayload({
+      classified: [
+        classified({ tokenType: 'unwrapped', label: 'alice' }),
+        classified({ tokenType: 'unlocked', label: 'bob' }),
+      ],
+      migrationOwner: OWNER,
+      defaultResolver: DEFAULT_RESOLVER,
+      ownedPermRes: null,
+    })
+
+    const call = buildMigrationHelperCall(payload)
+    expect(call.to).toBe(V2_CONTRACTS.MigrationHelper)
+    expect(call.value).toBe(0n)
+
+    const { functionName, args } = decodeFunctionData({
+      abi: MIGRATION_HELPER_ABI,
+      data: call.data,
+    })
+    expect(functionName).toBe('migrate')
+    if (!args) throw new Error('migrate args were not decoded')
+    expect(args[0]).toHaveLength(1)
+    expect(args[1]).toHaveLength(1)
+    expect(call.data).not.toContain('b88d4fde')
+    expect(call.data).not.toContain('f242432a')
   })
 })

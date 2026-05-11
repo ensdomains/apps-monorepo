@@ -14,6 +14,7 @@ export const V2_DEPLOY_BLOCK = 10462885n
 // truth. Remove this local table once the upstream addresses export lands.
 export const V2_CONTRACTS = {
   ETHRegistry: '0x28356dacb84ee3ebdb007d1f5920b24c87e90d40' as Address,
+  MigrationHelper: '0x09B9E95D8633EDA8d9E530f258c634A2953Cd3FA' as Address,
   UnlockedMigrationController:
     '0xf9108e0797406c45ca43f103b176cbd902a12fba' as Address,
   LockedMigrationController:
