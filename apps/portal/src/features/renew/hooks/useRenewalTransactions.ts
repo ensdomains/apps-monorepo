@@ -1,4 +1,5 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
+import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { encodeRenewEthRegistrarNameData } from '@ensdomains/ensjs/wallet/v2'
 import { getWalletClient } from '@wagmi/core/actions'
@@ -140,6 +141,9 @@ function buildRenewTransaction(
     name: params.name,
     duration: params.duration,
     paymentToken: params.tokenAddress,
+    // Same bytes32 zero referrer as legacy renew calldata; ensjs defaults this
+    // to `zeroHash` when omitted — explicit for parity with registration flows.
+    referrer: REFERER_ADDRESS,
   })
 
   transactionManager.startTransaction(
