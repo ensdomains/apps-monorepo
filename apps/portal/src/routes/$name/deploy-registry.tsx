@@ -90,7 +90,6 @@ function RouteComponent() {
 
   const {
     deploySubregistryAsync,
-    deployedSubregistryAddress,
     isConfirming: isDeployConfirming,
     hasWallet: hasDeployWallet,
   } = useDeploySubregistry({
@@ -125,13 +124,9 @@ function RouteComponent() {
   }
 
   const handleSetSubregistryAfterDeployStart = () => {
-    if (deployedSubregistryAddressRef.current) {
-      setSubregistry(deployedSubregistryAddressRef.current)
-      return
-    }
-    if (deployedSubregistryAddress) {
-      setSubregistry(deployedSubregistryAddress)
-    }
+    const deployed = deployedSubregistryAddressRef.current
+    if (!deployed) return
+    setSubregistry(deployed)
   }
 
   const handleSetSubregistryStart = () => {
