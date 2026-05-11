@@ -30,7 +30,7 @@ export const ResolverCard = ({
           className="flex items-center gap-4 text-left cursor-pointer"
           onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
         >
-          <ResolverIcon className="size-4 shrink-0 text-icon-foreground" />
+          <ResolverIcon className="size-4 shrink-0 text-neutral-7" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Resolver
           </span>
@@ -51,7 +51,7 @@ export const ResolverCard = ({
         className="flex items-center gap-6 text-left cursor-pointer"
         onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
       >
-        <ResolverIcon className="size-8 shrink-0 text-icon-foreground" />
+        <ResolverIcon className="size-8 shrink-0 text-neutral-7" />
         <span className="text-sm text-muted-foreground">Resolver</span>
       </button>
       {value}

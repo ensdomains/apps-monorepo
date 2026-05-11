@@ -39,7 +39,7 @@ export const RegistryCard = ({
         params={{ name }}
         className="flex items-center gap-4 py-3 hover:bg-muted/50"
       >
-        <HubIcon className="size-4 shrink-0 text-icon-foreground" />
+        <HubIcon className="size-4 shrink-0 text-neutral-7" />
         <span className="text-sm text-muted-foreground w-24 shrink-0">
           Subregistry
         </span>
@@ -60,7 +60,7 @@ export const RegistryCard = ({
       params={{ name }}
       className="h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted"
     >
-      <HubIcon className="size-8 shrink-0 text-icon-foreground" />
+      <HubIcon className="size-8 shrink-0 text-neutral-7" />
       {isCustomRegistry ? (
         <RegistryLocation name={name} registryAddress={registryAddress} />
       ) : (
