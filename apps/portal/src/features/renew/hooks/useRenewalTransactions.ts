@@ -1,7 +1,7 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { encodeRenewEthRegistrarNameData } from '@ensdomains/ensjs/wallet/v2'
+import { encodeRenewNameData } from '@ensdomains/ensjs/wallet/v2'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { type Address, encodeFunctionData, erc20Abi } from 'viem'
@@ -137,7 +137,7 @@ function buildRenewTransaction(
   params: RenewParams,
   signer: ReturnType<typeof createEOASigner>,
 ) {
-  const renewData = encodeRenewEthRegistrarNameData({
+  const renewData = encodeRenewNameData({
     name: params.name,
     duration: params.duration,
     paymentToken: params.tokenAddress,
