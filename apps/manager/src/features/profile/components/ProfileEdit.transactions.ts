@@ -253,6 +253,14 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
+        // Resolver record writes (setText / setAddr / multicall) are NOT
+        // in the registration-scoped smart-session allowlist (see
+        // apps/manager/src/lib/smart-account/sessions/build-registration-session.ts),
+        // so signing this UserOp with the session key would fail the
+        // on-chain SmartSession validator → "Bundle simulation failed".
+        // Force the SDK to use the SCA's default validator instead, which
+        // prompts an EOA-owner signature.
+        useSession: false,
       },
     } as RhinestoneTransactionRequest
   }
@@ -268,6 +276,13 @@ function createTransactionRequest(params: {
       zerodevParams: {
         calls,
         sponsored: sponsored ?? true,
+        // Same reasoning as the rhinestone branch above: profile-record
+        // writes aren't covered by the registration-scoped session. The
+        // ZeroDev transport currently can't transparently swap to the
+        // master Kernel client, so this flag is informational until the
+        // signer carries both clients; for now the caller is expected to
+        // pass a non-session zerodev signer for this path.
+        useSession: false,
       },
     } as ZeroDevTransactionRequest
   }
