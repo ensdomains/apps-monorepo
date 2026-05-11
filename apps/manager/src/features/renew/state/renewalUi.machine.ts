@@ -137,17 +137,17 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.duration.set'; duration: number }
       | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
       | {
-        type: 'renewal.start'
-        label: string
-        duration: bigint
-        token: SUPPORTED_TOKEN
-        /** Price in token units */
-        priceRaw: bigint
-        signer: Signer
+          type: 'renewal.start'
+          label: string
+          duration: bigint
+          token: SUPPORTED_TOKEN
+          /** Price in token units */
+          priceRaw: bigint
+          signer: Signer
 
-        /** Formatted base price */
-        priceNumber: number
-      }
+          /** Formatted base price */
+          priceNumber: number
+        }
       | { type: 'retry' }
       | { type: 'cancel' }
       | { type: 'label.changed' },
@@ -196,13 +196,13 @@ export const renewalUiMachine = setup({
       submissionData: ({ event }) =>
         event.type === 'renewal.start'
           ? {
-            label: event.label,
-            duration: event.duration,
-            signer: event.signer,
-            token: event.token,
-            priceRaw: event.priceRaw,
-            priceNumber: event.priceNumber,
-          }
+              label: event.label,
+              duration: event.duration,
+              signer: event.signer,
+              token: event.token,
+              priceRaw: event.priceRaw,
+              priceNumber: event.priceNumber,
+            }
           : undefined,
     }),
     invalidateNameQueries: ({ context }) => {
