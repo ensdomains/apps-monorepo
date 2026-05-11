@@ -1,3 +1,4 @@
+import { SupervisorAccountIcon } from '@/assets/icons'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { BlockCard } from '@/features/dashboard/components'
 import { NameAvatar } from './NameAvatar'
@@ -23,7 +24,7 @@ export const ParentName = ({
       )
     return (
       <div className="flex items-center gap-4 w-full">
-        <NameAvatar width="20px" height="20px" name={parent} />
+        <SupervisorAccountIcon className="size-4 shrink-0 text-neutral-7" />
         <span className="text-sm text-muted-foreground w-24 shrink-0">
           Parent
         </span>
