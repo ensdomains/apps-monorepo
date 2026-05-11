@@ -73,9 +73,10 @@ export function submitRhinestoneTransaction(input: {
       // (target, selector) is outside the session's action allowlist.
       const sessionAllowedByRequest =
         rhinestoneRequest.rhinestoneParams.useSession !== false
-      const sessionSigners = sessionAllowedByRequest
-        ? config.sessionConfig?.signers
-        : undefined
+      const sessionSigners =
+        config.isSessionClient && sessionAllowedByRequest
+          ? config.sessionConfig?.signers
+          : undefined
 
       console.log('📤 Calling rhinestoneAccount transaction...', {
         chain: chain.name,

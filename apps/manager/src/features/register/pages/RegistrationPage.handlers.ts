@@ -72,8 +72,9 @@ export function handleStartRegistration(
   const ownerAddress = account.ownerAddress ?? account.accountAddress
   // EACL grantee for the dedicated resolver. The PermissionedResolver unwraps
   // SCA→EOA at write time, so this must always be the EOA. In the legacy v1
-  // flow ownerAddress already prefers the EOA, so we mirror it here.
-  const resolverOwnerAddress = account.ownerAddress ?? account.accountAddress
+  // flow ownerAddress already prefers the EOA, so we alias it here. The
+  // meaningful SCA/EOA split lives in registrationUi.machine.ts (v2 flow).
+  const resolverOwnerAddress = ownerAddress
 
   console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
