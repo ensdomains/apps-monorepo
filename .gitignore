@@ -10,3 +10,4 @@ package-lock.json
 .dev.vars
 .pnpm-store/
 opencode.json
+e2e/test-results/*

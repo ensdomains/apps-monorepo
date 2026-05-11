@@ -950,12 +950,12 @@ msgstr "Failed to add telegram: "
 msgid "Failed to authenticate with Telegram"
 msgstr "Failed to authenticate with Telegram"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:242
+#: src/lib/smart-account/SmartAccountContext.tsx:240
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:243
+#: src/lib/smart-account/SmartAccountContext.tsx:241
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
@@ -1040,11 +1040,11 @@ msgstr "Frequently Asked Questions"
 msgid "From:"
 msgstr "From:"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:213
+#: src/lib/smart-account/SmartAccountContext.tsx:211
 msgid "Funding wallet"
 msgstr "Funding wallet"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:214
+#: src/lib/smart-account/SmartAccountContext.tsx:212
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
@@ -2573,7 +2573,7 @@ msgstr "Waiting for transaction"
 msgid "Waiting period"
 msgstr "Waiting period"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:231
+#: src/lib/smart-account/SmartAccountContext.tsx:229
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
@@ -2589,7 +2589,7 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 msgid "Wallet Connected"
 msgstr "Wallet Connected"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:230
+#: src/lib/smart-account/SmartAccountContext.tsx:228
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 

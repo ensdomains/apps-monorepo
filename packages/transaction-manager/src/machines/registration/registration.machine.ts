@@ -325,6 +325,10 @@ export const registrationMachine = setup({
       registerReadyTimestamp: () => undefined,
     }),
 
+    setFallbackRegisterReadyTimestamp: assign({
+      registerReadyTimestamp: () => Date.now() + COMMITMENT_WAIT_DURATION_MS,
+    }),
+
     logRegistrationDuration: ({ context }) => {
       if (
         !context.registrationStartedAt ||
@@ -645,24 +649,42 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           useFastRegistrar: context.useFastRegistrar,
         }),
-        onDone: {
-          target: 'commitmentCooldown',
-          actions: assign({
-            registerReadyTimestamp: ({ event }) => {
-              const minAgeSeconds = Number(event.output as bigint)
-              return Date.now() + minAgeSeconds * 1000
-            },
-          }),
-        },
-        onError: {
-          // Fall back to the default cooldown so registration can still
-          // proceed even if the read fails.
-          target: 'commitmentCooldown',
-          actions: assign({
-            registerReadyTimestamp: () =>
-              Date.now() + COMMITMENT_WAIT_DURATION_MS,
-          }),
-        },
+        onDone: [
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) => {
+                const minAgeSeconds = Number(event.output as bigint)
+                return Date.now() + minAgeSeconds * 1000
+              },
+            }),
+          },
+          {
+            target: 'checkingAllowance',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) => {
+                const minAgeSeconds = Number(event.output as bigint)
+                return Date.now() + minAgeSeconds * 1000
+              },
+            }),
+          },
+        ],
+        onError: [
+          {
+            // Bundled approve+register cannot approve early, so it still waits
+            // before submitting the combined transaction.
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: 'setFallbackRegisterReadyTimestamp',
+          },
+          {
+            // Fall back to the default cooldown so registration can still
+            // proceed even if the read fails.
+            target: 'checkingAllowance',
+            actions: 'setFallbackRegisterReadyTimestamp',
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
@@ -713,9 +735,10 @@ export const registrationMachine = setup({
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
-          const targetTimestamp =
-            context.registerReadyTimestamp ??
-            Date.now() + COMMITMENT_WAIT_DURATION_MS
+          // If the ready timestamp is missing (for example after restoring an
+          // older snapshot), do not reintroduce an artificial cooldown when the
+          // commitment has already been validated as old enough on-chain.
+          const targetTimestamp = context.registerReadyTimestamp ?? Date.now()
           const delayMs = Math.max(0, targetTimestamp - Date.now())
           return { delayMs }
         },
@@ -724,7 +747,7 @@ export const registrationMachine = setup({
             guard: 'isRhinestoneSigner',
             target: 'submittingRhinestoneBundle',
           },
-          { target: 'checkingAllowance' },
+          { target: 'registeringDomain' },
         ],
         onError: {
           target: 'error',
@@ -819,11 +842,7 @@ export const registrationMachine = setup({
     },
 
     checkingAllowance: {
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'clearRegisterReadyTimestamp',
-      ],
+      entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'readPaymentTokenAllowance',
         input: ({ context }) => ({
@@ -842,7 +861,7 @@ export const registrationMachine = setup({
               const allowance = event.output as bigint
               return allowance >= context.tokenPrice
             },
-            target: 'registeringDomain',
+            target: 'commitmentCooldown',
           },
           { target: 'approvingToken' },
         ],
@@ -858,11 +877,7 @@ export const registrationMachine = setup({
     },
 
     approvingToken: {
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'clearRegisterReadyTimestamp',
-      ],
+      entry: ['logTransition', 'recordTransition'],
       invoke: {
         src: 'submitApproval',
         input: ({ context }) => ({
@@ -909,7 +924,7 @@ export const registrationMachine = setup({
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.approvalTxId! }),
-        onDone: 'registeringDomain',
+        onDone: 'commitmentCooldown',
         onError: {
           target: 'error',
           actions: [

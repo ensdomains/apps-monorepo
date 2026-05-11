@@ -30,6 +30,7 @@ import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import type { RhinestoneConfig } from './rhinestone'
+import { buildRegistrationSessionActions } from './sessions/build-registration-session'
 import {
   selectIsCreatingSession,
   selectIsLoading,
@@ -42,6 +43,12 @@ import type {
   ZeroDevAccountState,
 } from './types'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
+
+/** True when using a local bundler (e.g. Alto) — no Pimlico API key needed. */
+const isLocalBundler = (): boolean => {
+  const url = import.meta.env.VITE_PIMLICO_BUNDLER_URL
+  return typeof url === 'string' && url.length > 0
+}
 
 export interface SmartAccountContextValue
   extends Omit<ZeroDevAccountState, 'type' | 'client' | 'config'> {
@@ -298,9 +305,21 @@ export const SmartAccountContextProvider = ({
     if (!baseClient || !accountAddress) return null
 
     if (provider === 'rhinestone') {
-      const rhinestoneApiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+      const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+      const rhinestoneApiKey =
+        import.meta.env.VITE_RHINESTONE_API_KEY ||
+        (isLocalOrchestrator ? 'local-dev' : undefined)
       if (!rhinestoneApiKey) {
         logger.error('Rhinestone API key not configured - cannot create signer')
+        return null
+      }
+      // The session policy pins both `register.owner == SCA` and
+      // `HCAFactory.setAccountOwner.eoa == EOA`. Without a known EOA we
+      // cannot reproduce the actions baked into the enable signature, so
+      // refuse to construct the signer rather than risk an
+      // `InvalidSignature()` revert at orchestrator time.
+      if (!ownerAddress) {
+        logger.error('Rhinestone signer: missing EOA owner address')
         return null
       }
 
@@ -343,7 +362,14 @@ export const SmartAccountContextProvider = ({
                     ],
                   },
                   chain: customSepolia,
-                  actions: [{ policies: [{ type: 'sudo' as const }] }],
+                  // Must match the actions baked into the EIP-712 enable
+                  // signature produced in sessions/rhinestone-session.ts at
+                  // session creation time. Any divergence breaks the
+                  // PermissionId and yields `InvalidSignature()`.
+                  actions: buildRegistrationSessionActions({
+                    smartAccountAddress: accountAddress,
+                    eoaAddress: ownerAddress,
+                  }),
                 },
                 enableData: {
                   userSignature: rhinestoneSessionClient.enableSignature,
@@ -360,8 +386,9 @@ export const SmartAccountContextProvider = ({
       }
     }
 
-    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-    if (!pimlicoApiKey) {
+    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY || ''
+    // Local bundler (Alto) does not need a Pimlico API key
+    if (!pimlicoApiKey && !isLocalBundler()) {
       logger.error('Pimlico API key not configured - cannot create signer')
       return null
     }
@@ -382,6 +409,7 @@ export const SmartAccountContextProvider = ({
     baseClient,
     sessionClient,
     accountAddress,
+    ownerAddress,
     accountType,
     isSessionClient,
     provider,
