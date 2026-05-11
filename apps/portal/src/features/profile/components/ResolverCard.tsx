@@ -1,4 +1,3 @@
-import { useNavigate } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { ResolverIcon } from '@/assets/icons'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
@@ -14,8 +13,6 @@ export const ResolverCard = ({
   resolverAddress: Address
   asRow?: boolean
 }) => {
-  const navigate = useNavigate()
-
   const value = (
     <EntityBadgeWithActions variant="contract" address={resolverAddress}>
       {truncateAddress(resolverAddress, 6, 4, '...')}
@@ -24,17 +21,11 @@ export const ResolverCard = ({
 
   if (asRow) {
     return (
-      <div className="flex items-center gap-4 rounded hover:bg-muted/50 w-full">
-        <button
-          type="button"
-          className="flex items-center gap-4 text-left cursor-pointer"
-          onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
-        >
-          <ResolverIcon className="size-4 shrink-0 text-neutral-7" />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Resolver
-          </span>
-        </button>
+      <div className="flex items-center gap-4 w-full">
+        <ResolverIcon className="size-4 shrink-0 text-neutral-7" />
+        <span className="text-sm text-muted-foreground w-24 shrink-0">
+          Resolver
+        </span>
         {value}
       </div>
     )

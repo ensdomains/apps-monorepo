@@ -1,4 +1,3 @@
-import { useNavigate } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
@@ -18,7 +17,6 @@ export const Owner = ({
   className?: string
   asRow?: boolean
 }) => {
-  const navigate = useNavigate()
   const {
     data: ownerName,
     error,
@@ -50,32 +48,16 @@ export const Owner = ({
   const variant = ownerName ? 'name' : 'address'
 
   if (asRow) {
-    const handleRowClick = () => {
-      if (ownerName) navigate({ to: '/$name', params: { name: ownerName } })
-      else navigate({ to: '/addr/$addr', params: { addr: owner } })
-    }
-
     return (
-      <div
-        className={cn(
-          'flex items-center gap-4 rounded hover:bg-muted/50 w-full',
-          className,
-        )}
-      >
-        <button
-          type="button"
-          className="flex items-center gap-4 text-left cursor-pointer"
-          onClick={handleRowClick}
-        >
-          <NameAvatar
-            width="20px"
-            height="20px"
-            name={ownerName || shortenedAddress}
-          />
-          <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
-            {label}
-          </span>
-        </button>
+      <div className={cn('flex items-center gap-4 w-full', className)}>
+        <NameAvatar
+          width="20px"
+          height="20px"
+          name={ownerName || shortenedAddress}
+        />
+        <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
+          {label}
+        </span>
         <EntityBadgeWithActions
           variant={variant}
           name={ownerName ?? undefined}

@@ -34,11 +34,7 @@ export const RegistryCard = ({
   if (asRow) {
     if (isV1) return null
     return (
-      <Link
-        to="/$name/registry"
-        params={{ name }}
-        className="flex items-center gap-4 py-3 hover:bg-muted/50"
-      >
+      <div className="flex items-center gap-4 py-3">
         <HubIcon className="size-4 shrink-0 text-neutral-7" />
         <span className="text-sm text-muted-foreground w-24 shrink-0">
           Subregistry
@@ -48,7 +44,7 @@ export const RegistryCard = ({
         ) : (
           <span className="text-muted-foreground">None set</span>
         )}
-      </Link>
+      </div>
     )
   }
 
