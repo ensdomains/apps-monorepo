@@ -111,6 +111,9 @@ function RouteComponent() {
 
   const walletOk = isDeployPath ? hasDeployWallet : hasSetWallet
 
+  // `Transaction.onStart` is `() => void`, so this Promise is never awaited by
+  // the modal or `useAutoAdvanceTransaction`. That is intentional: failures are
+  // handled inside `ResultAsync.fromPromise` so nothing rejects unhandled.
   const handleDeploySubregistryStart = async () => {
     await ResultAsync.fromPromise(
       deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID }),
