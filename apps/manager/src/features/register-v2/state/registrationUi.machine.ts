@@ -20,6 +20,12 @@ import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountC
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import { SECONDS_IN_YEAR } from '../utils/time'
+import {
+  getRegistrationStageProgress,
+  type MaxProgressReached,
+  REGISTRATION_STAGE_PROGRESS,
+  type RegistrationStage,
+} from './registration.stages'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
@@ -48,6 +54,8 @@ type Context = {
     /** Formatted premium price */
     premiumPriceNumber: number
   }
+
+  maxProgressReached?: MaxProgressReached
 }
 
 type Events =
@@ -113,6 +121,9 @@ const machineSetup = setup({
     }),
     clearError: assign({
       lastErrorMessage: () => undefined,
+    }),
+    clearMaxProgress: assign({
+      maxProgressReached: () => undefined,
     }),
     setError: assign({
       lastErrorMessage: ({ event }) =>
@@ -236,6 +247,21 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           })),
         ],
       },
+      {
+        actions: assign({
+          maxProgressReached: ({ context, event }) => {
+            const value = event.snapshot.value
+            const stage = typeof value === 'string' ? value : String(value)
+            if (!(stage in REGISTRATION_STAGE_PROGRESS)) {
+              return context.maxProgressReached
+            }
+            const progress = getRegistrationStageProgress(stage)
+            const current = context.maxProgressReached
+            if (current && progress <= current.progress) return current
+            return { stage: stage as RegistrationStage, progress }
+          },
+        }),
+      },
     ],
   },
   initial: 'pricing',
@@ -244,6 +270,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     duration: SECONDS_IN_YEAR,
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    maxProgressReached: undefined,
   }),
   states: {
     pricing: {
@@ -275,7 +302,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               target: '#registrationV2Ui.registering',
               guard: ({ event }) =>
                 event.duration >= MIN_REGISTER_DURATION_SECONDS,
-              actions: ['clearError', startRegistrationAction],
+              actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
             },
           },
         },
