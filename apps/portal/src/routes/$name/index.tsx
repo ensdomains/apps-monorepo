@@ -225,7 +225,7 @@ const Profile = ({
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
-        <h1 className="text-4xl font-medium leading-none">{name}</h1>
+        <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
         <ExtendNameButton
           name={name}
           protocolVersion={resolvedProtocolVersion}

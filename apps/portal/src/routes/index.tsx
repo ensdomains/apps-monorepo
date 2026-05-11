@@ -22,7 +22,7 @@ function RouteComponent() {
       <HomeHeader />
 
       <section className="flex flex-col gap-12 items-center w-full max-w-3xl">
-        <p className="text-[24px] sm:text-[36px] font-[350] text-center leading-[1.35] text-foreground">
+        <p className="font-serif text-[24px] sm:text-[36px] font-[350] text-center leading-[1.35] text-foreground">
           Explore the source of truth for
           <br />
           Ethereum Name Service
