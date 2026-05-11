@@ -12,7 +12,7 @@ import {
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { encodeRenewEthRegistrarNameData } from '@ensdomains/ensjs/wallet/v2'
+import { encodeRenewNameData } from '@ensdomains/ensjs/wallet/v2'
 import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
@@ -77,7 +77,7 @@ const startRenewalTransaction = async ({
     )
   }
 
-  const txData = encodeRenewEthRegistrarNameData({
+  const txData = encodeRenewNameData({
     name: `${label}.eth`,
     duration,
     paymentToken: normalizedPaymentToken,
