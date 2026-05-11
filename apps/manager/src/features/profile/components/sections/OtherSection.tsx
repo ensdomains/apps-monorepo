@@ -13,6 +13,7 @@ import { AddTextRecordsPills } from '@/features/profile/components/AddTextRecord
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { entryAnimation } from '@/features/profile/components/motion'
 import { RecordEntry } from '@/features/profile/components/RecordEntry'
+import { validateAbi } from '@/features/profile/utils/validateAbi'
 import { validateContentHash } from '@/features/profile/utils/validateContentHash'
 
 const otherRecords = [
@@ -78,13 +79,15 @@ export const OtherSection = withForm({
                         <form.Field
                           name="contentHash"
                           validators={{
+                            onChange: ({ value }) => validateContentHash(value),
                             onBlur: ({ value }) => validateContentHash(value),
                           }}
                         >
                           {(field) => (
                             <RecordEntry
                               error={
-                                field.state.meta.isTouched &&
+                                (field.state.meta.isTouched ||
+                                  field.state.meta.isDirty) &&
                                 field.state.meta.errors.length > 0
                                   ? field.state.meta.errors[0]
                                   : undefined
@@ -102,20 +105,42 @@ export const OtherSection = withForm({
 
                     {activeKeys.includes('abi') && (
                       <motion.div key="abi" {...entryAnimation(reduceMotion)}>
-                        <form.Field name="abi">
-                          {(field) => (
-                            <div className="pt-1">
-                              <FloatingTextarea
-                                className="flex-1 font-mono text-xs"
-                                label="ABI"
-                                onChange={(e) =>
-                                  field.handleChange(e.target.value)
-                                }
-                                placeholder='[{"type":"function",...}]'
-                                value={field.state.value ?? ''}
-                              />
-                            </div>
-                          )}
+                        <form.Field
+                          name="abi"
+                          validators={{
+                            onChange: ({ value }) => validateAbi(value),
+                            onBlur: ({ value }) => validateAbi(value),
+                          }}
+                        >
+                          {(field) => {
+                            const error =
+                              (field.state.meta.isTouched ||
+                                field.state.meta.isDirty) &&
+                              field.state.meta.errors.length > 0
+                                ? field.state.meta.errors[0]
+                                : undefined
+
+                            return (
+                              <div className="flex flex-col gap-1 pt-1">
+                                <FloatingTextarea
+                                  aria-invalid={Boolean(error)}
+                                  className="flex-1 font-mono text-xs"
+                                  label="ABI"
+                                  onBlur={field.handleBlur}
+                                  onChange={(e) =>
+                                    field.handleChange(e.target.value)
+                                  }
+                                  placeholder='[{"type":"function",...}]'
+                                  value={field.state.value ?? ''}
+                                />
+                                {error && (
+                                  <p className="text-destructive text-xs">
+                                    {error}
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          }}
                         </form.Field>
                       </motion.div>
                     )}

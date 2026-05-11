@@ -24,6 +24,7 @@ import {
   type Hex,
   type PublicClient,
 } from 'viem'
+import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 
 // --- Types ---
 
@@ -352,32 +353,21 @@ async function buildRecordsUpdateRequest(params: {
   }
 
   if (changes.abi) {
-    const abiJson = changes.abi.after ?? ''
-    if (abiJson) {
-      try {
-        const parsed = JSON.parse(abiJson)
-        if (!Array.isArray(parsed)) {
-          throw new RecordsValidationError([
-            {
-              sectionKey: 'other',
-              fieldKey: 'abi',
-              message: 'ABI must be a JSON array',
-            },
-          ])
-        }
-        ensParams.abi = { encodeAs: 'json', data: parsed }
-      } catch (e) {
-        if (e instanceof RecordsValidationError) throw e
-        throw new RecordsValidationError([
-          {
-            sectionKey: 'other',
-            fieldKey: 'abi',
-            message: 'ABI must be valid JSON',
-          },
-        ])
-      }
-    } else {
-      ensParams.abi = { encodeAs: 'json', data: null }
+    const parsedAbi = parseAbiRecord(changes.abi.after)
+
+    if (!parsedAbi.success) {
+      throw new RecordsValidationError([
+        {
+          sectionKey: 'other',
+          fieldKey: 'abi',
+          message: parsedAbi.message,
+        },
+      ])
+    }
+
+    ensParams.abi = {
+      encodeAs: 'json',
+      data: parsedAbi.data as Record<string, unknown>[] | null,
     }
   }
 
