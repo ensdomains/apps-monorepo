@@ -159,6 +159,15 @@ export const SelectNamesStep = ({
               </Trans>
             </p>
           )}
+          {totalSelected > 100 && (
+            <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
+              <Info className="size-3 shrink-0" />
+              <Trans>
+                This will be split into {Math.ceil(totalSelected / 100)} batches
+                — expect that many wallet signatures (plus approvals).
+              </Trans>
+            </p>
+          )}
         </div>
         <button
           className="h-[46px] w-full min-w-[160px] overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"

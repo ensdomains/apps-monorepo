@@ -74,9 +74,24 @@ export type StepDescription =
   | { readonly kind: 'approve-base-registrar' }
   | { readonly kind: 'approve-name-wrapper' }
   | { readonly kind: 'ensure-resolver' }
-  | { readonly kind: 'migrate-all'; readonly count: number }
+  | {
+      readonly kind: 'migrate-batch'
+      readonly index: number
+      readonly total: number
+      readonly count: number
+    }
+  | {
+      readonly kind: 'grant-role-batch'
+      readonly index: number
+      readonly total: number
+      readonly count: number
+    }
   | { readonly kind: 'grant-role'; readonly label: string }
-  | { readonly kind: 'profile-replay' }
+  | {
+      readonly kind: 'profile-replay-batch'
+      readonly index: number
+      readonly total: number
+    }
 
 export const describeNextStep = (params: {
   readonly done: boolean
@@ -100,17 +115,30 @@ export const describeNextStep = (params: {
     .with({ descriptor: { type: 'ensure-resolver' } }, () => ({
       kind: 'ensure-resolver' as const,
     }))
-    .with({ descriptor: { type: 'migrate-all' } }, ({ descriptor }) => ({
-      kind: 'migrate-all' as const,
+    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) => ({
+      kind: 'migrate-batch' as const,
+      index: descriptor.index,
+      total: descriptor.total,
+      count: descriptor.count,
+    }))
+    .with({ descriptor: { type: 'grant-role-batch' } }, ({ descriptor }) => ({
+      kind: 'grant-role-batch' as const,
+      index: descriptor.index,
+      total: descriptor.total,
       count: descriptor.count,
     }))
     .with({ descriptor: { type: 'grant-role' } }, ({ descriptor }) => ({
       kind: 'grant-role' as const,
       label: descriptor.label,
     }))
-    .with({ descriptor: { type: 'profile-replay' } }, () => ({
-      kind: 'profile-replay' as const,
-    }))
+    .with(
+      { descriptor: { type: 'profile-replay-batch' } },
+      ({ descriptor }) => ({
+        kind: 'profile-replay-batch' as const,
+        index: descriptor.index,
+        total: descriptor.total,
+      }),
+    )
     .exhaustive()
 
 export type GiantMode = 'collapsed' | 'excited' | 'idle'

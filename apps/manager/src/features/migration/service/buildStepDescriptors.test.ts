@@ -31,6 +31,9 @@ const build = (
     hasBaseRegistrarApproval?: boolean
     hasNameWrapperApproval?: boolean
     hasProfileReplay?: boolean
+    migrateBatchCount?: number
+    profileReplayBatchCount?: number
+    roleGrantBatchCount?: number
   } = {},
 ) =>
   buildStepDescriptors({
@@ -40,13 +43,18 @@ const build = (
     hasBaseRegistrarApproval: approvals.hasBaseRegistrarApproval ?? false,
     hasNameWrapperApproval: approvals.hasNameWrapperApproval ?? false,
     hasProfileReplay: approvals.hasProfileReplay ?? false,
+    migrateBatchCount:
+      approvals.migrateBatchCount ?? (classified.length > 0 ? 1 : 0),
+    profileReplayBatchCount: approvals.profileReplayBatchCount ?? 1,
+    roleGrantBatchCount: approvals.roleGrantBatchCount ?? 0,
   })
 
 describe('buildStepDescriptors', () => {
   const keepV1 = { resolverStrategy: 'keep-v1' as const }
 
-  it('emits only migrate-all when approval is not needed and no resolver change', () => {
-    expect(build([keepV1])).toEqual([{ type: 'migrate-all', count: 1 }])
+  it('emits only migrate-batch when approval is not needed and no resolver change', () => {
+    const d = build([keepV1])
+    expect(d).toEqual([{ type: 'migrate-batch', index: 0, total: 1, count: 1 }])
   })
 
   it('prepends approve-base-registrar when unwrapped names exist and not already approved', () => {
@@ -138,12 +146,15 @@ describe('buildStepDescriptors', () => {
       hasBaseRegistrarApproval: false,
       hasNameWrapperApproval: false,
       hasProfileReplay: false,
+      migrateBatchCount: 1,
+      profileReplayBatchCount: 0,
+      roleGrantBatchCount: 0,
     })
     const roles = d.filter((x) => x.type === 'grant-role')
     expect(roles).toEqual([{ type: 'grant-role', label: 'alice' }])
   })
 
-  it('emits a single profile-replay descriptor when hasProfileReplay is true', () => {
+  it('emits a single profile-replay-batch descriptor when hasProfileReplay is true', () => {
     const withPermRes = [
       makeClassified({ label: 'alice', resolverStrategy: 'to-owned-permres' }),
       makeClassified({ label: 'bob', resolverStrategy: 'to-owned-permres' }),
@@ -155,12 +166,17 @@ describe('buildStepDescriptors', () => {
       hasBaseRegistrarApproval: false,
       hasNameWrapperApproval: false,
       hasProfileReplay: true,
+      migrateBatchCount: 1,
+      profileReplayBatchCount: 1,
+      roleGrantBatchCount: 0,
     })
-    const replays = d.filter((x) => x.type === 'profile-replay')
-    expect(replays).toEqual([{ type: 'profile-replay' }])
+    const replays = d.filter((x) => x.type === 'profile-replay-batch')
+    expect(replays).toEqual([
+      { type: 'profile-replay-batch', index: 0, total: 1 },
+    ])
   })
 
-  it('emits no profile-replay descriptor when hasProfileReplay is false', () => {
+  it('emits no profile-replay-batch descriptor when hasProfileReplay is false', () => {
     const withPermRes = [
       makeClassified({ label: 'alice', resolverStrategy: 'to-owned-permres' }),
     ]
@@ -171,11 +187,14 @@ describe('buildStepDescriptors', () => {
       hasBaseRegistrarApproval: false,
       hasNameWrapperApproval: false,
       hasProfileReplay: false,
+      migrateBatchCount: 1,
+      profileReplayBatchCount: 0,
+      roleGrantBatchCount: 0,
     })
-    expect(d.filter((x) => x.type === 'profile-replay')).toEqual([])
+    expect(d.filter((x) => x.type === 'profile-replay-batch')).toEqual([])
   })
 
-  it('orders descriptors as approve-base-registrar → ensure-resolver → migrate-all → grant-role → profile-replay', () => {
+  it('orders descriptors as approve-base-registrar → ensure-resolver → migrate-batch → grant-role → profile-replay-batch', () => {
     expect(
       buildStepDescriptors({
         classified: [
@@ -191,13 +210,16 @@ describe('buildStepDescriptors', () => {
         hasBaseRegistrarApproval: false,
         hasNameWrapperApproval: false,
         hasProfileReplay: true,
+        migrateBatchCount: 1,
+        profileReplayBatchCount: 1,
+        roleGrantBatchCount: 0,
       }).map((d) => d.type),
     ).toEqual([
       'approve-base-registrar',
       'ensure-resolver',
-      'migrate-all',
+      'migrate-batch',
       'grant-role',
-      'profile-replay',
+      'profile-replay-batch',
     ])
   })
 
@@ -210,7 +232,103 @@ describe('buildStepDescriptors', () => {
         hasBaseRegistrarApproval: false,
         hasNameWrapperApproval: false,
         hasProfileReplay: false,
+        migrateBatchCount: 0,
+        profileReplayBatchCount: 0,
+        roleGrantBatchCount: 0,
       }),
     ).toEqual([])
+  })
+})
+
+const owner = '0x0000000000000000000000000000000000000001' as Address
+
+const c = (
+  label: string,
+  managed = false,
+): Parameters<typeof makeClassified>[0] => ({
+  label,
+  resolverStrategy: 'to-owned-permres' as const,
+  managerAddress: managed ? owner : null,
+})
+
+describe('buildStepDescriptors (batched)', () => {
+  it('emits one migrate-batch descriptor per batch', () => {
+    const classified = [c('a'), c('b')].map(makeClassified)
+    const descriptors = buildStepDescriptors({
+      classified,
+      groups: {
+        unwrapped: classified,
+        unlocked: [],
+        locked2ld: [],
+        childNames: new Map(),
+      } as never,
+      preflight: {
+        skipApprovalPhase: true,
+        preExistingOwnedPermRes: null,
+        skipFetchProfilesPhase: false,
+      } as never,
+      hasBaseRegistrarApproval: true,
+      hasNameWrapperApproval: true,
+      hasProfileReplay: false,
+      migrateBatchCount: 3,
+      profileReplayBatchCount: 0,
+      roleGrantBatchCount: 0,
+    })
+    const batchDescs = descriptors.filter((d) => d.type === 'migrate-batch')
+    expect(batchDescs).toHaveLength(3)
+    expect(batchDescs[0]).toMatchObject({ index: 0, total: 3 })
+    expect(batchDescs[2]).toMatchObject({ index: 2, total: 3 })
+  })
+
+  it('emits one profile-replay-batch descriptor per batch', () => {
+    const classified = [c('a')].map(makeClassified)
+    const descriptors = buildStepDescriptors({
+      classified,
+      groups: {
+        unwrapped: classified,
+        unlocked: [],
+        locked2ld: [],
+        childNames: new Map(),
+      } as never,
+      preflight: {
+        skipApprovalPhase: true,
+        preExistingOwnedPermRes: null,
+        skipFetchProfilesPhase: false,
+      } as never,
+      hasBaseRegistrarApproval: true,
+      hasNameWrapperApproval: true,
+      hasProfileReplay: true,
+      migrateBatchCount: 1,
+      profileReplayBatchCount: 2,
+      roleGrantBatchCount: 0,
+    })
+    const replays = descriptors.filter((d) => d.type === 'profile-replay-batch')
+    expect(replays).toHaveLength(2)
+  })
+
+  it('falls back to per-name grant-role when roleGrantBatchCount is 0', () => {
+    const classified = [c('a', true), c('b', true), c('c')].map(makeClassified)
+    const descriptors = buildStepDescriptors({
+      classified,
+      groups: {
+        unwrapped: classified,
+        unlocked: [],
+        locked2ld: [],
+        childNames: new Map(),
+      } as never,
+      preflight: {
+        skipApprovalPhase: true,
+        preExistingOwnedPermRes: null,
+        skipFetchProfilesPhase: false,
+      } as never,
+      hasBaseRegistrarApproval: true,
+      hasNameWrapperApproval: true,
+      hasProfileReplay: false,
+      migrateBatchCount: 1,
+      profileReplayBatchCount: 0,
+      roleGrantBatchCount: 0,
+    })
+    const grants = descriptors.filter((d) => d.type === 'grant-role')
+    expect(grants).toHaveLength(2)
   })
 })

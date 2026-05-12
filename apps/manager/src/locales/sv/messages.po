@@ -1603,7 +1603,7 @@ msgstr ""
 msgid "Preparing the commitment"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:170
+#: src/features/migration/components/SelectNamesStep.tsx:179
 msgid "Preparing..."
 msgstr ""
 
@@ -1863,7 +1863,12 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:73
+#. placeholder {0}: index + 1
+#: src/features/migration/components/GameStep.tsx:82
+msgid "Restoring records batch {0} of {total}"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:81
 msgid "Restoring your records"
 msgstr ""
 
@@ -1908,8 +1913,17 @@ msgstr ""
 msgid "Saved favorites & searches"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:71
+#: src/features/migration/components/GameStep.tsx:72
+msgid "Saving {count} manager(s)"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:77
 msgid "Saving manager for {label}.eth"
+msgstr ""
+
+#. placeholder {0}: index + 1
+#: src/features/migration/components/GameStep.tsx:73
+msgid "Saving managers batch {0} of {total}"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:176
@@ -2338,6 +2352,11 @@ msgstr ""
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
+#. placeholder {0}: Math.ceil(totalSelected / 100)
+#: src/features/migration/components/SelectNamesStep.tsx:165
+msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
+msgstr ""
+
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:224
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr ""
@@ -2424,7 +2443,7 @@ msgstr ""
 msgid "Upgrade {0} first."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:172
+#: src/features/migration/components/SelectNamesStep.tsx:181
 #: src/features/migration/components/UpgradeNamesButton.tsx:26
 msgid "Upgrade Names"
 msgstr ""
@@ -2441,7 +2460,12 @@ msgstr ""
 msgid "Upgrading {count} name(s)"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:96
+#. placeholder {0}: index + 1
+#: src/features/migration/components/GameStep.tsx:68
+msgid "Upgrading batch {0} of {total} ({count} name(s))"
+msgstr ""
+
+#: src/features/migration/components/GameStep.tsx:106
 msgid "Upgrading your names..."
 msgstr ""
 

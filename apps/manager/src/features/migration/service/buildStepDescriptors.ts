@@ -5,9 +5,10 @@ export type MigrationStepDescriptor =
   | { type: 'approve-base-registrar' }
   | { type: 'approve-name-wrapper' }
   | { type: 'ensure-resolver' }
-  | { type: 'migrate-all'; count: number }
+  | { type: 'migrate-batch'; index: number; total: number; count: number }
+  | { type: 'grant-role-batch'; index: number; total: number; count: number }
   | { type: 'grant-role'; label: string }
-  | { type: 'profile-replay' }
+  | { type: 'profile-replay-batch'; index: number; total: number }
 
 type BuildStepDescriptorsParams = {
   readonly classified: readonly ClassifiedName[]
@@ -16,6 +17,20 @@ type BuildStepDescriptorsParams = {
   readonly hasBaseRegistrarApproval: boolean
   readonly hasNameWrapperApproval: boolean
   readonly hasProfileReplay: boolean
+  readonly migrateBatchCount: number
+  readonly profileReplayBatchCount: number
+  readonly roleGrantBatchCount: number
+}
+
+const batchCount = (
+  classified: readonly ClassifiedName[],
+  total: number,
+  i: number,
+): number => {
+  if (total <= 0) return 0
+  const base = Math.floor(classified.length / total)
+  const remainder = classified.length % total
+  return base + (i < remainder ? 1 : 0)
 }
 
 export const buildStepDescriptors = (
@@ -28,6 +43,9 @@ export const buildStepDescriptors = (
     hasBaseRegistrarApproval,
     hasNameWrapperApproval,
     hasProfileReplay,
+    migrateBatchCount,
+    profileReplayBatchCount,
+    roleGrantBatchCount,
   } = params
   const descriptors: MigrationStepDescriptor[] = []
 
@@ -51,17 +69,41 @@ export const buildStepDescriptors = (
     descriptors.push({ type: 'ensure-resolver' })
   }
 
-  if (classified.length > 0) {
-    descriptors.push({ type: 'migrate-all', count: classified.length })
+  for (let i = 0; i < migrateBatchCount; i++) {
+    descriptors.push({
+      type: 'migrate-batch',
+      index: i,
+      total: migrateBatchCount,
+      count: batchCount(classified, migrateBatchCount, i),
+    })
   }
 
-  for (const name of classified) {
-    if (name.managerAddress) {
-      descriptors.push({ type: 'grant-role', label: name.label })
+  if (roleGrantBatchCount > 0) {
+    const managed = classified.filter((n) => n.managerAddress)
+    for (let i = 0; i < roleGrantBatchCount; i++) {
+      descriptors.push({
+        type: 'grant-role-batch',
+        index: i,
+        total: roleGrantBatchCount,
+        count: batchCount(managed, roleGrantBatchCount, i),
+      })
+    }
+  } else {
+    for (const n of classified) {
+      if (n.managerAddress) {
+        descriptors.push({ type: 'grant-role', label: n.label })
+      }
     }
   }
+
   if (hasProfileReplay) {
-    descriptors.push({ type: 'profile-replay' })
+    for (let i = 0; i < Math.max(1, profileReplayBatchCount); i++) {
+      descriptors.push({
+        type: 'profile-replay-batch',
+        index: i,
+        total: Math.max(1, profileReplayBatchCount),
+      })
+    }
   }
 
   return descriptors

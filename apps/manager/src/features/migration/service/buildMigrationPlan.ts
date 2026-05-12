@@ -4,8 +4,8 @@ import type { Config as WagmiConfig } from '@wagmi/core'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
-import { buildMigrateCall } from './buildMigrateCall'
-import { buildProfileReplayCall } from './buildProfileReplayCalls'
+import { buildBatchedMigrateCalls, type MigrationBatch } from './batchMigrate'
+import { buildBatchedProfileReplayCalls } from './batchProfileReplay'
 import { buildRoleGrantCall } from './buildRoleGrantCalls'
 import {
   buildStepDescriptors,
@@ -37,9 +37,10 @@ export type MigrationPlan = {
   readonly preflight: MigrationPreflight
   readonly ownedPermRes: Address | null
   readonly profiles: ReadonlyMap<Hex, Profile>
-  readonly migrateCall: ZeroDevCall
+  readonly migrateCalls: readonly ZeroDevCall[]
   readonly roleGrantCalls: readonly ZeroDevCall[]
   readonly profileReplayCalls: readonly ZeroDevCall[]
+  readonly batches: readonly MigrationBatch[]
   readonly stepDescriptors: readonly MigrationStepDescriptor[]
 }
 
@@ -63,44 +64,58 @@ const fetchProfilesForNames = async (params: {
   })
 }
 
-const buildAuxCalls = (params: {
+const buildReplayProfiles = (params: {
   classified: readonly ClassifiedName[]
   ownedPermRes: Address | null
   profiles: ReadonlyMap<Hex, Profile>
+}): Map<Hex, Profile> => {
+  const replay = new Map<Hex, Profile>()
+  if (!params.ownedPermRes) return replay
+  for (const n of params.classified) {
+    if (n.resolverStrategy !== 'to-owned-permres') continue
+    const node = namehash(n.domain.name) as Hex
+    const profile = params.profiles.get(profileMapKey(node))
+    if (profile && (profile.texts.length > 0 || profile.addresses.length > 0)) {
+      replay.set(node, profile)
+    }
+  }
+  return replay
+}
+
+const assemblePlanParts = (params: {
+  classified: readonly ClassifiedName[]
+  migrationOwner: Address
+  ownedPermRes: Address | null
+  profiles: ReadonlyMap<Hex, Profile>
 }): {
-  roleGrantCalls: ZeroDevCall[]
-  profileReplayCalls: ZeroDevCall[]
+  migrateCalls: readonly ZeroDevCall[]
+  batches: readonly MigrationBatch[]
+  roleGrantCalls: readonly ZeroDevCall[]
+  profileReplayCalls: readonly ZeroDevCall[]
 } => {
-  const { classified, ownedPermRes, profiles } = params
+  const { classified, migrationOwner, ownedPermRes, profiles } = params
+
+  const { calls: migrateCalls, batches } = buildBatchedMigrateCalls({
+    classified,
+    migrationOwner,
+    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
+    ownedPermRes,
+  })
+
   const roleGrantCalls: ZeroDevCall[] = []
-  const replayProfiles = new Map<Hex, Profile>()
-
-  for (const name of classified) {
-    if (name.managerAddress) {
-      roleGrantCalls.push(buildRoleGrantCall(name))
-    }
-    if (ownedPermRes && name.resolverStrategy === 'to-owned-permres') {
-      const node = namehash(name.domain.name) as Hex
-      const profile = profiles.get(profileMapKey(node))
-      if (
-        profile &&
-        (profile.texts.length > 0 || profile.addresses.length > 0)
-      ) {
-        replayProfiles.set(node, profile)
-      }
-    }
+  for (const n of classified) {
+    if (n.managerAddress) roleGrantCalls.push(buildRoleGrantCall(n))
   }
 
-  const profileReplayCalls: ZeroDevCall[] = []
-  if (ownedPermRes && replayProfiles.size > 0) {
-    const replayCall = buildProfileReplayCall({
-      resolver: ownedPermRes,
-      profiles: replayProfiles,
-    })
-    if (replayCall) profileReplayCalls.push(replayCall)
-  }
+  const replay = buildReplayProfiles({ classified, ownedPermRes, profiles })
+  const profileReplayCalls = ownedPermRes
+    ? buildBatchedProfileReplayCalls({
+        resolver: ownedPermRes,
+        profiles: replay,
+      })
+    : []
 
-  return { roleGrantCalls, profileReplayCalls }
+  return { migrateCalls, batches, roleGrantCalls, profileReplayCalls }
 }
 
 export const buildMigrationPlan = async (params: {
@@ -131,10 +146,7 @@ export const buildMigrationPlan = async (params: {
   if (namesToOwnedPermRes.length > 0) {
     ownedPermRes =
       preflight.preExistingOwnedPermRes ??
-      (await predictOwnedPermResAddress({
-        eoa: migrationOwner,
-        publicClient,
-      }))
+      (await predictOwnedPermResAddress({ eoa: migrationOwner, publicClient }))
   }
 
   const profiles = await fetchProfilesForNames({
@@ -143,15 +155,9 @@ export const buildMigrationPlan = async (params: {
     publicClient,
   })
 
-  const migrateCall = buildMigrateCall({
+  const parts = assemblePlanParts({
     classified,
     migrationOwner,
-    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
-    ownedPermRes,
-  })
-
-  const { roleGrantCalls, profileReplayCalls } = buildAuxCalls({
-    classified,
     ownedPermRes,
     profiles,
   })
@@ -162,7 +168,10 @@ export const buildMigrationPlan = async (params: {
     preflight,
     hasBaseRegistrarApproval,
     hasNameWrapperApproval,
-    hasProfileReplay: profileReplayCalls.length > 0,
+    hasProfileReplay: parts.profileReplayCalls.length > 0,
+    migrateBatchCount: parts.migrateCalls.length,
+    profileReplayBatchCount: parts.profileReplayCalls.length,
+    roleGrantBatchCount: 0,
   })
 
   return {
@@ -174,9 +183,10 @@ export const buildMigrationPlan = async (params: {
     preflight,
     ownedPermRes,
     profiles,
-    migrateCall,
-    roleGrantCalls,
-    profileReplayCalls,
+    migrateCalls: parts.migrateCalls,
+    roleGrantCalls: parts.roleGrantCalls,
+    profileReplayCalls: parts.profileReplayCalls,
+    batches: parts.batches,
     stepDescriptors,
   }
 }
@@ -197,31 +207,32 @@ export const adjustPlanForRetry = (
       ...plan,
       classified: [],
       domains: remainingDomains,
+      migrateCalls: [],
       roleGrantCalls: [],
       profileReplayCalls: [],
+      batches: [],
       stepDescriptors: [],
     }
   }
 
   const groups = groupClassifiedNames(remainingClassified)
-  const migrateCall = buildMigrateCall({
+  const parts = assemblePlanParts({
     classified: remainingClassified,
     migrationOwner: plan.migrationOwner,
-    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
-    ownedPermRes: plan.ownedPermRes,
-  })
-  const { roleGrantCalls, profileReplayCalls } = buildAuxCalls({
-    classified: remainingClassified,
     ownedPermRes: plan.ownedPermRes,
     profiles: plan.profiles,
   })
+
   const stepDescriptors = buildStepDescriptors({
     classified: remainingClassified,
     groups,
     preflight: plan.preflight,
     hasBaseRegistrarApproval: true,
     hasNameWrapperApproval: true,
-    hasProfileReplay: profileReplayCalls.length > 0,
+    hasProfileReplay: parts.profileReplayCalls.length > 0,
+    migrateBatchCount: parts.migrateCalls.length,
+    profileReplayBatchCount: parts.profileReplayCalls.length,
+    roleGrantBatchCount: 0,
   })
 
   return {
@@ -229,9 +240,10 @@ export const adjustPlanForRetry = (
     classified: remainingClassified,
     domains: remainingDomains,
     groups,
-    migrateCall,
-    roleGrantCalls,
-    profileReplayCalls,
+    migrateCalls: parts.migrateCalls,
+    roleGrantCalls: parts.roleGrantCalls,
+    profileReplayCalls: parts.profileReplayCalls,
+    batches: parts.batches,
     stepDescriptors,
   }
 }

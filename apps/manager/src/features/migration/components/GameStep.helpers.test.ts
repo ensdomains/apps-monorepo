@@ -116,12 +116,17 @@ describe('describeNextStep', () => {
       { kind: 'ensure-resolver' },
     ],
     [
-      'migrate-all descriptor',
+      'migrate-batch descriptor',
       {
         done: false,
-        descriptor: descriptor({ type: 'migrate-all', count: 5 }),
+        descriptor: descriptor({
+          type: 'migrate-batch',
+          index: 0,
+          total: 1,
+          count: 5,
+        }),
       },
-      { kind: 'migrate-all', count: 5 },
+      { kind: 'migrate-batch', index: 0, total: 1, count: 5 },
     ],
     [
       'grant-role descriptor',
@@ -132,12 +137,16 @@ describe('describeNextStep', () => {
       { kind: 'grant-role', label: 'myname' },
     ],
     [
-      'profile-replay descriptor',
+      'profile-replay-batch descriptor',
       {
         done: false,
-        descriptor: descriptor({ type: 'profile-replay' }),
+        descriptor: descriptor({
+          type: 'profile-replay-batch',
+          index: 0,
+          total: 1,
+        }),
       },
-      { kind: 'profile-replay' },
+      { kind: 'profile-replay-batch', index: 0, total: 1 },
     ],
   ] as const)('%s', (_, params, expected) => {
     expect(describeNextStep(params)).toEqual(expected)

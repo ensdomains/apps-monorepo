@@ -82,7 +82,10 @@ const V1_RESOLVER: Address = '0x000000000000000000000000000000000000d003'
 const PERM_RES: Address = '0x000000000000000000000000000000000000d002'
 
 const WAGMI = {} as WagmiConfig
-const PUBLIC_CLIENT = { chain: { id: 11155111 } } as unknown as PublicClient
+const PUBLIC_CLIENT = {
+  chain: { id: 11155111 },
+  estimateGas: vi.fn(() => Promise.resolve(15_000_000n)),
+} as unknown as PublicClient
 const SIGNER = { type: 'zerodev' } as unknown as Signer
 
 const unwrappedDomain = (id: string): V1Domain =>
@@ -110,7 +113,11 @@ const DEFAULT_PREFLIGHT: MigrationPreflight = {
 }
 
 const runExecute = async (
-  overrides: { domains?: V1Domain[]; preflight?: MigrationPreflight } = {},
+  overrides: {
+    domains?: V1Domain[]
+    preflight?: MigrationPreflight
+    onBatchComplete?: (names: readonly string[], hash: Hex) => void
+  } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
   const domains = overrides.domains ?? [unwrappedDomain('alice')]
@@ -131,8 +138,9 @@ const runExecute = async (
     signer: SIGNER,
     accountAddress: SCA,
     onProgress: (p) => progressEvents.push(p),
+    onBatchComplete: overrides.onBatchComplete,
   })
-  return { result, progressEvents }
+  return { result, progressEvents, plan }
 }
 
 beforeEach(() => {
@@ -231,6 +239,45 @@ describe('executeMigration', () => {
     await expect(runExecute()).rejects.toSatisfy(
       (e) => e instanceof Error && e.name === 'MigrationError',
     )
+  })
+
+  it('splits 150 names into multiple migrate batches and fires onBatchComplete per batch', async () => {
+    const domains = Array.from({ length: 150 }, (_, i) =>
+      unwrappedDomain(`alice${i}`),
+    )
+    let txCounter = 0
+    waitForTransactionMock.mockImplementation(() =>
+      Promise.resolve({ hash: `0xbatch${txCounter++}` as Hex } as Awaited<
+        ReturnType<typeof waitForTransaction>
+      >),
+    )
+    const onBatchComplete = vi.fn()
+    const { result, plan } = await runExecute({ domains, onBatchComplete })
+    expect(plan.migrateCalls.length).toBe(2)
+    expect(plan.batches.map((b) => b.names.length)).toEqual([100, 50])
+    expect(onBatchComplete).toHaveBeenCalledTimes(2)
+    expect(onBatchComplete.mock.calls[0]![0]).toHaveLength(100)
+    expect(onBatchComplete.mock.calls[1]![0]).toHaveLength(50)
+    expect(result.completed).toBe(150)
+  })
+
+  it('halts after mid-batch failure and preserves prior tx hashes', async () => {
+    const domains = Array.from({ length: 150 }, (_, i) =>
+      unwrappedDomain(`bob${i}`),
+    )
+    let txCounter = 0
+    waitForTransactionMock.mockImplementation(() => {
+      const i = txCounter++
+      if (i === 1) return Promise.reject(new Error('rpc broke on batch 2'))
+      return Promise.resolve({ hash: `0xbatch${i}` as Hex } as Awaited<
+        ReturnType<typeof waitForTransaction>
+      >)
+    })
+    const onBatchComplete = vi.fn()
+    await expect(runExecute({ domains, onBatchComplete })).rejects.toSatisfy(
+      (e) => e instanceof Error && e.name === 'MigrationError',
+    )
+    expect(onBatchComplete).toHaveBeenCalledTimes(1)
   })
 
   it('ineligible names are returned and not counted as completed', async () => {

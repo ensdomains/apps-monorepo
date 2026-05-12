@@ -15,6 +15,8 @@ import type { Address, Hex, PublicClient } from 'viem'
 
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import { verifyOrSplit } from './batchMigrate'
+import { TARGET_GAS } from './batchMigrate.constants'
 import type { MigrationPlan } from './buildMigrationPlan'
 import { approvalNeedsFor, checkHelperApprovals } from './checkHelperApprovals'
 import type {
@@ -282,24 +284,58 @@ export const executeMigration = async (params: {
   )
   await ensureResolver(ctx, namesToOwnedPermRes, preflight)
 
-  // 3. Single migrate() call covering every name
-  const allNames = classified.map((c) => c.domain.name)
-  try {
-    const migrateHash = await submitCall(
-      ctx,
-      plan.migrateCall,
-      `Upgrading ${classified.length} name(s)`,
+  // 3. Migrate — one tx per batch with execute-time gas verification
+  const mutableMigratePlan = {
+    calls: [...plan.migrateCalls],
+    batches: plan.batches.map((b) => ({ ...b })),
+  }
+  const classifiedByName = new Map<string, ClassifiedName>()
+  for (const c of classified) classifiedByName.set(c.domain.name, c)
+  const migrateBatchClassified: Record<number, ClassifiedName[]> = {}
+  for (const b of mutableMigratePlan.batches) {
+    migrateBatchClassified[b.index] = b.names.map(
+      (n) => classifiedByName.get(n)!,
     )
-    txHashes.push(migrateHash)
-    onBatchComplete?.(allNames, migrateHash)
-    ctx.tracker.next()
-    ctx.tracker.emit('Upgrade complete', migrateHash)
-  } catch (error) {
-    throw wrapBatchError(error, 'Upgrading')
   }
 
-  // 4. grantRoles per manager
-  for (const call of plan.roleGrantCalls) {
+  for (let i = 0; i < mutableMigratePlan.calls.length; i++) {
+    const verifiedCall = await verifyOrSplit({
+      publicClient: ctx.publicClient,
+      account: ctx.migrationOwner,
+      mutablePlan: mutableMigratePlan,
+      index: i,
+      migrateBatchClassified,
+      targetGas: TARGET_GAS,
+      migrationOwner: ctx.migrationOwner,
+      defaultResolver: ctx.defaultResolver,
+      ownedPermRes: plan.ownedPermRes,
+    })
+    const batch = mutableMigratePlan.batches[i]!
+    const total = mutableMigratePlan.calls.length
+    const description =
+      total === 1
+        ? `Upgrading ${batch.names.length} name(s)`
+        : `Upgrading batch ${i + 1} of ${total} (${batch.names.length} name(s))`
+    try {
+      const hash = await submitCall(ctx, verifiedCall, description)
+      txHashes.push(hash)
+      onBatchComplete?.(batch.names, hash)
+      ctx.tracker.next()
+      ctx.tracker.emit(
+        total === 1 ? 'Upgrade complete' : `Batch ${i + 1} complete`,
+        hash,
+      )
+    } catch (error) {
+      throw wrapBatchError(
+        error,
+        total === 1 ? 'Upgrading' : `Upgrading batch ${i + 1}`,
+      )
+    }
+  }
+
+  // 4. grantRoles per managed name
+  for (let i = 0; i < plan.roleGrantCalls.length; i++) {
+    const call = plan.roleGrantCalls[i]!
     try {
       const hash = await submitCall(ctx, call, 'Saving manager')
       txHashes.push(hash)
@@ -310,15 +346,21 @@ export const executeMigration = async (params: {
     }
   }
 
-  // 5. Profile replay
-  for (const call of plan.profileReplayCalls) {
+  // 5. Profile replay — one tx per batch
+  for (let i = 0; i < plan.profileReplayCalls.length; i++) {
+    const call = plan.profileReplayCalls[i]!
+    const total = plan.profileReplayCalls.length
+    const description =
+      total === 1
+        ? 'Restoring your records'
+        : `Restoring records batch ${i + 1} of ${total}`
     try {
-      const hash = await submitCall(ctx, call, 'Restoring your records')
+      const hash = await submitCall(ctx, call, description)
       txHashes.push(hash)
       ctx.tracker.next()
-      ctx.tracker.emit('Records restored', hash)
+      ctx.tracker.emit(description, hash)
     } catch (error) {
-      throw wrapBatchError(error, 'Restoring records')
+      throw wrapBatchError(error, description)
     }
   }
 

@@ -62,15 +62,25 @@ export const GameStep = () => {
       () => `${t`Approve in your wallet`}...`,
     )
     .with({ kind: 'ensure-resolver' }, () => `${t`Setting up resolver`}...`)
-    .with(
-      { kind: 'migrate-all' },
-      ({ count }) => `${t`Upgrading ${count} name(s)`}...`,
+    .with({ kind: 'migrate-batch' }, ({ index, total, count }) =>
+      total === 1
+        ? `${t`Upgrading ${count} name(s)`}...`
+        : `${t`Upgrading batch ${index + 1} of ${total} (${count} name(s))`}...`,
+    )
+    .with({ kind: 'grant-role-batch' }, ({ index, total, count }) =>
+      total === 1
+        ? `${t`Saving ${count} manager(s)`}...`
+        : `${t`Saving managers batch ${index + 1} of ${total}`}...`,
     )
     .with(
       { kind: 'grant-role' },
       ({ label }) => `${t`Saving manager for ${label}.eth`}...`,
     )
-    .with({ kind: 'profile-replay' }, () => `${t`Restoring your records`}...`)
+    .with({ kind: 'profile-replay-batch' }, ({ index, total }) =>
+      total === 1
+        ? `${t`Restoring your records`}...`
+        : `${t`Restoring records batch ${index + 1} of ${total}`}...`,
+    )
     .exhaustive()
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)
