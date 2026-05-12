@@ -1,11 +1,12 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
-import type { Address, PublicClient } from 'viem'
-import { useConfig, usePublicClient } from 'wagmi'
+import type { Address, PublicClient, WalletClient } from 'viem'
+import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -171,8 +172,8 @@ export const MigrationPage = () => {
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
-  const smartAccount = useSmartAccountContext()
-  const { ownerAddress } = smartAccount
+  const { ownerAddress } = useSmartAccountContext()
+  const { data: wagmiWalletClient } = useWalletClient()
   const wagmiConfig = useConfig()
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
@@ -197,10 +198,12 @@ export const MigrationPage = () => {
   )
 
   const handleBeginUpgrade = useCallback(async () => {
-    if (!ownerAddress || !smartAccount.signer || !smartAccount.accountAddress)
-      return
+    if (!ownerAddress || !wagmiWalletClient?.account) return
     if (!publicClient) return
-    const { signer, accountAddress: sca } = smartAccount
+    const signer: Signer = {
+      type: 'eoa',
+      walletClient: wagmiWalletClient as WalletClient,
+    }
     const domains = selectDomainsFromNames(v1Names, selectedNames)
     if (domains.length === 0) return
 
@@ -220,7 +223,7 @@ export const MigrationPage = () => {
         type: 'migration.start',
         plan,
         signer,
-        accountAddress: sca as Address,
+        accountAddress: ownerAddress as Address,
       })
     } catch (err) {
       uiActor.send({
@@ -231,7 +234,7 @@ export const MigrationPage = () => {
   }, [
     v1Names,
     ownerAddress,
-    smartAccount,
+    wagmiWalletClient,
     selectedNames,
     uiActor,
     ensurePreflight,

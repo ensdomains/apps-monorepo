@@ -128,16 +128,16 @@ msgid "60-second wait prevents attacks"
 msgstr ""
 
 #. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:109
+#: src/features/migration/pages/MigrationPage.tsx:110
 msgid "A name expected to be locked isn't. Token ID: {0}."
 msgstr ""
 
 #. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:118
+#: src/features/migration/pages/MigrationPage.tsx:119
 msgid "A name is locked in a way the migration can't handle. Token ID: {0}."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:151
+#: src/features/migration/pages/MigrationPage.tsx:152
 msgid "A name still requires migration. Please retry."
 msgstr ""
 
@@ -342,7 +342,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:281
+#: src/features/migration/pages/MigrationPage.tsx:284
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
@@ -1277,15 +1277,15 @@ msgid "Marking..."
 msgstr ""
 
 #. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:127
+#: src/features/migration/pages/MigrationPage.tsx:128
 msgid "Migration data doesn't match the on-chain state. Token ID: {0}. Please retry."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:145
+#: src/features/migration/pages/MigrationPage.tsx:146
 msgid "Migration data is invalid. Please reload and retry."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:257
+#: src/features/migration/pages/MigrationPage.tsx:260
 msgid "Migration failed"
 msgstr ""
 
@@ -1303,7 +1303,7 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:101
+#: src/features/migration/pages/MigrationPage.tsx:102
 msgid "Multiple owners detected in one batch. Please reload and try again."
 msgstr ""
 
@@ -1861,7 +1861,7 @@ msgstr ""
 msgid "Restoring profile records for {label}.eth"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:288
+#: src/features/migration/pages/MigrationPage.tsx:291
 msgid "Retry"
 msgstr ""
 
@@ -2275,7 +2275,7 @@ msgstr ""
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
 
-#: src/features/migration/pages/MigrationPage.tsx:92
+#: src/features/migration/pages/MigrationPage.tsx:93
 msgid "The migration helper isn't approved to move your names. Please retry the approval step."
 msgstr ""
 
@@ -2284,7 +2284,7 @@ msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr ""
 
 #. placeholder {0}: error.parentName
-#: src/features/migration/pages/MigrationPage.tsx:83
+#: src/features/migration/pages/MigrationPage.tsx:84
 msgid "The parent name {0} hasn't been migrated yet. Migrate it first, then retry."
 msgstr ""
 
@@ -2318,7 +2318,7 @@ msgid "This card will be charged for your subscription."
 msgstr ""
 
 #. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:136
+#: src/features/migration/pages/MigrationPage.tsx:137
 msgid "This name has a frozen approval and can't be migrated. Token ID: {0}."
 msgstr ""
 
