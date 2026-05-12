@@ -2231,7 +2231,7 @@ msgstr ""
 msgid "Submitting approval and registration"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:56
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 msgid "Submitting commitment transaction"
 msgstr ""
 
@@ -2247,7 +2247,7 @@ msgstr ""
 msgid "Submitting renewal"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:57
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:53
 msgid "Submitting the commitment transaction"
 msgstr ""
 

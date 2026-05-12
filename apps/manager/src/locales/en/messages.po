@@ -2226,7 +2226,7 @@ msgstr "Start typing to check if your perfect name is available"
 msgid "Submitting approval and registration"
 msgstr "Submitting approval and registration"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:56
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 msgid "Submitting commitment transaction"
 msgstr "Submitting commitment transaction"
 
@@ -2242,7 +2242,7 @@ msgstr "Submitting registration transaction"
 msgid "Submitting renewal"
 msgstr "Submitting renewal"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:57
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:53
 msgid "Submitting the commitment transaction"
 msgstr "Submitting the commitment transaction"
 
