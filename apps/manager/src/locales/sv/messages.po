@@ -69,8 +69,8 @@ msgid "{count} names migrated"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
-msgid "{discountPercentage}% off"
-msgstr ""
+#~ msgid "{discountPercentage}% off"
+#~ msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
 msgid "{duration, plural, one {# year} other {# years}}"
@@ -361,6 +361,10 @@ msgstr ""
 msgid "Backup Card"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:37
+msgid "Best yearly price"
+msgstr ""
+
 #: src/features/payment/components/add.tsx:44
 msgid "Billing country"
 msgstr ""
@@ -535,6 +539,10 @@ msgstr ""
 msgid "Commitment hides your registration intent"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:29
+msgid "Committed"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:51
 msgid "Committing"
 msgstr ""
@@ -603,11 +611,11 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:103
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:168
 msgid "Connect or sign in to register"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:105
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:170
 msgid "Connect or sign in to renew"
 msgstr ""
 
@@ -933,7 +941,7 @@ msgstr "Går ut om {daysUntilExpiry} dagar"
 msgid "Expires:"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:31
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:28
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:40
 msgid "expiring on"
@@ -1242,6 +1250,14 @@ msgstr "Laddar..."
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
 
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:36
+msgid "Long-term identity"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:30
+msgid "Make it yours"
+msgstr ""
+
 #: src/features/register/components/VerifyWalletModal.tsx:171
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr ""
@@ -1289,6 +1305,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:36
 msgid "Modified"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:92
+msgid "Most popular"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:108
@@ -1523,7 +1543,7 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:92
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:157
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr ""
@@ -1693,7 +1713,7 @@ msgstr ""
 msgid "Registering"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:25
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:24
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
 msgid "Registering for"
 msgstr ""
@@ -1887,6 +1907,11 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Save"
+msgstr ""
+
+#. placeholder {0}: discountAmount ?? 0
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:119
+msgid "Save <0>{0}</0>"
 msgstr ""
 
 #. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
@@ -2213,6 +2238,7 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:139
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:279
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
@@ -2220,6 +2246,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:275
 msgid "Start typing to check if your perfect name is available"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:22
+msgid "Starter"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
@@ -2377,12 +2407,12 @@ msgstr ""
 msgid "Too short"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:68
+#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:84
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:68
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:86
 msgid "Total"
 msgstr ""
 
@@ -2414,6 +2444,10 @@ msgstr ""
 #: src/features/wallet/components/EnableSessionModal.tsx:173
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:23
+msgid "Try it out"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:310
@@ -2481,7 +2515,7 @@ msgstr ""
 msgid "Uploading…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:79
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:108
 msgid "USD"
 msgstr ""
 
