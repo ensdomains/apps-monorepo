@@ -312,7 +312,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               target: '#registrationV2Ui.registering',
               guard: ({ event }) =>
                 event.duration >= MIN_REGISTER_DURATION_SECONDS,
-              actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
+              actions: [
+                'clearError',
+                'clearMaxProgress',
+                startRegistrationAction,
+              ],
             },
           },
         },
