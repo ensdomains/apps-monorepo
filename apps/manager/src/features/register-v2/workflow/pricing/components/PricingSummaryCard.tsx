@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/react'
-import { format } from 'date-fns'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
+import { format, formatDuration } from 'date-fns'
+import { secondsToDuration } from '@/features/register-v2/utils/time'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
 export const PricingSummaryCard = () => {
@@ -10,9 +10,8 @@ export const PricingSummaryCard = () => {
     uiActor,
     (state) =>
       [
-        (state.context.duration / SECONDS_IN_YEAR).toLocaleString('en-US', {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 3,
+        formatDuration(secondsToDuration(state.context.duration), {
+          format: ['years', 'months', 'weeks', 'days'],
         }),
         new Date(Date.now() + state.context.duration * 1000),
       ] as const,
@@ -20,16 +19,14 @@ export const PricingSummaryCard = () => {
   )
 
   return (
-    <div className="flex flex-col items-center justify-center gap-1 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-6 py-8 font-[350] text-neutral-800 text-xl leading-ens-none shadow-temp-card md:py-12 md:text-2xl">
+    <div className="flex flex-col items-center justify-center gap-1 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-6 py-8 text-center font-[350] text-neutral-800 text-xl leading-ens-none shadow-temp-card md:py-6 md:text-2xl">
       <div>
         <Trans>Registering for</Trans>{' '}
-        <span className="font-normal text-[#024A70]">
-          {durationYears} years
-        </span>
+        <span className="font-[425] text-[#024A70]">{durationYears}</span>
       </div>
       <div>
         <Trans>expiring on</Trans>{' '}
-        <span className="font-normal text-[#024A70]">
+        <span className="font-[425] text-[#024A70]">
           {format(expirationDate, 'MMMM d, yyyy')}
         </span>
       </div>
