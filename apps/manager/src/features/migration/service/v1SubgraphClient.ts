@@ -1,9 +1,8 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 
-import { sepoliaWithEns } from '@/lib/wagmi'
-
-const V1_SUBGRAPH_URL = sepoliaWithEns.subgraphs.ens.url
+const V1_SUBGRAPH_URL =
+  'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
 
 export type V1Domain = {
   id: string
