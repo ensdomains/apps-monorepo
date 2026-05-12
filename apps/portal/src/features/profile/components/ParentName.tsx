@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router'
+import { SupervisorAccountIcon } from '@/assets/icons'
 import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { BlockCard } from '@/features/dashboard/components'
 import { NameAvatar } from './NameAvatar'
@@ -10,7 +10,6 @@ export const ParentName = ({
   name: string
   asRow?: boolean
 }) => {
-  const navigate = useNavigate()
   const parent = name.slice(name.indexOf('.') + 1)
 
   if (asRow) {
@@ -24,18 +23,11 @@ export const ParentName = ({
         </div>
       )
     return (
-      <div className="flex items-center gap-4 rounded hover:bg-muted/50 w-full">
-        <button
-          type="button"
-          className="flex items-center gap-4 text-left cursor-pointer"
-          onClick={() => navigate({ to: '/$name', params: { name: parent } })}
-        >
-          <NameAvatar width="20px" height="20px" name={parent} />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Parent
-          </span>
-        </button>
-
+      <div className="flex items-center gap-4 w-full">
+        <SupervisorAccountIcon className="size-4 shrink-0 text-neutral-7" />
+        <span className="text-sm text-muted-foreground w-24 shrink-0">
+          Parent
+        </span>
         <EntityBadgeWithActions variant="name" name={parent}>
           {parent}
         </EntityBadgeWithActions>

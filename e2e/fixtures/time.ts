@@ -1,0 +1,69 @@
+/**
+ * Time fixture for synchronising the Anvil block timestamp with the
+ * Playwright browser clock.
+ *
+ * Ported from ens-app-v3/playwright/fixtures/time.ts.
+ *
+ * The core idea: when testing features that rely on block.timestamp
+ * (expiry, premium decay, etc.) the browser's Date.now() must agree
+ * with the chain's notion of "now".  Playwright's `page.clock` API
+ * lets us install a fake clock and fast-forward it in lockstep with
+ * `testClient.increaseTime()`.
+ */
+import type { Page } from '@playwright/test'
+import { publicClient, testClient } from '../helpers/anvil-client.js'
+
+export type Time = ReturnType<typeof createTime>
+
+type Dependencies = {
+  page: Page
+}
+
+export const createTime = ({ page }: Dependencies) => {
+  return {
+    /**
+     * Install the browser clock at the current anvil block timestamp.
+     * @param offset  Extra seconds to add (e.g. 500 to push the browser
+     *                slightly ahead so premium-decay calculations match).
+     */
+    sync: async (offset = 0) => {
+      const block = await publicClient.getBlock()
+      const blockTime = Number(block.timestamp)
+      const time = new Date((blockTime + offset) * 1000)
+      console.log(`[time] sync — browser clock set to ${time.toISOString()}`)
+      await page.clock.install({ time })
+    },
+
+    /**
+     * Advance both anvil and browser by `seconds`.
+     *
+     * After this call:
+     *   - The next anvil block will have a timestamp ≥ old + seconds.
+     *   - The browser's Date.now() will have advanced by the same amount.
+     */
+    increaseTime: async ({ seconds }: { seconds: number }) => {
+      await testClient.increaseTime({ seconds })
+      await testClient.mine({ blocks: 1 })
+      await page.clock.fastForward(seconds * 1000)
+    },
+
+    /**
+     * Set the browser to a *fixed* time matching the current block.
+     * Useful when you don't want the clock to advance between assertions.
+     */
+    syncFixed: async () => {
+      const block = await publicClient.getBlock()
+      const blockTime = Number(block.timestamp)
+      const time = new Date(blockTime * 1000)
+      await page.clock.setFixedTime(time)
+      console.log(`[time] syncFixed — browser clock fixed at ${time.toISOString()}`)
+    },
+
+    /** Log the current anvil block timestamp (debug helper). */
+    logBlockTime: async () => {
+      const block = await publicClient.getBlock()
+      const blockTime = Number(block.timestamp)
+      console.log(`[time] block time: ${new Date(blockTime * 1000).toISOString()}`)
+    },
+  }
+}
