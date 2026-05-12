@@ -1,11 +1,7 @@
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { makeClassified } from './_fixtures'
-import {
-  buildStepDescriptors,
-  MAX_NAMES_PER_BATCH,
-  needsSCAApproval,
-} from './buildStepDescriptors'
+import { buildStepDescriptors, needsApproval } from './buildStepDescriptors'
 import type { GroupedNames } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 
@@ -29,14 +25,20 @@ const build = (
   classified: readonly Parameters<typeof makeClassified>[0][] = [{}],
   groups: Partial<GroupedNames> = {},
   p: Partial<MigrationPreflight> = {},
+  approvals: {
+    hasBaseRegistrarApproval?: boolean
+    hasNameWrapperApproval?: boolean
+  } = {},
 ) =>
-  buildStepDescriptors(
-    classified.map(makeClassified),
-    { ...emptyGroups(), ...groups },
-    preflight(p),
-  )
+  buildStepDescriptors({
+    classified: classified.map(makeClassified),
+    groups: { ...emptyGroups(), ...groups },
+    preflight: preflight(p),
+    hasBaseRegistrarApproval: approvals.hasBaseRegistrarApproval ?? false,
+    hasNameWrapperApproval: approvals.hasNameWrapperApproval ?? false,
+  })
 
-describe('needsSCAApproval', () => {
+describe('needsApproval', () => {
   const classified = (tokenType: 'unlocked' | 'locked-2ld' | 'locked-child') =>
     makeClassified({ tokenType })
 
@@ -66,36 +68,60 @@ describe('needsSCAApproval', () => {
       true,
     ],
   ] as const)('returns %s → %s', (_, groups, expected) => {
-    expect(needsSCAApproval(groups)).toBe(expected)
+    expect(needsApproval(groups)).toBe(expected)
   })
 })
 
 describe('buildStepDescriptors', () => {
   const keepV1 = { resolverStrategy: 'keep-v1' as const }
 
-  it('emits only batch steps when approval is not needed and no resolver change', () => {
-    expect(build([keepV1])).toEqual([
-      { type: 'migrate-batch', batch: 1, totalBatches: 1, count: 1 },
-    ])
+  it('emits only migrate-all when approval is not needed and no resolver change', () => {
+    expect(build([keepV1])).toEqual([{ type: 'migrate-all', count: 1 }])
   })
 
-  it('prepends approve-sca when approval is required and not skipped', () => {
+  it('prepends approve-base-registrar when unwrapped names exist and not already approved', () => {
     expect(
       build([keepV1], {
         unwrapped: [makeClassified(keepV1)],
       })[0],
-    ).toEqual({ type: 'approve-sca', count: 1 })
+    ).toEqual({ type: 'approve-base-registrar' })
   })
 
-  it('skips approve-sca when skipApprovalPhase is true', () => {
+  it('omits approve-base-registrar when already approved', () => {
     const d = build(
       [keepV1],
       { unwrapped: [makeClassified(keepV1)] },
-      {
-        skipApprovalPhase: true,
-      },
+      {},
+      { hasBaseRegistrarApproval: true },
     )
-    expect(d.find((x) => x.type === 'approve-sca')).toBeUndefined()
+    expect(d.find((x) => x.type === 'approve-base-registrar')).toBeUndefined()
+  })
+
+  it('prepends approve-name-wrapper when wrapped names exist and not already approved', () => {
+    const d = build([keepV1], {
+      unlocked: [makeClassified({ tokenType: 'unlocked' })],
+    })
+    expect(d.find((x) => x.type === 'approve-name-wrapper')).toBeDefined()
+  })
+
+  it('omits approve-name-wrapper when already approved', () => {
+    const d = build(
+      [keepV1],
+      { unlocked: [makeClassified({ tokenType: 'unlocked' })] },
+      {},
+      { hasNameWrapperApproval: true },
+    )
+    expect(d.find((x) => x.type === 'approve-name-wrapper')).toBeUndefined()
+  })
+
+  it('skips all approval steps when skipApprovalPhase is true', () => {
+    const d = build(
+      [keepV1],
+      { unwrapped: [makeClassified(keepV1)] },
+      { skipApprovalPhase: true },
+    )
+    expect(d.find((x) => x.type === 'approve-base-registrar')).toBeUndefined()
+    expect(d.find((x) => x.type === 'approve-name-wrapper')).toBeUndefined()
   })
 
   it.each([
@@ -127,43 +153,75 @@ describe('buildStepDescriptors', () => {
     expect(!!found).toBe(present)
   })
 
-  it('emits 2 batches at MAX_NAMES_PER_BATCH + 1 with correct counts', () => {
-    const batches = build(
-      Array.from({ length: MAX_NAMES_PER_BATCH + 1 }, (_, i) => ({
-        id: `0x${i}`,
-      })),
-    ).filter((d) => d.type === 'migrate-batch')
-    expect(batches).toEqual([
-      {
-        type: 'migrate-batch',
-        batch: 1,
-        totalBatches: 2,
-        count: MAX_NAMES_PER_BATCH,
-      },
-      { type: 'migrate-batch', batch: 2, totalBatches: 2, count: 1 },
+  it('emits grant-role for each name with a managerAddress', () => {
+    const withManager = [
+      makeClassified({
+        label: 'alice',
+        managerAddress: '0x1111111111111111111111111111111111111111' as Address,
+      }),
+      makeClassified({ label: 'bob' }),
+    ]
+    const d = buildStepDescriptors({
+      classified: withManager,
+      groups: emptyGroups(),
+      preflight: preflight(),
+      hasBaseRegistrarApproval: false,
+      hasNameWrapperApproval: false,
+    })
+    const roles = d.filter((x) => x.type === 'grant-role')
+    expect(roles).toEqual([{ type: 'grant-role', label: 'alice' }])
+  })
+
+  it('emits profile-replay for each name with to-owned-permres strategy', () => {
+    const withPermRes = [
+      makeClassified({ label: 'alice', resolverStrategy: 'to-owned-permres' }),
+      makeClassified({ label: 'bob', resolverStrategy: 'keep-v1' }),
+    ]
+    const d = buildStepDescriptors({
+      classified: withPermRes,
+      groups: emptyGroups(),
+      preflight: preflight({ preExistingOwnedPermRes: null }),
+      hasBaseRegistrarApproval: false,
+      hasNameWrapperApproval: false,
+    })
+    const replays = d.filter((x) => x.type === 'profile-replay')
+    expect(replays).toEqual([{ type: 'profile-replay', label: 'alice' }])
+  })
+
+  it('orders descriptors as approve-base-registrar → ensure-resolver → migrate-all → grant-role → profile-replay', () => {
+    expect(
+      buildStepDescriptors({
+        classified: [
+          makeClassified({
+            label: 'alice',
+            resolverStrategy: 'to-owned-permres',
+            managerAddress:
+              '0x1111111111111111111111111111111111111111' as Address,
+          }),
+        ],
+        groups: { ...emptyGroups(), unwrapped: [makeClassified()] },
+        preflight: preflight(),
+        hasBaseRegistrarApproval: false,
+        hasNameWrapperApproval: false,
+      }).map((d) => d.type),
+    ).toEqual([
+      'approve-base-registrar',
+      'ensure-resolver',
+      'migrate-all',
+      'grant-role',
+      'profile-replay',
     ])
   })
 
-  it('emits exactly 1 batch at MAX_NAMES_PER_BATCH', () => {
-    const batches = build(
-      Array.from({ length: MAX_NAMES_PER_BATCH }, (_, i) => ({ id: `0x${i}` })),
-    ).filter((d) => d.type === 'migrate-batch')
-    expect(batches).toHaveLength(1)
-    expect(batches[0]).toMatchObject({
-      totalBatches: 1,
-      count: MAX_NAMES_PER_BATCH,
-    })
-  })
-
-  it('orders descriptors as approve-sca → ensure-resolver → migrate-batch', () => {
-    expect(
-      build([{ resolverStrategy: 'to-owned-permres' }], {
-        unwrapped: [makeClassified()],
-      }).map((d) => d.type),
-    ).toEqual(['approve-sca', 'ensure-resolver', 'migrate-batch'])
-  })
-
   it('returns no descriptors for an empty classified list', () => {
-    expect(buildStepDescriptors([], emptyGroups(), preflight())).toEqual([])
+    expect(
+      buildStepDescriptors({
+        classified: [],
+        groups: emptyGroups(),
+        preflight: preflight(),
+        hasBaseRegistrarApproval: false,
+        hasNameWrapperApproval: false,
+      }),
+    ).toEqual([])
   })
 })

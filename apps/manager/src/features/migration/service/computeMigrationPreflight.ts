@@ -1,9 +1,10 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
+import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
 import {
   approvalNeedsFor,
-  checkSCAApprovals,
-} from '@/features/migration/service/checkSCAApprovals'
+  checkHelperApprovals,
+} from '@/features/migration/service/checkHelperApprovals'
 import {
   classifyNames,
   groupClassifiedNames,
@@ -26,12 +27,11 @@ export const EMPTY_PREFLIGHT: MigrationPreflight = {
 
 export const computeMigrationPreflight = async (params: {
   eoa: Address
-  scaAddress: Address
   domains: readonly V1Domain[]
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
 }): Promise<MigrationPreflight> => {
-  const { eoa, scaAddress, domains, wagmiConfig, publicClient } = params
+  const { eoa, domains, wagmiConfig, publicClient } = params
 
   const { classified } = classifyNames([...domains], eoa)
   const groups = groupClassifiedNames(classified)
@@ -46,7 +46,12 @@ export const computeMigrationPreflight = async (params: {
     needsOwnedPermRes
       ? findExistingPermRes({ eoa, publicClient })
       : Promise.resolve(null),
-    checkSCAApprovals({ eoa, scaAddress, needs, wagmiConfig }),
+    checkHelperApprovals({
+      eoa,
+      helperAddress: V2_CONTRACTS.MigrationHelper,
+      needs,
+      wagmiConfig,
+    }),
   ])
 
   const skipApprovalPhase =

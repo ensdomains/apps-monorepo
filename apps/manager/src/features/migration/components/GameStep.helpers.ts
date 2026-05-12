@@ -71,15 +71,12 @@ export type StepDescription =
   | { readonly kind: 'done' }
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
-  | { readonly kind: 'approve-sca' }
+  | { readonly kind: 'approve-base-registrar' }
+  | { readonly kind: 'approve-name-wrapper' }
   | { readonly kind: 'ensure-resolver' }
-  | { readonly kind: 'batch-single'; readonly count: number }
-  | {
-      readonly kind: 'batch-multi'
-      readonly batch: number
-      readonly total: number
-      readonly count: number
-    }
+  | { readonly kind: 'migrate-all'; readonly count: number }
+  | { readonly kind: 'grant-role'; readonly label: string }
+  | { readonly kind: 'profile-replay'; readonly label: string }
 
 export const describeNextStep = (params: {
   readonly done: boolean
@@ -94,22 +91,27 @@ export const describeNextStep = (params: {
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
-    .with({ descriptor: { type: 'approve-sca' } }, () => ({
-      kind: 'approve-sca' as const,
+    .with({ descriptor: { type: 'approve-base-registrar' } }, () => ({
+      kind: 'approve-base-registrar' as const,
+    }))
+    .with({ descriptor: { type: 'approve-name-wrapper' } }, () => ({
+      kind: 'approve-name-wrapper' as const,
     }))
     .with({ descriptor: { type: 'ensure-resolver' } }, () => ({
       kind: 'ensure-resolver' as const,
     }))
-    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) =>
-      descriptor.totalBatches === 1
-        ? ({ kind: 'batch-single' as const, count: descriptor.count } as const)
-        : ({
-            kind: 'batch-multi' as const,
-            batch: descriptor.batch,
-            total: descriptor.totalBatches,
-            count: descriptor.count,
-          } as const),
-    )
+    .with({ descriptor: { type: 'migrate-all' } }, ({ descriptor }) => ({
+      kind: 'migrate-all' as const,
+      count: descriptor.count,
+    }))
+    .with({ descriptor: { type: 'grant-role' } }, ({ descriptor }) => ({
+      kind: 'grant-role' as const,
+      label: descriptor.label,
+    }))
+    .with({ descriptor: { type: 'profile-replay' } }, ({ descriptor }) => ({
+      kind: 'profile-replay' as const,
+      label: descriptor.label,
+    }))
     .exhaustive()
 
 export type GiantMode = 'collapsed' | 'excited' | 'idle'

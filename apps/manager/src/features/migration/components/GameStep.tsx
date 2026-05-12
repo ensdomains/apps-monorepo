@@ -53,19 +53,29 @@ export const GameStep = () => {
     .with({ kind: 'done' }, () => t`Almost there...`)
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Preparing migration...`)
-    .with({ kind: 'approve-sca' }, () => `${t`Approving smart account`}...`)
+    .with(
+      { kind: 'approve-base-registrar' },
+      () => `${t`Approving the migration helper on BaseRegistrar`}...`,
+    )
+    .with(
+      { kind: 'approve-name-wrapper' },
+      () => `${t`Approving the migration helper on NameWrapper`}...`,
+    )
     .with(
       { kind: 'ensure-resolver' },
       () => `${t`Setting up your v2 resolver`}...`,
     )
     .with(
-      { kind: 'batch-single' },
+      { kind: 'migrate-all' },
       ({ count }) => `${t`Upgrading ${count} name(s) to v2`}...`,
     )
     .with(
-      { kind: 'batch-multi' },
-      ({ batch, total, count }) =>
-        `${t`Batch ${batch}/${total}: upgrading ${count} name(s)`}...`,
+      { kind: 'grant-role' },
+      ({ label }) => `${t`Granting manager role for ${label}.eth`}...`,
+    )
+    .with(
+      { kind: 'profile-replay' },
+      ({ label }) => `${t`Restoring profile records for ${label}.eth`}...`,
     )
     .exhaustive()
 

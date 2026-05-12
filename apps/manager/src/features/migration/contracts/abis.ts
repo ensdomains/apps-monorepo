@@ -46,12 +46,6 @@ export const ETH_REGISTRY_V2_ABI = [
   ...eacGrantRolesSnippet,
 ] as const
 
-// TODO(ensjs): upstream `preMigrate(string,uint64,address,address)` on the
-// PreMigrationController to @ensdomains/ensjs-abi and drop this local snippet.
-export const PRE_MIGRATION_ABI = parseAbi([
-  'function preMigrate(string label, uint64 expiry, address registry, address resolver)',
-])
-
 export const VERIFIABLE_FACTORY_ABI = verifiableFactoryDeployProxySnippet
 
 export const PERMISSIONED_RESOLVER_ABI = [
@@ -62,3 +56,25 @@ export const PERMISSIONED_RESOLVER_ABI = [
   ...publicResolverTextSnippet,
   ...publicResolverMultiAddrSnippet,
 ] as const
+
+// MigrationHelper — single entrypoint plus typed errors raised directly by the helper.
+export const MIGRATION_HELPER_ABI = parseAbi([
+  'struct Data { string label; address owner; address subregistry; address resolver; }',
+  'struct LockedChildren { bytes parentName; Data[][] groups; }',
+  'function migrate(Data[] unwrapped, Data[][] unlockedGroups, Data[][] lockedGroups, LockedChildren[] lockedChildrenGroups)',
+  'error WrappedOwnerMismatch(uint256 tokenId)',
+  'error ParentNotMigrated(bytes name)',
+  'error NotApprovedOperator(address nft, address owner)',
+])
+
+// LibMigration errors — these come back wrapped inside Error(string) due to
+// NameWrapper's transfer-error squelching. decodeMigrationError unwraps and
+// matches against this ABI.
+export const LIB_MIGRATION_ERRORS_ABI = parseAbi([
+  'error NameRequiresMigration()',
+  'error NameNotLocked(uint256 tokenId)',
+  'error NameIsLocked(uint256 tokenId)',
+  'error NameDataMismatch(uint256 tokenId)',
+  'error FrozenTokenApproval(uint256 tokenId)',
+  'error InvalidData()',
+])

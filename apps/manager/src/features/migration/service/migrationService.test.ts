@@ -38,15 +38,13 @@ vi.mock('./fetchV1Profiles', () => ({
 }))
 
 vi.mock('./preflightChecks', () => ({
-  filterNotReserved: vi.fn(() => Promise.resolve([])),
-  resolveParentRegistries: vi.fn(() => Promise.resolve(new Map())),
   checkOwnership: vi.fn(),
   checkV2Status: vi.fn(),
   checkFrozenApproval: vi.fn(),
   runEligibilityChecks: vi.fn(),
 }))
 
-vi.mock('./checkSCAApprovals', () => ({
+vi.mock('./checkHelperApprovals', () => ({
   approvalNeedsFor: vi.fn((groups) => ({
     hasUnwrapped: groups.unwrapped.length > 0,
     hasWrapped:
@@ -54,7 +52,7 @@ vi.mock('./checkSCAApprovals', () => ({
       groups.locked2ld.length > 0 ||
       groups.childNames.size > 0,
   })),
-  checkSCAApprovals: vi.fn(() =>
+  checkHelperApprovals: vi.fn(() =>
     Promise.resolve({
       baseRegistrarApproved: true,
       nameWrapperApproved: true,
@@ -65,12 +63,11 @@ vi.mock('./checkSCAApprovals', () => ({
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import { waitForTransactionReceipt, writeContract } from '@wagmi/core'
 import { buildMigrationPlan } from './buildMigrationPlan'
-import { checkSCAApprovals } from './checkSCAApprovals'
+import { checkHelperApprovals } from './checkHelperApprovals'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
 import { fetchV1Profiles } from './fetchV1Profiles'
 import { executeMigration, type MigrationProgress } from './migrationService'
-import { filterNotReserved } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
 const waitForTransactionMock = vi.mocked(waitForTransaction)
@@ -78,8 +75,7 @@ const writeContractMock = vi.mocked(writeContract)
 const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
 const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
 const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
-const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
-const filterNotReservedMock = vi.mocked(filterNotReserved)
+const checkSCAApprovalsMock = vi.mocked(checkHelperApprovals)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
@@ -127,6 +123,8 @@ const runExecute = async (
     wagmiConfig: WAGMI,
     publicClient: PUBLIC_CLIENT,
     preflight,
+    hasBaseRegistrarApproval: false,
+    hasNameWrapperApproval: false,
   })
   const result = await executeMigration({
     plan,
@@ -145,7 +143,6 @@ beforeEach(() => {
     baseRegistrarApproved: true,
     nameWrapperApproved: true,
   })
-  filterNotReservedMock.mockResolvedValue([])
   fetchV1ProfilesMock.mockResolvedValue(new Map())
   ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({
@@ -172,7 +169,7 @@ describe('executeMigration', () => {
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual(['0xdeadbeef'])
     expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
-    expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
+    expect(progressEvents.at(-1)?.description).toMatch(/upgraded/i)
   })
 
   it('skips approval phase when preflight.skipApprovalPhase is true', async () => {

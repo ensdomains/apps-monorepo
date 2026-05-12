@@ -77,6 +77,80 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           <div>You can retry below.</div>
         </>
       )
+    case 'parent-not-migrated':
+      return (
+        <div>
+          <Trans>
+            The parent name {error.parentName} hasn&apos;t been migrated yet.
+            Migrate it first, then retry.
+          </Trans>
+        </div>
+      )
+    case 'not-approved-operator':
+      return (
+        <div>
+          <Trans>
+            The migration helper isn&apos;t approved to move your names. Please
+            retry the approval step.
+          </Trans>
+        </div>
+      )
+    case 'wrapped-owner-mismatch':
+      return (
+        <div>
+          <Trans>
+            Multiple owners detected in one batch. Please reload and try again.
+          </Trans>
+        </div>
+      )
+    case 'name-not-locked':
+      return (
+        <div>
+          <Trans>
+            A name expected to be locked isn&apos;t. Token ID:{' '}
+            {error.tokenId.toString()}.
+          </Trans>
+        </div>
+      )
+    case 'name-is-locked':
+      return (
+        <div>
+          <Trans>
+            A name is locked in a way the migration can&apos;t handle. Token ID:{' '}
+            {error.tokenId.toString()}.
+          </Trans>
+        </div>
+      )
+    case 'name-data-mismatch':
+      return (
+        <div>
+          <Trans>
+            Migration data doesn&apos;t match the on-chain state. Token ID:{' '}
+            {error.tokenId.toString()}. Please retry.
+          </Trans>
+        </div>
+      )
+    case 'frozen-token-approval':
+      return (
+        <div>
+          <Trans>
+            This name has a frozen approval and can&apos;t be migrated. Token
+            ID: {error.tokenId.toString()}.
+          </Trans>
+        </div>
+      )
+    case 'invalid-data':
+      return (
+        <div>
+          <Trans>Migration data is invalid. Please reload and retry.</Trans>
+        </div>
+      )
+    case 'name-requires-migration':
+      return (
+        <div>
+          <Trans>A name still requires migration. Please retry.</Trans>
+        </div>
+      )
   }
 }
 
@@ -98,13 +172,12 @@ export const MigrationPage = () => {
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
   const smartAccount = useSmartAccountContext()
-  const { ownerAddress, accountAddress } = smartAccount
+  const { ownerAddress } = smartAccount
   const wagmiConfig = useConfig()
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress as Address | undefined,
-    scaAddress: accountAddress as Address | undefined,
   })
 
   useEffect(() => {
@@ -139,6 +212,8 @@ export const MigrationPage = () => {
         wagmiConfig,
         publicClient: publicClient as unknown as PublicClient,
         preflight,
+        hasBaseRegistrarApproval: false,
+        hasNameWrapperApproval: false,
       })
 
       uiActor.send({
