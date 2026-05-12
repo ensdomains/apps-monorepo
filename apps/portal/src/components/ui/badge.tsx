@@ -53,7 +53,7 @@ function Badge({
 }
 
 const SoonBadge = () => (
-  <Badge variant="success" className="ml-auto text-[10px] px-1.5 py-0">
+  <Badge className="ml-auto bg-message-warning-fill text-message-warning-text px-2.5 pt-[7px] pb-[8px] text-[10px] font-[450] uppercase leading-none tracking-widest">
     Soon
   </Badge>
 )
