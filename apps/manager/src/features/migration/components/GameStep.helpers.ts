@@ -76,7 +76,7 @@ export type StepDescription =
   | { readonly kind: 'ensure-resolver' }
   | { readonly kind: 'migrate-all'; readonly count: number }
   | { readonly kind: 'grant-role'; readonly label: string }
-  | { readonly kind: 'profile-replay'; readonly label: string }
+  | { readonly kind: 'profile-replay' }
 
 export const describeNextStep = (params: {
   readonly done: boolean
@@ -108,9 +108,8 @@ export const describeNextStep = (params: {
       kind: 'grant-role' as const,
       label: descriptor.label,
     }))
-    .with({ descriptor: { type: 'profile-replay' } }, ({ descriptor }) => ({
+    .with({ descriptor: { type: 'profile-replay' } }, () => ({
       kind: 'profile-replay' as const,
-      label: descriptor.label,
     }))
     .exhaustive()
 

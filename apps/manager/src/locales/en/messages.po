@@ -320,7 +320,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:221
+#: src/features/migration/pages/MigrationPage.tsx:223
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
@@ -1258,7 +1258,7 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#: src/features/migration/pages/MigrationPage.tsx:197
+#: src/features/migration/pages/MigrationPage.tsx:199
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1454,7 +1454,7 @@ msgstr "Notifications"
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
 
-#: src/features/migration/pages/MigrationPage.tsx:89
+#: src/features/migration/pages/MigrationPage.tsx:91
 msgid "One of your names can't be upgraded right now."
 msgstr "One of your names can't be upgraded right now."
 
@@ -1830,11 +1830,11 @@ msgstr "Reset Changes"
 msgid "Resolver address"
 msgstr "Resolver address"
 
-#: src/features/migration/components/GameStep.tsx:78
-msgid "Restoring records for {label}.eth"
-msgstr "Restoring records for {label}.eth"
+#: src/features/migration/components/GameStep.tsx:73
+msgid "Restoring your records"
+msgstr "Restoring your records"
 
-#: src/features/migration/pages/MigrationPage.tsx:228
+#: src/features/migration/pages/MigrationPage.tsx:230
 msgid "Retry"
 msgstr "Retry"
 
@@ -1875,7 +1875,7 @@ msgstr "Save Preferences"
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
 
-#: src/features/migration/components/GameStep.tsx:74
+#: src/features/migration/components/GameStep.tsx:71
 msgid "Saving manager for {label}.eth"
 msgstr "Saving manager for {label}.eth"
 
@@ -2016,7 +2016,7 @@ msgstr "Setting ETH address..."
 msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
-#: src/features/migration/components/GameStep.tsx:66
+#: src/features/migration/components/GameStep.tsx:64
 msgid "Setting up your records"
 msgstr "Setting up your records"
 
@@ -2400,11 +2400,11 @@ msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profi
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
-#: src/features/migration/components/GameStep.tsx:70
+#: src/features/migration/components/GameStep.tsx:67
 msgid "Upgrading {count} name(s)"
 msgstr "Upgrading {count} name(s)"
 
-#: src/features/migration/components/GameStep.tsx:102
+#: src/features/migration/components/GameStep.tsx:96
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 

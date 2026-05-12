@@ -30,6 +30,7 @@ const build = (
   approvals: {
     hasBaseRegistrarApproval?: boolean
     hasNameWrapperApproval?: boolean
+    hasProfileReplay?: boolean
   } = {},
 ) =>
   buildStepDescriptors({
@@ -38,6 +39,7 @@ const build = (
     preflight: preflight(p),
     hasBaseRegistrarApproval: approvals.hasBaseRegistrarApproval ?? false,
     hasNameWrapperApproval: approvals.hasNameWrapperApproval ?? false,
+    hasProfileReplay: approvals.hasProfileReplay ?? false,
   })
 
 describe('needsApproval', () => {
@@ -169,15 +171,16 @@ describe('buildStepDescriptors', () => {
       preflight: preflight(),
       hasBaseRegistrarApproval: false,
       hasNameWrapperApproval: false,
+      hasProfileReplay: false,
     })
     const roles = d.filter((x) => x.type === 'grant-role')
     expect(roles).toEqual([{ type: 'grant-role', label: 'alice' }])
   })
 
-  it('emits profile-replay for each name with to-owned-permres strategy', () => {
+  it('emits a single profile-replay descriptor when hasProfileReplay is true', () => {
     const withPermRes = [
       makeClassified({ label: 'alice', resolverStrategy: 'to-owned-permres' }),
-      makeClassified({ label: 'bob', resolverStrategy: 'keep-v1' }),
+      makeClassified({ label: 'bob', resolverStrategy: 'to-owned-permres' }),
     ]
     const d = buildStepDescriptors({
       classified: withPermRes,
@@ -185,9 +188,25 @@ describe('buildStepDescriptors', () => {
       preflight: preflight({ preExistingOwnedPermRes: null }),
       hasBaseRegistrarApproval: false,
       hasNameWrapperApproval: false,
+      hasProfileReplay: true,
     })
     const replays = d.filter((x) => x.type === 'profile-replay')
-    expect(replays).toEqual([{ type: 'profile-replay', label: 'alice' }])
+    expect(replays).toEqual([{ type: 'profile-replay' }])
+  })
+
+  it('emits no profile-replay descriptor when hasProfileReplay is false', () => {
+    const withPermRes = [
+      makeClassified({ label: 'alice', resolverStrategy: 'to-owned-permres' }),
+    ]
+    const d = buildStepDescriptors({
+      classified: withPermRes,
+      groups: emptyGroups(),
+      preflight: preflight({ preExistingOwnedPermRes: null }),
+      hasBaseRegistrarApproval: false,
+      hasNameWrapperApproval: false,
+      hasProfileReplay: false,
+    })
+    expect(d.filter((x) => x.type === 'profile-replay')).toEqual([])
   })
 
   it('orders descriptors as approve-base-registrar → ensure-resolver → migrate-all → grant-role → profile-replay', () => {
@@ -205,6 +224,7 @@ describe('buildStepDescriptors', () => {
         preflight: preflight(),
         hasBaseRegistrarApproval: false,
         hasNameWrapperApproval: false,
+        hasProfileReplay: true,
       }).map((d) => d.type),
     ).toEqual([
       'approve-base-registrar',
@@ -223,6 +243,7 @@ describe('buildStepDescriptors', () => {
         preflight: preflight(),
         hasBaseRegistrarApproval: false,
         hasNameWrapperApproval: false,
+        hasProfileReplay: false,
       }),
     ).toEqual([])
   })

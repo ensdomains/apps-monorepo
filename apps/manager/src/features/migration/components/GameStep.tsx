@@ -70,10 +70,7 @@ export const GameStep = () => {
       { kind: 'grant-role' },
       ({ label }) => `${t`Saving manager for ${label}.eth`}...`,
     )
-    .with(
-      { kind: 'profile-replay' },
-      ({ label }) => `${t`Restoring records for ${label}.eth`}...`,
-    )
+    .with({ kind: 'profile-replay' }, () => `${t`Restoring your records`}...`)
     .exhaustive()
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)

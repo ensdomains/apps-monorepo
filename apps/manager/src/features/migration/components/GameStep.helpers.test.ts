@@ -135,9 +135,9 @@ describe('describeNextStep', () => {
       'profile-replay descriptor',
       {
         done: false,
-        descriptor: descriptor({ type: 'profile-replay', label: 'myname' }),
+        descriptor: descriptor({ type: 'profile-replay' }),
       },
-      { kind: 'profile-replay', label: 'myname' },
+      { kind: 'profile-replay' },
     ],
   ] as const)('%s', (_, params, expected) => {
     expect(describeNextStep(params)).toEqual(expected)

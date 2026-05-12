@@ -7,7 +7,7 @@ export type MigrationStepDescriptor =
   | { type: 'ensure-resolver' }
   | { type: 'migrate-all'; count: number }
   | { type: 'grant-role'; label: string }
-  | { type: 'profile-replay'; label: string }
+  | { type: 'profile-replay' }
 
 export const needsApproval = (groups: GroupedNames): boolean =>
   groups.unwrapped.length > 0 ||
@@ -21,6 +21,7 @@ type BuildStepDescriptorsParams = {
   readonly preflight: MigrationPreflight
   readonly hasBaseRegistrarApproval: boolean
   readonly hasNameWrapperApproval: boolean
+  readonly hasProfileReplay: boolean
 }
 
 export const buildStepDescriptors = (
@@ -32,6 +33,7 @@ export const buildStepDescriptors = (
     preflight,
     hasBaseRegistrarApproval,
     hasNameWrapperApproval,
+    hasProfileReplay,
   } = params
   const descriptors: MigrationStepDescriptor[] = []
 
@@ -64,10 +66,8 @@ export const buildStepDescriptors = (
       descriptors.push({ type: 'grant-role', label: name.label })
     }
   }
-  for (const name of classified) {
-    if (name.resolverStrategy === 'to-owned-permres') {
-      descriptors.push({ type: 'profile-replay', label: name.label })
-    }
+  if (hasProfileReplay) {
+    descriptors.push({ type: 'profile-replay' })
   }
 
   return descriptors

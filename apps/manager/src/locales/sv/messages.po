@@ -325,7 +325,7 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:221
+#: src/features/migration/pages/MigrationPage.tsx:223
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
@@ -1263,7 +1263,7 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:197
+#: src/features/migration/pages/MigrationPage.tsx:199
 msgid "Migration failed"
 msgstr ""
 
@@ -1459,7 +1459,7 @@ msgstr ""
 msgid "Notifications blocked"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:89
+#: src/features/migration/pages/MigrationPage.tsx:91
 msgid "One of your names can't be upgraded right now."
 msgstr ""
 
@@ -1835,11 +1835,11 @@ msgstr ""
 msgid "Resolver address"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:78
-msgid "Restoring records for {label}.eth"
+#: src/features/migration/components/GameStep.tsx:73
+msgid "Restoring your records"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:228
+#: src/features/migration/pages/MigrationPage.tsx:230
 msgid "Retry"
 msgstr ""
 
@@ -1880,7 +1880,7 @@ msgstr ""
 msgid "Saved favorites & searches"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:74
+#: src/features/migration/components/GameStep.tsx:71
 msgid "Saving manager for {label}.eth"
 msgstr ""
 
@@ -2021,7 +2021,7 @@ msgstr "Anger ETH-adress..."
 msgid "Setting ETH address…"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:66
+#: src/features/migration/components/GameStep.tsx:64
 msgid "Setting up your records"
 msgstr ""
 
@@ -2405,11 +2405,11 @@ msgstr ""
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:70
+#: src/features/migration/components/GameStep.tsx:67
 msgid "Upgrading {count} name(s)"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx:102
+#: src/features/migration/components/GameStep.tsx:96
 msgid "Upgrading your names..."
 msgstr ""
 

@@ -73,7 +73,7 @@ const buildAuxCalls = (params: {
 } => {
   const { classified, ownedPermRes, profiles } = params
   const roleGrantCalls: ZeroDevCall[] = []
-  const profileReplayCalls: ZeroDevCall[] = []
+  const replayProfiles = new Map<Hex, Profile>()
 
   for (const name of classified) {
     if (name.managerAddress) {
@@ -86,13 +86,18 @@ const buildAuxCalls = (params: {
         profile &&
         (profile.texts.length > 0 || profile.addresses.length > 0)
       ) {
-        const replayCall = buildProfileReplayCall({
-          resolver: ownedPermRes,
-          profiles: new Map<Hex, Profile>([[node, profile]]),
-        })
-        if (replayCall) profileReplayCalls.push(replayCall)
+        replayProfiles.set(node, profile)
       }
     }
+  }
+
+  const profileReplayCalls: ZeroDevCall[] = []
+  if (ownedPermRes && replayProfiles.size > 0) {
+    const replayCall = buildProfileReplayCall({
+      resolver: ownedPermRes,
+      profiles: replayProfiles,
+    })
+    if (replayCall) profileReplayCalls.push(replayCall)
   }
 
   return { roleGrantCalls, profileReplayCalls }
@@ -157,6 +162,7 @@ export const buildMigrationPlan = async (params: {
     preflight,
     hasBaseRegistrarApproval,
     hasNameWrapperApproval,
+    hasProfileReplay: profileReplayCalls.length > 0,
   })
 
   return {
@@ -215,6 +221,7 @@ export const adjustPlanForRetry = (
     preflight: plan.preflight,
     hasBaseRegistrarApproval: true,
     hasNameWrapperApproval: true,
+    hasProfileReplay: profileReplayCalls.length > 0,
   })
 
   return {
