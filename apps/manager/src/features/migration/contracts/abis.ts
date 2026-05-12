@@ -31,8 +31,6 @@ export const NAME_WRAPPER_ABI = [
   ...nameWrapperGetApprovedSnippet,
 ] as const
 
-export const WRAPPER_REGISTRY_ABI = permissionedRegistryGetSubregistrySnippet
-
 // TODO(ensjs): upstream `getStatus(uint256) view returns (uint8)` on ETHRegistry
 // to @ensdomains/ensjs-abi/v2/permissionedRegistry and drop this local snippet.
 const ethRegistryGetStatusSnippet = parseAbi([
