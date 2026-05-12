@@ -278,7 +278,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   initial: 'pricing',
   context: ({ input }) => ({
     chainId: input.chainId,
-    duration: SECONDS_IN_YEAR,
+    duration: SECONDS_IN_YEAR * 3,
     selectedToken: undefined,
     lastErrorMessage: undefined,
     maxProgressReached: undefined,
