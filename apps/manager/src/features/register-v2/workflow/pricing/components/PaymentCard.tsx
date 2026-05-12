@@ -1,13 +1,16 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { AnimateNumber } from 'motion-plus/react'
 import { zeroAddress } from 'viem'
-import { Button } from '@/components/ui/button'
+import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { Button } from '@/components/ens-consumer/button/Button'
+import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
+import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
 import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
@@ -21,6 +24,8 @@ export const PaymentCard = () => {
     state.can({ type: 'pricing.step.next' }),
   ])
 
+  const baseRate = useBaseRate(label)
+
   const pricingQuery = useQuery({
     ...getPricingQueryOptions(
       label,
@@ -30,12 +35,21 @@ export const PaymentCard = () => {
     ),
     select: (data) =>
       decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
+    placeholderData: keepPreviousData,
   })
+
+  const { discountAmount } = calculateDiscount(
+    pricingQuery.data ?? 0,
+    baseRate,
+    BigInt(duration),
+  )
 
   return (
     <PaymentCardBase
       amount={pricingQuery.data}
       canNext={canNext}
+      discountAmount={discountAmount}
+      isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
       type="register"
     />
@@ -46,11 +60,15 @@ export const PaymentCardBase = ({
   canNext,
   onNext,
   amount,
+  isLoading,
+  discountAmount,
   type,
 }: {
   canNext: boolean
   onNext: () => void
   amount: number | undefined
+  discountAmount?: number
+  isLoading: boolean
   type: 'register' | 'renew'
 }) => {
   const { isConnected } = useSmartAccountContext()
@@ -60,52 +78,100 @@ export const PaymentCardBase = ({
     <div
       className={tw(
         'flex flex-1 flex-col items-center justify-between gap-8',
-        'rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-8 shadow-temp-card',
+        'rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-12 py-6 shadow-temp-card',
       )}
     >
-      <div className="space-y-3 text-center">
+      <div className="w-full max-w-55 space-y-3 text-center">
         <p className="text-ens-lapis-surface text-xs uppercase">
           <Trans>Total</Trans>
         </p>
-        <div className="flex items-end gap-1.5">
-          <span className="font-medium text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl">
-            {amount ? (
-              formatUsd(amount)
-            ) : (
-              <span className="animate-pulse">$...</span>
+
+        <div className="flex items-end justify-center gap-1.5">
+          <span
+            className={tw(
+              'font-medium text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl',
+              isLoading && 'animate-pulse',
             )}
+          >
+            <AnimateNumber
+              format={{
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+              }}
+            >
+              {amount ?? 0}
+            </AnimateNumber>
           </span>
           <span className="font-normal text-base text-ens-blue-midnight leading-7">
             <Trans>USD</Trans>
           </span>
         </div>
+
+        <div
+          className={tw(
+            'w-full rounded bg-ens-signal-success-300 px-4 py-2 transition-opacity duration-300',
+            !discountAmount && 'opacity-0',
+          )}
+        >
+          <span className="font-normal text-2xl text-ens-peridot-core leading-ens-none">
+            <Trans>
+              Save{' '}
+              <AnimateNumber
+                format={{
+                  style: 'currency',
+                  currency: 'USD',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+                }}
+              >
+                {discountAmount ?? 0}
+              </AnimateNumber>
+            </Trans>
+          </span>
+        </div>
       </div>
 
-      {isConnected ? (
-        <Button
-          className="w-full uppercase"
-          disabled={!canNext}
-          onClick={onNext}
-          size="xl"
-          variant="blue"
-        >
-          <Trans>Pay with stablecoins</Trans>
-        </Button>
-      ) : (
-        <Button
-          className="w-full uppercase"
-          disabled={isOpen}
-          onClick={() => openModal()}
-          size="xl"
-          variant="blue"
-        >
-          {type === 'register' ? (
-            <Trans>Connect or sign in to register</Trans>
-          ) : (
-            <Trans>Connect or sign in to renew</Trans>
-          )}
-        </Button>
-      )}
+      <div className="flex w-full flex-col items-center justify-between gap-3">
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
+            <Trans>Stables accepted</Trans>
+          </p>
+          {/* Stablecoin icons */}
+          <div className="flex items-center gap-1">
+            <USDTIcon className="h-7 w-7" />
+            <USDCIcon className="h-7 w-7" />
+            <DAI className="h-7 w-7" />
+          </div>
+        </div>
+
+        {isConnected ? (
+          <Button
+            className="w-full font-medium font-mono uppercase tracking-widest"
+            color="blue"
+            disabled={!canNext}
+            onClick={onNext}
+            size="lg"
+          >
+            <Trans>Pay with stablecoins</Trans>
+          </Button>
+        ) : (
+          <Button
+            className="w-full font-medium font-mono uppercase tracking-widest"
+            color="blue"
+            disabled={isOpen}
+            onClick={() => openModal()}
+            size="lg"
+          >
+            {type === 'register' ? (
+              <Trans>Connect or sign in to register</Trans>
+            ) : (
+              <Trans>Connect or sign in to renew</Trans>
+            )}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

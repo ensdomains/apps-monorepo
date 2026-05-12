@@ -1,5 +1,5 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { zeroAddress } from 'viem'
 import { getPricingQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
@@ -19,12 +19,14 @@ export const PaymentCard = () => {
     ...getPricingQueryOptions(label, zeroAddress, duration, TOKENS.USDC.symbol),
     select: (data) =>
       decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
+    placeholderData: keepPreviousData,
   })
 
   return (
     <PaymentCardBase
       amount={pricingQuery.data}
       canNext={canNext}
+      isLoading={pricingQuery.isLoading}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
       type="renew"
     />
