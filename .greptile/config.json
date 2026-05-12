@@ -102,7 +102,7 @@
     {
       "id": "object-based-query-keys",
       "rule": "Use `createQueryKey<'name', Params>()` helper with params as a single object: `recordsQueryKey({ name, texts })`, not `['records', name, texts]`. Object form enables partial invalidation.",
-      "scope": ["apps/**/hooks/**", "packages/**/hooks/**"],
+      "scope": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts"],
       "severity": "medium"
     },
     {
