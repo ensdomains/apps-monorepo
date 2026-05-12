@@ -17,6 +17,6 @@ export const V2_CONTRACTS = {
   PermissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
   UnlockedMigrationController: '0xf9108e0797406c45ca43f103b176cbd902a12fba',
   LockedMigrationController: '0x806c44f027a6f6ee75ade3f6dbf1c6db496ffc67',
-  MigrationHelper: '0x6EAE7487659cCb3892248149a934f32dfB259485',
+  MigrationHelper: '0x09B9E95D8633EDA8d9E530f258c634A2953Cd3FA',
   ENSV2Resolver: '0xcc8eff4ad952de82990264d5adb32fc9399ecb64',
 } as const
