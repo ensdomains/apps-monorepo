@@ -270,7 +270,7 @@ msgstr "Approve the signature in your wallet, then wait for on-chain confirmatio
 msgid "Approving"
 msgstr "Approving"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
 msgid "Approving payment token"
 msgstr "Approving payment token"
 
@@ -278,11 +278,11 @@ msgstr "Approving payment token"
 msgid "Approving smart account"
 msgstr "Approving smart account"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:97
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:83
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
 msgid "Approving the token and registering your name"
 msgstr "Approving the token and registering your name"
 
@@ -463,11 +463,11 @@ msgstr "Check Your Email"
 msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
 msgstr "Check your email for the verification code. You can also click the link in the email to verify automatically."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:66
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:70
 msgid "Checking commitment cooldown"
 msgstr "Checking commitment cooldown"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:78
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:82
 msgid "Checking token allowance"
 msgstr "Checking token allowance"
 
@@ -475,7 +475,7 @@ msgstr "Checking token allowance"
 msgid "Checking wallet connection..."
 msgstr "Checking wallet connection..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:83
 msgid "Checking whether an approval transaction is needed"
 msgstr "Checking whether an approval transaction is needed"
 
@@ -589,7 +589,7 @@ msgstr "Confirming approval"
 msgid "Confirming commitment"
 msgstr "Confirming commitment"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
 msgid "Confirming the name is now owned by your account"
 msgstr "Confirming the name is now owned by your account"
 
@@ -775,11 +775,11 @@ msgstr "Default"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:31
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:35
 msgid "Deploying resolver"
 msgstr "Deploying resolver"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:32
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:36
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
 
@@ -869,7 +869,7 @@ msgstr "ENS"
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
 
-#: src/features/notifications/settings/preferences.tsx:150
+#: src/features/notifications/settings/preferences.tsx:151
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
@@ -1045,7 +1045,7 @@ msgstr "Failed to verify email"
 msgid "Favorites"
 msgstr "Favorites"
 
-#: src/features/notifications/settings/preferences.tsx:165
+#: src/features/notifications/settings/preferences.tsx:166
 msgid "Favourites"
 msgstr "Favourites"
 
@@ -1083,7 +1083,7 @@ msgstr "Get instant push notifications in your browser"
 msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
-#: src/features/notifications/settings/preferences.tsx:160
+#: src/features/notifications/settings/preferences.tsx:161
 msgid "Get notified when names you favorited expire."
 msgstr "Get notified when names you favorited expire."
 
@@ -1091,7 +1091,7 @@ msgstr "Get notified when names you favorited expire."
 msgid "Get support"
 msgstr "Get support"
 
-#: src/features/notifications/settings/preferences.tsx:145
+#: src/features/notifications/settings/preferences.tsx:146
 msgid "Get updated on the latest releases and features."
 msgstr "Get updated on the latest releases and features."
 
@@ -1152,7 +1152,7 @@ msgstr "Image must be under {MAX_FILE_SIZE_MB}MB"
 msgid "Image not available"
 msgstr "Image not available"
 
-#: src/features/notifications/settings/preferences.tsx:118
+#: src/features/notifications/settings/preferences.tsx:119
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
@@ -1313,7 +1313,7 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/notifications/settings/preferences.tsx:134
+#: src/features/notifications/settings/preferences.tsx:135
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
@@ -1455,12 +1455,10 @@ msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and
 #: src/features/notifications/settings/preferences.tsx:97
 #: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
-msgid "Notification Preferences"
-msgstr "Notification Preferences"
+#~ msgid "Notification Preferences"
+#~ msgstr "Notification Preferences"
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:21
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
-#: src/routes/notifications/_authenticated/index.tsx:86
+#: src/routes/notifications/_authenticated/index.tsx:84
 msgid "Notification Settings"
 msgstr "Notification Settings"
 
@@ -1570,7 +1568,7 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
-#: src/features/notifications/settings/preferences.tsx:115
+#: src/features/notifications/settings/preferences.tsx:116
 msgid "Preferences"
 msgstr "Preferences"
 
@@ -1582,7 +1580,7 @@ msgstr "Preferences updated"
 msgid "Premium Fee"
 msgstr "Premium Fee"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:48
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:45
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
@@ -1591,9 +1589,13 @@ msgstr "Preparing commitment"
 msgid "Preparing migration..."
 msgstr "Preparing migration..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:49
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:53
 msgid "Preparing the commitment"
 msgstr "Preparing the commitment"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:32
+msgid "Preparing your registration"
+msgstr "Preparing your registration"
 
 #: src/features/migration/components/SelectNamesStep.tsx:170
 msgid "Preparing..."
@@ -1647,7 +1649,7 @@ msgstr "Profile updated"
 msgid "Protect your name with autorenewal"
 msgstr "Protect your name with autorenewal"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:67
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:71
 msgid "Reading the commit-reveal window from the registrar"
 msgstr "Reading the commit-reveal window from the registrar"
 
@@ -1698,8 +1700,8 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
 msgid "Registration complete"
 msgstr "Registration complete"
 
@@ -1714,8 +1716,8 @@ msgstr "Registration Complete!"
 msgid "Registration Details"
 msgstr "Registration Details"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
 msgid "Registration failed"
 msgstr "Registration failed"
 
@@ -1729,8 +1731,8 @@ msgstr "Registration Failed"
 msgid "Registration Fee"
 msgstr "Registration Fee"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:128
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:129
 msgid "Registration in progress"
 msgstr "Registration in progress"
 
@@ -1894,7 +1896,7 @@ msgstr "Save and Continue"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: src/features/notifications/settings/preferences.tsx:213
+#: src/features/notifications/settings/preferences.tsx:211
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
@@ -1902,7 +1904,7 @@ msgstr "Save Preferences"
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
 
-#: src/features/notifications/settings/preferences.tsx:211
+#: src/features/notifications/settings/preferences.tsx:209
 #: src/features/profile/components/dialogs/DiffDialog.tsx:262
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:79
 msgid "Saving..."
@@ -2042,6 +2044,10 @@ msgstr "Setting ETH address..."
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:270
 msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:31
+msgid "Setting up registration"
+msgstr "Setting up registration"
 
 #: src/features/migration/components/GameStep.tsx:59
 msgid "Setting up your v2 resolver"
@@ -2196,19 +2202,19 @@ msgstr "Stables accepted"
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:82
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
 msgid "Submitting approval and registration"
 msgstr "Submitting approval and registration"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:56
 msgid "Submitting commitment transaction"
 msgstr "Submitting commitment transaction"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:88
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:92
 msgid "Submitting registration bundle"
 msgstr "Submitting registration bundle"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
 msgid "Submitting registration transaction"
 msgstr "Submitting registration transaction"
 
@@ -2216,11 +2222,11 @@ msgstr "Submitting registration transaction"
 msgid "Submitting renewal"
 msgstr "Submitting renewal"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:53
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:57
 msgid "Submitting the commitment transaction"
 msgstr "Submitting the commitment transaction"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
 msgid "Submitting the registration transaction"
 msgstr "Submitting the registration transaction"
 
@@ -2281,7 +2287,7 @@ msgstr "The ETH address record does not match your wallet. If you proceed, it wi
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr "The page you're looking for doesn't exist or may have been moved."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:71
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:75
 msgid "The registrar requires a short wait between commit and register"
 msgstr "The registrar requires a short wait between commit and register"
 
@@ -2460,11 +2466,11 @@ msgstr "Use This NFT"
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
 msgstr "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:74
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:78
 msgid "Validating commitment"
 msgstr "Validating commitment"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:75
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:79
 msgid "Validating the commitment"
 msgstr "Validating the commitment"
 
@@ -2484,7 +2490,7 @@ msgstr "Verified"
 msgid "Verified!"
 msgstr "Verified!"
 
-#: src/features/notifications/settings/preferences.tsx:220
+#: src/features/notifications/settings/preferences.tsx:218
 msgid "Verify at least one contact method to save preferences"
 msgstr "Verify at least one contact method to save preferences"
 
@@ -2522,7 +2528,7 @@ msgstr "Verify your wallet"
 msgid "Verifying Email..."
 msgstr "Verifying Email..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
 
@@ -2538,15 +2544,15 @@ msgstr "View profile"
 msgid "Waiting for approval"
 msgstr "Waiting for approval"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
 msgid "Waiting for approval confirmation"
 msgstr "Waiting for approval confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:62
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:66
 msgid "Waiting for commitment confirmation"
 msgstr "Waiting for commitment confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:70
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:74
 msgid "Waiting for commitment cooldown"
 msgstr "Waiting for commitment cooldown"
 
@@ -2558,11 +2564,11 @@ msgstr "Waiting for commitment cooldown"
 msgid "Waiting for commitment cooldown — register unlocks in {cooldownSecondsDisplay}s"
 msgstr "Waiting for commitment cooldown — register unlocks in {cooldownSecondsDisplay}s"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:59
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:63
 msgid "Waiting for commitment receipt"
 msgstr "Waiting for commitment receipt"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:56
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:60
 msgid "Waiting for commitment submission"
 msgstr "Waiting for commitment submission"
 
@@ -2570,8 +2576,8 @@ msgstr "Waiting for commitment submission"
 msgid "Waiting for registration"
 msgstr "Waiting for registration"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:92
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
 msgid "Waiting for registration confirmation"
 msgstr "Waiting for registration confirmation"
 
@@ -2579,11 +2585,11 @@ msgstr "Waiting for registration confirmation"
 msgid "Waiting for renewal"
 msgstr "Waiting for renewal"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:43
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:47
 msgid "Waiting for resolver deployment"
 msgstr "Waiting for resolver deployment"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:37
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:41
 msgid "Waiting for resolver submission"
 msgstr "Waiting for resolver submission"
 
@@ -2595,23 +2601,23 @@ msgstr "Waiting for signature"
 msgid "Waiting for signature..."
 msgstr "Waiting for signature..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
 msgid "Waiting for the approval confirmation"
 msgstr "Waiting for the approval confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:63
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:67
 msgid "Waiting for the commitment confirmation"
 msgstr "Waiting for the commitment confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
 msgid "Waiting for the registration confirmation"
 msgstr "Waiting for the registration confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:93
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:97
 msgid "Waiting for the registration transaction"
 msgstr "Waiting for the registration transaction"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:44
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:48
 msgid "Waiting for the resolver deployment"
 msgstr "Waiting for the resolver deployment"
 
@@ -2753,7 +2759,7 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
 
-#: src/features/notifications/settings/preferences.tsx:127
+#: src/features/notifications/settings/preferences.tsx:128
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr "You'll be notified 30, 7, and 1 day before expiry."
 
