@@ -164,6 +164,11 @@ export const submitPrimaryNameWithSignatureActor = (input: {
           zerodevParams: {
             calls: batchedCalls,
             sponsored: true,
+            // ReverseRegistrar.setName / setNameForAddrWithSignature are
+            // not in the registration-scoped smart-session allowlist
+            // (see build-registration-session.ts), so we fall back to the
+            // SCA's default validator (EOA-owner signature).
+            useSession: false,
           },
         }
       } else if (signer.type === 'rhinestone') {
@@ -177,6 +182,7 @@ export const submitPrimaryNameWithSignatureActor = (input: {
           rhinestoneParams: {
             calls: batchedCalls,
             sponsored: true,
+            useSession: false,
           },
         }
       } else {
@@ -268,6 +274,9 @@ export const submitPrimaryNameUpdateActor = (input: {
             rhinestoneParams: {
               calls: batchedCalls,
               sponsored: true,
+              // Reverse-registrar writes aren't in the registration-
+              // scoped smart-session allowlist; force EOA-owner signing.
+              useSession: false,
             },
           }
         } else if (input.signer.type === 'zerodev') {
@@ -281,6 +290,7 @@ export const submitPrimaryNameUpdateActor = (input: {
             zerodevParams: {
               calls: batchedCalls,
               sponsored: true,
+              useSession: false,
             },
           }
         } else {
