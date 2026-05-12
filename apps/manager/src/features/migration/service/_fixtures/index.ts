@@ -40,7 +40,6 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
       ? null
       : {
           name: o.parentName ?? 'eth',
-          id: '0xparent',
           wrappedDomain:
             o.parentFuses == null ? null : { fuses: o.parentFuses },
         }
@@ -49,12 +48,10 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
     labelName: o.labelName === undefined ? 'alice' : o.labelName,
     labelhash: o.labelhash ?? '0xlabelhash',
     name: o.name ?? 'alice.eth',
-    createdAt: '0',
-    resolvedAddress: null,
     resolver:
       o.resolverAddress === null
         ? null
-        : { id: 'r', address: o.resolverAddress ?? DEFAULT_RESOLVER },
+        : { address: o.resolverAddress ?? DEFAULT_RESOLVER },
     owner: { id: o.ownerId ?? OWNER },
     registrant:
       o.registrantId === null ? null : { id: o.registrantId ?? OWNER },
@@ -66,7 +63,7 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
           : null,
     parent,
     registration: o.registrationExpiry
-      ? { registrationDate: '0', expiryDate: o.registrationExpiry }
+      ? { expiryDate: o.registrationExpiry }
       : null,
     wrappedDomain: isWrapped
       ? { expiryDate: o.wrappedExpiry ?? '99999999999', fuses: o.fuses ?? 0 }

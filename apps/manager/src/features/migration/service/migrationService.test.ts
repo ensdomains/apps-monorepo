@@ -92,13 +92,11 @@ const unwrappedDomain = (id: string): V1Domain =>
     labelName: id,
     labelhash:
       '0x0000000000000000000000000000000000000000000000000000000000000002',
-    createdAt: '0',
-    resolvedAddress: null,
-    resolver: { id: 'r', address: V1_RESOLVER },
+    resolver: { address: V1_RESOLVER },
     owner: { id: OWNER },
     registrant: { id: OWNER },
     wrappedOwner: null,
-    parent: { name: 'eth', id: '0xparent', wrappedDomain: null },
+    parent: { name: 'eth', wrappedDomain: null },
     registration: null,
     wrappedDomain: null,
   }) as V1Domain

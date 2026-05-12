@@ -9,19 +9,15 @@ export type V1Domain = {
   labelName: string | null
   labelhash: string
   name: string
-  createdAt: string
-  resolvedAddress: { id: string } | null
-  resolver: { id: string; address: string } | null
+  resolver: { address: string } | null
   owner: { id: string }
   registrant: { id: string } | null
   wrappedOwner: { id: string } | null
   parent: {
     name: string
-    id: string
     wrappedDomain: { fuses: number } | null
   } | null
   registration: {
-    registrationDate: string
     expiryDate: string
   } | null
   wrappedDomain: {
@@ -56,15 +52,12 @@ query getNamesForAddress($orderBy: Domain_orderBy, $orderDirection: OrderDirecti
     labelName
     labelhash
     name
-    createdAt
-    resolvedAddress { id }
-    resolver { id address }
+    resolver { address }
     owner { id }
     registrant { id }
     wrappedOwner { id }
-    parent { name id wrappedDomain { fuses } }
+    parent { name wrappedDomain { fuses } }
     registration {
-      registrationDate
       expiryDate
     }
     wrappedDomain {
