@@ -9,12 +9,6 @@ export type MigrationStepDescriptor =
   | { type: 'grant-role'; label: string }
   | { type: 'profile-replay' }
 
-export const needsApproval = (groups: GroupedNames): boolean =>
-  groups.unwrapped.length > 0 ||
-  groups.unlocked.length > 0 ||
-  groups.locked2ld.length > 0 ||
-  groups.childNames.size > 0
-
 type BuildStepDescriptorsParams = {
   readonly classified: readonly ClassifiedName[]
   readonly groups: GroupedNames

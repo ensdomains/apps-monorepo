@@ -1,7 +1,7 @@
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { makeClassified } from './_fixtures'
-import { buildStepDescriptors, needsApproval } from './buildStepDescriptors'
+import { buildStepDescriptors } from './buildStepDescriptors'
 import type { GroupedNames } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 
@@ -41,40 +41,6 @@ const build = (
     hasNameWrapperApproval: approvals.hasNameWrapperApproval ?? false,
     hasProfileReplay: approvals.hasProfileReplay ?? false,
   })
-
-describe('needsApproval', () => {
-  const classified = (tokenType: 'unlocked' | 'locked-2ld' | 'locked-child') =>
-    makeClassified({ tokenType })
-
-  it.each([
-    ['empty groups', emptyGroups(), false],
-    [
-      'any unwrapped',
-      { ...emptyGroups(), unwrapped: [makeClassified()] },
-      true,
-    ],
-    [
-      'any unlocked',
-      { ...emptyGroups(), unlocked: [classified('unlocked')] },
-      true,
-    ],
-    [
-      'any locked-2ld',
-      { ...emptyGroups(), locked2ld: [classified('locked-2ld')] },
-      true,
-    ],
-    [
-      'any child parent group',
-      {
-        ...emptyGroups(),
-        childNames: new Map([['raffy.eth', [classified('locked-child')]]]),
-      },
-      true,
-    ],
-  ] as const)('returns %s → %s', (_, groups, expected) => {
-    expect(needsApproval(groups)).toBe(expected)
-  })
-})
 
 describe('buildStepDescriptors', () => {
   const keepV1 = { resolverStrategy: 'keep-v1' as const }
