@@ -55,6 +55,21 @@ async function dismissSiweModal(page: Page) {
     // Modal didn't appear — already signed in
   }
 
+  // After navigating to /register/<name>, the smart account may
+  // re-initialise and show the "Enable Smart Sessions" modal.
+  // It cannot be dismissed — we must click through it.
+  const enableBtn = page.getByRole('button', { name: /enable sessions/i })
+  try {
+    await enableBtn.waitFor({ state: 'visible', timeout: 8_000 })
+    await enableBtn.click()
+    const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+    await overlay
+      .waitFor({ state: 'hidden', timeout: 30_000 })
+      .catch(() => { })
+  } catch {
+    // Modal didn't appear — sessions already enabled or feature flag off
+  }
+
   // Wait for the "Pay with stablecoins" button to confirm the wallet
   // session is fully established (replaces "Connect or sign in")
   await page.getByRole('button', { name: /pay with stablecoins/i })

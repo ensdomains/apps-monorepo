@@ -117,12 +117,24 @@ export const test = base.extend<ManagerFixtures>({
       pin: PARA_PIN,
     })
 
-    // Wait for any post-auth modal overlays (Enable Sessions, SIWE, etc.)
-    // to fully close before handing the page to the test.
-    const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-    await overlay
-      .waitFor({ state: 'hidden', timeout: 30_000 })
-      .catch(() => {})
+    // The smart account initialises asynchronously after Para auth.
+    // When Rhinestone sessions are enabled, an "Enable Smart Sessions"
+    // modal appears that CANNOT be dismissed — the user must click
+    // "Enable Sessions".  We wait for it to appear, click through it,
+    // and then wait for the overlay to fully close.
+    const enableBtn = page.getByRole('button', { name: /enable sessions/i })
+    try {
+      await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
+      await enableBtn.click()
+      // Modal shows a 1.5 s success state before closing; wait for the
+      // dialog overlay to disappear so subsequent navigations are clean.
+      const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+      await overlay
+        .waitFor({ state: 'hidden', timeout: 30_000 })
+        .catch(() => {})
+    } catch {
+      // Modal never appeared — sessions already enabled or feature flag off
+    }
 
     await use(page)
   },
