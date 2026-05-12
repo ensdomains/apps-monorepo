@@ -27,6 +27,10 @@ export const getRegistrationStageMessages = (
       stageLabel: msg`Idle`,
       stageDescription: msg`The registration flow is idle`,
     }))
+    .with({ stage: 'settingUpRegistration' }, () => ({
+      stageLabel: msg`Setting up registration`,
+      stageDescription: msg`Preparing your registration`,
+    }))
     .with({ stage: 'deployingResolver' }, () => ({
       stageLabel: msg`Deploying resolver`,
       stageDescription: msg`Deploying the resolver`,
