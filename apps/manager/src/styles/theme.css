@@ -73,7 +73,7 @@
   --color-ens-quartz-300: #c7c6c4;
   --color-ens-quartz-350: #a1a1a1;
   --color-ens-quartz-400: #737373;
-  /** Preference row icons (unselected) */
+  /** Preference row icons (unselected) — verify this differs from quartz-500 */
   --color-ens-quartz-600: #595755;
 
   /** Figma slate/600 — secondary copy */
