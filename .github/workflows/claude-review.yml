@@ -1,26 +1,22 @@
 name: Claude Style Review
 
+# Disabled on PRs while we evaluate a replacement. Re-enable by restoring the
+# `pull_request` trigger; manual invocation is still possible via the
+# workflow_dispatch input below.
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review]
-    paths-ignore:
-      - '**/*.md'
-      - '**/translations/**'
-      - '**/locales/**'
-      - '**/*.po'
-      - 'crowdin.yml'
-      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
   review:
-    if: |
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
-      !contains(github.event.pull_request.title, 'New Crowdin translations')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -39,17 +35,17 @@ jobs:
           use_sticky_comment: true
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+            PR NUMBER: ${{ github.event.inputs.pr_number }}
 
             Review this pull request against the project's coding standards.
 
             STEP 1 - Check previous comments:
             Fetch any existing review comments on this PR using:
-            gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments
+            gh api repos/${{ github.repository }}/pulls/${{ github.event.inputs.pr_number }}/comments
             Note which issues have already been flagged to avoid duplicate comments.
 
             To get thread IDs for resolving comments, use:
-            gh api graphql -f query='query { repository(owner:"${{ github.repository_owner }}", name:"${{ github.event.repository.name }}") { pullRequest(number:${{ github.event.pull_request.number || github.event.issue.number }}) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { body path line } } } } } } }'
+            gh api graphql -f query='query { repository(owner:"${{ github.repository_owner }}", name:"${{ github.event.repository.name }}") { pullRequest(number:${{ github.event.inputs.pr_number }}) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { body path line } } } } } } }'
 
             STEP 2 - Read the review configuration:
             Read REVIEW.md for review-specific instructions (severity mapping, comment style, what to skip).
