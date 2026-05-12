@@ -172,7 +172,7 @@ const ensureResolver = async (
   if (preflight.preExistingOwnedPermRes)
     return preflight.preExistingOwnedPermRes
 
-  ctx.tracker.emit('Setting up your records', PENDING_TX_HASH)
+  ctx.tracker.emit('Setting up resolver', PENDING_TX_HASH)
   const resolver = await ensureOwnedPermRes({
     eoa: ctx.migrationOwner,
     wagmiConfig: ctx.wagmiConfig,

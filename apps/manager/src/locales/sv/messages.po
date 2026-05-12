@@ -2022,7 +2022,7 @@ msgid "Setting ETH address…"
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx:64
-msgid "Setting up your records"
+msgid "Setting up resolver"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409

@@ -61,7 +61,7 @@ export const GameStep = () => {
       { kind: 'approve-name-wrapper' },
       () => `${t`Approve in your wallet`}...`,
     )
-    .with({ kind: 'ensure-resolver' }, () => `${t`Setting up your records`}...`)
+    .with({ kind: 'ensure-resolver' }, () => `${t`Setting up resolver`}...`)
     .with(
       { kind: 'migrate-all' },
       ({ count }) => `${t`Upgrading ${count} name(s)`}...`,

@@ -2017,8 +2017,8 @@ msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
 #: src/features/migration/components/GameStep.tsx:64
-msgid "Setting up your records"
-msgstr "Setting up your records"
+msgid "Setting up resolver"
+msgstr "Setting up resolver"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
 msgid "Setting..."
