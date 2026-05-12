@@ -88,9 +88,7 @@ const startRenewalTransaction = async ({
   )
 
   const txData = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
+    ...writeParams,
   })
 
   const request = createTransactionRequest({

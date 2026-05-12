@@ -149,9 +149,7 @@ function buildRenewTransaction(
     },
   )
   const renewData = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
+    ...writeParams,
   })
 
   transactionManager.startTransaction(
