@@ -643,7 +643,7 @@ msgstr ""
 msgid "Contact methods"
 msgstr ""
 
-#: src/features/profile/components/sections/OtherSection.tsx:92
+#: src/features/profile/components/sections/OtherSection.tsx:95
 msgid "Content Hash"
 msgstr ""
 
@@ -858,7 +858,7 @@ msgstr ""
 msgid "ENS app landing page"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:125
+#: src/features/notifications/settings/preferences.tsx:150
 msgid "ENS Labs Updates"
 msgstr ""
 
@@ -1018,7 +1018,7 @@ msgstr ""
 msgid "Failed to switch language"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:47
+#: src/features/notifications/settings/preferences.tsx:48
 msgid "Failed to update preferences"
 msgstr ""
 
@@ -1034,7 +1034,7 @@ msgstr ""
 msgid "Favorites"
 msgstr "Favoriter"
 
-#: src/features/notifications/settings/preferences.tsx:140
+#: src/features/notifications/settings/preferences.tsx:165
 msgid "Favourites"
 msgstr ""
 
@@ -1072,7 +1072,7 @@ msgstr ""
 msgid "Get instant updates through Telegram for your domains."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:135
+#: src/features/notifications/settings/preferences.tsx:160
 msgid "Get notified when names you favorited expire."
 msgstr ""
 
@@ -1080,7 +1080,7 @@ msgstr ""
 msgid "Get support"
 msgstr "Få support"
 
-#: src/features/notifications/settings/preferences.tsx:120
+#: src/features/notifications/settings/preferences.tsx:145
 msgid "Get updated on the latest releases and features."
 msgstr ""
 
@@ -1141,7 +1141,7 @@ msgstr ""
 msgid "Image not available"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:93
+#: src/features/notifications/settings/preferences.tsx:118
 msgid "In-app notifications are always enabled"
 msgstr ""
 
@@ -1302,7 +1302,7 @@ msgstr "Namn (A-Ö)"
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
-#: src/features/notifications/settings/preferences.tsx:109
+#: src/features/notifications/settings/preferences.tsx:134
 msgid "Name Expiry"
 msgstr ""
 
@@ -1454,6 +1454,7 @@ msgid "Notification Settings"
 msgstr ""
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:18
+#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:25
 #: src/features/notifications/dropdown/notification-dropdown.tsx:28
 msgid "Notifications"
 msgstr ""
@@ -1558,11 +1559,11 @@ msgstr ""
 msgid "Please wait while we verify your email address."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:90
+#: src/features/notifications/settings/preferences.tsx:115
 msgid "Preferences"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:44
+#: src/features/notifications/settings/preferences.tsx:45
 msgid "Preferences updated"
 msgstr ""
 
@@ -1878,7 +1879,7 @@ msgstr ""
 msgid "Save Changes"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:188
+#: src/features/notifications/settings/preferences.tsx:213
 msgid "Save Preferences"
 msgstr ""
 
@@ -1886,7 +1887,7 @@ msgstr ""
 msgid "Saved favorites & searches"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:186
+#: src/features/notifications/settings/preferences.tsx:211
 #: src/features/profile/components/dialogs/DiffDialog.tsx:262
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:79
 msgid "Saving..."
@@ -2464,7 +2465,7 @@ msgstr ""
 msgid "Verified!"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:195
+#: src/features/notifications/settings/preferences.tsx:220
 msgid "Verify at least one contact method to save preferences"
 msgstr ""
 
@@ -2719,7 +2720,7 @@ msgstr ""
 msgid "You'll always see important notifications in the app."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:102
+#: src/features/notifications/settings/preferences.tsx:127
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr ""
 

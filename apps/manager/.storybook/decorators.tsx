@@ -67,10 +67,14 @@ const STUB_LINK_PATHS = [
  * for the link-target paths are registered as no-op components so `<Link>`s
  * resolve href correctly. Memory history starts at `/` so the root (the
  * story) is what renders.
+ *
+ * TanStack's `createRootRoute` accepts a `RouteComponent` (a no-arg function
+ * component), not a generic `ComponentType<P>`, so the story component is
+ * wrapped in a no-arg function to satisfy the route-component contract.
  */
 const buildStubRouter = (StoryComponent: ComponentType) => {
   const rootRoute = createRootRoute({
-    component: StoryComponent,
+    component: () => <StoryComponent />,
   })
 
   const childRoutes = STUB_LINK_PATHS.map((path) =>
