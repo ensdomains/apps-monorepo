@@ -39,7 +39,6 @@ vi.mock('./fetchV1Profiles', () => ({
 
 vi.mock('./preflightChecks', () => ({
   checkOwnership: vi.fn(),
-  checkV2Status: vi.fn(),
   checkFrozenApproval: vi.fn(),
   runEligibilityChecks: vi.fn(),
 }))

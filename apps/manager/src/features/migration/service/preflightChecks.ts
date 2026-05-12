@@ -3,8 +3,7 @@ import { zeroAddress } from 'viem'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { batchedMulticall } from './batchedMulticall'
-import { type ClassifiedName, FUSES, hasFuse, is2LD } from './classifyNames'
-import { getRegisteredV2Names } from './getRegisteredV2Names'
+import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 
 export type EligibilityResult = {
   eligible: ClassifiedName[]
@@ -55,24 +54,6 @@ export const checkOwnership = async (
     }
   }
 
-  return ids
-}
-
-export const checkV2Status = async (
-  twoLDs: readonly ClassifiedName[],
-): Promise<Set<string>> => {
-  if (twoLDs.length === 0) return new Set<string>()
-
-  const registered = await getRegisteredV2Names(
-    twoLDs.map((n) => n.domain.name),
-  )
-
-  const ids = new Set<string>()
-  for (const name of twoLDs) {
-    if (registered.has(name.domain.name.toLowerCase())) {
-      ids.add(name.domain.id)
-    }
-  }
   return ids
 }
 
@@ -128,16 +109,12 @@ export const runEligibilityChecks = async (
     return { eligible: [], frozen: [], alreadyMigrated: [] }
   }
 
-  const twoLDs = names.filter(is2LD)
   const frozenCandidates = frozenApprovalCandidates(names)
 
-  const [ownershipMigrated, v2Migrated, frozenIds] = await Promise.all([
+  const [migratedIds, frozenIds] = await Promise.all([
     checkOwnership(publicClient, names, migrationOwner),
-    checkV2Status(twoLDs),
     checkFrozenApproval(publicClient, frozenCandidates),
   ])
-
-  const migratedIds = new Set<string>([...ownershipMigrated, ...v2Migrated])
 
   return {
     eligible: names.filter(
