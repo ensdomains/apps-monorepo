@@ -14,7 +14,14 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { createParaAccount } from '@getpara/viem-v2-integration'
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
-import type { Account, Address, WalletClient } from 'viem'
+import { toast } from 'sonner'
+import {
+  type Account,
+  type Address,
+  type Hex,
+  type WalletClient,
+  zeroAddress,
+} from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient, SmartAccountType } from './types'
@@ -127,14 +134,48 @@ export async function initializeRhinestoneAccount(
 
   const accountAddress = rhinestoneAccount.getAddress()
 
-  // Deploy the smart account on-chain if not already deployed.
-  // Both Pimlico (ERC-4337) and Warp (intents) require the account to exist on-chain
-  // before sending transactions — the orchestrator simulates bundles against deployed state.
+  // SCA must be on-chain before routing txs; bare `.deploy()` 422s the intents path (empty tokenRequests → ZERO_BALANCE), so we deploy via a noop call instead (Rhinestone/Timur).
+  // One loading toast for the whole setup (deploy + optional HCA) so we don't flash success early.
+  const setupToastId = `setup-sca-${accountAddress}`
+  const setupStart = performance.now()
+  let setupToastShown = false
+
   const deployed = await rhinestoneAccount.isDeployed(customSepolia)
   if (!deployed) {
-    console.log('🔧 [RHINESTONE] Deploying smart account on-chain...')
-    await rhinestoneAccount.deploy(customSepolia, { sponsored: true })
-    console.log('✅ [RHINESTONE] Smart account deployed:', accountAddress)
+    console.log(
+      '🔧 [RHINESTONE] Deploying smart account on-chain via dummy call...',
+    )
+    toast.loading('Setting up your smart account', {
+      description: 'Deploying on-chain…',
+      id: setupToastId,
+    })
+    setupToastShown = true
+    try {
+      await rhinestoneAccount.sendTransaction({
+        chain: customSepolia,
+        calls: [
+          {
+            to: zeroAddress,
+            value: 0n,
+            data: '0x' as Hex,
+          },
+        ],
+        sponsored: true,
+      })
+      const deployDurationMs = performance.now() - setupStart
+      console.log(
+        `✅ [RHINESTONE] Smart account deployed: ${accountAddress} (took ${deployDurationMs.toFixed(0)}ms / ${(deployDurationMs / 1000).toFixed(2)}s)`,
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      console.error('❌ [RHINESTONE] Failed to deploy smart account:', error)
+      toast.error('Failed to deploy smart account', {
+        description: message,
+        id: setupToastId,
+        duration: 5000,
+      })
+      throw error
+    }
   }
 
   // Register HCA ownership via smart account (sponsored) if requested.
@@ -153,6 +194,18 @@ export async function initializeRhinestoneAccount(
       },
     }
 
+    // Only update the toast description if we already have one on-screen
+    // (i.e. we deployed in this call). If the account was already deployed,
+    // `registerHCAOwnership` is most often a no-op (returns
+    // 'already-registered' after a read), and we don't want to flash a toast
+    // for nothing. Errors below still surface even without a prior toast.
+    if (setupToastShown) {
+      toast.loading('Setting up your smart account', {
+        description: 'Registering account ownership…',
+        id: setupToastId,
+      })
+    }
+
     const result = await registerHCAOwnership({
       smartAccountAddress: accountAddress,
       eoaAddress,
@@ -161,12 +214,29 @@ export async function initializeRhinestoneAccount(
     })
 
     if (result.isErr()) {
+      toast.error('Smart account setup failed', {
+        description: `${result.error.reason}`,
+        id: setupToastId,
+        duration: 5000,
+      })
       throw new Error(
         `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
       )
     }
 
     console.log('✅ HCA registration result:', result.value)
+  }
+
+  // Only close out the toast if we actually showed one (i.e. we did real
+  // setup work). If the account was already deployed AND already registered,
+  // we stayed silent the whole time.
+  if (setupToastShown) {
+    const totalDurationMs = performance.now() - setupStart
+    toast.success('Smart account ready', {
+      description: `Ready in ${(totalDurationMs / 1000).toFixed(1)}s`,
+      id: setupToastId,
+      duration: 3000,
+    })
   }
 
   const config: RhinestoneConfig = {

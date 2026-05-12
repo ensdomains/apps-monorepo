@@ -15,7 +15,7 @@ type WalletSectionProps = {
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { walletSource, accountAddress } = useSmartAccountContext()
+  const { walletSource, accountAddress, isLoading } = useSmartAccountContext()
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -28,7 +28,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   return (
     <div className="mb-3 space-y-4">
-      {accountAddress && (
+      {accountAddress ? (
         <button
           className="flex w-full items-center gap-2"
           onClick={() => copy(accountAddress)}
@@ -43,7 +43,22 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           </span>
           <MSymbol className="ms-opsz-20" symbol="content_copy" />
         </button>
-      )}
+      ) : isLoading ? (
+        <div
+          aria-busy="true"
+          aria-live="polite"
+          className="flex w-full items-center gap-2"
+        >
+          <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
+          <span className="font-[350] text-base text-ens-quartz-400">
+            Address
+          </span>
+          <span className="flex items-center gap-2 text-ens-quartz-400 text-sm leading-ens-tight">
+            <span className="size-3 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+            <Trans>Deploying smart account…</Trans>
+          </span>
+        </div>
+      ) : null}
 
       {match(walletSource)
         .with('para-embedded', () => (
