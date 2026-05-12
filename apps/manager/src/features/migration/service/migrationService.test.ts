@@ -108,6 +108,8 @@ const DEFAULT_PREFLIGHT: MigrationPreflight = {
   preExistingOwnedPermRes: null,
   skipApprovalPhase: false,
   skipFetchProfilesPhase: false,
+  baseRegistrarApproved: false,
+  nameWrapperApproved: false,
 }
 
 const runExecute = async (
@@ -168,7 +170,7 @@ describe('executeMigration', () => {
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual(['0xdeadbeef'])
     expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
-    expect(progressEvents.at(-1)?.description).toMatch(/upgraded/i)
+    expect(progressEvents.at(-1)?.description).toMatch(/upgrade complete/i)
   })
 
   it('skips approval phase when preflight.skipApprovalPhase is true', async () => {
@@ -177,6 +179,8 @@ describe('executeMigration', () => {
         preExistingOwnedPermRes: null,
         skipApprovalPhase: true,
         skipFetchProfilesPhase: true,
+        baseRegistrarApproved: false,
+        nameWrapperApproved: false,
       },
     })
     expect(checkSCAApprovalsMock).not.toHaveBeenCalled()
@@ -201,6 +205,8 @@ describe('executeMigration', () => {
         preExistingOwnedPermRes: PERM_RES,
         skipApprovalPhase: true,
         skipFetchProfilesPhase: true,
+        baseRegistrarApproved: false,
+        nameWrapperApproved: false,
       },
       domains: [
         {

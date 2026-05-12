@@ -132,20 +132,11 @@ const tryDecodeHelperError = (data: Hex): MigrationError | null => {
   return null
 }
 
-const tryUnwrapControllerError = (data: Hex): MigrationError | null => {
+const ERROR_STRING_SELECTOR = '0x08c379a0'
+
+const matchLibMigrationError = (data: Hex): MigrationError | null => {
   try {
-    const wrapper = decodeErrorResult({
-      abi: [
-        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
-      ] as const,
-      data,
-    })
-    const raw = wrapper.args[0] as string
-    const inner = (raw.startsWith('0x') ? raw : `0x${raw}`) as Hex
-    const decoded = decodeErrorResult({
-      abi: LIB_MIGRATION_ERRORS_ABI,
-      data: inner,
-    })
+    const decoded = decodeErrorResult({ abi: LIB_MIGRATION_ERRORS_ABI, data })
     switch (decoded.errorName) {
       case 'NameNotLocked':
         return { type: 'name-not-locked', tokenId: decoded.args[0] as bigint }
@@ -167,9 +158,51 @@ const tryUnwrapControllerError = (data: Hex): MigrationError | null => {
         return { type: 'name-requires-migration' }
     }
   } catch {
-    // not a wrapped controller error
+    // not a recognized LibMigration error
   }
   return null
+}
+
+const tryUnwrapControllerError = (data: Hex): MigrationError | null => {
+  if (!data.toLowerCase().startsWith(ERROR_STRING_SELECTOR)) return null
+
+  // NameWrapper rewraps typed reverts as revert(string(abi.encodePacked(returnData))),
+  // packing the inner revert bytes verbatim into the Error(string) payload. Read
+  // length+bytes directly from the ABI payload to sidestep viem's UTF-8 string
+  // decode (which mangles non-UTF-8 byte sequences).
+  const lengthOffset = 2 + 8 + 64 // '0x' + 4-byte selector + 32-byte offset
+  try {
+    const length = Number.parseInt(
+      data.slice(lengthOffset, lengthOffset + 64),
+      16,
+    )
+    if (length >= 4) {
+      const inner = `0x${data.slice(
+        lengthOffset + 64,
+        lengthOffset + 64 + length * 2,
+      )}` as Hex
+      const match = matchLibMigrationError(inner)
+      if (match) return match
+    }
+  } catch {
+    // fall through to the hex-text path
+  }
+
+  // Fallback: some encoders (and our older test fixtures) wrap the inner data
+  // as a "0x..." hex literal inside the string. Try that too.
+  try {
+    const wrapper = decodeErrorResult({
+      abi: [
+        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
+      ] as const,
+      data,
+    })
+    const raw = wrapper.args[0] as string
+    const inner = (raw.startsWith('0x') ? raw : `0x${raw}`) as Hex
+    return matchLibMigrationError(inner)
+  } catch {
+    return null
+  }
 }
 
 export const decodeMigrationError = (err: unknown): MigrationError => {

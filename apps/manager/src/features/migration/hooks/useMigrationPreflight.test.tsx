@@ -18,6 +18,8 @@ vi.mock('@/features/migration/service/computeMigrationPreflight', () => ({
     preExistingOwnedPermRes: null,
     skipApprovalPhase: false,
     skipFetchProfilesPhase: false,
+    baseRegistrarApproved: false,
+    nameWrapperApproved: false,
   },
 }))
 
@@ -64,6 +66,8 @@ describe('useMigrationPreflight', () => {
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
     })
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
@@ -79,6 +83,8 @@ describe('useMigrationPreflight', () => {
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
     })
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
@@ -89,6 +95,8 @@ describe('useMigrationPreflight', () => {
         '0x00000000000000000000000000000000000000f0' as const,
       skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
@@ -103,6 +111,8 @@ describe('useMigrationPreflight', () => {
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,
@@ -118,6 +128,8 @@ describe('useMigrationPreflight', () => {
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
     })
     const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
       wrapper,

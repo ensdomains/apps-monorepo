@@ -18,6 +18,8 @@ const preflight = (
   preExistingOwnedPermRes: null,
   skipApprovalPhase: false,
   skipFetchProfilesPhase: false,
+  baseRegistrarApproved: false,
+  nameWrapperApproved: false,
   ...o,
 })
 

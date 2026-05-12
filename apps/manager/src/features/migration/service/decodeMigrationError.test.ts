@@ -316,3 +316,62 @@ describe('decodeMigrationError — wrapped LibMigration errors', () => {
     expect(result.type).toBe('generic')
   })
 })
+
+describe('decodeMigrationError — on-chain Error(string) raw-bytes wrap', () => {
+  // Matches NameWrapper's actual rewrap: revert(string(abi.encodePacked(returnData)))
+  // — the inner revert bytes are packed into the string payload verbatim.
+  const wrapRaw = (inner: Hex): Hex => {
+    const innerBytes = inner.slice(2)
+    const length = innerBytes.length / 2
+    const lengthHex = length.toString(16).padStart(64, '0')
+    const paddedBytes = innerBytes.padEnd(
+      Math.ceil(innerBytes.length / 64) * 64,
+      '0',
+    )
+    return `0x08c379a00000000000000000000000000000000000000000000000000000000000000020${lengthHex}${paddedBytes}` as Hex
+  }
+
+  it('unwraps NameNotLocked from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameNotLocked',
+      args: [42n],
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'name-not-locked',
+      tokenId: 42n,
+    })
+  })
+
+  it('unwraps FrozenTokenApproval from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'FrozenTokenApproval',
+      args: [99n],
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'frozen-token-approval',
+      tokenId: 99n,
+    })
+  })
+
+  it('unwraps InvalidData (no args) from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'InvalidData',
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'invalid-data',
+    })
+  })
+
+  it('unwraps NameRequiresMigration (no args) from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameRequiresMigration',
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'name-requires-migration',
+    })
+  })
+})

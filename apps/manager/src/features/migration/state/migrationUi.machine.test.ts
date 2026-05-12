@@ -74,6 +74,8 @@ const makePlan = (
     preExistingOwnedPermRes: null,
     skipApprovalPhase: false,
     skipFetchProfilesPhase: false,
+    baseRegistrarApproved: false,
+    nameWrapperApproved: false,
   },
   ownedPermRes: null,
   profiles: new Map(),

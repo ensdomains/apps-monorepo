@@ -17,12 +17,16 @@ export type MigrationPreflight = {
   preExistingOwnedPermRes: Address | null
   skipApprovalPhase: boolean
   skipFetchProfilesPhase: boolean
+  baseRegistrarApproved: boolean
+  nameWrapperApproved: boolean
 }
 
 export const EMPTY_PREFLIGHT: MigrationPreflight = {
   preExistingOwnedPermRes: null,
   skipApprovalPhase: false,
   skipFetchProfilesPhase: false,
+  baseRegistrarApproved: false,
+  nameWrapperApproved: false,
 }
 
 export const computeMigrationPreflight = async (params: {
@@ -82,5 +86,7 @@ export const computeMigrationPreflight = async (params: {
     preExistingOwnedPermRes: existingPermRes,
     skipApprovalPhase,
     skipFetchProfilesPhase,
+    baseRegistrarApproved: approvals.baseRegistrarApproved,
+    nameWrapperApproved: approvals.nameWrapperApproved,
   }
 }

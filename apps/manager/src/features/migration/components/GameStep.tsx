@@ -52,30 +52,27 @@ export const GameStep = () => {
   const descriptionText = match(stepDescription)
     .with({ kind: 'done' }, () => t`Almost there...`)
     .with({ kind: 'progress' }, ({ text }) => text)
-    .with({ kind: 'preparing' }, () => t`Preparing migration...`)
+    .with({ kind: 'preparing' }, () => t`Getting ready...`)
     .with(
       { kind: 'approve-base-registrar' },
-      () => `${t`Approving the migration helper on BaseRegistrar`}...`,
+      () => `${t`Approve in your wallet`}...`,
     )
     .with(
       { kind: 'approve-name-wrapper' },
-      () => `${t`Approving the migration helper on NameWrapper`}...`,
+      () => `${t`Approve in your wallet`}...`,
     )
-    .with(
-      { kind: 'ensure-resolver' },
-      () => `${t`Setting up your v2 resolver`}...`,
-    )
+    .with({ kind: 'ensure-resolver' }, () => `${t`Setting up your records`}...`)
     .with(
       { kind: 'migrate-all' },
-      ({ count }) => `${t`Upgrading ${count} name(s) to v2`}...`,
+      ({ count }) => `${t`Upgrading ${count} name(s)`}...`,
     )
     .with(
       { kind: 'grant-role' },
-      ({ label }) => `${t`Granting manager role for ${label}.eth`}...`,
+      ({ label }) => `${t`Saving manager for ${label}.eth`}...`,
     )
     .with(
       { kind: 'profile-replay' },
-      ({ label }) => `${t`Restoring profile records for ${label}.eth`}...`,
+      ({ label }) => `${t`Restoring records for ${label}.eth`}...`,
     )
     .exhaustive()
 

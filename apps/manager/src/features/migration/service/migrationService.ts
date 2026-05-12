@@ -110,10 +110,7 @@ const ensureApprovals = async (
   })
 
   if (needs.hasUnwrapped && !approvals.baseRegistrarApproved) {
-    ctx.tracker.emit(
-      'Approving the migration helper on BaseRegistrar',
-      PENDING_TX_HASH,
-    )
+    ctx.tracker.emit('Approve in your wallet', PENDING_TX_HASH)
     const hash = await writeContract(ctx.wagmiConfig, {
       address: V1_CONTRACTS.BaseRegistrar,
       abi: BASE_REGISTRAR_ABI,
@@ -129,17 +126,16 @@ const ensureApprovals = async (
         cause: new Error(
           `BaseRegistrar setApprovalForAll(MigrationHelper) reverted (tx ${hash})`,
         ),
-        step: 'Approving MigrationHelper',
+        step: 'Approving',
       })
     }
     hashes.push(hash)
+    ctx.tracker.next()
+    ctx.tracker.emit('Approved', hash)
   }
 
   if (needs.hasWrapped && !approvals.nameWrapperApproved) {
-    ctx.tracker.emit(
-      'Approving the migration helper on NameWrapper',
-      PENDING_TX_HASH,
-    )
+    ctx.tracker.emit('Approve in your wallet', PENDING_TX_HASH)
     const hash = await writeContract(ctx.wagmiConfig, {
       address: V1_CONTRACTS.NameWrapper,
       abi: NAME_WRAPPER_ABI,
@@ -155,16 +151,14 @@ const ensureApprovals = async (
         cause: new Error(
           `NameWrapper setApprovalForAll(MigrationHelper) reverted (tx ${hash})`,
         ),
-        step: 'Approving MigrationHelper',
+        step: 'Approving',
       })
     }
     hashes.push(hash)
+    ctx.tracker.next()
+    ctx.tracker.emit('Approved', hash)
   }
 
-  ctx.tracker.next()
-  if (hashes.length > 0) {
-    ctx.tracker.emit('Migration helper approved')
-  }
   return hashes
 }
 
@@ -178,7 +172,7 @@ const ensureResolver = async (
   if (preflight.preExistingOwnedPermRes)
     return preflight.preExistingOwnedPermRes
 
-  ctx.tracker.emit('Setting up your v2 resolver', PENDING_TX_HASH)
+  ctx.tracker.emit('Setting up your records', PENDING_TX_HASH)
   const resolver = await ensureOwnedPermRes({
     eoa: ctx.migrationOwner,
     wagmiConfig: ctx.wagmiConfig,
@@ -299,32 +293,32 @@ export const executeMigration = async (params: {
     txHashes.push(migrateHash)
     onBatchComplete?.(allNames, migrateHash)
     ctx.tracker.next()
-    ctx.tracker.emit('Names upgraded', migrateHash)
+    ctx.tracker.emit('Upgrade complete', migrateHash)
   } catch (error) {
-    throw wrapBatchError(error, 'Migrate')
+    throw wrapBatchError(error, 'Upgrading')
   }
 
   // 4. grantRoles per manager
   for (const call of plan.roleGrantCalls) {
     try {
-      const hash = await submitCall(ctx, call, 'Granting manager role')
+      const hash = await submitCall(ctx, call, 'Saving manager')
       txHashes.push(hash)
       ctx.tracker.next()
-      ctx.tracker.emit('Role granted', hash)
+      ctx.tracker.emit('Manager saved', hash)
     } catch (error) {
-      throw wrapBatchError(error, 'Granting manager role')
+      throw wrapBatchError(error, 'Saving manager')
     }
   }
 
   // 5. Profile replay
   for (const call of plan.profileReplayCalls) {
     try {
-      const hash = await submitCall(ctx, call, 'Restoring profile records')
+      const hash = await submitCall(ctx, call, 'Restoring your records')
       txHashes.push(hash)
       ctx.tracker.next()
-      ctx.tracker.emit('Profile restored', hash)
+      ctx.tracker.emit('Records restored', hash)
     } catch (error) {
-      throw wrapBatchError(error, 'Restoring profile records')
+      throw wrapBatchError(error, 'Restoring records')
     }
   }
 

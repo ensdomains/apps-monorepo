@@ -48,108 +48,47 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
     case 'generic':
       return error.message
     case 'resolver-deploy-failed':
-      return (
-        <>
-          <div>Couldn't set up your v2 resolver.</div>
-          <div>{error.message}</div>
-          <div>You can retry below.</div>
-        </>
-      )
+      return <div>Couldn&apos;t finish setting up your account.</div>
     case 'profile-fetch-failed':
-      return (
-        <>
-          <div>Couldn't read your current ENS records ({error.phase}).</div>
-          <div>{error.message}</div>
-          <div>You can retry below.</div>
-        </>
-      )
+      return <div>Couldn&apos;t read your current records.</div>
     case 'user-rejected':
-      return (
-        <>
-          <div>You rejected the request in your wallet.</div>
-          <div>You can retry below.</div>
-        </>
-      )
+      return <div>Request cancelled.</div>
     case 'preflight-timeout':
-      return (
-        <>
-          <div>Pre-flight checks timed out.</div>
-          <div>{error.message}</div>
-          <div>You can retry below.</div>
-        </>
-      )
+      return <div>This is taking longer than expected.</div>
     case 'parent-not-migrated':
       return (
         <div>
-          <Trans>
-            The parent name {error.parentName} hasn&apos;t been migrated yet.
-            Migrate it first, then retry.
-          </Trans>
+          <Trans>Upgrade {error.parentName} first.</Trans>
         </div>
       )
     case 'not-approved-operator':
       return (
         <div>
-          <Trans>
-            The migration helper isn&apos;t approved to move your names. Please
-            retry the approval step.
-          </Trans>
+          <Trans>Permission missing. Please try again.</Trans>
         </div>
       )
     case 'wrapped-owner-mismatch':
+    case 'name-data-mismatch':
+    case 'invalid-data':
       return (
         <div>
-          <Trans>
-            Multiple owners detected in one batch. Please reload and try again.
-          </Trans>
+          <Trans>Something went wrong. Please refresh and try again.</Trans>
         </div>
       )
     case 'name-not-locked':
+    case 'name-requires-migration':
       return (
         <div>
           <Trans>
-            A name expected to be locked isn&apos;t. Token ID:{' '}
-            {error.tokenId.toString()}.
+            Couldn&apos;t upgrade one of your names. Please try again.
           </Trans>
         </div>
       )
     case 'name-is-locked':
-      return (
-        <div>
-          <Trans>
-            A name is locked in a way the migration can&apos;t handle. Token ID:{' '}
-            {error.tokenId.toString()}.
-          </Trans>
-        </div>
-      )
-    case 'name-data-mismatch':
-      return (
-        <div>
-          <Trans>
-            Migration data doesn&apos;t match the on-chain state. Token ID:{' '}
-            {error.tokenId.toString()}. Please retry.
-          </Trans>
-        </div>
-      )
     case 'frozen-token-approval':
       return (
         <div>
-          <Trans>
-            This name has a frozen approval and can&apos;t be migrated. Token
-            ID: {error.tokenId.toString()}.
-          </Trans>
-        </div>
-      )
-    case 'invalid-data':
-      return (
-        <div>
-          <Trans>Migration data is invalid. Please reload and retry.</Trans>
-        </div>
-      )
-    case 'name-requires-migration':
-      return (
-        <div>
-          <Trans>A name still requires migration. Please retry.</Trans>
+          <Trans>One of your names can&apos;t be upgraded right now.</Trans>
         </div>
       )
   }
@@ -215,8 +154,8 @@ export const MigrationPage = () => {
         wagmiConfig,
         publicClient: publicClient as unknown as PublicClient,
         preflight,
-        hasBaseRegistrarApproval: false,
-        hasNameWrapperApproval: false,
+        hasBaseRegistrarApproval: preflight.baseRegistrarApproved,
+        hasNameWrapperApproval: preflight.nameWrapperApproved,
       })
 
       uiActor.send({

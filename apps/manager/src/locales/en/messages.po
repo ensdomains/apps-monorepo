@@ -122,20 +122,6 @@ msgstr "4 character premium name"
 msgid "60-second wait prevents attacks"
 msgstr "60-second wait prevents attacks"
 
-#. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:110
-msgid "A name expected to be locked isn't. Token ID: {0}."
-msgstr "A name expected to be locked isn't. Token ID: {0}."
-
-#. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:119
-msgid "A name is locked in a way the migration can't handle. Token ID: {0}."
-msgstr "A name is locked in a way the migration can't handle. Token ID: {0}."
-
-#: src/features/migration/pages/MigrationPage.tsx:152
-msgid "A name still requires migration. Please retry."
-msgstr "A name still requires migration. Please retry."
-
 #: src/features/migration/components/ProfileCardPreview.tsx:63
 msgid "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
 msgstr "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
@@ -268,6 +254,11 @@ msgstr "And more..."
 msgid "Approval allows registrar to charge"
 msgstr "Approval allows registrar to charge"
 
+#: src/features/migration/components/GameStep.tsx:58
+#: src/features/migration/components/GameStep.tsx:62
+msgid "Approve in your wallet"
+msgstr "Approve in your wallet"
+
 #: src/features/wallet/components/EnableSessionModal.tsx:136
 msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
 msgstr "Approve the signature in your wallet, then wait for on-chain confirmation."
@@ -279,14 +270,6 @@ msgstr "Approving"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Approving payment token"
 msgstr "Approving payment token"
-
-#: src/features/migration/components/GameStep.tsx:58
-msgid "Approving the migration helper on BaseRegistrar"
-msgstr "Approving the migration helper on BaseRegistrar"
-
-#: src/features/migration/components/GameStep.tsx:62
-msgid "Approving the migration helper on NameWrapper"
-msgstr "Approving the migration helper on NameWrapper"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:102
 msgid "Approving the payment token"
@@ -337,7 +320,7 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/migration/pages/MigrationPage.tsx:284
+#: src/features/migration/pages/MigrationPage.tsx:221
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
@@ -668,6 +651,10 @@ msgstr "Copy to clipboard"
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:140
 msgid "Could not find resolver for {name}"
 msgstr "Could not find resolver for {name}"
+
+#: src/features/migration/pages/MigrationPage.tsx:82
+msgid "Couldn't upgrade one of your names. Please try again."
+msgstr "Couldn't upgrade one of your names. Please try again."
 
 #: src/features/payment/components/add.tsx:44
 msgid "Country"
@@ -1086,6 +1073,10 @@ msgstr "Get support"
 msgid "Get updated on the latest releases and features"
 msgstr "Get updated on the latest releases and features"
 
+#: src/features/migration/components/GameStep.tsx:55
+msgid "Getting ready..."
+msgstr "Getting ready..."
+
 #: src/features/register/components/VerifyWalletModal.tsx:119
 msgid "Go back"
 msgstr "Go back"
@@ -1110,10 +1101,6 @@ msgstr "Go to Profile"
 #: src/features/landing/FeaturesCarousel.tsx:301
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
-
-#: src/features/migration/components/GameStep.tsx:74
-msgid "Granting manager role for {label}.eth"
-msgstr "Granting manager role for {label}.eth"
 
 #: src/features/dashboard/pages/DashboardPage.tsx:78
 msgid "Hello"
@@ -1271,16 +1258,7 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:128
-msgid "Migration data doesn't match the on-chain state. Token ID: {0}. Please retry."
-msgstr "Migration data doesn't match the on-chain state. Token ID: {0}. Please retry."
-
-#: src/features/migration/pages/MigrationPage.tsx:146
-msgid "Migration data is invalid. Please reload and retry."
-msgstr "Migration data is invalid. Please reload and retry."
-
-#: src/features/migration/pages/MigrationPage.tsx:260
+#: src/features/migration/pages/MigrationPage.tsx:197
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1297,10 +1275,6 @@ msgstr "Modified"
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:88
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr "Multi-year Discount ({discountPercentage}%)"
-
-#: src/features/migration/pages/MigrationPage.tsx:102
-msgid "Multiple owners detected in one batch. Please reload and try again."
-msgstr "Multiple owners detected in one batch. Please reload and try again."
 
 #: src/features/dashboard/components/NamesTable.tsx:118
 msgid "My Names"
@@ -1480,6 +1454,10 @@ msgstr "Notifications"
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
 
+#: src/features/migration/pages/MigrationPage.tsx:89
+msgid "One of your names can't be upgraded right now."
+msgstr "One of your names can't be upgraded right now."
+
 #: src/features/landing/FeaturesCarousel.tsx:27
 msgid "One username <0/><1>everywhere</1>"
 msgstr "One username <0/><1>everywhere</1>"
@@ -1547,6 +1525,10 @@ msgstr "Payment Methods"
 msgid "Pending"
 msgstr "Pending"
 
+#: src/features/migration/pages/MigrationPage.tsx:67
+msgid "Permission missing. Please try again."
+msgstr "Permission missing. Please try again."
+
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:150
 msgid "Personal Site"
 msgstr "Personal Site"
@@ -1587,10 +1569,6 @@ msgstr "Premium Fee"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:45
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
-
-#: src/features/migration/components/GameStep.tsx:55
-msgid "Preparing migration..."
-msgstr "Preparing migration..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 msgid "Preparing the commitment"
@@ -1853,10 +1831,10 @@ msgid "Resolver address"
 msgstr "Resolver address"
 
 #: src/features/migration/components/GameStep.tsx:78
-msgid "Restoring profile records for {label}.eth"
-msgstr "Restoring profile records for {label}.eth"
+msgid "Restoring records for {label}.eth"
+msgstr "Restoring records for {label}.eth"
 
-#: src/features/migration/pages/MigrationPage.tsx:291
+#: src/features/migration/pages/MigrationPage.tsx:228
 msgid "Retry"
 msgstr "Retry"
 
@@ -1896,6 +1874,10 @@ msgstr "Save Preferences"
 #: src/features/wallet/components/BackendAuthModal.tsx:145
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
+
+#: src/features/migration/components/GameStep.tsx:74
+msgid "Saving manager for {label}.eth"
+msgstr "Saving manager for {label}.eth"
 
 #: src/features/notifications/settings/preferences.tsx:176
 #: src/features/profile/components/dialogs/DiffDialog.tsx:262
@@ -2035,8 +2017,8 @@ msgid "Setting ETH address…"
 msgstr "Setting ETH address…"
 
 #: src/features/migration/components/GameStep.tsx:66
-msgid "Setting up your v2 resolver"
-msgstr "Setting up your v2 resolver"
+msgid "Setting up your records"
+msgstr "Setting up your records"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
 msgid "Setting..."
@@ -2139,6 +2121,10 @@ msgstr "Social Links"
 #: src/features/dashboard/components/MyNamesList.tsx:222
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
+
+#: src/features/migration/pages/MigrationPage.tsx:75
+msgid "Something went wrong. Please refresh and try again."
+msgstr "Something went wrong. Please refresh and try again."
 
 #: src/features/dashboard/components/FavoritesList.tsx:141
 #: src/features/dashboard/components/MyNamesList.tsx:230
@@ -2270,18 +2256,9 @@ msgstr "The ENS domain has been successfully renewed."
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 
-#: src/features/migration/pages/MigrationPage.tsx:93
-msgid "The migration helper isn't approved to move your names. Please retry the approval step."
-msgstr "The migration helper isn't approved to move your names. Please retry the approval step."
-
 #: src/features/not-found/pages/NotFoundPage.tsx:12
 msgid "The page you're looking for doesn't exist or may have been moved."
 msgstr "The page you're looking for doesn't exist or may have been moved."
-
-#. placeholder {0}: error.parentName
-#: src/features/migration/pages/MigrationPage.tsx:84
-msgid "The parent name {0} hasn't been migrated yet. Migrate it first, then retry."
-msgstr "The parent name {0} hasn't been migrated yet. Migrate it first, then retry."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:27
 msgid "The registration flow is idle"
@@ -2311,11 +2288,6 @@ msgstr "This address does not have a primary ENS name."
 #: src/features/payment/components/index.tsx:92
 msgid "This card will be charged for your subscription."
 msgstr "This card will be charged for your subscription."
-
-#. placeholder {0}: error.tokenId.toString()
-#: src/features/migration/pages/MigrationPage.tsx:137
-msgid "This name has a frozen approval and can't be migrated. Token ID: {0}."
-msgstr "This name has a frozen approval and can't be migrated. Token ID: {0}."
 
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx:77
 msgid "This name is already registered or not available for registration."
@@ -2410,6 +2382,11 @@ msgstr "Update Resolver"
 msgid "Updating profile"
 msgstr "Updating profile"
 
+#. placeholder {0}: error.parentName
+#: src/features/migration/pages/MigrationPage.tsx:61
+msgid "Upgrade {0} first."
+msgstr "Upgrade {0} first."
+
 #: src/features/migration/components/SelectNamesStep.tsx:172
 #: src/features/migration/components/UpgradeNamesButton.tsx:26
 msgid "Upgrade Names"
@@ -2424,8 +2401,8 @@ msgid "Upgrade your name(s) to unlock your new ENS profile and claim your person
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
 #: src/features/migration/components/GameStep.tsx:70
-msgid "Upgrading {count} name(s) to v2"
-msgstr "Upgrading {count} name(s) to v2"
+msgid "Upgrading {count} name(s)"
+msgstr "Upgrading {count} name(s)"
 
 #: src/features/migration/components/GameStep.tsx:102
 msgid "Upgrading your names..."
