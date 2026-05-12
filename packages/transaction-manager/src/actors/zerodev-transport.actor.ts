@@ -30,9 +30,25 @@ export function submitZeroDevTransaction(input: {
   const zerodevRequest = request as ZeroDevTransactionRequest
 
   const isSession = signer.config.isSessionClient ?? false
+  const useSession = zerodevRequest.zerodevParams?.useSession !== false
+
+  if (isSession && !useSession) {
+    // The caller has opted out of the session (e.g. resolver record
+    // writes whose (target, selector) is not in the session permissions).
+    // The current ZeroDev signer only carries the session client, so we
+    // cannot transparently fall back to the master Kernel client here.
+    // The caller is expected to provide a non-session signer for these
+    // calls; surface this loudly to avoid silent permission-denied UserOps.
+    logger.warn(
+      '⚠️ [ZERODEV TRANSPORT] Request set useSession=false but signer is a session client. ' +
+        'Falling back to session-signed UserOp; this will likely fail. ' +
+        'Provide a non-session ZeroDev signer (master Kernel client) for record-write paths.',
+    )
+  }
 
   logger.info('🔧 [ZERODEV TRANSPORT] Submitting transaction:', {
     isSessionClient: isSession,
+    useSession,
     hasParams: !!zerodevRequest.zerodevParams,
     callCount: zerodevRequest.zerodevParams?.calls?.length,
   })
