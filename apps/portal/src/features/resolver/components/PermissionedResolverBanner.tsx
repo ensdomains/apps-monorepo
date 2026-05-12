@@ -27,7 +27,7 @@ export const PermissionedResolverBanner = ({
         <AssuredWorkloadIcon className="size-6 shrink-0 text-message-success-text mt-0.5" />
         <div className="flex flex-col gap-1">
           <span
-            className="font-[350] leading-none tracking-[-0.6px]"
+            className="font-serif font-[350] leading-none tracking-[-0.6px]"
             style={{
               color: 'var(--message-success-text, #105C23)',
               fontSize: 'var(--3xl, 30px)',
