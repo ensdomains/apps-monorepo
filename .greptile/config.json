@@ -90,7 +90,7 @@
     {
       "id": "resultQueryOptions-factories",
       "rule": "Query helpers should export `getXxxQueryOptions(params)` that wraps `ResultFn` data fetchers via `resultQueryOptions`. Call sites use `useQuery(getXxxQueryOptions(...))` — no custom hook wrapper.",
-      "scope": ["apps/**/hooks/**", "apps/**/*.tsx"],
+      "scope": ["apps/**/*.ts", "apps/**/*.tsx"],
       "severity": "medium"
     },
     {
