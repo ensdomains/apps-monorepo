@@ -24,17 +24,11 @@ export const ResolverCard = ({
 
   if (asRow) {
     return (
-      <div className="flex items-center gap-4 rounded hover:bg-muted/50 w-full">
-        <button
-          type="button"
-          className="flex items-center gap-4 text-left cursor-pointer"
-          onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
-        >
-          <ResolverIcon className="size-4 shrink-0 text-icon-foreground" />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Resolver
-          </span>
-        </button>
+      <div className="flex items-center gap-4 w-full">
+        <ResolverIcon className="size-4 shrink-0 text-neutral-7" />
+        <span className="text-sm text-muted-foreground w-24 shrink-0">
+          Resolver
+        </span>
         {value}
       </div>
     )
@@ -51,7 +45,7 @@ export const ResolverCard = ({
         className="flex items-center gap-6 text-left cursor-pointer"
         onClick={() => navigate({ to: '/$name/resolver', params: { name } })}
       >
-        <ResolverIcon className="size-8 shrink-0 text-icon-foreground" />
+        <ResolverIcon className="size-8 shrink-0 text-neutral-7" />
         <span className="text-sm text-muted-foreground">Resolver</span>
       </button>
       {value}

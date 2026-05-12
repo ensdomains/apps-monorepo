@@ -58,7 +58,8 @@ export type RegistrationContext = {
   // Account & client
   signer?: Signer
   accountAddress?: Address
-  ownerAddress?: Address // EOA owner address (for HCA, this differs from accountAddress)
+  ownerAddress?: Address // ENS name owner (for rhinestone smart-session policy this is the SCA; for EOA flow it's the EOA)
+  resolverOwnerAddress?: Address // Address to grant EACL roles to on the dedicated resolver. Must be the EOA that the resolver will see at write time after SCA→EOA unwrap; defaults to ownerAddress.
   publicClient?: PublicClient
   chainId: number
 
@@ -101,7 +102,8 @@ export type RegistrationEvent =
       price: bigint
       signer: Signer
       accountAddress: Address
-      ownerAddress?: Address // EOA owner address (for HCA, this differs from accountAddress)
+      ownerAddress?: Address // ENS name owner (SCA for rhinestone smart-session policy, EOA for EOA-only flow)
+      resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
       useFastRegistrar?: boolean
       sponsored?: boolean
@@ -379,6 +381,7 @@ export const registrationMachine = setup({
     signer: undefined,
     accountAddress: undefined,
     ownerAddress: undefined,
+    resolverOwnerAddress: undefined,
     publicClient: undefined,
     chainId: input.chainId,
     name: '',
@@ -408,7 +411,11 @@ export const registrationMachine = setup({
             registrationStartedAt: ({ event }) =>
               event.signer.type === 'rhinestone' ? Date.now() : undefined,
             ownerAddress: ({ event }) =>
-              event.ownerAddress ?? event.accountAddress, // Default to accountAddress if not provided
+              event.ownerAddress ?? event.accountAddress, // ENS name owner. Default to accountAddress if not provided
+            resolverOwnerAddress: ({ event }) =>
+              event.resolverOwnerAddress ??
+              event.ownerAddress ??
+              event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
             useFastRegistrar: ({ event }) => Boolean(event.useFastRegistrar),
@@ -445,8 +452,15 @@ export const registrationMachine = setup({
         src: 'deployResolver',
         input: ({ context }) => ({
           name: context.name,
+          // Resolver init grants EACL roles to this address. The dedicated
+          // resolver unwraps SCA→EOA at write time, so the grantee must be the
+          // EOA (not the SCA) or `setText`/etc. will revert with
+          // EACUnauthorizedAccountRoles. See discussion in this file's history.
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          owner: context.ownerAddress ?? context.accountAddress!,
+          owner:
+            context.resolverOwnerAddress ??
+            context.ownerAddress ??
+            context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
