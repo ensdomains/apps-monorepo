@@ -1475,8 +1475,8 @@ msgstr ""
 #: src/features/notifications/settings/preferences.tsx:97
 #: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
-msgid "Notification Preferences"
-msgstr ""
+#~ msgid "Notification Preferences"
+#~ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:21
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
