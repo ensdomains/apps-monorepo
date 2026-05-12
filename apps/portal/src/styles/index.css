@@ -368,4 +368,13 @@
   --font-semi-mono: "ABCMonumentGroteskSemiMono";
   --font-serif: "ABCMarist";
   --text-heading: 1.75rem;
+  --text-smallcaps: 0.625rem; /* 10px */
+}
+
+@utility smallcaps {
+  font-size: var(--text-smallcaps);
+  font-weight: 450;
+  text-transform: uppercase;
+  line-height: 1;
+  letter-spacing: var(--tracking-widest);
 }
