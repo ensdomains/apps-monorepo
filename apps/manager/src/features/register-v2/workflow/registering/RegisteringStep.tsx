@@ -2,6 +2,7 @@ import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
 import { useBlocker } from '@tanstack/react-router'
 import { match, P } from 'ts-pattern'
+import { useCountdown } from '@/hooks/useCountdown'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
 import { NotificationSettings } from './components/NotificationSettings'
@@ -17,7 +18,12 @@ const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
   commitmentTxId: state?.context.commitmentTxId,
   approvalTxId: state?.context.approvalTxId,
   registrationTxId: state?.context.registrationTxId,
+  registerReadyTimestamp: state?.context.registerReadyTimestamp ?? null,
 }))
+
+const useMaxProgress = RegisterV2Context.createSelector(
+  (state) => state.context.maxProgressReached ?? null,
+)
 
 export const RegisteringStep = () => {
   const { _ } = useLingui()
@@ -25,7 +31,25 @@ export const RegisteringStep = () => {
   const registeringTx = useRegisteringTx(registrationActor)
   const uiStage = useRegisteringStage(uiActor)
   const txState = useRegistrationTxState(registeringTx)
-  const stageMessages = getRegistrationStageMessages(registeringTx, txState)
+  const maxProgress = useMaxProgress(uiActor)
+
+  const displayedStage = maxProgress?.stage ?? registeringTx.value
+  const displayedProgress = maxProgress?.progress ?? 0
+  const stageMessages = getRegistrationStageMessages(
+    { ...registeringTx, value: displayedStage },
+    txState,
+  )
+
+  const { remainingSeconds: cooldownSeconds, isActive: isCooldownActive } =
+    useCountdown(registeringTx.registerReadyTimestamp)
+  const cooldownSecondsDisplay = cooldownSeconds ?? 0
+  const stageDescription = isCooldownActive
+    ? _(
+        msg`Waiting for commitment cooldown — register unlocks in ${cooldownSecondsDisplay}s`,
+      )
+    : stageMessages.stageDescription
+      ? _(stageMessages.stageDescription)
+      : undefined
 
   /** Child machine success must win even if UI actor has not raised `transaction.success` yet */
   const isRegistrationComplete =
@@ -59,13 +83,9 @@ export const RegisteringStep = () => {
           match(uiStage?.transaction)
             .with('pending', () => (
               <RegistrationProgressBar
-                description={
-                  stageMessages.stageDescription
-                    ? _(stageMessages.stageDescription)
-                    : undefined
-                }
+                description={stageDescription}
                 label={_(stageMessages.stageLabel)}
-                progress={stageMessages.progress}
+                progress={displayedProgress}
               />
             ))
             .with('success', () => <RegistrationCompletionBanner />)

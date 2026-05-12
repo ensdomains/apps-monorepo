@@ -37,6 +37,7 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
         sponsored: boolean
+        useSession?: boolean
       }
     }
   | {
@@ -49,6 +50,7 @@ function createTransactionRequest(params: {
       zerodevParams: {
         calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
         sponsored: boolean
+        useSession?: boolean
       }
     } {
   const { signer, chainId, from, to, data, value, calls } = params
@@ -75,6 +77,10 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: true,
+        // ETHRegistry.setResolver is not in the registration-scoped smart-
+        // session allowlist (see build-registration-session.ts). Force the
+        // SDK to use the SCA's default validator (EOA-owner signature).
+        useSession: false,
       },
     }
   }
@@ -90,6 +96,7 @@ function createTransactionRequest(params: {
       zerodevParams: {
         calls,
         sponsored: true,
+        useSession: false,
       },
     }
   }

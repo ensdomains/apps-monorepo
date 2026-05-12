@@ -9,7 +9,6 @@ describe('getRegistrationStageMessages', () => {
     )
 
     expect(message.stageLabel.message).toBe('Waiting for commitment receipt')
-    expect(message.progress).toBe(35)
   })
 
   it('maps success stage', () => {
@@ -19,10 +18,9 @@ describe('getRegistrationStageMessages', () => {
     )
 
     expect(message.stageLabel.message).toBe('Registration complete')
-    expect(message.progress).toBe(100)
   })
 
-  it('maps Rhinestone bundle stages (not otherwise / progress 0)', () => {
+  it('maps Rhinestone bundle stages', () => {
     const submitting = getRegistrationStageMessages(
       { value: 'submittingRhinestoneBundle' },
       undefined,
@@ -30,12 +28,13 @@ describe('getRegistrationStageMessages', () => {
     expect(submitting.stageLabel.message).toBe(
       'Submitting approval and registration',
     )
-    expect(submitting.progress).toBe(55)
 
     const waiting = getRegistrationStageMessages(
       { value: 'waitingForRhinestoneBundle' },
       'pending',
     )
-    expect(waiting.progress).toBe(90)
+    expect(waiting.stageLabel.message).toBe(
+      'Waiting for registration confirmation',
+    )
   })
 })

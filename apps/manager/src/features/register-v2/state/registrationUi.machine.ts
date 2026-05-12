@@ -20,6 +20,12 @@ import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountC
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import { SECONDS_IN_YEAR } from '../utils/time'
+import {
+  getRegistrationStageProgress,
+  type MaxProgressReached,
+  REGISTRATION_STAGE_PROGRESS,
+  type RegistrationStage,
+} from './registration.stages'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
@@ -48,6 +54,8 @@ type Context = {
     /** Formatted premium price */
     premiumPriceNumber: number
   }
+
+  maxProgressReached?: MaxProgressReached
 }
 
 type Events =
@@ -114,6 +122,9 @@ const machineSetup = setup({
     clearError: assign({
       lastErrorMessage: () => undefined,
     }),
+    clearMaxProgress: assign({
+      maxProgressReached: () => undefined,
+    }),
     setError: assign({
       lastErrorMessage: ({ event }) =>
         match(event)
@@ -173,6 +184,15 @@ const startRegistrationAction = machineSetup.createAction(
         ? event.account.accountAddress
         : (event.account.ownerAddress ?? event.account.accountAddress)
 
+    // The dedicated resolver's EACL must be granted to the address that the
+    // resolver will see at write time. The PermissionedResolver unwraps an
+    // ERC-7579 / smart-account caller to its underlying EOA owner before
+    // performing the role check, so the EACL grantee must be the EOA — even
+    // when the ENS name itself is owned by the SCA (rhinestone session
+    // policy). For pure EOA flows this collapses to the same address.
+    const resolverOwnerAddress =
+      event.account.ownerAddress ?? event.account.accountAddress
+
     enqueue.assign({
       confirmedData: {
         label: event.label,
@@ -195,6 +215,7 @@ const startRegistrationAction = machineSetup.createAction(
         signer: event.account.signer,
         accountAddress: event.account.accountAddress,
         ownerAddress,
+        resolverOwnerAddress,
         publicClient: defaultPublicClient,
         // The canonical v2 ETHRegistrar handles both fork and prod deployments
         // and has the current MockUSDC/MockDAI in its payment-token whitelist.
@@ -236,6 +257,21 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           })),
         ],
       },
+      {
+        actions: assign({
+          maxProgressReached: ({ context, event }) => {
+            const value = event.snapshot.value
+            const stage = typeof value === 'string' ? value : String(value)
+            if (!(stage in REGISTRATION_STAGE_PROGRESS)) {
+              return context.maxProgressReached
+            }
+            const progress = getRegistrationStageProgress(stage)
+            const current = context.maxProgressReached
+            if (current && progress <= current.progress) return current
+            return { stage: stage as RegistrationStage, progress }
+          },
+        }),
+      },
     ],
   },
   initial: 'pricing',
@@ -244,6 +280,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     duration: SECONDS_IN_YEAR,
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    maxProgressReached: undefined,
   }),
   states: {
     pricing: {
@@ -275,7 +312,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
               target: '#registrationV2Ui.registering',
               guard: ({ event }) =>
                 event.duration >= MIN_REGISTER_DURATION_SECONDS,
-              actions: ['clearError', startRegistrationAction],
+              actions: [
+                'clearError',
+                'clearMaxProgress',
+                startRegistrationAction,
+              ],
             },
           },
         },
