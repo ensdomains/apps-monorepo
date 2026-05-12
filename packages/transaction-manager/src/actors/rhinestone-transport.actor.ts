@@ -67,7 +67,16 @@ export function submitRhinestoneTransaction(input: {
 
   return fromPromise(
     (async () => {
-      const sessionSigners = config.sessionConfig?.signers
+      // Per-request opt-out: callers can set `useSession: false` to skip
+      // the active smart-session and fall back to the SCA's default
+      // validator (EOA-owner signature). Used for calls whose
+      // (target, selector) is outside the session's action allowlist.
+      const sessionAllowedByRequest =
+        rhinestoneRequest.rhinestoneParams.useSession !== false
+      const sessionSigners =
+        config.isSessionClient && sessionAllowedByRequest
+          ? config.sessionConfig?.signers
+          : undefined
 
       console.log('📤 Calling rhinestoneAccount transaction...', {
         chain: chain.name,
@@ -75,6 +84,7 @@ export function submitRhinestoneTransaction(input: {
         callCount: rhinestoneRequest.rhinestoneParams.calls.length,
         isSessionClient: !!config.isSessionClient,
         hasSessionSigners: !!sessionSigners,
+        sessionAllowedByRequest,
       })
 
       const transaction = await account.sendTransaction({

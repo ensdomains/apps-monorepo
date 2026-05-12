@@ -184,6 +184,15 @@ const startRegistrationAction = machineSetup.createAction(
         ? event.account.accountAddress
         : (event.account.ownerAddress ?? event.account.accountAddress)
 
+    // The dedicated resolver's EACL must be granted to the address that the
+    // resolver will see at write time. The PermissionedResolver unwraps an
+    // ERC-7579 / smart-account caller to its underlying EOA owner before
+    // performing the role check, so the EACL grantee must be the EOA — even
+    // when the ENS name itself is owned by the SCA (rhinestone session
+    // policy). For pure EOA flows this collapses to the same address.
+    const resolverOwnerAddress =
+      event.account.ownerAddress ?? event.account.accountAddress
+
     enqueue.assign({
       confirmedData: {
         label: event.label,
@@ -206,6 +215,7 @@ const startRegistrationAction = machineSetup.createAction(
         signer: event.account.signer,
         accountAddress: event.account.accountAddress,
         ownerAddress,
+        resolverOwnerAddress,
         publicClient: defaultPublicClient,
         // The canonical v2 ETHRegistrar handles both fork and prod deployments
         // and has the current MockUSDC/MockDAI in its payment-token whitelist.

@@ -213,6 +213,11 @@ const buildSCARequest = (
       zerodevParams: {
         calls,
         sponsored: true,
+        // Migration writes (grantRoles on V2 ETHRegistry, setResolver,
+        // etc.) are not in the registration-scoped smart-session
+        // allowlist (see build-registration-session.ts). Force EOA-owner
+        // signing via the SCA's default validator.
+        useSession: false,
       },
     } as TransactionRequest
   }
@@ -227,6 +232,7 @@ const buildSCARequest = (
     rhinestoneParams: {
       calls,
       sponsored: true,
+      useSession: false,
     },
   } as TransactionRequest
 }
