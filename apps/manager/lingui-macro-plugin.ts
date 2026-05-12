@@ -8,7 +8,11 @@ export const linguiMacroPlugin = (): Plugin => ({
   name: 'lingui:babel-macro',
   enforce: 'pre',
   async transform(code, id) {
-    const file = id.split('?')[0]
+    // Under `noUncheckedIndexedAccess`, `id.split('?')[0]` is typed
+    // `string | undefined`. `String.prototype.split` always returns at
+    // least one element, so falling back to `id` is purely a type-narrowing
+    // safety net and never triggers at runtime.
+    const file = id.split('?')[0] ?? id
 
     if (file.includes('/node_modules/')) return null
     if (!/\.[cm]?[jt]sx?$/.test(file)) return null

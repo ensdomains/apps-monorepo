@@ -1485,6 +1485,7 @@ msgid "Notification Settings"
 msgstr ""
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:18
+#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:25
 #: src/features/notifications/dropdown/notification-dropdown.tsx:28
 msgid "Notifications"
 msgstr ""

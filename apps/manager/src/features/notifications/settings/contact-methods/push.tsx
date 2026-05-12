@@ -100,7 +100,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
 
   return (
     <ContactMethodCard
-      action={action ?? undefined}
+      action={action === null ? undefined : action}
       actionDisabled={isPending || browserState.isFetching}
       actionLabel={showEnableButton ? t`Enable` : undefined}
       description={t`Get instant push notifications in your browser`}

@@ -1,8 +1,21 @@
 import { type ClassValue, clsx } from 'clsx'
+import type React from 'react'
+import { createElement } from 'react'
 import type { MaterialSymbol } from './material-symbol-url'
 
+// Re-export so existing consumers can `import { MATERIAL_SYMBOLS_URL } from './material-symbol'`.
+// The symbol list and URL live in the JSX-free `material-symbol-url.ts` module so
+// non-React contexts (e.g. `.storybook/main.ts`) can import them without esbuild
+// having to parse JSX. Keeping a single source of truth means `MSymbol`'s
+// `symbol` prop type stays in sync with the icons actually loaded by the font URL.
 export { MATERIAL_SYMBOLS_URL } from './material-symbol-url'
 
+export interface MaterialSymbolProps
+  extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'symbol' | 'className'>,
+    React.RefAttributes<HTMLSpanElement> {
+  symbol: MaterialSymbol
+  className?: ClassValue
+}
 /**
  * Material Symbol component for rendering Google Material Symbols icons.
  *

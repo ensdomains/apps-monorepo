@@ -46,7 +46,7 @@ export const PreferenceCard = ({
       ) : null}
       <div
         className={cn(
-          'mt-0.5 shrink-0 text-ens-quartz-600',
+          'mt-0.5 shrink-0 text-ens-quartz-500',
           checked && 'text-ens-lapis-500',
         )}
       >
