@@ -49,7 +49,6 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
     labelName: o.labelName === undefined ? 'alice' : o.labelName,
     labelhash: o.labelhash ?? '0xlabelhash',
     name: o.name ?? 'alice.eth',
-    isMigrated: false,
     createdAt: '0',
     resolvedAddress: null,
     resolver:
@@ -70,7 +69,7 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
       ? { registrationDate: '0', expiryDate: o.registrationExpiry }
       : null,
     wrappedDomain: isWrapped
-      ? { expiryDate: o.wrappedExpiry ?? '100', fuses: o.fuses ?? 0 }
+      ? { expiryDate: o.wrappedExpiry ?? '99999999999', fuses: o.fuses ?? 0 }
       : null,
   }
 }

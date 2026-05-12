@@ -9,7 +9,6 @@ export type V1Domain = {
   labelName: string | null
   labelhash: string
   name: string
-  isMigrated: boolean
   createdAt: string
   resolvedAddress: { id: string } | null
   resolver: { id: string; address: string } | null
@@ -57,7 +56,6 @@ query getNamesForAddress($orderBy: Domain_orderBy, $orderDirection: OrderDirecti
     labelName
     labelhash
     name
-    isMigrated
     createdAt
     resolvedAddress { id }
     resolver { id address }

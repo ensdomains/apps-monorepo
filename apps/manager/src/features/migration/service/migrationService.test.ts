@@ -92,7 +92,6 @@ const unwrappedDomain = (id: string): V1Domain =>
     labelName: id,
     labelhash:
       '0x0000000000000000000000000000000000000000000000000000000000000002',
-    isMigrated: false,
     createdAt: '0',
     resolvedAddress: null,
     resolver: { id: 'r', address: V1_RESOLVER },
@@ -240,7 +239,7 @@ describe('executeMigration', () => {
     const bad = {
       ...unwrappedDomain('bad'),
       wrappedOwner: { id: OWNER },
-      wrappedDomain: { fuses: 1 | 4, expiryDate: '100' },
+      wrappedDomain: { fuses: 1 | 4, expiryDate: '99999999999' },
     } as V1Domain
     const good = unwrappedDomain('good')
     const { result } = await runExecute({ domains: [bad, good] })
