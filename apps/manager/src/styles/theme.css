@@ -73,14 +73,9 @@
   --color-ens-quartz-300: #c7c6c4;
   --color-ens-quartz-350: #a1a1a1;
   --color-ens-quartz-400: #737373;
-<<<<<<< Updated upstream
-  /** Preference row icons (unselected) — verify this differs from quartz-500 */
-  --color-ens-quartz-600: #595755;
-=======
   /** Figma quartz/500 — preference row icons (unselected), secondary copy */
   --color-ens-quartz-500: #595755;
   --color-ens-quartz-900: #191919;
->>>>>>> Stashed changes
 
   /** Figma slate/600 — secondary copy */
   --color-ens-slate-600: #45556c;

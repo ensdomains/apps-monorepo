@@ -1,6 +1,6 @@
 import { useLingui } from '@lingui/react/macro'
 import { useSelector as useStoreSelector } from '@xstate/store-react'
-import { forwardRef, type ButtonHTMLAttributes } from 'react'
+import { type ButtonHTMLAttributes, forwardRef } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { UnreadDot } from '@/features/navigation/Header/notifications/UnreadBadge'
 import { isBackendAuthed } from '@/utils/backend-client'

@@ -79,6 +79,11 @@ export const useNotificationPreferencesForm = (
    * while the form is still pristine so we never clobber in-progress edits.
    */
   const hasSeededFromLoadedData = useRef(false)
+  // buildDefaultValues closes over the same `preferences.data` we already gate
+  // on, `form.reset` and `form.state.isDirty` come from a stable hook return,
+  // and the seed is intentionally one-shot — re-running on any of these
+  // identities changing would defeat that.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional one-shot seed; see comment above.
   useEffect(() => {
     if (hasSeededFromLoadedData.current) return
     if (!preferences.data) return
@@ -86,10 +91,6 @@ export const useNotificationPreferencesForm = (
 
     hasSeededFromLoadedData.current = true
     form.reset(buildDefaultValues())
-    // buildDefaultValues is intentionally not a dep — it closes over the
-    // same `preferences.data` we already gate on, and `form` is a stable
-    // hook return.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferences.data])
 
   const hasVerifiedChannels =
