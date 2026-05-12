@@ -626,7 +626,7 @@ msgstr ""
 msgid "Contact"
 msgstr ""
 
-#: src/features/profile/components/sections/OtherSection.tsx:92
+#: src/features/profile/components/sections/OtherSection.tsx:95
 msgid "Content Hash"
 msgstr ""
 
@@ -955,12 +955,12 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:242
+#: src/lib/smart-account/SmartAccountContext.tsx:249
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:243
+#: src/lib/smart-account/SmartAccountContext.tsx:250
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -1045,11 +1045,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:213
+#: src/lib/smart-account/SmartAccountContext.tsx:220
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:214
+#: src/lib/smart-account/SmartAccountContext.tsx:221
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -1433,6 +1433,10 @@ msgstr ""
 msgid "Nothing here yet!"
 msgstr ""
 
+#: src/components/SepoliaNoticeBanner.tsx:11
+msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
+msgstr ""
+
 #: src/features/notifications/settings/preferences.tsx:97
 #: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
 #: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
@@ -1470,7 +1474,7 @@ msgstr ""
 msgid "or"
 msgstr ""
 
-#: src/features/profile/components/sections/OtherSection.tsx:35
+#: src/features/profile/components/sections/OtherSection.tsx:36
 msgid "Other"
 msgstr ""
 
@@ -1988,7 +1992,7 @@ msgstr ""
 msgid "Set reverse record to show your name"
 msgstr ""
 
-#: src/features/profile/components/sections/OtherSection.tsx:38
+#: src/features/profile/components/sections/OtherSection.tsx:39
 msgid "Set the content hash and ABI for your name"
 msgstr ""
 
@@ -2570,7 +2574,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:231
+#: src/lib/smart-account/SmartAccountContext.tsx:238
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2586,7 +2590,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:230
+#: src/lib/smart-account/SmartAccountContext.tsx:237
 msgid "Wallet funded successfully"
 msgstr ""
 
@@ -2612,7 +2616,7 @@ msgstr ""
 msgid "web3 username"
 msgstr ""
 
-#: src/features/profile/components/sections/BioSection.tsx:113
+#: src/features/profile/components/sections/BioSection.tsx:115
 msgid "Website"
 msgstr ""
 

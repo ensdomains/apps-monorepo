@@ -7,7 +7,36 @@ import {
 } from '@urql/core'
 import { retryExchange } from '@urql/exchange-retry'
 
-export const INDEXER_GRAPHQL_URL = 'https://tenderly-ensv2.pff.sh/'
+/**
+ * Resolve the indexer GraphQL URL.
+ *
+ * `import.meta.env.VITE_INDEXER_GRAPHQL_URL` is inlined by Vite at build time,
+ * so it's available in both browser and SSR contexts. The only edge case is
+ * relative paths (e.g. `/indexer/graphql`) which need a browser origin to
+ * resolve — during SSR we fall back to the staging URL instead.
+ *
+ * Absolute URLs (e.g. `http://127.0.0.1:5655/graphql`) work in both contexts.
+ */
+function getIndexerUrl(): string {
+  try {
+    if (typeof import.meta !== 'undefined') {
+      const envUrl = import.meta.env?.VITE_INDEXER_GRAPHQL_URL
+      if (envUrl) {
+        // Relative paths only work in the browser (they need an origin).
+        // During SSR, fall back to the public staging endpoint.
+        if (envUrl.startsWith('/') && typeof window === 'undefined') {
+          return 'https://tenderly-ensv2.pff.sh/'
+        }
+        return envUrl
+      }
+    }
+  } catch {
+    // Non-Vite environment — fall through to default
+  }
+  return 'https://tenderly-ensv2.pff.sh/'
+}
+
+export const INDEXER_GRAPHQL_URL = getIndexerUrl()
 
 const forcePostExchange = mapExchange({
   onOperation(operation) {

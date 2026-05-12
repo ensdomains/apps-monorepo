@@ -1,0 +1,24 @@
+{
+  "name": "@ens-apps/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:manager": "playwright test --config=projects/manager/playwright.config.ts",
+    "test:manager-premium": "playwright test --config=projects/manager/playwright.premium.config.ts",
+    "test:portal": "playwright test --config=projects/portal/playwright.config.ts",
+    "test:cross-app": "playwright test --config=projects/cross-app/playwright.config.ts",
+    "infra:up": "bash infra/scripts/start-local-env.sh",
+    "infra:down": "bash infra/scripts/start-local-env.sh --down"
+  },
+  "postinstall": "playwright install --with-deps chromium",
+  "dependencies": {
+    "@ensdomains/headless-web3-provider": "^1.0.8",
+    "dotenv": "^17.2.3",
+    "viem": "^2.47.2"
+  },
+  "devDependencies": {
+    "@browserbasehq/stagehand": "^3.0.8",
+    "@playwright/mcp": "^0.0.19",
+    "@playwright/test": "1.58.2"
+  }
+}

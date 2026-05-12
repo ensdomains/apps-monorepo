@@ -63,12 +63,6 @@ export const ExtendNameModal = ({
     isAddressEqual(address, ownerData.owner)
   )
 
-  useEffect(() => {
-    if (!open) {
-      setStep('disclaimer')
-    }
-  }, [open])
-
   // Skip the disclaimer when the connected wallet owns the name —
   // the warning ("Extending a name does not change the owner...") is noise for owners.
   useEffect(() => {
@@ -89,6 +83,7 @@ export const ExtendNameModal = ({
       onOpenChange={(open) => {
         if (!open) {
           onClose()
+          setStep(isOwner ? 'settings' : 'disclaimer')
         }
       }}
     >

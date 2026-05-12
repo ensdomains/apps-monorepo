@@ -24,7 +24,14 @@
     "test:manager:ui": "pnpm -r --filter=manager test:ui",
     "test:manager:cov": "pnpm -r --filter=manager test:coverage",
     "test:manager:cov:open": "pnpm -r --filter=manager test:coverage:open",
-    "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev"
+    "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev",
+    "e2e": "pnpm --filter @ens-apps/e2e test:manager",
+    "e2e:manager": "pnpm --filter @ens-apps/e2e test:manager",
+    "e2e:manager-premium": "pnpm --filter @ens-apps/e2e test:manager-premium",
+    "e2e:portal": "pnpm --filter @ens-apps/e2e test:portal",
+    "e2e:cross-app": "pnpm --filter @ens-apps/e2e test:cross-app",
+    "e2e:infra:up": "pnpm --filter @ens-apps/e2e infra:up",
+    "e2e:infra:down": "pnpm --filter @ens-apps/e2e infra:down"
   },
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {

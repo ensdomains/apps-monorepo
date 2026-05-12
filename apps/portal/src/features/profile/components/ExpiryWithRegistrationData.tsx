@@ -31,7 +31,7 @@ type RegistrationDataProps = RegistrationDateProps
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
     <div className="flex items-center gap-4 py-3">
-      <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
+      <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
       <span className="text-sm text-muted-foreground w-24 shrink-0">
         Registered
       </span>
@@ -42,7 +42,7 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
 
 const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
   <div className="flex items-center gap-4 py-3">
-    <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
+    <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
     <span className="text-sm text-muted-foreground w-24 shrink-0">
       Grace ends
     </span>
@@ -78,7 +78,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     <>
       {expiry.data && (
         <div className="flex items-center gap-4 py-3">
-          <ClockIcon className="size-4 text-muted-foreground shrink-0" />
+          <ClockIcon className="size-4 text-neutral-7 shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Expires
           </span>
@@ -120,7 +120,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       ) : (
         data.expiry !== null && (
           <div className="flex items-center gap-4 py-3">
-            <ClockIcon className="size-4 text-muted-foreground shrink-0" />
+            <ClockIcon className="size-4 text-neutral-7 shrink-0" />
             <span className="text-sm text-muted-foreground w-24 shrink-0">
               Expires
             </span>
@@ -131,7 +131,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
       {data.registeredAt !== null && (
         <div className="flex items-center gap-4 py-3">
-          <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
+          <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Registered
           </span>
@@ -141,7 +141,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
       {data.createdAt !== null && (
         <div className="flex items-center gap-4 py-3">
-          <PlusCircleIcon className="size-4 text-muted-foreground shrink-0" />
+          <PlusCircleIcon className="size-4 text-neutral-7 shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Created
           </span>
