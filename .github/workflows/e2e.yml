@@ -52,11 +52,29 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(pnpm --filter @ens-apps/e2e exec playwright --version | tr -d ' ')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+
       - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @ens-apps/e2e exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @ens-apps/e2e exec playwright install-deps chromium
 
       - name: Install Foundry (cast CLI)
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: true
 
       # ── local blockchain stack ────────────────────────────────────
       # Only start the services each job needs to reduce memory pressure.
