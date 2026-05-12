@@ -70,6 +70,11 @@ export function handleStartRegistration(
   // For external wallets, ownerAddress contains the wagmi address (EOA)
   // If ownerAddress is not set, fall back to smart account address (for simple accounts)
   const ownerAddress = account.ownerAddress ?? account.accountAddress
+  // EACL grantee for the dedicated resolver. The PermissionedResolver unwraps
+  // SCA→EOA at write time, so this must always be the EOA. In the legacy v1
+  // flow ownerAddress already prefers the EOA, so we alias it here. The
+  // meaningful SCA/EOA split lives in registrationUi.machine.ts (v2 flow).
+  const resolverOwnerAddress = ownerAddress
 
   console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
@@ -95,6 +100,7 @@ export function handleStartRegistration(
     signer: account.signer,
     accountAddress: account.accountAddress,
     ownerAddress, // Use EOA for HCA, smart account for simple
+    resolverOwnerAddress, // Always the EOA — resolver EACL grantee
     publicClient,
     useFastRegistrar,
     sponsored: enableSponsorship,
