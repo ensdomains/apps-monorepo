@@ -1,7 +1,3 @@
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-
-const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-
 export const V1_CONTRACTS = {
   BaseRegistrar: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85',
   NameWrapper: '0x0635513f179D50A207757E05759CbD106d7dFcE8',
@@ -9,14 +5,14 @@ export const V1_CONTRACTS = {
   PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
 } as const
 
-export const V2_DEPLOY_BLOCK = 10462885n
+export const V2_DEPLOY_BLOCK = 10770759n
 
 export const V2_CONTRACTS = {
-  ETHRegistry: '0x28356dacb84ee3ebdb007d1f5920b24c87e90d40',
-  VerifiableFactory: '0x04fd5ee60b015b6efd21a54d1e662d68868683c5',
-  PermissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
-  UnlockedMigrationController: '0xf9108e0797406c45ca43f103b176cbd902a12fba',
-  LockedMigrationController: '0x806c44f027a6f6ee75ade3f6dbf1c6db496ffc67',
+  ETHRegistry: '0x31a2bb5d933557cce1b3129993193896d074db92',
+  VerifiableFactory: '0x26997c9d0f3dcbae3f78c69e621a3926ee30bb98',
+  PermissionedResolverImpl: '0x73bad0460ef02b8d6a9de17550218e9e20663c19',
+  UnlockedMigrationController: '0x5587003f8eeee1bc236d48ab39059cbfd99207d7',
+  LockedMigrationController: '0x7ca1ded4d929ebd8b09e24c2da8e909014abecd8',
   MigrationHelper: '0x09B9E95D8633EDA8d9E530f258c634A2953Cd3FA',
-  ENSV2Resolver: '0xcc8eff4ad952de82990264d5adb32fc9399ecb64',
+  ENSV2Resolver: '0x078a7ae41974a74c62233bca5590c86218aa1f1e',
 } as const
