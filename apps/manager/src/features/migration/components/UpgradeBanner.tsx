@@ -5,14 +5,18 @@ import { useAccount } from 'wagmi'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import { useHasMigratedNames } from '@/features/migration/hooks/useHasMigratedNames'
 
 export const UpgradeBanner = () => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
   const { eligible, isPending: isV1Pending } = useEligibleV1Names()
+  const { data: hasMigratedNames, isPending: isMigratedPending } =
+    useHasMigratedNames()
 
   if (!isConnected) return null
-  if (isV1Pending) return null
+  if (isV1Pending || isMigratedPending) return null
+  if (hasMigratedNames) return null
   if (eligible.length === 0) return null
 
   return (

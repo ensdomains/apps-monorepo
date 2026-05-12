@@ -1920,7 +1920,7 @@ msgstr "Search your NFTs..."
 msgid "See all"
 msgstr "See all"
 
-#: src/features/migration/components/UpgradeBanner.tsx:38
+#: src/features/migration/components/UpgradeBanner.tsx:42
 msgid "See what's new"
 msgstr "See what's new"
 
@@ -2370,7 +2370,7 @@ msgstr "Upgrade Names"
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 
-#: src/features/migration/components/UpgradeBanner.tsx:28
+#: src/features/migration/components/UpgradeBanner.tsx:32
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
@@ -2615,7 +2615,7 @@ msgstr "web3 username"
 msgid "Website"
 msgstr "Website"
 
-#: src/features/migration/components/UpgradeBanner.tsx:24
+#: src/features/migration/components/UpgradeBanner.tsx:28
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
 
