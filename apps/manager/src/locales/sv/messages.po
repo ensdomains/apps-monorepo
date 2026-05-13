@@ -169,7 +169,7 @@ msgstr ""
 msgid "Add a short bio to your profile"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:42
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:41
 msgid "Add an external contact method if you also want reminders by email or Telegram or in your browser."
 msgstr ""
 
@@ -393,7 +393,6 @@ msgstr ""
 msgid "Browse Files"
 msgstr ""
 
-#: src/features/notifications/settings/contact-methods/contact-methods.stories.tsx:45
 #: src/features/notifications/settings/contact-methods/push.tsx:114
 msgid "Browser Notifications"
 msgstr ""
@@ -874,7 +873,7 @@ msgstr ""
 msgid "ENS app landing page"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:151
+#: src/features/notifications/settings/preferences.tsx:122
 msgid "ENS Labs Updates"
 msgstr ""
 
@@ -1034,7 +1033,7 @@ msgstr ""
 msgid "Failed to switch language"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:48
+#: src/features/notifications/settings/preferences.tsx:44
 msgid "Failed to update preferences"
 msgstr ""
 
@@ -1050,7 +1049,7 @@ msgstr ""
 msgid "Favorites"
 msgstr "Favoriter"
 
-#: src/features/notifications/settings/preferences.tsx:166
+#: src/features/notifications/settings/preferences.tsx:137
 msgid "Favourites"
 msgstr ""
 
@@ -1088,7 +1087,7 @@ msgstr ""
 msgid "Get instant updates through Telegram for your domains."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:161
+#: src/features/notifications/settings/preferences.tsx:132
 msgid "Get notified when names you favorited expire."
 msgstr ""
 
@@ -1096,7 +1095,7 @@ msgstr ""
 msgid "Get support"
 msgstr "Få support"
 
-#: src/features/notifications/settings/preferences.tsx:146
+#: src/features/notifications/settings/preferences.tsx:117
 msgid "Get updated on the latest releases and features."
 msgstr ""
 
@@ -1157,7 +1156,7 @@ msgstr ""
 msgid "Image not available"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:119
+#: src/features/notifications/settings/preferences.tsx:90
 msgid "In-app notifications are always enabled"
 msgstr ""
 
@@ -1318,7 +1317,7 @@ msgstr "Namn (A-Ö)"
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
-#: src/features/notifications/settings/preferences.tsx:135
+#: src/features/notifications/settings/preferences.tsx:106
 msgid "Name Expiry"
 msgstr ""
 
@@ -1350,7 +1349,7 @@ msgstr ""
 msgid "Need help?"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:35
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:34
 msgid "Never lose your name to expiry."
 msgstr ""
 
@@ -1573,11 +1572,11 @@ msgstr ""
 msgid "Please wait while we verify your email address."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:116
+#: src/features/notifications/settings/preferences.tsx:87
 msgid "Preferences"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:45
+#: src/features/notifications/settings/preferences.tsx:41
 msgid "Preferences updated"
 msgstr ""
 
@@ -1892,7 +1891,7 @@ msgstr ""
 msgid "Save ${0}"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:81
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:80
 msgid "Save and Continue"
 msgstr ""
 
@@ -1901,7 +1900,7 @@ msgstr ""
 msgid "Save Changes"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:211
+#: src/features/notifications/settings/preferences.tsx:182
 msgid "Save Preferences"
 msgstr ""
 
@@ -1909,9 +1908,9 @@ msgstr ""
 msgid "Saved favorites & searches"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:209
+#: src/features/notifications/settings/preferences.tsx:180
 #: src/features/profile/components/dialogs/DiffDialog.tsx:262
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:79
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:78
 msgid "Saving..."
 msgstr ""
 
@@ -2033,8 +2032,8 @@ msgstr ""
 msgid "Set the content hash and ABI for your name"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:92
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:131
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:91
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:130
 msgid "Set up later"
 msgstr ""
 
@@ -2495,7 +2494,7 @@ msgstr ""
 msgid "Verified!"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:218
+#: src/features/notifications/settings/preferences.tsx:189
 msgid "Verify at least one contact method to save preferences"
 msgstr ""
 
@@ -2511,7 +2510,7 @@ msgstr ""
 msgid "Verify Email Address"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:123
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:122
 #: src/features/register/components/VerifyWalletModal.tsx:108
 msgid "Verify Wallet"
 msgstr ""
@@ -2756,15 +2755,15 @@ msgstr ""
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:109
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:108
 msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:39
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:38
 msgid "You'll always see important notifications in the app."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:128
+#: src/features/notifications/settings/preferences.tsx:99
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr ""
 
