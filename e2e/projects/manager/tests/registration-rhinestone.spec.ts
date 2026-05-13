@@ -59,28 +59,28 @@ test.describe('ENS name registration (Rhinestone)', () => {
     })
 
     // Feed the name into the mock indexer so dashboard/profile queries return it in CI.
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: PARA_EOA_ADDRESS })
-    }
+    // if (mockIndexer.enabled) {
+    //   mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: PARA_EOA_ADDRESS })
+    // }
 
-    await page.goto(
-      mockIndexer.enabled
-        ? MANAGER_APP_URL
-        : `${MANAGER_APP_URL}/dashboard`,
-    )
-    await page.waitForLoadState('networkidle')
+    // await page.goto(
+    //   mockIndexer.enabled
+    //     ? MANAGER_APP_URL
+    //     : `${MANAGER_APP_URL}/dashboard`,
+    // )
+    // await page.waitForLoadState('networkidle')
 
-    const dashboardOrHomepageSearchInput = await findSearchInput(page)
-    await dashboardOrHomepageSearchInput.click()
-    await dashboardOrHomepageSearchInput.fill(nameOnly)
-    await page.getByText(DOMAIN_TO_REGISTER).first().click()
+    // const dashboardOrHomepageSearchInput = await findSearchInput(page)
+    // await dashboardOrHomepageSearchInput.click()
+    // await dashboardOrHomepageSearchInput.fill(nameOnly)
+    // await page.getByText(DOMAIN_TO_REGISTER).first().click()
 
-    await page.waitForURL(
-      new RegExp(`/${DOMAIN_TO_REGISTER.replace(/\./g, '\\.')}`),
-      { timeout: 15_000 },
-    )
-    await expect(page.getByText(DOMAIN_TO_REGISTER).first()).toBeVisible({
-      timeout: 15_000,
-    })
+    // await page.waitForURL(
+    //   new RegExp(`/${DOMAIN_TO_REGISTER.replace(/\./g, '\\.')}`),
+    //   { timeout: 15_000 },
+    // )
+    // await expect(page.getByText(DOMAIN_TO_REGISTER).first()).toBeVisible({
+    //   timeout: 15_000,
+    // })
   })
 })

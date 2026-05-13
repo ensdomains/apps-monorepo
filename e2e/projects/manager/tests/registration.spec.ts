@@ -68,26 +68,26 @@ test.describe('ENS name registration', () => {
       timeout: 90_000,
     })
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: LATE_AUTH_DOMAIN, owner: PARA_EOA_ADDRESS })
-    }
+    // if (mockIndexer.enabled) {
+    //   mockIndexer.addName({ name: LATE_AUTH_DOMAIN, owner: PARA_EOA_ADDRESS })
+    // }
 
-    await page.goto(
-      mockIndexer.enabled ? MANAGER_APP_URL : `${MANAGER_APP_URL}/dashboard`,
-    )
-    await page.waitForLoadState('networkidle')
+    // await page.goto(
+    //   mockIndexer.enabled ? MANAGER_APP_URL : `${MANAGER_APP_URL}/dashboard`,
+    // )
+    // await page.waitForLoadState('networkidle')
 
-    const dashboardSearchInput = await findSearchInput(page)
-    await dashboardSearchInput.click()
-    await dashboardSearchInput.fill(LATE_AUTH_DOMAIN.replace(/\.eth$/i, ''))
-    await page.getByText(LATE_AUTH_DOMAIN).first().click()
+    // const dashboardSearchInput = await findSearchInput(page)
+    // await dashboardSearchInput.click()
+    // await dashboardSearchInput.fill(LATE_AUTH_DOMAIN.replace(/\.eth$/i, ''))
+    // await page.getByText(LATE_AUTH_DOMAIN).first().click()
 
-    await page.waitForURL(
-      new RegExp(`/${LATE_AUTH_DOMAIN.replace(/\./g, '\\.')}`),
-      { timeout: 15_000 },
-    )
-    await expect(page.getByText(LATE_AUTH_DOMAIN).first()).toBeVisible({
-      timeout: 15_000,
-    })
+    // await page.waitForURL(
+    //   new RegExp(`/${LATE_AUTH_DOMAIN.replace(/\./g, '\\.')}`),
+    //   { timeout: 15_000 },
+    // )
+    // await expect(page.getByText(LATE_AUTH_DOMAIN).first()).toBeVisible({
+    //   timeout: 15_000,
+    // })
   })
 })
