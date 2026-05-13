@@ -30,6 +30,7 @@ import {
   type AvatarLookupEntry,
   namesAvatarsQuery,
 } from '@/features/profile/service/profileAvatar'
+import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { tw } from '@/utils/tailwind'
 import { getAllDomainsInfiniteQuery } from '../service/queries/getAllDashboardDomains'
 import { NameRow } from './NameRow'
@@ -104,6 +105,7 @@ export const MyNamesList = ({
   const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const { data: wallet } = useWallet()
+  const smartAccount = useSmartAccountContextSafe()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<Sort>('name-desc')
   const { field: sortField, dir: sortDir } = parseSort(sort)
@@ -115,7 +117,29 @@ export const MyNamesList = ({
     [migrationEnabled, v1Classified],
   )
 
-  const normalizedAddress = wallet?.address?.toLowerCase()
+  // Names can be owned by either the EOA or the EOA-authorized smart account
+  // (HCA). On the rhinestone registration path the on-chain ENS owner is the
+  // SCA; HCAEquivalence resolves SCA→EOA on-chain but the GraphQL indexer is
+  // not HCA-aware, so we must query both addresses explicitly via owner_in.
+  const ownerAddresses = useMemo(() => {
+    const candidates = [
+      wallet?.address,
+      smartAccount?.accountAddress,
+      smartAccount?.ownerAddress,
+    ]
+    const unique = new Set<string>()
+    for (const addr of candidates) {
+      if (addr) unique.add(addr.toLowerCase())
+    }
+    return Array.from(unique)
+  }, [
+    wallet?.address,
+    smartAccount?.accountAddress,
+    smartAccount?.ownerAddress,
+  ])
+
+  const hasOwnerAddresses = ownerAddresses.length > 0
+  const ownerAddressesKey = ownerAddresses.join(',')
 
   const {
     data: v2Data,
@@ -126,9 +150,9 @@ export const MyNamesList = ({
     isFetchingNextPage: isFetchingNextV2Page,
   } = useInfiniteQuery(
     getAllDomainsInfiniteQuery(
-      normalizedAddress
+      hasOwnerAddresses
         ? {
-            where: { owner: normalizedAddress },
+            where: { owner_in: ownerAddresses },
             orderBy:
               sortField === 'expiry'
                 ? Domain_OrderBy.ExpiryDate
@@ -145,7 +169,7 @@ export const MyNamesList = ({
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, wallet?.address])
+  }, [searchQuery, ownerAddressesKey])
 
   useEffect(() => {
     if (isV2Error || !hasNextV2Page || isFetchingNextV2Page) return
@@ -200,8 +224,7 @@ export const MyNamesList = ({
   const { data: pageAvatars } = useQuery(namesAvatarsQuery(avatarLookups))
 
   const isPending =
-    (isV2Pending && normalizedAddress !== undefined) ||
-    (migrationEnabled && isV1Pending)
+    (isV2Pending && hasOwnerAddresses) || (migrationEnabled && isV1Pending)
   const hasPartialV2Error = isV2Error && v2Names.length > 0
 
   if (isV2Error && v2Names.length === 0) {

@@ -54,7 +54,7 @@ describe('buildRegistrationSessionActions', () => {
     expect(observedSelectors).toContain(KNOWN_SELECTORS.setAccountOwner)
   })
 
-  it('register action pins owner to SCA at calldata offset 32', () => {
+  it('register action pins owner to EOA at calldata offset 32', () => {
     const registerAction = actions.find(
       (a) => 'selector' in a && a.selector === KNOWN_SELECTORS.register,
     )
@@ -68,7 +68,7 @@ describe('buildRegistrationSessionActions', () => {
     expect(policy.rules[0]).toMatchObject({
       condition: 'equal',
       calldataOffset: 32n,
-      referenceValue: SCA,
+      referenceValue: EOA,
     })
   })
 
