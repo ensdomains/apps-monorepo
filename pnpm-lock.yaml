@@ -274,8 +274,8 @@ importers:
         specifier: ^12.23.25
         version: 12.38.0(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       motion-plus:
-        specifier: file:../../packages/motion-plus-2.10.0.tgz
-        version: file:packages/motion-plus-2.10.0.tgz(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: workspace:*
+        version: link:../../packages/motion-plus
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
@@ -745,6 +745,21 @@ importers:
         version: 6.0.3
 
   packages/locales: {}
+
+  packages/motion-plus:
+    dependencies:
+      motion:
+        specifier: ^12.25.0
+        version: 12.38.0(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      motion-dom:
+        specifier: ^12.25.0
+        version: 12.38.0
+      motion-plus-dom:
+        specifier: ^2.9.0
+        version: 2.11.2(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      motion-utils:
+        specifier: ^12.23.6
+        version: 12.36.0
 
   packages/shared-schema:
     dependencies:
@@ -7629,18 +7644,6 @@ packages:
 
   motion-plus-dom@2.11.2:
     resolution: {integrity: sha512-WNXCn7XRS7H5ZJiwceJMbNjXbhVwjhQquJn/3LuyPkwMcxtOtQmc+cCas46bNpYNfKCyJs94oN9XRcBWmT2LxQ==}
-
-  motion-plus@file:packages/motion-plus-2.10.0.tgz:
-    resolution: {integrity: sha512-EivZ2Xiv35aij7qojgs09WsxvpqpJgSu43Hk2CqEF0lHfOR/OF7DOgQXiRj80u+tBzCRhadkd8jjSI2sSeYMIQ==, tarball: file:packages/motion-plus-2.10.0.tgz}
-    version: 2.10.0
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      react:
-        optional: true
-      react-dom:
-        optional: true
 
   motion-utils@11.18.1:
     resolution: {integrity: sha512-49Kt+HKjtbJKLtgO/LKj9Ld+6vw9BjH5d9sc40R/kVyH8GLAXgT42M2NnuPcJNuA3s9ZfZBUcwIgpmZWGEE+hA==}
@@ -17466,18 +17469,6 @@ snapshots:
       - '@emotion/is-prop-valid'
       - react
       - react-dom
-
-  motion-plus@file:packages/motion-plus-2.10.0.tgz(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
-    dependencies:
-      motion: 12.38.0(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      motion-dom: 12.38.0
-      motion-plus-dom: 2.11.2(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      motion-utils: 12.36.0
-    optionalDependencies:
-      react: 19.2.5
-      react-dom: 19.2.5(react@19.2.5)
-    transitivePeerDependencies:
-      - '@emotion/is-prop-valid'
 
   motion-utils@11.18.1: {}
 
