@@ -7,7 +7,7 @@ import type { Address, Hash } from 'viem'
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
 import { bytesToHex } from 'viem'
 import { authenticateWithPara } from '../helpers/para-auth.js'
-import { createIndexerMock } from '../helpers/mock-indexer.js'
+import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
 import { createTime, type Time } from './time.js'
@@ -92,6 +92,14 @@ type ManagerFixtures = {
    * Para user becomes the owner. Returns the full name.
    */
   registerName: (labelPrefix: string) => Promise<string>
+  /**
+   * Mock indexer control. When E2E_MOCK_INDEXER=true, call `addName()` after
+   * on-chain registration so dashboard/profile queries return the name.
+   */
+  mockIndexer: {
+    addName: (domain: MockDomain) => void
+    enabled: boolean
+  }
 }
 
 /**
@@ -100,10 +108,15 @@ type ManagerFixtures = {
  * plus `time` and `makeName` for chain-level test setup.
  */
 export const test = base.extend<ManagerFixtures>({
-  authenticatedPage: async ({ page }, use) => {
-    // When E2E_MOCK_INDEXER=true, intercept indexer GraphQL before any navigation.
+  // Install mock indexer on every page when E2E_MOCK_INDEXER=true.
+  // This prevents connection-refused errors in CI where Panoptes isn't running.
+  page: async ({ page }, use) => {
     await indexerMock.installIfEnabled(page)
+    await use(page)
+  },
 
+  authenticatedPage: async ({ page }, use) => {
+    // Mock indexer already installed via the page fixture above.
     const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
     await page.goto(baseURL)
     // Brief wait for app initialisation; cap at 5 s so HMR websocket doesn't block
@@ -166,6 +179,13 @@ export const test = base.extend<ManagerFixtures>({
         })
       }
       return name
+    })
+  },
+
+  mockIndexer: async ({}, use) => {
+    await use({
+      addName: indexerMock.addName,
+      enabled: indexerMock.enabled,
     })
   },
 
