@@ -42,6 +42,7 @@ function buildV1Domain(params: {
   ownerAddress: string
   type?: V1NameType
   hasRecords?: boolean
+  registrationDate?: number
   expiryDate?: number
 }) {
   const {
@@ -49,6 +50,7 @@ function buildV1Domain(params: {
     ownerAddress,
     type = 'unwrapped',
     hasRecords = false,
+    registrationDate,
     expiryDate,
   } = params
   const name = `${label}.eth`
@@ -66,9 +68,13 @@ function buildV1Domain(params: {
     labelhash,
     name,
     isMigrated: false,
+    createdAt: String(registrationDate ?? now),
+    resolvedAddress: null,
     // Include resolver info when the name has records set
     resolver:
-      hasRecords || isWrapped ? { address: V1_PUBLIC_RESOLVER } : null,
+      hasRecords || isWrapped
+        ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
+        : null,
     // For unwrapped: owner is the EOA. For wrapped: owner is the NameWrapper.
     owner: {
       id: isWrapped
@@ -80,9 +86,11 @@ function buildV1Domain(params: {
     wrappedOwner: isWrapped ? { id: owner } : null,
     parent: {
       name: 'eth',
+      id: namehash('eth'),
       wrappedDomain: null,
     },
     registration: {
+      registrationDate: String(registrationDate ?? now),
       expiryDate: String(expiry),
     },
     wrappedDomain: isWrapped
