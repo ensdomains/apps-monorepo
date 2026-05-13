@@ -2,7 +2,8 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
-import { useState } from 'react'
+import { ResultAsync } from 'neverthrow'
+import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress, zeroAddress } from 'viem'
@@ -36,6 +37,7 @@ function RouteComponent() {
   const [useCustomRegistry, setUseCustomRegistry] = useState(false)
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  const deployedSubregistryAddressRef = useRef<Address | null>(null)
 
   const {
     openModal: openTransactionModal,
@@ -88,7 +90,6 @@ function RouteComponent() {
 
   const {
     deploySubregistryAsync,
-    deployedSubregistryAddress,
     isConfirming: isDeployConfirming,
     hasWallet: hasDeployWallet,
   } = useDeploySubregistry({
@@ -110,13 +111,25 @@ function RouteComponent() {
 
   const walletOk = isDeployPath ? hasDeployWallet : hasSetWallet
 
-  const handleDeploySubregistryStart = () => {
-    deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID })
+  // `Transaction.onStart` is `() => void`, so this Promise is never awaited by
+  // the modal or `useAutoAdvanceTransaction`. That is intentional: failures are
+  // handled inside `ResultAsync.fromPromise` so nothing rejects unhandled.
+  const handleDeploySubregistryStart = async () => {
+    await ResultAsync.fromPromise(
+      deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID }),
+      () => undefined,
+    ).match(
+      (result) => {
+        deployedSubregistryAddressRef.current = result.deployedAddress
+      },
+      () => undefined,
+    )
   }
 
-  const handleDeploySubregistryDone = () => {
-    if (!deployedSubregistryAddress) return
-    setSubregistry(deployedSubregistryAddress)
+  const handleSetSubregistryAfterDeployStart = () => {
+    const deployed = deployedSubregistryAddressRef.current
+    if (!deployed) return
+    setSubregistry(deployed)
   }
 
   const handleSetSubregistryStart = () => {
@@ -128,6 +141,7 @@ function RouteComponent() {
     closeTransactionModal()
     clearTransaction()
     setContractAddress('')
+    deployedSubregistryAddressRef.current = null
     setShowSuccessButtonLabel(true)
     setTimeout(
       () => setShowSuccessButtonLabel(false),
@@ -270,14 +284,14 @@ function RouteComponent() {
                   transactionName: `Deploy subregistry for ${name}`,
                   estimatedGasCost: 0.0008,
                   onStart: handleDeploySubregistryStart,
-                  onDone: handleDeploySubregistryDone,
+                  onDone: handleSetSubregistryAfterDeployStart,
                 },
                 {
                   id: SET_SUBREGISTRY_TX_ID,
                   title: 'Set subregistry',
                   transactionName: `Set subregistry for ${name}`,
                   estimatedGasCost: 0.0001,
-                  onStart: handleDeploySubregistryDone,
+                  onStart: handleSetSubregistryAfterDeployStart,
                   onDone: handleSetSubregistryDone,
                 },
               ]
