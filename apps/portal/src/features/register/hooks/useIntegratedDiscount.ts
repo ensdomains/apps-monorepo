@@ -19,8 +19,8 @@ export const useIntegratedDiscounts = (durationsSeconds: readonly number[]) => {
       contracts: durationsSeconds.map((duration) => ({
         address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
         abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'integratedDiscount',
-        args: [BigInt(duration)],
+        functionName: 'integratedDiscount' as const,
+        args: [BigInt(duration)] as const,
       })),
     }),
     staleTime: Number.POSITIVE_INFINITY,
