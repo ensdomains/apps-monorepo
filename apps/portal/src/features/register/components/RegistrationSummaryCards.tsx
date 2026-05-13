@@ -1,7 +1,7 @@
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { dateToPlainDate } from '@/utils/temporal'
 
 type RegistrationSummaryCardsProps = {
@@ -14,7 +14,6 @@ type RegistrationSummaryCardsProps = {
 }
 
 export const RegistrationSummaryCards = ({
-  domainName,
   durationSeconds,
   price,
   baseDate,
@@ -36,8 +35,7 @@ export const RegistrationSummaryCards = ({
     price.decimals,
   )
 
-  const { years } = getPricingBreakdown(domainName, price, durationSeconds)
-  const roundedYears = Math.round(years)
+  const roundedYears = Math.round(durationSeconds / CONTRACT_SECONDS_PER_YEAR)
   const discountText =
     roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
