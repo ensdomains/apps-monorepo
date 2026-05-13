@@ -20,6 +20,11 @@ describe('isKnownPublicResolver', () => {
       '0xC30BA2BD21583605D815826C3807E8224E398E10',
       true,
     ],
+    [
+      'Sepolia V1 PublicResolver',
+      '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+      true,
+    ],
     ['unknown resolver', '0x0000000000000000000000000000000000000001', false],
   ])('returns %s → %s', (_, input, expected) => {
     expect(isKnownPublicResolver(input)).toBe(expected)

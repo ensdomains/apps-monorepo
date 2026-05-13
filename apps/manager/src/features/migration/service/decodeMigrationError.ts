@@ -1,3 +1,8 @@
+import { type Address, decodeErrorResult, type Hex } from 'viem'
+import {
+  LIB_MIGRATION_ERRORS_ABI,
+  MIGRATION_HELPER_ABI,
+} from '../contracts/abis'
 import { OwnedResolverDeployError } from './ensureOwnedPermRes'
 import { ProfileFetchError } from './fetchV1Profiles'
 
@@ -11,6 +16,15 @@ export type MigrationError =
     }
   | { type: 'user-rejected' }
   | { type: 'preflight-timeout'; message: string; timeoutMs?: number }
+  | { type: 'parent-not-migrated'; parentName: string }
+  | { type: 'not-approved-operator'; nft: Address; owner: Address }
+  | { type: 'wrapped-owner-mismatch'; tokenId: bigint }
+  | { type: 'name-not-locked'; tokenId: bigint }
+  | { type: 'name-is-locked'; tokenId: bigint }
+  | { type: 'name-data-mismatch'; tokenId: bigint }
+  | { type: 'frozen-token-approval'; tokenId: bigint }
+  | { type: 'invalid-data' }
+  | { type: 'name-requires-migration' }
 
 export const extractErrorMessage = (err: unknown): string => {
   if (!(err instanceof Error)) return String(err)
@@ -61,6 +75,136 @@ const findTimeoutError = (
   return null
 }
 
+const findRevertData = (err: unknown): Hex | null => {
+  for (const e of walkCauseChain(err)) {
+    const data = (e as { data?: unknown }).data
+    if (typeof data === 'string' && data.startsWith('0x')) return data as Hex
+  }
+  return null
+}
+
+// Length-prefixed DNS-encoded name → dotted human-readable name.
+const decodeDnsName = (encoded: Hex): string => {
+  const bytes = encoded.slice(2)
+  const labels: string[] = []
+  let i = 0
+  while (i < bytes.length) {
+    const len = parseInt(bytes.slice(i, i + 2), 16)
+    if (len === 0) break
+    i += 2
+    const labelBytes = bytes.slice(i, i + len * 2)
+    let label = ''
+    for (let j = 0; j < labelBytes.length; j += 2) {
+      label += String.fromCharCode(parseInt(labelBytes.slice(j, j + 2), 16))
+    }
+    labels.push(label)
+    i += len * 2
+  }
+  return labels.join('.')
+}
+
+const tryDecodeHelperError = (data: Hex): MigrationError | null => {
+  try {
+    const decoded = decodeErrorResult({ abi: MIGRATION_HELPER_ABI, data })
+    switch (decoded.errorName) {
+      case 'WrappedOwnerMismatch':
+        return {
+          type: 'wrapped-owner-mismatch',
+          tokenId: decoded.args[0] as bigint,
+        }
+      case 'ParentNotMigrated': {
+        const encoded = decoded.args[0] as Hex
+        return {
+          type: 'parent-not-migrated',
+          parentName: decodeDnsName(encoded),
+        }
+      }
+      case 'NotApprovedOperator':
+        return {
+          type: 'not-approved-operator',
+          nft: decoded.args[0] as Address,
+          owner: decoded.args[1] as Address,
+        }
+    }
+  } catch {
+    // not a helper-typed error
+  }
+  return null
+}
+
+const ERROR_STRING_SELECTOR = '0x08c379a0'
+
+const matchLibMigrationError = (data: Hex): MigrationError | null => {
+  try {
+    const decoded = decodeErrorResult({ abi: LIB_MIGRATION_ERRORS_ABI, data })
+    switch (decoded.errorName) {
+      case 'NameNotLocked':
+        return { type: 'name-not-locked', tokenId: decoded.args[0] as bigint }
+      case 'NameIsLocked':
+        return { type: 'name-is-locked', tokenId: decoded.args[0] as bigint }
+      case 'NameDataMismatch':
+        return {
+          type: 'name-data-mismatch',
+          tokenId: decoded.args[0] as bigint,
+        }
+      case 'FrozenTokenApproval':
+        return {
+          type: 'frozen-token-approval',
+          tokenId: decoded.args[0] as bigint,
+        }
+      case 'InvalidData':
+        return { type: 'invalid-data' }
+      case 'NameRequiresMigration':
+        return { type: 'name-requires-migration' }
+    }
+  } catch {
+    // not a recognized LibMigration error
+  }
+  return null
+}
+
+const tryUnwrapControllerError = (data: Hex): MigrationError | null => {
+  if (!data.toLowerCase().startsWith(ERROR_STRING_SELECTOR)) return null
+
+  // NameWrapper rewraps typed reverts as revert(string(abi.encodePacked(returnData))),
+  // packing the inner revert bytes verbatim into the Error(string) payload. Read
+  // length+bytes directly from the ABI payload to sidestep viem's UTF-8 string
+  // decode (which mangles non-UTF-8 byte sequences).
+  const lengthOffset = 2 + 8 + 64 // '0x' + 4-byte selector + 32-byte offset
+  try {
+    const length = Number.parseInt(
+      data.slice(lengthOffset, lengthOffset + 64),
+      16,
+    )
+    if (length >= 4) {
+      const inner = `0x${data.slice(
+        lengthOffset + 64,
+        lengthOffset + 64 + length * 2,
+      )}` as Hex
+      const match = matchLibMigrationError(inner)
+      if (match) return match
+    }
+  } catch {
+    // fall through to the hex-text path
+  }
+
+  // Fallback: some encoders (and our older test fixtures) wrap the inner data
+  // as a "0x..." hex literal inside the string. Try that too.
+  try {
+    const wrapper = decodeErrorResult({
+      abi: [
+        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
+      ] as const,
+      data,
+    })
+    const raw = wrapper.args[0] as string
+    const inner = (raw.startsWith('0x') ? raw : `0x${raw}`) as Hex
+    return matchLibMigrationError(inner)
+  } catch {
+    return null
+  }
+}
+
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
 
@@ -83,5 +227,14 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
       message: extractErrorMessage(err),
     }
   }
+
+  const revertData = findRevertData(err)
+  if (revertData) {
+    const helperMatch = tryDecodeHelperError(revertData)
+    if (helperMatch) return helperMatch
+    const wrappedMatch = tryUnwrapControllerError(revertData)
+    if (wrappedMatch) return wrappedMatch
+  }
+
   return { type: 'generic', message: extractErrorMessage(err) }
 }

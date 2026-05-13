@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-import { RegistrationDurationPresets } from './RegistrationDurationPresets'
+// Discount-driven preset chips — re-enable after this PR
+// import { RegistrationDurationPresets } from './RegistrationDurationPresets'
 
 type RegistrationDurationPickerProps = {
   readonly value: number
@@ -23,7 +24,6 @@ export const RegistrationDurationPicker = ({
   min = 1,
   max = 9007199254740990,
   className,
-  name,
 }: RegistrationDurationPickerProps) => {
   const [isFocused, setIsFocused] = useState(false)
 
@@ -47,10 +47,11 @@ export const RegistrationDurationPicker = ({
     }
   }
 
-  const handlePresetSelect = (years: number) => {
-    const capped = Math.min(Math.max(years, min), max)
-    onChange(capped)
-  }
+  // Discount-driven preset chips — re-enable after this PR
+  // const handlePresetSelect = (years: number) => {
+  //   const capped = Math.min(Math.max(years, min), max)
+  //   onChange(capped)
+  // }
 
   const label = value === 1 ? '1 year' : `${value} years`
 
@@ -114,13 +115,14 @@ export const RegistrationDurationPicker = ({
           <Plus className="size-4" strokeWidth={2} />
         </Button>
       </div>
-      {name ? (
+      {/* Discount-driven preset chips — re-enable after this PR */}
+      {/* {name ? (
         <RegistrationDurationPresets
           value={value}
           onSelect={handlePresetSelect}
           name={name}
         />
-      ) : null}
+      ) : null} */}
     </div>
   )
 }

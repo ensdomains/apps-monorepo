@@ -7,7 +7,7 @@ import {
   makeDomain,
   DEFAULT_RESOLVER as RESOLVER,
 } from './_fixtures'
-import { checkSCAApprovals } from './checkSCAApprovals'
+import { checkHelperApprovals } from './checkHelperApprovals'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
 import { findExistingPermRes } from './ensureOwnedPermRes'
 import { getV1ProfileKeys } from './v1SubgraphClient'
@@ -19,16 +19,15 @@ vi.mock('./v1SubgraphClient', async (importActual) => ({
   ...(await importActual<typeof import('./v1SubgraphClient')>()),
   getV1ProfileKeys: vi.fn(),
 }))
-vi.mock('./checkSCAApprovals', async (importActual) => ({
-  ...(await importActual<typeof import('./checkSCAApprovals')>()),
-  checkSCAApprovals: vi.fn(),
+vi.mock('./checkHelperApprovals', async (importActual) => ({
+  ...(await importActual<typeof import('./checkHelperApprovals')>()),
+  checkHelperApprovals: vi.fn(),
 }))
 
 const findExistingPermResMock = vi.mocked(findExistingPermRes)
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
-const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
+const checkSCAApprovalsMock = vi.mocked(checkHelperApprovals)
 
-const SCA: Address = '0x0000000000000000000000000000000000000002'
 const EXISTING_PERMRES: Address = '0x00000000000000000000000000000000000000f0'
 
 const run = (
@@ -53,7 +52,6 @@ const run = (
   }
   return computeMigrationPreflight({
     eoa: EOA,
-    scaAddress: SCA,
     domains: [makeDomain({ resolverAddress: RESOLVER, ...opts.domain })],
     wagmiConfig: {} as WagmiConfig,
     publicClient: {} as PublicClient,

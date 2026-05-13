@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
@@ -42,9 +43,11 @@ export function useNamePricing(
     enabled: enabled && durationSeconds > 0,
   })
 
+  const baseRate = useBaseRate(selectedName.name)
+
   const price = data && isPriceResult(data) ? data : null
   const display = price
-    ? computeNamePricingDisplay(selectedName, price, durationSeconds)
+    ? computeNamePricingDisplay(selectedName, price, durationSeconds, baseRate)
     : null
 
   return { durationSeconds, price, display, isLoading, isError, error }

@@ -21,7 +21,7 @@ import {
 } from './session-storage'
 import type { StoredSession, ZeroDevStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-zerodev-sessions'
+const SESSION_STORAGE_KEY = 'ens-sessions-v2'
 
 const createMockSession = (
   overrides: Partial<ZeroDevStoredSession> = {},

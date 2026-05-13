@@ -8,21 +8,21 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
+import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
+import { getEffectivePricePerYearUsd } from '@/features/register/utils/effectivePricePerYear'
 import { getPremiumLabel } from '@/features/register/utils/premium'
 import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
-import { getEffectivePricePerYear } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
   formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
-import { getStandardPricePerYear } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
@@ -63,6 +63,7 @@ export const RegisterNameCheckoutSummary = ({
   })
 
   const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
+  const baseRate = useBaseRate(name)
 
   const premiumDecayConfig = oracleData?.premiumDecay
 
@@ -114,7 +115,12 @@ export const RegisterNameCheckoutSummary = ({
           })
           .with({ hasPrice: true }, () =>
             price ? (
-              <PriceBreakdown name={name} price={price} duration={duration} />
+              <PriceBreakdown
+                name={name}
+                price={price}
+                duration={duration}
+                baseRate={baseRate}
+              />
             ) : null,
           )
           .otherwise(() => (
@@ -196,25 +202,29 @@ type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
   readonly duration: number
+  readonly baseRate: bigint
 }
 
-const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
+const PriceBreakdown = ({
+  name,
+  price,
+  duration,
+  baseRate,
+}: PriceBreakdownProps) => {
   const { registrationPeriod, expiresFormatted } =
     getRegistrationDisplayDates(duration)
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
-  // Effective per-year derived from the design's discount curve applied to the
-  // standard $/year baseline. Mirrors the year-preset chip values so the chip
-  // and breakdown stay in sync. May briefly differ from `Total / years` until
-  // the contract reflects the new curve.
-  const pricePerYear = getEffectivePricePerYear(
-    getStandardPricePerYear(name),
-    years,
-  )
+  const pricePerYear = getEffectivePricePerYearUsd({
+    priceBase: price.base,
+    priceDecimals: price.decimals,
+    durationSeconds: duration,
+    baseRate,
+  })
   const premiumLabel = getPremiumLabel(name)
-  const roundedYears = Math.round(years)
-  const discountSublabel =
-    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+  // const roundedYears = Math.round(years)
+  // const discountSublabel =
+  //   roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   return (
     <div className="space-y-2">
@@ -250,11 +260,11 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
             value={
               <span className="flex flex-col items-end m-0">
                 <span>{`${formatUsd(pricePerYear)}/year`}</span>
-                {discountSublabel ? (
+                {/* {discountSublabel ? (
                   <span className="text-xs text-success-text">
                     {discountSublabel}
                   </span>
-                ) : null}
+                ) : null} */}
               </span>
             }
           />

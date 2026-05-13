@@ -40,13 +40,15 @@ export const getBaseRates = ResultFn(async function* () {
 })
 
 /**
- * Returns the raw per-second oracle base rate (in oracle units, 12 decimals)
- * for the given ENS name. Returns 0n while loading or on error.
+ * Looks up the per-second oracle base rate for a name's label length.
+ * Mirrors StandardRentPriceOracle.baseRate(): clamps to last entry for
+ * names longer than the rate table. Returns 0n if rates are missing.
  */
-export const useBaseRate = (name: string): bigint => {
-  const { data } = useQuery(getBaseRatesQueryOptions)
-
-  if (!data) return 0n
+export const getBaseRateForName = (
+  rates: readonly bigint[] | undefined,
+  name: string,
+): bigint => {
+  if (!rates || rates.length === 0) return 0n
 
   let labelLength: number
   try {
@@ -55,7 +57,16 @@ export const useBaseRate = (name: string): bigint => {
     return 0n
   }
 
-  // 0-indexed: index 0 = 1-char, clamp longer names to last entry
-  const idx = Math.min(Math.max(labelLength - 1, 0), data.length - 1)
-  return data[idx] ?? 0n
+  if (labelLength === 0) return 0n
+  const idx = Math.min(labelLength, rates.length) - 1
+  return rates[idx] ?? 0n
+}
+
+/**
+ * Returns the raw per-second oracle base rate (in oracle units, 12 decimals)
+ * for the given ENS name. Returns 0n while loading or on error.
+ */
+export const useBaseRate = (name: string): bigint => {
+  const { data } = useQuery(getBaseRatesQueryOptions)
+  return getBaseRateForName(data, name)
 }

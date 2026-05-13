@@ -1,37 +1,65 @@
 import type { ClassifiedName, GroupedNames } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 
-export const MAX_NAMES_PER_BATCH = 10
-
 export type MigrationStepDescriptor =
-  | { type: 'approve-sca'; count: number }
+  | { type: 'approve-base-registrar' }
+  | { type: 'approve-name-wrapper' }
   | { type: 'ensure-resolver' }
-  | {
-      type: 'migrate-batch'
-      batch: number
-      totalBatches: number
-      count: number
-    }
+  | { type: 'migrate-batch'; index: number; total: number; count: number }
+  | { type: 'grant-role-batch'; index: number; total: number; count: number }
+  | { type: 'grant-role'; label: string }
+  | { type: 'profile-replay-batch'; index: number; total: number }
 
-export const needsSCAApproval = (groups: GroupedNames): boolean =>
-  groups.unwrapped.length > 0 ||
-  groups.unlocked.length > 0 ||
-  groups.locked2ld.length > 0 ||
-  groups.childNames.size > 0
+type BuildStepDescriptorsParams = {
+  readonly classified: readonly ClassifiedName[]
+  readonly groups: GroupedNames
+  readonly preflight: MigrationPreflight
+  readonly hasBaseRegistrarApproval: boolean
+  readonly hasNameWrapperApproval: boolean
+  readonly hasProfileReplay: boolean
+  readonly migrateBatchCount: number
+  readonly profileReplayBatchCount: number
+  readonly roleGrantBatchCount: number
+}
 
-const getBatchCount = (nameCount: number): number =>
-  Math.ceil(nameCount / MAX_NAMES_PER_BATCH)
+const batchCount = (
+  classified: readonly ClassifiedName[],
+  total: number,
+  i: number,
+): number => {
+  if (total <= 0) return 0
+  const base = Math.floor(classified.length / total)
+  const remainder = classified.length % total
+  return base + (i < remainder ? 1 : 0)
+}
 
 export const buildStepDescriptors = (
-  classified: readonly ClassifiedName[],
-  groups: GroupedNames,
-  preflight: MigrationPreflight,
-  batchSizes?: readonly number[],
+  params: BuildStepDescriptorsParams,
 ): MigrationStepDescriptor[] => {
+  const {
+    classified,
+    groups,
+    preflight,
+    hasBaseRegistrarApproval,
+    hasNameWrapperApproval,
+    hasProfileReplay,
+    migrateBatchCount,
+    profileReplayBatchCount,
+    roleGrantBatchCount,
+  } = params
   const descriptors: MigrationStepDescriptor[] = []
 
-  if (needsSCAApproval(groups) && !preflight.skipApprovalPhase) {
-    descriptors.push({ type: 'approve-sca', count: classified.length })
+  if (!preflight.skipApprovalPhase) {
+    if (groups.unwrapped.length > 0 && !hasBaseRegistrarApproval) {
+      descriptors.push({ type: 'approve-base-registrar' })
+    }
+    const hasWrapped =
+      groups.unlocked.length > 0 ||
+      groups.locked2ld.length > 0 ||
+      groups.childNames.size > 0
+    if (hasWrapped && !hasNameWrapperApproval) {
+      descriptors.push({ type: 'approve-name-wrapper' })
+    }
   }
 
   const needsOwnedPermRes = classified.some(
@@ -41,31 +69,41 @@ export const buildStepDescriptors = (
     descriptors.push({ type: 'ensure-resolver' })
   }
 
-  if (batchSizes) {
-    const totalBatches = batchSizes.length
-    for (const [i, count] of batchSizes.entries()) {
-      descriptors.push({
-        type: 'migrate-batch',
-        batch: i + 1,
-        totalBatches,
-        count,
-      })
-    }
-    return descriptors
-  }
-
-  const totalBatches = getBatchCount(classified.length)
-  const lastCount =
-    classified.length === 0
-      ? 0
-      : classified.length - (totalBatches - 1) * MAX_NAMES_PER_BATCH
-  for (let i = 0; i < totalBatches; i++) {
+  for (let i = 0; i < migrateBatchCount; i++) {
     descriptors.push({
       type: 'migrate-batch',
-      batch: i + 1,
-      totalBatches,
-      count: i === totalBatches - 1 ? lastCount : MAX_NAMES_PER_BATCH,
+      index: i,
+      total: migrateBatchCount,
+      count: batchCount(classified, migrateBatchCount, i),
     })
+  }
+
+  if (roleGrantBatchCount > 0) {
+    const managed = classified.filter((n) => n.managerAddress)
+    for (let i = 0; i < roleGrantBatchCount; i++) {
+      descriptors.push({
+        type: 'grant-role-batch',
+        index: i,
+        total: roleGrantBatchCount,
+        count: batchCount(managed, roleGrantBatchCount, i),
+      })
+    }
+  } else {
+    for (const n of classified) {
+      if (n.managerAddress) {
+        descriptors.push({ type: 'grant-role', label: n.label })
+      }
+    }
+  }
+
+  if (hasProfileReplay) {
+    for (let i = 0; i < Math.max(1, profileReplayBatchCount); i++) {
+      descriptors.push({
+        type: 'profile-replay-batch',
+        index: i,
+        total: Math.max(1, profileReplayBatchCount),
+      })
+    }
   }
 
   return descriptors
