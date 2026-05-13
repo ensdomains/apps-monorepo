@@ -78,9 +78,9 @@ const SELECTORS = {
 } as const
 
 export interface BuildRegistrationSessionActionsParams {
-  /** Smart-account (Nexus) address. Pinned as `register.owner`. */
+  /** Smart-account (Nexus) address. Pinned as `HCAFactory.setAccountOwner.smartAccount`. */
   readonly smartAccountAddress: Address
-  /** EOA owning the smart account. Pinned as `HCAFactory.setAccountOwner.eoa`. */
+  /** EOA owning the smart account. Pinned as `register.owner` and `HCAFactory.setAccountOwner.eoa`. */
   readonly eoaAddress: Address
 }
 
@@ -115,10 +115,16 @@ export function buildRegistrationSessionActions(
     },
 
     // 2. ETHRegistrar.register(string,address,bytes32,address,address,uint64,address,bytes32)
-    //    Pin owner == SCA. The dApp must pass `owner = accountAddress`
-    //    on the rhinestone-session path (see registrationUi.machine.ts).
-    //    HCAEquivalence resolves SCA → EOA at lookup time; on-chain the
-    //    name is owned by the SCA, which is what matters for the policy.
+    //    Pin owner == EOA. The dApp must pass `owner = eoaAddress`
+    //    (see registrationUi.machine.ts). Registering directly to the EOA
+    //    means the on-chain ENS owner is the human, so:
+    //      - "My names" indexer lookups by EOA work without HCA-equivalence,
+    //      - Registry-level checks (transfer / setResolver / wrap) accept
+    //        either a direct EOA call OR an SCA call unwrapped through
+    //        HCAEquivalence to the same EOA.
+    //    Subsequent record edits on the dedicated resolver continue to work
+    //    because the EACL grantee is also the EOA (see deployingResolver
+    //    in registration.machine.ts).
     {
       target: ETHRegistrar,
       selector: SELECTORS.register,
@@ -129,7 +135,7 @@ export function buildRegistrationSessionActions(
             {
               condition: 'equal' as const,
               calldataOffset: 32n, // arg #2 (owner)
-              referenceValue: smartAccountAddress,
+              referenceValue: eoaAddress,
             },
           ],
         },
