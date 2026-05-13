@@ -19,8 +19,6 @@ import { FilterBadge } from '@/features/notifications/inbox/filter-badge'
 import { NotificationsList } from '@/features/notifications/inbox/list'
 import { UnreadCount } from '@/features/notifications/inbox/unread-count'
 
-// Exported so Storybook stories can import the component without mounting
-// the full router. Keep colocated with the route definition.
 export const AllNotificationsPage = () => {
   const { t } = useLingui()
   const [unreadOnly, setUnreadOnly] = useState(false)
@@ -122,13 +120,6 @@ export const AllNotificationsPage = () => {
             <MSymbol className="ms-opsz-24 ms-wght-200" symbol="search" />
           </InputGroupAddon>
         </InputGroup>
-        {/*
-          The badge row used to push the whole page wider than the viewport on
-          mobile (causing horizontal page scroll). Bleed the row into the
-          page's horizontal padding via negative margins, then scroll inside
-          this container. `w-max` on the inner flex keeps the badges from
-          shrinking; scrollbar styling is hidden for a cleaner pill row.
-        */}
         <div className="-mx-8 sm:-mx-6 overflow-x-auto px-8 [scrollbar-width:none] sm:px-6 [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max gap-4">
             <FilterBadge

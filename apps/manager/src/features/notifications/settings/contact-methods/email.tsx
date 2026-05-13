@@ -51,7 +51,6 @@ const NewEmailContactMethod = () => {
     },
   })
 
-  // TODO: autofill email from para if signed in with an email option
   const form = useForm({
     defaultValues: {
       email: '',
@@ -192,10 +191,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
         <DropdownMenuContent align="end">
           {email.status === 'pending' && (
             <>
-              <DropdownMenuItem
-                className=""
-                onClick={() => resendMutation.mutate(email.id)}
-              >
+              <DropdownMenuItem onClick={() => resendMutation.mutate(email.id)}>
                 <MSymbol
                   className="ms-wght-300 text-[#515151]"
                   symbol="cached"
@@ -206,10 +202,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
             </>
           )}
 
-          <DropdownMenuItem
-            className=""
-            onClick={() => setShowDeleteDialog(true)}
-          >
+          <DropdownMenuItem onClick={() => setShowDeleteDialog(true)}>
             <MSymbol className="ms-wght-300 text-[#515151]" symbol="delete" />
             <Trans>Remove</Trans>
           </DropdownMenuItem>

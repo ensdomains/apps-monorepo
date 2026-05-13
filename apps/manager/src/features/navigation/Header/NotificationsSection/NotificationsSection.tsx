@@ -40,13 +40,6 @@ export const NotificationsSection = ({
         <NotificationsTriggerButton />
       </Drawer.DrawerTrigger>
       <Drawer.DrawerContent>
-        {/*
-          The vaul DrawerContent has no built-in inner padding (unlike
-          PopoverContent on desktop, which uses `p-4`), so the dropdown's
-          "Notifications" heading and settings icon end up flush against the
-          screen edges. Pad the wrapper here to match the page-level mobile
-          spacing.
-        */}
         <div className="px-6 pt-2 pb-8">
           <NotificationsDropdown onAction={handleClose} />
         </div>

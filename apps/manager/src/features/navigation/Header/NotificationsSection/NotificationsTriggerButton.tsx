@@ -5,14 +5,6 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { UnreadDot } from '@/features/navigation/Header/notifications/UnreadBadge'
 import { isBackendAuthed } from '@/utils/backend-client'
 
-/**
- * Trigger button used by `NotificationsSection` to open the notifications
- * popover (desktop) or drawer (mobile). Renders a bell icon and a small
- * unread-indicator dot. `forwardRef` + `asChild` support is required so the
- * surrounding Radix Popover/Drawer triggers can wire their refs and event
- * handlers through. Disabled when the user is not authenticated with the
- * notifications backend.
- */
 export const NotificationsTriggerButton = forwardRef<
   HTMLButtonElement,
   ButtonHTMLAttributes<HTMLButtonElement>

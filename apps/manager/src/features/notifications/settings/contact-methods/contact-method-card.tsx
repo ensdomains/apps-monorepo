@@ -3,32 +3,13 @@ import { TelegramIcon } from '@/components/icons/telegram'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-/**
- * Visual variant for the action button rendered inside a ContactMethodCard.
- *
- * - `default`  — standard `lightBlue` button. Use for the generic case.
- * - `tg`       — Telegram blue (#54a9ec) rounded-full pill with the Telegram
- *                glyph, matching the brand-style connect button.
- * - `browser-not` — outlined rectangular button (Lapis-900 border, Lapis-Dense
- *                   text) used for browser/push enable.
- *
- * The card chrome itself (bg, padding, layout, icon + title/description) is
- * the same across variants — only the action button differs.
- */
 export type ContactMethodCardVariant = 'default' | 'tg' | 'browser-not'
 
 export interface ContactMethodCardProps {
-  /** Material Symbol or other icon shown on the left. */
   icon: React.ReactNode
-  /**
-   * Optional title rendered above the description. Telegram (per Figma) only
-   * has a description, so title can be omitted.
-   */
   title?: React.ReactNode
   description: React.ReactNode
-  /** Controls which built-in action button is rendered when `action` is unset. */
   variant?: ContactMethodCardVariant
-  /** Label rendered inside the built-in action button. */
   actionLabel?: React.ReactNode
   onAction?: () => void
   actionDisabled?: boolean
@@ -148,13 +129,6 @@ const renderVariantAction = (
   }
 }
 
-/**
- * Shared layout for a single contact-method row (Email, Telegram, Browser
- * push, etc). Renders icon + title/description on the left and an action on
- * the right. The action can be one of three built-in button variants
- * (`tg`, `browser-not`, `default`) selected via `variant`, or fully custom
- * via the `action` slot.
- */
 export const ContactMethodCard = ({
   icon,
   title,

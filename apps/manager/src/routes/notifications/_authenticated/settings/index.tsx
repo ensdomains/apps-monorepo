@@ -2,8 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
 import { NotificationPreferences } from '@/features/notifications/settings/preferences'
 
-// Exported so Storybook stories can import the component without mounting
-// the full router. Keep colocated with the route definition.
 export const NotificationSettingsPage = () => {
   return (
     <div className="mx-auto w-full max-w-5xl px-2 py-8 lg:my-5">
@@ -18,8 +16,6 @@ export const NotificationSettingsPage = () => {
         </p>
       </div>
 
-      {/* Two-column grid: Contact methods (3fr) + Preferences (2fr).
-          Stacks to one column on mobile, matching the registration step. */}
       <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-[3fr_2fr]">
         <div className="rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
           <ContactMethods />

@@ -75,7 +75,6 @@ type NotificationPreferencesFieldsProps = Pick<
   'form' | 'preferences'
 >
 
-/** Shared header + three preference toggles (used by settings page and registration step). */
 export const NotificationPreferencesFields = ({
   form,
   preferences,
@@ -150,7 +149,6 @@ export const NotificationPreferences = () => {
       nameExpiryDefaultWhenUnset: false,
     })
 
-  // Keep this block mounted for layout (same as registration); save only works once a channel is verified.
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
