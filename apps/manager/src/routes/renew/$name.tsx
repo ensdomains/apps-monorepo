@@ -4,12 +4,12 @@ import {
 } from '@tanstack/react-router'
 import { match, P } from 'ts-pattern'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
-import { parseName } from '@/features/register-v2'
 import {
   RenewalUiProvider,
   useRenewalUiContext,
 } from '@/features/renew/state/renewalUi.context'
 import { useRenewalStep } from '@/features/renew/state/renewalUi.selectors'
+import { parseRenewableName } from '@/features/renew/utils/renewableName'
 import { RenewPricingStep } from '@/features/renew/workflow/pricing/PricingStep'
 import { RenewingStep } from '@/features/renew/workflow/renewing/RenewingStep'
 import { RenewFailureStep } from '@/features/renew/workflow/result/FailureStep'
@@ -17,18 +17,10 @@ import { RenewSuccessStep } from '@/features/renew/workflow/result/SuccessStep'
 
 export const Route = createFileRoute('/renew/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
-    const parsedName = parseName(name)
+    const parsedName = parseRenewableName(name)
 
     if (parsedName.isErr()) {
       throw parsedName.error
-    }
-
-    if (parsedName.value.tld !== 'eth') {
-      throw new Error('Only .eth names are supported')
-    }
-
-    if (parsedName.value.subLabels.length > 0) {
-      throw new Error('Subnames are not supported')
     }
 
     const expiryData = await queryClient.ensureQueryData(
