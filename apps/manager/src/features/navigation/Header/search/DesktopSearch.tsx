@@ -1,12 +1,14 @@
 import { Popover } from '@base-ui/react'
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useDebounce } from '@/hooks/useDebounce'
+import { handleEnterFirstSearchResult } from '@/utils/handleEnterFirstSearchResult'
 import { SearchInput } from './SearchInput'
 import { SearchSuggestions } from './SearchSuggestions'
 
 export const DesktopSearch = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const suggestionsContainerRef = useRef<HTMLDivElement>(null)
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
     delay: 500,
   })
@@ -15,6 +17,17 @@ export const DesktopSearch = () => {
     setIsOpen(false)
     setSearchValue('')
   }
+
+  const handleSearchKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      handleEnterFirstSearchResult({
+        event,
+        isDebouncing: debouncedSearchValue !== searchValue,
+        resultsContainer: suggestionsContainerRef.current,
+      })
+    },
+    [debouncedSearchValue, searchValue],
+  )
 
   return (
     <Popover.Root
@@ -33,6 +46,7 @@ export const DesktopSearch = () => {
         render={(props) => (
           <SearchInput
             isLoading={debouncedSearchValue !== searchValue}
+            onKeyDown={handleSearchKeyDown}
             searchValue={searchValue}
             setSearchValue={setSearchValue}
             wrapperProps={props}
@@ -50,6 +64,7 @@ export const DesktopSearch = () => {
             initialFocus={false}
           >
             <SearchSuggestions
+              containerRef={suggestionsContainerRef}
               isLoading={debouncedSearchValue !== searchValue}
               onNavigate={resetSearch}
               searchValue={debouncedSearchValue}

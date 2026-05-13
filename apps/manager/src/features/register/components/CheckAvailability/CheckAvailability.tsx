@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ChangeEvent, useState } from 'react'
+import { type ChangeEvent, useCallback, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import {
@@ -21,6 +21,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { handleEnterFirstSearchResult } from '@/utils/handleEnterFirstSearchResult'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
@@ -37,6 +38,7 @@ export const CheckAvailability = ({
   onRegistrationComplete: _onRegistrationComplete,
 }: CheckAvailabilityProps) => {
   const [inputValue, setInputValue] = useState('')
+  const resultsContainerRef = useRef<HTMLDivElement>(null)
 
   const { debouncedValue } = useDebounce(inputValue, { delay: 500 })
 
@@ -53,6 +55,17 @@ export const CheckAvailability = ({
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     setInputValue(truncateToMaxBytes(event.target.value))
   }
+
+  const handleInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      handleEnterFirstSearchResult({
+        event,
+        isDebouncing: debouncedValue !== inputValue,
+        resultsContainer: resultsContainerRef.current,
+      })
+    },
+    [debouncedValue, inputValue],
+  )
 
   // Determine which name to fetch profile data for
   const profileName = match(displayState)
@@ -105,11 +118,15 @@ export const CheckAvailability = ({
           className="w-full"
           isLoading={isLoading}
           onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
           placeholder=".eth"
           value={inputValue}
         />
 
-        <div className="absolute top-full z-10 mt-2 w-full space-y-4 drop-shadow-lg">
+        <div
+          className="absolute top-full z-10 mt-2 w-full space-y-4 drop-shadow-lg"
+          ref={resultsContainerRef}
+        >
           <AnimatePresence mode="wait">
             {match({ error, displayState })
               .with({ error: P.nonNullable }, ({ error: err }) => (
