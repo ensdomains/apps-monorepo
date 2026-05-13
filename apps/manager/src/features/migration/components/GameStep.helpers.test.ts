@@ -92,20 +92,12 @@ describe('describeNextStep', () => {
       { kind: 'preparing' },
     ],
     [
-      'approve-base-registrar descriptor',
+      'approve-sca descriptor',
       {
         done: false,
-        descriptor: descriptor({ type: 'approve-base-registrar' }),
+        descriptor: descriptor({ type: 'approve-sca', count: 1 }),
       },
-      { kind: 'approve-base-registrar' },
-    ],
-    [
-      'approve-name-wrapper descriptor',
-      {
-        done: false,
-        descriptor: descriptor({ type: 'approve-name-wrapper' }),
-      },
-      { kind: 'approve-name-wrapper' },
+      { kind: 'approve-sca' },
     ],
     [
       'ensure-resolver descriptor',
@@ -116,37 +108,30 @@ describe('describeNextStep', () => {
       { kind: 'ensure-resolver' },
     ],
     [
-      'migrate-batch descriptor',
+      'migrate-batch with 1 batch total → batch-single',
       {
         done: false,
         descriptor: descriptor({
           type: 'migrate-batch',
-          index: 0,
-          total: 1,
-          count: 5,
+          batch: 1,
+          totalBatches: 1,
+          count: 3,
         }),
       },
-      { kind: 'migrate-batch', index: 0, total: 1, count: 5 },
+      { kind: 'batch-single', count: 3 },
     ],
     [
-      'grant-role descriptor',
-      {
-        done: false,
-        descriptor: descriptor({ type: 'grant-role', label: 'myname' }),
-      },
-      { kind: 'grant-role', label: 'myname' },
-    ],
-    [
-      'profile-replay-batch descriptor',
+      'migrate-batch with >1 batches → batch-multi',
       {
         done: false,
         descriptor: descriptor({
-          type: 'profile-replay-batch',
-          index: 0,
-          total: 1,
+          type: 'migrate-batch',
+          batch: 2,
+          totalBatches: 3,
+          count: 4,
         }),
       },
-      { kind: 'profile-replay-batch', index: 0, total: 1 },
+      { kind: 'batch-multi', batch: 2, total: 3, count: 4 },
     ],
   ] as const)('%s', (_, params, expected) => {
     expect(describeNextStep(params)).toEqual(expected)

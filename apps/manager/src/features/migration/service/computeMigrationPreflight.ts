@@ -1,10 +1,9 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
-import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
 import {
   approvalNeedsFor,
-  checkHelperApprovals,
-} from '@/features/migration/service/checkHelperApprovals'
+  checkSCAApprovals,
+} from '@/features/migration/service/checkSCAApprovals'
 import {
   classifyNames,
   groupClassifiedNames,
@@ -17,25 +16,22 @@ export type MigrationPreflight = {
   preExistingOwnedPermRes: Address | null
   skipApprovalPhase: boolean
   skipFetchProfilesPhase: boolean
-  baseRegistrarApproved: boolean
-  nameWrapperApproved: boolean
 }
 
 export const EMPTY_PREFLIGHT: MigrationPreflight = {
   preExistingOwnedPermRes: null,
   skipApprovalPhase: false,
   skipFetchProfilesPhase: false,
-  baseRegistrarApproved: false,
-  nameWrapperApproved: false,
 }
 
 export const computeMigrationPreflight = async (params: {
   eoa: Address
+  scaAddress: Address
   domains: readonly V1Domain[]
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
 }): Promise<MigrationPreflight> => {
-  const { eoa, domains, wagmiConfig, publicClient } = params
+  const { eoa, scaAddress, domains, wagmiConfig, publicClient } = params
 
   const { classified } = classifyNames([...domains], eoa)
   const groups = groupClassifiedNames(classified)
@@ -50,12 +46,7 @@ export const computeMigrationPreflight = async (params: {
     needsOwnedPermRes
       ? findExistingPermRes({ eoa, publicClient })
       : Promise.resolve(null),
-    checkHelperApprovals({
-      eoa,
-      helperAddress: V2_CONTRACTS.MigrationHelper,
-      needs,
-      wagmiConfig,
-    }),
+    checkSCAApprovals({ eoa, scaAddress, needs, wagmiConfig }),
   ])
 
   const skipApprovalPhase =
@@ -86,7 +77,5 @@ export const computeMigrationPreflight = async (params: {
     preExistingOwnedPermRes: existingPermRes,
     skipApprovalPhase,
     skipFetchProfilesPhase,
-    baseRegistrarApproved: approvals.baseRegistrarApproved,
-    nameWrapperApproved: approvals.nameWrapperApproved,
   }
 }

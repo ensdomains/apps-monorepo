@@ -10,9 +10,10 @@ import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 
 type HookParams = {
   eoa: Address | undefined
+  scaAddress: Address | undefined
 }
 
-export const useMigrationPreflight = ({ eoa }: HookParams) => {
+export const useMigrationPreflight = ({ eoa, scaAddress }: HookParams) => {
   const publicClient = usePublicClient()
   const wagmiConfig = useConfig()
   const queryClient = useQueryClient()
@@ -20,7 +21,7 @@ export const useMigrationPreflight = ({ eoa }: HookParams) => {
   const ensure = (
     domains: readonly V1Domain[],
   ): Promise<MigrationPreflight> => {
-    if (!eoa || !publicClient) {
+    if (!eoa || !scaAddress || !publicClient) {
       return Promise.resolve(EMPTY_PREFLIGHT)
     }
     const ids = [...domains]
@@ -28,10 +29,16 @@ export const useMigrationPreflight = ({ eoa }: HookParams) => {
       .sort()
       .join(',')
     return queryClient.ensureQueryData({
-      queryKey: ['migration-preflight', eoa.toLowerCase(), ids] as const,
+      queryKey: [
+        'migration-preflight',
+        eoa.toLowerCase(),
+        scaAddress.toLowerCase(),
+        ids,
+      ] as const,
       queryFn: () =>
         computeMigrationPreflight({
           eoa,
+          scaAddress,
           domains,
           wagmiConfig,
           publicClient: publicClient as unknown as PublicClient,

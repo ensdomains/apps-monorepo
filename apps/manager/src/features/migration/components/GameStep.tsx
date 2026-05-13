@@ -52,34 +52,20 @@ export const GameStep = () => {
   const descriptionText = match(stepDescription)
     .with({ kind: 'done' }, () => t`Almost there...`)
     .with({ kind: 'progress' }, ({ text }) => text)
-    .with({ kind: 'preparing' }, () => t`Getting ready...`)
+    .with({ kind: 'preparing' }, () => t`Preparing migration...`)
+    .with({ kind: 'approve-sca' }, () => `${t`Approving smart account`}...`)
     .with(
-      { kind: 'approve-base-registrar' },
-      () => `${t`Approve in your wallet`}...`,
-    )
-    .with(
-      { kind: 'approve-name-wrapper' },
-      () => `${t`Approve in your wallet`}...`,
-    )
-    .with({ kind: 'ensure-resolver' }, () => `${t`Setting up resolver`}...`)
-    .with({ kind: 'migrate-batch' }, ({ index, total, count }) =>
-      total === 1
-        ? `${t`Upgrading ${count} name(s)`}...`
-        : `${t`Upgrading batch ${index + 1} of ${total} (${count} name(s))`}...`,
-    )
-    .with({ kind: 'grant-role-batch' }, ({ index, total, count }) =>
-      total === 1
-        ? `${t`Saving ${count} manager(s)`}...`
-        : `${t`Saving managers batch ${index + 1} of ${total}`}...`,
+      { kind: 'ensure-resolver' },
+      () => `${t`Setting up your v2 resolver`}...`,
     )
     .with(
-      { kind: 'grant-role' },
-      ({ label }) => `${t`Saving manager for ${label}.eth`}...`,
+      { kind: 'batch-single' },
+      ({ count }) => `${t`Upgrading ${count} name(s) to v2`}...`,
     )
-    .with({ kind: 'profile-replay-batch' }, ({ index, total }) =>
-      total === 1
-        ? `${t`Restoring your records`}...`
-        : `${t`Restoring records batch ${index + 1} of ${total}`}...`,
+    .with(
+      { kind: 'batch-multi' },
+      ({ batch, total, count }) =>
+        `${t`Batch ${batch}/${total}: upgrading ${count} name(s)`}...`,
     )
     .exhaustive()
 

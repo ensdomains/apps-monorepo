@@ -18,8 +18,6 @@ vi.mock('@/features/migration/service/computeMigrationPreflight', () => ({
     preExistingOwnedPermRes: null,
     skipApprovalPhase: false,
     skipFetchProfilesPhase: false,
-    baseRegistrarApproved: false,
-    nameWrapperApproved: false,
   },
 }))
 
@@ -39,6 +37,7 @@ const wrapper = ({ children }: { children: ReactNode }) => {
 }
 
 const EOA = '0x0000000000000000000000000000000000000001' as const
+const SCA = '0x0000000000000000000000000000000000000002' as const
 
 const domain = (id: string): V1Domain =>
   ({
@@ -58,7 +57,7 @@ beforeEach(() => {
 describe('useMigrationPreflight', () => {
   it('returns EMPTY_PREFLIGHT without calling computeMigrationPreflight when eoa is undefined', async () => {
     const { result } = renderHook(
-      () => useMigrationPreflight({ eoa: undefined }),
+      () => useMigrationPreflight({ eoa: undefined, scaAddress: SCA }),
       { wrapper },
     )
     const preflight = await result.current.ensure([domain('alice')])
@@ -66,8 +65,20 @@ describe('useMigrationPreflight', () => {
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
+    })
+    expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
+  })
+
+  it('returns EMPTY_PREFLIGHT when scaAddress is undefined', async () => {
+    const { result } = renderHook(
+      () => useMigrationPreflight({ eoa: EOA, scaAddress: undefined }),
+      { wrapper },
+    )
+    const preflight = await result.current.ensure([domain('alice')])
+    expect(preflight).toEqual({
+      preExistingOwnedPermRes: null,
+      skipApprovalPhase: false,
+      skipFetchProfilesPhase: false,
     })
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
@@ -75,16 +86,15 @@ describe('useMigrationPreflight', () => {
   it('returns EMPTY_PREFLIGHT when publicClient is unavailable', async () => {
     // biome-ignore lint/suspicious/noExplicitAny: simulate missing client
     usePublicClientMock.mockReturnValueOnce(undefined as any)
-    const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
-      wrapper,
-    })
+    const { result } = renderHook(
+      () => useMigrationPreflight({ eoa: EOA, scaAddress: SCA }),
+      { wrapper },
+    )
     const preflight = await result.current.ensure([domain('alice')])
     expect(preflight).toEqual({
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
     expect(computeMigrationPreflightMock).not.toHaveBeenCalled()
   })
@@ -95,12 +105,11 @@ describe('useMigrationPreflight', () => {
         '0x00000000000000000000000000000000000000f0' as const,
       skipApprovalPhase: true,
       skipFetchProfilesPhase: true,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
-    const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
-      wrapper,
-    })
+    const { result } = renderHook(
+      () => useMigrationPreflight({ eoa: EOA, scaAddress: SCA }),
+      { wrapper },
+    )
     const preflight = await result.current.ensure([domain('alice')])
     expect(preflight.skipApprovalPhase).toBe(true)
     expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(1)
@@ -111,12 +120,11 @@ describe('useMigrationPreflight', () => {
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
-    const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
-      wrapper,
-    })
+    const { result } = renderHook(
+      () => useMigrationPreflight({ eoa: EOA, scaAddress: SCA }),
+      { wrapper },
+    )
     const domains = [domain('alice'), domain('bob')]
     await result.current.ensure(domains)
     await result.current.ensure(domains)
@@ -128,12 +136,11 @@ describe('useMigrationPreflight', () => {
       preExistingOwnedPermRes: null,
       skipApprovalPhase: false,
       skipFetchProfilesPhase: false,
-      baseRegistrarApproved: false,
-      nameWrapperApproved: false,
     })
-    const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
-      wrapper,
-    })
+    const { result } = renderHook(
+      () => useMigrationPreflight({ eoa: EOA, scaAddress: SCA }),
+      { wrapper },
+    )
     await result.current.ensure([domain('alice'), domain('bob')])
     await result.current.ensure([domain('bob'), domain('alice')])
     expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(1)
