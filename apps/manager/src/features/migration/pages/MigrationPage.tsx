@@ -1,11 +1,12 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
-import type { Address, PublicClient } from 'viem'
-import { useConfig, usePublicClient } from 'wagmi'
+import type { Address, PublicClient, WalletClient } from 'viem'
+import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -47,35 +48,48 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
     case 'generic':
       return error.message
     case 'resolver-deploy-failed':
-      return (
-        <>
-          <div>Couldn't set up your v2 resolver.</div>
-          <div>{error.message}</div>
-          <div>You can retry below.</div>
-        </>
-      )
+      return <div>Couldn&apos;t finish setting up your account.</div>
     case 'profile-fetch-failed':
-      return (
-        <>
-          <div>Couldn't read your current ENS records ({error.phase}).</div>
-          <div>{error.message}</div>
-          <div>You can retry below.</div>
-        </>
-      )
+      return <div>Couldn&apos;t read your current records.</div>
     case 'user-rejected':
-      return (
-        <>
-          <div>You rejected the request in your wallet.</div>
-          <div>You can retry below.</div>
-        </>
-      )
+      return <div>Request cancelled.</div>
     case 'preflight-timeout':
+      return <div>This is taking longer than expected.</div>
+    case 'parent-not-migrated':
       return (
-        <>
-          <div>Pre-flight checks timed out.</div>
-          <div>{error.message}</div>
-          <div>You can retry below.</div>
-        </>
+        <div>
+          <Trans>Upgrade {error.parentName} first.</Trans>
+        </div>
+      )
+    case 'not-approved-operator':
+      return (
+        <div>
+          <Trans>Permission missing. Please try again.</Trans>
+        </div>
+      )
+    case 'wrapped-owner-mismatch':
+    case 'name-data-mismatch':
+    case 'invalid-data':
+      return (
+        <div>
+          <Trans>Something went wrong. Please refresh and try again.</Trans>
+        </div>
+      )
+    case 'name-not-locked':
+    case 'name-requires-migration':
+      return (
+        <div>
+          <Trans>
+            Couldn&apos;t upgrade one of your names. Please try again.
+          </Trans>
+        </div>
+      )
+    case 'name-is-locked':
+    case 'frozen-token-approval':
+      return (
+        <div>
+          <Trans>One of your names can&apos;t be upgraded right now.</Trans>
+        </div>
       )
   }
 }
@@ -97,14 +111,13 @@ export const MigrationPage = () => {
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
-  const smartAccount = useSmartAccountContext()
-  const { ownerAddress, accountAddress } = smartAccount
+  const { ownerAddress } = useSmartAccountContext()
+  const { data: wagmiWalletClient } = useWalletClient()
   const wagmiConfig = useConfig()
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress as Address | undefined,
-    scaAddress: accountAddress as Address | undefined,
   })
 
   useEffect(() => {
@@ -124,10 +137,12 @@ export const MigrationPage = () => {
   )
 
   const handleBeginUpgrade = useCallback(async () => {
-    if (!ownerAddress || !smartAccount.signer || !smartAccount.accountAddress)
-      return
+    if (!ownerAddress || !wagmiWalletClient?.account) return
     if (!publicClient) return
-    const { signer, accountAddress: sca } = smartAccount
+    const signer: Signer = {
+      type: 'eoa',
+      walletClient: wagmiWalletClient as WalletClient,
+    }
     const domains = selectDomainsFromNames(v1Names, selectedNames)
     if (domains.length === 0) return
 
@@ -139,13 +154,15 @@ export const MigrationPage = () => {
         wagmiConfig,
         publicClient: publicClient as unknown as PublicClient,
         preflight,
+        hasBaseRegistrarApproval: preflight.baseRegistrarApproved,
+        hasNameWrapperApproval: preflight.nameWrapperApproved,
       })
 
       uiActor.send({
         type: 'migration.start',
         plan,
         signer,
-        accountAddress: sca as Address,
+        accountAddress: ownerAddress as Address,
       })
     } catch (err) {
       uiActor.send({
@@ -156,7 +173,7 @@ export const MigrationPage = () => {
   }, [
     v1Names,
     ownerAddress,
-    smartAccount,
+    wagmiWalletClient,
     selectedNames,
     uiActor,
     ensurePreflight,

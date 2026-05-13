@@ -17,18 +17,18 @@ export const approvalNeedsFor = (groups: GroupedNames): ApprovalNeeds => ({
     groups.childNames.size > 0,
 })
 
-type SCAApprovalStatus = {
+type HelperApprovalStatus = {
   readonly baseRegistrarApproved: boolean
   readonly nameWrapperApproved: boolean
 }
 
-export const checkSCAApprovals = async (params: {
+export const checkHelperApprovals = async (params: {
   eoa: Address
-  scaAddress: Address
+  helperAddress: Address
   needs: ApprovalNeeds
   wagmiConfig: WagmiConfig
-}): Promise<SCAApprovalStatus> => {
-  const { eoa, scaAddress, needs, wagmiConfig } = params
+}): Promise<HelperApprovalStatus> => {
+  const { eoa, helperAddress, needs, wagmiConfig } = params
 
   const [baseRegistrarApproved, nameWrapperApproved] = await Promise.all([
     needs.hasUnwrapped
@@ -36,7 +36,7 @@ export const checkSCAApprovals = async (params: {
           address: V1_CONTRACTS.BaseRegistrar,
           abi: erc721Abi,
           functionName: 'isApprovedForAll',
-          args: [eoa, scaAddress],
+          args: [eoa, helperAddress],
         }) as Promise<boolean>)
       : Promise.resolve(true),
     needs.hasWrapped
@@ -44,7 +44,7 @@ export const checkSCAApprovals = async (params: {
           address: V1_CONTRACTS.NameWrapper,
           abi: NAME_WRAPPER_ABI,
           functionName: 'isApprovedForAll',
-          args: [eoa, scaAddress],
+          args: [eoa, helperAddress],
         }) as Promise<boolean>)
       : Promise.resolve(true),
   ])

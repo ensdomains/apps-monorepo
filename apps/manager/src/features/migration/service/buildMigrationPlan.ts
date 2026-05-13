@@ -1,17 +1,11 @@
 import type { ZeroDevCall } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import {
-  type Address,
-  type Hex,
-  namehash,
-  type PublicClient,
-  zeroAddress,
-} from 'viem'
+import { type Address, type Hex, namehash, type PublicClient } from 'viem'
+
 import { V2_CONTRACTS } from '../contracts/addresses'
-import { buildAllTransferCalls } from './buildMigrationCalls'
-import { buildPreMigrateCall } from './buildPreMigrateCalls'
-import { buildProfileReplayCall } from './buildProfileReplayCalls'
+import { buildBatchedMigrateCalls, type MigrationBatch } from './batchMigrate'
+import { buildBatchedProfileReplayCalls } from './batchProfileReplay'
 import { buildRoleGrantCall } from './buildRoleGrantCalls'
 import {
   buildStepDescriptors,
@@ -23,135 +17,31 @@ import {
   type GroupedNames,
   groupClassifiedNames,
   type IneligibleName,
-  is2LD,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { predictOwnedPermResAddress } from './ensureOwnedPermRes'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
-import {
-  calcBundleBytes,
-  collectDeferredParentNames,
-  computePhase1Names,
-  findNestedDeferredParents,
-  findUnresolvedParents,
-  formatNamesPreview,
-  groupDeferredChildrenByParent,
-  packPlanBatches,
-  partitionChildrenByInPlan,
-} from './migrationPlan.helpers'
-import { filterNotReserved, resolveParentRegistries } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
-
-export const MAX_BATCH_RAW_BYTES = 50_000
 
 export class MigrationPlanError extends TaggedError('MigrationPlanError')<{
   cause: unknown
   step?: string
 }> {}
 
-export type NameBundle = {
-  name: ClassifiedName
-  calls: ZeroDevCall[]
-  bytes: number
-}
-
 export type MigrationPlan = {
-  migrationOwner: Address
-  domains: readonly V1Domain[]
-  classified: readonly ClassifiedName[]
-  ineligible: readonly IneligibleName[]
-  groups: GroupedNames
-  preflight: MigrationPreflight
-  ownedPermRes: Address | null
-  profiles: ReadonlyMap<Hex, Profile>
-  notReservedSet: ReadonlySet<string>
-  parentRegistries: ReadonlyMap<string, Address>
-  batches: readonly NameBundle[][]
-  deferredChildren: readonly ClassifiedName[]
-  deferredParentNames: readonly string[]
-  deferredBatches: readonly NameBundle[][]
-  stepDescriptors: readonly MigrationStepDescriptor[]
-}
-
-export const buildNameBundle = (params: {
-  name: ClassifiedName
-  migrationOwner: Address
-  defaultResolver: Address
-  ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
-  parentRegistries: ReadonlyMap<string, Address>
-  profiles: ReadonlyMap<Hex, Profile>
-}): NameBundle => {
-  const {
-    name,
-    migrationOwner,
-    defaultResolver,
-    ownedPermRes,
-    notReservedSet,
-    parentRegistries,
-    profiles,
-  } = params
-  const calls: ZeroDevCall[] = []
-
-  if (is2LD(name) && notReservedSet.has(name.domain.name)) {
-    calls.push(buildPreMigrateCall(name))
-  }
-
-  calls.push(
-    ...buildAllTransferCalls({
-      classified: [name],
-      migrationOwner,
-      defaultResolver,
-      ownedPermRes,
-      parentRegistries,
-    }),
-  )
-
-  if (name.managerAddress) {
-    calls.push(buildRoleGrantCall(name))
-  }
-
-  if (ownedPermRes && name.resolverStrategy === 'to-owned-permres') {
-    const node = namehash(name.domain.name) as Hex
-    const profile = profiles.get(profileMapKey(node))
-    if (profile && (profile.texts.length > 0 || profile.addresses.length > 0)) {
-      const replayCall = buildProfileReplayCall({
-        resolver: ownedPermRes,
-        profiles: new Map<Hex, Profile>([[node, profile]]),
-      })
-      if (replayCall) calls.push(replayCall)
-    }
-  }
-
-  return { name, calls, bytes: calcBundleBytes(calls) }
-}
-
-export const packNamesByPayload = (params: {
-  names: readonly ClassifiedName[]
-  migrationOwner: Address
-  defaultResolver: Address
-  ownedPermRes: Address | null
-  notReservedSet: ReadonlySet<string>
-  parentRegistries: ReadonlyMap<string, Address>
-  profiles: ReadonlyMap<Hex, Profile>
-  maxBatchBytes?: number
-}): NameBundle[][] => {
-  const { names, maxBatchBytes = MAX_BATCH_RAW_BYTES } = params
-  const bundles = names.map((name) => buildNameBundle({ ...params, name }))
-  const batches: NameBundle[][] = []
-  let current: NameBundle[] = []
-  let running = 0
-  for (const b of bundles) {
-    if (current.length > 0 && running + b.bytes > maxBatchBytes) {
-      batches.push(current)
-      current = []
-      running = 0
-    }
-    current.push(b)
-    running += b.bytes
-  }
-  if (current.length > 0) batches.push(current)
-  return batches
+  readonly migrationOwner: Address
+  readonly domains: readonly V1Domain[]
+  readonly classified: readonly ClassifiedName[]
+  readonly ineligible: readonly IneligibleName[]
+  readonly groups: GroupedNames
+  readonly preflight: MigrationPreflight
+  readonly ownedPermRes: Address | null
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly migrateCalls: readonly ZeroDevCall[]
+  readonly roleGrantCalls: readonly ZeroDevCall[]
+  readonly profileReplayCalls: readonly ZeroDevCall[]
+  readonly batches: readonly MigrationBatch[]
+  readonly stepDescriptors: readonly MigrationStepDescriptor[]
 }
 
 const fetchProfilesForNames = async (params: {
@@ -174,81 +64,58 @@ const fetchProfilesForNames = async (params: {
   })
 }
 
-const computeNotReservedSet = async (
-  publicClient: PublicClient,
-  classified: readonly ClassifiedName[],
-): Promise<Set<string>> => {
-  const twoLDs = classified.filter(is2LD)
-  if (twoLDs.length === 0) return new Set()
-  const notReserved = await filterNotReserved(publicClient, twoLDs)
-  return new Set(notReserved.map((n) => n.domain.name))
-}
-
-type SubnameParentResolution = {
-  resolvedRegistries: Map<string, Address>
-  deferredChildren: readonly ClassifiedName[]
-  deferredParentNames: readonly string[]
-}
-
-const validateSubnameParents = async (
-  publicClient: PublicClient,
-  groups: GroupedNames,
-  classified: readonly ClassifiedName[],
-): Promise<SubnameParentResolution> => {
-  if (groups.childNames.size === 0) {
-    return {
-      resolvedRegistries: new Map(),
-      deferredChildren: [],
-      deferredParentNames: [],
+const buildReplayProfiles = (params: {
+  classified: readonly ClassifiedName[]
+  ownedPermRes: Address | null
+  profiles: ReadonlyMap<Hex, Profile>
+}): Map<Hex, Profile> => {
+  const replay = new Map<Hex, Profile>()
+  if (!params.ownedPermRes) return replay
+  for (const n of params.classified) {
+    if (n.resolverStrategy !== 'to-owned-permres') continue
+    const node = namehash(n.domain.name) as Hex
+    const profile = params.profiles.get(profileMapKey(node))
+    if (profile && (profile.texts.length > 0 || profile.addresses.length > 0)) {
+      replay.set(node, profile)
     }
   }
+  return replay
+}
 
-  const inPlanNames = new Set(classified.map((c) => c.domain.name))
-  const { externalChildren, deferredChildren, deferredParentNames } =
-    partitionChildrenByInPlan(groups.childNames, inPlanNames)
+const assemblePlanParts = (params: {
+  classified: readonly ClassifiedName[]
+  migrationOwner: Address
+  ownedPermRes: Address | null
+  profiles: ReadonlyMap<Hex, Profile>
+}): {
+  migrateCalls: readonly ZeroDevCall[]
+  batches: readonly MigrationBatch[]
+  roleGrantCalls: readonly ZeroDevCall[]
+  profileReplayCalls: readonly ZeroDevCall[]
+} => {
+  const { classified, migrationOwner, ownedPermRes, profiles } = params
 
-  const nested = findNestedDeferredParents(
-    deferredChildren,
-    deferredParentNames,
-  )
-  if (nested.length > 0) {
-    throw new MigrationPlanError({
-      cause: new Error(
-        `Nested subname hierarchy not supported in a single migration: ${formatNamesPreview(nested)}. Migrate these parents first, then their children.`,
-      ),
-      step: 'Subnames',
-    })
-  }
-
-  if (externalChildren.size === 0) {
-    return {
-      resolvedRegistries: new Map(),
-      deferredChildren,
-      deferredParentNames,
-    }
-  }
-
-  const resolvedRegistries = await resolveParentRegistries(
-    publicClient,
-    externalChildren,
-  )
-  const unresolved = findUnresolvedParents(
-    externalChildren,
-    resolvedRegistries,
-    zeroAddress,
-  )
-  if (unresolved.length === 0) {
-    return { resolvedRegistries, deferredChildren, deferredParentNames }
-  }
-
-  const total = externalChildren.size
-  const resolved = total - unresolved.length
-  throw new MigrationPlanError({
-    cause: new Error(
-      `${unresolved.length}/${total} parent registries unresolved after retries: ${formatNamesPreview(unresolved)}. Migrate the parent name(s) first, or retry once the indexer catches up.`,
-    ),
-    step: `Subnames (${resolved}/${total} parents ready)`,
+  const { calls: migrateCalls, batches } = buildBatchedMigrateCalls({
+    classified,
+    migrationOwner,
+    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
+    ownedPermRes,
   })
+
+  const roleGrantCalls: ZeroDevCall[] = []
+  for (const n of classified) {
+    if (n.managerAddress) roleGrantCalls.push(buildRoleGrantCall(n))
+  }
+
+  const replay = buildReplayProfiles({ classified, ownedPermRes, profiles })
+  const profileReplayCalls = ownedPermRes
+    ? buildBatchedProfileReplayCalls({
+        resolver: ownedPermRes,
+        profiles: replay,
+      })
+    : []
+
+  return { migrateCalls, batches, roleGrantCalls, profileReplayCalls }
 }
 
 export const buildMigrationPlan = async (params: {
@@ -257,8 +124,17 @@ export const buildMigrationPlan = async (params: {
   wagmiConfig: WagmiConfig
   publicClient: PublicClient
   preflight: MigrationPreflight
+  hasBaseRegistrarApproval: boolean
+  hasNameWrapperApproval: boolean
 }): Promise<MigrationPlan> => {
-  const { domains, migrationOwner, publicClient, preflight } = params
+  const {
+    domains,
+    migrationOwner,
+    publicClient,
+    preflight,
+    hasBaseRegistrarApproval,
+    hasNameWrapperApproval,
+  } = params
 
   const { classified, ineligible } = classifyNames([...domains], migrationOwner)
   const groups = groupClassifiedNames(classified)
@@ -270,37 +146,33 @@ export const buildMigrationPlan = async (params: {
   if (namesToOwnedPermRes.length > 0) {
     ownedPermRes =
       preflight.preExistingOwnedPermRes ??
-      (await predictOwnedPermResAddress({
-        eoa: migrationOwner,
-        publicClient,
-      }))
+      (await predictOwnedPermResAddress({ eoa: migrationOwner, publicClient }))
   }
 
-  const [profiles, notReservedSet, subnameResolution] = await Promise.all([
-    fetchProfilesForNames({ namesToOwnedPermRes, preflight, publicClient }),
-    computeNotReservedSet(publicClient, classified),
-    validateSubnameParents(publicClient, groups, classified),
-  ])
-  const { resolvedRegistries, deferredChildren, deferredParentNames } =
-    subnameResolution
-
-  const { batches, deferredBatches } = packPlanBatches({
-    phase1Names: computePhase1Names(classified, deferredChildren),
-    deferredChildren,
-    deferredParentNames,
-    parentRegistries: resolvedRegistries,
-    migrationOwner,
-    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
-    ownedPermRes,
-    notReservedSet,
-    profiles,
-    pack: packNamesByPayload,
+  const profiles = await fetchProfilesForNames({
+    namesToOwnedPermRes,
+    preflight,
+    publicClient,
   })
 
-  const stepDescriptors = buildStepDescriptors(classified, groups, preflight, [
-    ...batches.map((b) => b.length),
-    ...deferredBatches.map((b) => b.length),
-  ])
+  const parts = assemblePlanParts({
+    classified,
+    migrationOwner,
+    ownedPermRes,
+    profiles,
+  })
+
+  const stepDescriptors = buildStepDescriptors({
+    classified,
+    groups,
+    preflight,
+    hasBaseRegistrarApproval,
+    hasNameWrapperApproval,
+    hasProfileReplay: parts.profileReplayCalls.length > 0,
+    migrateBatchCount: parts.migrateCalls.length,
+    profileReplayBatchCount: parts.profileReplayCalls.length,
+    roleGrantBatchCount: 0,
+  })
 
   return {
     migrationOwner,
@@ -311,56 +183,12 @@ export const buildMigrationPlan = async (params: {
     preflight,
     ownedPermRes,
     profiles,
-    notReservedSet,
-    parentRegistries: resolvedRegistries,
-    batches,
-    deferredChildren,
-    deferredParentNames,
-    deferredBatches,
+    migrateCalls: parts.migrateCalls,
+    roleGrantCalls: parts.roleGrantCalls,
+    profileReplayCalls: parts.profileReplayCalls,
+    batches: parts.batches,
     stepDescriptors,
   }
-}
-
-export const resolveDeferredBatches = async (params: {
-  plan: MigrationPlan
-  publicClient: PublicClient
-}): Promise<NameBundle[][]> => {
-  const { plan, publicClient } = params
-  if (plan.deferredBatches.length === 0) return []
-
-  const grouped = groupDeferredChildrenByParent(plan.deferredChildren)
-  const resolved = await resolveParentRegistries(publicClient, grouped)
-
-  const stillUnresolved = plan.deferredParentNames.filter(
-    (parentName) => (resolved.get(parentName) ?? zeroAddress) === zeroAddress,
-  )
-  if (stillUnresolved.length > 0) {
-    throw new MigrationPlanError({
-      cause: new Error(
-        `${stillUnresolved.length} parent registries still unresolved after parent migration: ${formatNamesPreview(stillUnresolved)}. Retry once the chain catches up.`,
-      ),
-      step: 'Subnames',
-    })
-  }
-
-  const combinedRegistries = new Map<string, Address>([
-    ...plan.parentRegistries,
-    ...resolved,
-  ])
-
-  return plan.deferredBatches.map((batch) =>
-    batch.map((bundle) =>
-      buildNameBundle({
-        name: bundle.name,
-        migrationOwner: plan.migrationOwner,
-        defaultResolver: V2_CONTRACTS.ENSV2Resolver,
-        ownedPermRes: plan.ownedPermRes,
-        notReservedSet: plan.notReservedSet,
-        parentRegistries: combinedRegistries,
-        profiles: plan.profiles,
-      }),
-    ),
-  )
 }
 
 export const adjustPlanForRetry = (
@@ -373,59 +201,49 @@ export const adjustPlanForRetry = (
     (c) => !migratedSet.has(c.domain.name),
   )
   const remainingDomains = plan.domains.filter((d) => !migratedSet.has(d.name))
-  const remainingDeferredChildren = plan.deferredChildren.filter(
-    (c) => !migratedSet.has(c.domain.name),
-  )
-  const remainingDeferredParentNames = collectDeferredParentNames(
-    remainingDeferredChildren,
-  )
 
   if (remainingClassified.length === 0) {
     return {
       ...plan,
       classified: [],
       domains: remainingDomains,
+      migrateCalls: [],
+      roleGrantCalls: [],
+      profileReplayCalls: [],
       batches: [],
-      deferredChildren: [],
-      deferredParentNames: [],
-      deferredBatches: [],
       stepDescriptors: [],
     }
   }
 
   const groups = groupClassifiedNames(remainingClassified)
-  const { batches, deferredBatches } = packPlanBatches({
-    phase1Names: computePhase1Names(
-      remainingClassified,
-      remainingDeferredChildren,
-    ),
-    deferredChildren: remainingDeferredChildren,
-    deferredParentNames: remainingDeferredParentNames,
-    parentRegistries: plan.parentRegistries,
+  const parts = assemblePlanParts({
+    classified: remainingClassified,
     migrationOwner: plan.migrationOwner,
-    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
     ownedPermRes: plan.ownedPermRes,
-    notReservedSet: plan.notReservedSet,
     profiles: plan.profiles,
-    pack: packNamesByPayload,
   })
 
-  const stepDescriptors = buildStepDescriptors(
-    remainingClassified,
+  const stepDescriptors = buildStepDescriptors({
+    classified: remainingClassified,
     groups,
-    plan.preflight,
-    [...batches.map((b) => b.length), ...deferredBatches.map((b) => b.length)],
-  )
+    preflight: plan.preflight,
+    hasBaseRegistrarApproval: true,
+    hasNameWrapperApproval: true,
+    hasProfileReplay: parts.profileReplayCalls.length > 0,
+    migrateBatchCount: parts.migrateCalls.length,
+    profileReplayBatchCount: parts.profileReplayCalls.length,
+    roleGrantBatchCount: 0,
+  })
 
   return {
     ...plan,
     classified: remainingClassified,
     domains: remainingDomains,
     groups,
-    batches,
-    deferredChildren: remainingDeferredChildren,
-    deferredParentNames: remainingDeferredParentNames,
-    deferredBatches,
+    migrateCalls: parts.migrateCalls,
+    roleGrantCalls: parts.roleGrantCalls,
+    profileReplayCalls: parts.profileReplayCalls,
+    batches: parts.batches,
     stepDescriptors,
   }
 }

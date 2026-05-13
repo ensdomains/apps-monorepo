@@ -170,19 +170,20 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
-    // On the rhinestone-session path the smart-session policy pins
-    // `register.owner == SCA` (see lib/smart-account/sessions/build-registration-session.ts).
-    // HCAEquivalence resolves SCA → EOA at lookup time, so the human-owner
-    // display is unchanged. Forcing SCA here keeps the runtime call shape
-    // aligned with the policy; any other value would be rejected by the
-    // SmartSession validator.
+    // Register the ENS name directly to the EOA on every signer path
+    // (eoa, zerodev, rhinestone). The rhinestone smart-session policy is
+    // configured to pin `register.owner == EOA` to match (see
+    // lib/smart-account/sessions/build-registration-session.ts).
     //
-    // Other signer types (eoa, zerodev) keep the previous EOA-preferred
-    // behaviour for now.
+    // Rationale: with the EOA as the on-chain ENS owner, indexer "My names"
+    // lookups by EOA work without HCA-equivalence, and registry-level
+    // operations (transfer, setResolver, wrap) accept either a direct EOA
+    // call or an SCA call that HCAEquivalence unwraps to the same EOA.
+    // The fallback to `accountAddress` only triggers for "simple" account
+    // types that expose no EOA (we no longer have such a path in v2, but
+    // the fallback is kept defensively).
     const ownerAddress =
-      event.account.signer?.type === 'rhinestone'
-        ? event.account.accountAddress
-        : (event.account.ownerAddress ?? event.account.accountAddress)
+      event.account.ownerAddress ?? event.account.accountAddress
 
     // The dedicated resolver's EACL must be granted to the address that the
     // resolver will see at write time. The PermissionedResolver unwraps an

@@ -16,14 +16,15 @@ const mockPrice = (
   hasPremium: premiumUsd > 0,
 })
 
-const selectedName = (
-  name: string,
-  expiryDate?: Date | null,
-  isV2 = false,
-) => ({ name, expiryDate, isV2 })
+const selectedName = (name: string, expiryDate?: Date | null, isV2 = false) =>
+  ({ name, expiryDate, isV2 }) as const
 
 const ONE_YEAR = CONTRACT_SECONDS_PER_YEAR
 const THREE_YEARS = 3 * CONTRACT_SECONDS_PER_YEAR
+
+/** Builds a per-second oracle base rate (12 decimals) from a $/year amount */
+const baseRateForUsdPerYear = (usdPerYear: number): bigint =>
+  (BigInt(usdPerYear) * 10n ** 12n) / BigInt(CONTRACT_SECONDS_PER_YEAR)
 
 describe('computeNamePricingDisplay', () => {
   describe('registrationPeriod', () => {
@@ -32,6 +33,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth'),
         mockPrice(5),
         ONE_YEAR,
+        0n,
       )
       expect(result.registrationPeriod).toBeTruthy()
       expect(typeof result.registrationPeriod).toBe('string')
@@ -45,6 +47,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth', expiryDate),
         mockPrice(5),
         ONE_YEAR,
+        0n,
       )
       // CONTRACT_SECONDS_PER_YEAR floors to 365 days; 2024 is a leap year so Jan 1 + 365 = Dec 31
       expect(result.newExpiryFormatted).toBe('Dec 31, 2024')
@@ -55,6 +58,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth', null),
         mockPrice(5),
         ONE_YEAR,
+        0n,
       )
       // Just verify it's a date string — exact value depends on today
       expect(result.newExpiryFormatted).toMatch(
@@ -65,60 +69,58 @@ describe('computeNamePricingDisplay', () => {
 
   describe('priceLabel', () => {
     it('always returns "Price:" — discount is surfaced via discountSublabel', () => {
-      const noDiscount = computeNamePricingDisplay(
-        selectedName('hello.eth'),
-        mockPrice(5),
-        ONE_YEAR,
-      )
-      expect(noDiscount.priceLabel).toBe('Price:')
-
-      const withDiscount = computeNamePricingDisplay(
-        selectedName('hello.eth'),
-        mockPrice(12),
-        THREE_YEARS,
-      )
-      expect(withDiscount.priceLabel).toBe('Price:')
-    })
-  })
-
-  describe('discountSublabel', () => {
-    it('is undefined for 1-year durations', () => {
       const result = computeNamePricingDisplay(
         selectedName('hello.eth'),
         mockPrice(5),
         ONE_YEAR,
+        0n,
       )
-      expect(result.discountSublabel).toBeUndefined()
-    })
-
-    it('shows "X+ yr discount price" for multi-year durations', () => {
-      const result = computeNamePricingDisplay(
-        selectedName('hello.eth'),
-        mockPrice(12),
-        THREE_YEARS,
-      )
-      expect(result.discountSublabel).toBe('3+ yr discount price')
+      expect(result.priceLabel).toBe('Price:')
     })
   })
+
+  // describe('discountSublabel', () => {
+  //   it('is undefined for 1-year durations', () => {
+  //     const result = computeNamePricingDisplay(
+  //       selectedName('hello.eth'),
+  //       mockPrice(5),
+  //       ONE_YEAR,
+  //       0n,
+  //     )
+  //     expect(result.discountSublabel).toBeUndefined()
+  //   })
+
+  //   it('shows "X+ yr discount price" for multi-year durations', () => {
+  //     const result = computeNamePricingDisplay(
+  //       selectedName('hello.eth'),
+  //       mockPrice(12),
+  //       THREE_YEARS,
+  //       0n,
+  //     )
+  //     expect(result.discountSublabel).toBe('3+ yr discount price')
+  //   })
+  // })
 
   describe('priceValue', () => {
-    it('shows curve-derived $/year for multi-year durations', () => {
-      // 5+ char baseline $8/yr, 3-year discount avg 31.25% → $5.50/year
+    it('derives $/year from actual base / years for multi-year durations', () => {
+      // base $15 over 3 years → $5/year
       const result = computeNamePricingDisplay(
         selectedName('hello.eth'),
         mockPrice(15),
         THREE_YEARS,
+        0n,
       )
-      expect(result.priceValue).toBe('$5.50/year')
+      expect(result.priceValue).toBe('$5.00/year')
       expect(result.priceValue).not.toContain('×')
     })
 
-    it('shows the baseline $/year for 1-year durations', () => {
-      // 5+ char baseline $8/yr, 1-year discount 0% → $8.00/year
+    it('shows actual base for 1-year durations', () => {
+      // base $8 over 1 year → $8/year
       const result = computeNamePricingDisplay(
         selectedName('hello.eth'),
         mockPrice(8),
         ONE_YEAR,
+        0n,
       )
       expect(result.priceValue).toBe('$8.00/year')
     })
@@ -130,6 +132,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth'),
         mockPrice(5),
         ONE_YEAR,
+        0n,
       )
       expect(result.subtotal).toBe('$5.00')
     })
@@ -139,6 +142,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth'),
         mockPrice(5, 100),
         ONE_YEAR,
+        0n,
       )
       expect(result.subtotal).toBe('$5.00')
     })
@@ -150,6 +154,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth'),
         mockPrice(5),
         ONE_YEAR,
+        0n,
       )
       expect(result.total).toBe(result.subtotal)
     })
@@ -159,6 +164,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth'),
         mockPrice(5, 100),
         ONE_YEAR,
+        0n,
       )
       expect(result.total).toBe('$105.00')
     })
@@ -170,6 +176,7 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth'),
         mockPrice(5),
         ONE_YEAR,
+        0n,
       )
       expect(result.actualPrice).toBeCloseTo(5, 2)
     })
@@ -179,32 +186,42 @@ describe('computeNamePricingDisplay', () => {
         selectedName('hello.eth'),
         mockPrice(5, 100),
         ONE_YEAR,
+        0n,
       )
       expect(result.actualPrice).toBeCloseTo(5, 2)
     })
   })
 
-  describe('3-letter names', () => {
-    it('shows $640/year (no discount) for 1-year', () => {
+  describe('discountAmount', () => {
+    it('is 0 when baseRate is 0n (oracle data not loaded)', () => {
       const result = computeNamePricingDisplay(
-        selectedName('abc.eth'),
-        mockPrice(640),
-        ONE_YEAR,
+        selectedName('hello.eth'),
+        mockPrice(12),
+        THREE_YEARS,
+        0n,
       )
-      expect(result.priceLabel).toBe('Price:')
-      expect(result.priceValue).toBe('$640.00/year')
+      expect(result.discountAmount).toBe(0)
     })
 
-    it('shows curve-derived $/year + discount sublabel for multi-year', () => {
-      // 3-letter baseline $640/yr, 3-year discount 31.25% → $440/year
+    it('derives discount from baseRate × duration vs actual base', () => {
+      // Oracle says $8/yr undiscounted. Actual paid $15 over 3 years → $24 - $15 = $9 discount.
       const result = computeNamePricingDisplay(
-        selectedName('abc.eth'),
-        mockPrice(1500),
+        selectedName('hello.eth'),
+        mockPrice(15),
         THREE_YEARS,
+        baseRateForUsdPerYear(8),
       )
-      expect(result.priceLabel).toBe('Price:')
-      expect(result.priceValue).toBe('$440.00/year')
-      expect(result.discountSublabel).toBe('3+ yr discount price')
+      expect(result.discountAmount).toBeCloseTo(9, 1)
+    })
+
+    it('is 0 when actual >= undiscounted', () => {
+      const result = computeNamePricingDisplay(
+        selectedName('hello.eth'),
+        mockPrice(24),
+        THREE_YEARS,
+        baseRateForUsdPerYear(8),
+      )
+      expect(result.discountAmount).toBe(0)
     })
   })
 })

@@ -1,7 +1,7 @@
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
+// import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { dateToPlainDate } from '@/utils/temporal'
 
 type RegistrationSummaryCardsProps = {
@@ -14,7 +14,6 @@ type RegistrationSummaryCardsProps = {
 }
 
 export const RegistrationSummaryCards = ({
-  domainName,
   durationSeconds,
   price,
   baseDate,
@@ -36,10 +35,9 @@ export const RegistrationSummaryCards = ({
     price.decimals,
   )
 
-  const { years } = getPricingBreakdown(domainName, price, durationSeconds)
-  const roundedYears = Math.round(years)
-  const discountText =
-    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+  // const roundedYears = Math.round(durationSeconds / CONTRACT_SECONDS_PER_YEAR)
+  // const discountText =
+  //   roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
@@ -66,9 +64,9 @@ export const RegistrationSummaryCards = ({
         <p className="text-foreground text-base font-medium mt-1">
           {totalCost}
         </p>
-        {discountText ? (
+        {/* {discountText ? (
           <p className="text-success-text text-xs mt-0.5">{discountText}</p>
-        ) : null}
+        ) : null} */}
       </div>
     </div>
   )

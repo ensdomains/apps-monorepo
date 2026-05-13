@@ -56,6 +56,22 @@ describe('classifyName — early returns', () => {
   })
 })
 
+describe('classifyName — expired wrap', () => {
+  it('treats wrapped .eth 2LD as unwrapped when wrappedDomain.expiryDate is in the past', () => {
+    const n = classified(
+      classify({
+        isWrapped: true,
+        wrappedExpiry: '100',
+        wrappedOwnerId: OTHER,
+        fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+      }),
+    )
+    expect(n.tokenType).toBe('unwrapped')
+    expect(n.fuses).toBe(0)
+    expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
+  })
+})
+
 describe('classifyName — token type', () => {
   it('unwrapped 2LD: keeps custom v1 resolver, flags manager when registry owner differs', () => {
     const n = classified(classify())

@@ -71,14 +71,26 @@ export type StepDescription =
   | { readonly kind: 'done' }
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
-  | { readonly kind: 'approve-sca' }
+  | { readonly kind: 'approve-base-registrar' }
+  | { readonly kind: 'approve-name-wrapper' }
   | { readonly kind: 'ensure-resolver' }
-  | { readonly kind: 'batch-single'; readonly count: number }
   | {
-      readonly kind: 'batch-multi'
-      readonly batch: number
+      readonly kind: 'migrate-batch'
+      readonly index: number
       readonly total: number
       readonly count: number
+    }
+  | {
+      readonly kind: 'grant-role-batch'
+      readonly index: number
+      readonly total: number
+      readonly count: number
+    }
+  | { readonly kind: 'grant-role'; readonly label: string }
+  | {
+      readonly kind: 'profile-replay-batch'
+      readonly index: number
+      readonly total: number
     }
 
 export const describeNextStep = (params: {
@@ -94,21 +106,38 @@ export const describeNextStep = (params: {
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
-    .with({ descriptor: { type: 'approve-sca' } }, () => ({
-      kind: 'approve-sca' as const,
+    .with({ descriptor: { type: 'approve-base-registrar' } }, () => ({
+      kind: 'approve-base-registrar' as const,
+    }))
+    .with({ descriptor: { type: 'approve-name-wrapper' } }, () => ({
+      kind: 'approve-name-wrapper' as const,
     }))
     .with({ descriptor: { type: 'ensure-resolver' } }, () => ({
       kind: 'ensure-resolver' as const,
     }))
-    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) =>
-      descriptor.totalBatches === 1
-        ? ({ kind: 'batch-single' as const, count: descriptor.count } as const)
-        : ({
-            kind: 'batch-multi' as const,
-            batch: descriptor.batch,
-            total: descriptor.totalBatches,
-            count: descriptor.count,
-          } as const),
+    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) => ({
+      kind: 'migrate-batch' as const,
+      index: descriptor.index,
+      total: descriptor.total,
+      count: descriptor.count,
+    }))
+    .with({ descriptor: { type: 'grant-role-batch' } }, ({ descriptor }) => ({
+      kind: 'grant-role-batch' as const,
+      index: descriptor.index,
+      total: descriptor.total,
+      count: descriptor.count,
+    }))
+    .with({ descriptor: { type: 'grant-role' } }, ({ descriptor }) => ({
+      kind: 'grant-role' as const,
+      label: descriptor.label,
+    }))
+    .with(
+      { descriptor: { type: 'profile-replay-batch' } },
+      ({ descriptor }) => ({
+        kind: 'profile-replay-batch' as const,
+        index: descriptor.index,
+        total: descriptor.total,
+      }),
     )
     .exhaustive()
 

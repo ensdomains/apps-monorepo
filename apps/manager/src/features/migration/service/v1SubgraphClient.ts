@@ -1,29 +1,23 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 
-import { sepoliaWithEns } from '@/lib/wagmi'
-
-const V1_SUBGRAPH_URL = sepoliaWithEns.subgraphs.ens.url
+const V1_SUBGRAPH_URL =
+  'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
 
 export type V1Domain = {
   id: string
   labelName: string | null
   labelhash: string
   name: string
-  isMigrated: boolean
-  createdAt: string
-  resolvedAddress: { id: string } | null
-  resolver: { id: string; address: string } | null
+  resolver: { address: string } | null
   owner: { id: string }
   registrant: { id: string } | null
   wrappedOwner: { id: string } | null
   parent: {
     name: string
-    id: string
     wrappedDomain: { fuses: number } | null
   } | null
   registration: {
-    registrationDate: string
     expiryDate: string
   } | null
   wrappedDomain: {
@@ -58,16 +52,12 @@ query getNamesForAddress($orderBy: Domain_orderBy, $orderDirection: OrderDirecti
     labelName
     labelhash
     name
-    isMigrated
-    createdAt
-    resolvedAddress { id }
-    resolver { id address }
+    resolver { address }
     owner { id }
     registrant { id }
     wrappedOwner { id }
-    parent { name id wrappedDomain { fuses } }
+    parent { name wrappedDomain { fuses } }
     registration {
-      registrationDate
       expiryDate
     }
     wrappedDomain {
