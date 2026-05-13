@@ -1,15 +1,10 @@
 // e2e/projects/manager/tests/registration.spec.ts
 // import { test, expect } from '@playwright/test'
-import { privateKeyToAccount } from 'viem/accounts'
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { fillParaOtpInput, clickParaSignInButton } from '../../../helpers/para-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
-const PARA_EOA_ADDRESS = privateKeyToAccount(
-  (process.env.ANVIL_PARA_PRIVATE_KEY ??
-    '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`,
-).address
 const PARA_EMAIL = process.env.PARA_E2E_EMAIL ?? 'test1@test.getpara.com'
 const PARA_PIN = process.env.PARA_E2E_PIN ?? '123456'
 const DOMAIN_TO_REGISTER = `e2e-${Date.now().toString(36)}.eth`
@@ -51,7 +46,7 @@ test.describe('ENS name registration', () => {
     })
 
     if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: PARA_EOA_ADDRESS })
+      mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: mockIndexer.paraEoaAddress })
     }
 
     await page.goto(
@@ -124,7 +119,7 @@ test.describe('ENS name registration', () => {
     })
 
     if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: LATE_AUTH_DOMAIN, owner: PARA_EOA_ADDRESS })
+      mockIndexer.addName({ name: LATE_AUTH_DOMAIN, owner: mockIndexer.paraEoaAddress })
     }
 
     await page.goto(

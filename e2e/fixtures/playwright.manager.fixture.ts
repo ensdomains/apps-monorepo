@@ -99,6 +99,7 @@ type ManagerFixtures = {
   mockIndexer: {
     addName: (domain: MockDomain) => void
     enabled: boolean
+    paraEoaAddress: string
   }
 }
 
@@ -186,6 +187,7 @@ export const test = base.extend<ManagerFixtures>({
     await use({
       addName: indexerMock.addName,
       enabled: indexerMock.enabled,
+      paraEoaAddress: PARA_EOA_ADDRESS,
     })
   },
 
