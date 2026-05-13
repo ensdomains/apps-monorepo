@@ -34,10 +34,10 @@ fund_address() {
   local addr="$1"
   echo "→ Funding Rhinestone account $addr"
 
-  # Send 1 ETH for gas (needed for impersonated execution in mockestrator)
-  cast send "$addr" --value 1ether \
+  # Send 10 ETH for gas (needed for impersonated execution in mockestrator)
+  cast send "$addr" --value 10ether \
     --private-key "$ANVIL_KEY" --rpc-url "$RPC_URL" --quiet 2>/dev/null
-  echo "  ✅ 1 ETH sent (for gas)"
+  echo "  ✅ 10 ETH sent (for gas)"
 
   # Mint 10,000 MockUSDC (6 decimals)
   cast send "$MOCK_USDC" "mint(address,uint256)" "$addr" 10000000000 \
