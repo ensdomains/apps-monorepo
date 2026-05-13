@@ -3,18 +3,10 @@ import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
-export const buildProfileReplayCall = (params: {
-  resolver: Address
-  profiles: Map<Hex, Profile>
-}): ZeroDevCall | null => {
-  const { resolver, profiles } = params
-  if (resolver === zeroAddress) {
-    throw new Error(
-      'buildProfileReplayCall: resolver must not be the zero address',
-    )
-  }
+export const flattenProfileInnerCalls = (
+  profiles: ReadonlyMap<Hex, Profile>,
+): Hex[] => {
   const innerCalls: Hex[] = []
-
   for (const [nodeHex, profile] of profiles) {
     for (const t of profile.texts) {
       innerCalls.push(
@@ -35,16 +27,32 @@ export const buildProfileReplayCall = (params: {
       )
     }
   }
+  return innerCalls
+}
 
-  if (innerCalls.length === 0) return null
+export const wrapInnerCallsAsMulticall = (
+  resolver: Address,
+  innerCalls: readonly Hex[],
+): ZeroDevCall => ({
+  to: resolver,
+  data: encodeFunctionData({
+    abi: PERMISSIONED_RESOLVER_ABI,
+    functionName: 'multicall',
+    args: [innerCalls as Hex[]],
+  }),
+  value: 0n,
+})
 
-  return {
-    to: resolver,
-    data: encodeFunctionData({
-      abi: PERMISSIONED_RESOLVER_ABI,
-      functionName: 'multicall',
-      args: [innerCalls],
-    }),
-    value: 0n,
+export const buildProfileReplayCall = (params: {
+  resolver: Address
+  profiles: Map<Hex, Profile>
+}): ZeroDevCall | null => {
+  if (params.resolver === zeroAddress) {
+    throw new Error(
+      'buildProfileReplayCall: resolver must not be the zero address',
+    )
   }
+  const inner = flattenProfileInnerCalls(params.profiles)
+  if (inner.length === 0) return null
+  return wrapInnerCallsAsMulticall(params.resolver, inner)
 }

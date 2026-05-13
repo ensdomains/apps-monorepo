@@ -38,15 +38,12 @@ vi.mock('./fetchV1Profiles', () => ({
 }))
 
 vi.mock('./preflightChecks', () => ({
-  filterNotReserved: vi.fn(() => Promise.resolve([])),
-  resolveParentRegistries: vi.fn(() => Promise.resolve(new Map())),
   checkOwnership: vi.fn(),
-  checkV2Status: vi.fn(),
   checkFrozenApproval: vi.fn(),
   runEligibilityChecks: vi.fn(),
 }))
 
-vi.mock('./checkSCAApprovals', () => ({
+vi.mock('./checkHelperApprovals', () => ({
   approvalNeedsFor: vi.fn((groups) => ({
     hasUnwrapped: groups.unwrapped.length > 0,
     hasWrapped:
@@ -54,7 +51,7 @@ vi.mock('./checkSCAApprovals', () => ({
       groups.locked2ld.length > 0 ||
       groups.childNames.size > 0,
   })),
-  checkSCAApprovals: vi.fn(() =>
+  checkHelperApprovals: vi.fn(() =>
     Promise.resolve({
       baseRegistrarApproved: true,
       nameWrapperApproved: true,
@@ -65,12 +62,11 @@ vi.mock('./checkSCAApprovals', () => ({
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import { waitForTransactionReceipt, writeContract } from '@wagmi/core'
 import { buildMigrationPlan } from './buildMigrationPlan'
-import { checkSCAApprovals } from './checkSCAApprovals'
+import { checkHelperApprovals } from './checkHelperApprovals'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { ensureOwnedPermRes } from './ensureOwnedPermRes'
 import { fetchV1Profiles } from './fetchV1Profiles'
 import { executeMigration, type MigrationProgress } from './migrationService'
-import { filterNotReserved } from './preflightChecks'
 import type { V1Domain } from './v1SubgraphClient'
 
 const waitForTransactionMock = vi.mocked(waitForTransaction)
@@ -78,8 +74,7 @@ const writeContractMock = vi.mocked(writeContract)
 const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
 const ensureOwnedPermResMock = vi.mocked(ensureOwnedPermRes)
 const fetchV1ProfilesMock = vi.mocked(fetchV1Profiles)
-const checkSCAApprovalsMock = vi.mocked(checkSCAApprovals)
-const filterNotReservedMock = vi.mocked(filterNotReserved)
+const checkSCAApprovalsMock = vi.mocked(checkHelperApprovals)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
@@ -87,7 +82,10 @@ const V1_RESOLVER: Address = '0x000000000000000000000000000000000000d003'
 const PERM_RES: Address = '0x000000000000000000000000000000000000d002'
 
 const WAGMI = {} as WagmiConfig
-const PUBLIC_CLIENT = { chain: { id: 11155111 } } as unknown as PublicClient
+const PUBLIC_CLIENT = {
+  chain: { id: 11155111 },
+  estimateGas: vi.fn(() => Promise.resolve(15_000_000n)),
+} as unknown as PublicClient
 const SIGNER = { type: 'zerodev' } as unknown as Signer
 
 const unwrappedDomain = (id: string): V1Domain =>
@@ -97,14 +95,11 @@ const unwrappedDomain = (id: string): V1Domain =>
     labelName: id,
     labelhash:
       '0x0000000000000000000000000000000000000000000000000000000000000002',
-    isMigrated: false,
-    createdAt: '0',
-    resolvedAddress: null,
-    resolver: { id: 'r', address: V1_RESOLVER },
+    resolver: { address: V1_RESOLVER },
     owner: { id: OWNER },
     registrant: { id: OWNER },
     wrappedOwner: null,
-    parent: { name: 'eth', id: '0xparent', wrappedDomain: null },
+    parent: { name: 'eth', wrappedDomain: null },
     registration: null,
     wrappedDomain: null,
   }) as V1Domain
@@ -113,10 +108,16 @@ const DEFAULT_PREFLIGHT: MigrationPreflight = {
   preExistingOwnedPermRes: null,
   skipApprovalPhase: false,
   skipFetchProfilesPhase: false,
+  baseRegistrarApproved: false,
+  nameWrapperApproved: false,
 }
 
 const runExecute = async (
-  overrides: { domains?: V1Domain[]; preflight?: MigrationPreflight } = {},
+  overrides: {
+    domains?: V1Domain[]
+    preflight?: MigrationPreflight
+    onBatchComplete?: (names: readonly string[], hash: Hex) => void
+  } = {},
 ) => {
   const progressEvents: MigrationProgress[] = []
   const domains = overrides.domains ?? [unwrappedDomain('alice')]
@@ -127,6 +128,8 @@ const runExecute = async (
     wagmiConfig: WAGMI,
     publicClient: PUBLIC_CLIENT,
     preflight,
+    hasBaseRegistrarApproval: false,
+    hasNameWrapperApproval: false,
   })
   const result = await executeMigration({
     plan,
@@ -135,8 +138,9 @@ const runExecute = async (
     signer: SIGNER,
     accountAddress: SCA,
     onProgress: (p) => progressEvents.push(p),
+    onBatchComplete: overrides.onBatchComplete,
   })
-  return { result, progressEvents }
+  return { result, progressEvents, plan }
 }
 
 beforeEach(() => {
@@ -145,7 +149,6 @@ beforeEach(() => {
     baseRegistrarApproved: true,
     nameWrapperApproved: true,
   })
-  filterNotReservedMock.mockResolvedValue([])
   fetchV1ProfilesMock.mockResolvedValue(new Map())
   ensureOwnedPermResMock.mockResolvedValue(PERM_RES)
   waitForTransactionMock.mockResolvedValue({
@@ -172,7 +175,7 @@ describe('executeMigration', () => {
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual(['0xdeadbeef'])
     expect(waitForTransactionMock).toHaveBeenCalledTimes(1)
-    expect(progressEvents.at(-1)?.description).toMatch(/complete/i)
+    expect(progressEvents.at(-1)?.description).toMatch(/upgrade complete/i)
   })
 
   it('skips approval phase when preflight.skipApprovalPhase is true', async () => {
@@ -181,6 +184,8 @@ describe('executeMigration', () => {
         preExistingOwnedPermRes: null,
         skipApprovalPhase: true,
         skipFetchProfilesPhase: true,
+        baseRegistrarApproved: false,
+        nameWrapperApproved: false,
       },
     })
     expect(checkSCAApprovalsMock).not.toHaveBeenCalled()
@@ -205,6 +210,8 @@ describe('executeMigration', () => {
         preExistingOwnedPermRes: PERM_RES,
         skipApprovalPhase: true,
         skipFetchProfilesPhase: true,
+        baseRegistrarApproved: false,
+        nameWrapperApproved: false,
       },
       domains: [
         {
@@ -234,11 +241,50 @@ describe('executeMigration', () => {
     )
   })
 
+  it('splits 150 names into multiple migrate batches and fires onBatchComplete per batch', async () => {
+    const domains = Array.from({ length: 150 }, (_, i) =>
+      unwrappedDomain(`alice${i}`),
+    )
+    let txCounter = 0
+    waitForTransactionMock.mockImplementation(() =>
+      Promise.resolve({ hash: `0xbatch${txCounter++}` as Hex } as Awaited<
+        ReturnType<typeof waitForTransaction>
+      >),
+    )
+    const onBatchComplete = vi.fn()
+    const { result, plan } = await runExecute({ domains, onBatchComplete })
+    expect(plan.migrateCalls.length).toBe(2)
+    expect(plan.batches.map((b) => b.names.length)).toEqual([100, 50])
+    expect(onBatchComplete).toHaveBeenCalledTimes(2)
+    expect(onBatchComplete.mock.calls[0]![0]).toHaveLength(100)
+    expect(onBatchComplete.mock.calls[1]![0]).toHaveLength(50)
+    expect(result.completed).toBe(150)
+  })
+
+  it('halts after mid-batch failure and preserves prior tx hashes', async () => {
+    const domains = Array.from({ length: 150 }, (_, i) =>
+      unwrappedDomain(`bob${i}`),
+    )
+    let txCounter = 0
+    waitForTransactionMock.mockImplementation(() => {
+      const i = txCounter++
+      if (i === 1) return Promise.reject(new Error('rpc broke on batch 2'))
+      return Promise.resolve({ hash: `0xbatch${i}` as Hex } as Awaited<
+        ReturnType<typeof waitForTransaction>
+      >)
+    })
+    const onBatchComplete = vi.fn()
+    await expect(runExecute({ domains, onBatchComplete })).rejects.toSatisfy(
+      (e) => e instanceof Error && e.name === 'MigrationError',
+    )
+    expect(onBatchComplete).toHaveBeenCalledTimes(1)
+  })
+
   it('ineligible names are returned and not counted as completed', async () => {
     const bad = {
       ...unwrappedDomain('bad'),
       wrappedOwner: { id: OWNER },
-      wrappedDomain: { fuses: 1 | 4, expiryDate: '100' },
+      wrappedDomain: { fuses: 1 | 4, expiryDate: '99999999999' },
     } as V1Domain
     const good = unwrappedDomain('good')
     const { result } = await runExecute({ domains: [bad, good] })

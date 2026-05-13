@@ -1,4 +1,4 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { Signer, ZeroDevCall } from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -74,15 +74,27 @@ const makePlan = (
     preExistingOwnedPermRes: null,
     skipApprovalPhase: false,
     skipFetchProfilesPhase: false,
+    baseRegistrarApproved: false,
+    nameWrapperApproved: false,
   },
   ownedPermRes: null,
   profiles: new Map(),
-  notReservedSet: new Set(),
-  parentRegistries: new Map(),
-  batches: [],
-  deferredChildren: [],
-  deferredParentNames: [],
-  deferredBatches: [],
+  migrateCalls: [
+    {
+      to: '0x0000000000000000000000000000000000000000',
+      data: '0x',
+      value: 0n,
+    } as ZeroDevCall,
+  ],
+  batches: [
+    {
+      index: 0,
+      names: domains.map((d) => d.name),
+      estimatedGas: 0n,
+    },
+  ],
+  roleGrantCalls: [],
+  profileReplayCalls: [],
   stepDescriptors: [],
   ...overrides,
 })
@@ -199,6 +211,23 @@ describe('migrationUiMachine', () => {
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.txHashes).toEqual(['0xabc'])
       expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
+    })
+
+    it('accumulates migratedNames across multiple batchComplete events', async () => {
+      executeMigrationMock.mockImplementation(async (params) => {
+        params.onBatchComplete?.(['a.eth'], '0x1' as Hex)
+        params.onBatchComplete?.(['b.eth', 'c.eth'], '0x2' as Hex)
+        params.onBatchComplete?.(['d.eth'], '0x3' as Hex)
+        return migrationResult()
+      })
+      const actor = start()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(actor.getSnapshot().context.migratedNames).toEqual([
+        'a.eth',
+        'b.eth',
+        'c.eth',
+        'd.eth',
+      ])
     })
 
     it('resetAll returns to select and wipes context on done', async () => {
