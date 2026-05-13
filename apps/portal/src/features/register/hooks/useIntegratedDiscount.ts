@@ -15,7 +15,7 @@ export const useIntegratedDiscounts = (durationsSeconds: readonly number[]) => {
 
   return useQuery({
     ...readContractsQueryOptions(config, {
-      allowFailure: true,
+      allowFailure: false,
       contracts: durationsSeconds.map((duration) => ({
         address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
         abi: STANDARD_RENT_PRICE_ORACLE_ABI,
@@ -24,9 +24,5 @@ export const useIntegratedDiscounts = (durationsSeconds: readonly number[]) => {
       })),
     }),
     staleTime: Number.POSITIVE_INFINITY,
-    select: (data) =>
-      data.map((entry) =>
-        entry.status === 'success' ? entry.result : undefined,
-      ),
   })
 }

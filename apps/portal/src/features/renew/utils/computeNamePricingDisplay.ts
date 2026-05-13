@@ -9,12 +9,11 @@ import {
   formatRegistrationTotal,
 } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
-
-const ORACLE_BASE_RATE_DECIMALS = 12
 
 export type NamePricingDisplay = {
   /** e.g. "3 years" */
@@ -72,7 +71,7 @@ export function computeNamePricingDisplay(
       ? Number(
           formatUnits(
             baseRate * BigInt(Math.round(duration)),
-            ORACLE_BASE_RATE_DECIMALS,
+            ORACLE_PRICE_DECIMALS,
           ),
         )
       : 0

@@ -1,8 +1,6 @@
 import { formatUnits } from 'viem'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
-
-/** Oracle base rate decimals (matches StandardRentPriceOracle units). */
-const ORACLE_BASE_RATE_DECIMALS = 12
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 
 type EffectivePricePerYearInput = {
   /** Actual base price charged by the contract, in token units. */
@@ -43,7 +41,7 @@ export function getEffectivePricePerYearUsd({
     return Number(
       formatUnits(
         baseRate * BigInt(CONTRACT_SECONDS_PER_YEAR),
-        ORACLE_BASE_RATE_DECIMALS,
+        ORACLE_PRICE_DECIMALS,
       ),
     )
   }

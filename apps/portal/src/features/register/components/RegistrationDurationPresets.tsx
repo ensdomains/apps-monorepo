@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { useIntegratedDiscounts } from '@/features/register/hooks/useIntegratedDiscount'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
@@ -12,7 +13,6 @@ const PRESET_DURATIONS_SECONDS = PRESET_YEARS.map(
   (years) => years * CONTRACT_SECONDS_PER_YEAR,
 )
 
-const ORACLE_BASE_RATE_DECIMALS = 12
 const UINT128_MAX = (1n << 128n) - 1n
 
 /**
@@ -34,7 +34,7 @@ const computeEffectivePerYear = (
   const discountedBase =
     (baseRate * duration * discountFactorNumer) / denominator
   const perYearUnits = discountedBase / BigInt(years)
-  return Number(formatUnits(perYearUnits, ORACLE_BASE_RATE_DECIMALS))
+  return Number(formatUnits(perYearUnits, ORACLE_PRICE_DECIMALS))
 }
 
 type RegistrationDurationPresetsProps = {

@@ -1,10 +1,8 @@
 import { formatUnits } from 'viem'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-
-/** Oracle base rate decimals (matches StandardRentPriceOracle units) */
-const ORACLE_BASE_RATE_DECIMALS = 12
 
 /**
  * Computes the discount text to display on the registration success screen,
@@ -29,7 +27,7 @@ export function getOracleDiscountText(
       ? Number(
           formatUnits(
             baseRate * BigInt(Math.round(durationSeconds)),
-            ORACLE_BASE_RATE_DECIMALS,
+            ORACLE_PRICE_DECIMALS,
           ),
         )
       : 0

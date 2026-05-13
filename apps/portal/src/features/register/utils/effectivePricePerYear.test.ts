@@ -35,26 +35,24 @@ describe('getEffectivePricePerYearUsd', () => {
       expect(result).toBeCloseTo(5, 5)
     })
 
-    it('reflects multi-year discount (lower $/year for longer durations)', () => {
-      // Contract charges $20.625 for 5 years (avg 17.5% discount) → $4.125/year
-      const result = getEffectivePricePerYearUsd({
-        priceBase: usdc(20.625),
+    it('does not apply any discount itself — purely divides actualBase by years', () => {
+      // Contract pre-applies any multi-year discount; this function must not
+      // re-apply or remove it. Same $/yr behaviour for any actualBase, regardless
+      // of duration, as long as actualBase/years matches.
+      const oneYear = getEffectivePricePerYearUsd({
+        priceBase: usdc(8),
+        priceDecimals: USDC_DECIMALS,
+        durationSeconds: CONTRACT_SECONDS_PER_YEAR,
+        baseRate: 0n,
+      })
+      const fiveYears = getEffectivePricePerYearUsd({
+        priceBase: usdc(40), // 5 × $8 — no contract discount applied
         priceDecimals: USDC_DECIMALS,
         durationSeconds: 5 * CONTRACT_SECONDS_PER_YEAR,
         baseRate: 0n,
       })
-      expect(result).toBeCloseTo(4.125, 4)
-    })
-
-    it('handles 3-letter premium price ranges', () => {
-      // 3-letter rate ~$640/yr × 3 years × 0.875 (3yr discount factor) ≈ $1680
-      const result = getEffectivePricePerYearUsd({
-        priceBase: usdc(1680),
-        priceDecimals: USDC_DECIMALS,
-        durationSeconds: 3 * CONTRACT_SECONDS_PER_YEAR,
-        baseRate: 0n,
-      })
-      expect(result).toBeCloseTo(560, 3)
+      expect(oneYear).toBeCloseTo(8, 5)
+      expect(fiveYears).toBeCloseTo(8, 5)
     })
 
     it('handles non-USDC decimals', () => {
