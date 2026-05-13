@@ -1,6 +1,10 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
+import {
+  getBaseRateForName,
+  getBaseRatesQueryOptions,
+} from '@/features/register/hooks/useBaseRate'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import {
   getDurationFromPickerDate,
@@ -123,10 +127,13 @@ export function useMultiNamePricing(
     ),
   })
 
+  const { data: baseRates } = useQuery(getBaseRatesQueryOptions)
+
   const pricingData: readonly NamePricingData[] = renewalInputs.map(
     (renewal, index) => {
       const query = priceQueries[index]
       const price = query?.data && isPriceResult(query.data) ? query.data : null
+      const baseRate = getBaseRateForName(baseRates, renewal.selectedName.name)
 
       return {
         selectedName: renewal.selectedName,
@@ -137,6 +144,7 @@ export function useMultiNamePricing(
               renewal.selectedName,
               price,
               renewal.duration,
+              baseRate,
             )
           : null,
       }

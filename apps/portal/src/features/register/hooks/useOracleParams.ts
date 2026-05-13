@@ -7,6 +7,7 @@ import { fromPromise, ok } from 'neverthrow'
 import type { MulticallErrorType } from 'viem'
 import { multicall } from 'viem/actions'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
@@ -26,8 +27,6 @@ export const getOracleParamsQueryOptions = resultQueryOptions({
   staleTime: Number.POSITIVE_INFINITY,
   queryFn: () => getOracleParams(),
 })
-
-const PRICE_DECIMALS = 12
 
 export const getOracleParams = ResultFn(async function* () {
   const client = yield* safeGetClient()
@@ -58,7 +57,9 @@ export const getOracleParams = ResultFn(async function* () {
     )
 
   const premiumDecay: PremiumDecayConfig = {
-    startPriceUsd: Number(premiumPriceInitial / 10n ** BigInt(PRICE_DECIMALS)),
+    startPriceUsd: Number(
+      premiumPriceInitial / 10n ** BigInt(ORACLE_PRICE_DECIMALS),
+    ),
     halvingPeriodMs: Number(premiumHalvingPeriod) * 1000,
     periodMs: Number(premiumPeriod) * 1000,
   }
