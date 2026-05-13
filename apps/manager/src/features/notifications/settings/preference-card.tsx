@@ -55,7 +55,7 @@ export const PreferenceCard = ({
       </div>
       <div className="flex flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-normal font-sans text-base text-ens-blue-dark not-italic leading-ens-preference-title">
+          <span className="font-normal font-sans text-base text-ens-blue-dark not-italic leading-[22.5px]">
             {label}
           </span>
           {recommended && (
@@ -64,7 +64,7 @@ export const PreferenceCard = ({
             </span>
           )}
         </div>
-        <p className="font-normal font-sans text-ens-slate-600 text-sm not-italic leading-ens-preference-body">
+        <p className="font-normal font-sans text-slate-600 text-sm not-italic leading-[18.2px]">
           {description}
         </p>
       </div>

@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { useSelector as useStoreSelector } from '@xstate/store-react'
+import { useAtom } from '@xstate/store-react'
 import { Button } from '@/components/ui/button'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
 import {
@@ -18,11 +18,10 @@ export const NotificationSettings = ({
   onConfirm,
   onSkip,
 }: NotificationSettingsProps) => {
-  const isAuthed = useStoreSelector(isBackendAuthed)
+  const isAuthed = useAtom(isBackendAuthed)
 
   const { form, preferences, hasVerifiedChannels } =
     useNotificationPreferencesForm({
-      preferencesQueryEnabled: isAuthed,
       nameExpiryDefaultWhenUnset: true,
       onPersistSuccess: onConfirm,
     })
@@ -123,7 +122,7 @@ export const NotificationSettings = ({
               <Trans>Verify Wallet</Trans>
             </Button>
             <Button
-              className="bg-[#dbf0f8] text-ens-lapis-500 uppercase tracking-[0.12em] hover:bg-[#c4e7f3] active:bg-[#a9d5ed]"
+              className="bg-ens-lapis-100 text-ens-lapis-500 uppercase tracking-[0.12em] hover:bg-[#c4e7f3] active:bg-[#a9d5ed]"
               onClick={onSkip}
               size="lg"
               variant="lightBlue"
