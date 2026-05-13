@@ -51,7 +51,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         >
           <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
           <span className="font-[350] text-base text-ens-quartz-400">
-            Address
+            <Trans>Address</Trans>
           </span>
           <span className="flex items-center gap-2 text-ens-quartz-400 text-sm leading-ens-tight">
             <span className="size-3 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
