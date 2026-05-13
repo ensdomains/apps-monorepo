@@ -24,11 +24,10 @@ dedupeDirectDeps: true
 
 minimumReleaseAge: 1440
 
-minimumReleaseAgeExclude:
-  - "@rhinestone/sdk"
-  - "@lingui/*"
-  - rolldown
-  - "@rolldown/*"
+# Only add entries here if absolutely necessary. To bypass the minimum release age for a specific package, you can temporarily include it below, run install, and then remove it.
+# Note: `minimumReleaseAgeExclude` is used solely for checking new package versions.
+# Once a package is added to the lockfile, it remains allowed even if newer than the minimum release age.
+# minimumReleaseAgeExclude:
 
 resolutionMode: highest
 
