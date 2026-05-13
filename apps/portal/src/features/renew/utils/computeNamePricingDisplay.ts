@@ -1,5 +1,6 @@
 import { formatUnits } from 'viem'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
+import { getEffectivePricePerYearUsd } from '@/features/register/utils/effectivePricePerYear'
 import {
   getRegistrationDisplayDates,
   getStartOfToday,
@@ -64,7 +65,12 @@ export function computeNamePricingDisplay(
     roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   const actualPrice = Number(formatUnits(price.base, price.decimals))
-  const effectivePerYear = years > 0 ? actualPrice / years : 0
+  const effectivePerYear = getEffectivePricePerYearUsd({
+    priceBase: price.base,
+    priceDecimals: price.decimals,
+    durationSeconds: duration,
+    baseRate,
+  })
 
   const undiscountedBase =
     baseRate > 0n

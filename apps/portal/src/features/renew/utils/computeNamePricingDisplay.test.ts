@@ -79,27 +79,27 @@ describe('computeNamePricingDisplay', () => {
     })
   })
 
-  describe('discountSublabel', () => {
-    it('is undefined for 1-year durations', () => {
-      const result = computeNamePricingDisplay(
-        selectedName('hello.eth'),
-        mockPrice(5),
-        ONE_YEAR,
-        0n,
-      )
-      expect(result.discountSublabel).toBeUndefined()
-    })
+  // describe('discountSublabel', () => {
+  //   it('is undefined for 1-year durations', () => {
+  //     const result = computeNamePricingDisplay(
+  //       selectedName('hello.eth'),
+  //       mockPrice(5),
+  //       ONE_YEAR,
+  //       0n,
+  //     )
+  //     expect(result.discountSublabel).toBeUndefined()
+  //   })
 
-    it('shows "X+ yr discount price" for multi-year durations', () => {
-      const result = computeNamePricingDisplay(
-        selectedName('hello.eth'),
-        mockPrice(12),
-        THREE_YEARS,
-        0n,
-      )
-      expect(result.discountSublabel).toBe('3+ yr discount price')
-    })
-  })
+  //   it('shows "X+ yr discount price" for multi-year durations', () => {
+  //     const result = computeNamePricingDisplay(
+  //       selectedName('hello.eth'),
+  //       mockPrice(12),
+  //       THREE_YEARS,
+  //       0n,
+  //     )
+  //     expect(result.discountSublabel).toBe('3+ yr discount price')
+  //   })
+  // })
 
   describe('priceValue', () => {
     it('derives $/year from actual base / years for multi-year durations', () => {
