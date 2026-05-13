@@ -1,10 +1,21 @@
+import { encodeErrorResult, type Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
+import {
+  LIB_MIGRATION_ERRORS_ABI,
+  MIGRATION_HELPER_ABI,
+} from '../contracts/abis'
 import {
   decodeMigrationError,
   extractErrorMessage,
 } from './decodeMigrationError'
 import { OwnedResolverDeployError } from './ensureOwnedPermRes'
 import { ProfileFetchError } from './fetchV1Profiles'
+
+const revertWith = (data: Hex) =>
+  Object.assign(new Error('reverted'), {
+    name: 'ContractFunctionRevertedError',
+    data,
+  })
 
 describe('extractErrorMessage', () => {
   it.each([
@@ -169,5 +180,198 @@ describe('decodeMigrationError — preflight timeout', () => {
       cause: preflightTimeout('timed out', 5000),
     })
     expect(decodeMigrationError(rejection)).toEqual({ type: 'user-rejected' })
+  })
+})
+
+describe('decodeMigrationError — helper-typed reverts', () => {
+  it('maps WrappedOwnerMismatch', () => {
+    const data = encodeErrorResult({
+      abi: MIGRATION_HELPER_ABI,
+      errorName: 'WrappedOwnerMismatch',
+      args: [42n],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'wrapped-owner-mismatch',
+      tokenId: 42n,
+    })
+  })
+
+  it('maps ParentNotMigrated and decodes the DNS-encoded name to a human-readable string', () => {
+    // DNS-encoded 'vault.eth': 0x05 + 'vault' + 0x03 + 'eth' + 0x00
+    const dnsEncoded = '0x057661756c740365746800' as Hex
+    const data = encodeErrorResult({
+      abi: MIGRATION_HELPER_ABI,
+      errorName: 'ParentNotMigrated',
+      args: [dnsEncoded],
+    })
+    const result = decodeMigrationError(revertWith(data))
+    expect(result.type).toBe('parent-not-migrated')
+    if (result.type === 'parent-not-migrated') {
+      expect(result.parentName).toBe('vault.eth')
+    }
+  })
+
+  it('maps NotApprovedOperator', () => {
+    const data = encodeErrorResult({
+      abi: MIGRATION_HELPER_ABI,
+      errorName: 'NotApprovedOperator',
+      args: [
+        '0x1111111111111111111111111111111111111111',
+        '0x2222222222222222222222222222222222222222',
+      ],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'not-approved-operator',
+      nft: '0x1111111111111111111111111111111111111111',
+      owner: '0x2222222222222222222222222222222222222222',
+    })
+  })
+})
+
+describe('decodeMigrationError — wrapped LibMigration errors', () => {
+  // WrappedErrorLib serializes the inner revert by encoding the original revert
+  // data (selector + abi args) into the Error(string) payload. The decoder must
+  // unwrap Error(string), interpret the inner string as hex bytes, and decode
+  // against LIB_MIGRATION_ERRORS_ABI.
+  const wrap = (inner: Hex): Hex =>
+    encodeErrorResult({
+      abi: [
+        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
+      ] as const,
+      errorName: 'Error',
+      args: [inner],
+    })
+
+  it('unwraps NameNotLocked', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameNotLocked',
+      args: [7n],
+    })
+    expect(decodeMigrationError(revertWith(wrap(inner)))).toEqual({
+      type: 'name-not-locked',
+      tokenId: 7n,
+    })
+  })
+
+  it('unwraps FrozenTokenApproval', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'FrozenTokenApproval',
+      args: [9n],
+    })
+    expect(decodeMigrationError(revertWith(wrap(inner)))).toEqual({
+      type: 'frozen-token-approval',
+      tokenId: 9n,
+    })
+  })
+
+  it('unwraps NameIsLocked', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameIsLocked',
+      args: [11n],
+    })
+    expect(decodeMigrationError(revertWith(wrap(inner)))).toEqual({
+      type: 'name-is-locked',
+      tokenId: 11n,
+    })
+  })
+
+  it('unwraps NameDataMismatch', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameDataMismatch',
+      args: [13n],
+    })
+    expect(decodeMigrationError(revertWith(wrap(inner)))).toEqual({
+      type: 'name-data-mismatch',
+      tokenId: 13n,
+    })
+  })
+
+  it('unwraps InvalidData (no args)', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'InvalidData',
+    })
+    expect(decodeMigrationError(revertWith(wrap(inner)))).toEqual({
+      type: 'invalid-data',
+    })
+  })
+
+  it('unwraps NameRequiresMigration (no args)', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameRequiresMigration',
+    })
+    expect(decodeMigrationError(revertWith(wrap(inner)))).toEqual({
+      type: 'name-requires-migration',
+    })
+  })
+
+  it('falls through to generic when wrapped data is unrecognized', () => {
+    const garbage = '0xdeadbeef' as Hex
+    const result = decodeMigrationError(revertWith(wrap(garbage)))
+    expect(result.type).toBe('generic')
+  })
+})
+
+describe('decodeMigrationError — on-chain Error(string) raw-bytes wrap', () => {
+  // Matches NameWrapper's actual rewrap: revert(string(abi.encodePacked(returnData)))
+  // — the inner revert bytes are packed into the string payload verbatim.
+  const wrapRaw = (inner: Hex): Hex => {
+    const innerBytes = inner.slice(2)
+    const length = innerBytes.length / 2
+    const lengthHex = length.toString(16).padStart(64, '0')
+    const paddedBytes = innerBytes.padEnd(
+      Math.ceil(innerBytes.length / 64) * 64,
+      '0',
+    )
+    return `0x08c379a00000000000000000000000000000000000000000000000000000000000000020${lengthHex}${paddedBytes}` as Hex
+  }
+
+  it('unwraps NameNotLocked from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameNotLocked',
+      args: [42n],
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'name-not-locked',
+      tokenId: 42n,
+    })
+  })
+
+  it('unwraps FrozenTokenApproval from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'FrozenTokenApproval',
+      args: [99n],
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'frozen-token-approval',
+      tokenId: 99n,
+    })
+  })
+
+  it('unwraps InvalidData (no args) from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'InvalidData',
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'invalid-data',
+    })
+  })
+
+  it('unwraps NameRequiresMigration (no args) from raw-bytes-as-string Error wrap', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameRequiresMigration',
+    })
+    expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
+      type: 'name-requires-migration',
+    })
   })
 })

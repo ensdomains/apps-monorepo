@@ -99,6 +99,14 @@ const hasUnknownLabel = (domain: V1Domain): boolean => {
   return false
 }
 
+const isWrapActive = (
+  wrappedDomain: V1Domain['wrappedDomain'],
+  nowSeconds: bigint,
+): boolean => {
+  if (!wrappedDomain) return false
+  return BigInt(wrappedDomain.expiryDate) > nowSeconds
+}
+
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
@@ -112,8 +120,12 @@ export const classifyName = (
   const parentName = domain.parent?.name ?? null
   const addr = ownerAddress.toLowerCase()
   const v1ResolverAddress = domain.resolver?.address ?? null
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  const effectiveWrappedDomain = isWrapActive(domain.wrappedDomain, nowSeconds)
+    ? domain.wrappedDomain
+    : null
 
-  if (!domain.wrappedDomain) {
+  if (!effectiveWrappedDomain) {
     const registrant = domain.registrant
     if (registrant?.id.toLowerCase() !== addr) return null
     if (parentName !== 'eth') return null
@@ -150,7 +162,7 @@ export const classifyName = (
 
   if (domain.wrappedOwner?.id.toLowerCase() !== addr) return null
 
-  const fuses = domain.wrappedDomain.fuses
+  const fuses = effectiveWrappedDomain.fuses
   const wrappedHolder = toAddress(domain.wrappedOwner.id)
   if (!wrappedHolder) return null
 
