@@ -41,6 +41,26 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
 
   const client = yield* safeGetClient()
 
+  const result = yield* fromPromise(
+    readContract(client, {
+      address: REVERSE_RESOLVER_ADDRESS,
+      abi: REVERSE_RESOLVER_ABI,
+      functionName: 'resolveNames',
+      args: [[address]],
+    }),
+    (e) => new ReverseResolverError({ cause: e }),
+  ).orElse(() => okAsync(null))
+
+  const [name] = result ?? []
+
+  if (name) {
+    const { ethAddress } = yield* getProfileEthAddressSnapshot(name)
+
+    if (ethAddress?.toLowerCase() === address.toLowerCase()) {
+      return ok(name)
+    }
+  }
+
   const ensName = yield* fromPromise(
     getName(client, {
       address,
@@ -53,31 +73,7 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
     return ok(ensName.name)
   }
 
-  const result = yield* fromPromise(
-    readContract(client, {
-      address: REVERSE_RESOLVER_ADDRESS,
-      abi: REVERSE_RESOLVER_ABI,
-      functionName: 'resolveNames',
-      args: [[address]],
-    }),
-    (e) => new ReverseResolverError({ cause: e }),
-  )
-
-  const [name] = result ?? []
-
-  if (!name) {
-    return ok(null)
-  }
-
-  // Forward-confirmed reverse resolution (ENSIP-3):
-  // Verify the name's ETH record resolves back to this address.
-  const { ethAddress } = yield* getProfileEthAddressSnapshot(name)
-
-  if (!ethAddress || ethAddress.toLowerCase() !== address.toLowerCase()) {
-    return ok(null)
-  }
-
-  return ok(name)
+  return ok(null)
 })
 
 export const profileReverseNameQuery = (address?: Address) =>
