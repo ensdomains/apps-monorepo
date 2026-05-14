@@ -1,17 +1,13 @@
+import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { readContract } from 'viem/actions'
-import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-const ethRegistrar = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensEthRegistrar',
-})
+const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
 export class CheckNameAvailabilityError extends TaggedError(
   'CheckNameAvailabilityError',

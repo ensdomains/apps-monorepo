@@ -1,6 +1,8 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import {
+  ENS_SEPOLIA_CONTRACTS,
+  REFERER_ADDRESS,
+} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ethRegistrarRenewSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
@@ -25,10 +27,7 @@ export const RENEWAL_TX_IDS = {
   renew: (name: string) => `renewal-renew-${name}`,
 } as const
 
-const ethRegistrar = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensEthRegistrar',
-})
+const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
 type SavedRenewalParams = {
   readonly name: SelectedName
