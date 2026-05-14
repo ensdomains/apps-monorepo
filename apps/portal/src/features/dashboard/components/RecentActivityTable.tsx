@@ -58,7 +58,11 @@ export const RecentActivityTable = () => {
                 <div className="sm:order-2 sm:w-32 sm:shrink-0">
                   {match(nameEntity)
                     .with({ type: 'name' }, ({ value }) => (
-                      <EntityBadgeWithActions variant="name" name={value}>
+                      <EntityBadgeWithActions
+                        variant="name"
+                        name={value}
+                        inline
+                      >
                         {truncateName(value)}
                       </EntityBadgeWithActions>
                     ))
@@ -66,6 +70,7 @@ export const RecentActivityTable = () => {
                       <EntityBadgeWithActions
                         variant="address"
                         address={value as Address}
+                        inline
                       >
                         {truncateAddress(value, 6, 4)}
                       </EntityBadgeWithActions>
@@ -90,12 +95,13 @@ export const RecentActivityTable = () => {
                     <EntityBadgeWithActions
                       variant="address"
                       address={value as Address}
+                      inline
                     >
                       {truncateAddress(value, 6, 4)}
                     </EntityBadgeWithActions>
                   ))
                   .with({ type: 'name' }, ({ value }) => (
-                    <EntityBadgeWithActions variant="name" name={value}>
+                    <EntityBadgeWithActions variant="name" name={value} inline>
                       {truncateName(value)}
                     </EntityBadgeWithActions>
                   ))
