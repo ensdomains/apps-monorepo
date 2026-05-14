@@ -28,7 +28,7 @@ export const BackendAuthModal = () => {
   // Hook is null before the provider mounts; then we don't wait, so EOA-only isn't stuck.
   const smartAccount = useSmartAccountContextSafe()
   const isSmartAccountReady =
-    smartAccount === null || smartAccount.isAccountReady
+    smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
 
   const isWalletConnected = !!wallet && !walletLoading
   const shouldShowModal =

@@ -26,7 +26,7 @@ type EnableSessionModalProps = {
 
 export const EnableSessionModal = ({
   open,
-  onOpenChange,
+  onOpenChange: _onOpenChange,
   onEnableSession,
   walletAddress: _walletAddress,
   smartAccountAddress,

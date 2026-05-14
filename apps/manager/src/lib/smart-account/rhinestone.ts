@@ -13,6 +13,8 @@ import type {
   TransactionInfra,
 } from '@ens-apps/transaction-manager'
 import { createParaAccount } from '@getpara/viem-v2-integration'
+import { i18n } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import { toast } from 'sonner'
 import {
@@ -145,8 +147,8 @@ export async function initializeRhinestoneAccount(
     console.log(
       '🔧 [RHINESTONE] Deploying smart account on-chain via dummy call...',
     )
-    toast.loading('Setting up your smart account', {
-      description: 'Deploying on-chain…',
+    toast.loading(i18n._(msg`Setting up your smart account`), {
+      description: i18n._(msg`Deploying on-chain…`),
       id: setupToastId,
     })
     setupToastShown = true
@@ -169,7 +171,7 @@ export async function initializeRhinestoneAccount(
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       console.error('❌ [RHINESTONE] Failed to deploy smart account:', error)
-      toast.error('Failed to deploy smart account', {
+      toast.error(i18n._(msg`Failed to deploy smart account`), {
         description: message,
         id: setupToastId,
         duration: 5000,
@@ -200,8 +202,8 @@ export async function initializeRhinestoneAccount(
     // 'already-registered' after a read), and we don't want to flash a toast
     // for nothing. Errors below still surface even without a prior toast.
     if (setupToastShown) {
-      toast.loading('Setting up your smart account', {
-        description: 'Registering account ownership…',
+      toast.loading(i18n._(msg`Setting up your smart account`), {
+        description: i18n._(msg`Registering account ownership…`),
         id: setupToastId,
       })
     }
@@ -214,7 +216,7 @@ export async function initializeRhinestoneAccount(
     })
 
     if (result.isErr()) {
-      toast.error('Smart account setup failed', {
+      toast.error(i18n._(msg`Smart account setup failed`), {
         description: `${result.error.reason}`,
         id: setupToastId,
         duration: 5000,
@@ -232,8 +234,10 @@ export async function initializeRhinestoneAccount(
   // we stayed silent the whole time.
   if (setupToastShown) {
     const totalDurationMs = performance.now() - setupStart
-    toast.success('Smart account ready', {
-      description: `Ready in ${(totalDurationMs / 1000).toFixed(1)}s`,
+    toast.success(i18n._(msg`Smart account ready`), {
+      description: i18n._(
+        msg`Ready in ${(totalDurationMs / 1000).toFixed(1)}s`,
+      ),
       id: setupToastId,
       duration: 3000,
     })
