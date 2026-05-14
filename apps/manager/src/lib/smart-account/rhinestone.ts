@@ -20,7 +20,6 @@ import { toast } from 'sonner'
 import {
   type Account,
   type Address,
-  type Hex,
   type WalletClient,
   zeroAddress,
 } from 'viem'
