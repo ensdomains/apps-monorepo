@@ -3,6 +3,15 @@ import { isAddress } from 'viem'
 import { validateENSName } from '@/features/register/utils'
 import type { SearchHistoryItem } from './useSearchHistory'
 
+const INVALID_SUBNAME_LABEL_CHARS = /[\s&*@#$%^()[\]{}|\\:;"'<>?,=+~`!]/
+
+const isSubnameLabelSupported = (label: string): boolean => {
+  if (!label || INVALID_SUBNAME_LABEL_CHARS.test(label)) return false
+
+  const validation = validateENSName(`${label}.eth`)
+  return validation === null || validation.type === 'TOO_SHORT'
+}
+
 const isSearchNameSupported = (name: string): boolean => {
   const trimmed = name.trim()
   if (!trimmed) return false
@@ -20,10 +29,7 @@ const isSearchNameSupported = (name: string): boolean => {
   return (
     parentLabel !== undefined &&
     validateENSName(`${parentLabel}.eth`) === null &&
-    subnameLabels.every((label) => {
-      const validation = validateENSName(`${label}.eth`)
-      return validation === null || validation.type === 'TOO_SHORT'
-    })
+    subnameLabels.every(isSubnameLabelSupported)
   )
 }
 

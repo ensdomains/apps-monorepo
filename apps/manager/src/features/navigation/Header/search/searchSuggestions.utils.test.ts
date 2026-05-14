@@ -121,6 +121,19 @@ describe('buildSuggestions', () => {
     })
   })
 
+  it('marks short subnames with invalid child labels as not supported', () => {
+    const result = buildSuggestions({
+      parsedInput: { type: 'name', value: '!.sugh1405202602.eth' },
+      history: emptyHistory,
+    })
+
+    expect(result[0]).toMatchObject({
+      type: 'name',
+      value: '!.sugh1405202602.eth',
+      isSupported: false,
+    })
+  })
+
   it('returns address suggestion with primary name', () => {
     const address = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
     const result = buildSuggestions({
