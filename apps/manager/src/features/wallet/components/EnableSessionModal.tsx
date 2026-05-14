@@ -34,11 +34,11 @@ export const EnableSessionModal = ({
   hasError = false,
 }: EnableSessionModalProps) => {
   // Status derived from the state machine so a stale value can't leak across openings/accounts.
-  const status: 'idle' | 'signing' | 'error' = isEnabling
-    ? 'signing'
-    : hasError
-      ? 'error'
-      : 'idle'
+  const status: 'idle' | 'signing' | 'error' = (() => {
+    if (isEnabling) return 'signing'
+    if (hasError) return 'error'
+    return 'idle'
+  })()
 
   const formatAddress = (address?: string) => {
     if (!address) return ''

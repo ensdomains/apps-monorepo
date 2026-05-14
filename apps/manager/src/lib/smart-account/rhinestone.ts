@@ -139,7 +139,6 @@ export async function initializeRhinestoneAccount(
   // SCA must be on-chain before routing txs; bare `.deploy()` 422s the intents path (empty tokenRequests → ZERO_BALANCE), so we deploy via a noop call instead (Rhinestone/Timur).
   // One loading toast for the whole setup (deploy + optional HCA) so we don't flash success early.
   const setupToastId = `setup-sca-${accountAddress}`
-  const setupStart = performance.now()
   let setupToastShown = false
 
   const deployed = await rhinestoneAccount.isDeployed(customSepolia)
@@ -164,10 +163,7 @@ export async function initializeRhinestoneAccount(
         ],
         sponsored: true,
       })
-      const deployDurationMs = performance.now() - setupStart
-      console.log(
-        `✅ [RHINESTONE] Smart account deployed: ${accountAddress} (took ${deployDurationMs.toFixed(0)}ms / ${(deployDurationMs / 1000).toFixed(2)}s)`,
-      )
+      console.log(`✅ [RHINESTONE] Smart account deployed: ${accountAddress}`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       console.error('❌ [RHINESTONE] Failed to deploy smart account:', error)
@@ -233,11 +229,7 @@ export async function initializeRhinestoneAccount(
   // setup work). If the account was already deployed AND already registered,
   // we stayed silent the whole time.
   if (setupToastShown) {
-    const totalDurationMs = performance.now() - setupStart
     toast.success(i18n._(msg`Smart account ready`), {
-      description: i18n._(
-        msg`Ready in ${(totalDurationMs / 1000).toFixed(1)}s`,
-      ),
       id: setupToastId,
       duration: 3000,
     })
