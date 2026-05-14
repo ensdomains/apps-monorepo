@@ -1,14 +1,17 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
+import { getName } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, namehash } from 'viem'
+import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { getResolver } from './profileResolver'
+import { getProfileEthAddressSnapshot } from './profileEthAddress'
 
-// Batch reverse resolver — not in ensjs chain config or ENS_SEPOLIA_CONTRACTS
+// The manager smart-account path writes the EOA default reverse name through
+// DefaultReverseRegistrar. ENS JS getName currently does not read that Sepolia
+// path, so keep this fallback for display while using ENS JS for standard
+// reverse lookup and forward confirmation.
 const REVERSE_RESOLVER_ADDRESS = '0x7cd0016f722f34394110738eec10265b00c6c7d9'
 
 const REVERSE_RESOLVER_ABI = [
@@ -42,6 +45,15 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
 
   const client = yield* safeGetClient()
 
+  const ensName = await getName(client, {
+    address,
+    allowMismatch: true,
+  }).catch(() => null)
+
+  if (ensName?.match) {
+    return ok(ensName.name)
+  }
+
   const result = yield* await fromPromise(
     readContract(client, {
       address: REVERSE_RESOLVER_ADDRESS,
@@ -60,28 +72,9 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
 
   // Forward-confirmed reverse resolution (ENSIP-3):
   // Verify the name's ETH record resolves back to this address.
-  const resolverAddress = yield* getResolver(name)
+  const { ethAddress } = yield* getProfileEthAddressSnapshot(name)
 
-  if (!resolverAddress) {
-    return ok(null)
-  }
-
-  const node = namehash(name)
-
-  const forwardAddress = yield* await fromPromise(
-    readContract(client, {
-      address: resolverAddress,
-      abi: publicResolverSingleAddrSnippet,
-      functionName: 'addr',
-      args: [node],
-    }),
-    (e) => new ReverseResolverError({ cause: e }),
-  )
-
-  if (
-    !forwardAddress ||
-    forwardAddress.toLowerCase() !== address.toLowerCase()
-  ) {
+  if (!ethAddress || ethAddress.toLowerCase() !== address.toLowerCase()) {
     return ok(null)
   }
 
