@@ -1,12 +1,5 @@
 type HandleEnterFirstSearchResultParams = {
-  readonly event: {
-    readonly key: string
-    readonly keyCode: number
-    readonly nativeEvent: {
-      readonly isComposing: boolean
-    }
-    preventDefault: () => void
-  }
+  readonly event: React.KeyboardEvent<HTMLInputElement>
   readonly isDebouncing: boolean
   readonly resultsContainer: HTMLElement | null
 }
@@ -34,7 +27,12 @@ export const handleEnterFirstSearchResult = ({
   const firstResult =
     resultsContainer?.querySelector<HTMLAnchorElement>('a[href]') ?? null
 
-  firstResult?.click()
+  if (!firstResult) {
+    return false
+  }
 
-  return firstResult !== null
+  firstResult.click()
+  event.currentTarget.blur()
+
+  return true
 }

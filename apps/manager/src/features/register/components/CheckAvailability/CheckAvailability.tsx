@@ -12,6 +12,7 @@ import {
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { handleEnterFirstSearchResult } from '@/features/navigation/Header/search/handleEnterFirstSearchResult'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -21,7 +22,6 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
 import { isFeatureEnabled } from '@/utils/feature-flags'
-import { handleEnterFirstSearchResult } from '@/utils/handleEnterFirstSearchResult'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },

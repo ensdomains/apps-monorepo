@@ -4,9 +4,9 @@ import { useCallback, useRef, useState } from 'react'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useDebounce } from '@/hooks/useDebounce'
-import { handleEnterFirstSearchResult } from '@/utils/handleEnterFirstSearchResult'
 import { MobileAccountDrawer } from '../account/MobileAccountDrawer'
 import { MobileNavigationDrawer } from '../navigation/MobileNavigationDrawer'
+import { handleEnterFirstSearchResult } from '../search/handleEnterFirstSearchResult'
 import {
   MobileSearchInput,
   MobileSearchPanel,

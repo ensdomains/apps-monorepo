@@ -1,7 +1,7 @@
 import { Popover } from '@base-ui/react'
 import { useCallback, useRef, useState } from 'react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { handleEnterFirstSearchResult } from '@/utils/handleEnterFirstSearchResult'
+import { handleEnterFirstSearchResult } from './handleEnterFirstSearchResult'
 import { SearchInput } from './SearchInput'
 import { SearchSuggestions } from './SearchSuggestions'
 
