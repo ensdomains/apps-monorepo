@@ -51,9 +51,12 @@ export const RegisteringStep = () => {
       ? _(stageMessages.stageDescription)
       : undefined
 
-  /** Child machine success must win even if UI actor has not raised `transaction.success` yet */
+  // Child machine success can arrive before the UI actor reflects it.
   const isRegistrationComplete =
     registeringTx.value === 'success' || uiStage?.transaction === 'success'
+  const advanceNotificationsStep = () => {
+    uiActor.send({ type: 'notifications.step.next' })
+  }
 
   useBlocker({
     shouldBlockFn: () => {
@@ -102,12 +105,8 @@ export const RegisteringStep = () => {
         {match(uiStage)
           .with({ notifications: 'settings' }, () => (
             <NotificationSettings
-              onConfirm={() => {
-                uiActor.send({ type: 'notifications.step.next' })
-              }}
-              onSkip={() => {
-                uiActor.send({ type: 'notifications.step.next' })
-              }}
+              onConfirm={advanceNotificationsStep}
+              onSkip={advanceNotificationsStep}
             />
           ))
           .with({ transaction: P.string }, () => <RegistrationDetails />)

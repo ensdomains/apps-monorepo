@@ -82,10 +82,6 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
     disableMutation.mutate()
   }
 
-  // Action varies by browser permission state. `default` shows the Enable
-  // button (matching Figma); `granted` swaps to a Switch so users can flip
-  // off without re-prompting; `denied`/unsupported render nothing — the alert
-  // below the row carries the explanation.
   const action = match({ isSupported, permission })
     .with({ isSupported: true, permission: 'granted' }, () => (
       <Switch
@@ -100,7 +96,7 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
 
   return (
     <ContactMethodCard
-      action={action === null ? undefined : action}
+      action={action ?? undefined}
       actionDisabled={isPending || browserState.isFetching}
       actionLabel={showEnableButton ? t`Enable` : undefined}
       description={t`Get instant push notifications in your browser`}

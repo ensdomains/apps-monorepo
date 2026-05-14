@@ -1,7 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { CircleChevronDown } from 'lucide-react'
-import { useState } from 'react'
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,8 +12,6 @@ import { PushContactMethod } from './push'
 import { TelegramContactMethod } from './telegram'
 
 export const ContactMethods = () => {
-  const [isExpanded, setIsExpanded] = useState(false)
-
   const channels = useQuery({
     ...channelsQueryOptions,
     select: (data) => ({
@@ -30,7 +27,7 @@ export const ContactMethods = () => {
         <Trans>Contact methods</Trans>
       </h2>
       <EmailContactMethod email={channels.data?.email} />
-      <Collapsible onOpenChange={setIsExpanded} open={isExpanded}>
+      <Collapsible>
         <CollapsibleTrigger asChild>
           <button
             className="group inline-flex w-fit items-center gap-2 text-ens-quartz-400 transition-colors hover:text-[#515151]"

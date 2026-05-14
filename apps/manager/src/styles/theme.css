@@ -8,10 +8,6 @@
   --leading-ens-none: 96%;
   --leading-ens-tight: 112%;
   --leading-ens-normal: 120%;
-  /** Preference card title (16px / 22.5px) */
-  --leading-ens-preference-title: 22.5px;
-  /** Preference card body (14px / 18.2px) */
-  --leading-ens-preference-body: 18.2px;
 
   /* Experimental new brand colors */
   --color-ens-lapis-100: #dbf0f8;
@@ -22,8 +18,6 @@
   --color-ens-lapis-dust: #cee1e8;
   --color-ens-lapis-surface: #79b1d0;
   --color-ens-lapis-core: #0080bc;
-  /** Figma lapis/500 — preference cards, accents */
-  --color-ens-lapis-500: #0082bb;
   --color-ens-lapis-dense: #093c52;
 
   --color-ens-bronzite-dust: #f8f6d6;

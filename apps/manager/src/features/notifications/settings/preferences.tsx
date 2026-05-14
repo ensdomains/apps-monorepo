@@ -1,7 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useAtom } from '@xstate/store-react'
 import { toast } from 'sonner'
 import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
@@ -11,12 +11,28 @@ import {
   updatePreferenceMutationOptions,
 } from '@/features/notifications/data/queries/preferences'
 import { PreferenceCard } from '@/features/notifications/settings/preference-card'
+import { isBackendAuthed } from '@/utils/backend-client'
 
-export const NotificationPreferences = () => {
+export type UseNotificationPreferencesFormOptions = {
+  /**
+   * When the API has no value yet, default Name Expiry on (registration) vs off
+   * (notification settings page).
+   */
+  nameExpiryDefaultWhenUnset?: boolean
+  /** Called after a successful save + refetch + form reset (e.g. registration continue). */
+  onPersistSuccess?: () => void
+}
+
+export const useNotificationPreferencesForm = ({
+  nameExpiryDefaultWhenUnset = false,
+  onPersistSuccess,
+}: UseNotificationPreferencesFormOptions) => {
   const { t } = useLingui()
+  const isAuthed = useAtom(isBackendAuthed)
 
   const preferences = useQuery({
     ...preferencesQueryOptions,
+    enabled: isAuthed,
   })
 
   const updatePreferencesMutation = useMutation({
@@ -29,16 +45,15 @@ export const NotificationPreferences = () => {
     },
   })
 
-  const buildDefaultValues = () => ({
-    ownedNameExpiry:
-      preferences.data?.settings?.ownedNameExpiry ?? nameExpiryDefaultWhenUnset,
-    ensLabsUpdates: preferences.data?.settings?.ensLabsUpdates ?? false,
-    favouritedNameExpiry:
-      preferences.data?.settings?.favouritedNameExpiry ?? false,
-  })
-
   const form = useForm({
-    defaultValues: buildDefaultValues(),
+    defaultValues: {
+      ownedNameExpiry:
+        preferences.data?.settings?.ownedNameExpiry ??
+        nameExpiryDefaultWhenUnset,
+      ensLabsUpdates: preferences.data?.settings?.ensLabsUpdates ?? false,
+      favouritedNameExpiry:
+        preferences.data?.settings?.favouritedNameExpiry ?? false,
+    },
     onSubmit: async ({ formApi, value }) => {
       await updatePreferencesMutation.mutateAsync(value)
 
@@ -47,30 +62,6 @@ export const NotificationPreferences = () => {
       formApi.reset()
     },
   })
-
-  /**
-   * `useForm` captures `defaultValues` at hook-creation time. When the user
-   * authenticates after the form has already mounted (e.g. they verify their
-   * wallet during the registration step), `preferences.data` only becomes
-   * available later and the form would otherwise stay seeded with the
-   * fallback defaults — clicking Save would silently overwrite real saved
-   * preferences. Re-seed the form once the loaded data arrives, but only
-   * while the form is still pristine so we never clobber in-progress edits.
-   */
-  const hasSeededFromLoadedData = useRef(false)
-  // buildDefaultValues closes over the same `preferences.data` we already gate
-  // on, `form.reset` and `form.state.isDirty` come from a stable hook return,
-  // and the seed is intentionally one-shot — re-running on any of these
-  // identities changing would defeat that.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional one-shot seed; see comment above.
-  useEffect(() => {
-    if (hasSeededFromLoadedData.current) return
-    if (!preferences.data) return
-    if (form.state.isDirty) return
-
-    hasSeededFromLoadedData.current = true
-    form.reset(buildDefaultValues())
-  }, [preferences.data])
 
   const hasVerifiedChannels =
     (preferences.data?.verifiedChannels?.length ?? 0) > 0
@@ -83,7 +74,6 @@ type NotificationPreferencesFieldsProps = Pick<
   'form' | 'preferences'
 >
 
-/** Shared header + three preference toggles (used by settings page and registration step). */
 export const NotificationPreferencesFields = ({
   form,
   preferences,
@@ -158,7 +148,6 @@ export const NotificationPreferences = () => {
       nameExpiryDefaultWhenUnset: false,
     })
 
-  // Keep this block mounted for layout (same as registration); save only works once a channel is verified.
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
