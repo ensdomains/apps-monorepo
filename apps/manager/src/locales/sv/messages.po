@@ -215,6 +215,7 @@ msgstr ""
 msgid "Adding telegram..."
 msgstr ""
 
+#: src/features/navigation/Header/account/WalletSection.tsx:39
 #: src/features/navigation/Header/account/WalletSection.tsx:54
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"

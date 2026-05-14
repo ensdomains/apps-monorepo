@@ -36,7 +36,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         >
           <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
           <span className="font-[350] text-base text-ens-quartz-400">
-            Address
+            <Trans>Address</Trans>
           </span>
           <span className="text-sm leading-ens-tight">
             {copied ? <Trans>Copied!</Trans> : truncateAddress(accountAddress)}
