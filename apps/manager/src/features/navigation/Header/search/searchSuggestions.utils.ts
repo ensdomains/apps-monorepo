@@ -12,7 +12,19 @@ const isSearchNameSupported = (name: string): boolean => {
   }
 
   const labels = trimmed.slice(0, -4).split('.')
-  return labels.every((label) => validateENSName(`${label}.eth`) === null)
+  if (labels.some((label) => !label)) return false
+
+  const parentLabel = labels.at(-1)
+  const subnameLabels = labels.slice(0, -1)
+
+  return (
+    parentLabel !== undefined &&
+    validateENSName(`${parentLabel}.eth`) === null &&
+    subnameLabels.every((label) => {
+      const validation = validateENSName(`${label}.eth`)
+      return validation === null || validation.type === 'TOO_SHORT'
+    })
+  )
 }
 
 type NameSuggestion = {
