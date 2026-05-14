@@ -3,16 +3,42 @@ type Eth2LdName = {
   readonly name: string
 }
 
-export const normalizeEth2LdName = (name: string): Eth2LdName | null => {
+type EthName = {
+  readonly leafLabel: string
+  readonly name: string
+  readonly parentLabels: readonly string[]
+}
+
+export const normalizeEthName = (name: string): EthName | null => {
   const normalized = name.toLowerCase()
   const labels = normalized.split('.')
+  const leafLabel = labels[0]
 
-  if (labels.length !== 2 || labels[1] !== 'eth' || !labels[0]) {
+  if (
+    labels.length < 2 ||
+    labels.at(-1) !== 'eth' ||
+    !leafLabel ||
+    labels.some((label) => !label)
+  ) {
     return null
   }
 
   return {
-    label: labels[0],
+    leafLabel,
     name: normalized,
+    parentLabels: labels.slice(1, -1).reverse(),
+  }
+}
+
+export const normalizeEth2LdName = (name: string): Eth2LdName | null => {
+  const ethName = normalizeEthName(name)
+
+  if (!ethName || ethName.parentLabels.length > 0) {
+    return null
+  }
+
+  return {
+    label: ethName.leafLabel,
+    name: ethName.name,
   }
 }
