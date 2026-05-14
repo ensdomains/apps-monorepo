@@ -8,10 +8,6 @@ import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getProfileEthAddressSnapshot } from './profileEthAddress'
 
-// The manager smart-account path writes the EOA default reverse name through
-// DefaultReverseRegistrar. ENS JS getName currently does not read that Sepolia
-// path, so keep this fallback for display while using ENS JS for standard
-// reverse lookup and forward confirmation.
 const REVERSE_RESOLVER_ADDRESS = '0x7cd0016f722f34394110738eec10265b00c6c7d9'
 
 const REVERSE_RESOLVER_ABI = [
