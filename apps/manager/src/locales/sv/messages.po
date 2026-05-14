@@ -985,12 +985,12 @@ msgstr ""
 msgid "Failed to deploy smart account"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:255
+#: src/lib/smart-account/SmartAccountContext.tsx:251
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:256
+#: src/lib/smart-account/SmartAccountContext.tsx:252
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -1075,11 +1075,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:226
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:227
+#: src/lib/smart-account/SmartAccountContext.tsx:223
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -2700,7 +2700,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:244
+#: src/lib/smart-account/SmartAccountContext.tsx:240
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2716,7 +2716,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:243
+#: src/lib/smart-account/SmartAccountContext.tsx:239
 msgid "Wallet funded successfully"
 msgstr ""
 

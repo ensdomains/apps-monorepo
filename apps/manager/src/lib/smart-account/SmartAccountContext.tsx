@@ -200,10 +200,6 @@ export const SmartAccountContextProvider = ({
   // In EOA-only mode the wagmi wallet client _is_ the account; otherwise pull
   // both addresses from the smart-account state machine.
   const accountAddress = useEoa ? eoaAddress : snapshot.context.accountAddress
-  // The state machine only assigns `ownerAddress` once `initializeAccount`
-  // resolves (deploy + HCA registration). The EOA is known the moment the
-  // wallet connects, so fall back to it so the header doesn't show
-  // "Connected" while the SCA is still being set up.
   const ownerAddress = useEoa
     ? eoaAddress
     : (snapshot.context.ownerAddress ?? eoaAddress)
@@ -517,9 +513,6 @@ export const SmartAccountContextProvider = ({
         error: snapshot.context.error,
         isConnected,
         walletSource: snapshot.context.walletSource as BaseWalletSource,
-        // Use the local `ownerAddress` which falls back to the wagmi EOA
-        // while the state machine is still initializing — without this
-        // the header shows "Connected" instead of the EOA during deploy.
         ownerAddress,
         stablecoinBalances: balances.stablecoinBalances,
         isLoadingBalances: balances.isLoadingBalances,
