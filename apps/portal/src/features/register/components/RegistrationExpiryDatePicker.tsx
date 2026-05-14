@@ -6,17 +6,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 import {
-  // getDurationFromPickerDate,
-  // getStartOfToday,
-  // getYearsFromDuration,
+  getDurationFromPickerDate,
+  getStartOfToday,
+  getYearsFromDuration,
   isDateWithinCalendarRange,
 } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
-
-// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 
 type RegistrationExpiryDatePickerProps = {
   readonly date: Temporal.PlainDate
@@ -46,13 +45,13 @@ export const RegistrationExpiryDatePicker = ({
     }
   }
 
-  // const handlePresetSelect = (spanValue: number) => {
-  //   const startOfToday = getStartOfToday()
-  //   const expiryDate = startOfToday.add({ years: spanValue })
-  //   const cappedDate =
-  //     Temporal.PlainDate.compare(expiryDate, maxDate) > 0 ? maxDate : expiryDate
-  //   onDateChange(cappedDate)
-  // }
+  const handlePresetSelect = (spanValue: number) => {
+    const startOfToday = getStartOfToday()
+    const expiryDate = startOfToday.add({ years: spanValue })
+    const cappedDate =
+      Temporal.PlainDate.compare(expiryDate, maxDate) > 0 ? maxDate : expiryDate
+    onDateChange(cappedDate)
+  }
 
   const disabled = (date: Date) => {
     return !isDateWithinCalendarRange(dateToPlainDate(date), minDate, maxDate)
@@ -99,13 +98,12 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      {/* Discounts disabled on contracts - uncomment once re-enabled */}
-      {/* <RegistrationDurationPresets
+      <RegistrationDurationPresets
         value={Math.round(
           getYearsFromDuration(getDurationFromPickerDate(date)),
         )}
         onSelect={handlePresetSelect}
-      /> */}
+      />
     </div>
   )
 }

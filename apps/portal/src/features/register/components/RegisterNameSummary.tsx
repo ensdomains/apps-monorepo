@@ -222,9 +222,9 @@ const PriceBreakdown = ({
     baseRate,
   })
   const premiumLabel = getPremiumLabel(name)
-  // const roundedYears = Math.round(years)
-  // const discountSublabel =
-  //   roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+  const roundedYears = Math.round(years)
+  const discountSublabel =
+    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   return (
     <div className="space-y-2">
@@ -260,11 +260,11 @@ const PriceBreakdown = ({
             value={
               <span className="flex flex-col items-end m-0">
                 <span>{`${formatUsd(pricePerYear)}/year`}</span>
-                {/* {discountSublabel ? (
+                {discountSublabel ? (
                   <span className="text-xs text-success-text">
                     {discountSublabel}
                   </span>
-                ) : null} */}
+                ) : null}
               </span>
             }
           />
