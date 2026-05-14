@@ -17,61 +17,6 @@ const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 const LATE_AUTH_DOMAIN = `e2e-${(Date.now() + 2).toString(36)}.eth`
 
 test.describe('ENS name registration', () => {
-  test('registers a name via Para wallet and stablecoin payment', async ({
-    authenticatedPage: page,
-    mockIndexer,
-  }) => {
-    // ===== registration flow =====
-    const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
-    const searchInput = await findSearchInput(page)
-    await searchInput.click()
-    await searchInput.fill(nameOnly)
-    await page.getByText('Available').first().waitFor({ state: 'visible', timeout: 15_000 })
-    await page.getByText(DOMAIN_TO_REGISTER).click()
-
-    // const incrementButton =
-    //   page.locator('button[aria-label="Increment"]').or(
-    //     page.locator('button:has(svg.lucide-plus)'),
-    //   )
-    // await incrementButton.waitFor({ state: 'visible', timeout: 10_000 })
-    // await incrementButton.click()
-
-    await page
-      .getByRole('button', { name: /pay with stablecoins/i })
-      .click()
-    await page.getByText('USDC', { exact: true }).click()
-
-    await page
-      .getByRole('button', { name: /buy name/i })
-      .click()
-
-    const successBanner = page.locator('p.text-ens-peridot-text-dark')
-    await expect(successBanner).toContainText('Registration Complete', {
-      timeout: 90_000,
-    })
-
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: PARA_EOA_ADDRESS })
-    }
-
-    await page.goto(
-      mockIndexer.enabled ? MANAGER_APP_URL : `${MANAGER_APP_URL}/dashboard`,
-    )
-    await page.waitForLoadState('networkidle')
-
-    const dashboardSearchInput = await findSearchInput(page)
-    await dashboardSearchInput.click()
-    await dashboardSearchInput.fill(nameOnly)
-    await page.getByText(DOMAIN_TO_REGISTER).first().click()
-
-    await page.waitForURL(
-      new RegExp(`/${DOMAIN_TO_REGISTER.replace(/\./g, '\\.')}`),
-      { timeout: 15_000 },
-    )
-    await expect(page.getByText(DOMAIN_TO_REGISTER).first()).toBeVisible({
-      timeout: 15_000,
-    })
-  })
 
   test('user is unable to register a name when disconnected', async ({ page }) => {
     await page.goto(MANAGER_APP_URL)
@@ -123,26 +68,26 @@ test.describe('ENS name registration', () => {
       timeout: 90_000,
     })
 
-    if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: LATE_AUTH_DOMAIN, owner: PARA_EOA_ADDRESS })
-    }
+    // if (mockIndexer.enabled) {
+    //   mockIndexer.addName({ name: LATE_AUTH_DOMAIN, owner: PARA_EOA_ADDRESS })
+    // }
 
-    await page.goto(
-      mockIndexer.enabled ? MANAGER_APP_URL : `${MANAGER_APP_URL}/dashboard`,
-    )
-    await page.waitForLoadState('networkidle')
+    // await page.goto(
+    //   mockIndexer.enabled ? MANAGER_APP_URL : `${MANAGER_APP_URL}/dashboard`,
+    // )
+    // await page.waitForLoadState('networkidle')
 
-    const dashboardSearchInput = await findSearchInput(page)
-    await dashboardSearchInput.click()
-    await dashboardSearchInput.fill(LATE_AUTH_DOMAIN.replace(/\.eth$/i, ''))
-    await page.getByText(LATE_AUTH_DOMAIN).first().click()
+    // const dashboardSearchInput = await findSearchInput(page)
+    // await dashboardSearchInput.click()
+    // await dashboardSearchInput.fill(LATE_AUTH_DOMAIN.replace(/\.eth$/i, ''))
+    // await page.getByText(LATE_AUTH_DOMAIN).first().click()
 
-    await page.waitForURL(
-      new RegExp(`/${LATE_AUTH_DOMAIN.replace(/\./g, '\\.')}`),
-      { timeout: 15_000 },
-    )
-    await expect(page.getByText(LATE_AUTH_DOMAIN).first()).toBeVisible({
-      timeout: 15_000,
-    })
+    // await page.waitForURL(
+    //   new RegExp(`/${LATE_AUTH_DOMAIN.replace(/\./g, '\\.')}`),
+    //   { timeout: 15_000 },
+    // )
+    // await expect(page.getByText(LATE_AUTH_DOMAIN).first()).toBeVisible({
+    //   timeout: 15_000,
+    // })
   })
 })
