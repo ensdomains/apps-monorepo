@@ -33,20 +33,22 @@ export const PaymentCard = () => {
       duration,
       TOKENS.USDC.symbol,
     ),
-    select: (data) =>
-      decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
+    select: (data) => ({
+      totalPrice: decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
+      basePrice: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),
+    }),
     placeholderData: keepPreviousData,
   })
 
   const { discountAmount } = calculateDiscount(
-    pricingQuery.data ?? 0,
+    pricingQuery.data?.basePrice ?? 0,
     baseRate,
     BigInt(duration),
   )
 
   return (
     <PaymentCardBase
-      amount={pricingQuery.data}
+      amount={pricingQuery.data?.totalPrice}
       canNext={canNext}
       discountAmount={discountAmount}
       isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}

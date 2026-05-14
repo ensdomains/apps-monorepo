@@ -6,7 +6,7 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
 export const PricingSummaryCard = () => {
   const { uiActor } = useRegistrationV2Context()
-  const [durationYears, expirationDate] = useSelector(
+  const [durationLabel, expirationDate] = useSelector(
     uiActor,
     (state) =>
       [
@@ -22,7 +22,7 @@ export const PricingSummaryCard = () => {
     <div className="flex flex-col items-center justify-center gap-1 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white px-6 py-8 text-center font-[350] text-neutral-800 text-xl leading-ens-none shadow-temp-card md:py-6 md:text-2xl">
       <div>
         <Trans>Registering for</Trans>{' '}
-        <span className="font-[425] text-[#024A70]">{durationYears}</span>
+        <span className="font-[425] text-[#024A70]">{durationLabel}</span>
       </div>
       <div>
         <Trans>expiring on</Trans>{' '}
