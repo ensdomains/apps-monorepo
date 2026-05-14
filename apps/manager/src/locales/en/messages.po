@@ -791,7 +791,7 @@ msgstr "Done"
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
-#: src/features/dashboard/components/MyNamesList.tsx:372
+#: src/features/dashboard/components/MyNamesList.tsx:396
 msgid "Eligible for upgrade"
 msgstr "Eligible for upgrade"
 
@@ -899,7 +899,7 @@ msgstr "Enter wallet address"
 msgid "Enter your email"
 msgstr "Enter your email"
 
-#: src/features/dashboard/components/MyNamesList.tsx:210
+#: src/features/dashboard/components/MyNamesList.tsx:234
 msgid "Error loading names"
 msgstr "Error loading names"
 
@@ -920,7 +920,7 @@ msgstr "Expires {0}"
 msgid "expires {expiryDateString}"
 msgstr "expires {expiryDateString}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:402
+#: src/features/dashboard/components/MyNamesList.tsx:426
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Expires in {daysUntilExpiry} days"
 
@@ -934,15 +934,15 @@ msgstr "Expires:"
 msgid "expiring on"
 msgstr "expiring on"
 
-#: src/features/dashboard/components/MyNamesList.tsx:293
+#: src/features/dashboard/components/MyNamesList.tsx:317
 msgid "Expiry"
 msgstr "Expiry"
 
-#: src/features/dashboard/components/MyNamesList.tsx:248
+#: src/features/dashboard/components/MyNamesList.tsx:272
 msgid "Expiry date (Earliest)"
 msgstr "Expiry date (Earliest)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:251
+#: src/features/dashboard/components/MyNamesList.tsx:275
 msgid "Expiry date (Latest)"
 msgstr "Expiry date (Latest)"
 
@@ -1029,7 +1029,7 @@ msgstr "Failed to update resolver"
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
 
-#: src/features/dashboard/components/NamesTable.tsx:123
+#: src/features/dashboard/components/NamesTable.tsx:125
 msgid "Favorites"
 msgstr "Favorites"
 
@@ -1292,23 +1292,23 @@ msgstr "Modified"
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr "Multi-year Discount ({discountPercentage}%)"
 
-#: src/features/dashboard/components/NamesTable.tsx:118
+#: src/features/dashboard/components/NamesTable.tsx:120
 msgid "My Names"
 msgstr "My Names"
 
 #: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:274
+#: src/features/dashboard/components/MyNamesList.tsx:298
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Name"
 
 #: src/features/dashboard/components/FavoritesList.tsx:164
-#: src/features/dashboard/components/MyNamesList.tsx:242
+#: src/features/dashboard/components/MyNamesList.tsx:266
 msgid "Name (A-Z)"
 msgstr "Name (A-Z)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:167
-#: src/features/dashboard/components/MyNamesList.tsx:245
+#: src/features/dashboard/components/MyNamesList.tsx:269
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
@@ -1359,7 +1359,7 @@ msgid "Next card"
 msgstr "Next card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:290
-#: src/features/dashboard/components/MyNamesList.tsx:427
+#: src/features/dashboard/components/MyNamesList.tsx:451
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
 msgstr "Next page"
@@ -1403,7 +1403,7 @@ msgstr "No names match your search"
 
 #: src/features/dashboard/components/FavoritesList.tsx:227
 #: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:324
+#: src/features/dashboard/components/MyNamesList.tsx:348
 msgid "No names to display"
 msgstr "No names to display"
 
@@ -1612,7 +1612,7 @@ msgid "Previous card"
 msgstr "Previous card"
 
 #: src/features/dashboard/components/FavoritesList.tsx:281
-#: src/features/dashboard/components/MyNamesList.tsx:418
+#: src/features/dashboard/components/MyNamesList.tsx:442
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
 msgstr "Previous page"
@@ -1937,7 +1937,7 @@ msgstr "Search coins"
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
-#: src/features/dashboard/components/NamesTable.tsx:161
+#: src/features/dashboard/components/NamesTable.tsx:163
 msgid "Search my name..."
 msgstr "Search my name..."
 
@@ -1945,7 +1945,7 @@ msgstr "Search my name..."
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
-#: src/features/dashboard/components/NamesTable.tsx:161
+#: src/features/dashboard/components/NamesTable.tsx:163
 msgid "Search name..."
 msgstr "Search name..."
 
@@ -1971,7 +1971,7 @@ msgstr "Search your NFTs..."
 msgid "See all"
 msgstr "See all"
 
-#: src/features/migration/components/UpgradeBanner.tsx:42
+#: src/features/migration/components/UpgradeBanner.tsx:47
 msgid "See what's new"
 msgstr "See what's new"
 
@@ -2087,7 +2087,7 @@ msgstr "Short Description"
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:437
+#: src/features/dashboard/components/MyNamesList.tsx:461
 msgid "Showing your names"
 msgstr "Showing your names"
 
@@ -2095,7 +2095,7 @@ msgstr "Showing your names"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
-#: src/features/dashboard/components/NamesTable.tsx:126
+#: src/features/dashboard/components/NamesTable.tsx:128
 msgid "Sign in to view favorites"
 msgstr "Sign in to view favorites"
 
@@ -2160,7 +2160,7 @@ msgstr "Smart sessions are required to use this app."
 msgid "Social Links"
 msgstr "Social Links"
 
-#: src/features/dashboard/components/MyNamesList.tsx:222
+#: src/features/dashboard/components/MyNamesList.tsx:246
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
@@ -2169,34 +2169,34 @@ msgid "Something went wrong. Please refresh and try again."
 msgstr "Something went wrong. Please refresh and try again."
 
 #: src/features/dashboard/components/FavoritesList.tsx:141
-#: src/features/dashboard/components/MyNamesList.tsx:230
+#: src/features/dashboard/components/MyNamesList.tsx:254
 msgid "Sort by"
 msgstr "Sort by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:282
+#: src/features/dashboard/components/MyNamesList.tsx:306
 msgid "Sort by expiry, currently ascending"
 msgstr "Sort by expiry, currently ascending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:283
+#: src/features/dashboard/components/MyNamesList.tsx:307
 msgid "Sort by expiry, currently descending"
 msgstr "Sort by expiry, currently descending"
 
-#: src/features/dashboard/components/MyNamesList.tsx:284
+#: src/features/dashboard/components/MyNamesList.tsx:308
 msgid "Sort by expiry, currently unsorted"
 msgstr "Sort by expiry, currently unsorted"
 
 #: src/features/dashboard/components/FavoritesList.tsx:185
-#: src/features/dashboard/components/MyNamesList.tsx:263
+#: src/features/dashboard/components/MyNamesList.tsx:287
 msgid "Sort by name, currently ascending"
 msgstr "Sort by name, currently ascending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:186
-#: src/features/dashboard/components/MyNamesList.tsx:264
+#: src/features/dashboard/components/MyNamesList.tsx:288
 msgid "Sort by name, currently descending"
 msgstr "Sort by name, currently descending"
 
 #: src/features/dashboard/components/FavoritesList.tsx:187
-#: src/features/dashboard/components/MyNamesList.tsx:265
+#: src/features/dashboard/components/MyNamesList.tsx:289
 msgid "Sort by name, currently unsorted"
 msgstr "Sort by name, currently unsorted"
 
@@ -2204,7 +2204,7 @@ msgstr "Sort by name, currently unsorted"
 msgid "Sort favorites by"
 msgstr "Sort favorites by"
 
-#: src/features/dashboard/components/MyNamesList.tsx:233
+#: src/features/dashboard/components/MyNamesList.tsx:257
 msgid "Sort names by"
 msgstr "Sort names by"
 
@@ -2447,7 +2447,7 @@ msgstr "Upgrade Names"
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 
-#: src/features/migration/components/UpgradeBanner.tsx:32
+#: src/features/migration/components/UpgradeBanner.tsx:37
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
@@ -2711,7 +2711,7 @@ msgstr "web3 username"
 msgid "Website"
 msgstr "Website"
 
-#: src/features/migration/components/UpgradeBanner.tsx:28
+#: src/features/migration/components/UpgradeBanner.tsx:33
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
 
