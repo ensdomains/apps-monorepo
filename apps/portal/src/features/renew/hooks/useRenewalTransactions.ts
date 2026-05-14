@@ -137,17 +137,12 @@ function buildRenewTransaction(
   params: RenewParams,
   signer: ReturnType<typeof createEOASigner>,
 ) {
-  const writeParams = renewNameWriteParameters(
-    signer.walletClient as unknown as Parameters<
-      typeof renewNameWriteParameters
-    >[0],
-    {
-      name: params.name,
-      duration: params.duration,
-      paymentToken: params.tokenAddress,
-      referrer: REFERER_ADDRESS,
-    },
-  )
+  const writeParams = renewNameWriteParameters(signer.walletClient, {
+    name: params.name,
+    duration: params.duration,
+    paymentToken: params.tokenAddress,
+    referrer: REFERER_ADDRESS,
+  })
   const renewData = encodeFunctionData({
     ...writeParams,
   })
