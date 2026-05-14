@@ -23,7 +23,11 @@ const RegistrationDate = ({ blockNumber }: RegistrationDateProps) => {
 
   if (!data) return null
 
-  return <Timestamp timestamp={data.timestamp} />
+  return (
+    <span className="font-semi-mono">
+      <Timestamp timestamp={data.timestamp} />
+    </span>
+  )
 }
 
 type RegistrationDataProps = RegistrationDateProps
@@ -35,9 +39,7 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
       <span className="text-sm text-muted-foreground w-24 shrink-0">
         Registered
       </span>
-      <span className="font-semi-mono">
-        <RegistrationDate blockNumber={blockNumber} />
-      </span>
+      <RegistrationDate blockNumber={blockNumber} />
     </div>
   )
 }
