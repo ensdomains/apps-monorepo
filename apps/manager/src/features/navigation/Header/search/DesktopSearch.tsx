@@ -47,7 +47,6 @@ export const DesktopSearch = () => {
         render={(props) => (
           <SearchInput
             isLoading={debouncedSearchValue !== searchValue}
-            onBlur={() => setIsOpen(false)}
             onFocus={() => setIsOpen(true)}
             ref={inputRef}
             searchValue={searchValue}
