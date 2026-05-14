@@ -12,6 +12,8 @@
  * - Uses `waitForExecution` to get the fill receipt
  */
 
+import { logger } from '@ens-apps/utils/logger'
+import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -41,7 +43,8 @@ export function submitWarpTransaction(
     )
   }
 
-  const { calls, sponsored } = request.rhinestoneParams
+  const { calls, sponsored, tokenRequests, useSession } =
+    request.rhinestoneParams
 
   if (!calls || calls.length === 0) {
     return errAsync(
@@ -80,7 +83,7 @@ export function submitWarpTransaction(
       const sendStart = nowMs()
 
       // Log raw call data before SDK processes it
-      console.log(
+      logger.debug(
         '📤 [WARP] Raw calls before SDK:',
         JSON.stringify(
           calls,
@@ -88,27 +91,70 @@ export function submitWarpTransaction(
           2,
         ),
       )
-      console.log('📤 [WARP] Account address:', account.getAddress?.())
-      console.log('📤 [WARP] Chain:', chain.name, chain.id)
-      console.log('📤 [WARP] Sponsored:', sponsored ?? true)
+      logger.debug('📤 [WARP] Account address:', account.getAddress?.())
+      logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
+      logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
-      const sessionSigners = config.sessionConfig?.signers
+      // When isSessionClient is false, we're not using sessions —
+      // skip session signers (applies to local mockestrator which
+      // doesn't support sessions, and to any non-session flow).
+      //
+      // A caller can also explicitly opt out per-request via
+      // `rhinestoneParams.useSession = false` — used for calls whose
+      // (target, selector) is not in the active session's action
+      // allowlist (e.g. dedicated-resolver record writes from the
+      // registration-scoped session). Omitting `signers` makes the SDK
+      // fall back to the SCA's default validator, which prompts an EOA
+      // owner signature instead of going through SmartSession.
+      const sessionAllowedByRequest = useSession !== false
+      const sessionSigners =
+        config.isSessionClient && sessionAllowedByRequest
+          ? config.sessionConfig?.signers
+          : undefined
       if (sessionSigners) {
-        console.log(
+        logger.debug(
           '📤 [WARP] Using experimental_session signers from sessionConfig',
+        )
+      } else if (config.isSessionClient && !sessionAllowedByRequest) {
+        logger.debug(
+          '📤 [WARP] Session client present but request opted out of session signers — falling back to SCA default validator',
         )
       }
 
-      const transaction = await account.sendTransaction({
+      const sdkParams = {
         sourceChains: [chain],
         targetChain: chain,
         calls,
         sponsored: sponsored ?? true,
+        // Pass through caller-provided tokenRequests (for cross-chain txs).
+        // Defaults to [] which skips balance validation (needed for local mockestrator).
+        // Cast needed: SDK's internal TokenRequests is a strict discriminated union
+        // not assignable from TokenRequest[], but semantically equivalent here.
+        tokenRequests: (tokenRequests ?? []) as TokenRequest[] &
+          Transaction['tokenRequests'],
         ...(sessionSigners ? { signers: sessionSigners } : {}),
-      })
+      } satisfies Transaction
+
+      logger.debug(
+        '📤 [WARP] SDK sendTransaction params:',
+        JSON.stringify(
+          Object.fromEntries(
+            Object.entries(sdkParams).map(([k, v]) => [
+              k,
+              Array.isArray(v)
+                ? `Array(${(v as unknown[]).length})`
+                : typeof v === 'object'
+                  ? `${(v as { name?: string })?.name ?? typeof v}`
+                  : v,
+            ]),
+          ),
+        ),
+      )
+
+      const transaction = await account.sendTransaction(sdkParams)
       const sendLatencyMs = nowMs() - sendStart
 
-      console.log(
+      logger.debug(
         '📤 [WARP] sendTransaction latency (ms):',
         sendLatencyMs.toFixed(1),
       )
@@ -119,11 +165,11 @@ export function submitWarpTransaction(
       const waitLatencyMs = nowMs() - waitStart
       const totalLatencyMs = nowMs() - overallStart
 
-      console.log(
+      logger.debug(
         '📥 [WARP] waitForExecution latency (ms):',
         waitLatencyMs.toFixed(1),
       )
-      console.log(
+      logger.debug(
         '✅ [WARP] Total submission latency (ms):',
         totalLatencyMs.toFixed(1),
       )
@@ -136,6 +182,33 @@ export function submitWarpTransaction(
 
       return txHash
     })(),
-    (error: unknown) => new TransactionSubmissionError(request, error as Error),
+    (error: unknown) => {
+      // Surface full orchestrator error context (errorType, traceId, simulations)
+      // SDK throws SimulationFailedError / OrchestratorError with rich fields the
+      // default Error.message hides. Logging here so the next 400 is debuggable.
+      try {
+        const e = error as {
+          message?: string
+          context?: unknown
+          errorType?: string
+          traceId?: string
+          statusCode?: number
+          simulations?: unknown
+          name?: string
+        }
+        logger.error('🛑 [WARP] Orchestrator error detail:', {
+          name: e.name,
+          message: e.message,
+          errorType: e.errorType,
+          traceId: e.traceId,
+          statusCode: e.statusCode,
+          context: e.context,
+          simulations: e.simulations,
+        })
+      } catch {
+        logger.error('🛑 [WARP] Orchestrator error (unserializable):', error)
+      }
+      return new TransactionSubmissionError(request, error as Error)
+    },
   )
 }

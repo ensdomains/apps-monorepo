@@ -99,13 +99,15 @@ export const BioSection = withForm({
                         <form.Field
                           name="base.url"
                           validators={{
+                            onChange: ({ value }) => validateUrl(value),
                             onBlur: ({ value }) => validateUrl(value),
                           }}
                         >
                           {(field) => (
                             <RecordEntry
                               error={
-                                field.state.meta.isTouched &&
+                                (field.state.meta.isTouched ||
+                                  field.state.meta.isDirty) &&
                                 field.state.meta.errors.length > 0
                                   ? field.state.meta.errors[0]
                                   : undefined

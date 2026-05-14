@@ -1,6 +1,6 @@
 /**
  * Permission definitions based on RegistryRolesLib contract constants
- * @see https://github.com/ensdomains/namechain/blob/429e873130a4985da99b42050817b77745b90381/contracts/src/common/registry/libraries/RegistryRolesLib.sol
+ * @see https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/registry/libraries/RegistryRolesLib.sol
  */
 
 import type { Role } from '@ensdomains/ensjs/utils/v2'
@@ -30,23 +30,30 @@ export const permissions: Permission[] = [
     description: 'Can change the resolver addresses',
   },
   {
-    key: 'ROLE_SET_TOKEN_OBSERVER',
-    title: 'Set Token Observer',
-    description: 'Can set token observer contracts',
-  },
-  {
-    key: 'ROLE_BURN',
-    title: 'Burn',
-    description: 'Can burn (delete) the name',
+    key: 'ROLE_UNREGISTER',
+    title: 'Unregister',
+    description: 'Can unregister (delete) the name',
   },
 ] as const
 
-const nonSettableManagerRoles = new Set<Role>([
-  'ROLE_REGISTRAR',
-  'ROLE_RENEW',
-  'ROLE_SET_TOKEN_OBSERVER',
-  'ROLE_BURN',
-])
+const nonSettableManagerRoles = new Set<Role>(['ROLE_REGISTRAR', 'ROLE_RENEW'])
 
-export const isManagerRoleSettable = (role: Role) =>
-  !nonSettableManagerRoles.has(role)
+/**
+ * The .eth registry rejects ROLE_UNREGISTER grants for 2LDs because only the
+ * registrar is permitted to unregister .eth 2LDs. Disable it in the UI to
+ * avoid a guaranteed revert at grant time.
+ */
+const nonSettableManagerRolesFor2LD = new Set<Role>(['ROLE_UNREGISTER'])
+
+export type IsManagerRoleSettableContext = {
+  is2LD?: boolean
+}
+
+export const isManagerRoleSettable = (
+  role: Role,
+  { is2LD = false }: IsManagerRoleSettableContext = {},
+) => {
+  if (nonSettableManagerRoles.has(role)) return false
+  if (is2LD && nonSettableManagerRolesFor2LD.has(role)) return false
+  return true
+}

@@ -5,18 +5,25 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts",
-    "./utils": "./src/utils/index.ts",
-    "./chains": "./src/chains.ts",
-    "./L2ReverseRegistrar": "./src/L2ReverseRegistrar.ts",
-    "./reverseRegistrarChainIds": "./src/reverseRegistrarChainIds.ts"
+    "./v1": "./src/v1/index.ts",
+    "./utils": "./src/utils/index.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "v1": [
+        "./src/v1/index.ts"
+      ],
+      "utils": [
+        "./src/utils/index.ts"
+      ]
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "echo \"No tests defined for @ens-apps/l2-primary\""
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "typescript": "catalog:typescript6"
   },
   "keywords": [],
   "dependencies": {

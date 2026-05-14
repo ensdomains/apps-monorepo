@@ -28,7 +28,9 @@ import { useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import type { RhinestoneConfig } from './rhinestone'
+import { buildRegistrationSessionActions } from './sessions/build-registration-session'
 import {
   selectIsCreatingSession,
   selectIsLoading,
@@ -41,6 +43,12 @@ import type {
   ZeroDevAccountState,
 } from './types'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
+
+/** True when using a local bundler (e.g. Alto) — no Pimlico API key needed. */
+const isLocalBundler = (): boolean => {
+  const url = import.meta.env.VITE_PIMLICO_BUNDLER_URL
+  return typeof url === 'string' && url.length > 0
+}
 
 export interface SmartAccountContextValue
   extends Omit<ZeroDevAccountState, 'type' | 'client' | 'config'> {
@@ -176,16 +184,23 @@ export const SmartAccountContextProvider = ({
     send({ type: 'SET_ACCOUNT_TYPE', accountType })
   }, [accountType, send])
 
+  // In EOA-only mode the smart-account state machine never runs — skip the
+  // wallet sync hook so we don't kick off Pimlico/Rhinestone initialization
+  // (which would trigger HCA registration via Warp etc.).
+  const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
-    paraWallet,
-    wagmiWalletClient as WalletClient | undefined,
+    useEoa ? undefined : paraWallet,
+    useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
     paraClient,
     snapshot.value as string,
     send,
   )
 
-  const accountAddress = snapshot.context.accountAddress
-  const ownerAddress = snapshot.context.ownerAddress
+  const eoaAddress = wagmiWalletClient?.account?.address ?? null
+  // In EOA-only mode the wagmi wallet client _is_ the account; otherwise pull
+  // both addresses from the smart-account state machine.
+  const accountAddress = useEoa ? eoaAddress : snapshot.context.accountAddress
+  const ownerAddress = useEoa ? eoaAddress : snapshot.context.ownerAddress
 
   const balances = useSmartAccountBalances({
     accountAddress,
@@ -210,9 +225,7 @@ export const SmartAccountContextProvider = ({
         json: { address },
       })
       if (!response.ok) {
-        throw new Error(
-          `Failed to fund wallet: ${response.statusText} ${await response.text()}`,
-        )
+        throw new Error(`${response.status} ${response.statusText}`)
       }
       return response.json()
     },
@@ -278,12 +291,35 @@ export const SmartAccountContextProvider = ({
   const infrastructure = snapshot.context.infrastructure
 
   const signer: Signer | null = useMemo(() => {
+    // EOA-only mode: skip smart account machinery entirely and sign with the
+    // wagmi wallet client directly. This is the only viable signer on the
+    // tenderly fork where Pimlico/Rhinestone bundlers are unavailable.
+    if (isFeatureEnabled('USE_EOA')) {
+      if (!wagmiWalletClient || !wagmiWalletClient.account) return null
+      return {
+        type: 'eoa',
+        walletClient: wagmiWalletClient as WalletClient,
+      }
+    }
+
     if (!baseClient || !accountAddress) return null
 
     if (provider === 'rhinestone') {
-      const rhinestoneApiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+      const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+      const rhinestoneApiKey =
+        import.meta.env.VITE_RHINESTONE_API_KEY ||
+        (isLocalOrchestrator ? 'local-dev' : undefined)
       if (!rhinestoneApiKey) {
         logger.error('Rhinestone API key not configured - cannot create signer')
+        return null
+      }
+      // The session policy pins both `register.owner == SCA` and
+      // `HCAFactory.setAccountOwner.eoa == EOA`. Without a known EOA we
+      // cannot reproduce the actions baked into the enable signature, so
+      // refuse to construct the signer rather than risk an
+      // `InvalidSignature()` revert at orchestrator time.
+      if (!ownerAddress) {
+        logger.error('Rhinestone signer: missing EOA owner address')
         return null
       }
 
@@ -326,7 +362,14 @@ export const SmartAccountContextProvider = ({
                     ],
                   },
                   chain: customSepolia,
-                  actions: [{ policies: [{ type: 'sudo' as const }] }],
+                  // Must match the actions baked into the EIP-712 enable
+                  // signature produced in sessions/rhinestone-session.ts at
+                  // session creation time. Any divergence breaks the
+                  // PermissionId and yields `InvalidSignature()`.
+                  actions: buildRegistrationSessionActions({
+                    smartAccountAddress: accountAddress,
+                    eoaAddress: ownerAddress,
+                  }),
                 },
                 enableData: {
                   userSignature: rhinestoneSessionClient.enableSignature,
@@ -343,8 +386,9 @@ export const SmartAccountContextProvider = ({
       }
     }
 
-    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY
-    if (!pimlicoApiKey) {
+    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY || ''
+    // Local bundler (Alto) does not need a Pimlico API key
+    if (!pimlicoApiKey && !isLocalBundler()) {
       logger.error('Pimlico API key not configured - cannot create signer')
       return null
     }
@@ -365,10 +409,12 @@ export const SmartAccountContextProvider = ({
     baseClient,
     sessionClient,
     accountAddress,
+    ownerAddress,
     accountType,
     isSessionClient,
     provider,
     infrastructure,
+    wagmiWalletClient,
   ])
 
   const promptSession = useCallback(() => {
@@ -409,46 +455,84 @@ export const SmartAccountContextProvider = ({
     })
   }, [actorRef, send])
 
-  const isConnected =
-    !!snapshot.context.walletSource &&
-    !!(snapshot.context.sessionClient ?? snapshot.context.client)
-  const hasInitialized =
-    !isParaWalletPending && snapshot.value !== 'initializing'
-  const isAccountReady =
-    !!snapshot.context.client && !!snapshot.context.accountAddress
+  const isConnected = isFeatureEnabled('USE_EOA')
+    ? !!wagmiWalletClient && !!eoaAddress
+    : !!snapshot.context.walletSource &&
+      !!(snapshot.context.sessionClient ?? snapshot.context.client)
+  const hasInitialized = isFeatureEnabled('USE_EOA')
+    ? !isParaWalletPending
+    : !isParaWalletPending && snapshot.value !== 'initializing'
+  const isAccountReady = isFeatureEnabled('USE_EOA')
+    ? !!eoaAddress
+    : !!snapshot.context.client && !!snapshot.context.accountAddress
 
-  const contextValue: SmartAccountContextValue = {
-    type: provider,
-    client: (snapshot.context.sessionClient ??
-      snapshot.context.client) as SmartAccountContextValue['client'],
-    config: snapshot.context.config as SmartAccountContextValue['config'],
-    accountAddress: snapshot.context.accountAddress,
-    isLoading,
-    error: snapshot.context.error,
-    isConnected,
-    walletSource: snapshot.context.walletSource as BaseWalletSource,
-    ownerAddress: snapshot.context.ownerAddress,
-    stablecoinBalances: balances.stablecoinBalances,
-    isLoadingBalances: balances.isLoadingBalances,
-    smartAccountEthBalance: balances.smartAccountEthBalance,
-    isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
-    autoFundingMutation,
-    signer,
-    session: snapshot.context.session,
-    isSessionClient,
-    ecdsaValidator: snapshot.context.ecdsaValidator,
-    isAccountReady,
-    hasInitialized,
-    showSessionModal,
-    isReady,
-    isCreatingSession,
-    walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
-    enableSession,
-    dismissSession,
-    promptSession,
-    provider: snapshot.context.provider,
-    infrastructure: snapshot.context.infrastructure,
-  }
+  const contextValue: SmartAccountContextValue = isFeatureEnabled('USE_EOA')
+    ? {
+        // In EOA-only mode the wagmi wallet client is both the EOA and the
+        // "smart account" address. All smart-account-specific fields are
+        // zeroed out; the session prompt is suppressed.
+        type: 'zerodev',
+        client: null,
+        config: null,
+        accountAddress: eoaAddress,
+        isLoading: false,
+        error: null,
+        isConnected,
+        walletSource: eoaAddress ? 'external-wallet' : null,
+        ownerAddress: eoaAddress,
+        stablecoinBalances: balances.stablecoinBalances,
+        isLoadingBalances: balances.isLoadingBalances,
+        smartAccountEthBalance: balances.smartAccountEthBalance,
+        isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
+        autoFundingMutation,
+        signer,
+        session: null,
+        isSessionClient: false,
+        ecdsaValidator: null,
+        isAccountReady,
+        hasInitialized,
+        showSessionModal: false,
+        isReady: isAccountReady,
+        isCreatingSession: false,
+        walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
+        enableSession: async () => {},
+        dismissSession: () => {},
+        promptSession: () => {},
+        provider: 'zerodev',
+        infrastructure: 'pimlico',
+      }
+    : {
+        type: provider,
+        client: (snapshot.context.sessionClient ??
+          snapshot.context.client) as SmartAccountContextValue['client'],
+        config: snapshot.context.config as SmartAccountContextValue['config'],
+        accountAddress: snapshot.context.accountAddress,
+        isLoading,
+        error: snapshot.context.error,
+        isConnected,
+        walletSource: snapshot.context.walletSource as BaseWalletSource,
+        ownerAddress: snapshot.context.ownerAddress,
+        stablecoinBalances: balances.stablecoinBalances,
+        isLoadingBalances: balances.isLoadingBalances,
+        smartAccountEthBalance: balances.smartAccountEthBalance,
+        isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
+        autoFundingMutation,
+        signer,
+        session: snapshot.context.session,
+        isSessionClient,
+        ecdsaValidator: snapshot.context.ecdsaValidator,
+        isAccountReady,
+        hasInitialized,
+        showSessionModal,
+        isReady,
+        isCreatingSession,
+        walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
+        enableSession,
+        dismissSession,
+        promptSession,
+        provider: snapshot.context.provider,
+        infrastructure: snapshot.context.infrastructure,
+      }
 
   return (
     <SmartAccountContext.Provider value={contextValue}>

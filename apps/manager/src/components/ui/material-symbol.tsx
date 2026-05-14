@@ -1,4 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
+import type React from 'react'
+import { createElement } from 'react'
 
 type RangeOrValue = `${number}..${number}` | `${number}`
 
@@ -32,6 +34,19 @@ const MATERIAL_SYMBOLS = [
   'warning',
   'edit',
   'arrow_back',
+  'calendar_month',
+  'double_arrow',
+  'arrow_drop_down',
+  'login',
+  'keyboard_arrow_down',
+  'dehaze',
+  'dashboard',
+  'account_circle',
+  'notifications_unread',
+  'account_balance_wallet',
+  'content_copy',
+  'logout',
+  'arrow_outward',
 ] as const satisfies readonly string[]
 
 // Google Fonts requires the icons to be sorted alphabetically
@@ -48,6 +63,12 @@ export const MATERIAL_SYMBOLS_URL = `https://fonts.googleapis.com/css2?family=Ma
 
 type MaterialSymbol = (typeof MATERIAL_SYMBOLS)[number]
 
+export interface MaterialSymbolProps
+  extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'symbol' | 'className'>,
+    React.RefAttributes<HTMLSpanElement> {
+  symbol: MaterialSymbol
+  className?: ClassValue
+}
 /**
  * Material Symbol component for rendering Google Material Symbols icons.
  *
@@ -94,9 +115,11 @@ type MaterialSymbol = (typeof MATERIAL_SYMBOLS)[number]
 export const MSymbol = ({
   symbol,
   className,
-}: {
-  symbol: MaterialSymbol
-  className?: ClassValue
-}) => {
-  return <span className={clsx('material-symbol', className)}>{symbol}</span>
+  ...props
+}: MaterialSymbolProps) => {
+  return createElement(
+    'span',
+    { className: clsx('material-symbol', className), ...props },
+    symbol,
+  )
 }

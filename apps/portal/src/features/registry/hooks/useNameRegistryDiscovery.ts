@@ -7,86 +7,42 @@ import {
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import type { GetEnsOwnerError } from '@/features/profile/hooks/useEnsOwner'
-import { l2RegistryFinderAddress } from '@/lib/constants/registry'
-import {
-  safeGetClient,
-  safeGetNamechainSepoliaClient,
-} from '@/lib/wagmi/helpers'
-import type {
-  EnsNetworkName,
-  ProtocolVersion,
-  WithEnsNetwork,
-} from '@/utils/types'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 
-type GetNameRegistriesParameters = WithEnsNetwork<{
+type GetNameRegistriesParameters = {
   name: string
-}>
+}
 
 type Root = [root: Address | null]
 type TLD = [tld: Address, ...Root]
 type TwoLD = [nameOrZero: Address, ...TLD]
 type ThreeLD = [nameAddress: Address, ...TwoLD]
 
-type NameRegistries = Root | TLD | TwoLD | ThreeLD
-
-type NameRegistriesReturnType = {
-  registries: NameRegistries
-  network: EnsNetworkName
-  protocolVersion: ProtocolVersion
-} | null
+export type NameRegistries = Root | TLD | TwoLD | ThreeLD
 
 class NameRegistriesError extends TaggedError('NameRegistriesError')<{
-  cause: GetNameRegistriesErrorType | GetEnsOwnerError
+  cause: GetNameRegistriesErrorType
 }> {}
 
 /**
- * Discovers which registry (L1 V1, L1 V2, or L2) a name exists on and returns all registry addresses.
+ * Discovers which registries a name exists on using the UniversalResolver V2.
  *
- * Checks in order:
- * 1. L2 V2 (Namechain) using ensjs getNameRegistries with RegistryFinder
- * 2. L1 V2 (Sepolia) using ensjs getNameRegistries with UniversalResolver
- * 3. L1 V1 (Sepolia) using getOwner with V1 ETHRegistry
- *
- * For V1 registries, all subnames live on the same registry.
- * For V2 registries, ensjs getNameRegistries efficiently fetches all registry addresses at once.
+ * Should only be called for V2 names. V1 names don't have subregistries and
+ * `findRegistries` returns identical (and meaningless) results for them, so
+ * callers must guard with a V1/V2 check (see {@link getEnsOwner}) before
+ * invoking this query.
  */
 export const getNameRegistries = ResultFn(async function* ({
-  network,
   name,
 }: GetNameRegistriesParameters) {
-  const l1Client = yield* safeGetClient()
-  const l2Client = yield* safeGetNamechainSepoliaClient()
+  const client = yield* safeGetClient()
 
-  if (!network) return ok(null)
+  const registries = (yield* fromPromise(
+    ensjsGetNameRegistries(client, { name }),
+    (e) => new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
+  )) as NameRegistries
 
-  if (network === 'sepolia') {
-    const registries = (yield* fromPromise(
-      ensjsGetNameRegistries(l1Client, { name }),
-      (e) =>
-        new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
-    )) as NameRegistries
-    return ok({
-      registries,
-      network: 'sepolia',
-      protocolVersion: 'ENSv1',
-    } as const satisfies NameRegistriesReturnType)
-  } else if (network === 'namechainSepolia') {
-    const registries = (yield* fromPromise(
-      ensjsGetNameRegistries(l2Client, {
-        name,
-        address: l2RegistryFinderAddress,
-      }),
-      (e) =>
-        new NameRegistriesError({ cause: e as GetNameRegistriesErrorType }),
-    )) as NameRegistries
-    return ok({
-      registries,
-      network: 'namechainSepolia',
-      protocolVersion: 'ENSv2',
-    } as const satisfies NameRegistriesReturnType)
-  }
-  return ok(null)
+  return ok(registries)
 })
 
 const nameRegistriesQueryKey = createQueryKey<

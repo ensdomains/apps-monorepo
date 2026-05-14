@@ -1,0 +1,230 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+      - ensjs-v2
+  pull_request:
+    branches:
+      - main
+      - ensjs-v2
+    paths:
+      - ".github/workflows/e2e.yml"
+      - "apps/manager/**"
+      - "apps/portal/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "e2e/**"
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - manager
+          - manager-premium
+          - portal
+          # - cross-app    # Enable when cross-app tests are added
+
+    steps:
+      # ── checkout & toolchain ──────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(pnpm --filter @ens-apps/e2e exec playwright --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @ens-apps/e2e exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @ens-apps/e2e exec playwright install-deps chromium
+
+      - name: Install Foundry (cast CLI)
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: true
+
+      # ── local blockchain stack ────────────────────────────────────
+      # Only start the services each job needs to reduce memory pressure.
+      # Anvil on a GitHub Actions runner (7 GB RAM) can OOM (exit 139)
+      # when too many containers run alongside Node + Chromium.
+      - name: Start E2E stack
+        run: |
+          COMPOSE="docker compose -f e2e/infra/docker-compose.yml"
+
+          # Core services — no Panoptes (saves ~1 GB RAM, prevents Anvil OOM)
+          SERVICES="anvil alto paymaster"
+
+          # Manager jobs use Rhinestone and need the mockestrator
+          if [[ "${{ matrix.project }}" != "portal" ]]; then
+            SERVICES="$SERVICES mockestrator"
+          fi
+
+          echo "Starting: $SERVICES"
+          $COMPOSE up -d $SERVICES
+
+          echo "Waiting for Anvil..."
+          timeout 60 bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Anvil ready"
+
+          echo "Waiting for Alto..."
+          timeout 90 bash -c 'until curl -sf -X POST http://127.0.0.1:4337 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Alto ready"
+
+          echo "Waiting for Paymaster..."
+          timeout 90 bash -c 'until curl -sf -X POST http://127.0.0.1:3002 \
+            -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Paymaster ready"
+
+      # ── write .env from checked-in CI templates ─────────────────
+      - name: Copy CI env files
+        run: |
+          cp apps/manager/.env.ci apps/manager/.env
+          cp apps/portal/.env.ci apps/portal/.env
+          cp e2e/.env.ci e2e/.env
+
+      # ── fund test accounts ──────────────────────────────────────
+      - name: Fund portal test accounts
+        if: matrix.project == 'portal'
+        run: |
+          bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+      - name: Fund Rhinestone smart accounts
+        if: matrix.project == 'manager' || matrix.project == 'manager-premium'
+        run: |
+          bash e2e/infra/scripts/fund-rhinestone-account.sh
+
+      # ── run e2e tests ─────────────────────────────────────────────
+      - name: Run E2E tests (${{ matrix.project }})
+        run: |
+          # Resolve the app filter and port (manager-premium reuses the manager app)
+          if [[ "${{ matrix.project }}" == "portal" ]]; then
+            APP_FILTER=portal
+            APP_PORT=3001
+          else
+            APP_FILTER=manager
+            APP_PORT=3000
+          fi
+
+          # Enable Vite dep optimization logging to catch late-discovered deps
+          DEBUG=vite:deps pnpm --filter "$APP_FILTER" dev -- --port ${APP_PORT} > /tmp/app-dev.log 2>&1 &
+          APP_PID=$!
+          timeout 60 bash -c "until curl -sf http://localhost:${APP_PORT} > /dev/null 2>&1; do sleep 2; done"
+          echo "✅ ${APP_FILTER} dev server on :${APP_PORT} (PID $APP_PID)"
+
+          # Verify Anvil is still reachable and the app's env is correct
+          echo "Verifying Anvil RPC..."
+          curl -sf -X POST http://127.0.0.1:8545 \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+            && echo " ✅ Anvil RPC OK" || echo " ❌ Anvil RPC FAILED"
+
+          # Check what RPC URL the app is using (grep the served JS bundle)
+          echo "Checking app RPC URL..."
+          curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
+
+          pnpm e2e:${{ matrix.project }}
+          TEST_EXIT=$?
+          kill $APP_PID 2>/dev/null || true
+          exit $TEST_EXIT
+        env:
+          CI: "true"
+          TZ: "UTC"
+
+      # ── debug failed tests ─────────────────────────────────────────
+      - name: Show failure context
+        if: failure()
+        run: |
+          echo "=== App dev server log (last 100 lines) ==="
+          tail -100 /tmp/app-dev.log 2>/dev/null || echo "(no app dev log)"
+          echo ""
+          echo "=== Vite dep optimization events ==="
+          grep -i 'optimized\|reloading\|new dependencies\|deps' /tmp/app-dev.log 2>/dev/null || echo "(none)"
+          echo ""
+          echo "=== Docker container status ==="
+          docker compose -f e2e/infra/docker-compose.yml ps -a 2>/dev/null || echo "(docker compose not available)"
+          echo ""
+          echo "=== Anvil container logs (last 50 lines) ==="
+          docker compose -f e2e/infra/docker-compose.yml logs --no-color --tail=50 anvil 2>/dev/null || echo "(no anvil logs)"
+          echo ""
+          echo "=== Error context files ==="
+          find e2e/test-results -name 'error-context.md' -exec echo "--- {} ---" \; -exec cat {} \; 2>/dev/null || echo "(none)"
+          echo ""
+          echo "=== e2e/.env ==="
+          cat e2e/.env 2>/dev/null || echo "(missing)"
+          echo ""
+          echo "=== apps/manager/.env ==="
+          cat apps/manager/.env 2>/dev/null || echo "(missing)"
+          echo ""
+          echo "=== apps/portal/.env ==="
+          cat apps/portal/.env 2>/dev/null || echo "(missing)"
+
+      # ── artifacts & cleanup ───────────────────────────────────────
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-${{ matrix.project }}
+          path: |
+            e2e/test-results/
+            e2e/playwright-report/
+          retention-days: 14
+
+      - name: Upload Docker logs on failure
+        if: failure()
+        run: |
+          mkdir -p /tmp/e2e-docker-logs
+          docker compose -f e2e/infra/docker-compose.yml logs --no-color > /tmp/e2e-docker-logs/docker-compose.log 2>&1
+
+      - name: Upload Docker logs artifact
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-docker-logs-${{ matrix.project }}
+          path: /tmp/e2e-docker-logs/
+          retention-days: 7
+
+      - name: Stop E2E stack
+        if: always()
+        run: docker compose -f e2e/infra/docker-compose.yml down

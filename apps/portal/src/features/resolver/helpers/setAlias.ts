@@ -23,6 +23,7 @@ export interface SetAliasParameters {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly chainId: number
+  readonly id: string
 }
 
 export interface SetAliasResult {
@@ -41,6 +42,7 @@ export const setAlias = async (
     publicClient,
     signer,
     chainId,
+    id,
   } = params
 
   if (!walletClient.account || !walletClient.chain) {
@@ -75,6 +77,7 @@ export const setAlias = async (
     },
     signer,
     {
+      id,
       description: `Set alias ${fromName} → ${toName}`,
       publicClient,
       chainId,
@@ -96,6 +99,7 @@ export interface DeleteAliasParameters {
   readonly publicClient: PublicClient
   readonly signer: Signer
   readonly chainId: number
+  readonly id: string
 }
 
 export const deleteAlias = async (
@@ -108,6 +112,7 @@ export const deleteAlias = async (
     publicClient,
     signer,
     chainId,
+    id,
   } = params
 
   if (!walletClient.account || !walletClient.chain) {
@@ -143,6 +148,7 @@ export const deleteAlias = async (
     },
     signer,
     {
+      id,
       description: `Delete alias ${fromName}`,
       publicClient,
       chainId,

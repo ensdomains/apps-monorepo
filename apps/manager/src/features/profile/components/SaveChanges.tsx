@@ -41,7 +41,7 @@ export const SaveChanges = withForm({
     <form.Subscribe
       selector={(state) => ({
         values: state.values,
-        canSubmit: state.canSubmit,
+        canSubmit: state.canSubmit && state.isValid,
       })}
     >
       {({ values: currentData, canSubmit }) => (

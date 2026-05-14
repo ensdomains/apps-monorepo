@@ -2,15 +2,21 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
-import { fastTestETHRegistrar } from '@/lib/constants/registry'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
-import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { sepoliaWithEns } from '@/lib/wagmi'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
@@ -39,7 +45,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
   token,
   owner,
 }: RegistrationPriceParameters) {
-  const client = yield* safeGetNamechainSepoliaClient()
+  const client = yield* safeGetClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
   let label: string
@@ -60,7 +66,7 @@ export const getRegistrationPrice = ResultFn(async function* ({
       nameOrNames: label,
       duration: BigInt(duration),
       paymentToken: resolvedToken,
-      registrarAddress: fastTestETHRegistrar,
+      registrarAddress: ethRegistrar,
       owner,
     }),
     (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),

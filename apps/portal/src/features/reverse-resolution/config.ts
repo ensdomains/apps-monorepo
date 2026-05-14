@@ -1,5 +1,7 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
-import { icons, names } from '@/lib/reverseRegistrarChainId'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
+
+// L2 reverse resolution disabled — see createReverseResolutionNetworks below.
+// import { icons, names } from '@/lib/reverseRegistrarChainId'
 
 /**
  * Configuration for reverse resolution (ENSIP-23)
@@ -40,18 +42,21 @@ const DEFAULT_REVERSE_RECORD: ReverseResolutionNetwork = {
 function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
   const networks: ReverseResolutionNetwork[] = [DEFAULT_REVERSE_RECORD]
 
-  for (const reverseRegistrarChainIdKey of Object.keys(icons)) {
-    const reverseRegistrarChainId = Number(
-      reverseRegistrarChainIdKey,
-    ) as ReverseRegistrarChainId
-    // Skip 60 - already added as "Default" (addr.reverse). 60 and "Ethereum" are the same record.
-    if (reverseRegistrarChainId === 60) continue
-    networks.push({
-      reverseRegistrarChainId,
-      label: names[reverseRegistrarChainId],
-      icon: icons[reverseRegistrarChainId],
-    })
-  }
+  // L2 reverse resolution disabled while running against a Tenderly L1 fork —
+  // the L2 chains in wagmi config aren't part of the fork, so reads/writes
+  // against them would hit live sepolia L2s and diverge from forked state.
+  // for (const reverseRegistrarChainIdKey of Object.keys(icons)) {
+  //   const reverseRegistrarChainId = Number(
+  //     reverseRegistrarChainIdKey,
+  //   ) as ReverseRegistrarChainId
+  //   // Skip 60 - already added as "Default" (addr.reverse). 60 and "Ethereum" are the same record.
+  //   if (reverseRegistrarChainId === 60) continue
+  //   networks.push({
+  //     reverseRegistrarChainId,
+  //     label: names[reverseRegistrarChainId],
+  //     icon: icons[reverseRegistrarChainId],
+  //   })
+  // }
 
   return networks
 }

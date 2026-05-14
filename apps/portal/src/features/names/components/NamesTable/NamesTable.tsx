@@ -31,12 +31,14 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               name={row.original.name}
               expiryDate={row.original.expiryDate}
               roleBitmap={row.original.roleBitmap}
+              v1Roles={row.original.v1Roles}
+              protocolVersion={row.original.protocolVersion}
               isSelected={row.getIsSelected()}
               onSelectChange={(selected) => row.toggleSelected(selected)}
             />
           ))
         ) : (
-          <div className="px-6 py-8 text-center text-quartz-500">
+          <div className="px-6 py-8 text-center text-muted-foreground">
             No results.
           </div>
         )}
@@ -69,8 +71,8 @@ export const NamesTable = ({ table }: NamesTableProps) => {
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
                 className={cn(
-                  'hover:bg-quartz-50',
-                  tableView.strippedRows && 'odd:bg-quartz-50',
+                  'hover:bg-muted',
+                  tableView.strippedRows && 'odd:bg-muted',
                 )}
               >
                 {row.getVisibleCells().map((cell) => (

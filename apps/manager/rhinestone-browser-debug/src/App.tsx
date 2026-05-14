@@ -1,3 +1,4 @@
+import { customSepolia, SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
 import {
   type RhinestoneAccount,
   RhinestoneSDK,
@@ -23,18 +24,6 @@ import {
   zeroHash,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { sepolia } from 'viem/chains'
-
-const SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
-
-const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
-  },
-}
 
 const SUPPORTED_TOKENS = {
   USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as const,
@@ -602,7 +591,7 @@ export function App() {
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [logs])
+  }, [])
 
   useEffect(() => {
     if (sequenceStartedAt === null) {
@@ -1671,7 +1660,7 @@ export function App() {
                   ROOT@WARP:~ /SYSTEM.LOG
                 </span>
                 <div className="terminal-console-actions">
-                  <span>UTF-8 // SECURE_TTY</span>
+                  <span>{'UTF-8 // SECURE_TTY'}</span>
                   <button
                     className="terminal-clear-button"
                     onClick={() => setLogs(createInitialLogs())}

@@ -3,7 +3,7 @@ import type { QueryClient } from '@tanstack/react-query'
 const resolverQueryKeys = new Set([
   'get-resolver-name',
   'get-resolver',
-  'user-dedicated-resolvers',
+  'user-permissioned-resolvers',
   'get-name-resolver-address',
   'ensResolver',
 ])

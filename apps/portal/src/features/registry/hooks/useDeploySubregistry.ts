@@ -3,28 +3,25 @@ import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { deploySubregistry } from '@/features/registry/helpers/deploySubregistry'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
-import type { EnsNetworkName } from '@/utils/types'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
 interface UseDeploySubregistryParams {
   readonly name: string
-  readonly network: EnsNetworkName
   readonly factoryAddress: Address
   readonly implAddress: Address
 }
 
 export const useDeploySubregistry = ({
   name,
-  network,
   factoryAddress,
   implAddress,
 }: UseDeploySubregistryParams) => {
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const mutation = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
@@ -45,7 +42,7 @@ export const useDeploySubregistry = ({
     onSuccess: () => {
       const invalidate = () =>
         queryClient.invalidateQueries({
-          queryKey: getNameRegistriesQueryOptions({ name, network }).queryKey,
+          queryKey: getNameRegistriesQueryOptions({ name }).queryKey,
         })
       invalidate()
       pollForIndexerSync({ invalidateQueries: invalidate })

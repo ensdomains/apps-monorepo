@@ -4,17 +4,18 @@ import { Link } from '@tanstack/react-router'
 import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
+import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { type MergedName, mergeNamesData } from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
-import type { WithEnsNetwork } from '@/utils/types'
 import { getV1NamesForAddressQueryOptions } from '../hooks/useV1NamesForAddress'
 import { getV2NamesWithRolesForAddressQueryOptions } from '../hooks/useV2NamesWithRolesForAddress'
 
@@ -23,28 +24,24 @@ interface NameListProps {
   readonly limit?: number
 }
 
-type column = WithEnsNetwork<MergedName>
+type column = MergedName
+
+const NameCell = ({ name }: { name: string }) => (
+  <div className="flex flex-row gap-2 items-center">
+    <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
+    <EntityBadgeWithActions variant="name" name={name}>
+      {name}
+    </EntityBadgeWithActions>
+  </div>
+)
 
 const columns: ColumnDef<column>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
-    cell(cell) {
-      const name = cell.getValue() as NameWithRelation['name']
-
-      if (!name) return null
-
-      return (
-        <div className="flex flex-row gap-1 items-center w-max">
-          <NameAvatar
-            name={name}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <CopyableRecord href={`/${name}`} value={name} />
-        </div>
-      )
+    cell: ({ getValue }) => {
+      const name = getValue() as NameWithRelation['name']
+      return name ? <NameCell name={name} /> : null
     },
   },
   {
@@ -59,7 +56,14 @@ const columns: ColumnDef<column>[] = [
           </Badge>
         )
       }
-      return formatDateTime(dateToPlainDate(expiryDate))
+      const isV2 = row.original.protocolVersion === 'ENSv2'
+      const status = getNameStatus(expiryDate, isV2)
+      return (
+        <div className="flex items-center gap-2">
+          <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
+          {status === 'grace' && <GraceBadge />}
+        </div>
+      )
     },
   },
   {
@@ -124,7 +128,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
   const data = limit ? allData.slice(0, limit) : allData
 
   return (
-    <div className="border rounded-2xl border-border overflow-hidden">
+    <div className="border rounded-sm border-border overflow-hidden">
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
         {data.map((name, index) => (
@@ -134,6 +138,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             expiryDate={name.expiryDate}
             roleBitmap={name.roleBitmap}
             v1Roles={name.v1Roles}
+            protocolVersion={name.protocolVersion}
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
             showCheckbox={false}
@@ -149,7 +154,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
       <Link
         to="/addr/$addr/names"
         params={{ addr: address }}
-        className="flex items-center justify-center gap-1 bg-quartz-50 p-4 text-sm font-medium hover:bg-quartz-100 transition-colors"
+        className="flex items-center justify-center gap-1 bg-muted p-4 text-sm font-medium hover:bg-muted transition-colors"
       >
         <GripHorizontal className="size-4" />
         Go to full list ({allData.length})

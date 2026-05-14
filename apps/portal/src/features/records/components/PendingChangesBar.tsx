@@ -10,6 +10,9 @@ export const PendingChangesBar = ({
   onDismissError,
   isSaving = false,
   isSyncing = false,
+  isSwitchingChain = false,
+  isWrongChain = false,
+  isConnected = true,
   errorMessage,
   hasValidationErrors = false,
 }: {
@@ -20,11 +23,22 @@ export const PendingChangesBar = ({
   onDismissError?: () => void
   isSaving?: boolean
   isSyncing?: boolean
+  isSwitchingChain?: boolean
+  isWrongChain?: boolean
+  isConnected?: boolean
   errorMessage?: string
   hasValidationErrors?: boolean
 }) => {
   const canSave = changesCount > 0 && !hasValidationErrors && !isSaving
   useHotkey('Mod+S', onSave, { enabled: canSave })
+
+  const saveButtonLabel = (() => {
+    if (!isConnected) return 'Connect Wallet'
+    if (isSwitchingChain) return 'Switching...'
+    if (isWrongChain) return 'Switch Network'
+    if (isSaving) return `Saving...`
+    return `Save ${changesCount} ${changesCount === 1 ? 'change' : 'changes'}`
+  })()
 
   if (changesCount === 0 && !isSyncing && !errorMessage) return null
 
@@ -32,9 +46,9 @@ export const PendingChangesBar = ({
   if (isSyncing) {
     return (
       <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
-        <div className="bg-white border border-border rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
+        <div className="bg-card border border-border rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
           <RefreshCw className="size-4 animate-spin" />
-          <span className="text-sm text-quartz-500">
+          <span className="text-sm text-muted-foreground">
             Syncing changes... This may take a few seconds.
           </span>
         </div>
@@ -46,7 +60,7 @@ export const PendingChangesBar = ({
   if (errorMessage) {
     return (
       <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
-        <div className="bg-red-50 border border-red-200 rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
+        <div className="bg-red-50 border border-red-200 rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
           <AlertCircle className="size-4 text-red-600 shrink-0" />
           <span className="text-sm text-red-700">{errorMessage}</span>
           {onDismissError && (
@@ -54,12 +68,12 @@ export const PendingChangesBar = ({
               variant="outline"
               size="sm"
               onClick={onDismissError}
-              className="rounded-lg shrink-0"
+              className="rounded-sm shrink-0"
             >
               Dismiss
             </Button>
           )}
-          <Button size="sm" onClick={onSave} className="rounded-lg shrink-0">
+          <Button size="sm" onClick={onSave} className="rounded-sm shrink-0">
             Retry
           </Button>
         </div>
@@ -69,8 +83,8 @@ export const PendingChangesBar = ({
 
   return (
     <div className="sticky bottom-6 flex justify-center px-6 pointer-events-none">
-      <div className="bg-white border border-border rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
-        <span className="text-sm text-quartz-500">
+      <div className="bg-card border border-border rounded-sm shadow-lg px-4 py-2 flex items-center gap-4 pointer-events-auto">
+        <span className="text-sm text-muted-foreground">
           <span className="font-medium">{updatesCount} </span>
           {updatesCount === 1 ? 'update' : 'updates'}
         </span>
@@ -83,7 +97,7 @@ export const PendingChangesBar = ({
         <Button
           variant="outline"
           onClick={onDiscard}
-          className="rounded-lg"
+          className="rounded-sm"
           disabled={isSaving}
         >
           Discard
@@ -92,16 +106,21 @@ export const PendingChangesBar = ({
         <Button
           disabled={hasValidationErrors}
           onClick={onSave}
-          className="rounded-lg"
+          className="rounded-sm"
         >
           {isSaving ? (
             <>
-              Saving...
+              {saveButtonLabel}
+              <Loader2 className="size-4 ml-1 animate-spin" />
+            </>
+          ) : isSwitchingChain ? (
+            <>
+              {saveButtonLabel}
               <Loader2 className="size-4 ml-1 animate-spin" />
             </>
           ) : (
             <>
-              Save {changesCount} {changesCount === 1 ? 'change' : 'changes'}
+              {saveButtonLabel}
               <Save className="size-4 ml-1" />
             </>
           )}

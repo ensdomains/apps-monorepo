@@ -1,8 +1,11 @@
+import { Trans } from '@lingui/react/macro'
 import { useQueries } from '@tanstack/react-query'
 import clsx from 'clsx'
 import type { Address } from 'viem'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
+import { LinkButton } from '@/components/ui/button'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { parseAvatarQuery } from '../../service/profileAvatar'
 import type { ProfileRecords } from '../../types'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
@@ -56,6 +59,17 @@ export const ViewHeaderSection = ({
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
+        <div className="absolute top-4 left-4 flex items-center gap-2">
+          <LinkButton
+            params={{ name }}
+            size="sm"
+            to="/renew/$name"
+            variant="outline"
+          >
+            <Trans>Extend Name</Trans>
+            <MSymbol className="ms-opsz-16 ms-wght-300" symbol="double_arrow" />
+          </LinkButton>
+        </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <FavoriteButton name={name} />
           <ShareProfileDialog avatarUrl={avatarUrl} name={name} url={url} />
@@ -69,10 +83,12 @@ export const ViewHeaderSection = ({
                 src={avatarUrl}
               />
               <ImageFallback.Fallback>
-                <img
-                  alt={`${name} fallback avatar`}
-                  className={clsx(avatar.isLoading && 'opacity-50')}
-                  src={placeholderAvatar}
+                <PatternAvatar
+                  className={clsx(
+                    'size-full rounded-xl border-none bg-transparent p-0 shadow-none',
+                    avatar.isLoading && 'opacity-50',
+                  )}
+                  name={name}
                 />
                 {avatar.isLoading && (
                   <div className="absolute inset-0 animate-pulse rounded-xl bg-gray-100" />

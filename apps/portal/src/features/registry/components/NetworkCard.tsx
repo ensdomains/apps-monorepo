@@ -1,24 +1,17 @@
-import { NamechainSVG } from '@/assets/chains'
-import type { EnsNetworkName } from '../../../utils/types'
+import { BlockCard } from '@/features/dashboard/components'
 
-type NetworkCardProps = {
-  network: EnsNetworkName
-}
-
-export function NetworkCard({ network }: NetworkCardProps) {
-  const isNamechain = network === 'namechainSepolia'
-
+export function NetworkCard() {
   return (
-    <div className="p-6 flex flex-row rounded-2xl gap-6 items-center border border-border">
-      {isNamechain ? (
-        <NamechainSVG height={40} width={40} />
-      ) : (
-        <img src="/icons/eth.svg" alt="" className="w-10 h-10" />
-      )}
-      <div className="flex flex-col">
-        <span className="font-medium">Network</span>
-        <span>Sepolia</span>
+    <BlockCard className="gap-3">
+      <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+          <img src="/icons/eth.svg" alt="" className="size-4 shrink-0" />
+          <span className="text-sm truncate">Network</span>
+        </div>
+        <span className="text-sm font-medium text-foreground shrink-0">
+          Sepolia
+        </span>
       </div>
-    </div>
+    </BlockCard>
   )
 }

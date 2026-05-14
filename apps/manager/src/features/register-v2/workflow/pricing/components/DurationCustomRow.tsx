@@ -1,113 +1,115 @@
-import { Trans, useLingui } from '@lingui/react/macro'
-import { secondsInYear } from 'date-fns/constants'
+import { Trans } from '@lingui/react/macro'
+import { addMonths, addSeconds, format } from 'date-fns'
 import { useState } from 'react'
-import { MIN_REGISTER_DURATION_YEARS } from '@/features/register/components/Pricing/utils'
-import { parseLocalizedNumber } from '@/features/register-v2/utils/parse-localized-number'
+import { Calendar } from '@/components/ui/calendar'
+import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import { cn } from '@/lib/utils'
 
 export const DurationCustomRow = ({
   selectedDuration,
   onDurationSet,
   isSelected,
+  type,
+  referenceDate: referenceDateProp,
 }: {
   selectedDuration: number
   onDurationSet: (duration: number) => void
   isSelected: boolean
+  type: 'register' | 'renew'
+  /** Registration: defaults to start of today. Renewal: pass current on-chain expiry (same as PricingSummaryCard). */
+  referenceDate?: Date
 }) => {
-  const { t } = useLingui()
-  const [inputDraft, setInputDraft] = useState<string | null>(null)
-  const customValue = (selectedDuration / secondsInYear).toLocaleString(
-    'en-US',
-    {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 3,
-    },
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
+  const [defaultReferenceDate] = useState(() => {
+    const value = new Date()
+    value.setHours(0, 0, 0, 0)
+    return value
+  })
+  const referenceDate = referenceDateProp ?? defaultReferenceDate
+  const expirationDate = new Date(
+    referenceDate.getTime() + selectedDuration * 1000,
+  )
+
+  const minSelectableDate = addSeconds(
+    referenceDate,
+    MIN_REGISTER_DURATION_SECONDS,
   )
 
   return (
-    <label
-      className={cn(
-        'group flex w-full cursor-pointer flex-col justify-between gap-3 rounded-lg md:flex-row md:items-center',
-        'border border-[#DEDEDF] bg-neutral-50 p-5 transition-all focus-within:border-ens-blue hover:border-ens-blue aria-pressed:border-ens-blue max-md:px-3',
-        isSelected && 'border-ens-blue',
-      )}
-      htmlFor="custom-duration-input"
-    >
-      <div className="whitespace-nowrap font-normal text-ens-blue-dark text-sm leading-none tracking-tighter md:text-lg">
-        <Trans>Enter custom duration</Trans>
-      </div>
-
-      <div
-        className={cn(
-          'flex w-full max-w-1/2 items-center gap-1.5 rounded border bg-white px-2 py-1.5 group-focus-within:border-ens-blue md:gap-2 md:px-3 md:py-2.5',
-          'border-ens-gray-three',
-        )}
-      >
-        <input
-          aria-label={t`Custom duration in years`}
+    <Popover onOpenChange={setIsDatePopoverOpen} open={isDatePopoverOpen}>
+      <PopoverTrigger asChild>
+        <button
           className={cn(
-            'field-sizing-content',
-            'border-none bg-transparent outline-none',
-            'font-medium font-mono text-ens-blue-dark text-sm leading-none tracking-tighter md:text-xl',
-            'text-right',
-            'disabled:cursor-not-allowed',
-            '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            'group flex w-full cursor-pointer flex-col items-start justify-between gap-3 rounded-lg md:flex-row md:items-center',
+            'border-[#DEDEDF] border-[0.5px] bg-neutral-50 p-5 transition-all focus-within:border-ens-blue hover:border-ens-blue aria-pressed:border-ens-blue max-md:px-3',
+            isSelected && 'border-ens-blue',
           )}
-          id="custom-duration-input"
-          max={1000}
-          min={1}
-          onBlur={() => {
-            if (inputDraft === null) {
+          type="button"
+        >
+          <div className="whitespace-nowrap font-normal text-base text-ens-blue-dark leading-none tracking-tighter md:text-2xl">
+            {type === 'register' ? (
+              <Trans>Register to date</Trans>
+            ) : (
+              <Trans>Renew to date</Trans>
+            )}
+          </div>
+          <PopoverAnchor asChild>
+            <div className="flex w-full items-center justify-between gap-1.5 rounded border border-ens-gray-three bg-white p-3 transition-colors group-data-[state=open]:border-ens-blue md:max-w-1/2 md:gap-2 md:px-5 md:py-4">
+              <span className="font-normal text-ens-blue-dark text-lg leading-ens-none">
+                {format(expirationDate, 'MMMM d, yyyy')}
+              </span>
+              <MSymbol
+                className="ms-opsz-18 ms-wght-400 text-[#A0A4A6] transition-colors group-data-[state=open]:text-ens-lapis-core"
+                symbol="calendar_month"
+              />
+            </div>
+          </PopoverAnchor>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="center" className="w-auto p-0">
+        <Calendar
+          captionLayout="dropdown"
+          defaultMonth={expirationDate}
+          disabled={(date) => {
+            const minDate = new Date(minSelectableDate)
+            minDate.setHours(0, 0, 0, 0)
+            const dateToCheck = new Date(date)
+            dateToCheck.setHours(0, 0, 0, 0)
+            return dateToCheck.getTime() < minDate.getTime()
+          }}
+          endMonth={addMonths(new Date(), 1200)}
+          onSelect={(date) => {
+            if (!date) {
               return
             }
-
-            const parsed = parseLocalizedNumber(inputDraft)
-            if (parsed === undefined) {
-              setInputDraft(null)
-              return
-            }
-
-            const clamped = Math.max(
-              MIN_REGISTER_DURATION_YEARS,
-              Math.min(1000, parsed),
+            date.setHours(0, 0, 0, 0)
+            const duration = Math.max(
+              MIN_REGISTER_DURATION_SECONDS,
+              Math.round((date.getTime() - referenceDate.getTime()) / 1000),
             )
-
-            onDurationSet(clamped * secondsInYear)
-            setInputDraft(null)
+            onDurationSet(duration)
           }}
-          onChange={(e) => {
-            const nextDraft = e.target.value
-            setInputDraft(nextDraft)
-
-            const parsed = parseLocalizedNumber(nextDraft)
-            if (parsed === undefined) {
-              return
-            }
-
-            const clamped = Math.max(
-              MIN_REGISTER_DURATION_YEARS,
-              Math.min(1000, parsed),
+          onToday={() => {
+            const minDate = new Date(minSelectableDate)
+            minDate.setHours(0, 0, 0, 0)
+            const duration = Math.max(
+              MIN_REGISTER_DURATION_SECONDS,
+              Math.round((minDate.getTime() - referenceDate.getTime()) / 1000),
             )
-
-            onDurationSet(clamped * secondsInYear)
+            onDurationSet(duration)
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setInputDraft(null)
-              return
-            }
-            if (e.key === 'Enter') {
-              e.currentTarget.blur()
-            }
-          }}
-          step={1}
-          type="number"
-          value={inputDraft ?? customValue}
+          selected={expirationDate}
+          showTodayButton
+          startMonth={minSelectableDate}
         />
-        <span className="font-normal text-ens-gray-three text-xs leading-none tracking-tight md:text-base">
-          <Trans>years</Trans>
-        </span>
-      </div>
-    </label>
+      </PopoverContent>
+    </Popover>
   )
 }

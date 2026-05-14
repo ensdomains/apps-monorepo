@@ -21,8 +21,9 @@ import {
 import { formatPriceForInput } from '@/features/register/utils/formatPriceForInput'
 import {
   getInstantForPremiumPrice,
+  getPremiumPeriodDays,
   getPremiumPriceAtInstant,
-  PREMIUM_PERIOD_MS,
+  type PremiumDecayConfig,
 } from '@/features/register/utils/premiumDecay'
 import { isDateWithinCalendarRange } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
@@ -35,16 +36,28 @@ function useSyncPremiumCalculatorOnOpen(
   setSelectedPrice: (price: number) => void,
   setSelectedInstant: (instant: Temporal.Instant) => void,
   setPriceInput: (value: string) => void,
+  premiumDecayConfig: PremiumDecayConfig,
 ) {
   useEffect(() => {
     if (open && premiumStart) {
       const now = Temporal.Now.instant()
-      const price = getPremiumPriceAtInstant(premiumStart, now)
+      const price = getPremiumPriceAtInstant(
+        premiumStart,
+        now,
+        premiumDecayConfig,
+      )
       setSelectedPrice(price)
       setSelectedInstant(now)
       setPriceInput(formatPriceForInput(price))
     }
-  }, [open, premiumStart, setSelectedPrice, setSelectedInstant, setPriceInput])
+  }, [
+    open,
+    premiumStart,
+    setSelectedPrice,
+    setSelectedInstant,
+    setPriceInput,
+    premiumDecayConfig,
+  ])
 }
 
 type TemporaryPremiumDrawerProps = {
@@ -52,6 +65,7 @@ type TemporaryPremiumDrawerProps = {
   readonly onOpenChange: (open: boolean) => void
   readonly currentPremium: string
   readonly premiumStart: Temporal.Instant | null
+  readonly premiumDecayConfig: PremiumDecayConfig
 }
 
 /**
@@ -63,15 +77,20 @@ export const TemporaryPremiumDrawer = ({
   onOpenChange,
   currentPremium,
   premiumStart,
+  premiumDecayConfig,
 }: TemporaryPremiumDrawerProps) => {
   const premiumEnd = premiumStart
     ? Temporal.Instant.fromEpochMilliseconds(
-        premiumStart.epochMilliseconds + PREMIUM_PERIOD_MS,
+        premiumStart.epochMilliseconds + premiumDecayConfig.periodMs,
       )
     : null
 
   const currentCalculatedPrice = premiumStart
-    ? getPremiumPriceAtInstant(premiumStart, Temporal.Now.instant())
+    ? getPremiumPriceAtInstant(
+        premiumStart,
+        Temporal.Now.instant(),
+        premiumDecayConfig,
+      )
     : 0
 
   const [selectedPrice, setSelectedPrice] = useState(0)
@@ -87,6 +106,7 @@ export const TemporaryPremiumDrawer = ({
     setSelectedPrice,
     setSelectedInstant,
     setPriceInput,
+    premiumDecayConfig,
   )
 
   function applyDateSelection(newInstant: Temporal.Instant) {
@@ -99,7 +119,11 @@ export const TemporaryPremiumDrawer = ({
     )
     const clamped = Temporal.Instant.fromEpochMilliseconds(clampedMs)
 
-    const price = getPremiumPriceAtInstant(premiumStart, clamped)
+    const price = getPremiumPriceAtInstant(
+      premiumStart,
+      clamped,
+      premiumDecayConfig,
+    )
     setSelectedPrice(price)
     setSelectedInstant(clamped)
     setPriceInput(formatPriceForInput(price))
@@ -115,7 +139,11 @@ export const TemporaryPremiumDrawer = ({
     if (Number.isNaN(parsed) || parsed < 0) parsed = 0
     if (parsed > currentCalculatedPrice) parsed = currentCalculatedPrice
 
-    const instant = getInstantForPremiumPrice(premiumStart, parsed)
+    const instant = getInstantForPremiumPrice(
+      premiumStart,
+      parsed,
+      premiumDecayConfig,
+    )
     setSelectedPrice(parsed)
     setSelectedInstant(instant)
   }
@@ -171,12 +199,9 @@ export const TemporaryPremiumDrawer = ({
           <p className="text-base leading-relaxed">
             Temporary premiums are a <b>one time</b> cost applied to recently
             expired names to give fair opportunity to new registrations. The
-            premium starts at $100,000,000 and reduces to $0 over 21 days, and
-            is only applied once on top of the usual registration costs.
-          </p>
-          <p className="text-base leading-relaxed font-medium">
-            The previous owner of this name is exempt from the temporary
-            premium.
+            premium starts at $100,000,000 and reduces to $0 over{' '}
+            {getPremiumPeriodDays(premiumDecayConfig)} days, and is only applied
+            once on top of the usual registration costs.
           </p>
 
           <div className="grid grid-cols-2 gap-4 grid-row-1">

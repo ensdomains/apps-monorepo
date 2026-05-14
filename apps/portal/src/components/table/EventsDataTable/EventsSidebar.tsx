@@ -1,9 +1,8 @@
-import type { Row } from '@tanstack/react-table'
 import type { FC, PropsWithChildren } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
-import { CopyableRecord } from '@/components/CopyableRecord'
-import { DataRow } from '@/components/DataRow'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { InfoCard, InfoRow } from '@/components/InfoCard'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import {
@@ -29,15 +28,20 @@ interface NameDisplayProps {
 
 const NameDisplay = ({ name }: NameDisplayProps) => {
   return (
-    <div className="flex flex-row items-center gap-2">
-      <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-      <CopyableRecord
-        value={name}
-        displayValue={<span className="flex items-center gap-1">{name}</span>}
-        className="underline decoration-dashed underline-offset-4"
-        href={`/name/${name}`}
-      />
-    </div>
+    <EntityBadgeWithActions
+      variant="name"
+      name={name}
+      avatar={
+        <NameAvatar
+          name={name}
+          height="20px"
+          width="20px"
+          rounded="rounded-sm"
+        />
+      }
+    >
+      {name}
+    </EntityBadgeWithActions>
   )
 }
 
@@ -87,54 +91,51 @@ const TransactionDetails = ({
 
   return (
     <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
+      <InfoCard title="Transaction details">
         {displayName && (
-          <DataRow label="Name">
+          <InfoRow label="Name">
             <NameDisplay name={displayName} />
-          </DataRow>
+          </InfoRow>
         )}
 
-        <DataRow label="Tx Hash">
-          <CopyableRecord
-            value={txHash}
-            displayValue={
-              <span className="flex items-center gap-1">
-                {truncateAddress(txHash, 10, 8, '...')}
-              </span>
-            }
-            href={txUrl}
-          />
-        </DataRow>
+        <InfoRow label="Tx Hash">
+          <EntityBadgeWithActions
+            variant="tx"
+            copyValue={txHash}
+            etherscanHref={txUrl}
+          >
+            {truncateAddress(txHash, 10, 8, '...')}
+          </EntityBadgeWithActions>
+        </InfoRow>
 
         {formattedTimestamp && (
-          <DataRow label="Timestamp">
-            <CopyableRecord
-              value={txHash}
-              displayValue={<span>{formattedTimestamp} UTC</span>}
-            />
-          </DataRow>
+          <InfoRow label="Timestamp">
+            <span className="text-sm">{formattedTimestamp} UTC</span>
+          </InfoRow>
         )}
 
         {data && (
           <>
-            <DataRow label="Network">
-              <span>Sepolia</span>
-            </DataRow>
+            <InfoRow label="Network">
+              <span className="text-sm">Sepolia</span>
+            </InfoRow>
 
-            <DataRow label="From">
+            <InfoRow label="From">
               <AddressDisplay address={data.from} />
-            </DataRow>
+            </InfoRow>
 
-            <DataRow label="To">
+            <InfoRow label="To">
               {data.to ? (
-                <AddressDisplay address={data.to} />
+                <AddressDisplay address={data.to} variant="contract" />
               ) : (
-                <span className="text-quartz-500">Contract Creation</span>
+                <span className="text-sm text-muted-foreground">
+                  Contract Creation
+                </span>
               )}
-            </DataRow>
+            </InfoRow>
           </>
         )}
-      </div>
+      </InfoCard>
 
       <TransactionEvents events={events} txHash={txHash} />
     </div>
@@ -142,18 +143,20 @@ const TransactionDetails = ({
 }
 
 interface EventsSidebarProps extends PropsWithChildren {
-  row: Row<ENSTransaction> | null
+  transaction: ENSTransaction | null
   name: string
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  title?: string
 }
 
 export const EventsSidebar: FC<EventsSidebarProps> = ({
   children,
-  row,
+  transaction,
   name,
   open,
   setOpen,
+  title = 'Transaction',
 }) => {
   const isMobile = useIsMobile()
 
@@ -162,28 +165,28 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-220 bg-background p-0 flex flex-col h-dvh"
       >
         {/* Fixed header at the top */}
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
             <SheetTitle className="font-sans text-heading font-medium">
-              Transaction
+              {title}
             </SheetTitle>
           </SheetHeader>
         </div>
 
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
-          {row ? (
+          {transaction ? (
             <TransactionDetails
-              txHash={row.original.transactionID as Hash}
+              txHash={transaction.transactionID as Hash}
               name={name}
-              timestamp={row.original.timestamp}
-              events={row.original.events}
+              timestamp={transaction.timestamp}
+              events={transaction.events}
             />
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No transaction selected
             </div>
           )}

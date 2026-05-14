@@ -1,4 +1,4 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
+import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
 import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -106,7 +106,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center">
         <h3 className="text-2xl font-medium">History</h3>
-        <Button variant="secondary" size="sm" asChild>
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/$name/history" params={{ name }}>
             <Clock className="size-4" />
             Full history
@@ -141,7 +141,7 @@ const HistoryView = ({ name }: HistoryViewProps) => {
   if (isLoading) return <div>Loading history...</div>
 
   if (!history || history.length === 0) {
-    return <div className="text-quartz-400">No history available</div>
+    return <div className="text-muted-foreground">No history available</div>
   }
 
   return <AddressHistory history={history} name={name} />
@@ -215,11 +215,16 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     reverseRegistrarChainId,
   })
 
-  const { getReverseResolutionRequest, getForwardResolutionRequest } =
-    useReverseResolutionMutations({
-      reverseRegistrarChainId,
-      displayName,
-    })
+  const {
+    getReverseResolutionRequest,
+    getForwardResolutionRequest,
+    isEnsOwnerLoading,
+    isReverseInputOwnerLoading,
+  } = useReverseResolutionMutations({
+    reverseRegistrarChainId,
+    displayName,
+    reverseNameInput: nameInput || undefined,
+  })
 
   const {
     openModal: openTransactionModal,
@@ -251,10 +256,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-white overflow-y-auto"
+          className="sm:max-w-[880px] bg-background overflow-y-auto"
         >
           <div className="p-6 flex flex-col gap-6">
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No resolution selected
             </div>
           </div>
@@ -288,6 +293,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     if (!nameInput) return
     try {
       const reverseRequest = getReverseResolutionRequest(nameInput)
+      if (reverseRequest.kind === 'unsupported') {
+        toast.error(reverseRequest.reason)
+        return
+      }
       submitReverseResolution({
         name: nameInput,
         request: reverseRequest.request,
@@ -337,7 +346,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-white overflow-y-auto"
+        className="sm:max-w-[880px] bg-background overflow-y-auto"
       >
         <div className="p-6 flex flex-col gap-6">
           <SheetHeader>
@@ -351,6 +360,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   variant="default"
                   disabled={
                     !isConnected ||
+                    isEnsOwnerLoading ||
                     isForwardResolutionPending ||
                     isSwitchingChain
                   }
@@ -371,7 +381,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
           {/* Banner */}
           {isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-quartz-50 p-4 rounded-md">
+            <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
               <CheckCircle2 className="w-6 h-6 shrink-0" />
               <span className="font-medium">
                 This is the primary name on {label}
@@ -380,7 +390,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
           )}
 
           {!isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-quartz-50 p-4 rounded-md">
+            <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
               <XCircle className="w-6 h-6 shrink-0" />
               <span className="text-sm">
                 The set address does not resolve back to this name on {label}
@@ -430,10 +440,11 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   />
                   <Button
                     type="submit"
-                    variant="secondary"
+                    variant="default"
                     disabled={
                       !isConnected ||
                       !nameInput ||
+                      isReverseInputOwnerLoading ||
                       isReverseResolutionPending ||
                       isSwitchingChain
                     }

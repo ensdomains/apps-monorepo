@@ -25,7 +25,9 @@ import {
   type ResolverNode,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { useSetAlias } from '@/features/resolver/hooks/useSetAlias'
-import { namechainSepolia } from '@/lib/wagmi'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/resolver/$address/create-alias')({
@@ -49,7 +51,7 @@ const PageHeader = ({ address }: PageHeaderProps) => (
     <Link to="/resolver/$address/aliases" params={{ address }}>
       <Button
         variant="ghost"
-        className="flex items-center gap-1 -ml-2 text-quartz-500"
+        className="flex items-center gap-1 -ml-2 text-muted-foreground"
       >
         <ArrowLeftIcon className="size-6" />
         Back
@@ -69,23 +71,30 @@ const NodeOption = ({ node }: NodeOptionProps) => (
       name={node.name}
       width="28px"
       height="28px"
-      rounded="rounded-full"
+      rounded="rounded-sm"
     />
     <span className="font-mono text-sm">{node.name}</span>
     <CopyButton value={node.name} />
   </div>
 )
 
+const CREATE_ALIAS_TX_ID = 'tx-create-alias'
+
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
   const { address: accountAddress, isConnected } = useConnection()
-  const chainId = namechainSepolia.id
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const chainId = sepoliaWithEns.id
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const [fromName, setFromName] = useState<string | null>(null)
   const [toName, setToName] = useState<string | null>(null)
+  const [pendingAlias, setPendingAlias] = useState<{
+    readonly fromName: string
+    readonly toName: string
+  } | null>(null)
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const {
     data: resolver,
@@ -98,7 +107,6 @@ function RouteComponent() {
       resolverAddress: address as Address,
       roles: ['ROLE_SET_ALIAS'],
       account: accountAddress as Address,
-      network: 'namechainSepolia',
     }),
     enabled: !!accountAddress,
   })
@@ -130,18 +138,18 @@ function RouteComponent() {
     walletClient,
     publicClient,
     chainId,
-    onSuccess: () =>
-      navigate({ to: '/resolver/$address/aliases', params: { address } }),
+    id: CREATE_ALIAS_TX_ID,
   })
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!fromName || !toName) return
     mutation.reset()
-    mutation.mutate({ fromName, toName })
+    setPendingAlias({ fromName, toName })
+    openModal()
   }
 
-  if (isLoading) return <LoadingMessage title="Loading resolver data" />
+  if (isLoading) return <LoadingMessage />
   if (error)
     return (
       <ErrorMessage
@@ -152,9 +160,9 @@ function RouteComponent() {
 
   if (nodes.length === 0) {
     return (
-      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-160 mx-auto">
         <PageHeader address={address} />
-        <p className="text-quartz-500">
+        <p className="text-muted-foreground">
           This resolver has no nodes. A node must exist before an alias can be
           created.
         </p>
@@ -163,7 +171,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-160 mx-auto">
       <PageHeader address={address} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -191,12 +199,12 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedFromNode && (
-            <div className="flex items-center gap-3 p-3 bg-quartz-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-sm">
               <NameAvatar
                 name={selectedFromNode.name}
                 width="40px"
                 height="40px"
-                rounded="rounded-full"
+                rounded="rounded-sm"
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
@@ -245,12 +253,12 @@ function RouteComponent() {
             </ComboboxContent>
           </Combobox>
           {selectedToNode && (
-            <div className="flex items-center gap-3 p-3 bg-quartz-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-sm">
               <NameAvatar
                 name={selectedToNode.name}
                 width="40px"
                 height="40px"
-                rounded="rounded-full"
+                rounded="rounded-sm"
               />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
@@ -312,6 +320,29 @@ function RouteComponent() {
           )}
         </Button>
       </form>
+      <TransactionModal
+        transactions={[
+          {
+            id: CREATE_ALIAS_TX_ID,
+            title: 'Create alias',
+            transactionName: `Alias ${pendingAlias?.fromName ?? ''} -> ${pendingAlias?.toName ?? ''}`,
+            estimatedGasCost: 0.0001,
+            onStart: () => {
+              if (!pendingAlias) return
+              mutation.mutate(pendingAlias)
+            },
+            onDone: () => {
+              closeModal()
+              clearTransaction()
+              setPendingAlias(null)
+              navigate({
+                to: '/resolver/$address/aliases',
+                params: { address },
+              })
+            },
+          },
+        ]}
+      />
     </div>
   )
 }

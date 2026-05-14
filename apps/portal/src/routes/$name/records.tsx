@@ -13,9 +13,9 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/$name/records')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params, context: { network } }) => {
+  loader: ({ params }) => {
     return queryClient.prefetchQuery(
-      getProfileQueryOptions({ name: params.name, network }),
+      getProfileQueryOptions({ name: params.name }),
     )
   },
 })
@@ -25,9 +25,11 @@ function App() {
   const { address: connectedAddress } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const { network } = Route.useRouteContext()
   const profileQuery = useQuery({
-    ...getProfileQueryOptions({ name, network }),
+    ...getProfileQueryOptions({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion,
+    }),
     // Always refetch on mount to ensure fresh data after edits
     refetchOnMount: 'always' as const,
   })
@@ -67,7 +69,7 @@ function App() {
       name={name}
       records={profileQuery.data.records}
       canEdit={canEdit}
-      network={ownerData?.network}
+      protocolVersion={ownerData?.protocolVersion}
     />
   )
 }

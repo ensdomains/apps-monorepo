@@ -4,7 +4,6 @@ import type { Hash } from 'viem'
 import { useTransactionReceipt } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -56,20 +55,20 @@ const EventData = ({ event, txHash }: EventDataProps) => {
       </div>
 
       {showDecoded ? (
-        <div className="border rounded-lg overflow-auto">
+        <div className="border rounded-sm overflow-auto">
           <table className="w-full">
-            <thead className="bg-quartz-50">
+            <thead>
               <tr>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700 w-12">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground w-12">
                   #
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                   Name
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                   Type
                 </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-quartz-700">
+                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
                   Data
                 </th>
               </tr>
@@ -98,17 +97,17 @@ const EventData = ({ event, txHash }: EventDataProps) => {
           </table>
         </div>
       ) : (
-        <div className="bg-quartz-50 p-4 rounded-lg">
+        <div className="bg-muted p-4 rounded-sm">
           {eventLog ? (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-medium text-quartz-500 mb-2">
+                <p className="text-xs font-medium text-muted-foreground mb-2">
                   Data:
                 </p>
                 <CopyableRecord
                   value={eventLog.data}
                   displayValue={
-                    <p className="text-xs font-mono break-all text-quartz-900">
+                    <p className="text-xs font-mono break-all text-foreground">
                       {eventLog.data}
                     </p>
                   }
@@ -116,7 +115,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               </div>
               {eventLog.topics.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-quartz-500 mb-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
                     Topics:
                   </p>
                   <div className="space-y-2">
@@ -125,7 +124,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
                         key={topic}
                         value={topic}
                         displayValue={
-                          <p className="text-xs font-mono break-all text-quartz-900">
+                          <p className="text-xs font-mono break-all text-foreground">
                             [{i}]: {topic}
                           </p>
                         }
@@ -136,7 +135,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
               )}
             </div>
           ) : (
-            <p className="text-xs text-quartz-500">
+            <p className="text-xs text-muted-foreground">
               Encoded data not available. Transaction receipt may still be
               loading.
             </p>
@@ -158,7 +157,9 @@ export const TransactionEvents = ({
 }: TransactionEventsProps) => {
   if (events.length === 0) {
     return (
-      <div className="text-quartz-400 text-center py-6">No events found</div>
+      <div className="text-muted-foreground text-center py-6">
+        No events found
+      </div>
     )
   }
 
@@ -167,91 +168,88 @@ export const TransactionEvents = ({
   return (
     <div className="flex flex-col gap-4">
       <h3 className="text-lg font-semibold">{events.length} events</h3>
+      <div className="border rounded-sm overflow-hidden">
+        <Tabs defaultValue={firstEventId} className="w-full">
+          <div className="overflow-x-auto">
+            <TabsList className="w-full justify-start rounded-none p-0 inline-flex">
+              {events.map((event, index) => (
+                <TabsTrigger
+                  key={`${event.id}-${index}`}
+                  value={`${event.id}-${index}`}
+                  className="whitespace-nowrap py-4"
+                >
+                  {event.type}{' '}
+                  {events.filter((e) => e.type === event.type).length > 1
+                    ? `#${index + 1}`
+                    : ''}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Tabs defaultValue={firstEventId} className="w-full">
-            <div className="overflow-x-auto">
-              <TabsList className="w-full justify-start rounded-none p-0 inline-flex">
-                {events.map((event, index) => (
-                  <TabsTrigger
-                    key={`${event.id}-${index}`}
-                    value={`${event.id}-${index}`}
-                    className="whitespace-nowrap"
-                  >
-                    {event.type}{' '}
-                    {events.filter((e) => e.type === event.type).length > 1
-                      ? `#${index + 1}`
-                      : ''}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
+          {events.map((event, index) => (
+            <TabsContent
+              key={`${event.id}-${index}`}
+              value={`${event.id}-${index}`}
+              className="p-6"
+            >
+              <div className="flex flex-col gap-8">
+                <div className="flex flex-col gap-4 w-full">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 w-full">
+                    <CopyableRecord
+                      value={event.type}
+                      displayValue={
+                        <h3 className="text-xl font-medium">{event.type}</h3>
+                      }
+                    />
 
-            {events.map((event, index) => (
-              <TabsContent
-                key={`${event.id}-${index}`}
-                value={`${event.id}-${index}`}
-                className="p-6"
-              >
-                <div className="flex flex-col gap-8">
-                  <div className="flex flex-col gap-4 w-full">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 w-full">
-                      <CopyableRecord
-                        value={event.type}
-                        displayValue={
-                          <h3 className="text-xl font-medium">{event.type}</h3>
-                        }
-                      />
-
-                      <Button variant="secondary" asChild size="sm">
-                        <a
-                          href="https://github.com/ensdomains/ens-contracts"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5"
-                        >
-                          <ScrollTextIcon />
-                          <span className="text-sm">Go to docs</span>
-                        </a>
-                      </Button>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
-                      <span className="text-base font-semibold text-black shrink-0 sm:min-w-[160px]">
-                        Transaction
-                      </span>
-                      <CopyableRecord
-                        value={txHash}
-                        displayValue={
-                          <span className="flex items-center gap-1">
-                            {truncateAddress(txHash, 10, 8, '...')}
-                          </span>
-                        }
-                        className="text-sm flex-1 min-w-0"
-                      />
-                    </div>
-                    <div className="flex flex-row gap-6 items-center">
-                      <span className="text-base font-semibold text-black sm:min-w-[160px]">
-                        Event
-                      </span>
-                      <CopyableRecord
-                        value={getEventSignature(event.type)}
-                        displayValue={
-                          <div className="w-full max-w-110">
-                            {getEventSignature(event.type)}
-                          </div>
-                        }
-                        truncate={false}
-                      />
-                    </div>
+                    <Button variant="ghost" asChild size="sm">
+                      <a
+                        href="https://github.com/ensdomains/ens-contracts"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5"
+                      >
+                        <ScrollTextIcon />
+                        <span className="text-sm">Go to docs</span>
+                      </a>
+                    </Button>
                   </div>
-                  <EventData event={event} txHash={txHash} />
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
+                    <span className="text-base font-semibold shrink-0 sm:min-w-40">
+                      Transaction
+                    </span>
+                    <CopyableRecord
+                      value={txHash}
+                      displayValue={
+                        <span className="flex items-center gap-1">
+                          {truncateAddress(txHash, 10, 8, '...')}
+                        </span>
+                      }
+                      className="text-sm flex-1 min-w-0"
+                    />
+                  </div>
+                  <div className="flex flex-row gap-6 items-center">
+                    <span className="text-base font-semibold sm:min-w-40">
+                      Event
+                    </span>
+                    <CopyableRecord
+                      value={getEventSignature(event.type)}
+                      displayValue={
+                        <div className="w-full max-w-110">
+                          {getEventSignature(event.type)}
+                        </div>
+                      }
+                      truncate={false}
+                    />
+                  </div>
                 </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </CardContent>
-      </Card>
+                <EventData event={event} txHash={txHash} />
+              </div>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
     </div>
   )
 }

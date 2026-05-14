@@ -56,8 +56,8 @@
   .intercom-lightweight-app,
   .intercom-namespace,
   [class^="PostHogSurvey"] {
-    position: relative !important;
-    z-index: 40 !important;
+    position: relative;
+    z-index: 40;
   }
 }
 

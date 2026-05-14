@@ -1,4 +1,4 @@
-import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
+import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ok, type Result } from 'neverthrow'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -6,7 +6,7 @@ import { error } from '../../utils/result'
 
 // Single source of truth for Sepolia RPC URL
 export const SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aQfci4RAcMR8bLtehXRfUMv'
+  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j'
 
 // Create a custom Sepolia chain with working RPC
 export const customSepolia = {
@@ -17,10 +17,10 @@ export const customSepolia = {
   },
 }
 
-export const sepoliaWithEns = extendChainWithL1Ens(customSepolia)
+export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
 export type ViemClient =
-  ReturnType<typeof createEnsClient> extends Result<infer T, infer E>
+  ReturnType<typeof createEnsClient> extends Result<infer T, infer _E>
     ? T
     : never
 

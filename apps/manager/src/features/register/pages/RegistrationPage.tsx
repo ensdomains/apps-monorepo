@@ -5,7 +5,7 @@ import { useAtom } from '@xstate/store-react'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
 import { useCallback, useReducer, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { sepolia } from 'viem/chains'
+import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { Pricing } from '@/features/register/components/Pricing'
@@ -81,10 +81,11 @@ export const Registration = ({
   initialDuration,
 }: RegistrationProps) => {
   const navigate = useNavigate()
+  const chainId = useChainId()
 
   const actor = useActorRef(registrationMachine, {
     input: {
-      chainId: sepolia.id,
+      chainId,
     },
     inspect,
   })
@@ -133,13 +134,14 @@ export const Registration = ({
     }
     // During long Rhinestone intents, smart-account context can briefly report
     // not ready; don't snap back to Pricing once registration has started or finished.
-    if (
-      mapped === RegistrationStep.COMMITTING ||
-      mapped === RegistrationStep.APPROVING ||
-      mapped === RegistrationStep.REGISTERING ||
-      mapped === RegistrationStep.SUCCESS ||
-      mapped === RegistrationStep.ERROR
-    ) {
+    const inFlightSteps = [
+      RegistrationStep.COMMITTING,
+      RegistrationStep.APPROVING,
+      RegistrationStep.REGISTERING,
+      RegistrationStep.SUCCESS,
+      RegistrationStep.ERROR,
+    ]
+    if (inFlightSteps.includes(mapped)) {
       return mapped
     }
     return RegistrationStep.PRICING
@@ -210,7 +212,7 @@ export const Registration = ({
 
   const handleProfileNavigate = () => {
     if (!displayDomainName) return
-    navigate({ to: '/p/$name', params: { name: displayDomainName } })
+    navigate({ to: '/$name', params: { name: displayDomainName } })
   }
 
   const handlePricingDataChange = useCallback(

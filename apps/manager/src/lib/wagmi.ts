@@ -1,24 +1,22 @@
-import { extendChainWithL1Ens } from '@ensdomains/ensjs/chain'
+import {
+  customSepolia,
+  SEPOLIA_RPC_URL,
+  sepoliaWithEns,
+  WALLETCONNECT_PROJECT_ID,
+} from '@ens-apps/indexer/chain'
 import { injected } from '@wagmi/core'
 import { createPublicClient, http } from 'viem'
-import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 
-// Single source of truth for Sepolia RPC URL
-export const SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
-
-// Create a custom Sepolia chain with working RPC
-export const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
-  },
+// Re-export shared chain config so existing imports from `@/lib/wagmi` keep
+// working. New code should prefer importing from `@ens-apps/indexer/chain`.
+export {
+  customSepolia,
+  SEPOLIA_RPC_URL,
+  sepoliaWithEns,
+  WALLETCONNECT_PROJECT_ID,
 }
-
-export const sepoliaWithEns = extendChainWithL1Ens(customSepolia)
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
@@ -34,12 +32,12 @@ export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
   transports: {
-    [customSepolia.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
+    [sepoliaWithEns.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
   },
   connectors: [
     injected(),
     walletConnect({
-      projectId: '1cb2e088d817de31a39a54154b265f68',
+      projectId: WALLETCONNECT_PROJECT_ID,
       name: 'WalletConnect',
     }),
   ],

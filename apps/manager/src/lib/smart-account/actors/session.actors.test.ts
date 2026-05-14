@@ -7,8 +7,9 @@
  * - restoreSessionActor
  */
 
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
-import type { Address, Hex } from 'viem'
+import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   RhinestoneStoredSession,
@@ -201,8 +202,8 @@ describe('session.actors', () => {
     const mockRhinestoneAccount = {
       experimental_getSessionDetails: vi.fn(),
       experimental_signEnableSession: vi.fn(),
-    } as any
-    const mockChain = { id: 11155111, name: 'Sepolia' } as any
+    } as unknown as RhinestoneAccount
+    const mockChain = { id: 11155111, name: 'Sepolia' } as unknown as Chain
 
     it('creates rhinestone session and returns sessionPrivateKey with enableData', async () => {
       const session = createMockRhinestoneSession()

@@ -24,14 +24,21 @@
     "test:manager:ui": "pnpm -r --filter=manager test:ui",
     "test:manager:cov": "pnpm -r --filter=manager test:coverage",
     "test:manager:cov:open": "pnpm -r --filter=manager test:coverage:open",
-    "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev"
+    "dev:tx-example": "pnpm -r --filter=@ens-apps/transaction-manager-example dev",
+    "e2e": "pnpm --filter @ens-apps/e2e test:manager",
+    "e2e:manager": "pnpm --filter @ens-apps/e2e test:manager",
+    "e2e:manager-premium": "pnpm --filter @ens-apps/e2e test:manager-premium",
+    "e2e:portal": "pnpm --filter @ens-apps/e2e test:portal",
+    "e2e:cross-app": "pnpm --filter @ens-apps/e2e test:cross-app",
+    "e2e:infra:up": "pnpm --filter @ens-apps/e2e infra:up",
+    "e2e:infra:down": "pnpm --filter @ens-apps/e2e infra:down"
   },
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "knip": "^5.70.2",
-    "lefthook": "^2.0.4",
-    "wrangler": "^4.51.0"
+    "lefthook": "^2.1.6",
+    "wrangler": "catalog:"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -48,10 +55,11 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch"
+      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch",
+      "class-variance-authority": "patches/class-variance-authority.patch"
     },
     "overrides": {
-      "@rhinestone/sdk": "1.4.2",
+      "@rhinestone/sdk": "1.5.1",
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",
       "es-define-property": "npm:@socketregistry/es-define-property@^1",
       "for-each": "npm:@socketregistry/for-each@^1",
@@ -77,7 +85,8 @@
       "string.prototype.codepointat": "npm:@socketregistry/string.prototype.codepointat@^1",
       "typed-array-buffer": "npm:@socketregistry/typed-array-buffer@^1",
       "which-typed-array": "npm:@socketregistry/which-typed-array@^1",
-      "es-set-tostringtag": "npm:@socketregistry/es-set-tostringtag@^1"
+      "es-set-tostringtag": "npm:@socketregistry/es-set-tostringtag@^1",
+      "vite@8.0.10>rolldown": "1.0.0-rc.18"
     }
   }
 }

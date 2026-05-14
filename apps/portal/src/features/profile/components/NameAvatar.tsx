@@ -7,7 +7,7 @@ export const NameAvatar = ({
   name,
   height = '142px',
   width = '142px',
-  rounded = 'rounded-lg',
+  rounded = 'rounded-sm',
 }: {
   name: string
   height?: string
@@ -35,7 +35,7 @@ export const NameAvatar = ({
       <div
         style={sizeStyle}
         className={cn(
-          'bg-quartz-100 animate-pulse',
+          'bg-muted animate-pulse',
           rounded,
           'w-(--width) h-(--height)',
         )}

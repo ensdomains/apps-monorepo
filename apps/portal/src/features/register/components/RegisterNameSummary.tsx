@@ -8,21 +8,24 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
+import { useBaseRate } from '@/features/register/hooks/useBaseRate'
+import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
   getRegistrationPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
+import { getEffectivePricePerYearUsd } from '@/features/register/utils/effectivePricePerYear'
+import { getPremiumLabel } from '@/features/register/utils/premium'
 import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
-import { formatDiscountPercentForDisplay } from '@/features/register/utils/registrationDiscount'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
   formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
-import { getPricingBreakdown } from '@/features/register/utils/registrationPricing'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -59,9 +62,16 @@ export const RegisterNameCheckoutSummary = ({
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
 
+  const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
+  const baseRate = useBaseRate(name)
+
+  const premiumDecayConfig = oracleData?.premiumDecay
+
   const hasPrice = price && isPriceResult(price)
   const premiumRange =
-    hasPrice && price ? getPremiumInstantRangeFromPrice(price) : null
+    hasPrice && price
+      ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
+      : null
 
   return (
     <Fragment>
@@ -85,7 +95,7 @@ export const RegisterNameCheckoutSummary = ({
         </Alert>
       )}
       <section
-        className="border border-border rounded-lg bg-card p-5"
+        className="border border-border rounded-sm p-5"
         aria-label="Checkout summary"
       >
         {match({ isLoading, isError, hasPrice })
@@ -105,7 +115,12 @@ export const RegisterNameCheckoutSummary = ({
           })
           .with({ hasPrice: true }, () =>
             price ? (
-              <PriceBreakdown name={name} price={price} duration={duration} />
+              <PriceBreakdown
+                name={name}
+                price={price}
+                duration={duration}
+                baseRate={baseRate}
+              />
             ) : null,
           )
           .otherwise(() => (
@@ -116,12 +131,13 @@ export const RegisterNameCheckoutSummary = ({
             </div>
           ))}
 
-        {hasPrice && price.hasPremium && (
+        {hasPrice && price.hasPremium && premiumDecayConfig && (
           <TemporaryPremiumDrawer
             open={premiumDrawerOpen}
             onOpenChange={setPremiumDrawerOpen}
             currentPremium={formatPriceDisplay(price.premium, price.decimals)}
             premiumStart={premiumRange?.start ?? null}
+            premiumDecayConfig={premiumDecayConfig}
           />
         )}
       </section>
@@ -145,10 +161,10 @@ const SummaryRow = ({
   valueClassName,
 }: SummaryRowProps) => (
   <div className={cn('flex items-center justify-between', className)}>
-    <dt className={cn('text-base font-normal text-quartz-350', labelClassName)}>
+    <dt className={cn('font-normal text-foreground', labelClassName)}>
       {label}
     </dt>
-    <dd className={cn('m-0 font-normal text-quartz-900', valueClassName)}>
+    <dd className={cn('m-0 font-normal text-foreground', valueClassName)}>
       {value}
     </dd>
   </div>
@@ -166,15 +182,6 @@ const PriceBreakdownSkeleton = () => (
       <hr className="border-border" />
 
       <SummaryRow label="Price:" value={<Skeleton className="h-5 w-20" />} />
-      <SummaryRow
-        label="Subtotal:"
-        value={
-          <span className="flex items-center gap-1">
-            <Skeleton className="h-5 w-14" />
-          </span>
-        }
-        valueClassName="flex items-center gap-1 m-0"
-      />
 
       <SummaryRow
         label="Total:"
@@ -195,21 +202,29 @@ type PriceBreakdownProps = {
   readonly name: string
   readonly price: RegistrationPriceResult
   readonly duration: number
+  readonly baseRate: bigint
 }
 
-const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
+const PriceBreakdown = ({
+  name,
+  price,
+  duration,
+  baseRate,
+}: PriceBreakdownProps) => {
   const { registrationPeriod, expiresFormatted } =
     getRegistrationDisplayDates(duration)
 
-  const {
-    pricePerYear,
-    years,
-    standardSubtotal,
-    discountAmount,
-    discountPercent,
-    discountLabel,
-    premiumLabel,
-  } = getPricingBreakdown(name, price, duration)
+  const years = duration / CONTRACT_SECONDS_PER_YEAR
+  const pricePerYear = getEffectivePricePerYearUsd({
+    priceBase: price.base,
+    priceDecimals: price.decimals,
+    durationSeconds: duration,
+    baseRate,
+  })
+  const premiumLabel = getPremiumLabel(name)
+  // const roundedYears = Math.round(years)
+  // const discountSublabel =
+  //   roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   return (
     <div className="space-y-2">
@@ -221,14 +236,14 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
 
         {price.hasPremium && (
           <SummaryRow
-            label={'Temporary premium:'}
+            label={'Temp premium:'}
             value={formatPriceDisplay(price.premium, price.decimals)}
-            labelClassName="font-medium text-quartz-900"
-            valueClassName="font-medium text-quartz-900"
+            labelClassName="font-medium text-foreground"
+            valueClassName="font-medium text-foreground"
           />
         )}
 
-        {Math.round(years * 12) >= 12 && (
+        {pricePerYear > 0 && Math.round(years * 12) >= 12 && (
           <SummaryRow
             label={
               premiumLabel ? (
@@ -242,22 +257,16 @@ const PriceBreakdown = ({ name, price, duration }: PriceBreakdownProps) => {
                 'Price:'
               )
             }
-            value={`${formatUsd(pricePerYear)}/year × ${Math.round(years)}`}
-          />
-        )}
-
-        <SummaryRow
-          label="Subtotal:"
-          value={formatUsd(Math.round(standardSubtotal))}
-          valueClassName="flex items-center gap-1 m-0"
-        />
-
-        {discountPercent > 0 && discountAmount > 0 && discountLabel && (
-          <SummaryRow
-            label={`${discountLabel} discount (${formatDiscountPercentForDisplay(discountPercent)}):`}
-            value={`-${formatUsd(discountAmount)}`}
-            valueClassName="flex items-center gap-1 m-0 text-success"
-            labelClassName="text-success"
+            value={
+              <span className="flex flex-col items-end m-0">
+                <span>{`${formatUsd(pricePerYear)}/year`}</span>
+                {/* {discountSublabel ? (
+                  <span className="text-xs text-success-text">
+                    {discountSublabel}
+                  </span>
+                ) : null} */}
+              </span>
+            }
           />
         )}
 

@@ -60,7 +60,7 @@ export const DeployRegistryForm = ({
       )}
 
       <Button
-        variant="secondary"
+        variant="default"
         onClick={onSubmit}
         disabled={isSubmitDisabled}
         className="w-fit"

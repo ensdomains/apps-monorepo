@@ -6,7 +6,8 @@
   "private": true,
   "exports": {
     ".": "./graphql.gen.ts",
-    "./urql": "./urql/client.ts"
+    "./urql": "./urql/client.ts",
+    "./chain": "./chain.ts"
   },
   "scripts": {
     "codegen": "graphql-codegen",
@@ -19,13 +20,15 @@
     "@graphql-codegen/typescript": "^5.0.2",
     "@graphql-codegen/typescript-document-nodes": "^5.0.6",
     "@graphql-codegen/typescript-operations": "^5.0.2",
-    "typescript": "^5.9.2"
+    "typescript": "catalog:typescript6"
   },
   "keywords": [],
   "dependencies": {
+    "@ensdomains/ensjs": "catalog:",
     "@urql/core": "^6.0.1",
     "@urql/exchange-retry": "^2.0.0",
     "graphql": "^16.11.0",
-    "graphql-tag": "^2.12.6"
+    "graphql-tag": "^2.12.6",
+    "viem": "^2.40.3"
   }
 }

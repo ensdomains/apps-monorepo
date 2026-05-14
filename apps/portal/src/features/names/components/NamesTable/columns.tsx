@@ -1,20 +1,33 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import type { V1Roles } from '@/utils/names/mergeNamesData'
 import { dateToPlainDate } from '@/utils/temporal'
+import type { ProtocolVersion } from '@/utils/types'
 
 export type NameRow = {
   name: string | null
   expiryDate?: Date | null
   roleBitmap?: string | null
   v1Roles?: V1Roles | null
+  protocolVersion: ProtocolVersion
 }
+
+const NameCell = ({ name }: { name: string }) => (
+  <div className="flex flex-row gap-2 items-center">
+    <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
+    <EntityBadgeWithActions variant="name" name={name}>
+      {name}
+    </EntityBadgeWithActions>
+  </div>
+)
 
 export const columns: ColumnDef<NameRow>[] = [
   {
@@ -48,22 +61,10 @@ export const columns: ColumnDef<NameRow>[] = [
         Name
       </SortButton>
     ),
-    cell(cell) {
-      const name = cell.getValue() as string
-
+    cell: ({ getValue }) => {
+      const name = getValue() as string
       if (!name) return null
-
-      return (
-        <div className="flex flex-row gap-1 items-center w-max">
-          <NameAvatar
-            name={name}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-          <CopyableRecord href={`/${name}`} value={name} />
-        </div>
-      )
+      return <NameCell name={name} />
     },
   },
   {
@@ -86,7 +87,14 @@ export const columns: ColumnDef<NameRow>[] = [
           </Badge>
         )
       }
-      return formatDateTime(dateToPlainDate(expiryDate))
+      const isV2 = row.original.protocolVersion === 'ENSv2'
+      const status = getNameStatus(expiryDate, isV2)
+      return (
+        <div className="flex items-center gap-2">
+          <span>{formatDateTime(dateToPlainDate(expiryDate))}</span>
+          {status === 'grace' && <GraceBadge />}
+        </div>
+      )
     },
   },
   {

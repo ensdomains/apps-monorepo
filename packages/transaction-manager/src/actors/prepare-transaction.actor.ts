@@ -63,7 +63,7 @@ export function prepareTransaction(input: {
       return errAsync(
         new TransactionPreparationError(
           intent,
-          `Unknown intent type: ${(intent as any).type}`,
+          `Unknown intent type: ${(intent as unknown as Record<string, unknown>).type}`,
         ),
       )
   }
@@ -185,6 +185,11 @@ function prepareETHTransfer(
                 },
               ],
               sponsored: true,
+              // Arbitrary ETH transfers are not in the registration-
+              // scoped smart-session allowlist (see
+              // build-registration-session.ts). Force EOA-owner signing
+              // via the SCA's default validator.
+              useSession: false,
             },
           }
         : {

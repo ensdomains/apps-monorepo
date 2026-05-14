@@ -1,3 +1,4 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
@@ -15,7 +16,12 @@ import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
+import { sepoliaWithEns } from '@/lib/wagmi'
+
+const ensRegistryAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
 
 export const Route = createFileRoute('/$name/roles/')({
   component: RouteComponent,
@@ -84,7 +90,7 @@ const AddUserButton = ({
   if (!canManageRoles) return null
 
   return (
-    <Button variant="secondary" className="flex items-center gap-2" asChild>
+    <Button variant="default" className="flex items-center gap-2" asChild>
       <Link to="/$name/roles/add-user" params={{ name }}>
         <Plus className="size-4" />
         Add user
@@ -107,8 +113,8 @@ function RouteComponent() {
   })
 
   const { data: registriesData } = useQuery({
-    ...getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-    enabled: is3LD && data?.network === 'namechainSepolia',
+    ...getNameRegistriesQueryOptions({ name }),
+    enabled: is3LD && data?.protocolVersion === 'ENSv2',
   })
 
   const registryAddress = is3LD
@@ -117,15 +123,14 @@ function RouteComponent() {
 
   const { data: currentAccountRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({
-      registryAddress: registryAddress ?? namechainEthRegistryAddress,
+      registryAddress: registryAddress ?? ensRegistryAddress,
       label,
       account: address ?? zeroAddress,
-      network: data?.network,
     }),
     enabled:
       Boolean(address) &&
       Boolean(registryAddress) &&
-      data?.network === 'namechainSepolia',
+      data?.protocolVersion === 'ENSv2',
   })
 
   const canManageRoles = Boolean(
@@ -143,7 +148,7 @@ function RouteComponent() {
       />
     )
 
-  if (data?.network === 'namechainSepolia') {
+  if (data?.protocolVersion === 'ENSv2') {
     if (!registryAddress) {
       return (
         <ErrorMessage
@@ -171,8 +176,8 @@ function RouteComponent() {
   } else
     return (
       <ErrorMessage
-        title="This is not a Namechain name"
-        description="Role editing is supported only for Namechain names at the moment."
+        title="This is not an ENSv2 name"
+        description="Role editing is supported only for ENSv2 names at the moment."
       />
     )
 }

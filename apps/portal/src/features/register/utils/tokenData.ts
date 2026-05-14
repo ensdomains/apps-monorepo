@@ -1,7 +1,6 @@
 import type { JSX, SVGProps } from 'react'
 import { USDC_DECIMALS } from '@/lib/constants/tokens'
 import type { SupportedTokenAddresses } from '../types/tokens'
-import { isPriceResult } from './registrationPrice'
 
 export type TokenPrice = {
   readonly total: bigint
@@ -29,19 +28,34 @@ type TokenInput = {
 export type TokenWithPriceAndBalance = TokenInput & {
   readonly price: TokenPrice
   readonly balance: bigint
+  readonly allowance: bigint
+}
+
+function isTokenPrice(value: TokenPrice | undefined): value is TokenPrice {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return (
+    typeof v.base === 'bigint' &&
+    typeof v.premium === 'bigint' &&
+    typeof v.total === 'bigint' &&
+    typeof v.decimals === 'number' &&
+    typeof v.hasPremium === 'boolean'
+  )
 }
 
 export function buildTokenData(
   tokens: readonly TokenInput[],
   prices: readonly (TokenPrice | undefined)[],
   balances: readonly bigint[],
+  allowances: readonly bigint[],
 ): TokenWithPriceAndBalance[] {
   return tokens.map((token, i) => {
     const price = prices[i]
     return {
       ...token,
-      price: price && isPriceResult(price) ? price : DEFAULT_PRICE,
+      price: isTokenPrice(price) ? price : DEFAULT_PRICE,
       balance: typeof balances[i] === 'bigint' ? balances[i] : 0n,
+      allowance: typeof allowances[i] === 'bigint' ? allowances[i] : 0n,
     }
   })
 }

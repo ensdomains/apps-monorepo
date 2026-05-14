@@ -8,7 +8,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { ChevronDown, ChevronUp, PanelRightOpen } from 'lucide-react'
+import { ArrowRightFromLineIcon, ChevronDown, ChevronUp } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
@@ -98,7 +98,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
     ),
     cell: ({ row }) => {
       const txHash = row.original.transactionHash
-      if (!txHash) return <span className="text-quartz-400">-</span>
+      if (!txHash) return <span className="text-muted-foreground">-</span>
       return <BlockExplorerTxLink txHash={txHash as Hash} />
     },
   },
@@ -115,7 +115,7 @@ const baseColumns: ColumnDef<ResolverEventRow>[] = [
     ),
     cell: ({ row }) => {
       const from = row.original.from
-      if (!from) return <span className="text-quartz-400">-</span>
+      if (!from) return <span className="text-muted-foreground">-</span>
       return <AddressDisplay address={from} />
     },
   },
@@ -128,7 +128,7 @@ const moreColumn: ColumnDef<ResolverEventRow> = {
   cell: ({ row, table }) => (
     <div className="flex justify-end pr-4">
       <Button
-        variant="secondary"
+        variant="default"
         size="sm"
         onClick={(e) => {
           e.stopPropagation()
@@ -138,7 +138,7 @@ const moreColumn: ColumnDef<ResolverEventRow> = {
           meta?.onMoreClick?.(row.original)
         }}
       >
-        <PanelRightOpen className="h-4 w-4" />
+        <ArrowRightFromLineIcon className="h-4 w-4" />
         <span className="text-sm font-medium">More</span>
       </Button>
     </div>
@@ -219,14 +219,14 @@ export const ResolverEventsTable = ({
               </Button>
               {enableSidebar && (
                 <Button
-                  variant="secondary"
+                  variant="default"
                   size="sm"
                   onClick={() => {
                     setSelectedEvent(row.original)
                     setSidebarOpen(true)
                   }}
                 >
-                  <PanelRightOpen className="h-4 w-4" />
+                  <ArrowRightFromLineIcon className="h-4 w-4" />
                   <span className="text-sm font-medium">More</span>
                 </Button>
               )}
@@ -264,7 +264,7 @@ export const ResolverEventsTable = ({
           </div>
         ))
       ) : (
-        <div className="px-6 py-24 text-center border border-border rounded-lg">
+        <div className="px-6 py-24 text-center border border-border rounded-sm">
           No events found.
         </div>
       )}
@@ -305,8 +305,8 @@ export const ResolverEventsTable = ({
                   <TableRow
                     key={row.id}
                     className={cn(
-                      'hover:bg-quartz-50',
-                      tableView.strippedRows && 'odd:bg-quartz-50',
+                      'hover:bg-muted',
+                      tableView.strippedRows && 'odd:bg-muted',
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
@@ -319,10 +319,7 @@ export const ResolverEventsTable = ({
                     ))}
                   </TableRow>
                   {row.getIsExpanded() && (
-                    <TableRow
-                      key={`${row.id}-expanded`}
-                      className="hover:bg-quartz-50"
-                    >
+                    <TableRow key={`${row.id}-expanded`}>
                       <TableCell colSpan={2} className={cellClassName} />
                       <TableCell className={cellClassName}>
                         <span>{row.original.type}</span>
@@ -331,7 +328,7 @@ export const ResolverEventsTable = ({
                         {row.original.from ? (
                           <AddressDisplay address={row.original.from} />
                         ) : (
-                          <span className="text-quartz-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       {trailingColSpan > 0 && (

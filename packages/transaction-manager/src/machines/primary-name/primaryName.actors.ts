@@ -1,3 +1,4 @@
+import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Hex, WalletClient } from 'viem'
 import {
@@ -11,13 +12,8 @@ import { DEFAULT_REVERSE_REGISTRAR_ABI } from '../../contracts/abis/DefaultRever
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
+import type { TransactionRequest } from '../../types/transaction.types'
 
-/**
- * Request EOA signature for setNameForAddrWithSignature
- *
- * The signature authorizes setting the primary name for the EOA address.
- * This allows the smart account to submit the transaction on behalf of the EOA.
- */
 /**
  * Result type for signature request - includes both signature and expiry
  * to ensure they stay coupled (the expiry is embedded in the signed message)
@@ -27,14 +23,14 @@ export interface SignatureResult {
   signatureExpiry: bigint
 }
 
-export function requestEOASignatureActor(input: {
+export const requestEOASignatureActor = (input: {
   name: string
   eoaAddress: Address
   signatureExpiry: bigint
   coinTypes: bigint[]
   walletClient: WalletClient
   registrarAddress: Address
-}): ResultAsync<SignatureResult, Error> {
+}): ResultAsync<SignatureResult, Error> => {
   return fromPromise(
     (async () => {
       const {
@@ -80,8 +76,11 @@ export function requestEOASignatureActor(input: {
 
       // Request signature from EOA wallet
       // Using signMessage with raw bytes applies EIP-191 prefix automatically
+      if (!walletClient.account) {
+        throw new Error('walletClient.account is required to sign message')
+      }
       const signature = await walletClient.signMessage({
-        account: walletClient.account!,
+        account: walletClient.account,
         message: { raw: messageHash },
       })
 
@@ -104,7 +103,7 @@ export function requestEOASignatureActor(input: {
  * Calls setNameForAddrWithSignature on the reverse registrar.
  * The smart account pays for gas while setting the name for the EOA.
  */
-export function submitPrimaryNameWithSignatureActor(input: {
+export const submitPrimaryNameWithSignatureActor = (input: {
   name: string
   eoaAddress: Address
   signature: Hex
@@ -113,7 +112,7 @@ export function submitPrimaryNameWithSignatureActor(input: {
   signer: import('../..').Signer
   publicClient: PublicClient
   chainId: number
-}): ResultAsync<string, Error> {
+}): ResultAsync<string, Error> => {
   return fromPromise(
     (async () => {
       const {
@@ -127,54 +126,63 @@ export function submitPrimaryNameWithSignatureActor(input: {
         chainId,
       } = input
 
-      const registrarAddress = ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar
+      const defaultRegistrar = ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar
+      const reverseRegistrar = ENS_SEPOLIA_CONTRACTS.ReverseRegistrar
 
       // Ensure name has .eth suffix
       const cleanName = name.endsWith('.eth') ? name : `${name}.eth`
 
-      // Encode the function call
-      const data = encodeFunctionData({
+      const defaultData = encodeFunctionData({
         abi: DEFAULT_REVERSE_REGISTRAR_ABI,
         functionName: 'setNameForAddrWithSignature',
         args: [eoaAddress, signatureExpiry, cleanName, coinTypes, signature],
       })
 
-      // Smart account is the sender
-      const smartAccountAddress = getSmartAccountAddress(signer)
-
-      console.log('📤 [PRIMARY NAME] Submitting setNameForAddrWithSignature:', {
-        eoaAddress,
-        smartAccountAddress,
-        name: cleanName,
-        signatureExpiry: signatureExpiry.toString(),
+      const reverseData = encodeFunctionData({
+        abi: reverseRegistrarSetNameSnippet,
+        functionName: 'setName',
+        args: [cleanName],
       })
 
-      let request: any
+      const smartAccountAddress = getSmartAccountAddress(signer)
+
+      const batchedCalls = [
+        { to: defaultRegistrar, data: defaultData, value: 0n },
+        { to: reverseRegistrar, data: reverseData, value: 0n },
+      ]
+
+      let request: TransactionRequest
 
       if (signer.type === 'zerodev') {
         request = {
           type: 'zerodev' as const,
           from: smartAccountAddress,
-          to: registrarAddress,
-          data,
+          to: defaultRegistrar,
+          data: defaultData,
           value: 0n,
           chainId,
           zerodevParams: {
-            calls: [{ to: registrarAddress, data, value: 0n }],
+            calls: batchedCalls,
             sponsored: true,
+            // ReverseRegistrar.setName / setNameForAddrWithSignature are
+            // not in the registration-scoped smart-session allowlist
+            // (see build-registration-session.ts), so we fall back to the
+            // SCA's default validator (EOA-owner signature).
+            useSession: false,
           },
         }
       } else if (signer.type === 'rhinestone') {
         request = {
           type: 'rhinestone-intent' as const,
           from: smartAccountAddress,
-          to: registrarAddress,
-          data,
+          to: defaultRegistrar,
+          data: defaultData,
           value: 0n,
           chainId,
           rhinestoneParams: {
-            calls: [{ to: registrarAddress, data, value: 0n }],
+            calls: batchedCalls,
             sponsored: true,
+            useSession: false,
           },
         }
       } else {
@@ -201,29 +209,29 @@ export function submitPrimaryNameWithSignatureActor(input: {
   )
 }
 
-export function submitPrimaryNameUpdateActor(input: {
+export const submitPrimaryNameUpdateActor = (input: {
   name: string
   signer: import('../..').Signer
   accountAddress: Address
   publicClient: PublicClient
   chainId: number
-}): ResultAsync<string, Error> {
+}): ResultAsync<string, Error> => {
   return fromPromise(
     (async () => {
-      const registrarAddress = ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar
+      const defaultRegistrar = ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar
 
       const cleanName = input.name.endsWith('.eth')
         ? input.name
         : `${input.name}.eth`
 
-      const data = encodeFunctionData({
+      const defaultData = encodeFunctionData({
         abi: DEFAULT_REVERSE_REGISTRAR_ABI,
         functionName: 'setName',
         args: [cleanName],
       })
 
       let fromAddress: Address
-      let request: any
+      let request: TransactionRequest
 
       if (input.signer.type === 'eoa') {
         fromAddress = input.accountAddress
@@ -231,8 +239,8 @@ export function submitPrimaryNameUpdateActor(input: {
         request = {
           type: 'eoa' as const,
           from: fromAddress,
-          to: registrarAddress,
-          data,
+          to: defaultRegistrar,
+          data: defaultData,
           value: 0n,
           chainId: input.chainId,
         }
@@ -240,42 +248,49 @@ export function submitPrimaryNameUpdateActor(input: {
         const smartAccountAddress = getSmartAccountAddress(input.signer)
         fromAddress = smartAccountAddress
 
+        const reverseData = encodeFunctionData({
+          abi: reverseRegistrarSetNameSnippet,
+          functionName: 'setName',
+          args: [cleanName],
+        })
+
+        const batchedCalls = [
+          { to: defaultRegistrar, data: defaultData, value: 0n },
+          {
+            to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrar,
+            data: reverseData,
+            value: 0n,
+          },
+        ]
+
         if (input.signer.type === 'rhinestone') {
           request = {
             type: 'rhinestone-intent' as const,
             from: fromAddress,
-            to: registrarAddress,
-            data,
+            to: defaultRegistrar,
+            data: defaultData,
             value: 0n,
             chainId: input.chainId,
             rhinestoneParams: {
-              calls: [
-                {
-                  to: registrarAddress,
-                  data,
-                  value: 0n,
-                },
-              ],
+              calls: batchedCalls,
               sponsored: true,
+              // Reverse-registrar writes aren't in the registration-
+              // scoped smart-session allowlist; force EOA-owner signing.
+              useSession: false,
             },
           }
         } else if (input.signer.type === 'zerodev') {
           request = {
             type: 'zerodev' as const,
             from: fromAddress,
-            to: registrarAddress,
-            data,
+            to: defaultRegistrar,
+            data: defaultData,
             value: 0n,
             chainId: input.chainId,
             zerodevParams: {
-              calls: [
-                {
-                  to: registrarAddress,
-                  data,
-                  value: 0n,
-                },
-              ],
+              calls: batchedCalls,
               sponsored: true,
+              useSession: false,
             },
           }
         } else {
@@ -292,6 +307,56 @@ export function submitPrimaryNameUpdateActor(input: {
         input.signer,
         {
           description: `Set primary name to ${cleanName}`,
+          publicClient: input.publicClient,
+        },
+      )
+
+      return txId
+    })(),
+    (error) => error as Error,
+  )
+}
+
+export const submitReverseUpdateActor = (input: {
+  name: string
+  signer: import('../..').Signer
+  accountAddress: Address
+  publicClient: PublicClient
+  chainId: number
+}): ResultAsync<string, Error> => {
+  return fromPromise(
+    (async () => {
+      if (input.signer.type !== 'eoa') {
+        throw new Error(
+          'submitReverseUpdateActor is only supported for EOA signers',
+        )
+      }
+
+      const registrarAddress = ENS_SEPOLIA_CONTRACTS.ReverseRegistrar
+      const cleanName = input.name.endsWith('.eth')
+        ? input.name
+        : `${input.name}.eth`
+
+      const data = encodeFunctionData({
+        abi: reverseRegistrarSetNameSnippet,
+        functionName: 'setName',
+        args: [cleanName],
+      })
+
+      const request: TransactionRequest = {
+        type: 'eoa' as const,
+        from: input.accountAddress,
+        to: registrarAddress,
+        data,
+        value: 0n,
+        chainId: input.chainId,
+      }
+
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request },
+        input.signer,
+        {
+          description: `Set addr.reverse for ${cleanName}`,
           publicClient: input.publicClient,
         },
       )

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
+// Discount-driven preset chips — re-enable after this PR
 // import { RegistrationDurationPresets } from './RegistrationDurationPresets'
 
 type RegistrationDurationPickerProps = {
@@ -13,6 +14,8 @@ type RegistrationDurationPickerProps = {
   readonly min?: number
   readonly max?: number
   readonly className?: string
+  /** Name used to compute per-year prices for preset chips. Chips hidden if absent. */
+  readonly name?: string
 }
 
 export const RegistrationDurationPicker = ({
@@ -44,6 +47,7 @@ export const RegistrationDurationPicker = ({
     }
   }
 
+  // Discount-driven preset chips — re-enable after this PR
   // const handlePresetSelect = (years: number) => {
   //   const capped = Math.min(Math.max(years, min), max)
   //   onChange(capped)
@@ -92,7 +96,7 @@ export const RegistrationDurationPicker = ({
         <Button
           type="button"
           size="icon"
-          variant="secondary"
+          variant="default"
           onClick={handleDecrement}
           disabled={value <= min}
           className="size-8 mr-1"
@@ -102,7 +106,7 @@ export const RegistrationDurationPicker = ({
 
         <Button
           type="button"
-          variant="secondary"
+          variant="default"
           size="icon"
           onClick={handleIncrement}
           disabled={value >= max}
@@ -111,11 +115,14 @@ export const RegistrationDurationPicker = ({
           <Plus className="size-4" strokeWidth={2} />
         </Button>
       </div>
-      {/* Currently we disabled discounts on contracts - Commenting this section out for now until we re-enable discounts */}
-      {/* <RegistrationDurationPresets
-        value={value}
-        onSelect={handlePresetSelect}
-      /> */}
+      {/* Discount-driven preset chips — re-enable after this PR */}
+      {/* {name ? (
+        <RegistrationDurationPresets
+          value={value}
+          onSelect={handlePresetSelect}
+          name={name}
+        />
+      ) : null} */}
     </div>
   )
 }

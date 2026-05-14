@@ -1,134 +1,128 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import type { LucideIcon } from 'lucide-react'
+import { FlameIcon } from 'lucide-react'
 import {
-  ClockIcon,
-  CoinsIcon,
-  FileCodeIcon,
-  FileSpreadsheetIcon,
-  FlameIcon,
-  ListTreeIcon,
-  Network,
-  PersonStandingIcon,
-  UserLockIcon,
-  UserRoundCog,
-} from 'lucide-react'
+  CardsStackIcon,
+  GraphIcon,
+  HistoryIcon,
+  HubIcon,
+  KeyIcon,
+  ResolverIcon,
+  ShieldIcon,
+  TollIcon,
+} from '@/assets/icons'
+import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { SoonBadge } from '@/components/ui/badge'
+import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { createDefineLinkItem } from '@/utils/tsr'
+import type { ProtocolVersion } from '@/utils/types'
+import { SettingsMenu } from './SettingsMenu'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
 } from './ui/sidebar'
+import { WalletMenu } from './WalletMenu'
 
 type SidebarItemData = {
   title: string
-  icon: LucideIcon
+  icon: React.ComponentType<{ className?: string }>
   disabled?: boolean
   upcoming?: boolean
 }
 
 const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 
-const getItemGroups = (name: string) => [
-  [
-    defineProfileSidebarItem({
-      title: 'Overview',
-      icon: PersonStandingIcon,
-      link: {
-        to: '/$name',
-        params: { name },
-        activeOptions: { exact: true },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Records',
-      icon: FileSpreadsheetIcon,
-      link: {
-        to: '/$name/records',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Resolver',
-      icon: FileCodeIcon,
-      link: {
-        to: '/$name/resolver',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Ownership',
-      icon: UserLockIcon,
-      link: {
-        to: '/$name/ownership',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Roles',
-      icon: UserRoundCog,
-      link: {
-        to: '/$name/roles',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Fuses',
-      icon: FlameIcon,
-      link: {
-        to: '/$name/fuses',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Subnames',
-      icon: ListTreeIcon,
-      link: {
-        to: '/$name/subnames',
-        params: { name },
-      },
-    }),
-    defineProfileSidebarItem({
-      title: 'Registry',
-      icon: Network,
-      link: {
-        to: '/$name/registry',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'Token info',
-      icon: CoinsIcon,
-      link: {
-        to: '/$name/token',
-        params: { name },
-      },
-    }),
-  ],
-  [
-    defineProfileSidebarItem({
-      title: 'History',
-      icon: ClockIcon,
-      link: {
-        to: '/$name/history',
-        params: { name },
-      },
-    }),
-  ],
+const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
+  defineProfileSidebarItem({
+    title: 'Records',
+    icon: CardsStackIcon,
+    link: {
+      to: '/$name/records',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Resolver',
+    icon: ResolverIcon,
+    link: {
+      to: '/$name/resolver',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Ownership',
+    icon: KeyIcon,
+    link: {
+      to: '/$name/ownership',
+      params: { name },
+    },
+  }),
+  ...(protocolVersion === 'ENSv2'
+    ? [
+        defineProfileSidebarItem({
+          title: 'Roles',
+          icon: ShieldIcon,
+          link: {
+            to: '/$name/roles',
+            params: { name },
+          },
+        }),
+      ]
+    : [
+        defineProfileSidebarItem({
+          title: 'Fuses',
+          icon: FlameIcon,
+          link: {
+            to: '/$name/fuses',
+            params: { name },
+          },
+        }),
+      ]),
+  defineProfileSidebarItem({
+    title: 'Subnames',
+    icon: GraphIcon,
+    link: {
+      to: '/$name/subnames',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Registry',
+    icon: HubIcon,
+    link: {
+      to: '/$name/registry',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'Token info',
+    icon: TollIcon,
+    link: {
+      to: '/$name/token',
+      params: { name },
+    },
+  }),
+  defineProfileSidebarItem({
+    title: 'History',
+    icon: HistoryIcon,
+    link: {
+      to: '/$name/history',
+      params: { name },
+    },
+  }),
 ]
 
 interface ProfileSidebarProps {
@@ -136,57 +130,117 @@ interface ProfileSidebarProps {
 }
 
 export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
-  const itemGroups = getItemGroups(name)
+  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+  const protocolVersion = ownerData?.protocolVersion
+  const items = getItems(name, protocolVersion)
+  const { state, isMobile } = useSidebar()
+  const isIconMode = state === 'collapsed' && !isMobile
 
   return (
-    <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
-      <SidebarHeader>
-        <span className="ml-3 text-lg font-bold wrap-break-word">{name}</span>
-      </SidebarHeader>
-      <SidebarSeparator />
-      <SidebarContent>
-        {itemGroups.map((items, i) => (
-          <div key={items[0].title}>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {items.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      {item.disabled || item.upcoming ? (
-                        <SidebarMenuButton
-                          disabled
-                          className="opacity-50 cursor-not-allowed"
-                        >
-                          <item.icon className="size-6" />
-                          <span className="text-sm font-medium">
-                            {item.title}
-                          </span>
-                          {item.upcoming && <SoonBadge />}
-                        </SidebarMenuButton>
-                      ) : (
-                        <SidebarMenuButton asChild>
-                          <Link
-                            {...item.link}
-                            activeProps={{
-                              'data-active': 'true',
-                            }}
-                          >
-                            <item.icon className="size-6" />
-                            <span className="text-sm font-medium">
-                              {item.title}
-                            </span>
-                          </Link>
-                        </SidebarMenuButton>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            {i < itemGroups.length - 1 && <SidebarSeparator />}
+    <Sidebar collapsible="icon">
+      <SidebarRail />
+      <SidebarTrigger className="hidden group-data-[collapsible=icon]:flex absolute right-0 translate-x-full top-6 z-50 bg-secondary hover:bg-quartz-100 border border-border rounded-r-md shadow-sm" />
+      <SidebarHeader className="p-0 gap-0">
+        {isIconMode ? (
+          <div className="flex flex-col items-center gap-4 pt-6 px-2">
+            <Link
+              to="/"
+              className="flex items-center min-h-8"
+              aria-label="ENS Home"
+            >
+              <LogoSVG height={30} className="text-foreground" />
+            </Link>
+            <HomeSearchInput iconOnly />
           </div>
-        ))}
+        ) : (
+          <div className="px-6 pt-6 flex flex-col gap-6">
+            <div className="flex items-center min-h-8">
+              <Link to="/" className="flex items-center">
+                <LogoWithTextSVG
+                  width={97}
+                  height={30}
+                  className="text-foreground"
+                />
+              </Link>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <HomeSearchInput />
+              </div>
+              <SidebarTrigger className="shrink-0" />
+            </div>
+          </div>
+        )}
+      </SidebarHeader>
+
+      <SidebarSeparator className="mt-6 self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
+
+      <SidebarContent className="gap-3 py-6">
+        {/* Name section */}
+        <div className="px-6 flex flex-col gap-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:items-center">
+          <Link
+            to="/$name"
+            params={{ name }}
+            activeProps={{ 'data-active': 'true' }}
+            className="flex items-center gap-2 hover:opacity-80"
+          >
+            <NameAvatar
+              name={name}
+              height="36px"
+              width="36px"
+              rounded="rounded-xs"
+            />
+            <span className="group-data-[collapsible=icon]:hidden text-base font-medium text-foreground break-all leading-tight">
+              {name}
+            </span>
+          </Link>
+        </div>
+
+        <SidebarGroup className="px-6 py-0 group-data-[collapsible=icon]:px-2">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-3">
+              {items.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  {item.disabled || item.upcoming ? (
+                    <SidebarMenuButton
+                      disabled
+                      className="opacity-50 cursor-not-allowed"
+                      tooltip={item.title}
+                    >
+                      <item.icon className="size-4" />
+                      <span className="text-sm">{item.title}</span>
+                      {item.upcoming && <SoonBadge />}
+                    </SidebarMenuButton>
+                  ) : (
+                    <SidebarMenuButton asChild tooltip={item.title}>
+                      <Link
+                        {...item.link}
+                        activeProps={{
+                          'data-active': 'true',
+                        }}
+                      >
+                        <item.icon className="size-4" />
+                        <span className="text-sm">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  )}
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
+
+      <SidebarSeparator className="self-center data-[orientation=horizontal]:w-[calc(100%-3rem)] group-data-[collapsible=icon]:data-[orientation=horizontal]:w-8" />
+
+      <SidebarFooter className="px-6 py-6 group-data-[collapsible=icon]:px-2">
+        <div className="flex items-center gap-4 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:gap-3.5">
+          <div className="flex-1 group-data-[collapsible=icon]:flex-none">
+            <WalletMenu />
+          </div>
+          <SettingsMenu />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   )
 }

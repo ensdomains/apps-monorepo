@@ -2,19 +2,16 @@ import type { GetRecordHistoryParameters } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Hash } from 'viem'
-import { zeroAddress } from 'viem'
-import type { Address } from 'viem/accounts'
 import { useEnsResolver } from 'wagmi'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { DataRow } from '@/components/DataRow'
 import { DataTable } from '@/components/DataTable'
+import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
-import { ResolverField } from '@/features/resolver/components/ResolverField'
-import { getUnderlyingAddressQueryOptions } from '@/features/resolver/hooks/useUnderlyingResolver'
+import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   filterV2EventsByRecord,
   type HistoryEvent,
@@ -24,101 +21,64 @@ import {
 } from '@/utils/history/transformRecordHistory'
 import { filterRecordHistoryByRecord } from '@/utils/subgraph/filterRecordHistoryByRecord'
 import { recordTypeToSubgraphKey } from '@/utils/subgraph/recordTypeToSubgraphKey'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 import type { NameRecord } from './RecordsTable/columns'
 
 const RecordDetailsView = ({ record }: { record: NameRecord }) => {
   switch (record.type) {
     case 'address':
       return (
-        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
-          <DataRow label="Coin Type">
+        <div className="flex flex-col gap-4 p-6">
+          <InfoRow label="Coin Type">
             <span className="font-mono">
               {record.id}{' '}
-              <span className="font-sans text-quartz-500 uppercase">
+              <span className="font-sans text-muted-foreground uppercase">
                 {record.key}
               </span>
             </span>
-          </DataRow>
-          <DataRow label="Value">
+          </InfoRow>
+          <InfoRow label="Value">
             <CopyableRecord
               value={record.value}
               truncate={false}
               textClassName="break-all"
             />
-          </DataRow>
+          </InfoRow>
         </div>
       )
     case 'text':
       return (
-        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
-          <DataRow label="Key">
+        <div className="flex flex-col gap-4">
+          <InfoRow label="Key">
             <span className="font-mono">{record.key}</span>
-          </DataRow>
-          <DataRow label="Value">
+          </InfoRow>
+          <InfoRow label="Value">
             <CopyableRecord
               value={record.value}
               truncate={false}
               textClassName="break-all"
             />
-          </DataRow>
+          </InfoRow>
         </div>
       )
     case 'contentHash':
     case 'abi':
       return (
-        <div className="flex flex-col gap-4 p-6 border border-border rounded-lg">
-          <DataRow label="Value">
-            <CopyableRecord
-              value={record.value}
-              truncate={false}
-              textClassName="break-all"
-            />
-          </DataRow>
-        </div>
+        <InfoCard title={record.type === 'abi' ? 'ABI' : 'Content hash'}>
+          <InfoRow label="Value">
+            <div className="pl-3.5">
+              <CopyableRecord
+                value={record.value}
+                truncate={false}
+                textClassName="break-all"
+              />
+            </div>
+          </InfoRow>
+        </InfoCard>
       )
     default:
       return <div>Unknown record type</div>
   }
-}
-
-interface UnderlyingResolverProps {
-  resolverAddress: Address
-  name: string
-}
-
-const UnderlyingResolver = ({
-  resolverAddress,
-  name,
-}: UnderlyingResolverProps) => {
-  const { data, error, isLoading } = useQuery(
-    getUnderlyingAddressQueryOptions({ resolverAddress, name }),
-  )
-
-  if (error) return <div>Error: ${error.cause?.message}</div>
-  if (isLoading) return <LoadingSpinner title="Loading..." />
-
-  if (!data || data[0] === zeroAddress) {
-    return (
-      <ResolverField
-        label="Universal Resolver address"
-        value={resolverAddress}
-      />
-    )
-  }
-
-  return (
-    <>
-      <ResolverField
-        label="Universal Resolver address"
-        value={resolverAddress}
-      />
-      <ResolverField
-        label={data[1] ? 'Namechain address' : 'Mainnet address'}
-        value={data[0]}
-      />
-    </>
-  )
 }
 
 interface ResolverViewProps {
@@ -132,19 +92,21 @@ const ResolverView = ({ name }: ResolverViewProps) => {
     isLoading,
   } = useEnsResolver({
     name,
+    universalResolverAddress,
   })
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error) return <div>Error: {error.message}</div>
-  if (!resolverAddress) return <div>No data</div>
+  if (!resolverAddress) return <div>No resolver set</div>
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-border rounded-lg">
-      <h3 className="text-2xl font-medium">Resolver</h3>
-      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <UnderlyingResolver {...{ name, resolverAddress }} />
-      </div>
-    </div>
+    <InfoCard title="Resolver">
+      <InfoRow label="Resolver address">
+        <div className="pl-3.5">
+          <CopyableRecord value={resolverAddress} />
+        </div>
+      </InfoRow>
+    </InfoCard>
   )
 }
 
@@ -157,7 +119,7 @@ const columns: ColumnDef<HistoryEvent>[] = [
       if (!timestamp) {
         // Fallback to block number if no timestamp
         return (
-          <span className="font-mono text-quartz-500">
+          <span className="font-mono text-muted-foreground">
             Block {row.original.blockNumber}
           </span>
         )
@@ -205,12 +167,12 @@ const columns: ColumnDef<HistoryEvent>[] = [
 interface HistoryViewProps {
   name: string
   record: NameRecord
-  network?: EnsNetworkName
+  protocolVersion?: ProtocolVersion
 }
 
-const HistoryView = ({ name, record, network }: HistoryViewProps) => {
-  const isV1 = network === 'sepolia'
-  const isV2 = network === 'namechainSepolia'
+const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
+  const isV1 = protocolVersion === 'ENSv1'
+  const isV2 = protocolVersion === 'ENSv2'
 
   // Only query V1 history for V1 names, V2 history for V2 names
   // If network is undefined, we don't know which to query yet
@@ -243,7 +205,7 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
     })
 
   // Handle loading and error states
-  if (!network) {
+  if (!protocolVersion) {
     return <LoadingSpinner title="Loading..." />
   }
 
@@ -293,15 +255,21 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
   const hasNoHistory = allEvents.length === 0
 
   return (
-    <div className="flex flex-col gap-6 p-6 border border-border rounded-lg">
-      <h3 className="text-2xl font-medium">History</h3>
-      {hasNoHistory ? (
-        <p className="text-quartz-500 text-sm py-4">
-          No history available for this record.
-        </p>
-      ) : (
-        <DataTable data={allEvents} columns={columns} />
-      )}
+    <div className="rounded-sm bg-background overflow-hidden">
+      <div className="px-6 py-3">
+        <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
+          History
+        </span>
+      </div>
+      <div className="px-6 pb-6">
+        {hasNoHistory ? (
+          <p className="text-muted-foreground text-sm py-4">
+            No history available for this record.
+          </p>
+        ) : (
+          <DataTable data={allEvents} columns={columns} />
+        )}
+      </div>
     </div>
   )
 }
@@ -309,19 +277,19 @@ const HistoryView = ({ name, record, network }: HistoryViewProps) => {
 interface RecordDetailsProps {
   record: NameRecord
   name: string
-  network?: EnsNetworkName
+  protocolVersion?: ProtocolVersion
 }
 
 export const RecordDetails = ({
   record,
   name,
-  network,
+  protocolVersion,
 }: RecordDetailsProps) => {
   return (
     <div className="p-6 flex flex-col gap-6">
       <RecordDetailsView record={record} />
       <ResolverView name={name} />
-      <HistoryView {...{ name, record, network }} />
+      <HistoryView {...{ name, record, protocolVersion }} />
     </div>
   )
 }

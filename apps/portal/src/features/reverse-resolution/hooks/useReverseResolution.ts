@@ -1,9 +1,9 @@
-import { l2ReverseRegistrarNameForAddrSnippet } from '@ens-apps/l2-primary/L2ReverseRegistrar'
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/reverseRegistrarChainIds'
 import {
   getChainIdForReverseRegistrarChainId,
   getRegistrarAddress,
-} from '@ens-apps/l2-primary/reverseRegistrarChainIds'
+  l2ReverseRegistrarNameForAddrSnippet,
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -109,7 +109,10 @@ async function getL2ReverseRecord(
     REVERSE_RESOLUTION_NETWORK,
   ) as 11155420 | 421614 | 84532 | 59141 | 534351
 
-  const l2Client = wagmiConfig.getClient({ chainId })
+  // L2 chains are not in wagmiConfig (Tenderly fork = L1 only); cast keeps
+  // this dead branch type-checking. REVERSE_RESOLUTION_NETWORKS no longer
+  // produces L2 entries, so this code is unreachable in practice.
+  const l2Client = wagmiConfig.getClient({ chainId: chainId as never })
   if (!l2Client) {
     return createEmptyResult(network)
   }

@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,15 +15,16 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
-import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 
 const GRANT_ROLES_TRANSACTION_ID = 'tx-grant-roles'
-const client = wagmiConfig.getClient({ chainId: namechainSepolia.id })
+const client = wagmiConfig.getClient()
 
 export const Route = createFileRoute('/$name/roles/add-user')({
   component: RouteComponent,
@@ -39,11 +40,11 @@ function RouteComponent() {
     roles: Role[]
   } | null>(null)
 
-  const chainId = namechainSepolia.id
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
 
   const labels = name.split('.')
   const is3LD = labels.length === 3
+  const is2LD = labels.length === 2
 
   const { data: ownerData } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
@@ -51,13 +52,29 @@ function RouteComponent() {
   })
 
   const { data: registriesData } = useQuery({
-    ...getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-    enabled: is3LD && ownerData?.network === 'namechainSepolia',
+    ...getNameRegistriesQueryOptions({ name }),
+    enabled: is3LD && ownerData?.protocolVersion === 'ENSv2',
   })
 
   const registryAddress = is3LD
     ? getSubnameRegistryAddress(registriesData ?? null)
     : ownerData?.registryAddress
+
+  const callerAddress = walletClient?.account?.address
+  const { data: callerRolesData } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress: registryAddress ?? zeroAddress,
+      label: labels[0],
+      account: callerAddress ?? zeroAddress,
+    }),
+    enabled: Boolean(registryAddress) && Boolean(callerAddress),
+  })
+
+  const callerAdminRoles = new Set<Role>(
+    (callerRolesData?.decoded ?? []).filter((r): r is Role =>
+      r.endsWith('_ADMIN'),
+    ),
+  )
 
   const {
     data: address,
@@ -119,7 +136,7 @@ function RouteComponent() {
   }
 
   const handleStartTransaction = () => {
-    if (!pendingGrant || !walletClient?.account) return
+    if (!pendingGrant || !walletClient?.account || !registryAddress) return
 
     grantRoles({
       name,
@@ -180,7 +197,7 @@ function RouteComponent() {
             pattern="(?:[\u002DA-Za-z0-9]+[.]eth|0x[a-fA-F0-9]{40})"
           />
           {nameOrAddressInput.length > 0 && (
-            <p className="text-sm mt-1.5 text-quartz-500">
+            <p className="text-sm mt-1.5 text-muted-foreground">
               {isResolvingAddress && 'Resolving address...'}
               {!isResolvingAddress &&
                 address &&
@@ -195,27 +212,34 @@ function RouteComponent() {
         <Field data-invalid={invalidField === 'roles'}>
           <FieldLabel>Roles</FieldLabel>
           <div
-            className={cn('border rounded-lg divide-y transition-colors', {
+            className={cn('border rounded-sm divide-y transition-colors', {
               'opacity-50 pointer-events-none': isPending || isSuccess,
             })}
             aria-invalid={invalidField === 'roles'}
           >
             {permissions.map((permission) => {
-              const isManagerRoleDisabled = !isManagerRoleSettable(
-                permission.key,
-              )
+              const adminKey = `${permission.key}_ADMIN` as Role
+              const callerLacksAdmin = !callerAdminRoles.has(adminKey)
+              const isManagerRoleDisabled =
+                !isManagerRoleSettable(permission.key, { is2LD }) ||
+                callerLacksAdmin
 
               return (
                 <div
                   key={permission.key}
                   className={cn(
                     'flex items-center justify-between p-4 gap-4',
-                    isManagerRoleDisabled && 'text-quartz-500',
+                    isManagerRoleDisabled && 'text-muted-foreground',
                   )}
+                  title={
+                    callerLacksAdmin
+                      ? `Your account does not hold ${adminKey} on this name and cannot grant this role.`
+                      : undefined
+                  }
                 >
                   <div className="flex flex-col gap-1 flex-1">
                     <div className="font-medium">{permission.title}</div>
-                    <div className="text-sm text-quartz-500">
+                    <div className="text-sm text-muted-foreground">
                       {permission.description}
                     </div>
                   </div>
@@ -228,7 +252,7 @@ function RouteComponent() {
                       />
                       <Label
                         htmlFor={permission.key}
-                        className="font-normal cursor-pointer text-quartz-500"
+                        className="font-normal cursor-pointer text-muted-foreground"
                       >
                         Manager
                       </Label>
@@ -241,7 +265,7 @@ function RouteComponent() {
                       />
                       <Label
                         htmlFor={`${permission.key}_ADMIN`}
-                        className="font-normal cursor-pointer text-quartz-500"
+                        className="font-normal cursor-pointer text-muted-foreground"
                       >
                         Admin
                       </Label>
@@ -250,10 +274,10 @@ function RouteComponent() {
                 </div>
               )
             })}
-            <div className="flex items-center justify-between p-4 gap-4 text-quartz-500">
+            <div className="flex items-center justify-between p-4 gap-4 text-muted-foreground">
               <div className="flex flex-col gap-1 flex-1">
                 <div className="font-medium">Can transfer admin</div>
-                <div className="text-sm text-quartz-500">
+                <div className="text-sm text-muted-foreground">
                   Administrator role to transfer a name
                 </div>
               </div>
@@ -266,7 +290,7 @@ function RouteComponent() {
                   />
                   <Label
                     htmlFor="ROLE_CAN_TRANSFER_ADMIN"
-                    className="font-normal cursor-pointer text-quartz-500"
+                    className="font-normal cursor-pointer text-muted-foreground"
                   >
                     Admin
                   </Label>
@@ -278,7 +302,7 @@ function RouteComponent() {
             <FieldError className="mt-1.5">{submitFeedback}</FieldError>
           )}
         </Field>
-        <Button type="submit" variant="secondary" className="w-fit">
+        <Button type="submit" variant="default" className="w-fit">
           {match({ isPending, isSuccess })
             .with({ isSuccess: true }, () => 'Transaction Complete')
             .with({ isPending: true }, () => 'Saving...')

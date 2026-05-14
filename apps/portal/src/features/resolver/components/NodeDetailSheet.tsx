@@ -80,7 +80,7 @@ export const NodeDetailSheet = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[640px] bg-white p-0 flex flex-col h-dvh"
+        className="sm:max-w-[640px] bg-background p-0 flex flex-col h-dvh"
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader className="p-0 flex flex-row items-center justify-between">
@@ -88,7 +88,7 @@ export const NodeDetailSheet = ({
               {node?.name ?? 'Node Details'}
             </SheetTitle>
             {node && (
-              <Button variant="secondary" size="sm" asChild>
+              <Button variant="default" size="sm" asChild>
                 <Link to="/$name" params={{ name: node.name }}>
                   Go to name
                 </Link>
@@ -101,14 +101,14 @@ export const NodeDetailSheet = ({
           {node ? (
             <div className="flex flex-col gap-0">
               {isInactive && (
-                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-lg bg-garnet-100 p-6 text-sm text-danger">
+                <div className="mx-6 mt-6 flex flex-col items-center justify-center gap-4 self-stretch rounded-sm bg-garnet-100 p-6 text-sm text-garnet-900">
                   This node is inactive. The records and roles are read only.
                 </div>
               )}
               <section className="p-6 border-b flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">Records</h3>
-                  <Button variant="secondary" size="sm" asChild>
+                  <Button variant="default" size="sm" asChild>
                     <Link to="/$name/records" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
                       Go to records
@@ -132,7 +132,7 @@ export const NodeDetailSheet = ({
                     No records set for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden">
                     <DataTable columns={sidebarRecordColumns} data={records} />
                   </div>
                 )}
@@ -141,7 +141,7 @@ export const NodeDetailSheet = ({
               <section className="p-6 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">Roles</h3>
-                  <Button variant="secondary" size="sm" asChild>
+                  <Button variant="default" size="sm" asChild>
                     <Link to="/$name/roles" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
                       Go to roles
@@ -153,7 +153,7 @@ export const NodeDetailSheet = ({
                     No roles assigned for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -166,8 +166,8 @@ export const NodeDetailSheet = ({
                           <TableRow
                             key={`${role.account}-${role.roleBitmap}`}
                             className={cn(
-                              'hover:bg-quartz-50',
-                              tableView.strippedRows && 'odd:bg-quartz-50',
+                              'hover:bg-muted',
+                              tableView.strippedRows && 'odd:bg-muted',
                             )}
                           >
                             <TableCell
@@ -192,7 +192,7 @@ export const NodeDetailSheet = ({
               </section>
             </div>
           ) : (
-            <div className="text-quartz-400 text-center py-12">
+            <div className="text-muted-foreground text-center py-12">
               No node selected
             </div>
           )}

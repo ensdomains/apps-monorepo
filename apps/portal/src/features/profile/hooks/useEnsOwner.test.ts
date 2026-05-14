@@ -1,12 +1,11 @@
 import { ok } from 'neverthrow'
 import { zeroAddress } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the wagmi helpers
 const mockClient = { chain: { id: 11155111 } }
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok(mockClient),
-  safeGetNamechainSepoliaClient: () => ok(mockClient),
 }))
 
 // Mock ensjs v1
@@ -27,34 +26,39 @@ vi.mock('@ensdomains/ensjs/public/v2', () => ({
 const { getEnsOwner } = await import('./useEnsOwner')
 
 describe('getEnsOwner', () => {
-  it('returns a V1 owner for a V1 name', async () => {
-    const mockOwnerAddress = '0x1234567890123456789012345678901234567890'
-    mockV1GetOwner.mockResolvedValue({ owner: mockOwnerAddress })
-
-    const result = await getEnsOwner({ name: 'v1rtl.eth' })
-
-    expect(result._unsafeUnwrap()).toMatchObject({
-      owner: mockOwnerAddress,
-      network: 'sepolia',
-    })
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
-  it('returns a V2 owner when V1 has no owner', async () => {
-    const mockOwnerAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
-    mockV1GetOwner.mockResolvedValue({ owner: null })
-    mockV2GetOwner.mockResolvedValue(mockOwnerAddress)
+  it('returns a V2 owner for a V2 name without calling V1', async () => {
+    const ownerAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
+    mockV2GetOwner.mockResolvedValue(ownerAddress)
 
     const result = await getEnsOwner({ name: 'test.eth' })
 
     expect(result._unsafeUnwrap()).toMatchObject({
-      owner: mockOwnerAddress,
-      network: 'namechainSepolia',
+      owner: ownerAddress,
+      protocolVersion: 'ENSv2',
+    })
+    expect(mockV1GetOwner).not.toHaveBeenCalled()
+  })
+
+  it('returns a V1 owner for a V1 name', async () => {
+    const ownerAddress = '0x1234567890123456789012345678901234567890'
+    mockV2GetOwner.mockResolvedValue(zeroAddress)
+    mockV1GetOwner.mockResolvedValue({ owner: ownerAddress })
+
+    const result = await getEnsOwner({ name: 'v1rtl.eth' })
+
+    expect(result._unsafeUnwrap()).toMatchObject({
+      owner: ownerAddress,
+      protocolVersion: 'ENSv1',
     })
   })
 
-  it('returns null when no owner found on either network', async () => {
-    mockV1GetOwner.mockResolvedValue({ owner: null })
+  it('returns null when no owner found on either registry', async () => {
     mockV2GetOwner.mockResolvedValue(zeroAddress)
+    mockV1GetOwner.mockResolvedValue({ owner: null })
 
     const result = await getEnsOwner({ name: 'unowned.eth' })
 

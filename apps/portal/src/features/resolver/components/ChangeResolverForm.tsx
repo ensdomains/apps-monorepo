@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ResultAsync } from 'neverthrow'
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -11,14 +12,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useChangeResolver } from '@/features/resolver/hooks/useChangeResolver'
-import { useDeployDedicatedResolver } from '@/features/resolver/hooks/useDeployDedicatedResolver'
-import { useUserDedicatedResolvers } from '@/features/resolver/hooks/useUserDedicatedResolvers'
+import { useDeployPermissionedResolver } from '@/features/resolver/hooks/useDeployPermissionedResolver'
+import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserPermissionedResolvers'
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
-const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-dedicated-resolver'
+const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-permissioned-resolver'
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
 
 function useAutoSelectFirstResolver(
@@ -57,6 +58,7 @@ export const ChangeResolverForm = ({
   const [resolverAddress, setResolverAddress] = useState('')
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  const deployedResolverAddressRef = useRef<Address | null>(null)
 
   const {
     openModal: openTransactionModal,
@@ -68,7 +70,7 @@ export const ChangeResolverForm = ({
     data: existingResolvers = [],
     isLoading: isLoadingExistingResolvers,
     error: existingResolversError,
-  } = useUserDedicatedResolvers({
+  } = useUserPermissionedResolvers({
     senderAddress: connectedAddress,
   })
 
@@ -83,11 +85,11 @@ export const ChangeResolverForm = ({
   })
 
   const {
-    deployDedicatedResolverAsync,
+    deployPermissionedResolverAsync,
     deployedResolverAddress,
     isConfirming: isDeployConfirming,
     hasWallet: hasDeployWallet,
-  } = useDeployDedicatedResolver({ name })
+  } = useDeployPermissionedResolver({ name })
 
   const isDeployPath = deployNewResolver && !useCustomResolver
 
@@ -122,20 +124,35 @@ export const ChangeResolverForm = ({
     changeResolver(resolverToUse)
   }
 
-  const handleDeployResolverStart = () => {
-    deployDedicatedResolverAsync({ id: DEPLOY_RESOLVER_TX_ID })
+  const handleDeployResolverStart = async () => {
+    await ResultAsync.fromPromise(
+      deployPermissionedResolverAsync({
+        id: DEPLOY_RESOLVER_TX_ID,
+      }),
+      () => undefined,
+    ).match(
+      (result) => {
+        deployedResolverAddressRef.current = result.resolverAddress
+      },
+      () => undefined,
+    )
   }
 
-  const handleDeployResolverDone = () => {
-    if (!deployedResolverAddress) return
-    // gets deployed resolver address from query client
-    changeResolver(deployedResolverAddress)
+  const handleChangeResolverAfterDeployStart = () => {
+    if (deployedResolverAddressRef.current) {
+      changeResolver(deployedResolverAddressRef.current)
+      return
+    }
+    if (deployedResolverAddress) {
+      changeResolver(deployedResolverAddress)
+    }
   }
 
   const handleChangeResolverTransactionDone = () => {
     closeTransactionModal()
     clearTransaction()
     setResolverAddress('')
+    deployedResolverAddressRef.current = null
     setShowSuccessButtonLabel(true)
     setTimeout(
       () => setShowSuccessButtonLabel(false),
@@ -224,29 +241,29 @@ export const ChangeResolverForm = ({
             <Switch
               checked={deployNewResolver}
               onCheckedChange={setDeployNewResolver}
-              id="deploy-new-dedicated-resolver"
+              id="deploy-new-permissioned-resolver"
             />
             <Label
-              htmlFor="deploy-new-dedicated-resolver"
+              htmlFor="deploy-new-permissioned-resolver"
               className="cursor-pointer"
             >
-              Deploy new dedicated resolver
+              Deploy new permissioned resolver
             </Label>
           </div>
 
           {!deployNewResolver && (
             <div className="flex flex-col gap-3">
-              <Label htmlFor="existing-dedicated-resolver">
-                Existing dedicated resolver
+              <Label htmlFor="existing-permissioned-resolver">
+                Existing permissioned resolver
               </Label>
               <div className="relative">
                 <select
-                  id="existing-dedicated-resolver"
+                  id="existing-permissioned-resolver"
                   value={selectedExistingResolver}
                   onChange={(event) =>
                     setSelectedExistingResolver(event.target.value)
                   }
-                  className="h-9 w-full appearance-none rounded-sm border border-input bg-white px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={
                     isLoadingExistingResolvers || existingResolvers.length === 0
                   }
@@ -264,7 +281,7 @@ export const ChangeResolverForm = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-quartz-500" />
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               </div>
             </div>
           )}
@@ -273,7 +290,7 @@ export const ChangeResolverForm = ({
 
       <Button
         onClick={handleSubmit}
-        variant="secondary"
+        variant="default"
         disabled={isSubmitDisabled}
         className="w-fit"
       >
@@ -296,18 +313,18 @@ export const ChangeResolverForm = ({
             ? [
                 {
                   id: DEPLOY_RESOLVER_TX_ID,
-                  title: 'Deploy dedicated resolver',
+                  title: 'Deploy permissioned resolver',
                   transactionName: `Deploy resolver for ${name}`,
                   estimatedGasCost: 0.001,
                   onStart: handleDeployResolverStart,
-                  onDone: handleDeployResolverDone,
+                  onDone: handleChangeResolverAfterDeployStart,
                 },
                 {
                   id: CHANGE_RESOLVER_TX_ID,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
                   estimatedGasCost: 0.0001,
-                  onStart: handleDeployResolverDone,
+                  onStart: handleChangeResolverAfterDeployStart,
                   onDone: handleChangeResolverTransactionDone,
                 },
               ]

@@ -10,10 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as NameRouteRouteImport } from './routes/$name/route'
+import { Route as AddressRouteRouteImport } from './routes/$address/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as AutoRenewalIndexRouteImport } from './routes/auto-renewal/index'
+import { Route as NameIndexRouteImport } from './routes/$name/index'
+import { Route as AddressIndexRouteImport } from './routes/$address/index'
+import { Route as RenewNameRouteImport } from './routes/renew/$name'
 import { Route as RegisterNameRouteImport } from './routes/register/$name'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
@@ -34,9 +40,24 @@ const WalletRoute = WalletRouteImport.update({
   path: '/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MigrationRoute = MigrationRouteImport.update({
+  id: '/migration',
+  path: '/migration',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NameRouteRoute = NameRouteRouteImport.update({
+  id: '/$name',
+  path: '/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AddressRouteRoute = AddressRouteRouteImport.update({
+  id: '/$address',
+  path: '/$address',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -52,6 +73,21 @@ const RegisterIndexRoute = RegisterIndexRouteImport.update({
 const AutoRenewalIndexRoute = AutoRenewalIndexRouteImport.update({
   id: '/auto-renewal/',
   path: '/auto-renewal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NameIndexRoute = NameIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NameRouteRoute,
+} as any)
+const AddressIndexRoute = AddressIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AddressRouteRoute,
+} as any)
+const RenewNameRoute = RenewNameRouteImport.update({
+  id: '/renew/$name',
+  path: '/renew/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterNameRoute = RegisterNameRouteImport.update({
@@ -132,7 +168,10 @@ const NotificationsChannelsEmailVerifyRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$address': typeof AddressRouteRouteWithChildren
+  '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
   '/wallet': typeof WalletRoute
   '/notifications': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
@@ -141,6 +180,9 @@ export interface FileRoutesByFullPath {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
+  '/$address/': typeof AddressIndexRoute
+  '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
@@ -154,6 +196,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
   '/wallet': typeof WalletRoute
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
@@ -161,6 +204,9 @@ export interface FileRoutesByTo {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
+  '/$address': typeof AddressIndexRoute
+  '/$name': typeof NameIndexRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/register': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
@@ -174,7 +220,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$address': typeof AddressRouteRouteWithChildren
+  '/$name': typeof NameRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/migration': typeof MigrationRoute
   '/wallet': typeof WalletRoute
   '/notifications/_authenticated': typeof NotificationsAuthenticatedRouteRouteWithChildren
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
@@ -183,6 +232,9 @@ export interface FileRoutesById {
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
+  '/renew/$name': typeof RenewNameRoute
+  '/$address/': typeof AddressIndexRoute
+  '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
@@ -197,7 +249,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$address'
+    | '/$name'
     | '/dashboard'
+    | '/migration'
     | '/wallet'
     | '/notifications'
     | '/legal/privacy-policy'
@@ -206,6 +261,9 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
+    | '/$address/'
+    | '/$name/'
     | '/auto-renewal/'
     | '/register/'
     | '/debug/backend/settings'
@@ -219,6 +277,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/migration'
     | '/wallet'
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
@@ -226,6 +285,9 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
+    | '/$address'
+    | '/$name'
     | '/auto-renewal'
     | '/register'
     | '/debug/backend/settings'
@@ -238,7 +300,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/$address'
+    | '/$name'
     | '/dashboard'
+    | '/migration'
     | '/wallet'
     | '/notifications/_authenticated'
     | '/legal/privacy-policy'
@@ -247,6 +312,9 @@ export interface FileRouteTypes {
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
+    | '/renew/$name'
+    | '/$address/'
+    | '/$name/'
     | '/auto-renewal/'
     | '/register/'
     | '/debug/backend/settings'
@@ -260,7 +328,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AddressRouteRoute: typeof AddressRouteRouteWithChildren
+  NameRouteRoute: typeof NameRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
+  MigrationRoute: typeof MigrationRoute
   WalletRoute: typeof WalletRoute
   NotificationsAuthenticatedRouteRoute: typeof NotificationsAuthenticatedRouteRouteWithChildren
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
@@ -269,6 +340,7 @@ export interface RootRouteChildren {
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   RegisterNameRoute: typeof RegisterNameRoute
+  RenewNameRoute: typeof RenewNameRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
@@ -287,11 +359,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/migration': {
+      id: '/migration'
+      path: '/migration'
+      fullPath: '/migration'
+      preLoaderRoute: typeof MigrationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$name': {
+      id: '/$name'
+      path: '/$name'
+      fullPath: '/$name'
+      preLoaderRoute: typeof NameRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$address': {
+      id: '/$address'
+      path: '/$address'
+      fullPath: '/$address'
+      preLoaderRoute: typeof AddressRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -313,6 +406,27 @@ declare module '@tanstack/react-router' {
       path: '/auto-renewal'
       fullPath: '/auto-renewal/'
       preLoaderRoute: typeof AutoRenewalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$name/': {
+      id: '/$name/'
+      path: '/'
+      fullPath: '/$name/'
+      preLoaderRoute: typeof NameIndexRouteImport
+      parentRoute: typeof NameRouteRoute
+    }
+    '/$address/': {
+      id: '/$address/'
+      path: '/'
+      fullPath: '/$address/'
+      preLoaderRoute: typeof AddressIndexRouteImport
+      parentRoute: typeof AddressRouteRoute
+    }
+    '/renew/$name': {
+      id: '/renew/$name'
+      path: '/renew/$name'
+      fullPath: '/renew/$name'
+      preLoaderRoute: typeof RenewNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register/$name': {
@@ -416,6 +530,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AddressRouteRouteChildren {
+  AddressIndexRoute: typeof AddressIndexRoute
+}
+
+const AddressRouteRouteChildren: AddressRouteRouteChildren = {
+  AddressIndexRoute: AddressIndexRoute,
+}
+
+const AddressRouteRouteWithChildren = AddressRouteRoute._addFileChildren(
+  AddressRouteRouteChildren,
+)
+
+interface NameRouteRouteChildren {
+  NameIndexRoute: typeof NameIndexRoute
+}
+
+const NameRouteRouteChildren: NameRouteRouteChildren = {
+  NameIndexRoute: NameIndexRoute,
+}
+
+const NameRouteRouteWithChildren = NameRouteRoute._addFileChildren(
+  NameRouteRouteChildren,
+)
+
 interface NotificationsAuthenticatedRouteRouteChildren {
   NotificationsAuthenticatedIndexRoute: typeof NotificationsAuthenticatedIndexRoute
   NotificationsAuthenticatedSettingsIndexRoute: typeof NotificationsAuthenticatedSettingsIndexRoute
@@ -435,7 +573,10 @@ const NotificationsAuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AddressRouteRoute: AddressRouteRouteWithChildren,
+  NameRouteRoute: NameRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
+  MigrationRoute: MigrationRoute,
   WalletRoute: WalletRoute,
   NotificationsAuthenticatedRouteRoute:
     NotificationsAuthenticatedRouteRouteWithChildren,
@@ -445,6 +586,7 @@ const rootRouteChildren: RootRouteChildren = {
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   RegisterNameRoute: RegisterNameRoute,
+  RenewNameRoute: RenewNameRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,

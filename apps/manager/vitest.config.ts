@@ -1,18 +1,18 @@
 /// <reference types="vitest" />
 
 import { fileURLToPath } from 'node:url'
-import { lingui } from '@lingui/vite-plugin'
+import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin'
+import babel from '@rolldown/plugin-babel'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [
-    viteReact({
-      babel: {
-        plugins: ['@lingui/babel-plugin-lingui-macro'],
-      },
-    }),
+    viteReact(),
     lingui(),
+    babel({
+      presets: [linguiTransformerBabelPreset()],
+    }),
   ],
   test: {
     globals: true,

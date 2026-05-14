@@ -36,6 +36,7 @@ export function submitEOATransaction(input: {
   })
 
   // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
+  // biome-ignore lint/suspicious/noExplicitAny: txParams is built dynamically with conditional gas fields, not expressible as a single static type
   const txParams: any = {
     account: eoaRequest.from,
     to: eoaRequest.to,
@@ -43,7 +44,7 @@ export function submitEOATransaction(input: {
     data: eoaRequest.data,
     gas: eoaRequest.gas,
     nonce: eoaRequest.nonce,
-    chain: walletClient.chain,
+    chain: walletClient.chain ?? null,
   }
 
   // Use either legacy or EIP-1559 gas pricing (not both)

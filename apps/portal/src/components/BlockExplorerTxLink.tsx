@@ -1,6 +1,5 @@
-import type { ReactNode } from 'react'
 import type { Hash } from 'viem'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { cn } from '@/lib/utils'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -9,34 +8,27 @@ interface BlockExplorerTxLinkProps {
   readonly txHash: Hash
   readonly chainId?: number
   readonly className?: string
-  readonly displayValue?: ReactNode
 }
 
 /**
- * Renders a CopyableRecord with a block explorer link for a transaction.
- * Use in table cells and other places where tx hash + explorer link is needed.
+ * Renders an EntityBadgeWithActions (tx) with block explorer link, copy, and Etherscan chips.
  */
 export const BlockExplorerTxLink = ({
   txHash,
   chainId,
   className,
-  displayValue,
 }: BlockExplorerTxLinkProps) => {
   const href = useBlockExplorerTxUrl(txHash, chainId)
 
   return (
-    <CopyableRecord
-      value={txHash}
-      displayValue={
-        displayValue ?? (
-          <span className="font-mono">{truncateAddress(txHash)}</span>
-        )
-      }
-      className={cn(
-        'text-sm underline decoration-dashed underline-offset-4',
-        className,
-      )}
-      href={href}
-    />
+    <div className={cn('flex w-full items-center', className)}>
+      <EntityBadgeWithActions
+        variant="tx"
+        copyValue={txHash}
+        etherscanHref={href}
+      >
+        {truncateAddress(txHash)}
+      </EntityBadgeWithActions>
+    </div>
   )
 }

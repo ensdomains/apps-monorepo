@@ -10,9 +10,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import {
+  ArrowRightFromLineIcon,
   ChevronDown,
   ChevronUp,
-  PanelRightOpen,
   UserIcon,
   UserLockIcon,
 } from 'lucide-react'
@@ -120,14 +120,14 @@ const columns: ColumnDef<AccountRoleGroup>[] = [
       return (
         <div className="flex justify-end pr-4">
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             onClick={(e) => {
               e.stopPropagation()
               meta?.onMoreClick?.(row)
             }}
           >
-            <PanelRightOpen className="h-4 w-4" />
+            <ArrowRightFromLineIcon className="h-4 w-4" />
             <span className="text-sm font-medium">More</span>
           </Button>
         </div>
@@ -207,14 +207,14 @@ export const ResolverRolesTable = ({
                     )}
                   </div>
                   <Button
-                    variant="secondary"
+                    variant="default"
                     size="sm"
                     onClick={() => {
                       setClickedRow(row)
                       setSidebarOpen(true)
                     }}
                   >
-                    <PanelRightOpen className="h-4 w-4" />
+                    <ArrowRightFromLineIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">More</span>
                   </Button>
                 </div>
@@ -232,12 +232,12 @@ export const ResolverRolesTable = ({
                           </span>
                           <div className="flex gap-1">
                             {perms?.admin && (
-                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[22px] text-xs">
+                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-5.5 text-xs">
                                 <UserLockIcon width={12} height={12} /> Admin
                               </div>
                             )}
                             {perms?.manager && (
-                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[22px] text-xs">
+                              <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-5.5 text-xs">
                                 <UserIcon width={12} height={12} /> Manager
                               </div>
                             )}
@@ -251,7 +251,7 @@ export const ResolverRolesTable = ({
             )
           })
         ) : (
-          <div className="px-6 py-24 text-center border border-border rounded-lg">
+          <div className="px-6 py-24 text-center border border-border rounded-sm">
             No role holders found.
           </div>
         )}
@@ -259,138 +259,140 @@ export const ResolverRolesTable = ({
 
       {/* Desktop view */}
       <div className="hidden md:block">
-        <Table className="relative border border-border rounded-2xl border-separate border-spacing-0">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={cn(
-                      'border-b border-b-border',
-                      header.column.id === 'expander' && 'w-[100px]',
-                      header.column.id === 'permissions' && 'min-w-[200px]',
-                    )}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => {
-                const permissionMap = roleToPermissions(
-                  row.original.decodedRoles,
-                )
-                const permissionEntries = Array.from(permissionMap.entries())
-
-                return (
-                  <Fragment key={row.id}>
-                    <TableRow
+        <div className="overflow-hidden">
+          <Table className="relative border-separate border-spacing-0">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
                       className={cn(
-                        'hover:bg-quartz-50',
-                        tableView.strippedRows && 'odd:bg-quartz-50',
+                        'border-b border-b-border',
+                        header.column.id === 'expander' && 'w-25',
+                        header.column.id === 'permissions' && 'min-w-50',
                       )}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className={cn(
-                            'px-6',
-                            tableView.compact ? 'py-2' : 'py-4',
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
                           )}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                    {row.getIsExpanded() &&
-                      resolverPermissions
-                        .filter((p) =>
-                          permissionEntries.some(([key]) => key === p.key),
-                        )
-                        .map((permission, index, filtered) => {
-                          const perms = permissionMap.get(permission.key)
-                          const isLast = index === filtered.length - 1
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => {
+                  const permissionMap = roleToPermissions(
+                    row.original.decodedRoles,
+                  )
+                  const permissionEntries = Array.from(permissionMap.entries())
 
-                          return (
-                            <TableRow key={permission.key}>
-                              <TableCell
-                                className={cn(
-                                  'px-6',
-                                  tableView.compact ? 'py-2' : 'py-4',
-                                  !isLast && 'border-b border-b-border',
-                                )}
-                              />
-                              <TableCell
-                                className={cn(
-                                  'px-6',
-                                  tableView.compact ? 'py-2' : 'py-4',
-                                  !isLast && 'border-b border-b-border',
-                                )}
-                              >
-                                <CopyableRecord
-                                  displayValue={permission.title}
-                                  value={permission.key}
-                                />
-                              </TableCell>
-                              <TableCell
-                                className={cn(
-                                  'px-6',
-                                  tableView.compact ? 'py-2' : 'py-4',
-                                  !isLast && 'border-b border-b-border',
-                                )}
-                              >
-                                <div className="flex flex-row gap-2">
-                                  {perms?.admin && (
-                                    <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
-                                      <UserLockIcon width={16} height={16} />{' '}
-                                      Admin
-                                    </div>
-                                  )}
-                                  {perms?.manager && (
-                                    <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-[26px]">
-                                      <UserIcon width={16} height={16} />{' '}
-                                      Manager
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell
-                                className={cn(
-                                  'px-6',
-                                  tableView.compact ? 'py-2' : 'py-4',
-                                  !isLast && 'border-b border-b-border',
-                                )}
-                              />
-                            </TableRow>
+                  return (
+                    <Fragment key={row.id}>
+                      <TableRow
+                        className={cn(
+                          'hover:bg-muted',
+                          tableView.strippedRows && 'odd:bg-muted',
+                        )}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell
+                            key={cell.id}
+                            className={cn(
+                              'px-6',
+                              tableView.compact ? 'py-2' : 'py-4',
+                            )}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {row.getIsExpanded() &&
+                        resolverPermissions
+                          .filter((p) =>
+                            permissionEntries.some(([key]) => key === p.key),
                           )
-                        })}
-                  </Fragment>
-                )
-              })
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={table.getVisibleLeafColumns().length}
-                  className="h-24 text-center"
-                >
-                  No role holders found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                          .map((permission, index, filtered) => {
+                            const perms = permissionMap.get(permission.key)
+                            const isLast = index === filtered.length - 1
+
+                            return (
+                              <TableRow key={permission.key}>
+                                <TableCell
+                                  className={cn(
+                                    'px-6',
+                                    tableView.compact ? 'py-2' : 'py-4',
+                                    !isLast && 'border-b border-b-border',
+                                  )}
+                                />
+                                <TableCell
+                                  className={cn(
+                                    'px-6',
+                                    tableView.compact ? 'py-2' : 'py-4',
+                                    !isLast && 'border-b border-b-border',
+                                  )}
+                                >
+                                  <CopyableRecord
+                                    displayValue={permission.title}
+                                    value={permission.key}
+                                  />
+                                </TableCell>
+                                <TableCell
+                                  className={cn(
+                                    'px-6',
+                                    tableView.compact ? 'py-2' : 'py-4',
+                                    !isLast && 'border-b border-b-border',
+                                  )}
+                                >
+                                  <div className="flex flex-row gap-2">
+                                    {perms?.admin && (
+                                      <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-6.5">
+                                        <UserLockIcon width={16} height={16} />{' '}
+                                        Admin
+                                      </div>
+                                    )}
+                                    {perms?.manager && (
+                                      <div className="px-2 gap-1 rounded-2xl flex items-center bg-secondary h-6.5">
+                                        <UserIcon width={16} height={16} />{' '}
+                                        Manager
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell
+                                  className={cn(
+                                    'px-6',
+                                    tableView.compact ? 'py-2' : 'py-4',
+                                    !isLast && 'border-b border-b-border',
+                                  )}
+                                />
+                              </TableRow>
+                            )
+                          })}
+                    </Fragment>
+                  )
+                })
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={table.getVisibleLeafColumns().length}
+                    className="h-24 text-center"
+                  >
+                    No role holders found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </ResolverRolesSidebar>
   )

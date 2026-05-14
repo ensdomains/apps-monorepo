@@ -1,3 +1,4 @@
+import { transactionManager } from '@ens-apps/transaction-manager'
 import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -9,7 +10,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Search, XIcon } from 'lucide-react'
+import { FastForward, Search, XIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -17,6 +18,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
+import { Button } from '@/components/ui/button'
 import {
   InputGroup,
   InputGroupAddon,
@@ -29,15 +31,26 @@ import {
   type NameRow,
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
+import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
+import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
+import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
+import {
+  getNameLength,
+  getNameStatus,
+  getSelectedNames,
+  isExtendable2LD,
+  MS_PER_SECOND,
+} from '@/features/renew/utils/nameExtension'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import {
+  isTransactionInFlight,
+  useActiveTransactionState,
+} from '@/features/transaction-manager/hooks/useActiveTransactionState'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { queryClient } from '@/utils/queryClient'
-
-const MS_PER_SECOND = 1000
-const MS_PER_DAY = 24 * 60 * 60 * MS_PER_SECOND
-const GRACE_PERIOD_DAYS = 90
-const PREMIUM_PERIOD_DAYS = 21
 
 const STATUS_FILTER_GROUPS: FilterGroup[] = [
   {
@@ -69,36 +82,6 @@ const LENGTH_FILTER_GROUPS: FilterGroup[] = [
   },
 ]
 
-const getNameStatus = (expiryDate: Date | null | undefined): string => {
-  if (!expiryDate) return 'no-expiry'
-
-  const now = new Date()
-  const gracePeriodEnd = new Date(
-    expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY,
-  )
-  const premiumPeriodEnd = new Date(
-    gracePeriodEnd.getTime() + PREMIUM_PERIOD_DAYS * MS_PER_DAY,
-  )
-
-  // After grace + premium period = fully expired
-  if (now > premiumPeriodEnd) return 'expired'
-  // After grace period but in premium period
-  if (now > gracePeriodEnd) return 'premium'
-  // After expiry but in grace period
-  if (now > expiryDate) return 'grace'
-  // Still registered (active)
-  return 'registered'
-}
-
-const getNameLength = (name: string | null): string => {
-  if (!name) return '5+'
-  // Remove the TLD (e.g., .eth)
-  const label = name.split('.')[0]
-  if (label.length === 3) return '3'
-  if (label.length === 4) return '4'
-  return '5+'
-}
-
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
@@ -123,6 +106,28 @@ function RouteComponent() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [extendModalOpen, setExtendModalOpen] = useState(false)
+
+  const {
+    transactions: renewalTransactions,
+    startFlow,
+    startMultiFlow,
+    clearIncompatibleRenewalState,
+  } = useRenewalTransactions({
+    onComplete: () => {
+      setRowSelection({})
+      setExtendModalOpen(false)
+      void queryClient.invalidateQueries({
+        queryKey: ['get-names-for-address'],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['get-v2-names-with-roles-for-address'],
+      })
+    },
+  })
+
+  const activeTxState = useActiveTransactionState()
+  const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
 
   // Filter state
   const [expiryDateRange, setExpiryDateRange] = useState<DateRange>({})
@@ -147,6 +152,7 @@ function RouteComponent() {
           owner: relation.registrant || relation.wrappedOwner,
           manager: relation.owner || relation.wrappedOwner,
         },
+        protocolVersion: 'ENSv1',
       }),
     )
 
@@ -156,6 +162,7 @@ function RouteComponent() {
         expiryDate: expiryDate ? new Date(expiryDate * MS_PER_SECOND) : null,
         roleBitmap,
         v1Roles: null,
+        protocolVersion: 'ENSv2',
       }),
     )
 
@@ -181,7 +188,10 @@ function RouteComponent() {
     // Filter by status
     if (selectedStatuses.length > 0) {
       filtered = filtered.filter((row) => {
-        const status = getNameStatus(row.expiryDate)
+        const status = getNameStatus(
+          row.expiryDate,
+          row.protocolVersion === 'ENSv2',
+        )
         return selectedStatuses.includes(status)
       })
     }
@@ -217,6 +227,11 @@ function RouteComponent() {
   const rowCount = useMemo(
     () => Object.keys(rowSelection).length,
     [rowSelection],
+  )
+
+  const extendableNames = useMemo(
+    () => getSelectedNames(rowSelection, filteredData).filter(isExtendable2LD),
+    [rowSelection, filteredData],
   )
 
   const searchNamesId = useId()
@@ -257,7 +272,7 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="bg-quartz-50 px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-background px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-10">
         <div className="flex flex-row justify-between">
           <h1 className="text-heading font-medium">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
@@ -276,10 +291,34 @@ function RouteComponent() {
               </button>
               {rowCount} selected
             </div>
+            <Button
+              variant="default"
+              size="sm"
+              disabled={extendableNames.length === 0}
+              onClick={() => {
+                if (isTransactionInFlight(activeTxState)) {
+                  openModal()
+                  return
+                }
+                // Stale terminal-state transactions (success/error) block the
+                // modal; remove only that entry so a fresh extend flow can
+                // start without touching any other in-flight transactions.
+                if (activeTxState) {
+                  transactionManager.cancelTransaction(activeTxState.txId)
+                }
+                clearIncompatibleRenewalState(
+                  extendableNames.length === 1 ? 'single' : 'multi',
+                )
+                setExtendModalOpen(true)
+              }}
+            >
+              <FastForward className="size-4" />
+              Extend
+            </Button>
           </div>
         ) : (
           <>
-            <InputGroup className="bg-white rounded-sm">
+            <InputGroup className="bg-background rounded-sm">
               <InputGroupInput
                 id={searchNamesId}
                 className="w-full"
@@ -315,6 +354,34 @@ function RouteComponent() {
       <div className="overflow-x-auto">
         <NamesTable table={table} />
       </div>
+      {extendableNames.length === 1 && (
+        <ExtendNameModal
+          open={extendModalOpen && !isTransactionModalOpen}
+          onClose={() => setExtendModalOpen(false)}
+          selectedName={extendableNames[0]}
+          onExtend={(config) => {
+            startFlow(extendableNames[0], config)
+            openModal()
+          }}
+        />
+      )}
+      {extendableNames.length > 1 && (
+        <MultiNameExtendModal
+          open={extendModalOpen && !isTransactionModalOpen}
+          onClose={() => setExtendModalOpen(false)}
+          selectedNames={extendableNames}
+          onExtend={(config) => {
+            startMultiFlow({
+              renewals: config.renewals,
+              tokenAddress: config.token.address,
+              tokenPrice: config.token.price.total,
+              tokenAllowance: config.token.allowance,
+            })
+            openModal()
+          }}
+        />
+      )}
+      <TransactionModal transactions={renewalTransactions} />
     </>
   )
 }

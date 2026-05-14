@@ -167,6 +167,7 @@ export const TransactionStatusPanel = ({
               </span>
               {tx.canCancel && (
                 <button
+                  type="button"
                   onClick={() => handleCancel(tx.id)}
                   style={{
                     padding: '4px 8px',

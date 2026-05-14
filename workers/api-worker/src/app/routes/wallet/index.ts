@@ -1,3 +1,4 @@
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { vValidator } from '@hono/valibot-validator'
 import { HTTPException } from 'hono/http-exception'
 import * as v from 'valibot'
@@ -14,17 +15,19 @@ import { sepolia } from 'viem/chains'
 import { encodeFunctionData, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
+import { SEPOLIA_RPC_URL } from '#core/eth/client.js'
 import { logger } from '#utils/logger.js'
 import { ethAddress } from '#utils/validation.js'
 
 const TOKENS = {
   USDC: {
-    address: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6',
+    address: ensL1Contracts[supportedL1Chains.sepolia].usdc.address,
     decimals: 6,
     mintAmount: parseUnits('1000', 6),
   },
   DAI: {
-    address: '0xd030a2465ee661338de1f02d05042bbf20d5d127',
+    // MockDAI on Sepolia (not yet exported by ensjs)
+    address: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4',
     decimals: 18,
     mintAmount: parseUnits('1000', 18),
   },
@@ -73,7 +76,7 @@ const createWalletClient = (privateKey: string | undefined) => {
 
   return createClient({
     chain: sepolia,
-    transport: http('https://ethereum-sepolia-rpc.publicnode.com'),
+    transport: http(SEPOLIA_RPC_URL),
     account: walletAccount,
   })
     .extend(publicActions)

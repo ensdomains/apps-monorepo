@@ -14,7 +14,7 @@ export const ForwardNamesSidebar: FC<
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
       {children}
-      <SheetContent side="right" className="sm:max-w-[880px] bg-white">
+      <SheetContent side="right" className="sm:max-w-[880px] bg-background">
         {row && <ForwardNameDetails {...row.original} />}
       </SheetContent>
     </Sheet>

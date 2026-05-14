@@ -9,7 +9,6 @@ import {
   ShieldX,
 } from 'lucide-react'
 import { useState } from 'react'
-import { sepolia } from 'viem/chains'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -24,6 +23,7 @@ import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapper
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/fuses/burn')({
   component: RouteComponent,
@@ -48,10 +48,10 @@ function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
   const queryClient = useQueryClient()
-  const chainId = sepolia.id
+  const chainId = sepoliaWithEns.id
 
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const wrapperDataQuery = useQuery({
     ...getWrapperDataQueryOptions({ name }),
@@ -69,7 +69,7 @@ function RouteComponent() {
   const txState = useActiveTransactionState()
 
   if (wrapperDataQuery.isLoading) {
-    return <LoadingMessage title="Loading fuses..." />
+    return <LoadingMessage />
   }
 
   if (wrapperDataQuery.error) {
@@ -172,7 +172,7 @@ function RouteComponent() {
           <Link
             to="/$name/fuses"
             params={{ name }}
-            className="flex items-center gap-1 text-quartz-400 hover:text-quartz-600 text-sm font-medium"
+            className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-sm font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -180,9 +180,9 @@ function RouteComponent() {
 
           <h1 className="text-4xl font-medium leading-tight">Burn fuses</h1>
 
-          <div className="bg-quartz-50 rounded-2xl p-6 flex gap-4 items-start">
+          <div className="bg-muted rounded-sm p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />
-            <p className="text-black">
+            <p className="text-foreground">
               Burning fuses will make permanent changes to your name.
               <br />
               You will not be able to undo these changes, and they will only be
@@ -192,7 +192,7 @@ function RouteComponent() {
 
           <div className="flex flex-col gap-1">
             <span className="font-medium">Fuse expiry</span>
-            <div className="flex items-center h-10 px-2 border border-quartz-100 rounded bg-white">
+            <div className="flex items-center h-10 px-2 border border-border rounded bg-background">
               <span className="flex-1 text-sm">
                 {expiry
                   ? new Date(Number(expiry) * 1000).toLocaleString('en-US', {
@@ -206,7 +206,7 @@ function RouteComponent() {
                     })
                   : 'N/A'}
               </span>
-              <Calendar className="w-4 h-4 text-quartz-400" />
+              <Calendar className="w-4 h-4 text-muted-foreground" />
             </div>
           </div>
 
@@ -227,7 +227,9 @@ function RouteComponent() {
                     />
                     <span
                       className={
-                        !canSelect || burnt ? 'text-quartz-400' : 'text-black'
+                        !canSelect || burnt
+                          ? 'text-muted-foreground'
+                          : 'text-foreground'
                       }
                     >
                       {childFuseDisplayNames[fuseKey]}
@@ -239,7 +241,7 @@ function RouteComponent() {
           </div>
 
           <Button
-            variant="secondary"
+            variant="default"
             onClick={handleBurn}
             disabled={
               !hasChanges || !address || !walletClient || isCannotBurnFusesBurnt
@@ -251,7 +253,7 @@ function RouteComponent() {
           </Button>
 
           {!address && (
-            <p className="text-quartz-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Connect your wallet to burn fuses
             </p>
           )}
@@ -288,7 +290,7 @@ const V2NameMessage = () => (
     description={
       <>
         <p>Fuses are not available for ENSv2 names.</p>
-        <p className="text-quartz-500 text-sm mt-2">
+        <p className="text-quartz-900/60 text-sm mt-2">
           Only ENSv1 names have fuses.
         </p>
       </>
@@ -303,7 +305,7 @@ const NotOwnerMessage = () => (
     description={
       <>
         <p>You are not the owner of this name.</p>
-        <p className="text-quartz-500 text-sm mt-2">
+        <p className="text-quartz-900/60 text-sm mt-2">
           Only the owner can burn fuses on this name.
         </p>
       </>

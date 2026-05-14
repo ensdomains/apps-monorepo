@@ -1,7 +1,9 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
-import { useState } from 'react'
+import { ResultAsync } from 'neverthrow'
+import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress, zeroAddress } from 'viem'
@@ -9,6 +11,7 @@ import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { DeployRegistryForm } from '@/features/registry/components/DeployRegistryForm'
 import { DeployRegistryHeader } from '@/features/registry/components/DeployRegistryHeader'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
@@ -17,14 +20,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import {
-  namechainUserRegistryAddress,
-  sepoliaUserRegistryAddress,
-} from '@/lib/constants/userRegistry'
-import {
-  namechainVerifiableFactory,
-  sepoliaVerifiableFactory,
-} from '@/lib/constants/verifiableFactory'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 const DEPLOY_SUBREGISTRY_TX_ID = 'tx-deploy-subregistry'
 const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
@@ -41,6 +37,7 @@ function RouteComponent() {
   const [useCustomRegistry, setUseCustomRegistry] = useState(false)
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  const deployedSubregistryAddressRef = useRef<Address | null>(null)
 
   const {
     openModal: openTransactionModal,
@@ -48,19 +45,20 @@ function RouteComponent() {
     clearTransaction,
   } = useTransactionModal()
 
+  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
+
   const {
-    data: registryData,
+    data: registries,
     isLoading,
     error: registryError,
-  } = useQuery(
-    getNameRegistriesQueryOptions({ name, network: 'namechainSepolia' }),
-  )
-
-  const network = registryData?.network ?? 'sepolia'
-  const isNamechain = network === 'namechainSepolia'
+  } = useQuery({
+    ...getNameRegistriesQueryOptions({ name }),
+    // findRegistries is only meaningful for V2 names; V1 names have no subregistries
+    enabled: ownerData?.protocolVersion === 'ENSv2',
+  })
 
   const label = name.split('.')[0]
-  const parentRegistry = registryData?.registries.at(1) ?? null
+  const parentRegistry = registries?.at(1) ?? null
 
   const { data: hasSetSubregistryRole, isLoading: isLoadingRoleCheck } =
     useQuery({
@@ -69,18 +67,19 @@ function RouteComponent() {
         label,
         roles: ['ROLE_SET_SUBREGISTRY'],
         account: connectedAddress ?? zeroAddress,
-        network,
       }),
       enabled: !!connectedAddress && !!parentRegistry && !isLoading,
     })
 
-  const factoryAddress = isNamechain
-    ? namechainVerifiableFactory
-    : sepoliaVerifiableFactory
+  const factoryAddress = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensVerifiableFactory',
+  })
 
-  const implAddress = isNamechain
-    ? namechainUserRegistryAddress
-    : sepoliaUserRegistryAddress
+  const implAddress = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensUserRegistryImpl',
+  })
 
   const customSubregistryAddress =
     useCustomRegistry && isAddress(contractAddress)
@@ -91,12 +90,10 @@ function RouteComponent() {
 
   const {
     deploySubregistryAsync,
-    deployedSubregistryAddress,
     isConfirming: isDeployConfirming,
     hasWallet: hasDeployWallet,
   } = useDeploySubregistry({
     name,
-    network,
     factoryAddress,
     implAddress,
   })
@@ -107,7 +104,6 @@ function RouteComponent() {
     hasWallet: hasSetWallet,
   } = useSetSubregistry({
     name,
-    network,
     label,
     parentRegistry: parentRegistry ?? zeroAddress,
     id: SET_SUBREGISTRY_TX_ID,
@@ -115,13 +111,25 @@ function RouteComponent() {
 
   const walletOk = isDeployPath ? hasDeployWallet : hasSetWallet
 
-  const handleDeploySubregistryStart = () => {
-    deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID })
+  // `Transaction.onStart` is `() => void`, so this Promise is never awaited by
+  // the modal or `useAutoAdvanceTransaction`. That is intentional: failures are
+  // handled inside `ResultAsync.fromPromise` so nothing rejects unhandled.
+  const handleDeploySubregistryStart = async () => {
+    await ResultAsync.fromPromise(
+      deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID }),
+      () => undefined,
+    ).match(
+      (result) => {
+        deployedSubregistryAddressRef.current = result.deployedAddress
+      },
+      () => undefined,
+    )
   }
 
-  const handleDeploySubregistryDone = () => {
-    if (!deployedSubregistryAddress) return
-    setSubregistry(deployedSubregistryAddress)
+  const handleSetSubregistryAfterDeployStart = () => {
+    const deployed = deployedSubregistryAddressRef.current
+    if (!deployed) return
+    setSubregistry(deployed)
   }
 
   const handleSetSubregistryStart = () => {
@@ -133,6 +141,7 @@ function RouteComponent() {
     closeTransactionModal()
     clearTransaction()
     setContractAddress('')
+    deployedSubregistryAddressRef.current = null
     setShowSuccessButtonLabel(true)
     setTimeout(
       () => setShowSuccessButtonLabel(false),
@@ -182,7 +191,7 @@ function RouteComponent() {
     )
   }
 
-  if (registryData?.protocolVersion === 'ENSv1') {
+  if (ownerData?.protocolVersion === 'ENSv1') {
     return (
       <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
         <DeployRegistryHeader name={name} />
@@ -227,7 +236,7 @@ function RouteComponent() {
           description={
             <>
               You don't have the required{' '}
-              <code className="font-mono text-sm bg-quartz-50 px-1 py-0.5 rounded">
+              <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
                 ROLE_SET_SUBREGISTRY
               </code>{' '}
               permission to change the registry for <strong>{name}</strong>.
@@ -275,14 +284,14 @@ function RouteComponent() {
                   transactionName: `Deploy subregistry for ${name}`,
                   estimatedGasCost: 0.0008,
                   onStart: handleDeploySubregistryStart,
-                  onDone: handleDeploySubregistryDone,
+                  onDone: handleSetSubregistryAfterDeployStart,
                 },
                 {
                   id: SET_SUBREGISTRY_TX_ID,
                   title: 'Set subregistry',
                   transactionName: `Set subregistry for ${name}`,
                   estimatedGasCost: 0.0001,
-                  onStart: handleDeploySubregistryDone,
+                  onStart: handleSetSubregistryAfterDeployStart,
                   onDone: handleSetSubregistryDone,
                 },
               ]

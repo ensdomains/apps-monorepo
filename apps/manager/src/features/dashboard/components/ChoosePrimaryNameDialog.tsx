@@ -1,23 +1,21 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
+import { getResolver as ensjsGetResolver } from '@ensdomains/ensjs/public'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import {
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
-import { getAddress } from 'viem'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import { getAddress, namehash } from 'viem'
+import { useChainId } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -36,11 +34,14 @@ import {
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
 import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  type AvatarLookupEntry,
+  namesAvatarsQuery,
+} from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { customSepolia, publicClient } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 
@@ -59,22 +60,25 @@ export const ChoosePrimaryNameDialog = ({
   const { data: wallet } = useWallet()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
+  const chainId = useChainId()
 
   const primaryNameActor = useActorRef(primaryNameMachine, {
-    input: { chainId: customSepolia.id },
+    input: { chainId },
   })
 
   const primaryNameState = useSelector(primaryNameActor, (state) => state)
 
   const isSubmitting =
     primaryNameState.matches('submittingUpdate') ||
-    primaryNameState.matches('waitingForUpdate')
+    primaryNameState.matches('waitingForUpdate') ||
+    primaryNameState.matches('submittingReverse') ||
+    primaryNameState.matches('waitingForReverse')
   const isError = primaryNameState.matches('error')
 
   // Fetch current primary name from reverse resolver
   const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(account.ownerAddress ?? undefined),
-    enabled: !!account.ownerAddress,
+    enabled: open && !!account.ownerAddress,
   })
 
   // Fetch all owned names
@@ -90,7 +94,7 @@ export const ChoosePrimaryNameDialog = ({
     : undefined
 
   const { data: domainsData, isLoading } = useQuery(
-    getDomainsQuery(queryVariables),
+    getDomainsQuery(open ? queryVariables : undefined),
   )
   const allDomains = domainsData?.domains ?? []
 
@@ -110,16 +114,20 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  // Fetch avatars for all names
-  const avatarQueries = useQueries({
-    queries: domains.map((domain) =>
-      parseAvatarQuery(domain.resolver?.avatar ?? undefined),
-    ),
-  })
+  const avatarLookups = useMemo<AvatarLookupEntry[]>(() => {
+    if (!open) return []
+    return domains.flatMap((domain) => {
+      const resolverAddress = domain.resolver?.address as Address | undefined
+      if (!resolverAddress) return []
+      return [{ name: resolveDomainLabel(domain), resolverAddress }]
+    })
+  }, [open, domains])
+
+  const { data: avatarsByName } = useQuery(namesAvatarsQuery(avatarLookups))
 
   const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
-    enabled: !!selectedName,
+    enabled: open && !!selectedName,
   })
   const existingEthAddress = getEthAddressFromRecords(selectedNameRecords)
   const needsEthAddressUpdate =
@@ -134,30 +142,56 @@ export const ChoosePrimaryNameDialog = ({
       if (!selectedName || !account.ownerAddress) return
       if (!account.signer || !account.accountAddress) return
 
+      const walletAddress = account.ownerAddress as Address
+
+      let resolverAddress = selectedNameRecords?.resolverAddress as
+        | Address
+        | undefined
+      if (!resolverAddress) {
+        const onChainResolver = await ensjsGetResolver(
+          publicClient as unknown as Parameters<typeof ensjsGetResolver>[0],
+          { name: selectedName },
+        )
+        resolverAddress = (onChainResolver ?? undefined) as Address | undefined
+      }
+
+      if (!resolverAddress) {
+        const name = selectedName
+        throw new Error(t`Could not find resolver for ${name}`)
+      }
+
+      const onChainAddr = (await (publicClient as PublicClient).readContract({
+        address: resolverAddress,
+        abi: publicResolverSingleAddrSnippet,
+        functionName: 'addr',
+        args: [namehash(selectedName)],
+      })) as Address
+
+      if (onChainAddr.toLowerCase() === walletAddress.toLowerCase()) return
+
       await saveRecords({
         name: selectedName,
         before: {
           texts: [],
-          coins: existingEthAddress
-            ? [{ coinType: 60, value: existingEthAddress }]
-            : [],
+          coins:
+            onChainAddr !== '0x0000000000000000000000000000000000000000'
+              ? [{ coinType: 60, value: onChainAddr }]
+              : [],
         },
         after: {
           texts: [],
-          coins: [
-            { coinType: 60, value: getAddress(account.ownerAddress as string) },
-          ],
+          coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
         signer: account.signer,
         accountAddress: account.accountAddress,
         publicClient: publicClient as PublicClient,
-        chainId: customSepolia.id,
-        resolverAddress: selectedNameRecords?.resolverAddress as Address,
+        chainId,
+        resolverAddress,
       })
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
-      toast.error(t`Failed to set ETH address record`)
+      toast.error(error.message || t`Failed to set ETH address record`)
     },
   })
 
@@ -196,17 +230,15 @@ export const ChoosePrimaryNameDialog = ({
   const handleConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
 
-    if (needsEthAddressUpdate) {
-      if (!account.signer || !account.accountAddress) {
-        toast.error(t`Wallet signer not available`)
-        return
-      }
+    if (!account.signer || !account.accountAddress) {
+      toast.error(t`Wallet signer not available`)
+      return
+    }
 
-      try {
-        await updateEthAddressMutation.mutateAsync()
-      } catch {
-        return
-      }
+    try {
+      await updateEthAddressMutation.mutateAsync()
+    } catch {
+      return
     }
 
     const params: PrimaryNameParams = {
@@ -240,7 +272,7 @@ export const ChoosePrimaryNameDialog = ({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="flex max-h-[90vh] max-w-[500px] flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="font-serif text-[24px] text-foreground">
+          <DialogTitle className="text-[24px] text-foreground">
             <Trans>Choose Primary Name</Trans>
           </DialogTitle>
           <DialogDescription className="font-sans text-muted-foreground text-sm">
@@ -276,13 +308,10 @@ export const ChoosePrimaryNameDialog = ({
                 </div>
               ))
               .otherwise(({ domains }) =>
-                domains.map((domain, index) => {
+                domains.map((domain) => {
                   const label = resolveDomainLabel(domain)
                   const isSelected = selectedName === label
-                  const avatarUrl =
-                    avatarQueries[index]?.data ??
-                    domain.resolver?.avatar ??
-                    undefined
+                  const avatarUrl = avatarsByName?.[label]
 
                   return (
                     <button
@@ -307,10 +336,9 @@ export const ChoosePrimaryNameDialog = ({
                               src={avatarUrl}
                             />
                             <ImageFallback.Fallback>
-                              <img
-                                alt={t`${label} avatar placeholder`}
-                                className="size-full object-cover"
-                                src={placeholderAvatar}
+                              <PatternAvatar
+                                className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                                name={label}
                               />
                             </ImageFallback.Fallback>
                           </ImageFallback.Root>

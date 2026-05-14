@@ -1,15 +1,17 @@
 import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Power, Wallet } from 'lucide-react'
-import { useConnection, useDisconnect, useEnsName } from 'wagmi'
+import { ChevronRight, Wallet } from 'lucide-react'
+import { useConnection, useDisconnect } from 'wagmi'
+import { AccountCircleIcon, ChipNameIcon, DisconnectIcon } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 
@@ -18,26 +20,29 @@ export const WalletMenu = () => {
   const { openConnectModal } = useConnectModal()
   const { mutate: disconnect } = useDisconnect()
 
-  const { data: name } = useEnsName({
-    address,
-    query: { enabled: isConnected },
-  })
-  // const [smartSessionsEnabled, setSmartSessionsEnabled] =
-  //   useSmartSessions(address)
-  // const smartSessionsId = useId()
+  const { data: name } = useQuery(getPrimaryNameQueryOptions(address))
 
   if (!isConnected || !address) {
-    return <Button onClick={() => openConnectModal?.()}>Connect</Button>
+    return (
+      <Button
+        size="sm"
+        className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:p-0"
+        onClick={() => openConnectModal?.()}
+      >
+        <AccountCircleIcon className="size-4 shrink-0 hidden group-data-[collapsible=icon]:block" />
+        <span className="group-data-[collapsible=icon]:hidden">Connect</span>
+      </Button>
+    )
   }
 
-  const displayName = name ?? truncateAddress(address)
+  const displayName = name ?? truncateAddress(address, 5, 3)
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+          className="flex items-center gap-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xs"
           aria-label={`Wallet menu for ${displayName}`}
         >
           {name ? (
@@ -45,17 +50,26 @@ export const WalletMenu = () => {
               name={name}
               height="32px"
               width="32px"
-              rounded="rounded-full"
+              rounded="rounded-xs"
             />
           ) : (
-            <div className="size-8 rounded-full [background:var(--avatar-placeholder-gradient)]" />
+            <div className="size-8 rounded-xs [background:var(--avatar-placeholder-gradient)]" />
           )}
-          <span className="font-medium text-sm hidden md:inline">
+          <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">
             {displayName}
           </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
+        {name && (
+          <DropdownMenuItem asChild>
+            <Link to="/$name" params={{ name }}>
+              <ChipNameIcon className="size-4 text-foreground" />
+              <span className="text-sm">{name}</span>
+              <ChevronRight className="size-4 ml-auto" />
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link to="/addr/$addr" params={{ addr: address }}>
             <Wallet className="size-4 text-foreground" />
@@ -65,36 +79,11 @@ export const WalletMenu = () => {
             <ChevronRight className="size-4 ml-auto" />
           </Link>
         </DropdownMenuItem>
-        {name && (
-          <DropdownMenuItem asChild>
-            <Link to="/$name" params={{ name }}>
-              <Wallet className="size-4 text-foreground" />
-              <span className="text-sm">{name}</span>
-              <ChevronRight className="size-4 ml-auto" />
-            </Link>
-          </DropdownMenuItem>
-        )}
-        {/* TODO: Enable when smart sessions are available
-        <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={(e) => e.preventDefault()}
-          className="justify-between"
+          onClick={() => disconnect()}
+          className="text-message-danger-text focus:text-message-danger-text"
         >
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-foreground" />
-            <label htmlFor={smartSessionsId} className="text-sm cursor-pointer">
-              Smart sessions
-            </label>
-          </div>
-          <Switch
-            id={smartSessionsId}
-            checked={smartSessionsEnabled}
-            onCheckedChange={setSmartSessionsEnabled}
-          />
-        </DropdownMenuItem> */}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => disconnect()}>
-          <Power className="size-4 text-foreground" />
+          <DisconnectIcon className="size-4 text-message-danger-text" />
           Disconnect
         </DropdownMenuItem>
       </DropdownMenuContent>

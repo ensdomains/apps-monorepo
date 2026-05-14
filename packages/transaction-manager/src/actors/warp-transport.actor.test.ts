@@ -113,14 +113,15 @@ describe('submitWarpTransaction', () => {
     )
   })
 
-  it('calls sendTransaction with chain, calls, and sponsored=true', async () => {
+  it('calls sendTransaction with sourceChains, targetChain, calls, and sponsored=true', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest()
 
     await submitWarpTransaction({ request, signer })
 
     expect(signer.account.sendTransaction).toHaveBeenCalledWith({
-      chain: sepolia,
+      sourceChains: [sepolia],
+      targetChain: sepolia,
       calls: MOCK_CALLS,
       sponsored: true,
     })
@@ -134,6 +135,7 @@ describe('submitWarpTransaction', () => {
 
     expect(signer.account.waitForExecution).toHaveBeenCalledWith(
       'mock-intent-id',
+      false,
     )
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
@@ -158,7 +160,8 @@ describe('submitWarpTransaction', () => {
     const result = await submitWarpTransaction({ request, signer })
 
     expect(signer.account.sendTransaction).toHaveBeenCalledWith({
-      chain: sepolia,
+      sourceChains: [sepolia],
+      targetChain: sepolia,
       calls: MOCK_CALLS,
       sponsored: true,
       signers: mockSigners,

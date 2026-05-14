@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Calendar, Clock } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { match } from 'ts-pattern'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
@@ -87,7 +88,10 @@ export const PrimaryNameCard = ({
                 />
               ))
               .otherwise(() => (
-                <div className="size-20 bg-linear-to-br from-blue-400 via-blue-600 to-blue-900 md:size-full" />
+                <PatternAvatar
+                  className="size-20 rounded-sm border-none bg-transparent p-0 shadow-none md:size-full"
+                  name={primaryName ?? ''}
+                />
               ))}
           </motion.div>
           <div className="flex min-h-0 flex-col justify-between md:h-50">
@@ -146,7 +150,7 @@ export const PrimaryNameCard = ({
           className="h-10 w-full rounded-xs border border-ens-blue px-[8.5px] py-[4.25px] font-mono text-ens-blue uppercase tracking-wider hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
           disabled={!canViewProfile}
           params={{ name: primaryName ?? '' }}
-          to="/p/$name"
+          to="/$name"
           variant="outline"
         >
           <span className="font-sans text-sm leading-normal">

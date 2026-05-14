@@ -176,69 +176,28 @@ export function handleSetPrimaryName(
   }
 
   const walletClient = account.walletClient
-  if (!walletClient || !account.ownerAddress) {
+  if (
+    !walletClient ||
+    !account.ownerAddress ||
+    !account.signer ||
+    !account.accountAddress
+  ) {
     const message =
-      'Cannot set primary name - wallet not connected. Please connect your wallet.'
-    console.error('❌ EOA wallet not available for primary name', {
-      hasWalletClient: !!walletClient,
-      ownerAddress: account.ownerAddress,
-    })
+      'Cannot set primary name - account not ready. Please wait for wallet to connect.'
+    console.error(message)
     alert(message)
     return message
   }
 
-  // Check if we have a smart account signer available
-  const hasSmartAccountSigner =
-    account.signer && account.signer.type !== 'eoa' && account.accountAddress
-
-  if (hasSmartAccountSigner) {
-    // Use signature flow: EOA signs, smart account submits
-    console.log(
-      '✅ Creating START_UPDATE event for primary name (signature flow):',
-      {
-        name,
-        eoaAddress: account.ownerAddress,
-        smartAccountAddress: account.accountAddress,
-        signerType: account.signer?.type,
-        hasPublicClient: !!publicClient,
-      },
-    )
-
-    primaryNameActor.send({
-      type: 'START_UPDATE',
-      name,
-      signer: account.signer!,
-      accountAddress: account.accountAddress as Address,
-      publicClient,
-      // Signature flow fields
-      walletClient,
-      eoaAddress: account.ownerAddress as Address,
-    })
-  } else {
-    // Fallback: direct EOA signing
-    const eoaSigner = {
-      type: 'eoa' as const,
-      walletClient,
-    }
-
-    console.log(
-      '✅ Creating START_UPDATE event for primary name (EOA direct):',
-      {
-        name,
-        accountAddress: account.ownerAddress,
-        signerType: 'eoa',
-        hasPublicClient: !!publicClient,
-      },
-    )
-
-    primaryNameActor.send({
-      type: 'START_UPDATE',
-      name,
-      signer: eoaSigner,
-      accountAddress: account.ownerAddress as Address,
-      publicClient,
-    })
-  }
+  primaryNameActor.send({
+    type: 'START_UPDATE',
+    name,
+    signer: account.signer,
+    accountAddress: account.accountAddress as Address,
+    publicClient,
+    walletClient,
+    eoaAddress: account.ownerAddress as Address,
+  })
 
   return undefined
 }

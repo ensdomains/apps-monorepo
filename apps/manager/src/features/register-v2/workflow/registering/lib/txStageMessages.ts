@@ -12,31 +12,33 @@ export type RegisteringTxSnapshot = {
 
 export type TransactionState = string | undefined
 
+export type StageMessages = {
+  stageLabel: MessageDescriptor
+  stageDescription?: MessageDescriptor
+}
+
 export const getRegistrationStageMessages = (
   tx: RegisteringTxSnapshot,
   txState: TransactionState,
-) =>
+): StageMessages =>
   match({ stage: tx.value, txState })
-    .returnType<{
-      stageLabel: MessageDescriptor
-      stageDescription?: MessageDescriptor
-      progress: number
-    }>()
+    .returnType<StageMessages>()
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,
       stageDescription: msg`The registration flow is idle`,
-      progress: 0,
+    }))
+    .with({ stage: 'settingUpRegistration' }, () => ({
+      stageLabel: msg`Setting up registration`,
+      stageDescription: msg`Preparing your registration`,
     }))
     .with({ stage: 'deployingResolver' }, () => ({
       stageLabel: msg`Deploying resolver`,
       stageDescription: msg`Deploying the resolver`,
-      progress: 8,
     }))
     .with(
       { stage: 'waitingForResolverDeployment', txState: 'submitting' },
       () => ({
         stageLabel: msg`Waiting for resolver submission`,
-        progress: 10,
       }),
     )
     .with(
@@ -44,91 +46,85 @@ export const getRegistrationStageMessages = (
       () => ({
         stageLabel: msg`Waiting for resolver deployment`,
         stageDescription: msg`Waiting for the resolver deployment`,
-        progress: 15,
       }),
     )
     .with({ stage: 'preparingCommitment' }, () => ({
       stageLabel: msg`Preparing commitment`,
       stageDescription: msg`Preparing the commitment`,
-      progress: 23,
     }))
     .with({ stage: 'committingTransaction' }, () => ({
       stageLabel: msg`Submitting commitment transaction`,
       stageDescription: msg`Submitting the commitment transaction`,
-      progress: 31,
     }))
     .with({ stage: 'waitingForCommitment', txState: 'submitting' }, () => ({
       stageLabel: msg`Waiting for commitment submission`,
-      progress: 31,
     }))
     .with({ stage: 'waitingForCommitment', txState: 'pending' }, () => ({
       stageLabel: msg`Waiting for commitment receipt`,
-      progress: 35,
     }))
     .with({ stage: 'waitingForCommitment' }, () => ({
       stageLabel: msg`Waiting for commitment confirmation`,
       stageDescription: msg`Waiting for the commitment confirmation`,
-      progress: 38,
+    }))
+    .with({ stage: 'fetchingCommitmentAge' }, () => ({
+      stageLabel: msg`Checking commitment cooldown`,
+      stageDescription: msg`Reading the commit-reveal window from the registrar`,
+    }))
+    .with({ stage: 'commitmentCooldown' }, () => ({
+      stageLabel: msg`Waiting for commitment cooldown`,
+      stageDescription: msg`The registrar requires a short wait between commit and register`,
     }))
     .with({ stage: 'validatingCommitment' }, () => ({
       stageLabel: msg`Validating commitment`,
       stageDescription: msg`Validating the commitment`,
-      progress: 46,
+    }))
+    .with({ stage: 'checkingAllowance' }, () => ({
+      stageLabel: msg`Checking token allowance`,
+      stageDescription: msg`Checking whether an approval transaction is needed`,
     }))
     .with({ stage: 'submittingRhinestoneBundle' }, () => ({
       stageLabel: msg`Submitting approval and registration`,
       stageDescription: msg`Approving the token and registering your name`,
-      progress: 55,
     }))
     .with(
       { stage: 'waitingForRhinestoneBundle', txState: 'submitting' },
       () => ({
         stageLabel: msg`Submitting registration bundle`,
-        progress: 82,
       }),
     )
-    .with({ stage: 'waitingForRhinestoneBundle', txState: 'pending' }, () => ({
-      stageLabel: msg`Waiting for registration confirmation`,
-      stageDescription: msg`Waiting for the registration transaction`,
-      progress: 90,
-    }))
     .with({ stage: 'waitingForRhinestoneBundle' }, () => ({
       stageLabel: msg`Waiting for registration confirmation`,
       stageDescription: msg`Waiting for the registration transaction`,
-      progress: 88,
     }))
     .with({ stage: 'approvingToken' }, () => ({
       stageLabel: msg`Approving payment token`,
       stageDescription: msg`Approving the payment token`,
-      progress: 54,
     }))
     .with({ stage: 'waitingForApproval' }, () => ({
       stageLabel: msg`Waiting for approval confirmation`,
       stageDescription: msg`Waiting for the approval confirmation`,
-      progress: 62,
     }))
     .with({ stage: 'registeringDomain' }, () => ({
       stageLabel: msg`Submitting registration transaction`,
       stageDescription: msg`Submitting the registration transaction`,
-      progress: 77,
     }))
     .with({ stage: 'waitingForRegistration' }, () => ({
       stageLabel: msg`Waiting for registration confirmation`,
       stageDescription: msg`Waiting for the registration confirmation`,
-      progress: 90,
+    }))
+    .with({ stage: 'verifyingRegistration' }, () => ({
+      stageLabel: msg`Verifying registration on-chain`,
+      stageDescription: msg`Confirming the name is now owned by your account`,
     }))
     .with({ stage: 'success' }, () => ({
       stageLabel: msg`Registration complete`,
       stageDescription: msg`Registration complete`,
-      progress: 100,
     }))
     .with({ stage: 'error' }, () => ({
       stageLabel: msg`Registration failed`,
       stageDescription: msg`Registration failed`,
-      progress: 0,
     }))
     .otherwise(() => ({
       stageLabel: msg`Registration in progress`,
       stageDescription: msg`Registration in progress`,
-      progress: 0,
     }))

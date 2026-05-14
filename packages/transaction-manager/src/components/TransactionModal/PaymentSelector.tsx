@@ -35,6 +35,7 @@ export const PaymentSelector = ({
 
           return (
             <button
+              type="button"
               key={option.method}
               onClick={() => onSelect?.(option.method)}
               style={{

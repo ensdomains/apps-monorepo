@@ -1,23 +1,36 @@
 packages:
   - apps/*
   - packages/*
-  - "workers/*"
-
-catalog:
-  xstate: ^5.24.0
-  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@c7aee2f
-
-minimumReleaseAge: 1440
-minimumReleaseAgeExclude:
-  - "@rhinestone/sdk"
-  - "@lingui/*"
-
-trustPolicy: no-downgrade
-
-trustPolicyIgnoreAfter: 1440
+  - workers/*
+  - e2e
 
 autoInstallPeers: false
 
-resolutionMode: highest
+catalog:
+  "@ensdomains/ensjs": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@58509de42aaf90a8a109edb44ff45e5fad93d596
+  "@ensdomains/ensjs-abi": https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@58509de42aaf90a8a109edb44ff45e5fad93d596
+  xstate: ^5.24.0
+  "@typescript/native-preview": 7.0.0-dev.20260421.2
+  vite: ^8.0.10
+  vitest: ^4.1.5
+  "@cloudflare/vite-plugin": ^1.33.1
+  wrangler: ^4.51.0
+
+catalogs:
+  typescript6:
+    typescript: ^6.0.3
 
 dedupeDirectDeps: true
+
+minimumReleaseAge: 1440
+
+# Only add entries here if absolutely necessary. To bypass the minimum release age for a specific package, you can temporarily include it below, run install, and then remove it.
+# Note: `minimumReleaseAgeExclude` is used solely for checking new package versions.
+# Once a package is added to the lockfile, it remains allowed even if newer than the minimum release age.
+# minimumReleaseAgeExclude:
+
+resolutionMode: highest
+
+trustPolicy: no-downgrade
+
+trustPolicyIgnoreAfter: 10080 # 1 week

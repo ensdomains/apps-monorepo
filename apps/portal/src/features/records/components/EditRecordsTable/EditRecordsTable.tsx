@@ -13,6 +13,14 @@ import { CopyButton } from '@/components/CopyButton'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -73,7 +81,7 @@ const EditableValueCell = memo(function EditableValueCell({
       <Input
         ref={inputRef}
         defaultValue={record.value}
-        className={`font-mono bg-quartz-50 ${
+        className={`font-mono bg-muted ${
           error
             ? 'border-red-500 focus-visible:ring-red-500/50'
             : 'border-border'
@@ -98,6 +106,7 @@ export const EditRecordsTable = ({
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [tableView] = useTableViewSettings()
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   // Store validation errors in a ref so the columns don't need to depend on it
   // This prevents input focus loss when validation errors change
@@ -178,7 +187,7 @@ export const EditRecordsTable = ({
             return (
               <span className="flex flex-row items-center gap-2 font-mono">
                 {row.original.id}{' '}
-                <span className="font-sans text-quartz-500 uppercase">
+                <span className="font-sans text-muted-foreground uppercase">
                   {row.original.key}
                 </span>
               </span>
@@ -255,102 +264,159 @@ export const EditRecordsTable = ({
     globalFilterFn: 'includesString',
   })
 
-  return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <TableHead key={header.id}>
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-              </TableHead>
-            ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows?.length ? (
-          table.getRowModel().rows.map((row) => {
-            const rowId = getRecordId(row.original)
-            const isPendingDelete = pendingDeleteId === rowId
+  const selectedRowCount = Object.keys(rowSelection).length
 
-            return (
-              <React.Fragment key={row.id}>
-                <TableRow
-                  data-state={row.getIsSelected() && 'selected'}
-                  className={cn(
-                    'hover:bg-quartz-50',
-                    tableView.strippedRows && 'odd:bg-quartz-50',
-                  )}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        'px-4 sm:px-6',
-                        tableView.compact ? 'py-2' : 'py-4',
-                      )}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                {isPendingDelete && (
-                  <TableRow className="bg-quartz-50 hover:bg-quartz-50">
-                    <TableCell
-                      colSpan={editColumns.length}
-                      className="px-4 sm:px-6 py-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">
-                          Remove {getRecordDisplayName(row.original)}?
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCancelDelete}
-                            className="gap-1"
-                          >
-                            Cancel
-                            <X className="size-4" />
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleConfirmDelete(row.original)}
-                            className="gap-1"
-                          >
-                            Confirm
-                            <Check className="size-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            )
-          })
-        ) : (
-          <TableRow>
-            <TableCell
-              colSpan={editColumns.length}
-              className="h-24 text-center"
+  const handleBulkDelete = useCallback(() => {
+    const selected = table.getSelectedRowModel().rows
+    for (const row of selected) {
+      onDeleteRecord?.(row.original)
+    }
+    setRowSelection({})
+    setPendingDeleteId(null)
+    setBulkDeleteOpen(false)
+  }, [table, onDeleteRecord])
+
+  return (
+    <>
+      {selectedRowCount > 0 && (
+        <div className="flex flex-row items-center justify-between gap-4 px-4 sm:px-6 py-3 border-b border-border">
+          <div className="flex flex-row items-center gap-2 shrink-0">
+            <button
+              type="button"
+              className="cursor-pointer"
+              onClick={() => setRowSelection({})}
+              aria-label="Clear selection"
             >
-              No records found.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+              <X className="size-5" />
+            </button>
+            <span>{selectedRowCount} selected</span>
+          </div>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setBulkDeleteOpen(true)}
+            className="gap-2 whitespace-nowrap"
+          >
+            <Trash2 className="size-4" />
+            Delete
+          </Button>
+        </div>
+      )}
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => {
+              const rowId = getRecordId(row.original)
+              const isPendingDelete = pendingDeleteId === rowId
+
+              return (
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    data-state={row.getIsSelected() && 'selected'}
+                    className={cn(
+                      'hover:bg-muted',
+                      tableView.strippedRows && 'odd:bg-muted',
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          'px-4 sm:px-6',
+                          tableView.compact ? 'py-2' : 'py-4',
+                        )}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {isPendingDelete && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={editColumns.length}
+                        className="px-4 sm:px-6 py-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            Remove {getRecordDisplayName(row.original)}?
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelDelete}
+                              className="gap-1"
+                            >
+                              Cancel
+                              <X className="size-4" />
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleConfirmDelete(row.original)}
+                              className="gap-1"
+                            >
+                              Confirm
+                              <Check className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              )
+            })
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={editColumns.length}
+                className="h-24 text-center"
+              >
+                No records found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove {selectedRowCount} records?</DialogTitle>
+            <DialogDescription>
+              The selected records will be marked for removal. Changes are
+              applied on-chain when you click Save Changes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="default" onClick={handleBulkDelete}>
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

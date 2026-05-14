@@ -6,9 +6,9 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { sepolia } from 'viem/chains'
 import { useWalletClient } from 'wagmi'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import {
   type CreateSubnameParameters,
@@ -22,9 +22,9 @@ type UseCreateSubnameParameters = Omit<
 >
 
 export function useCreateSubname() {
-  const chainId = sepolia.id
+  const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
 
   const mutation = useMutation({
     mutationFn: async (params: UseCreateSubnameParameters) => {
@@ -44,7 +44,7 @@ export function useCreateSubname() {
     onSuccess: (_data, variables) => {
       const subnamesQueryKey = getSubnamesQueryOptions({
         name: variables.parentName,
-        network: variables.network,
+        protocolVersion: variables.protocolVersion,
       }).queryKey
 
       queryClient.invalidateQueries({

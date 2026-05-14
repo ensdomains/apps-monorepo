@@ -18,23 +18,36 @@ export const NameExpiryComponent: KindComponent<'name-expiry'> = ({
   return (
     <NameCardTemplate
       action={
-        <Link
-          className={getNotificationActionButtonClass(layout)}
-          onClick={onAction}
-          params={{
-            name: payload.name,
-          }}
-          to="/p/$name"
-        >
-          {expiry.isExpired ? 'View profile' : 'Extend'}
-        </Link>
+        expiry.isExpired ? (
+          <Link
+            className={getNotificationActionButtonClass(layout)}
+            onClick={onAction}
+            params={{
+              name: payload.name,
+            }}
+            to="/register/$name"
+          >
+            Register Name
+          </Link>
+        ) : (
+          <Link
+            className={getNotificationActionButtonClass(layout)}
+            onClick={onAction}
+            params={{
+              name: payload.name,
+            }}
+            to="/renew/$name"
+          >
+            Renew Now
+          </Link>
+        )
       }
       category="Expiry"
       categoryTone="warning"
       description={
         expiry.isExpired
-          ? 'This name has expired and should be renewed as soon as possible.'
-          : undefined
+          ? 'This name has expired and is now available to register.'
+          : 'This name is expiring soon and should be renewed as soon as possible.'
       }
       layout={layout}
       name={payload.name}

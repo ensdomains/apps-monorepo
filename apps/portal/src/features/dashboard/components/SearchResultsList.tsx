@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
+import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 
 const AVATAR_SIZE = '32px'
@@ -56,7 +57,7 @@ const getSuggestionDescription = ({
 const AvatarPlaceholder = ({ isLoading = false }: { isLoading?: boolean }) => (
   <div
     className={cn(
-      'shrink-0 rounded-md',
+      'shrink-0 rounded-sm',
       isLoading
         ? 'bg-muted animate-pulse'
         : '[background:var(--avatar-placeholder-gradient)]',
@@ -91,7 +92,11 @@ type SearchResultsListData = {
   suggestions: Suggestion[]
   ownerBySuggestionId: Map<
     string,
-    | { owner: string; registryAddress: string; network: string }
+    | {
+        owner: string
+        registryAddress: string
+        protocolVersion: ProtocolVersion
+      }
     | null
     | undefined
   >
@@ -180,7 +185,7 @@ export const SearchResultsList = ({
                     name={suggestion.inputValue}
                     width={AVATAR_SIZE}
                     height={AVATAR_SIZE}
-                    rounded="rounded-md"
+                    rounded="rounded-sm"
                   />
                 ) : (
                   <AvatarPlaceholder isLoading={!ownerResolved} />
@@ -237,7 +242,7 @@ export const SearchResultsList = ({
                     name={suggestion.inputValue}
                     width={AVATAR_SIZE}
                     height={AVATAR_SIZE}
-                    rounded="rounded-md"
+                    rounded="rounded-sm"
                   />
                 ) : (
                   <AvatarPlaceholder />
@@ -297,7 +302,7 @@ export const SearchResultsList = ({
                     name={d.name}
                     width={AVATAR_SIZE}
                     height={AVATAR_SIZE}
-                    rounded="rounded-md"
+                    rounded="rounded-sm"
                   />,
                   d.name,
                   'View',
@@ -325,7 +330,7 @@ export const SearchResultsList = ({
                       name={d.name}
                       width={AVATAR_SIZE}
                       height={AVATAR_SIZE}
-                      rounded="rounded-md"
+                      rounded="rounded-sm"
                     />,
                     d.name,
                     'View',

@@ -2,8 +2,8 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon, PlusCircleIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { Label } from '@/components/ui/label'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
+import { useGraceStatus } from '../hooks/useGraceStatus'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
@@ -30,17 +30,29 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="flex flex-col gap-1">
-      <Label>Registered</Label>
-      <span className="flex flex-row gap-1 items-center h-[38px]">
-        <CalendarIcon className="size-3.5" />
-        <RegistrationDate blockNumber={blockNumber} />
+    <div className="flex items-center gap-4 py-3">
+      <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
+      <span className="text-sm text-muted-foreground w-24 shrink-0">
+        Registered
       </span>
+      <RegistrationDate blockNumber={blockNumber} />
     </div>
   )
 }
 
+const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
+  <div className="flex items-center gap-4 py-3">
+    <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
+    <span className="text-sm text-muted-foreground w-24 shrink-0">
+      Grace ends
+    </span>
+    <Timestamp timestamp={Math.floor(graceEndDate.getTime() / 1000)} />
+  </div>
+)
+
 const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
+  const grace = useGraceStatus({ name, protocolVersion: 'ENSv1' })
+
   const [nameHistory, expiry] = useQueries({
     queries: [
       getNameHistoryQueryOptions({ name, orderDirection: 'asc', first: 1 }),
@@ -64,21 +76,26 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      {blockNumber && <RegistrationData blockNumber={blockNumber} />}
       {expiry.data && (
-        <div className="flex flex-col gap-1">
-          <Label>Expires</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <ClockIcon className="size-3.5" />
-            <Timestamp timestamp={expiry.data.expiry} />
+        <div className="flex items-center gap-4 py-3">
+          <ClockIcon className="size-4 text-neutral-7 shrink-0" />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            Expires
           </span>
+          <Timestamp timestamp={expiry.data.expiry} />
         </div>
+      )}
+      {blockNumber && <RegistrationData blockNumber={blockNumber} />}
+      {grace.isInGrace && grace.graceEndDate && (
+        <GraceEndsRow graceEndDate={grace.graceEndDate} />
       )}
     </>
   )
 }
 
 const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
+  const grace = useGraceStatus({ name, protocolVersion: 'ENSv2' })
+
   const { data, error, isLoading } = useQuery(
     getV2RegistrationDataQueryOptions({ name }),
   )
@@ -98,33 +115,37 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   return (
     <>
-      {data.createdAt !== null && (
-        <div className="flex flex-col gap-1">
-          <Label>Created</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <PlusCircleIcon className="size-3.5" />
-            {new Date(Number(data.createdAt) * 1000).toUTCString()}
-          </span>
-        </div>
+      {grace.isInGrace && grace.graceEndDate ? (
+        <GraceEndsRow graceEndDate={grace.graceEndDate} />
+      ) : (
+        data.expiry !== null && (
+          <div className="flex items-center gap-4 py-3">
+            <ClockIcon className="size-4 text-neutral-7 shrink-0" />
+            <span className="text-sm text-muted-foreground w-24 shrink-0">
+              Expires
+            </span>
+            <Timestamp timestamp={data.expiry} />
+          </div>
+        )
       )}
 
       {data.registeredAt !== null && (
-        <div className="flex flex-col gap-1">
-          <Label>Registered</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <CalendarIcon className="size-3.5" />
-            {new Date(Number(data.registeredAt) * 1000).toUTCString()}
+        <div className="flex items-center gap-4 py-3">
+          <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            Registered
           </span>
+          <Timestamp timestamp={data.registeredAt} />
         </div>
       )}
 
-      {data.expiry !== null && (
-        <div className="flex flex-col gap-1">
-          <Label>Expires</Label>
-          <span className="flex flex-row gap-1 items-center h-[38px]">
-            <ClockIcon className="size-3.5" />
-            {new Date(Number(data.expiry) * 1000).toUTCString()}
+      {data.createdAt !== null && (
+        <div className="flex items-center gap-4 py-3">
+          <PlusCircleIcon className="size-4 text-neutral-7 shrink-0" />
+          <span className="text-sm text-muted-foreground w-24 shrink-0">
+            Created
           </span>
+          <Timestamp timestamp={data.createdAt} />
         </div>
       )}
     </>
@@ -133,20 +154,16 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
 interface ExpiryWithRegistrationDataProps {
   name: string
-  network: EnsNetworkName
+  protocolVersion: ProtocolVersion
 }
 
 export const ExpiryWithRegistrationData = ({
   name,
-  network,
+  protocolVersion,
 }: ExpiryWithRegistrationDataProps) => {
-  return (
-    <div className="w-full flex flex-col justify-between p-6 gap-4 rounded-lg border border-border lg:col-span-1">
-      {network === 'sepolia' ? (
-        <V1ExpiryWithRegistrationData name={name} />
-      ) : (
-        <V2ExpiryWithRegistrationData name={name} />
-      )}
-    </div>
+  return protocolVersion === 'ENSv1' ? (
+    <V1ExpiryWithRegistrationData name={name} />
+  ) : (
+    <V2ExpiryWithRegistrationData name={name} />
   )
 }

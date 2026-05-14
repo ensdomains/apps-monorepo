@@ -8,7 +8,7 @@ import type {
 import { getResolverName as ensjs_getResolverName } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { getIsDedicatedResolver } from './useIsDedicatedResolver'
+import { getIsPermissionedResolver } from './useIsPermissionedResolver'
 
 class GetResolverNameError extends TaggedError('GetResolverNameError')<{
   cause: GetResolverNameErrorType
@@ -19,11 +19,11 @@ const getResolverName = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const supportsDedicatedResolver = yield* getIsDedicatedResolver({
+  const supportsPermissionedResolver = yield* getIsPermissionedResolver({
     resolverAddress: params.resolverAddress,
   })
 
-  if (!supportsDedicatedResolver) return ok(null)
+  if (!supportsPermissionedResolver) return ok(null)
 
   const name = yield* fromPromise(
     ensjs_getResolverName(client, params),

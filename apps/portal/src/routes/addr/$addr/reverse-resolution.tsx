@@ -90,11 +90,11 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="bg-quartz-50 p-6 pb-4 pt-12 flex flex-col gap-4">
+      <header className="border-b border-border p-6 pb-4 pt-12 flex flex-col gap-4">
         <div className="flex flex-row justify-between">
           <h1 className="text-heading font-medium">Reverse resolution</h1>
         </div>
-        <InputGroup className="bg-white rounded-sm">
+        <InputGroup className="bg-background rounded-sm">
           <InputGroupInput
             id={searchId}
             className="w-full"

@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { useConnection } from 'wagmi'
+import { useAccount, useConnection } from 'wagmi'
 import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -24,7 +24,6 @@ import { PendingChangesBar } from '@/features/records/components/PendingChangesB
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
-import { useIsDedicatedResolver } from '@/features/resolver/hooks/useIsDedicatedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { queryClient } from '@/utils/queryClient'
@@ -35,9 +34,9 @@ import { validateRecords } from '@/utils/records/validateRecord'
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params, context: { network } }) => {
+  loader: ({ params }) => {
     return queryClient.prefetchQuery(
-      getProfileQueryOptions({ name: params.name, network }),
+      getProfileQueryOptions({ name: params.name }),
     )
   },
 })
@@ -59,12 +58,16 @@ function EditRecordsPage() {
   const { address: connectedAddress } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const { network } = Route.useRouteContext()
-  const profileQuery = useQuery(getProfileQueryOptions({ name, network }))
+  const profileQuery = useQuery(
+    getProfileQueryOptions({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion,
+    }),
+  )
 
   // Get resolver address from the correct registry (V1 or V2)
   const { data: resolverAddress, isLoading: isResolverLoading } =
-    useNameResolverAddress({ name, network: ownerQuery.data?.network })
+    useNameResolverAddress({ name })
 
   const isLoading =
     profileQuery.isLoading || ownerQuery.isLoading || isResolverLoading
@@ -144,7 +147,7 @@ function EditRecordsPage() {
             <>
               You don't have permission to edit records for{' '}
               <strong>{name}</strong>. Only the owner (
-              <code className="font-mono text-xs bg-quartz-50 px-1 py-0.5 rounded">
+              <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">
                 {ownerQuery.data.owner}
               </code>
               ) can edit records.
@@ -174,10 +177,7 @@ const EditRecordsContent = ({
   resolverAddress: Address
 }) => {
   const navigate = useNavigate()
-
-  const { data: isDedicatedResolver } = useIsDedicatedResolver({
-    resolverAddress,
-  })
+  const { isConnected } = useAccount()
 
   // Form state
   const [selectedType, setSelectedType] = useState<RecordType | ''>('')
@@ -237,21 +237,30 @@ const EditRecordsContent = ({
     isSyncing,
     error: saveError,
     reset: resetSaveError,
+    isWrongChain,
+    isSwitchingChain,
+    switchToRequiredNetwork,
   } = useSaveRecords({
     onSyncComplete: handleSyncComplete,
   })
 
-  const handleSaveRecords = () => {
-    openTransactionModal()
-
+  const handleStartSaveRecordsTransaction = () => {
     saveRecords({
       name,
       resolverAddress,
       originalRecords,
       pendingChanges,
       id: SAVE_RECORDS_TRANSACTION_ID,
-      resolverType: isDedicatedResolver ? 'dedicated' : 'public',
     })
+  }
+
+  const handleOpenSaveRecordsFlow = () => {
+    if (isWrongChain) {
+      switchToRequiredNetwork()
+      return
+    }
+
+    openTransactionModal()
   }
 
   // Compute counts for each tab (excluding deleted records)
@@ -304,7 +313,7 @@ const EditRecordsContent = ({
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <header className="bg-quartz-50 px-8 pb-6 pt-6">
+      <header className="border-b border-border px-8 pb-6 pt-6">
         <Link to="/$name/records" params={{ name }}>
           <Button variant="ghost" className="flex items-center gap-2 -ml-2">
             <ArrowLeftIcon className="size-4" />
@@ -319,7 +328,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 min-w-[140px]">
             <label
               htmlFor={typeSelectId}
-              className="text-xs text-quartz-500 flex items-center gap-1"
+              className="text-xs text-muted-foreground flex items-center gap-1"
             >
               Type
             </label>
@@ -328,7 +337,7 @@ const EditRecordsContent = ({
                 id={typeSelectId}
                 value={selectedType}
                 onChange={(e) => handleTypeChange(e.target.value as RecordType)}
-                className="h-9 w-full appearance-none rounded-sm border border-input bg-white px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
               >
                 <option value="">Select...</option>
                 {RECORD_TYPES.map((type) => (
@@ -337,7 +346,7 @@ const EditRecordsContent = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-quartz-500" />
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
 
@@ -346,7 +355,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 min-w-[220px]">
               <label
                 htmlFor={keyInputId}
-                className="text-xs text-quartz-500 flex items-center gap-1"
+                className="text-xs text-muted-foreground flex items-center gap-1"
               >
                 Coin
               </label>
@@ -361,7 +370,7 @@ const EditRecordsContent = ({
             <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
               <label
                 htmlFor={keyInputId}
-                className="text-xs text-quartz-500 flex items-center gap-1"
+                className="text-xs text-muted-foreground flex items-center gap-1"
               >
                 Key
               </label>
@@ -371,14 +380,17 @@ const EditRecordsContent = ({
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
                 placeholder=""
-                className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                className="h-9 w-full rounded-sm border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               />
             </div>
           )}
 
           {/* Value Input */}
           <div className="flex flex-col gap-1 flex-2 min-w-[200px]">
-            <label htmlFor={valueInputId} className="text-xs text-quartz-500">
+            <label
+              htmlFor={valueInputId}
+              className="text-xs text-muted-foreground"
+            >
               Value
             </label>
             <input
@@ -387,7 +399,7 @@ const EditRecordsContent = ({
               value={valueInput}
               onChange={(e) => setValueInput(e.target.value)}
               placeholder=""
-              className="h-9 w-full rounded-sm border border-input bg-white px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="h-9 w-full rounded-sm border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             />
           </div>
 
@@ -395,7 +407,7 @@ const EditRecordsContent = ({
           <div className="flex flex-col gap-1 justify-end">
             <span className="text-xs text-transparent select-none">Action</span>
             <Button
-              variant="secondary"
+              variant="default"
               onClick={handleAddRecord}
               disabled={!selectedType || (requiresKey && !keyInput)}
               className="flex items-center gap-2 whitespace-nowrap"
@@ -408,29 +420,33 @@ const EditRecordsContent = ({
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white border rounded-lg mx-6 my-4">
+      <div className="flex-1 bg-background border rounded-sm mx-6 my-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto">
             <TabsList className="w-full justify-start border-b rounded-none px-4 py-0 h-auto bg-transparent">
               <TabsTrigger value="all" className="py-3 gap-2">
                 All records
-                <span className="text-quartz-500">{tabCounts.all}</span>
+                <span className="text-muted-foreground">{tabCounts.all}</span>
               </TabsTrigger>
               <TabsTrigger value="text" className="py-3 gap-2">
                 Text
-                <span className="text-quartz-500">{tabCounts.text}</span>
+                <span className="text-muted-foreground">{tabCounts.text}</span>
               </TabsTrigger>
               <TabsTrigger value="address" className="py-3 gap-2">
                 Address
-                <span className="text-quartz-500">{tabCounts.address}</span>
+                <span className="text-muted-foreground">
+                  {tabCounts.address}
+                </span>
               </TabsTrigger>
               <TabsTrigger value="abi" className="py-3 gap-2">
                 ABI
-                <span className="text-quartz-500">{tabCounts.abi}</span>
+                <span className="text-muted-foreground">{tabCounts.abi}</span>
               </TabsTrigger>
               <TabsTrigger value="contentHash" className="py-3 gap-2">
                 Contenthash
-                <span className="text-quartz-500">{tabCounts.contentHash}</span>
+                <span className="text-muted-foreground">
+                  {tabCounts.contentHash}
+                </span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -438,7 +454,7 @@ const EditRecordsContent = ({
           <TabsContent value={activeTab} className="p-0 mt-0">
             {/* Search Input */}
             <div className="p-4">
-              <InputGroup className="bg-white rounded-sm">
+              <InputGroup className="bg-background rounded-sm">
                 <InputGroupAddon>
                   <Search />
                 </InputGroupAddon>
@@ -468,11 +484,14 @@ const EditRecordsContent = ({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={openTransactionModal}
+        onSave={handleOpenSaveRecordsFlow}
         onDiscard={discardAll}
         onDismissError={resetSaveError}
         isSaving={isWriting || isConfirming}
         isSyncing={isSyncing}
+        isSwitchingChain={isSwitchingChain}
+        isWrongChain={isWrongChain}
+        isConnected={isConnected}
         errorMessage={saveError?.message}
         hasValidationErrors={hasValidationErrors}
       />
@@ -483,7 +502,7 @@ const EditRecordsContent = ({
             title: 'Save records',
             transactionName: 'Set resolver records',
             estimatedGasCost: 0.0001,
-            onStart: handleSaveRecords,
+            onStart: handleStartSaveRecordsTransaction,
             onDone: () => {
               closeTransactionModal()
               clearTransaction()

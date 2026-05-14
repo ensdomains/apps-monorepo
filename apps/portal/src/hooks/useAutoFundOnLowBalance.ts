@@ -1,19 +1,9 @@
-import { ERC20_ABI } from '@ens-apps/transaction-manager/contracts/abis/ERC20.abi'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
+import { erc20Abi } from 'viem'
 import { useConnection, useReadContracts } from 'wagmi'
-import {
-  DAI_DECIMALS,
-  SUPPORTED_TOKENS,
-  USDC_DECIMALS,
-} from '@/lib/constants/tokens'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { useFundWallet } from './useFundWallet'
-
-const PAYMENT_TOKENS = [
-  { address: SUPPORTED_TOKENS.USDC, decimals: USDC_DECIMALS },
-  { address: SUPPORTED_TOKENS.DAI, decimals: DAI_DECIMALS },
-] as const
 
 const LOW_BALANCE_THRESHOLD = 500n
 
@@ -31,10 +21,9 @@ export function useAutoFundOnLowBalance() {
   } = useReadContracts({
     contracts: PAYMENT_TOKENS.map((token) => ({
       address: token.address,
-      abi: ERC20_ABI,
+      abi: erc20Abi,
       functionName: 'balanceOf',
       args: address ? [address] : undefined,
-      chainId: sepoliaWithEns.id,
     })),
     query: { enabled: Boolean(address) },
   })

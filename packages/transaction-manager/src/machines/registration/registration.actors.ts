@@ -9,16 +9,17 @@ import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
   decodeEventLog,
   encodeFunctionData,
+  erc20Abi,
+  isAddressEqual,
   keccak256,
   parseAbi,
   stringToBytes,
   toHex,
   zeroAddress,
 } from 'viem'
-import { getBlock, readContract } from 'viem/actions'
+import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
-import { ERC20_ABI } from '../../contracts/abis/ERC20.abi'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import {
@@ -145,7 +146,7 @@ function encodeTokenApprovalData(
   registrarAddress: Address,
 ): Hash {
   return encodeFunctionData({
-    abi: ERC20_ABI,
+    abi: erc20Abi,
     functionName: 'approve',
     args: [registrarAddress, amount * 2n],
   })
@@ -193,7 +194,7 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
-function getSignerAddress(signer: Signer): Address {
+export function getSignerAddress(signer: Signer): Address {
   if (signer.type === 'eoa') {
     const account = signer.walletClient.account
 
@@ -218,9 +219,12 @@ function getSignerAddress(signer: Signer): Address {
     }
 
     // signer.account is a KernelAccountClient from @zerodev/sdk
-    const kernelClient = signer.account as any
-    if (kernelClient?.account?.address) {
-      return kernelClient.account.address as Address
+    const kernelClient = signer.account as unknown as Record<string, unknown>
+    const nestedAccount = kernelClient?.account as
+      | Record<string, unknown>
+      | undefined
+    if (nestedAccount?.address) {
+      return nestedAccount.address as Address
     }
     // Fallback: try to get address directly if it's a string
     if (typeof kernelClient?.address === 'string') {
@@ -240,7 +244,7 @@ function getSignerAddress(signer: Signer): Address {
  * Create transaction request based on signer type
  * Returns the appropriate transaction request type (rhinestone-intent or zerodev)
  */
-function createTransactionRequest(params: {
+export function createTransactionRequest(params: {
   signer: Signer
   from: Address
   to: Address
@@ -330,7 +334,7 @@ export function submitResolverDeploymentActor(input: {
         to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
         data: deployCalldata,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
@@ -451,7 +455,7 @@ export function submitCommitmentActor(input: {
         to: registrarAddress,
         data: commitmentData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: registrarAddress,
@@ -477,6 +481,119 @@ export function submitCommitmentActor(input: {
       )
 
       return txId
+    })(),
+    (error) => error as Error,
+  )
+}
+
+/**
+ * Read MIN_COMMITMENT_AGE from the registrar contract so the cooldown timer
+ * matches the deployment (e.g. 0 on FastTestETHRegistrar, 60s on the standard
+ * v2 ETHRegistrar).
+ */
+export function readMinCommitmentAgeActor(input: {
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+}): ResultAsync<bigint, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  return fromPromise(
+    readContract(input.publicClient, {
+      address: registrarAddress,
+      abi: FAST_TEST_ETH_REGISTRAR_ABI,
+      functionName: 'MIN_COMMITMENT_AGE',
+    }) as Promise<bigint>,
+    (error) => {
+      console.warn(
+        '⚠️ [REGISTRATION ACTOR] Failed to read MIN_COMMITMENT_AGE, defaulting to 60s:',
+        error,
+      )
+      return error as Error
+    },
+  )
+}
+
+/**
+ * Read the current ERC20 allowance the spender (registrar) has on the user's
+ * payment token. Used to skip the approval step when the user already
+ * approved enough.
+ */
+export function readPaymentTokenAllowanceActor(input: {
+  owner: Address
+  selectedToken: 'USDC' | 'DAI'
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+}): ResultAsync<bigint, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+  return fromPromise(
+    readContract(input.publicClient, {
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      args: [input.owner, registrarAddress],
+    }) as Promise<bigint>,
+    (error) => error as Error,
+  )
+}
+
+/**
+ * Verify a name has actually been registered on-chain. Used as a fallback
+ * after the submit/poll path fails — if the wallet flaked but the tx
+ * landed, the registry will already reflect the new owner + resolver.
+ */
+export function verifyRegistrationActor(input: {
+  name: string
+  owner: Address
+  resolverAddress: Address
+  publicClient: PublicClient
+  useFastRegistrar: boolean
+}): ResultAsync<{ verified: boolean }, Error> {
+  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const cleanName = input.name.replace('.eth', '')
+  return fromPromise(
+    (async () => {
+      // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
+      // entries are stored. Read the registry, then look up the resolver.
+      const registryAddress = (await readContract(input.publicClient, {
+        address: registrarAddress,
+        abi: parseAbi(['function REGISTRY() view returns (address)']),
+        functionName: 'REGISTRY',
+      })) as Address
+
+      const registryAbi = parseAbi([
+        'function getResolver(string label) view returns (address)',
+        'function getOwner(string label) view returns (address)',
+      ])
+      const [resolver, owner] = await multicall(input.publicClient, {
+        allowFailure: false,
+        contracts: [
+          {
+            address: registryAddress,
+            abi: registryAbi,
+            functionName: 'getResolver',
+            args: [cleanName],
+          },
+          {
+            address: registryAddress,
+            abi: registryAbi,
+            functionName: 'getOwner',
+            args: [cleanName],
+          },
+        ],
+      })
+
+      // Guard against the front-running scenario: another address could have
+      // claimed the label with the same resolver. Require both resolver and
+      // owner to match the expected values.
+      const resolverMatches =
+        !isAddressEqual(resolver, zeroAddress) &&
+        isAddressEqual(resolver, input.resolverAddress)
+      const ownerMatches =
+        !isAddressEqual(owner, zeroAddress) &&
+        isAddressEqual(owner, input.owner)
+      const matches = resolverMatches && ownerMatches
+
+      return { verified: matches }
     })(),
     (error) => error as Error,
   )
@@ -638,7 +755,7 @@ export function submitApprovalActor(input: {
         to: normalizedTokenAddress,
         data: approvalData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: normalizedTokenAddress,
@@ -732,7 +849,7 @@ export function submitRegistrationActor(input: {
         to: registrarAddress,
         data: registrationData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
             to: registrarAddress,
@@ -823,7 +940,7 @@ export function submitApprovalAndRegistrationActor(input: {
         to: registrarAddress,
         data: registrationData,
         value: 0n,
-        chainId: sepolia.id,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           { to: normalizedPaymentToken, data: approvalData, value: 0n },
           { to: registrarAddress, data: registrationData, value: 0n },

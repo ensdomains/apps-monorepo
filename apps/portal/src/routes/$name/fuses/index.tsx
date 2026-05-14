@@ -125,7 +125,7 @@ function RouteComponent() {
   })
 
   if (wrapperDataQuery.isLoading) {
-    return <LoadingMessage title="Loading fuses..." />
+    return <LoadingMessage />
   }
 
   if (wrapperDataQuery.error) {
@@ -162,7 +162,7 @@ function RouteComponent() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-medium">Fuses</h1>
           {isOwner && (
-            <Button asChild variant="secondary" className="gap-2">
+            <Button asChild variant="default" className="gap-2">
               <Link to="/$name/fuses/burn" params={{ name }}>
                 <Flame className="w-4 h-4 text-lapis-500" />
                 Burn fuses
@@ -173,15 +173,15 @@ function RouteComponent() {
       </div>
 
       <div className="flex gap-2 items-start max-w-3xl">
-        <Info className="w-8 h-8 text-quartz-500 shrink-0" />
-        <p className="text-quartz-500 text-sm">
+        <Info className="w-8 h-8 text-muted-foreground shrink-0" />
+        <p className="text-muted-foreground text-sm">
           A fuse is a permission or perk that can be granted/revoked on a name.
           As the name implies, once the fuse is "burned", it cannot be unburned.{' '}
           <a
             href="https://docs.ens.domains/wrapper/fuses"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-quartz-500 underline decoration-[10%] decoration-dotted"
+            className="text-muted-foreground underline decoration-[10%] decoration-dotted"
           >
             Learn more about Fuses in the documentation
           </a>
@@ -190,7 +190,7 @@ function RouteComponent() {
       </div>
 
       {hasBurnedFuses && expiry && (
-        <div className="border border-border rounded-2xl p-6 flex gap-4 items-center">
+        <div className="border border-border rounded-sm p-6 flex gap-4 items-center">
           <p className="font-medium whitespace-nowrap">Fuse expiry</p>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="font-mono text-sm truncate">
@@ -209,7 +209,7 @@ function RouteComponent() {
         </div>
       )}
 
-      <div className="border border-border rounded-2xl overflow-hidden">
+      <div className="border border-border rounded-sm overflow-hidden">
         <DataTable columns={columns} data={data} />
       </div>
     </div>
@@ -223,7 +223,7 @@ const columns: ColumnDef<FuseRow>[] = [
       return (
         <button
           type="button"
-          className="flex items-center gap-1 hover:text-quartz-900"
+          className="flex items-center gap-1 hover:text-foreground"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           <span>Fuse</span>
@@ -239,7 +239,7 @@ const columns: ColumnDef<FuseRow>[] = [
           <CopyButton value={key} />
           <Tooltip>
             <TooltipTrigger>
-              <Info className="w-5 h-5 text-quartz-500 cursor-help" />
+              <Info className="w-5 h-5 text-muted-foreground cursor-help" />
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <p>{description}</p>
@@ -255,7 +255,7 @@ const columns: ColumnDef<FuseRow>[] = [
       return (
         <button
           type="button"
-          className="flex items-center gap-1 hover:text-quartz-900"
+          className="flex items-center gap-1 hover:text-foreground"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           <span>Scope</span>
@@ -274,7 +274,7 @@ const columns: ColumnDef<FuseRow>[] = [
       return (
         <button
           type="button"
-          className="flex items-center gap-1 hover:text-quartz-900"
+          className="flex items-center gap-1 hover:text-foreground"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           <span>Burnt</span>
@@ -287,7 +287,7 @@ const columns: ColumnDef<FuseRow>[] = [
       return (
         <div
           className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-            isBurnt ? 'bg-orange-50' : 'bg-quartz-50'
+            isBurnt ? 'bg-orange-50' : 'bg-muted'
           }`}
         >
           {isBurnt ? (
@@ -309,7 +309,7 @@ const V2NameMessage = () => (
     description={
       <>
         <p>Fuses are only available for wrapped ENSv1 names.</p>
-        <p className="text-quartz-500 text-sm mt-2">
+        <p className="text-sm mt-2">
           This name is not wrapped or is not an ENSv1 name.
         </p>
       </>

@@ -1,9 +1,17 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getAvailable } from '@ensdomains/ensjs/public'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
+import { readContract } from 'viem/actions'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+
+const ETH_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',
@@ -14,15 +22,20 @@ export class NameAvailabilityError extends TaggedError(
 export const checkNameAvailability = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
 
-  const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
-  const availability = yield* await fromPromise(
-    // @ts-expect-error - Issue with client types
-    getAvailable(client, { name: nameWithEth }),
+  const cleanName = name.replace(/\.eth$/i, '')
+  const nameWithEth = `${cleanName}.eth`
+  const isAvailable = yield* await fromPromise(
+    readContract(client, {
+      address: ETH_REGISTRAR,
+      abi: l2EthRegistrarIsAvailableSnippet,
+      functionName: 'isAvailable',
+      args: [cleanName],
+    }),
     (e) => new NameAvailabilityError({ cause: e }),
   )
 
   return ok({
-    isAvailable: availability,
+    isAvailable,
     name: nameWithEth,
   })
 })

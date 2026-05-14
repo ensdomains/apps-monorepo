@@ -1,12 +1,28 @@
-import type { Row } from '@tanstack/react-table'
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
-import { render, renderHook, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import type { Hash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { BaseEvent, EventsTableData } from './types'
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+  }) => (
+    <a href={to} data-params={JSON.stringify(params)}>
+      {children}
+    </a>
+  ),
+  useNavigate: () => vi.fn(),
+}))
+
 // Mock wagmi hooks
 vi.mock('wagmi', () => ({
+  createConfig: vi.fn(() => ({})),
   useTransaction: vi.fn(() => ({
     data: {
       from: '0x123' as `0x${string}`,
@@ -31,6 +47,12 @@ vi.mock('wagmi', () => ({
 }))
 
 // Mock other dependencies
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadgeWithActions: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="entity-badge">{children}</span>
+  ),
+}))
+
 vi.mock('@/components/CopyableRecord', () => ({
   CopyableRecord: ({ displayValue }: { displayValue: React.ReactNode }) => (
     <div>{displayValue}</div>
@@ -108,33 +130,13 @@ const createMockTableData = (
   ),
 })
 
-const createMockRow = (data: EventsTableData): Row<EventsTableData> => {
-  const TestComponent = () => {
-    const table = useReactTable({
-      data: [data],
-      columns: [{ accessorKey: 'transactionID', header: 'Transaction' }],
-      getCoreRowModel: getCoreRowModel(),
-    })
-
-    return table.getRowModel().rows[0]
-  }
-
-  const { result } = renderHook(() => TestComponent())
-
-  if (!result.current) {
-    throw new Error('Mock row was not created')
-  }
-
-  return result.current
-}
-
 describe('EventsSidebar', () => {
   const mockSetOpen = vi.fn()
 
   it('should render children', () => {
     render(
       <EventsSidebar
-        row={null}
+        transaction={null}
         name="test.eth"
         open={false}
         setOpen={mockSetOpen}
@@ -149,7 +151,7 @@ describe('EventsSidebar', () => {
   it('should show "No transaction selected" when row is null', () => {
     render(
       <EventsSidebar
-        row={null}
+        transaction={null}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -164,7 +166,7 @@ describe('EventsSidebar', () => {
   it('should render transaction title', () => {
     render(
       <EventsSidebar
-        row={null}
+        transaction={null}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -179,7 +181,7 @@ describe('EventsSidebar', () => {
   it('should pass open state to Sheet', () => {
     const { container } = render(
       <EventsSidebar
-        row={null}
+        transaction={null}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -194,11 +196,11 @@ describe('EventsSidebar', () => {
 
   it('should display name when row is provided', () => {
     const mockData = createMockTableData('0x123' as Hash)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="vitalik.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -214,11 +216,11 @@ describe('EventsSidebar', () => {
 
   it('should display transaction hash when row is provided', () => {
     const mockData = createMockTableData('0x123abc' as Hash)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -232,11 +234,11 @@ describe('EventsSidebar', () => {
 
   it('should display formatted timestamp when available', () => {
     const mockData = createMockTableData('0x123' as Hash)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -250,11 +252,11 @@ describe('EventsSidebar', () => {
 
   it('should display network information', () => {
     const mockData = createMockTableData('0x123' as Hash)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -268,11 +270,11 @@ describe('EventsSidebar', () => {
 
   it('should display from address', () => {
     const mockData = createMockTableData('0x123' as Hash)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -288,11 +290,11 @@ describe('EventsSidebar', () => {
 
   it('should render TransactionEvents component with events', () => {
     const mockData = createMockTableData('0x123' as Hash, 3)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -320,11 +322,11 @@ describe('EventsSidebar - Loading and Error States', () => {
     } as any)
 
     const mockData = createMockTableData('0x123' as Hash)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}
@@ -348,11 +350,11 @@ describe('EventsSidebar - Loading and Error States', () => {
     } as any)
 
     const mockData = createMockTableData('0x123' as Hash)
-    const mockRow = createMockRow(mockData)
+    const mockTransaction = mockData
 
     render(
       <EventsSidebar
-        row={mockRow}
+        transaction={mockTransaction}
         name="test.eth"
         open={true}
         setOpen={mockSetOpen}

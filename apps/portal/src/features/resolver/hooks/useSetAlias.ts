@@ -9,6 +9,7 @@ interface UseSetAliasOptions {
   readonly walletClient: WalletClient | undefined
   readonly publicClient: PublicClient | undefined
   readonly chainId: number
+  readonly id: string
   readonly onSuccess?: () => void
 }
 
@@ -22,6 +23,7 @@ export const useSetAlias = ({
   walletClient,
   publicClient,
   chainId,
+  id,
   onSuccess,
 }: UseSetAliasOptions) => {
   const queryClient = useQueryClient()
@@ -39,6 +41,7 @@ export const useSetAlias = ({
         publicClient,
         signer: createEOASigner(walletClient),
         chainId,
+        id,
       })
     },
     onSuccess: async () => {

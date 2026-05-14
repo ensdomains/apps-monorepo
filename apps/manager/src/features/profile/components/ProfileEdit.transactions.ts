@@ -1,12 +1,13 @@
 /**
  * Pure async function to save profile records
  *
- * Uses ensjs's setRecordsWriteParameters which supports both:
- * - Public Resolver (V1): multicall(calls)
- * - Dedicated Resolver (V2): multicallWithNodeCheck(node, calls)
+ * Uses ensjs's setRecordsWriteParameters which encodes resolver calls
+ * via `multicall(calls)`, compatible with both PublicResolver and
+ * the V2 PermissionedResolver (which share the same setter ABI).
  */
 
 import {
+  type EOATransactionRequest,
   type RhinestoneTransactionRequest,
   type Signer,
   type TransactionRequest,
@@ -23,6 +24,7 @@ import {
   type Hex,
   type PublicClient,
 } from 'viem'
+import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 
 // --- Types ---
 
@@ -75,7 +77,6 @@ export interface SaveRecordsParams {
   publicClient: PublicClient
   chainId: number
   resolverAddress: Address
-  resolverType?: 'public' | 'dedicated'
 }
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
@@ -229,6 +230,8 @@ function createTransactionRequest(params: {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
 
   if (signer.type === 'eoa') {
+    // EOA submits a single direct transaction (no batching support).
+    // `calls` is ignored; profile updates already use a single multicall to the resolver.
     return {
       type: 'eoa',
       from,
@@ -236,7 +239,7 @@ function createTransactionRequest(params: {
       data,
       value,
       chainId,
-    }
+    } as EOATransactionRequest
   }
 
   if (signer.type === 'rhinestone') {
@@ -250,6 +253,14 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
+        // Resolver record writes (setText / setAddr / multicall) are NOT
+        // in the registration-scoped smart-session allowlist (see
+        // apps/manager/src/lib/smart-account/sessions/build-registration-session.ts),
+        // so signing this UserOp with the session key would fail the
+        // on-chain SmartSession validator → "Bundle simulation failed".
+        // Force the SDK to use the SCA's default validator instead, which
+        // prompts an EOA-owner signature.
+        useSession: false,
       },
     } as RhinestoneTransactionRequest
   }
@@ -265,12 +276,20 @@ function createTransactionRequest(params: {
       zerodevParams: {
         calls,
         sponsored: sponsored ?? true,
+        // Same reasoning as the rhinestone branch above: profile-record
+        // writes aren't covered by the registration-scoped session. The
+        // ZeroDev transport currently can't transparently swap to the
+        // master Kernel client, so this flag is informational until the
+        // signer carries both clients; for now the caller is expected to
+        // pass a non-session zerodev signer for this path.
+        useSession: false,
       },
     } as ZeroDevTransactionRequest
   }
 
-  signer satisfies never
-  throw new Error('Unsupported signer type for transaction request')
+  throw new Error(
+    `Unsupported signer type for transaction request: ${(signer as { type: string }).type}`,
+  )
 }
 
 async function buildRecordsUpdateRequest(params: {
@@ -282,7 +301,6 @@ async function buildRecordsUpdateRequest(params: {
   publicClient: PublicClient
   chainId: number
   resolverAddress: Address
-  resolverType?: 'public' | 'dedicated'
 }): Promise<{ request: TransactionRequest; description: string }> {
   const {
     name,
@@ -293,7 +311,6 @@ async function buildRecordsUpdateRequest(params: {
     publicClient,
     chainId,
     resolverAddress,
-    resolverType = 'dedicated',
   } = params
 
   const changes = computeRecordChanges(before, after)
@@ -330,7 +347,6 @@ async function buildRecordsUpdateRequest(params: {
   const ensParams: Parameters<typeof setRecordsWriteParameters>[1] = {
     name,
     resolverAddress,
-    resolverType,
   }
 
   if (changes.texts.length > 0) {
@@ -352,32 +368,21 @@ async function buildRecordsUpdateRequest(params: {
   }
 
   if (changes.abi) {
-    const abiJson = changes.abi.after ?? ''
-    if (abiJson) {
-      try {
-        const parsed = JSON.parse(abiJson)
-        if (!Array.isArray(parsed)) {
-          throw new RecordsValidationError([
-            {
-              sectionKey: 'other',
-              fieldKey: 'abi',
-              message: 'ABI must be a JSON array',
-            },
-          ])
-        }
-        ensParams.abi = { encodeAs: 'json', data: parsed }
-      } catch (e) {
-        if (e instanceof RecordsValidationError) throw e
-        throw new RecordsValidationError([
-          {
-            sectionKey: 'other',
-            fieldKey: 'abi',
-            message: 'ABI must be valid JSON',
-          },
-        ])
-      }
-    } else {
-      ensParams.abi = { encodeAs: 'json', data: null }
+    const parsedAbi = parseAbiRecord(changes.abi.after)
+
+    if (!parsedAbi.success) {
+      throw new RecordsValidationError([
+        {
+          sectionKey: 'other',
+          fieldKey: 'abi',
+          message: parsedAbi.message,
+        },
+      ])
+    }
+
+    ensParams.abi = {
+      encodeAs: 'json',
+      data: parsedAbi.data as Record<string, unknown>[] | null,
     }
   }
 
@@ -424,7 +429,7 @@ async function buildRecordsUpdateRequest(params: {
  * Save profile records to the blockchain
  *
  * Uses ensjs's setRecordsWriteParameters to encode resolver calls,
- * supporting both Public Resolver (V1) and Dedicated Resolver (V2).
+ * compatible with both PublicResolver (V1) and PermissionedResolver (V2).
  *
  * @throws RecordsValidationError if record validation fails (invalid URLs, etc.)
  * @throws Error if no changes to apply, transaction not found, or transaction fails
@@ -443,7 +448,7 @@ async function buildRecordsUpdateRequest(params: {
  *   signer: account.signer,
  *   accountAddress: account.accountAddress,
  *   publicClient,
- *   chainId: 11155111,
+ *   chainId: publicClient.chain.id,
  *   resolverAddress,
  * })
  * ```

@@ -18,6 +18,11 @@ genuinely requires shared code updates (e.g., packages/).
 - Do NOT include raw ticket descriptions in PR bodies
 - Summarize changes made, not the full requirements
 
+## Type Checking
+
+Run `pnpm typecheck` from the app directory (e.g. `apps/portal/`) to type-check.
+Do **not** use `npx tsc`, `pnpx tsc`, or `./node_modules/.bin/tsc` — they resolve to the wrong binary or skip project-level configuration.
+
 ## Package-Specific Documentation
 
 When working in specific packages, consult these design documents:

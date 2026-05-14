@@ -5,6 +5,7 @@ import { useConnection } from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useActiveTransactionState } from '../hooks/useActiveTransactionState'
+import { useAutoAdvanceTransaction } from '../hooks/useAutoAdvanceTransaction'
 import { useTransactionModal } from '../hooks/useTransactionModal'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getTransactionById } from '../utils/getTransactionById'
@@ -22,13 +23,19 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const activeTransactionsMap = useActiveTransactions()
 
   const { isOpen, closeModal, clearTransaction } = useTransactionModal()
+  const autoAdvanceTxId =
+    isOpen && txState?.machineState === 'success' ? txState.txId : null
 
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
 
+  useAutoAdvanceTransaction(autoAdvanceTxId, transactions)
+
   const handleClose = () => {
     closeModal()
   }
+
+  if (!transactions.length) return null
 
   return (
     <Dialog
@@ -46,7 +53,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
     >
       <DialogContent
         className={cn(
-          'sm:max-w-[420px] max-h-[85vh] overflow-y-auto space-y-3 transition-all duration-150',
+          'sm:max-w-[420px] max-h-[85vh] overflow-x-hidden overflow-y-auto space-y-3 transition-all duration-150 pt-10',
           transactionModalContentState.type === 'info' && 'p-0 gap-0',
         )}
         showCloseButton={transactionModalContentState.type !== 'info'}

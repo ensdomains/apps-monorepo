@@ -14,10 +14,10 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { CountBadge } from '@/components/atoms/CountBadge'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Card } from '@/components/ui/card'
 import {
   formatDashboardDate,
@@ -56,10 +56,9 @@ const NameAvatar = ({ name }: { name: string }) => {
           src={avatarUrl ?? undefined}
         />
         <ImageFallback.Fallback>
-          <img
-            alt={`${name} fallback avatar`}
-            className="size-full object-cover"
-            src={placeholderAvatar}
+          <PatternAvatar
+            className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+            name={name}
           />
           {isLoading && (
             <div className="absolute inset-0 animate-pulse rounded-full bg-gray-100" />
@@ -171,7 +170,7 @@ export const AddressProfileView = ({
                     <Link
                       className="mr-1 min-w-0 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
                       params={{ name: label }}
-                      to="/p/$name"
+                      to="/$name"
                     >
                       {label}
                     </Link>
@@ -217,7 +216,7 @@ export const AddressProfileView = ({
                 <Link
                   className="inline-flex items-center gap-1 rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-[8px] md:py-[4px]"
                   params={{ name: primaryName }}
-                  to="/p/$name"
+                  to="/$name"
                 >
                   {primaryName}
                   <ArrowUpRight
@@ -241,7 +240,7 @@ export const AddressProfileView = ({
       <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:px-6 md:py-8">
         <div className="mb-[20px] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="font-serif text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
+            <span className="text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
               <Trans>Registered ENS names</Trans>
             </span>
             {namesCount !== undefined && namesCount > 0 && (

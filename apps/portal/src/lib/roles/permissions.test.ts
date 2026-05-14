@@ -21,14 +21,9 @@ describe('permissions', () => {
           "title": "Set Resolver",
         },
         {
-          "description": "Can set token observer contracts",
-          "key": "ROLE_SET_TOKEN_OBSERVER",
-          "title": "Set Token Observer",
-        },
-        {
-          "description": "Can burn (delete) the name",
-          "key": "ROLE_BURN",
-          "title": "Burn",
+          "description": "Can unregister (delete) the name",
+          "key": "ROLE_UNREGISTER",
+          "title": "Unregister",
         },
       ]
     `)
@@ -38,7 +33,22 @@ describe('permissions', () => {
     expect(isManagerRoleSettable('ROLE_SET_RESOLVER')).toBe(true)
     expect(isManagerRoleSettable('ROLE_SET_SUBREGISTRY')).toBe(true)
     expect(isManagerRoleSettable('ROLE_RENEW')).toBe(false)
-    expect(isManagerRoleSettable('ROLE_SET_TOKEN_OBSERVER')).toBe(false)
-    expect(isManagerRoleSettable('ROLE_BURN')).toBe(false)
+    expect(isManagerRoleSettable('ROLE_UNREGISTER')).toBe(true)
+  })
+
+  it('should disable ROLE_UNREGISTER for 2LDs', () => {
+    expect(isManagerRoleSettable('ROLE_UNREGISTER', { is2LD: true })).toBe(
+      false,
+    )
+    expect(isManagerRoleSettable('ROLE_UNREGISTER', { is2LD: false })).toBe(
+      true,
+    )
+    // other roles unaffected by 2LD context
+    expect(isManagerRoleSettable('ROLE_SET_RESOLVER', { is2LD: true })).toBe(
+      true,
+    )
+    expect(isManagerRoleSettable('ROLE_SET_SUBREGISTRY', { is2LD: true })).toBe(
+      true,
+    )
   })
 })

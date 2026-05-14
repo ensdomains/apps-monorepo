@@ -62,7 +62,10 @@ export async function initializeRhinestoneAccount(
     infrastructure = 'warp',
   } = params
 
-  const apiKey = import.meta.env.VITE_RHINESTONE_API_KEY
+  const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+  const apiKey =
+    import.meta.env.VITE_RHINESTONE_API_KEY ||
+    (isLocalOrchestrator ? 'local-dev' : undefined)
   if (!apiKey) {
     throw new Error(
       'Rhinestone API key not configured in environment variables',
@@ -97,12 +100,22 @@ export async function initializeRhinestoneAccount(
     )
   }
 
-  const sdk = pimlicoApiKey
-    ? new RhinestoneSDK({
-        apiKey,
-        bundler: { type: 'pimlico', apiKey: pimlicoApiKey },
-      })
-    : new RhinestoneSDK({ apiKey })
+  // Build SDK options — local orchestrator uses custom endpoint + RPC
+  const endpointUrl = import.meta.env.VITE_RHINESTONE_ENDPOINT_URL || undefined
+  const customRpcUrls = import.meta.env.VITE_RHINESTONE_CUSTOM_RPC_URLS
+    ? JSON.parse(import.meta.env.VITE_RHINESTONE_CUSTOM_RPC_URLS)
+    : undefined
+
+  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
+    apiKey,
+    ...(endpointUrl && { endpointUrl }),
+    ...(customRpcUrls && { customRpcUrls }),
+    ...(pimlicoApiKey && {
+      bundler: { type: 'pimlico' as const, apiKey: pimlicoApiKey },
+    }),
+  }
+
+  const sdk = new RhinestoneSDK(sdkOptions)
 
   const rhinestoneAccount = await sdk.createAccount({
     owners: {
@@ -124,7 +137,7 @@ export async function initializeRhinestoneAccount(
     console.log('✅ [RHINESTONE] Smart account deployed:', accountAddress)
   }
 
-  // Register HCA ownership via smart account (sponsored) if requested
+  // Register HCA ownership via smart account (sponsored) if requested.
   if (registerHCA) {
     const signer: RhinestoneSigner = {
       type: 'rhinestone' as const,

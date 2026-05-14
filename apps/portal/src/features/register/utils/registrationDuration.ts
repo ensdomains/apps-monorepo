@@ -136,16 +136,26 @@ export const getRegistrationExpiryDateFromSeconds = (
 /**
  * Returns display values for a registration duration (period, expiry date, days).
  * Shared by checkout summary and success screens.
+ *
+ * Pass `baseDate` (default: today) to anchor the expiry on an existing date —
+ * used by the extend flow so `expiresFormatted` reflects `currentExpiry + duration`.
  */
-export function getRegistrationDisplayDates(durationSeconds: number) {
+export function getRegistrationDisplayDates(
+  durationSeconds: number,
+  baseDate: Temporal.PlainDate = getStartOfToday(),
+) {
   const startOfToday = getStartOfToday()
   const expiryDate = getRegistrationExpiryDateFromSeconds(
-    startOfToday,
+    baseDate,
     durationSeconds,
   )
+  const daysUntilExpiry = startOfToday.until(expiryDate, {
+    largestUnit: 'days',
+  }).days
   return {
-    registrationPeriod: formatRegistrationDuration(startOfToday, expiryDate),
+    registrationPeriod: formatRegistrationDuration(baseDate, expiryDate),
     registrationDays: Math.floor(durationSeconds / 86400),
+    daysUntilExpiry,
     expiresFormatted: formatExpiryDate(expiryDate),
   }
 }
@@ -184,7 +194,12 @@ export const getExpiryDateForPicker = (
 
 /**
  * Converts a date picker selection (PlainDate) to duration in seconds.
- * Treats the selected date as end of that day (adds 86399 s for 23:59:59).
+ * Uses calendar-day arithmetic via Temporal — `days` counts exact calendar
+ * days, so `days * 86400` is the correct on-chain duration. No +86399 offset
+ * is needed here (unlike timestamp-based approaches) because Temporal never
+ * loses fractional-day rounding; the ENS registrar adds this duration to
+ * block.timestamp, placing expiry at roughly the same time of day as
+ * registration, which is within the user's chosen calendar day.
  * Pass `startOfToday` for deterministic testing.
  */
 export const getDurationFromPickerDate = (
@@ -195,8 +210,7 @@ export const getDurationFromPickerDate = (
   const capped =
     Temporal.PlainDate.compare(date, maxExpiry) > 0 ? maxExpiry : date
   const days = startOfToday.until(capped, { largestUnit: 'days' }).days
-  // Include end-of-day offset (23:59:59) so the picker date round-trips correctly.
-  return Math.max(days * 86400 + 86399, MIN_REGISTRATION_DURATION)
+  return Math.max(days * 86400, MIN_REGISTRATION_DURATION)
 }
 
 /**

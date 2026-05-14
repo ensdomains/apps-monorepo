@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useDebouncedValue } from '@/hooks/useDebounce'
+import { cn } from '@/lib/utils'
 import { useSearchResults } from '../hooks/useSearchResults'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
 import { SearchModalContent } from './SearchModalContent'
@@ -28,9 +29,15 @@ import { SearchResultsList } from './SearchResultsList'
 
 const SEARCH_DEBOUNCE_MS = 300
 
-export const HomeSearchInput = () => {
+export const HomeSearchInput = ({
+  className,
+  iconOnly = false,
+}: {
+  className?: string
+  iconOnly?: boolean
+}) => {
   const listboxId = useId()
-  const navigate = useNavigate({ from: '/' })
+  const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
@@ -182,6 +189,44 @@ export const HomeSearchInput = () => {
     if (e.key === 'Escape') setMenuOpen(false)
   }
 
+  if (iconOnly) {
+    return (
+      <>
+        <button
+          type="button"
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+          onClick={() => setModalOpen(true)}
+        >
+          <Search className="size-3.5" />
+          <span className="sr-only">Search</span>
+        </button>
+        <CommandDialog
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          title="Search"
+          description="Search for ENS names or Ethereum addresses"
+          showCloseButton={false}
+          shouldFilter={false}
+        >
+          <CommandInput
+            placeholder="Search..."
+            value={modalSearchValue}
+            onValueChange={setModalSearchValue}
+          />
+          <SearchModalContent
+            searchValue={trimmedModalSearch}
+            onSelectSuggestion={handleModalSelectSuggestion}
+            onSelectOwnedName={handleSelectOwnedName}
+            onSelectAvailableName={handleModalSelectAvailableName}
+            navigateToName={navigateToName}
+            navigateToAddress={navigateToAddress}
+            navigateToResolver={navigateToResolver}
+          />
+        </CommandDialog>
+      </>
+    )
+  }
+
   return (
     <>
       <Popover
@@ -192,9 +237,15 @@ export const HomeSearchInput = () => {
         <PopoverTrigger asChild>
           <InputGroup
             ref={triggerRef}
-            className="bg-white rounded-sm max-w-3xl w-full"
+            className={cn(
+              'bg-sidebar-accent dark:bg-sidebar-accent rounded-sm max-w-3xl w-full',
+              className,
+            )}
             onClick={(e) => e.preventDefault()}
           >
+            <InputGroupAddon align="inline-start">
+              <Search className="size-4" />
+            </InputGroupAddon>
             <InputGroupInput
               id={listboxId}
               role="combobox"
@@ -205,23 +256,24 @@ export const HomeSearchInput = () => {
               }
               aria-autocomplete="list"
               className="w-full"
-              placeholder="Search name or address..."
+              placeholder="Search..."
               value={searchValue}
               onFocus={(e) => e.target.value.trim() && setMenuOpen(true)}
               onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={onSearchKeyDown}
             />
-            <InputGroupAddon align="inline-end" className="gap-2">
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
-                {formatForDisplay('Mod+K')}
+            <InputGroupAddon align="inline-end">
+              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border px-1.5 font-mono text-xs font-medium text-muted-foreground sm:flex">
+                <span className="translate-y-px">
+                  {formatForDisplay('Mod+K')}
+                </span>
               </kbd>
-              <Search className="size-4" />
             </InputGroupAddon>
           </InputGroup>
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="p-1 w-(--radix-popover-trigger-width) min-w-(--radix-popover-trigger-width) max-h-[min(60vh,400px)] overflow-y-auto"
+          className="p-1 w-max min-w-[max(var(--radix-popover-trigger-width),20rem)] max-w-md max-h-[min(60vh,400px)] overflow-y-auto"
           sideOffset={4}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
@@ -257,7 +309,7 @@ export const HomeSearchInput = () => {
         shouldFilter={false}
       >
         <CommandInput
-          placeholder="Search name or address..."
+          placeholder="Search..."
           value={modalSearchValue}
           onValueChange={setModalSearchValue}
         />

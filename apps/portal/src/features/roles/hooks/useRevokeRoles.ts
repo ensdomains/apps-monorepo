@@ -10,7 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import { namechainSepolia } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { revokeRoles } from '../helpers/revokeRoles'
 import { invalidateRolesQueries } from '../utils/invalidateRolesQueries'
@@ -20,14 +20,14 @@ type UseRevokeRolesParameters = {
   readonly account: Address
   readonly roles: Role[]
   readonly id: string
-  readonly registryAddress?: Address
+  readonly registryAddress: Address
 }
 
 export function useRevokeRoles() {
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
-  const { data: walletClient } = useWalletClient({ chainId })
-  const publicClient = usePublicClient({ chainId })
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const mutation = useMutation({
     mutationFn: async (params: UseRevokeRolesParameters) => {

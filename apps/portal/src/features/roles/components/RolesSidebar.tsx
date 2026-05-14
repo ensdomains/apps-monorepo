@@ -25,6 +25,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { useEditedPermissions } from '@/features/roles/hooks/useEditedPermissions'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
@@ -44,7 +45,6 @@ import {
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
-import { namechainSepolia } from '@/lib/wagmi'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -53,7 +53,7 @@ type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
     name: string
     canManageRoles: boolean
-    registryAddress?: Address
+    registryAddress: Address
   }>
 
 export const RolesSidebar = <
@@ -68,13 +68,12 @@ export const RolesSidebar = <
   registryAddress,
 }: RolesSidebarProps<TData>) => {
   const isMobile = useIsMobile()
-  const chainId = namechainSepolia.id
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null)
   const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null)
 
-  const { data: walletClient } = useWalletClient({ chainId })
+  const { data: walletClient } = useWalletClient()
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const { grantRoles } = useGrantRoles()
@@ -180,7 +179,7 @@ export const RolesSidebar = <
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-white overflow-y-auto p-8"
+          className="sm:max-w-[880px] bg-background overflow-y-auto p-8"
         >
           <div className="p-6 flex flex-col gap-6 h-screen">
             <SheetHeader className="p-0">
@@ -201,7 +200,7 @@ export const RolesSidebar = <
                   </div>
                   {canManageRoles && selectedAccount && (
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!isWalletConnected}
                       onClick={() => setConfirmOpen(true)}
                     >
@@ -212,11 +211,12 @@ export const RolesSidebar = <
                 </div>
 
                 {/* Permissions Section */}
-                <div className="border border-border rounded-2xl overflow-hidden">
+                <div className="border border-border rounded-sm overflow-hidden">
                   {permissions.map((permission, index) => {
                     const roleKey = permission.key
                     const isManagerRoleDisabled = !isManagerRoleSettable(
                       permission.key,
+                      { is2LD: name.split('.').length === 2 },
                     )
                     const rolePerms = editedPermissions.get(roleKey) || {
                       admin: false,
@@ -229,12 +229,12 @@ export const RolesSidebar = <
                         className={cn(
                           'flex items-center justify-between px-6 py-4 gap-4',
                           index !== 0 && 'border-t border-border',
-                          isManagerRoleDisabled && 'text-quartz-500',
+                          isManagerRoleDisabled && 'text-muted-foreground',
                         )}
                       >
                         <div className="flex flex-col gap-1 flex-1 min-w-64">
                           <div className="font-medium">{permission.title}</div>
-                          <div className="text-sm text-quartz-500">
+                          <div className="text-sm text-muted-foreground">
                             {permission.description}
                           </div>
                         </div>
@@ -260,8 +260,8 @@ export const RolesSidebar = <
                               className={cn(
                                 'font-medium cursor-pointer',
                                 canManageRoles
-                                  ? 'text-black'
-                                  : 'text-quartz-400',
+                                  ? 'text-foreground'
+                                  : 'text-muted-foreground',
                               )}
                             >
                               Manager
@@ -279,8 +279,8 @@ export const RolesSidebar = <
                               className={cn(
                                 'font-medium cursor-pointer',
                                 canManageRoles
-                                  ? 'text-black'
-                                  : 'text-quartz-400',
+                                  ? 'text-foreground'
+                                  : 'text-muted-foreground',
                               )}
                             >
                               Admin
@@ -292,9 +292,9 @@ export const RolesSidebar = <
                   })}
 
                   {/* Save Changes Button */}
-                  <div className="flex justify-end px-6 py-4 border-t border-border bg-quartz-0">
+                  <div className="flex justify-end px-6 py-4 border-t border-border">
                     <Button
-                      variant="secondary"
+                      variant="default"
                       disabled={!hasChanges || !isWalletConnected}
                       onClick={handleSaveChanges}
                     >
@@ -310,19 +310,23 @@ export const RolesSidebar = <
                     <h3 className="text-2xl font-medium leading-snug">
                       History
                     </h3>
-                    <Button variant="secondary">
+                    <Button variant="ghost">
                       <Clock className="size-4" />
                       Full history
                     </Button>
                   </div>
 
-                  <div className="border border-border rounded-2xl overflow-hidden p-0">
-                    <RoleHistoryTable name={name} account={selectedAccount} />
+                  <div className="border border-border rounded-sm overflow-hidden p-0">
+                    <RoleHistoryTable
+                      name={name}
+                      label={getNameLabels(name).currentLabel}
+                      account={selectedAccount}
+                    />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-quartz-400 text-center py-12">
+              <div className="text-muted-foreground text-center py-12">
                 No role selected
               </div>
             )}
@@ -344,7 +348,7 @@ export const RolesSidebar = <
                   <Button variant="outline">Cancel</Button>
                 </DialogClose>
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   onClick={() => {
                     setConfirmOpen(false)
                     handleRemoveUser()

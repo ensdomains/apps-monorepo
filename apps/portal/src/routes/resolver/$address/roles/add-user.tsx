@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { type Address, isAddress } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -25,11 +25,11 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
-import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-
-const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
 
 export const Route = createFileRoute('/resolver/$address/roles/add-user')({
   component: RouteComponent,
@@ -37,12 +37,14 @@ export const Route = createFileRoute('/resolver/$address/roles/add-user')({
 })
 
 const ROOT_NODE_VALUE = ''
+const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
 
 function RouteComponent() {
   const { address } = Route.useParams()
   const navigate = useNavigate()
-  const chainId = namechainSepolia.id
+  const chainId = sepoliaWithEns.id
   const { data: walletClient } = useWalletClient({ chainId })
+  const publicClient = usePublicClient({ chainId })
 
   const [userInput, setUserInput] = useState('')
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -50,11 +52,20 @@ function RouteComponent() {
   // Node to grant roles on (empty string = root / all nodes)
   const [selectedNode, setSelectedNode] = useState<string>(ROOT_NODE_VALUE)
   const [selectedRoles, setSelectedRoles] = useState<ResolverRole[]>([])
+  const [pendingRoleGrant, setPendingRoleGrant] = useState<{
+    readonly name: string
+    readonly account: Address
+    readonly roles: ResolverRole[]
+  } | null>(null)
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const resolveMutation = useMutation({
     mutationFn: async ({ nameOrAddress }: { nameOrAddress: string }) => {
+      if (!publicClient) {
+        throw new Error('Public client not available')
+      }
       const resolved = await resolveAddressOrName({
-        client: getClient(),
+        client: publicClient,
         nameOrAddress,
       })
       if (!resolved)
@@ -76,11 +87,13 @@ function RouteComponent() {
   const mutation = useGrantResolverRoles({
     resolverAddress: address as Address,
     walletClient,
-    onSuccess: () =>
-      navigate({ to: '/resolver/$address/roles', params: { address } }),
+    publicClient,
+    chainId,
+    id: GRANT_RESOLVER_ROLES_TX_ID,
   })
 
-  if (isLoading) return <LoadingMessage title="Loading resolver data" />
+  if (isLoading) return <LoadingMessage />
+
   if (error)
     return (
       <ErrorMessage
@@ -112,11 +125,12 @@ function RouteComponent() {
 
     if (selectedRoles.length > 0) {
       mutation.reset()
-      mutation.mutate({
+      setPendingRoleGrant({
         name: selectedNode,
         account: userAddress,
         roles: selectedRoles,
       })
+      openModal()
     }
   }
 
@@ -184,7 +198,7 @@ function RouteComponent() {
                           name={name}
                           width="24px"
                           height="24px"
-                          rounded="rounded-full"
+                          rounded="rounded-sm"
                         />
                         <span className="font-mono text-sm">{name}</span>
                         {node?.owner?.id && (
@@ -206,7 +220,7 @@ function RouteComponent() {
         {/* Roles */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <h2 className="text-lg font-medium">Roles</h2>
-          <div className="border rounded-lg divide-y">
+          <div className="border rounded-sm divide-y">
             {resolverPermissions.map((permission) => {
               const role = permission.key as ResolverRole
               const isChecked = selectedRoles.includes(role)
@@ -265,7 +279,7 @@ function RouteComponent() {
 
           <Button
             type="submit"
-            variant="secondary"
+            variant="default"
             className="w-fit"
             disabled={
               !userAddress || selectedRoles.length === 0 || mutation.isPending
@@ -282,6 +296,26 @@ function RouteComponent() {
           )}
         </form>
       </div>
+      <TransactionModal
+        transactions={[
+          {
+            id: GRANT_RESOLVER_ROLES_TX_ID,
+            title: 'Grant resolver roles',
+            transactionName: `Grant resolver roles for ${pendingRoleGrant?.name || '(root)'}`,
+            estimatedGasCost: 0.0001,
+            onStart: () => {
+              if (!pendingRoleGrant) return
+              mutation.mutate(pendingRoleGrant)
+            },
+            onDone: () => {
+              closeModal()
+              clearTransaction()
+              setPendingRoleGrant(null)
+              navigate({ to: '/resolver/$address/roles', params: { address } })
+            },
+          },
+        ]}
+      />
     </div>
   )
 }

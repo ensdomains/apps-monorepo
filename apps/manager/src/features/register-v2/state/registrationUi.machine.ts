@@ -4,10 +4,8 @@ import {
 } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { secondsInYear } from 'date-fns/constants'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import {
   type ActorRefFrom,
   assign,
@@ -21,6 +19,13 @@ import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pr
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
+import { SECONDS_IN_YEAR } from '../utils/time'
+import {
+  getRegistrationStageProgress,
+  type MaxProgressReached,
+  REGISTRATION_STAGE_PROGRESS,
+  type RegistrationStage,
+} from './registration.stages'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
 
@@ -49,6 +54,8 @@ type Context = {
     /** Formatted premium price */
     premiumPriceNumber: number
   }
+
+  maxProgressReached?: MaxProgressReached
 }
 
 type Events =
@@ -57,10 +64,6 @@ type Events =
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
-  | {
-      type: 'registration.submit'
-      startEvent: Extract<RegistrationEvent, { type: 'START_REGISTRATION' }>
-    }
   | {
       type: 'registration.start'
       label: string
@@ -83,10 +86,15 @@ type Events =
   | { type: 'label.changed' }
   | { type: '$error'; error: Error }
 
+type Input = {
+  chainId: number
+}
+
 const machineSetup = setup({
   types: {
     context: {} as Context,
     events: {} as Events,
+    input: {} as Input,
     children: {} as {
       [REGISTRATION_V2_ACTOR_ID]: 'registrationFlow'
     },
@@ -101,7 +109,9 @@ const machineSetup = setup({
   actions: {
     setDuration: assign({
       duration: ({ event }) =>
-        event.type === 'pricing.duration.set' ? event.duration : secondsInYear,
+        event.type === 'pricing.duration.set'
+          ? event.duration
+          : SECONDS_IN_YEAR,
     }),
     setToken: assign({
       selectedToken: ({ event, context }) =>
@@ -112,19 +122,15 @@ const machineSetup = setup({
     clearError: assign({
       lastErrorMessage: () => undefined,
     }),
+    clearMaxProgress: assign({
+      maxProgressReached: () => undefined,
+    }),
     setError: assign({
       lastErrorMessage: ({ event }) =>
         match(event)
           .with({ type: 'transaction.failed' }, ({ message }) => message)
           .with({ type: '$error' }, ({ error }) => error.message)
           .otherwise(() => undefined),
-    }),
-    forwardStartRegistration: sendTo(REGISTRATION_V2_ACTOR_ID, ({ event }) => {
-      if (event.type !== 'registration.submit') {
-        throw new Error('registration.submit event required')
-      }
-
-      return event.startEvent
     }),
     forwardRetry: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'RETRY' }),
     forwardCancel: sendTo(REGISTRATION_V2_ACTOR_ID, { type: 'CANCEL' }),
@@ -164,7 +170,28 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
+    // Register the ENS name directly to the EOA on every signer path
+    // (eoa, zerodev, rhinestone). The rhinestone smart-session policy is
+    // configured to pin `register.owner == EOA` to match (see
+    // lib/smart-account/sessions/build-registration-session.ts).
+    //
+    // Rationale: with the EOA as the on-chain ENS owner, indexer "My names"
+    // lookups by EOA work without HCA-equivalence, and registry-level
+    // operations (transfer, setResolver, wrap) accept either a direct EOA
+    // call or an SCA call that HCAEquivalence unwraps to the same EOA.
+    // The fallback to `accountAddress` only triggers for "simple" account
+    // types that expose no EOA (we no longer have such a path in v2, but
+    // the fallback is kept defensively).
     const ownerAddress =
+      event.account.ownerAddress ?? event.account.accountAddress
+
+    // The dedicated resolver's EACL must be granted to the address that the
+    // resolver will see at write time. The PermissionedResolver unwraps an
+    // ERC-7579 / smart-account caller to its underlying EOA owner before
+    // performing the role check, so the EACL grantee must be the EOA — even
+    // when the ENS name itself is owned by the SCA (rhinestone session
+    // policy). For pure EOA flows this collapses to the same address.
+    const resolverOwnerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
     enqueue.assign({
@@ -189,8 +216,13 @@ const startRegistrationAction = machineSetup.createAction(
         signer: event.account.signer,
         accountAddress: event.account.accountAddress,
         ownerAddress,
+        resolverOwnerAddress,
         publicClient: defaultPublicClient,
-        useFastRegistrar: true,
+        // The canonical v2 ETHRegistrar handles both fork and prod deployments
+        // and has the current MockUSDC/MockDAI in its payment-token whitelist.
+        // FastTestETHRegistrar from the previous fork still exists on the new
+        // fork but with a stale whitelist, so leave it disabled.
+        useFastRegistrar: false,
         sponsored:
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true
@@ -226,14 +258,30 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           })),
         ],
       },
+      {
+        actions: assign({
+          maxProgressReached: ({ context, event }) => {
+            const value = event.snapshot.value
+            const stage = typeof value === 'string' ? value : String(value)
+            if (!(stage in REGISTRATION_STAGE_PROGRESS)) {
+              return context.maxProgressReached
+            }
+            const progress = getRegistrationStageProgress(stage)
+            const current = context.maxProgressReached
+            if (current && progress <= current.progress) return current
+            return { stage: stage as RegistrationStage, progress }
+          },
+        }),
+      },
     ],
   },
   initial: 'pricing',
-  context: () => ({
-    chainId: sepolia.id,
-    duration: secondsInYear,
+  context: ({ input }) => ({
+    chainId: input.chainId,
+    duration: SECONDS_IN_YEAR,
     selectedToken: undefined,
     lastErrorMessage: undefined,
+    maxProgressReached: undefined,
   }),
   states: {
     pricing: {
@@ -258,32 +306,18 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             'pricing.token.select': {
               actions: 'setToken',
             },
-            'pricing.step.next': {
-              guard: 'isDurationValid',
-              target: 'confirm',
-            },
             'pricing.dialog.dismiss': {
               target: 'duration',
-            },
-          },
-        },
-        confirm: {
-          on: {
-            'pricing.step.previous': {
-              target: 'tokens',
-            },
-            'pricing.dialog.dismiss': {
-              target: 'duration',
-            },
-            'registration.submit': {
-              target: '#registrationV2Ui.registering',
-              actions: ['clearError', 'forwardStartRegistration'],
             },
             'registration.start': {
               target: '#registrationV2Ui.registering',
               guard: ({ event }) =>
                 event.duration >= MIN_REGISTER_DURATION_SECONDS,
-              actions: ['clearError', startRegistrationAction],
+              actions: [
+                'clearError',
+                'clearMaxProgress',
+                startRegistrationAction,
+              ],
             },
           },
         },

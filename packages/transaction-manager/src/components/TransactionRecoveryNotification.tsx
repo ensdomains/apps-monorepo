@@ -7,7 +7,7 @@ export interface TransactionRecoveryNotificationProps {
     count: number
     onRecover: () => void
     onDismiss: () => void
-    transactions: any[]
+    transactions: unknown[]
   }) => React.ReactNode
   /** Auto-recover without showing notification */
   autoRecover?: boolean
@@ -106,6 +106,7 @@ export const TransactionRecoveryNotification = ({
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button
+          type="button"
           onClick={handleRecover}
           style={{
             padding: '8px 16px',
@@ -120,6 +121,7 @@ export const TransactionRecoveryNotification = ({
           Resume ({recoveredTransactions.length})
         </button>
         <button
+          type="button"
           onClick={handleDismiss}
           style={{
             padding: '8px 16px',

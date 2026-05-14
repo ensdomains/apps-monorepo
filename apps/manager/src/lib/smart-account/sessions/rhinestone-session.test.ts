@@ -21,6 +21,7 @@ vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
 }))
 
 import { normalizeSessionDetailsForEip712Signing } from '../utils'
+import { buildRegistrationSessionActions } from './build-registration-session'
 import {
   createRhinestoneSession,
   restoreRhinestoneSession,
@@ -124,7 +125,7 @@ describe('rhinestone-session', () => {
       expect(session.sessionPrivateKey).toBe(MOCK_PRIVATE_KEY)
     })
 
-    it('calls experimental_getSessionDetails with session containing sudo policy', async () => {
+    it('calls experimental_getSessionDetails with the registration-scoped action set', async () => {
       const mockAccount = createMockRhinestoneAccount()
 
       await createRhinestoneSession({
@@ -135,6 +136,14 @@ describe('rhinestone-session', () => {
         chain: MOCK_CHAIN,
       })
 
+      // The session must be enabled with the same actions array the runtime
+      // signer reproduces in SmartAccountContext — derive it from the same
+      // builder so the test tracks any policy changes automatically.
+      const expectedActions = buildRegistrationSessionActions({
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        eoaAddress: OWNER_ADDRESS,
+      })
+
       expect(mockAccount.experimental_getSessionDetails).toHaveBeenCalledWith([
         expect.objectContaining({
           owners: {
@@ -142,7 +151,7 @@ describe('rhinestone-session', () => {
             accounts: [{ address: MOCK_SESSION_ADDRESS }],
           },
           chain: MOCK_CHAIN,
-          actions: [{ policies: [{ type: 'sudo' }] }],
+          actions: expectedActions,
         }),
       ])
     })
@@ -353,7 +362,9 @@ describe('rhinestone-session', () => {
     })
 
     it('succeeds for session with future validUntil', async () => {
-      const session = createSession({ validUntil: Date.now() + 3600_000 })
+      const session = createSession({
+        validUntil: Math.floor(Date.now() / 1000) + 3600,
+      })
 
       const result = await restoreRhinestoneSession({ session })
 
@@ -361,7 +372,9 @@ describe('rhinestone-session', () => {
     })
 
     it('returns SessionError for expired session', async () => {
-      const session = createSession({ validUntil: Date.now() - 3600_000 })
+      const session = createSession({
+        validUntil: Math.floor(Date.now() / 1000) - 3600,
+      })
 
       const result = await restoreRhinestoneSession({ session })
 
@@ -413,8 +426,8 @@ describe('normalizeSessionDetailsForEip712Signing', () => {
       }
     ).sessionsAndChainIds
 
-    expect(row).toBeDefined()
-    const sess = row!.session
+    if (!row) throw new Error('sessionsAndChainIds row is missing')
+    const sess = row.session
 
     expect(sess.expires).toBe(maxUint256)
     expect(sess.nonce).toBe(9n)

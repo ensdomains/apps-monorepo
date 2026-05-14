@@ -23,6 +23,7 @@
  * - Ready for integration into your app
  */
 
+import { SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import {
   type Chain,
@@ -37,7 +38,7 @@ import {
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 
 // ============================================================================
@@ -56,15 +57,13 @@ const ENS_CONTRACTS = {
 
 // Supported payment tokens on Sepolia ENS
 const SUPPORTED_TOKENS = {
-  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as `0x${string}`, // MockUSDC
-  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as `0x${string}`, // MockDAI
+  USDC: '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6' as `0x${string}`, // MockUSDC
+  DAI: '0xb21412bb6816601dd840b93a5d19a8fe671cb74e' as `0x${string}`, // MockDAI
 }
 
 const PIMLICO_API_KEY = ''
 const RHINESTONE_API_KEY = ''
 const PRIVATE_KEY = '' as `0x${string}`
-
-const SEPOLIA_RPC_URL = 'https://ethereum-sepolia-rpc.publicnode.com'
 
 // FastTestETHRegistrar ABI (key functions) testname6208
 const FAST_TEST_REGISTRAR_ABI = [
@@ -277,7 +276,7 @@ function sleep(ms: number): Promise<void> {
  * Send ETH to an address
  */
 async function sendEth(
-  fromAccount: any,
+  fromAccount: PrivateKeyAccount,
   toAddress: `0x${string}`,
   amountEth: string,
 ): Promise<string> {
@@ -304,7 +303,7 @@ async function sendEth(
  * Mint tokens to an address
  */
 async function mintTokens(
-  fromAccount: any,
+  fromAccount: PrivateKeyAccount,
   tokenAddress: `0x${string}`,
   toAddress: `0x${string}`,
   amount: string,
@@ -1044,7 +1043,9 @@ async function registerEnsDomain(
       }
     }
     try {
-      const ctx = (error as any)?._context
+      const ctx = (error as Record<string, unknown>)?._context as
+        | Record<string, unknown>
+        | undefined
       if (ctx) {
         console.log('🔎 Orchestrator context id:', ctx.id)
         console.dir(ctx.error, { depth: null })

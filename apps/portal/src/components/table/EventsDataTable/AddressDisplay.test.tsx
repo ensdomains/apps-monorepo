@@ -5,21 +5,53 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddressDisplay } from './AddressDisplay'
 
 // Mock dependencies
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: React.ReactNode
+    to: string
+    params: Record<string, string>
+  }) => <a href={`${to}/${Object.values(params).join('/')}`}>{children}</a>,
+  useNavigate: () => vi.fn(),
+}))
+
 vi.mock('wagmi', () => ({
   useEnsName: vi.fn(),
 }))
 
-vi.mock('@/components/CopyableRecord', () => ({
-  CopyableRecord: ({
-    displayValue,
-    href,
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadgeWithActions: ({
+    children,
+    name,
+    address,
+    variant,
+    avatar,
   }: {
-    displayValue: React.ReactNode
-    href: string
+    children: React.ReactNode
+    name?: string
+    address?: string
+    variant: string
+    avatar?: React.ReactNode
   }) => (
-    <a href={href} data-testid="copyable-record">
-      {displayValue}
-    </a>
+    <span data-testid="entity-badge" data-variant={variant}>
+      {avatar}
+      {children}
+      <a
+        href={variant === 'name' ? `/$name/${name}` : `/addr/$addr/${address}`}
+      >
+        link
+      </a>
+      <button
+        type="button"
+        data-testid="copy-button"
+        data-value={name ?? address ?? ''}
+      >
+        Copy
+      </button>
+    </span>
   ),
 }))
 
@@ -128,8 +160,8 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={mockAddress} />)
 
-    const link = screen.getByTestId('copyable-record')
-    expect(link).toHaveAttribute('href', `/addr/${mockAddress}`)
+    const link = screen.getByRole('link')
+    expect(link).toHaveAttribute('href', `/addr/$addr/${mockAddress}`)
   })
 
   it('should use ENS name for copyable value when available', () => {
@@ -140,8 +172,10 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={mockAddress} />)
 
-    // The CopyableRecord should be rendered with ENS name
-    expect(screen.getByTestId('copyable-record')).toBeInTheDocument()
+    expect(screen.getByTestId('copy-button')).toHaveAttribute(
+      'data-value',
+      'vitalik.eth',
+    )
   })
 
   it('should use address for copyable value when no ENS name', () => {
@@ -152,7 +186,10 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={mockAddress} />)
 
-    expect(screen.getByTestId('copyable-record')).toBeInTheDocument()
+    expect(screen.getByTestId('copy-button')).toHaveAttribute(
+      'data-value',
+      mockAddress,
+    )
   })
 
   it('should default to short=true', () => {
@@ -167,16 +204,17 @@ describe('AddressDisplay', () => {
     expect(screen.getByText('0x1234...5678')).toBeInTheDocument()
   })
 
-  it('should render with correct flex layout', () => {
+  it('should render avatar inside the entity badge', () => {
     vi.mocked(useEnsName).mockReturnValue({
       data: 'test.eth',
       isLoading: false,
     } as any)
 
-    const { container } = render(<AddressDisplay address={mockAddress} />)
+    render(<AddressDisplay address={mockAddress} />)
 
-    const flexContainer = container.querySelector('.flex.flex-row.items-center')
-    expect(flexContainer).toBeInTheDocument()
+    const badge = screen.getByTestId('entity-badge')
+    const avatar = screen.getByTestId('name-avatar')
+    expect(badge).toContainElement(avatar)
   })
 
   it('should handle different address formats', () => {
@@ -189,6 +227,6 @@ describe('AddressDisplay', () => {
 
     render(<AddressDisplay address={shortAddress} />)
 
-    expect(screen.getByTestId('copyable-record')).toBeInTheDocument()
+    expect(screen.getByRole('link')).toBeInTheDocument()
   })
 })

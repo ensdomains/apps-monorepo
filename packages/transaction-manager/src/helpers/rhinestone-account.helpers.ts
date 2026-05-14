@@ -47,6 +47,7 @@ export interface ENSRenewalParams {
 export function initializeRhinestoneAccount(
   walletClient: WalletClient,
   config: RhinestoneAccountConfig,
+  // biome-ignore lint/suspicious/noExplicitAny: Rhinestone SDK does not export account types
 ): ResultAsync<any, RhinestoneAccountError> {
   console.log('🔐 Initializing Rhinestone smart account...', {
     hasWalletClient: !!walletClient,
@@ -112,6 +113,7 @@ export function initializeRhinestoneAccount(
  * Get the address of a Rhinestone account
  */
 export function getRhinestoneAccountAddress(
+  // biome-ignore lint/suspicious/noExplicitAny: Rhinestone SDK does not export account types
   rhinestoneAccount: any,
 ): Result<Hex, RhinestoneAccountError> {
   try {
@@ -198,6 +200,7 @@ export function prepareENSRenewalTransaction(
  * Execute an ENS renewal transaction using a Rhinestone smart account
  */
 export function executeENSRenewal(
+  // biome-ignore lint/suspicious/noExplicitAny: Rhinestone SDK does not export account types
   rhinestoneAccount: any,
   publicClient: PublicClient,
   params: ENSRenewalParams,

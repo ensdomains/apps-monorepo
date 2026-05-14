@@ -3,16 +3,12 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock, GridIcon, SplitIcon, UserRoundCog } from 'lucide-react'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import {
-  CounterCard,
-  CounterCardLink,
-  CounterCardRow,
-} from '@/components/CounterCard'
+import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
-import { DedicatedResolverBanner } from '@/features/resolver/components/DedicatedResolverBanner'
+import { PermissionedResolverBanner } from '@/features/resolver/components/PermissionedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -50,7 +46,7 @@ function RouteComponent() {
     )
     .slice(0, RECENT_EVENT_LIMIT)
 
-  if (isLoading) return <LoadingMessage title="Loading resolver" />
+  if (isLoading) return <LoadingMessage />
 
   if (error)
     return (
@@ -66,34 +62,18 @@ function RouteComponent() {
         Resolver {truncateAddress(address, 6, 4, '...')}
       </h1>
 
-      <DedicatedResolverBanner resolverAddress={address as Address} />
+      <PermissionedResolverBanner resolverAddress={address as Address} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <CounterCard>
-          <CounterCardRow
-            icon={GridIcon}
-            action={
-              <CounterCardLink
-                to="/resolver/$address/nodes"
-                params={{ address }}
-              />
-            }
-          >
+        <CounterCard to="/resolver/$address/nodes" params={{ address }}>
+          <CounterCardRow icon={GridIcon}>
             <span className="font-medium">{resolver?.nodeCount ?? 0}</span>{' '}
             nodes
           </CounterCardRow>
         </CounterCard>
 
-        <CounterCard>
-          <CounterCardRow
-            icon={UserRoundCog}
-            action={
-              <CounterCardLink
-                to="/resolver/$address/roles"
-                params={{ address }}
-              />
-            }
-          >
+        <CounterCard to="/resolver/$address/roles" params={{ address }}>
+          <CounterCardRow icon={UserRoundCog}>
             <span className="font-medium">
               {resolver?.roleHolderCount ?? 0}
             </span>{' '}
@@ -101,16 +81,8 @@ function RouteComponent() {
           </CounterCardRow>
         </CounterCard>
 
-        <CounterCard>
-          <CounterCardRow
-            icon={SplitIcon}
-            action={
-              <CounterCardLink
-                to="/resolver/$address/aliases"
-                params={{ address }}
-              />
-            }
-          >
+        <CounterCard to="/resolver/$address/aliases" params={{ address }}>
+          <CounterCardRow icon={SplitIcon}>
             <span className="font-medium">{resolver?.aliasCount ?? 0}</span>{' '}
             aliases
           </CounterCardRow>
@@ -131,14 +103,14 @@ function RouteComponent() {
       <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
           <h2 className="text-2xl font-medium">History</h2>
-          <Button variant="secondary" size="sm" asChild>
+          <Button variant="ghost" size="sm" asChild>
             <Link to="/resolver/$address/history" params={{ address }}>
               <Clock className="size-4" />
               Full history
             </Link>
           </Button>
         </div>
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-border rounded-sm overflow-hidden">
           <ResolverEventsTable events={recentEvents} enableSidebar={false} />
         </div>
       </div>

@@ -1,42 +1,54 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { makeLabelNodeAndParent } from '@ensdomains/ensjs/utils'
 import { useQuery } from '@tanstack/react-query'
-import { HashIcon, ListIcon } from 'lucide-react'
-import {
-  CounterCard,
-  CounterCardLink,
-  CounterCardRow,
-} from '@/components/CounterCard'
+import { AlertCircleIcon } from 'lucide-react'
+import { ShieldIcon } from '@/assets/icons'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import {
+  DataBlockCard,
+  DataBlockCardError,
+} from '@/features/dashboard/components'
 import { getBurnedFuseCountQueryOptions } from '@/features/namewrapper/hooks/useBurnedFuseCount'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
-import { namechainEthRegistryAddress } from '@/lib/constants/registry'
-import type { EnsNetworkName } from '@/utils/types'
+import { sepoliaWithEns } from '@/lib/wagmi'
+import type { ProtocolVersion } from '@/utils/types'
+
+const v2EthRegistry = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
 
 interface ProtocolVersionWithCounterProps {
   name: string
-  network: EnsNetworkName
+  protocolVersion: ProtocolVersion
 }
 
 const RoleCount = ({ name }: { name: string }) => {
   const { data, isLoading, error } = useQuery(
     getNameRolesAccountsQueryOptions({
       ...makeLabelNodeAndParent(name),
-      registryAddress: namechainEthRegistryAddress,
+      registryAddress: v2EthRegistry,
       fromBlock: 9782822n,
     }),
   )
 
   if (error)
-    return <div>Failed to fetch fuses count: {error.cause?.message}</div>
+    return (
+      <DataBlockCardError
+        icon={AlertCircleIcon}
+        message="Failed to load roles"
+      />
+    )
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <CounterCardRow
-      icon={ListIcon}
-      action={<CounterCardLink to="/$name/roles" params={{ name }} />}
-    >
-      <span className="font-medium">{(data || { size: 0 }).size}</span> roles
-    </CounterCardRow>
+    <DataBlockCard
+      to="/$name/roles"
+      params={{ name }}
+      icon={ShieldIcon}
+      label="Role holders"
+      value={(data || { size: 0 }).size}
+    />
   )
 }
 
@@ -46,43 +58,34 @@ const FuseCount = ({ name }: { name: string }) => {
   )
 
   if (error)
-    return <div>Failed to fetch fuses count: {error.cause?.message}</div>
+    return (
+      <DataBlockCardError
+        icon={AlertCircleIcon}
+        message="Failed to load fuses"
+      />
+    )
   if (isLoading) return <LoadingSpinner />
 
+  if (data === null) return null
+
   return (
-    <CounterCardRow
-      icon={ListIcon}
-      action={<CounterCardLink to="/$name/fuses" params={{ name }} />}
-    >
-      <span className="font-medium">{data || 0}</span> fuses burned
-    </CounterCardRow>
+    <DataBlockCard
+      to="/$name/fuses"
+      params={{ name }}
+      icon={ShieldIcon}
+      label="Fuses burned"
+      value={data}
+    />
   )
 }
 
 export const ProtocolVersionWithCounter = ({
   name,
-  network,
+  protocolVersion,
 }: ProtocolVersionWithCounterProps) => {
-  return (
-    <CounterCard>
-      {network === 'sepolia' ? (
-        <FuseCount name={name} />
-      ) : (
-        <RoleCount name={name} />
-      )}
-      <CounterCardRow
-        icon={HashIcon}
-        action={
-          <CounterCardLink
-            to="/$name/records"
-            search={{ view: 'list' }}
-            params={{ name }}
-          />
-        }
-      >
-        <div className="font-medium">Protocol</div>
-        <div>{network === 'namechainSepolia' ? 'ENSv2' : 'ENSv1'}</div>
-      </CounterCardRow>
-    </CounterCard>
+  return protocolVersion === 'ENSv1' ? (
+    <FuseCount name={name} />
+  ) : (
+    <RoleCount name={name} />
   )
 }

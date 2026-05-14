@@ -25,12 +25,12 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { namechainSepolia, wagmiConfig } from '@/lib/wagmi'
-import { safeGetNamechainSepoliaClient } from '@/lib/wagmi/helpers'
+import { wagmiConfig } from '@/lib/wagmi'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import type { EnsNetworkName } from '@/utils/types'
+import type { ProtocolVersion } from '@/utils/types'
 
-const getClient = () => wagmiConfig.getClient({ chainId: namechainSepolia.id })
+const getClient = () => wagmiConfig.getClient()
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,
@@ -48,7 +48,7 @@ const PageHeader = ({ name }: PageHeaderProps) => (
     <Link to="/$name/subnames" params={{ name }}>
       <Button
         variant="ghost"
-        className="flex items-center gap-1 -ml-2 text-quartz-500"
+        className="flex items-center gap-1 -ml-2 text-muted-foreground"
       >
         <ArrowLeftIcon className="size-6" />
         Back
@@ -74,12 +74,15 @@ function useSyncOwnerWithConnectedAddress(
 
 interface CreateSubnameFormProps {
   readonly name: string
-  readonly network: EnsNetworkName
+  readonly protocolVersion: ProtocolVersion
 }
 
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
 
-const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
+const CreateSubnameForm = ({
+  name,
+  protocolVersion,
+}: CreateSubnameFormProps) => {
   const navigate = useNavigate()
   const { address: connectedAddress, isConnected } = useConnection()
 
@@ -119,14 +122,14 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
     data: registriesData,
     isLoading: registriesLoading,
     error: registriesError,
-  } = useQuery(getNameRegistriesQueryOptions({ name, network }))
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
 
-  const subregistryAddress = registriesData?.registries[0]
+  const subregistryAddress = registriesData?.[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress
 
   const { data: existingSubnames } = useQuery({
-    ...getSubnamesQueryOptions({ name, network: 'namechainSepolia' }),
+    ...getSubnamesQueryOptions({ name, protocolVersion: 'ENSv2' }),
     enabled: Boolean(hasSubregistry),
   })
 
@@ -144,7 +147,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
       owner: ownerAddress,
       resolverAddress,
       parentName: name,
-      network,
+      protocolVersion,
       id: CREATE_SUBNAME_TRANSACTION_ID,
     })
   }
@@ -162,7 +165,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
 
     setPrepareError(null)
 
-    const clientResult = safeGetNamechainSepoliaClient()
+    const clientResult = safeGetClient()
     if (clientResult.isErr()) {
       setPrepareError('Failed to get client')
       return
@@ -188,7 +191,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
   }
 
   if (registriesLoading) {
-    return <LoadingMessage title="Loading registry..." />
+    return <LoadingMessage />
   }
 
   if (registriesError) {
@@ -204,11 +207,11 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-quartz-500">
+        <p className="text-muted-foreground">
           This name does not have a subregistry. You must deploy one first to
           create subnames.
         </p>
-        <Button asChild variant="secondary" className="w-fit">
+        <Button asChild variant="default" className="w-fit">
           <Link to="/$name/registry" params={{ name }}>
             Deploy subregistry
           </Link>
@@ -306,13 +309,13 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
             }}
           />
           {isResolving && (
-            <p className="text-sm text-quartz-500 flex items-center gap-1">
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Loader2 className="size-3 animate-spin" />
               Resolving...
             </p>
           )}
           {ownerAddress && !isAddress(ownerInput) && !isResolving && (
-            <p className="text-sm text-quartz-500">
+            <p className="text-sm text-muted-foreground">
               Resolved: {truncateAddress(ownerAddress)}
             </p>
           )}
@@ -322,7 +325,7 @@ const CreateSubnameForm = ({ name, network }: CreateSubnameFormProps) => {
             !resolveError &&
             !ownerInput.includes('.') &&
             !isAddress(ownerInput) && (
-              <p className="text-sm text-quartz-500">
+              <p className="text-sm text-muted-foreground">
                 Enter a full ENS name (e.g. name.eth) or a HEX address
               </p>
             )}
@@ -390,18 +393,23 @@ const CreateSubnameContent = ({
   name,
   ownerData,
 }: CreateSubnameContentProps) => {
-  if (ownerData.network !== 'namechainSepolia') {
+  if (ownerData.protocolVersion !== 'ENSv2') {
     return (
       <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
-        <p className="text-quartz-500">
+        <p className="text-muted-foreground">
           This feature is only available for ENSv2 names.
         </p>
       </div>
     )
   }
 
-  return <CreateSubnameForm name={name} network={ownerData.network} />
+  return (
+    <CreateSubnameForm
+      name={name}
+      protocolVersion={ownerData.protocolVersion}
+    />
+  )
 }
 
 // --- Route Component (fetches ownerData) ---
@@ -416,7 +424,7 @@ function RouteComponent() {
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
   if (isLoading) {
-    return <LoadingMessage title="Loading..." />
+    return <LoadingMessage />
   }
 
   if (error) {

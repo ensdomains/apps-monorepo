@@ -1,3 +1,4 @@
+import type { TokenRequest } from '@rhinestone/sdk'
 import type {
   Address,
   Chain,
@@ -7,7 +8,6 @@ import type {
   TransactionReceipt,
   WalletClient,
 } from 'viem'
-
 import type { TransactionInfra } from './signer.types'
 
 export type TransactionType =
@@ -59,6 +59,20 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   rhinestoneParams: {
     calls: RhinestoneCall[]
     sponsored?: boolean
+    /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
+    tokenRequests?: TokenRequest[]
+    /**
+     * Whether to submit this call through the active smart-session
+     * (when the signer is a session client). Defaults to `true` for
+     * backward compatibility.
+     *
+     * Set to `false` for calls whose (target, selector) is not in the
+     * session's action allowlist (e.g. resolver record writes from the
+     * registration-scoped session). The transport will then omit
+     * `signers` and fall back to the SCA's default validator, which
+     * triggers an EOA-owner signature.
+     */
+    useSession?: boolean
   }
 }
 
@@ -79,6 +93,14 @@ export interface ZeroDevTransactionRequest extends BaseTransactionRequest {
   zerodevParams: {
     calls: ZeroDevCall[]
     sponsored?: boolean
+    /**
+     * Whether to submit through the active smart-session client (when
+     * the signer is a session client). Defaults to `true`. Set to
+     * `false` for calls whose (target, selector) is not in the session
+     * permissions; the caller is then expected to fall back to the
+     * master kernel client (EOA-owner signature).
+     */
+    useSession?: boolean
   }
 }
 

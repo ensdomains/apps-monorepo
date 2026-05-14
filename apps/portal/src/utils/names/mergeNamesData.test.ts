@@ -32,14 +32,14 @@ describe('mergeNamesData', () => {
     expect(result[0]).toEqual({
       name: 'vitalik.eth',
       expiryDate: new Date('2025-01-01'),
-      network: 'sepolia',
+      protocolVersion: 'ENSv1',
       roleBitmap: null,
       v1Roles: { owner: true, manager: false },
     })
     expect(result[1]).toEqual({
       name: 'alice.eth',
       expiryDate: new Date('2025-01-01 00:00:00 UTC'),
-      network: 'namechainSepolia',
+      protocolVersion: 'ENSv2',
       subdomainCount: 0,
       recordCount: undefined,
       roleBitmap: null,
@@ -59,7 +59,7 @@ describe('mergeNamesData', () => {
     expect(result[0]).toEqual({
       name: 'test.eth',
       expiryDate: null,
-      network: 'sepolia',
+      protocolVersion: 'ENSv1',
       roleBitmap: null,
       v1Roles: { owner: false, manager: false },
     })
@@ -81,7 +81,7 @@ describe('mergeNamesData', () => {
     expect(result[0]).toEqual({
       name: 'test.eth',
       expiryDate: null,
-      network: 'sepolia',
+      protocolVersion: 'ENSv1',
       roleBitmap: null,
       v1Roles: { owner: false, manager: false },
     })
@@ -99,7 +99,7 @@ describe('mergeNamesData', () => {
     expect(result[0]).toEqual({
       name: 'test.eth',
       expiryDate: null,
-      network: 'namechainSepolia',
+      protocolVersion: 'ENSv2',
       subdomainCount: 0,
       recordCount: undefined,
       roleBitmap: null,
@@ -118,7 +118,7 @@ describe('mergeNamesData', () => {
     expect(result[0]).toEqual({
       name: 'alice.eth',
       expiryDate: new Date('2025-01-01 00:00:00 UTC'),
-      network: 'namechainSepolia',
+      protocolVersion: 'ENSv2',
       subdomainCount: 0,
       recordCount: undefined,
       roleBitmap: null,
@@ -141,7 +141,7 @@ describe('mergeNamesData', () => {
     expect(result[0]).toEqual({
       name: 'vitalik.eth',
       expiryDate: new Date('2025-01-01'),
-      network: 'sepolia',
+      protocolVersion: 'ENSv1',
       roleBitmap: null,
       v1Roles: { owner: true, manager: true },
     })

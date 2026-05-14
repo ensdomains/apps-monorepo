@@ -6,9 +6,11 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { ExpiryWithRegistrationData } from '@/features/ownership/components/ExpiryWithRegistrationData'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
+import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 
 export const Route = createFileRoute('/$name/ownership')({
   component: RouteComponent,
@@ -20,6 +22,11 @@ function RouteComponent() {
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
+  const grace = useGraceStatus({
+    name,
+    protocolVersion: data?.protocolVersion,
+  })
+
   if (error)
     return (
       <ErrorMessage
@@ -28,24 +35,36 @@ function RouteComponent() {
       />
     )
 
-  if (isLoading) return <LoadingMessage title="Loading owner data" />
+  if (isLoading) return <LoadingMessage />
 
   if (!data) return null
 
   return (
     <div className="max-w-360 w-full mx-auto flex flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+      {grace.isInGrace && grace.graceEndDate && (
+        <GraceBanner
+          graceEndDate={grace.graceEndDate}
+          protocolVersion={data.protocolVersion}
+        />
+      )}
       <div className="flex flex-row justify-between">
         <h1 className="font-medium text-heading">Ownership</h1>
       </div>
       <div className="flex flex-col gap-4 sm:gap-6">
-        <ExpiryWithRegistrationData name={name} network={data.network} />
-        <div className="flex flex-col gap-4 sm:gap-6 md:flex-row justify-between">
-          <Owner owner={data.owner} label="Name owner" className="w-full" />
-          {data.network === 'sepolia' && (
-            <V1NameManagerRecord name={name} className="w-full" />
-          )}
+        <ExpiryWithRegistrationData
+          name={name}
+          protocolVersion={data.protocolVersion}
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <Owner
+            owner={data.owner}
+            label={grace.isInGrace ? 'Previous owner' : 'Name owner'}
+          />
+          <ParentName name={name} />
         </div>
-        <ParentName name={name} />
+        {data.protocolVersion === 'ENSv1' && (
+          <V1NameManagerRecord name={name} className="w-full" />
+        )}
         <NameSubgraphHistory name={name} category="domain" />
       </div>
     </div>

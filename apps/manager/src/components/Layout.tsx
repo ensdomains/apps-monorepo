@@ -1,4 +1,6 @@
+import { useLocation } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { Header } from '@/features/navigation/Header/Header'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
 
@@ -7,11 +9,15 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children }: LayoutProps) => {
+  const { pathname } = useLocation()
+  const showSepoliaBanner = pathname !== '/migration'
+
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-[#FCFBFB]">
       <Header />
 
-      <main className="relative isolate flex flex-1 flex-col bg-[#FCFBFB]">
+      <main className="relative isolate flex flex-1 flex-col">
+        {showSepoliaBanner && <SepoliaNoticeBanner />}
         {children}
       </main>
       <BackendAuthModal />

@@ -99,7 +99,7 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      {/* Note : Currently we disabled discounts on contracts - Commenting this section out for now until we re-enable discounts */}
+      {/* Discounts disabled on contracts - uncomment once re-enabled */}
       {/* <RegistrationDurationPresets
         value={Math.round(
           getYearsFromDuration(getDurationFromPickerDate(date)),
