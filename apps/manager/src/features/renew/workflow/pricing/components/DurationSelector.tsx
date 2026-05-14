@@ -76,7 +76,7 @@ export const DurationSelector = () => {
   )
 
   return (
-    <div className="flex h-full flex-col justify-between gap-1 rounded-xl border border-[#DDDDDE] bg-white p-1 shadow-temp-card">
+    <div className="flex h-full flex-col justify-between gap-3 rounded-xl border border-[#DDDDDE] bg-white p-3 shadow-temp-card">
       {PRESET_DURATIONS.map((data, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {

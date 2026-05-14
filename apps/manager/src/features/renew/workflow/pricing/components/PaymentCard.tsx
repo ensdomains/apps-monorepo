@@ -39,7 +39,7 @@ export const PaymentCard = () => {
       amount={pricingQuery.data?.totalPrice}
       canNext={canNext}
       discountAmount={discountAmount}
-      isLoading={pricingQuery.isLoading}
+      isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
       type="renew"
     />
