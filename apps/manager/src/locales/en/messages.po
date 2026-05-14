@@ -210,6 +210,7 @@ msgstr "Added"
 msgid "Adding telegram..."
 msgstr "Adding telegram..."
 
+#: src/features/navigation/Header/account/WalletSection.tsx:54
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr "Address"
@@ -246,7 +247,7 @@ msgstr "An error occurred during registration. Please try again."
 msgid "An error occurred during verification"
 msgstr "An error occurred during verification"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:158
+#: src/features/wallet/components/BackendAuthModal.tsx:156
 msgid "And more..."
 msgstr "And more..."
 
@@ -259,7 +260,7 @@ msgstr "Approval allows registrar to charge"
 msgid "Approve in your wallet"
 msgstr "Approve in your wallet"
 
-#: src/features/wallet/components/EnableSessionModal.tsx:136
+#: src/features/wallet/components/EnableSessionModal.tsx:125
 msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
 msgstr "Approve the signature in your wallet, then wait for on-chain confirmation."
 
@@ -287,7 +288,7 @@ msgstr "Are you sure you want to remove your current avatar? This will revert to
 msgid "Are you sure you want to remove your current header? This will revert to the default image."
 msgstr "Are you sure you want to remove your current header? This will revert to the default image."
 
-#: src/features/wallet/components/BackendAuthModal.tsx:134
+#: src/features/wallet/components/BackendAuthModal.tsx:132
 msgid "Are you sure?"
 msgstr "Are you sure?"
 
@@ -772,6 +773,10 @@ msgstr "Deploying on-chain…"
 msgid "Deploying resolver"
 msgstr "Deploying resolver"
 
+#: src/features/navigation/Header/account/WalletSection.tsx:58
+msgid "Deploying smart account…"
+msgstr "Deploying smart account…"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:36
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
@@ -788,7 +793,7 @@ msgstr "Disconnect"
 msgid "Disconnect Wallet"
 msgstr "Disconnect Wallet"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:152
+#: src/features/wallet/components/BackendAuthModal.tsx:150
 msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
@@ -1020,7 +1025,7 @@ msgid "Failed to set primary name. Please try again."
 msgstr "Failed to set primary name. Please try again."
 
 #: src/features/notifications/RequireBackendAuth.tsx:143
-#: src/features/wallet/components/BackendAuthModal.tsx:109
+#: src/features/wallet/components/BackendAuthModal.tsx:107
 msgid "Failed to sign in. Please try again."
 msgstr "Failed to sign in. Please try again."
 
@@ -1110,7 +1115,7 @@ msgstr "Getting ready..."
 msgid "Go back"
 msgstr "Go back"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:174
+#: src/features/wallet/components/BackendAuthModal.tsx:172
 msgid "Go Back"
 msgstr "Go Back"
 
@@ -1922,7 +1927,7 @@ msgstr "Save Changes"
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:155
+#: src/features/wallet/components/BackendAuthModal.tsx:153
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
 
@@ -2084,6 +2089,11 @@ msgstr "Setting up registration"
 msgid "Setting up resolver"
 msgstr "Setting up resolver"
 
+#: src/lib/smart-account/rhinestone.ts:150
+#: src/lib/smart-account/rhinestone.ts:205
+msgid "Setting up your smart account"
+msgstr "Setting up your smart account"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:398
 msgid "Setting..."
 msgstr "Setting..."
@@ -2122,11 +2132,11 @@ msgid "Sign in to view favorites"
 msgstr "Sign in to view favorites"
 
 #: src/features/notifications/RequireBackendAuth.tsx:136
-#: src/features/wallet/components/BackendAuthModal.tsx:102
+#: src/features/wallet/components/BackendAuthModal.tsx:100
 msgid "Sign in with Wallet"
 msgstr "Sign in with Wallet"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:85
+#: src/features/wallet/components/BackendAuthModal.tsx:83
 msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 msgstr "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 
@@ -2143,7 +2153,7 @@ msgid "Sign once to enable seamless transactions."
 msgstr "Sign once to enable seamless transactions."
 
 #: src/features/notifications/RequireBackendAuth.tsx:134
-#: src/features/wallet/components/BackendAuthModal.tsx:100
+#: src/features/wallet/components/BackendAuthModal.tsx:98
 msgid "Signing in..."
 msgstr "Signing in..."
 
@@ -2153,15 +2163,15 @@ msgstr "Signing in..."
 msgid "Skip"
 msgstr "Skip"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:177
+#: src/features/wallet/components/BackendAuthModal.tsx:175
 msgid "Skip Anyway"
 msgstr "Skip Anyway"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:126
+#: src/features/wallet/components/BackendAuthModal.tsx:124
 msgid "Skip for now"
 msgstr "Skip for now"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:137
+#: src/features/wallet/components/BackendAuthModal.tsx:135
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 
@@ -2582,7 +2592,7 @@ msgstr "Verify wallet ownership"
 msgid "Verify Your Email"
 msgstr "Verify Your Email"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:82
+#: src/features/wallet/components/BackendAuthModal.tsx:80
 msgid "Verify your wallet"
 msgstr "Verify your wallet"
 
@@ -2703,7 +2713,7 @@ msgstr "Wallet {address} funded successfully"
 msgid "Wallet Address:"
 msgstr "Wallet Address:"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:116
+#: src/features/wallet/components/BackendAuthModal.tsx:114
 msgid "Wallet client missing, please reconnect your wallet and try again."
 msgstr "Wallet client missing, please reconnect your wallet and try again."
 
@@ -2783,7 +2793,7 @@ msgstr "Yes. You can update it anytime. You can even use different primary names
 msgid "You can now receive notifications at this email address."
 msgstr "You can now receive notifications at this email address."
 
-#: src/features/wallet/components/BackendAuthModal.tsx:165
+#: src/features/wallet/components/BackendAuthModal.tsx:163
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr "You can verify later by clicking your profile in the navbar"
 
@@ -2819,7 +2829,7 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 msgid "You'll be notified 30, 7, and 1 day before expiry"
 msgstr "You'll be notified 30, 7, and 1 day before expiry"
 
-#: src/features/wallet/components/BackendAuthModal.tsx:148
+#: src/features/wallet/components/BackendAuthModal.tsx:146
 msgid "You'll miss:"
 msgstr "You'll miss:"
 
