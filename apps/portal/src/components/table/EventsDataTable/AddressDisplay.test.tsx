@@ -28,16 +28,18 @@ vi.mock('@/components/EntityBadge', () => ({
     name,
     address,
     variant,
-    avatar,
+    showAvatar,
   }: {
     children: React.ReactNode
     name?: string
     address?: string
     variant: string
-    avatar?: React.ReactNode
+    showAvatar?: boolean
   }) => (
     <span data-testid="entity-badge" data-variant={variant}>
-      {avatar}
+      {showAvatar && variant === 'name' && name ? (
+        <div data-testid="name-avatar">{name}</div>
+      ) : null}
       {children}
       <a
         href={variant === 'name' ? `/$name/${name}` : `/addr/$addr/${address}`}
@@ -139,17 +141,15 @@ describe('AddressDisplay', () => {
     expect(screen.getByTestId('name-avatar')).toBeInTheDocument()
   })
 
-  it('should render placeholder avatar when no ENS name', () => {
+  it('should not render an avatar when no ENS name', () => {
     vi.mocked(useEnsName).mockReturnValue({
       data: null,
       isLoading: false,
     } as any)
 
-    const { container } = render(<AddressDisplay address={mockAddress} />)
+    render(<AddressDisplay address={mockAddress} />)
 
-    // Check for placeholder avatar by class (inline style is not queryable)
-    const placeholder = container.querySelector('.w-5.h-5.rounded-sm')
-    expect(placeholder).toBeInTheDocument()
+    expect(screen.queryByTestId('name-avatar')).not.toBeInTheDocument()
   })
 
   it('should link to address page', () => {

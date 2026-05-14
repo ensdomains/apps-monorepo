@@ -48,8 +48,23 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 }))
 
 vi.mock('@/components/EntityBadge', () => ({
-  EntityBadgeWithActions: ({ children }: { children: React.ReactNode }) => (
-    <span data-testid="entity-badge">{children}</span>
+  EntityBadgeWithActions: ({
+    children,
+    name,
+    variant,
+    showAvatar,
+  }: {
+    children: React.ReactNode
+    name?: string
+    variant?: string
+    showAvatar?: boolean
+  }) => (
+    <span data-testid="entity-badge">
+      {showAvatar && variant === 'name' && name ? (
+        <span data-testid="name-avatar">{name}</span>
+      ) : null}
+      {children}
+    </span>
   ),
 }))
 

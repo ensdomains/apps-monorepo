@@ -13,6 +13,7 @@ import {
   ChipWalletIcon,
   ResolverIcon,
 } from '@/assets/icons'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
@@ -134,8 +135,8 @@ interface EntityBadgeWithActionsProps {
   readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
   readonly copyValue?: string
-  /** Optional leading avatar rendered inside the hover surface, before the pill */
-  readonly avatar?: ReactNode
+  /** Opt-in to a leading NameAvatar (only renders for variant="name" + name). */
+  readonly showAvatar?: boolean
   /** Render as an inline pill instead of a full-width 48px row */
   readonly inline?: boolean
 }
@@ -150,7 +151,7 @@ export const EntityBadgeWithActions = ({
   address,
   etherscanHref,
   copyValue,
-  avatar,
+  showAvatar = false,
   inline = false,
 }: EntityBadgeWithActionsProps) => {
   const navigate = useNavigate()
@@ -171,6 +172,11 @@ export const EntityBadgeWithActions = ({
 
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
+
+  const resolvedAvatar =
+    showAvatar && variant === 'name' && name ? (
+      <NameAvatar name={name} width="20px" height="20px" rounded="rounded-sm" />
+    ) : null
 
   const hasChips = !!(
     name ||
@@ -322,7 +328,7 @@ export const EntityBadgeWithActions = ({
           )}
           onClick={triggerPrimaryAction}
         >
-          {avatar}
+          {resolvedAvatar}
           <span className={pillClass(variant, className)}>{children}</span>
         </button>
       ) : (
@@ -335,7 +341,7 @@ export const EntityBadgeWithActions = ({
             hoverBgClass[variant],
           )}
         >
-          {avatar}
+          {resolvedAvatar}
           <span className={pillClass(variant, className)}>{children}</span>
         </div>
       )}

@@ -2,7 +2,6 @@ import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
@@ -57,14 +56,7 @@ export const NameMobileCard = ({
         <EntityBadgeWithActions
           variant="name"
           name={name ?? undefined}
-          avatar={
-            <NameAvatar
-              name={name || ''}
-              height="20px"
-              width="20px"
-              rounded="rounded-sm"
-            />
-          }
+          showAvatar
         >
           {name}
         </EntityBadgeWithActions>
