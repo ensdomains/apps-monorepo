@@ -7,34 +7,13 @@ import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, type ReadContractErrorType, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
+import { ethRegistrarRentPriceAbi } from '@/lib/abis/ethRegistrar'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
 
 const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-
-/**
- * Minimal `rentPrice` fragment for the V2 ETHRegistrar / StandardRentPriceOracle.
- * Deploy-agnostic — keeps the price read free of any ensjs chain-config coupling.
- */
-const ethRegistrarRentPriceAbi = [
-  {
-    type: 'function',
-    name: 'rentPrice',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'paymentToken', type: 'address' },
-    ],
-    outputs: [
-      { name: 'base', type: 'uint256' },
-      { name: 'premium', type: 'uint256' },
-    ],
-  },
-] as const
 
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',

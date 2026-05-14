@@ -100,6 +100,7 @@ export const RegistrationDurationOrExpiryPicker = ({
             }
             minDate={getMinExpiryDateForPicker(anchor)}
             maxDate={getMaxExpiryDateForPicker(anchor)}
+            name={name}
           />
         )}
       </div>
