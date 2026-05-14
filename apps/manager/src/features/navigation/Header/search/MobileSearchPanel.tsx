@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import type { KeyboardEventHandler, RefObject } from 'react'
+import type { RefObject } from 'react'
 import { SearchInput } from './SearchInput'
 import { SearchSuggestions } from './SearchSuggestions'
 
@@ -56,7 +56,7 @@ type MobileSearchInputProps = {
   readonly searchValue: string
   readonly setSearchValue: (value: string) => void
   readonly isLoading: boolean
-  readonly onKeyDown?: KeyboardEventHandler<HTMLInputElement>
+  readonly inputRef?: RefObject<HTMLInputElement | null>
 }
 
 export const MobileSearchInput = ({
@@ -64,7 +64,7 @@ export const MobileSearchInput = ({
   searchValue,
   setSearchValue,
   isLoading,
-  onKeyDown,
+  inputRef,
 }: MobileSearchInputProps) => {
   return (
     <SearchInput
@@ -76,10 +76,9 @@ export const MobileSearchInput = ({
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           onClose()
-          return
         }
-        onKeyDown?.(event)
       }}
+      ref={inputRef}
       searchValue={searchValue}
       setSearchValue={setSearchValue}
     />

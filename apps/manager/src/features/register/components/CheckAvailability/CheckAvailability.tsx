@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ChangeEvent, useCallback, useRef, useState } from 'react'
+import { type ChangeEvent, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import {
@@ -12,7 +12,7 @@ import {
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { handleEnterFirstSearchResult } from '@/features/navigation/Header/search/handleEnterFirstSearchResult'
+import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -38,6 +38,7 @@ export const CheckAvailability = ({
   onRegistrationComplete: _onRegistrationComplete,
 }: CheckAvailabilityProps) => {
   const [inputValue, setInputValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
   const resultsContainerRef = useRef<HTMLDivElement>(null)
 
   const { debouncedValue } = useDebounce(inputValue, { delay: 500 })
@@ -56,16 +57,11 @@ export const CheckAvailability = ({
     setInputValue(truncateToMaxBytes(event.target.value))
   }
 
-  const handleInputKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      handleEnterFirstSearchResult({
-        event,
-        isDebouncing: debouncedValue !== inputValue,
-        resultsContainer: resultsContainerRef.current,
-      })
-    },
-    [debouncedValue, inputValue],
-  )
+  useOpenFirstSearchResultHotkey({
+    enabled: debouncedValue === inputValue,
+    resultsContainer: resultsContainerRef,
+    target: inputRef,
+  })
 
   // Determine which name to fetch profile data for
   const profileName = match(displayState)
@@ -118,8 +114,8 @@ export const CheckAvailability = ({
           className="w-full"
           isLoading={isLoading}
           onChange={handleInputChange}
-          onKeyDown={handleInputKeyDown}
           placeholder=".eth"
+          ref={inputRef}
           value={inputValue}
         />
 

@@ -1,12 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { useDebounce } from '@/hooks/useDebounce'
 import { MobileAccountDrawer } from '../account/MobileAccountDrawer'
 import { MobileNavigationDrawer } from '../navigation/MobileNavigationDrawer'
-import { handleEnterFirstSearchResult } from '../search/handleEnterFirstSearchResult'
 import {
   MobileSearchInput,
   MobileSearchPanel,
@@ -20,6 +20,7 @@ type MobileHeaderProps = {
 export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsContainerRef = useRef<HTMLDivElement>(null)
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
     delay: 500,
@@ -30,16 +31,11 @@ export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
     setSearchValue('')
   }
 
-  const handleSearchKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      handleEnterFirstSearchResult({
-        event,
-        isDebouncing: debouncedSearchValue !== searchValue,
-        resultsContainer: suggestionsContainerRef.current,
-      })
-    },
-    [debouncedSearchValue, searchValue],
-  )
+  useOpenFirstSearchResultHotkey({
+    enabled: searchOpen && debouncedSearchValue === searchValue,
+    resultsContainer: suggestionsContainerRef,
+    target: inputRef,
+  })
 
   return (
     <header className="sticky top-0 z-20 bg-white">
@@ -55,9 +51,9 @@ export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               <MobileSearchInput
+                inputRef={inputRef}
                 isLoading={debouncedSearchValue !== searchValue}
                 onClose={closeSearch}
-                onKeyDown={handleSearchKeyDown}
                 searchValue={searchValue}
                 setSearchValue={setSearchValue}
               />

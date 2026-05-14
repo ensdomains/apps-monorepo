@@ -1,13 +1,14 @@
 import { Popover } from '@base-ui/react'
-import { useCallback, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { useDebounce } from '@/hooks/useDebounce'
-import { handleEnterFirstSearchResult } from './handleEnterFirstSearchResult'
 import { SearchInput } from './SearchInput'
 import { SearchSuggestions } from './SearchSuggestions'
 
 export const DesktopSearch = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsContainerRef = useRef<HTMLDivElement>(null)
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
     delay: 500,
@@ -18,16 +19,11 @@ export const DesktopSearch = () => {
     setSearchValue('')
   }
 
-  const handleSearchKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      handleEnterFirstSearchResult({
-        event,
-        isDebouncing: debouncedSearchValue !== searchValue,
-        resultsContainer: suggestionsContainerRef.current,
-      })
-    },
-    [debouncedSearchValue, searchValue],
-  )
+  useOpenFirstSearchResultHotkey({
+    enabled: debouncedSearchValue === searchValue,
+    resultsContainer: suggestionsContainerRef,
+    target: inputRef,
+  })
 
   return (
     <Popover.Root
@@ -37,6 +33,11 @@ export const DesktopSearch = () => {
           cancel()
           return
         }
+
+        if (reason === 'escape-key' && !open) {
+          inputRef.current?.blur()
+        }
+
         setIsOpen(open)
       }}
       open={isOpen}
@@ -46,7 +47,9 @@ export const DesktopSearch = () => {
         render={(props) => (
           <SearchInput
             isLoading={debouncedSearchValue !== searchValue}
-            onKeyDown={handleSearchKeyDown}
+            onBlur={() => setIsOpen(false)}
+            onFocus={() => setIsOpen(true)}
+            ref={inputRef}
             searchValue={searchValue}
             setSearchValue={setSearchValue}
             wrapperProps={props}
