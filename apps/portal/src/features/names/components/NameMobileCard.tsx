@@ -54,13 +54,18 @@ export const NameMobileCard = ({
             aria-label="Select row"
           />
         )}
-        <NameAvatar
-          name={name || ''}
-          height="20px"
-          width="20px"
-          rounded="rounded-sm"
-        />
-        <EntityBadgeWithActions variant="name" name={name ?? undefined}>
+        <EntityBadgeWithActions
+          variant="name"
+          name={name ?? undefined}
+          avatar={
+            <NameAvatar
+              name={name || ''}
+              height="20px"
+              width="20px"
+              rounded="rounded-sm"
+            />
+          }
+        >
           {name}
         </EntityBadgeWithActions>
       </div>
