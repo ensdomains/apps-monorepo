@@ -7,6 +7,7 @@ import { AuthPayload } from '#core/auth/jwt.js'
 export const requireJWT = createMiddleware<BaseEnv>(async (c, next) => {
   const jwtMiddleware = honoJwt({
     secret: c.env.JWT_SECRET,
+    alg: 'HS256',
   })
 
   return jwtMiddleware(c, next)
