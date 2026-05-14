@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getName } from '@ensdomains/ensjs/public'
-import { fromPromise, ok } from 'neverthrow'
+import { fromPromise, ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -41,16 +41,19 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
 
   const client = yield* safeGetClient()
 
-  const ensName = await getName(client, {
-    address,
-    allowMismatch: true,
-  }).catch(() => null)
+  const ensName = yield* fromPromise(
+    getName(client, {
+      address,
+      allowMismatch: true,
+    }),
+    (e) => new ReverseResolverError({ cause: e }),
+  ).orElse(() => okAsync(null))
 
   if (ensName?.match) {
     return ok(ensName.name)
   }
 
-  const result = yield* await fromPromise(
+  const result = yield* fromPromise(
     readContract(client, {
       address: REVERSE_RESOLVER_ADDRESS,
       abi: REVERSE_RESOLVER_ABI,
