@@ -31,7 +31,7 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
   const client = yield* safeGetClient()
   let registryAddress: Address = ENS_REGISTRY
 
-  for (const label of ethName.parentLabels) {
+  for (const label of ethName.parentLabelsRootFirst) {
     const nextRegistryAddress = yield* fromPromise(
       ensjsv2_getNameRegistryAddress(client, {
         registryAddress,
