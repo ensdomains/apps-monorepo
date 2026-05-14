@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -60,6 +61,7 @@ export const useNotificationPreferencesForm = ({
       await preferences.refetch()
 
       formApi.reset()
+      onPersistSuccess?.()
     },
   })
 

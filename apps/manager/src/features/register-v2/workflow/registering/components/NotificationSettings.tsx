@@ -1,15 +1,6 @@
-import { Trans, useLingui } from '@lingui/react/macro'
-import { useForm } from '@tanstack/react-form'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { Trans } from '@lingui/react/macro'
 import { useAtom } from '@xstate/store-react'
-import { toast } from 'sonner'
-import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
-import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  preferencesQueryOptions,
-  updatePreferenceMutationOptions,
-} from '@/features/notifications/data/queries/preferences'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
 import {
   NotificationPreferencesFields,
@@ -34,37 +25,6 @@ export const NotificationSettings = ({
       nameExpiryDefaultWhenUnset: true,
       onPersistSuccess: onConfirm,
     })
-
-  const updatePreferencesMutation = useMutation({
-    ...updatePreferenceMutationOptions,
-    onSuccess: () => {
-      toast.success(t`Preferences updated`)
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || t`Failed to update preferences`)
-    },
-  })
-
-  const form = useForm({
-    defaultValues: {
-      // Name Expiry defaults to enabled — it's the recommended preference.
-      ownedNameExpiry: preferences.data?.settings?.ownedNameExpiry ?? true,
-      ensLabsUpdates: preferences.data?.settings?.ensLabsUpdates ?? false,
-      favouritedNameExpiry:
-        preferences.data?.settings?.favouritedNameExpiry ?? false,
-    },
-    onSubmit: async ({ formApi, value }) => {
-      await updatePreferencesMutation.mutateAsync(value)
-
-      await preferences.refetch()
-
-      formApi.reset()
-      onConfirm()
-    },
-  })
-
-  const hasVerifiedChannels =
-    (preferences.data?.verifiedChannels?.length ?? 0) > 0
 
   return (
     <div className="mx-auto w-full max-w-5xl px-2 py-8 max-md:pb-[max(7.5rem,calc(env(safe-area-inset-bottom,0px)+6.5rem))] lg:my-5">
