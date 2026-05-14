@@ -158,7 +158,7 @@ export async function initializeRhinestoneAccount(
           {
             to: zeroAddress,
             value: 0n,
-            data: '0x' as Hex,
+            data: '0x',
           },
         ],
         sponsored: true,
