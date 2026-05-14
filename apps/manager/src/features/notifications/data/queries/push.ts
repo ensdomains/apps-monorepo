@@ -5,6 +5,7 @@ import {
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient } from '@tanstack/react-query'
+import type { ClientResponse } from 'hono/client'
 import { fromPromise, ok } from 'neverthrow'
 import type { Channel } from '@/features/notifications/data/queries/channels'
 import { channelsQueryOptions } from '@/features/notifications/data/queries/channels'
@@ -41,7 +42,9 @@ export class ChannelNotFoundForEndpointError extends TaggedError(
   endpointHash: string
 }> {}
 
-const parseJsonResult = ResultFn(async function* <T>(response: Response) {
+const parseJsonResult = ResultFn(async function* <T>(
+  response: ClientResponse<T>,
+) {
   const data = yield* fromPromise(
     response.json() as Promise<T>,
     (cause) => new PushChannelRequestError({ cause }),
