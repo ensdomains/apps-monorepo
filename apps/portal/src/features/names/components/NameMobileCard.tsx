@@ -2,7 +2,6 @@ import { EntityBadgeWithActions } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
@@ -54,13 +53,11 @@ export const NameMobileCard = ({
             aria-label="Select row"
           />
         )}
-        <NameAvatar
-          name={name || ''}
-          height="20px"
-          width="20px"
-          rounded="rounded-sm"
-        />
-        <EntityBadgeWithActions variant="name" name={name ?? undefined}>
+        <EntityBadgeWithActions
+          variant="name"
+          name={name ?? undefined}
+          showAvatar
+        >
           {name}
         </EntityBadgeWithActions>
       </div>
