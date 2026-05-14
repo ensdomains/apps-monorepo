@@ -874,7 +874,7 @@ msgstr "ENS"
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
 
-#: src/features/notifications/settings/preferences.tsx:120
+#: src/features/notifications/settings/preferences.tsx:121
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
@@ -1050,7 +1050,7 @@ msgstr "Failed to verify email"
 msgid "Favorites"
 msgstr "Favorites"
 
-#: src/features/notifications/settings/preferences.tsx:135
+#: src/features/notifications/settings/preferences.tsx:136
 msgid "Favourites"
 msgstr "Favourites"
 
@@ -1088,7 +1088,7 @@ msgstr "Get instant push notifications in your browser"
 msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
-#: src/features/notifications/settings/preferences.tsx:130
+#: src/features/notifications/settings/preferences.tsx:131
 msgid "Get notified when names you favorited expire."
 msgstr "Get notified when names you favorited expire."
 
@@ -1096,7 +1096,7 @@ msgstr "Get notified when names you favorited expire."
 msgid "Get support"
 msgstr "Get support"
 
-#: src/features/notifications/settings/preferences.tsx:115
+#: src/features/notifications/settings/preferences.tsx:116
 msgid "Get updated on the latest releases and features."
 msgstr "Get updated on the latest releases and features."
 
@@ -1161,8 +1161,7 @@ msgstr "Image must be under {MAX_FILE_SIZE_MB}MB"
 msgid "Image not available"
 msgstr "Image not available"
 
-#: src/features/notifications/settings/preferences.tsx:88
-#: src/features/notifications/settings/preferences.tsx:159
+#: src/features/notifications/settings/preferences.tsx:89
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
@@ -1323,7 +1322,7 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/notifications/settings/preferences.tsx:104
+#: src/features/notifications/settings/preferences.tsx:105
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
@@ -1462,12 +1461,6 @@ msgstr "Nothing here yet!"
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 
-#: src/features/notifications/settings/preferences.tsx:97
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
-#~ msgid "Notification Preferences"
-#~ msgstr "Notification Preferences"
-
 #: src/routes/notifications/_authenticated/index.tsx:82
 msgid "Notification Settings"
 msgstr "Notification Settings"
@@ -1586,8 +1579,7 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
-#: src/features/notifications/settings/preferences.tsx:85
-#: src/features/notifications/settings/preferences.tsx:156
+#: src/features/notifications/settings/preferences.tsx:86
 msgid "Preferences"
 msgstr "Preferences"
 
@@ -1676,7 +1668,7 @@ msgstr "Receive crypto from any chain"
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
 
-#: src/features/notifications/settings/preference-card.tsx:62
+#: src/features/notifications/settings/preference-card.tsx:63
 msgid "Recommended"
 msgstr "Recommended"
 
@@ -1920,7 +1912,7 @@ msgstr "Save and Continue"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: src/features/notifications/settings/preferences.tsx:228
+#: src/features/notifications/settings/preferences.tsx:180
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
@@ -1941,7 +1933,7 @@ msgstr "Saving manager for {label}.eth"
 msgid "Saving managers batch {0} of {total}"
 msgstr "Saving managers batch {0} of {total}"
 
-#: src/features/notifications/settings/preferences.tsx:226
+#: src/features/notifications/settings/preferences.tsx:178
 #: src/features/profile/components/dialogs/DiffDialog.tsx:262
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:73
 msgid "Saving..."
@@ -2546,7 +2538,7 @@ msgstr "Verified"
 msgid "Verified!"
 msgstr "Verified!"
 
-#: src/features/notifications/settings/preferences.tsx:235
+#: src/features/notifications/settings/preferences.tsx:187
 msgid "Verify at least one contact method to save preferences"
 msgstr "Verify at least one contact method to save preferences"
 
@@ -2811,7 +2803,7 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
 
-#: src/features/notifications/settings/preferences.tsx:97
+#: src/features/notifications/settings/preferences.tsx:98
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr "You'll be notified 30, 7, and 1 day before expiry."
 

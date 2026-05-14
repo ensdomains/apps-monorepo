@@ -879,7 +879,7 @@ msgstr ""
 msgid "ENS app landing page"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:120
+#: src/features/notifications/settings/preferences.tsx:121
 msgid "ENS Labs Updates"
 msgstr ""
 
@@ -1055,7 +1055,7 @@ msgstr ""
 msgid "Favorites"
 msgstr "Favoriter"
 
-#: src/features/notifications/settings/preferences.tsx:135
+#: src/features/notifications/settings/preferences.tsx:136
 msgid "Favourites"
 msgstr ""
 
@@ -1093,7 +1093,7 @@ msgstr ""
 msgid "Get instant updates through Telegram for your domains."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:130
+#: src/features/notifications/settings/preferences.tsx:131
 msgid "Get notified when names you favorited expire."
 msgstr ""
 
@@ -1101,7 +1101,7 @@ msgstr ""
 msgid "Get support"
 msgstr "Få support"
 
-#: src/features/notifications/settings/preferences.tsx:115
+#: src/features/notifications/settings/preferences.tsx:116
 msgid "Get updated on the latest releases and features."
 msgstr ""
 
@@ -1166,8 +1166,7 @@ msgstr ""
 msgid "Image not available"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:88
-#: src/features/notifications/settings/preferences.tsx:159
+#: src/features/notifications/settings/preferences.tsx:89
 msgid "In-app notifications are always enabled"
 msgstr ""
 
@@ -1328,7 +1327,7 @@ msgstr "Namn (A-Ö)"
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
-#: src/features/notifications/settings/preferences.tsx:104
+#: src/features/notifications/settings/preferences.tsx:105
 msgid "Name Expiry"
 msgstr ""
 
@@ -1467,12 +1466,6 @@ msgstr ""
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:97
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
-#~ msgid "Notification Preferences"
-#~ msgstr ""
-
 #: src/routes/notifications/_authenticated/index.tsx:82
 msgid "Notification Settings"
 msgstr ""
@@ -1591,8 +1584,7 @@ msgstr ""
 msgid "Please wait while we verify your email address."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:85
-#: src/features/notifications/settings/preferences.tsx:156
+#: src/features/notifications/settings/preferences.tsx:86
 msgid "Preferences"
 msgstr ""
 
@@ -1681,7 +1673,7 @@ msgstr ""
 msgid "Receive notifications via email for important domain events"
 msgstr ""
 
-#: src/features/notifications/settings/preference-card.tsx:62
+#: src/features/notifications/settings/preference-card.tsx:63
 msgid "Recommended"
 msgstr ""
 
@@ -1925,7 +1917,7 @@ msgstr ""
 msgid "Save Changes"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:228
+#: src/features/notifications/settings/preferences.tsx:180
 msgid "Save Preferences"
 msgstr ""
 
@@ -1946,7 +1938,7 @@ msgstr ""
 msgid "Saving managers batch {0} of {total}"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:226
+#: src/features/notifications/settings/preferences.tsx:178
 #: src/features/profile/components/dialogs/DiffDialog.tsx:262
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:73
 msgid "Saving..."
@@ -2551,7 +2543,7 @@ msgstr ""
 msgid "Verified!"
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:235
+#: src/features/notifications/settings/preferences.tsx:187
 msgid "Verify at least one contact method to save preferences"
 msgstr ""
 
@@ -2816,7 +2808,7 @@ msgstr ""
 msgid "You'll always see important notifications in the app."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:97
+#: src/features/notifications/settings/preferences.tsx:98
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr ""
 
