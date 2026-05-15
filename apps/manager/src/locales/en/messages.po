@@ -236,7 +236,7 @@ msgstr "Almost ready"
 msgid "Almost there..."
 msgstr "Almost there..."
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:122
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:135
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -1453,7 +1453,7 @@ msgstr "No payment methods found."
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
-#: src/features/navigation/Header/search/SearchSuggestions.tsx:45
+#: src/features/navigation/Header/search/SearchSuggestions.tsx:48
 msgid "No recent searches"
 msgstr "No recent searches"
 
@@ -1474,7 +1474,7 @@ msgid "Not set"
 msgstr "Not set"
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx:135
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:146
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:159
 msgid "Not supported"
 msgstr "Not supported"
 
@@ -2270,7 +2270,7 @@ msgstr "Sort names by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:275
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:288
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
