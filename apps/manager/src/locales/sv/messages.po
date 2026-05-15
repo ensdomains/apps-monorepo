@@ -215,8 +215,8 @@ msgstr ""
 msgid "Adding telegram..."
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:39
-#: src/features/navigation/Header/account/WalletSection.tsx:54
+#: src/features/navigation/Header/account/WalletSection.tsx:40
+#: src/features/navigation/Header/account/WalletSection.tsx:60
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr ""
@@ -657,7 +657,7 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:42
+#: src/features/navigation/Header/account/WalletSection.tsx:44
 msgid "Copied!"
 msgstr ""
 
@@ -771,7 +771,7 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:151
+#: src/lib/smart-account/rhinestone.ts:149
 msgid "Deploying on-chain…"
 msgstr ""
 
@@ -779,7 +779,7 @@ msgstr ""
 msgid "Deploying resolver"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:58
+#: src/features/navigation/Header/account/WalletSection.tsx:64
 msgid "Deploying smart account…"
 msgstr ""
 
@@ -791,7 +791,7 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:112
+#: src/features/navigation/Header/account/WalletSection.tsx:119
 msgid "Disconnect"
 msgstr ""
 
@@ -966,8 +966,7 @@ msgstr "Utgångsdatum (tidigast)"
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
-#: src/features/profile/components/sections/HeaderSection.tsx:44
-#: src/features/profile/components/view/ViewHeaderSection.tsx:69
+#: src/features/renew/components/RenewNameButton.tsx:17
 msgid "Extend Name"
 msgstr ""
 
@@ -987,7 +986,7 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:174
+#: src/lib/smart-account/rhinestone.ts:169
 msgid "Failed to deploy smart account"
 msgstr ""
 
@@ -1277,7 +1276,7 @@ msgstr ""
 msgid "Manage notification settings"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:76
+#: src/features/navigation/Header/account/WalletSection.tsx:83
 msgid "Manage Para Wallet"
 msgstr ""
 
@@ -1674,11 +1673,6 @@ msgstr ""
 msgid "Reading the commit-reveal window from the registrar"
 msgstr ""
 
-#. placeholder {0}: (totalDurationMs / 1000).toFixed(1)
-#: src/lib/smart-account/rhinestone.ts:239
-msgid "Ready in {0}s"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
 msgid "Receive crypto from any chain"
 msgstr ""
@@ -1717,7 +1711,7 @@ msgstr ""
 msgid "Registering"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:206
+#: src/lib/smart-account/rhinestone.ts:201
 msgid "Registering account ownership…"
 msgstr ""
 
@@ -2040,10 +2034,6 @@ msgstr ""
 msgid "Sending..."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:112
-#~ msgid "Sessions enabled! You can now transact without signing each time."
-#~ msgstr ""
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:399
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
 msgid "Set as Primary"
@@ -2095,8 +2085,8 @@ msgstr ""
 msgid "Setting up resolver"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:150
-#: src/lib/smart-account/rhinestone.ts:205
+#: src/lib/smart-account/rhinestone.ts:148
+#: src/lib/smart-account/rhinestone.ts:200
 msgid "Setting up your smart account"
 msgstr ""
 
@@ -2190,11 +2180,11 @@ msgstr ""
 msgid "Smart Account"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:237
+#: src/lib/smart-account/rhinestone.ts:231
 msgid "Smart account ready"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:219
+#: src/lib/smart-account/rhinestone.ts:214
 msgid "Smart account setup failed"
 msgstr ""
 
@@ -2589,7 +2579,7 @@ msgstr ""
 msgid "Verify Wallet"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:93
+#: src/features/navigation/Header/account/WalletSection.tsx:100
 #: src/features/notifications/RequireBackendAuth.tsx:117
 msgid "Verify wallet ownership"
 msgstr ""

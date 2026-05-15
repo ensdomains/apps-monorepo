@@ -1,5 +1,5 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, ok } from 'neverthrow'
+import { err, ok, type Result } from 'neverthrow'
 
 // ENS names rules:
 // - Minimum 3 characters for the label (excluding .eth)
@@ -10,7 +10,7 @@ import { err, ok } from 'neverthrow'
 
 const INVALID_LABEL_CHARS = /[&*@#$%^()[\]{}|\\:;"'<>?,=+~`!]/
 
-class ParseNameError<TReason extends string> extends TaggedError(
+export class ParseNameError<TReason extends string> extends TaggedError(
   'ParseNameError',
 )<{
   reason: TReason
@@ -24,7 +24,24 @@ class ParseNameError<TReason extends string> extends TaggedError(
   }
 }
 
-export const parseName = (name: string) => {
+type ParsedName = {
+  subLabels: string[]
+  label: string
+  tld: string
+}
+
+export const parseName = (
+  name: string,
+): Result<
+  ParsedName,
+  ParseNameError<
+    | 'SPACE_NOT_ALLOWED'
+    | 'MULTIPLE_CONSECUTIVE_DOTS'
+    | 'TLD_NOT_FOUND'
+    | 'LABEL_NOT_FOUND'
+    | 'INVALID_CHARACTER'
+  >
+> => {
   // Remove any leading or trailing whitespace
   const normalized = name.trim().toLowerCase()
 

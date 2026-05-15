@@ -1,11 +1,9 @@
-import { Trans } from '@lingui/react/macro'
 import { useQueries } from '@tanstack/react-query'
 import clsx from 'clsx'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
-import { LinkButton } from '@/components/ui/button'
-import { MSymbol } from '@/components/ui/material-symbol'
+import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
 import { parseAvatarQuery } from '../../service/profileAvatar'
 import type { ProfileRecords } from '../../types'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
@@ -60,15 +58,7 @@ export const ViewHeaderSection = ({
           </ImageFallback.Fallback>
         </ImageFallback.Root>
         <div className="absolute top-4 left-4 flex items-center gap-2">
-          <LinkButton
-            params={{ name }}
-            size="sm"
-            to="/renew/$name"
-            variant="outline"
-          >
-            <Trans>Extend Name</Trans>
-            <MSymbol className="ms-opsz-16 ms-wght-300" symbol="double_arrow" />
-          </LinkButton>
+          <RenewNameButton name={name} />
         </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <FavoriteButton name={name} />
