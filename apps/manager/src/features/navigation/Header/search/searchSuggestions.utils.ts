@@ -1,35 +1,27 @@
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
-import { validateENSName } from '@/features/register/utils'
+import {
+  getLabelLength,
+  parseName,
+} from '@/features/register-v2/utils/name-parser'
 import type { SearchHistoryItem } from './useSearchHistory'
 
-const INVALID_SUBNAME_LABEL_CHARS = /[\s&*@#$%^()[\]{}|\\:;"'<>?,=+~`!]/
-
-const isSubnameLabelSupported = (label: string): boolean => {
-  if (!label || INVALID_SUBNAME_LABEL_CHARS.test(label)) return false
-
-  const validation = validateENSName(`${label}.eth`)
-  return validation === null || validation.type === 'TOO_SHORT'
-}
+const ETH_TLD = 'eth'
+const MIN_REGISTRABLE_LABEL_LENGTH = 3
 
 const isSearchNameSupported = (name: string): boolean => {
   const trimmed = name.trim()
   if (!trimmed) return false
 
-  if (!trimmed.toLowerCase().endsWith('.eth')) {
-    return validateENSName(name) === null
-  }
+  if (trimmed.startsWith('.') || trimmed.endsWith('.')) return false
 
-  const labels = trimmed.slice(0, -4).split('.')
-  if (labels.some((label) => !label)) return false
+  const parsedName = parseName(trimmed)
 
-  const parentLabel = labels.at(-1)
-  const subnameLabels = labels.slice(0, -1)
+  if (parsedName.isErr()) return false
 
   return (
-    parentLabel !== undefined &&
-    validateENSName(`${parentLabel}.eth`) === null &&
-    subnameLabels.every(isSubnameLabelSupported)
+    parsedName.value.tld === ETH_TLD &&
+    getLabelLength(parsedName.value.label) >= MIN_REGISTRABLE_LABEL_LENGTH
   )
 }
 

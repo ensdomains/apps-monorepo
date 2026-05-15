@@ -134,6 +134,30 @@ describe('buildSuggestions', () => {
     })
   })
 
+  it('marks names with leading or trailing dots as not supported', () => {
+    expect(
+      buildSuggestions({
+        parsedInput: { type: 'name', value: '.bigint.eth' },
+        history: emptyHistory,
+      })[0],
+    ).toMatchObject({
+      type: 'name',
+      value: '.bigint.eth',
+      isSupported: false,
+    })
+
+    expect(
+      buildSuggestions({
+        parsedInput: { type: 'name', value: 'bigint.eth.' },
+        history: emptyHistory,
+      })[0],
+    ).toMatchObject({
+      type: 'name',
+      value: 'bigint.eth.',
+      isSupported: false,
+    })
+  })
+
   it('returns address suggestion with primary name', () => {
     const address = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
     const result = buildSuggestions({
