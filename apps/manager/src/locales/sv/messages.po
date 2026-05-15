@@ -1673,10 +1673,6 @@ msgstr ""
 msgid "Reading the commit-reveal window from the registrar"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:239
-#~ msgid "Ready in {0}s"
-#~ msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
 msgid "Receive crypto from any chain"
 msgstr ""
@@ -2037,10 +2033,6 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/email.tsx:120
 msgid "Sending..."
 msgstr ""
-
-#: src/features/wallet/components/EnableSessionModal.tsx:112
-#~ msgid "Sessions enabled! You can now transact without signing each time."
-#~ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:399
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264

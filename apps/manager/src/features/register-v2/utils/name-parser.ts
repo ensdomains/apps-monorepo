@@ -39,6 +39,7 @@ export const parseName = (
     | 'MULTIPLE_CONSECUTIVE_DOTS'
     | 'TLD_NOT_FOUND'
     | 'LABEL_NOT_FOUND'
+    | 'INVALID_CHARACTER'
   >
 > => {
   // Remove any leading or trailing whitespace
