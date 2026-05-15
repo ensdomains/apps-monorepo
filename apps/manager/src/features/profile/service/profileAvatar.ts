@@ -1,32 +1,18 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import {
-  publicResolverTextSnippet,
-  universalResolverResolveSnippet,
-} from '@ensdomains/ensjs/contracts'
+import { getRecords } from '@ensdomains/ensjs/public'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import {
-  type Address,
-  type AssetGatewayUrls,
-  decodeFunctionResult,
-  encodeFunctionData,
-  type Hex,
-  namehash,
-  toHex,
-} from 'viem'
-import { multicall } from 'viem/actions'
-import { packetToBytes, parseAvatarRecord } from 'viem/ens'
+import type { Address, AssetGatewayUrls, Client, Transport } from 'viem'
+import { parseAvatarRecord } from 'viem/ens'
+import type { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 const IPFS_GATEWAY = 'https://ipfs.euc.li'
+const AVATAR_TEXT_RECORD = 'avatar'
 
 class ParseError extends TaggedError('ParseError')<{
-  cause: unknown
-}> {}
-
-class GetAvatarError extends TaggedError('GetAvatarError')<{
   cause: unknown
 }> {}
 
@@ -46,6 +32,33 @@ const safeParseAvatarUrl = async (
       record,
       gatewayUrls: buildGatewayUrls(gatewayUrls),
     })
+  } catch {
+    return undefined
+  }
+}
+
+type EnsClient = Client<Transport, typeof sepoliaWithEns>
+
+const getAvatarRecord = async (
+  client: EnsClient,
+  name: string,
+  resolverAddress?: Address,
+): Promise<string | undefined> => {
+  try {
+    const records = await getRecords(client, {
+      name,
+      texts: [AVATAR_TEXT_RECORD],
+      ...(resolverAddress
+        ? {
+            resolver: {
+              address: resolverAddress,
+            },
+          }
+        : {}),
+    })
+
+    return records.texts.find((record) => record.key === AVATAR_TEXT_RECORD)
+      ?.value
   } catch {
     return undefined
   }
@@ -94,24 +107,15 @@ export const getNamesAvatars = ResultFn(async function* (
     return ok({} as NameAvatarMap)
   }
 
-  const records = yield* fromPromise(
-    multicall(client, {
-      allowFailure: true,
-      contracts: entries.map(({ name, resolverAddress }) => ({
-        address: resolverAddress,
-        abi: publicResolverTextSnippet,
-        functionName: 'text' as const,
-        args: [namehash(name), 'avatar'] as const,
-      })),
-    }),
-    (e) => new GetAvatarError({ cause: e }),
+  const records = await Promise.all(
+    entries.map(({ name, resolverAddress }) =>
+      getAvatarRecord(client, name, resolverAddress),
+    ),
   )
 
   const parsed = await Promise.all(
     entries.map(async ({ name }, index) => {
-      const result = records[index]
-      const record =
-        result && result.status === 'success' ? (result.result as string) : ''
+      const record = records[index]
       const url = await safeParseAvatarUrl(client, record, gatewayUrls)
       return [name, url] as const
     }),
@@ -149,46 +153,13 @@ export const getNamesAvatarsByName = ResultFn(async function* (
     return ok({} as NameAvatarMap)
   }
 
-  const universalResolver = client.chain.contracts.ensUniversalResolver.address
-
-  const records = yield* fromPromise(
-    multicall(client, {
-      allowFailure: true,
-      contracts: names.map((name) => ({
-        address: universalResolver,
-        abi: universalResolverResolveSnippet,
-        functionName: 'resolve' as const,
-        args: [
-          toHex(packetToBytes(name)),
-          encodeFunctionData({
-            abi: publicResolverTextSnippet,
-            functionName: 'text',
-            args: [namehash(name), 'avatar'],
-          }),
-        ] as const,
-      })),
-    }),
-    (e) => new GetAvatarError({ cause: e }),
+  const records = await Promise.all(
+    names.map((name) => getAvatarRecord(client, name)),
   )
 
   const parsed = await Promise.all(
     names.map(async (name, index) => {
-      const result = records[index]
-      if (!result || result.status !== 'success') {
-        return [name, undefined] as const
-      }
-      const [encoded] = result.result as readonly [Hex, Address]
-      if (!encoded || encoded === '0x') return [name, undefined] as const
-      let record: string
-      try {
-        record = decodeFunctionResult({
-          abi: publicResolverTextSnippet,
-          functionName: 'text',
-          data: encoded,
-        }) as string
-      } catch {
-        return [name, undefined] as const
-      }
+      const record = records[index]
       const url = await safeParseAvatarUrl(client, record, gatewayUrls)
       return [name, url] as const
     }),

@@ -44,14 +44,18 @@ export const getMigratedNamesCount = ResultFn(async function* (
   return ok(data.domainConnection.totalCount ?? 0)
 })
 
-export const migratedNamesCountQueryOptions = (address?: string) =>
+export const migratedNamesCountQueryOptions = (
+  address?: string,
+  enabled: boolean = true,
+) =>
   resultQueryOptions({
     queryKey: qk('migration', 'migrated_names_count', {
       address: address?.toLowerCase(),
     }),
-    queryFn: address
-      ? () => getMigratedNamesCount(address.toLowerCase())
-      : skipToken,
+    queryFn:
+      enabled && address
+        ? () => getMigratedNamesCount(address.toLowerCase())
+        : skipToken,
     meta: {
       dependsOn: ['indexer'],
     },

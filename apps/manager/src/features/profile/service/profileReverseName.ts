@@ -1,14 +1,13 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
-import { fromPromise, ok } from 'neverthrow'
-import { type Address, namehash } from 'viem'
+import { getName } from '@ensdomains/ensjs/public'
+import { fromPromise, ok, okAsync } from 'neverthrow'
+import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { getResolver } from './profileResolver'
+import { getProfileEthAddressSnapshot } from './profileEthAddress'
 
-// Batch reverse resolver — not in ensjs chain config or ENS_SEPOLIA_CONTRACTS
 const REVERSE_RESOLVER_ADDRESS = '0x7cd0016f722f34394110738eec10265b00c6c7d9'
 
 const REVERSE_RESOLVER_ABI = [
@@ -42,7 +41,7 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
 
   const client = yield* safeGetClient()
 
-  const result = yield* await fromPromise(
+  const result = yield* fromPromise(
     readContract(client, {
       address: REVERSE_RESOLVER_ADDRESS,
       abi: REVERSE_RESOLVER_ABI,
@@ -50,42 +49,31 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
       args: [[address]],
     }),
     (e) => new ReverseResolverError({ cause: e }),
-  )
+  ).orElse(() => okAsync(null))
 
   const [name] = result ?? []
 
-  if (!name) {
-    return ok(null)
+  if (name) {
+    const { ethAddress } = yield* getProfileEthAddressSnapshot(name)
+
+    if (ethAddress?.toLowerCase() === address.toLowerCase()) {
+      return ok(name)
+    }
   }
 
-  // Forward-confirmed reverse resolution (ENSIP-3):
-  // Verify the name's ETH record resolves back to this address.
-  const resolverAddress = yield* getResolver(name)
-
-  if (!resolverAddress) {
-    return ok(null)
-  }
-
-  const node = namehash(name)
-
-  const forwardAddress = yield* await fromPromise(
-    readContract(client, {
-      address: resolverAddress,
-      abi: publicResolverSingleAddrSnippet,
-      functionName: 'addr',
-      args: [node],
+  const ensName = yield* fromPromise(
+    getName(client, {
+      address,
+      allowMismatch: true,
     }),
     (e) => new ReverseResolverError({ cause: e }),
-  )
+  ).orElse(() => okAsync(null))
 
-  if (
-    !forwardAddress ||
-    forwardAddress.toLowerCase() !== address.toLowerCase()
-  ) {
-    return ok(null)
+  if (ensName?.match) {
+    return ok(ensName.name)
   }
 
-  return ok(name)
+  return ok(null)
 })
 
 export const profileReverseNameQuery = (address?: Address) =>

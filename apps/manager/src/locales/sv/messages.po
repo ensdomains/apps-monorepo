@@ -81,7 +81,7 @@ msgstr ""
 msgid "{durationYears} years"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:334
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:323
 #: src/features/dashboard/components/NameRow.tsx:67
 msgid "{label} avatar"
 msgstr ""
@@ -215,11 +215,13 @@ msgstr ""
 msgid "Adding telegram..."
 msgstr ""
 
+#: src/features/navigation/Header/account/WalletSection.tsx:40
+#: src/features/navigation/Header/account/WalletSection.tsx:60
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:148
+#: src/features/wallet/components/EnableSessionModal.tsx:137
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
 
@@ -251,7 +253,7 @@ msgstr ""
 msgid "An error occurred during verification"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:148
+#: src/features/wallet/components/BackendAuthModal.tsx:156
 msgid "And more..."
 msgstr ""
 
@@ -264,7 +266,7 @@ msgstr ""
 msgid "Approve in your wallet"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:136
+#: src/features/wallet/components/EnableSessionModal.tsx:125
 msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
 msgstr ""
 
@@ -292,7 +294,7 @@ msgstr ""
 msgid "Are you sure you want to remove your current header? This will revert to the default image."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:124
+#: src/features/wallet/components/BackendAuthModal.tsx:132
 msgid "Are you sure?"
 msgstr ""
 
@@ -420,13 +422,13 @@ msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 msgid "Can you share your order number?"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:394
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:383
 #: src/features/notifications/settings/contact-methods/email.tsx:239
 #: src/features/notifications/settings/contact-methods/telegram.tsx:178
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:266
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
 msgid "Cancel"
 msgstr "Avbryt"
@@ -492,7 +494,7 @@ msgstr ""
 msgid "Choose how you'd like to pay for your subscription."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:276
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:265
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
@@ -663,7 +665,7 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:42
+#: src/features/navigation/Header/account/WalletSection.tsx:44
 msgid "Copied!"
 msgstr ""
 
@@ -676,9 +678,14 @@ msgstr ""
 msgid "Copy to clipboard"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:160
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:159
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:140
 msgid "Could not find resolver for {name}"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:153
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:135
+msgid "Could not read ETH address record for {name}"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:82
@@ -772,8 +779,16 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
+#: src/lib/smart-account/rhinestone.ts:149
+msgid "Deploying on-chain…"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:35
 msgid "Deploying resolver"
+msgstr ""
+
+#: src/features/navigation/Header/account/WalletSection.tsx:64
+msgid "Deploying smart account…"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:36
@@ -784,7 +799,7 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:97
+#: src/features/navigation/Header/account/WalletSection.tsx:119
 msgid "Disconnect"
 msgstr ""
 
@@ -792,7 +807,7 @@ msgstr ""
 msgid "Disconnect Wallet"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:142
+#: src/features/wallet/components/BackendAuthModal.tsx:150
 msgid "Domain transfer & expiry notifications"
 msgstr ""
 
@@ -804,7 +819,7 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:395
+#: src/features/dashboard/components/MyNamesList.tsx:396
 msgid "Eligible for upgrade"
 msgstr ""
 
@@ -845,16 +860,16 @@ msgstr ""
 msgid "Enable"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:175
+#: src/features/wallet/components/EnableSessionModal.tsx:163
 msgid "Enable Sessions"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:74
+#: src/features/wallet/components/EnableSessionModal.tsx:72
 msgid "Enable Smart Sessions"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:133
-#: src/features/wallet/components/EnableSessionModal.tsx:171
+#: src/features/wallet/components/EnableSessionModal.tsx:122
+#: src/features/wallet/components/EnableSessionModal.tsx:159
 msgid "Enabling sessions…"
 msgstr ""
 
@@ -912,7 +927,7 @@ msgstr ""
 msgid "Enter your email"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:233
+#: src/features/dashboard/components/MyNamesList.tsx:234
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
@@ -933,7 +948,7 @@ msgstr ""
 msgid "expires {expiryDateString}"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:425
+#: src/features/dashboard/components/MyNamesList.tsx:426
 msgid "Expires in {daysUntilExpiry} days"
 msgstr "Går ut om {daysUntilExpiry} dagar"
 
@@ -947,20 +962,19 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:316
+#: src/features/dashboard/components/MyNamesList.tsx:317
 msgid "Expiry"
 msgstr "Utgång"
 
-#: src/features/dashboard/components/MyNamesList.tsx:271
+#: src/features/dashboard/components/MyNamesList.tsx:272
 msgid "Expiry date (Earliest)"
 msgstr "Utgångsdatum (tidigast)"
 
-#: src/features/dashboard/components/MyNamesList.tsx:274
+#: src/features/dashboard/components/MyNamesList.tsx:275
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
-#: src/features/profile/components/sections/HeaderSection.tsx:44
-#: src/features/profile/components/view/ViewHeaderSection.tsx:69
+#: src/features/renew/components/RenewNameButton.tsx:17
 msgid "Extend Name"
 msgstr ""
 
@@ -980,12 +994,16 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:249
+#: src/lib/smart-account/rhinestone.ts:169
+msgid "Failed to deploy smart account"
+msgstr ""
+
+#: src/lib/smart-account/SmartAccountContext.tsx:251
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:250
+#: src/lib/smart-account/SmartAccountContext.tsx:252
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -1006,21 +1024,21 @@ msgstr ""
 msgid "Failed to resend email verification"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:194
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:174
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:183
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:164
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:106
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
 msgid "Failed to set primary name"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:365
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:354
 msgid "Failed to set primary name. Please try again."
 msgstr "Kunde inte ange primärt namn. Försök igen."
 
 #: src/features/notifications/RequireBackendAuth.tsx:143
-#: src/features/wallet/components/BackendAuthModal.tsx:99
+#: src/features/wallet/components/BackendAuthModal.tsx:107
 msgid "Failed to sign in. Please try again."
 msgstr ""
 
@@ -1042,7 +1060,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:123
+#: src/features/dashboard/components/NamesTable.tsx:125
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1070,11 +1088,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:220
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:221
+#: src/lib/smart-account/SmartAccountContext.tsx:223
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -1110,7 +1128,7 @@ msgstr ""
 msgid "Go back"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:164
+#: src/features/wallet/components/BackendAuthModal.tsx:172
 msgid "Go Back"
 msgstr ""
 
@@ -1175,7 +1193,7 @@ msgstr ""
 msgid "Invalid character"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:123
+#: src/features/wallet/components/EnableSessionModal.tsx:112
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr ""
 
@@ -1274,7 +1292,7 @@ msgstr ""
 msgid "Manage notification settings"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:61
+#: src/features/navigation/Header/account/WalletSection.tsx:83
 msgid "Manage Para Wallet"
 msgstr ""
 
@@ -1317,23 +1335,23 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:118
+#: src/features/dashboard/components/NamesTable.tsx:120
 msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:196
-#: src/features/dashboard/components/MyNamesList.tsx:297
+#: src/features/dashboard/components/MyNamesList.tsx:298
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
 
 #: src/features/dashboard/components/FavoritesList.tsx:164
-#: src/features/dashboard/components/MyNamesList.tsx:265
+#: src/features/dashboard/components/MyNamesList.tsx:266
 msgid "Name (A-Z)"
 msgstr "Namn (A-Ö)"
 
 #: src/features/dashboard/components/FavoritesList.tsx:167
-#: src/features/dashboard/components/MyNamesList.tsx:268
+#: src/features/dashboard/components/MyNamesList.tsx:269
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
@@ -1384,7 +1402,7 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:290
-#: src/features/dashboard/components/MyNamesList.tsx:450
+#: src/features/dashboard/components/MyNamesList.tsx:451
 #: src/features/profile/components/view/AddressProfileView.tsx:274
 msgid "Next page"
 msgstr ""
@@ -1409,8 +1427,8 @@ msgstr ""
 msgid "No eligible names found for this wallet"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:376
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:242
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:365
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:232
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
 
@@ -1418,7 +1436,7 @@ msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande
 msgid "No more records to add"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:307
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:296
 msgid "No names found"
 msgstr "Inga namn hittades"
 
@@ -1428,7 +1446,7 @@ msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:227
 #: src/features/dashboard/components/FavoritesList.tsx:238
-#: src/features/dashboard/components/MyNamesList.tsx:347
+#: src/features/dashboard/components/MyNamesList.tsx:348
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1637,7 +1655,7 @@ msgid "Previous card"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:281
-#: src/features/dashboard/components/MyNamesList.tsx:441
+#: src/features/dashboard/components/MyNamesList.tsx:442
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
 msgstr ""
@@ -1654,8 +1672,8 @@ msgstr "Primärt namn"
 msgid "Primary Name Profile"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:209
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:70
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:198
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
 
@@ -1713,7 +1731,11 @@ msgstr ""
 msgid "Registering"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:24
+#: src/lib/smart-account/rhinestone.ts:201
+msgid "Registering account ownership…"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:25
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
 msgid "Registering for"
 msgstr ""
@@ -1930,7 +1952,7 @@ msgstr ""
 msgid "Save Preferences"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:145
+#: src/features/wallet/components/BackendAuthModal.tsx:153
 msgid "Saved favorites & searches"
 msgstr ""
 
@@ -1967,7 +1989,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:161
+#: src/features/dashboard/components/NamesTable.tsx:163
 msgid "Search my name..."
 msgstr "Sök mitt namn..."
 
@@ -1975,7 +1997,7 @@ msgstr "Sök mitt namn..."
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/dashboard/components/NamesTable.tsx:161
+#: src/features/dashboard/components/NamesTable.tsx:163
 msgid "Search name..."
 msgstr "Sök namn..."
 
@@ -2001,7 +2023,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:42
+#: src/features/migration/components/UpgradeBanner.tsx:47
 msgid "See what's new"
 msgstr ""
 
@@ -2010,7 +2032,7 @@ msgstr ""
 msgid "Select {0}"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:318
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:307
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
@@ -2037,12 +2059,8 @@ msgstr ""
 msgid "Sending..."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:112
-msgid "Sessions enabled! You can now transact without signing each time."
-msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:410
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:274
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:399
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
 msgid "Set as Primary"
 msgstr "Ange som primärt"
 
@@ -2058,9 +2076,9 @@ msgstr ""
 msgid "Set primary name"
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:211
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:287
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:303
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:201
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:277
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:293
 msgid "Set Primary Name"
 msgstr ""
 
@@ -2072,15 +2090,15 @@ msgstr ""
 msgid "Set the content hash and ABI for your name"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:279
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:268
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböcker."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:407
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:396
 msgid "Setting ETH address..."
 msgstr "Anger ETH-adress..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:270
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:260
 msgid "Setting ETH address…"
 msgstr ""
 
@@ -2092,11 +2110,16 @@ msgstr ""
 msgid "Setting up resolver"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:409
+#: src/lib/smart-account/rhinestone.ts:148
+#: src/lib/smart-account/rhinestone.ts:200
+msgid "Setting up your smart account"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:398
 msgid "Setting..."
 msgstr "Anger..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:272
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:262
 msgid "Setting…"
 msgstr ""
 
@@ -2117,7 +2140,7 @@ msgstr ""
 msgid "Showing {startIndex}-{endIndex} of {totalCount}"
 msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
 
-#: src/features/dashboard/components/MyNamesList.tsx:460
+#: src/features/dashboard/components/MyNamesList.tsx:461
 msgid "Showing your names"
 msgstr "Visar dina namn"
 
@@ -2125,16 +2148,16 @@ msgstr "Visar dina namn"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:126
+#: src/features/dashboard/components/NamesTable.tsx:128
 msgid "Sign in to view favorites"
 msgstr "Logga in för att se favoriter"
 
 #: src/features/notifications/RequireBackendAuth.tsx:136
-#: src/features/wallet/components/BackendAuthModal.tsx:92
+#: src/features/wallet/components/BackendAuthModal.tsx:100
 msgid "Sign in with Wallet"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:75
+#: src/features/wallet/components/BackendAuthModal.tsx:83
 msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 msgstr ""
 
@@ -2142,16 +2165,16 @@ msgstr ""
 msgid "Sign Message"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:78
+#: src/features/wallet/components/EnableSessionModal.tsx:76
 msgid "Sign once to enable gasless transactions for your ENS operations."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:145
+#: src/features/wallet/components/EnableSessionModal.tsx:134
 msgid "Sign once to enable seamless transactions."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:134
-#: src/features/wallet/components/BackendAuthModal.tsx:90
+#: src/features/wallet/components/BackendAuthModal.tsx:98
 msgid "Signing in..."
 msgstr ""
 
@@ -2161,15 +2184,15 @@ msgstr ""
 msgid "Skip"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:167
+#: src/features/wallet/components/BackendAuthModal.tsx:175
 msgid "Skip Anyway"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:116
+#: src/features/wallet/components/BackendAuthModal.tsx:124
 msgid "Skip for now"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:127
+#: src/features/wallet/components/BackendAuthModal.tsx:135
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr ""
 
@@ -2178,11 +2201,19 @@ msgstr ""
 msgid "Slide {0}"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:100
+#: src/features/wallet/components/EnableSessionModal.tsx:96
 msgid "Smart Account"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:120
+#: src/lib/smart-account/rhinestone.ts:231
+msgid "Smart account ready"
+msgstr ""
+
+#: src/lib/smart-account/rhinestone.ts:214
+msgid "Smart account setup failed"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx:109
 msgid "Smart sessions are required to use this app."
 msgstr ""
 
@@ -2190,7 +2221,7 @@ msgstr ""
 msgid "Social Links"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:245
+#: src/features/dashboard/components/MyNamesList.tsx:246
 msgid "Some names could not be loaded"
 msgstr ""
 
@@ -2199,34 +2230,34 @@ msgid "Something went wrong. Please refresh and try again."
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:141
-#: src/features/dashboard/components/MyNamesList.tsx:253
+#: src/features/dashboard/components/MyNamesList.tsx:254
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:305
+#: src/features/dashboard/components/MyNamesList.tsx:306
 msgid "Sort by expiry, currently ascending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:306
+#: src/features/dashboard/components/MyNamesList.tsx:307
 msgid "Sort by expiry, currently descending"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:307
+#: src/features/dashboard/components/MyNamesList.tsx:308
 msgid "Sort by expiry, currently unsorted"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:185
-#: src/features/dashboard/components/MyNamesList.tsx:286
+#: src/features/dashboard/components/MyNamesList.tsx:287
 msgid "Sort by name, currently ascending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:186
-#: src/features/dashboard/components/MyNamesList.tsx:287
+#: src/features/dashboard/components/MyNamesList.tsx:288
 msgid "Sort by name, currently descending"
 msgstr ""
 
 #: src/features/dashboard/components/FavoritesList.tsx:187
-#: src/features/dashboard/components/MyNamesList.tsx:288
+#: src/features/dashboard/components/MyNamesList.tsx:289
 msgid "Sort by name, currently unsorted"
 msgstr ""
 
@@ -2234,7 +2265,7 @@ msgstr ""
 msgid "Sort favorites by"
 msgstr "Sortera favoriter efter"
 
-#: src/features/dashboard/components/MyNamesList.tsx:256
+#: src/features/dashboard/components/MyNamesList.tsx:257
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
@@ -2328,8 +2359,8 @@ msgstr ""
 msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:375
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:236
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:364
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:226
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
 
@@ -2378,7 +2409,7 @@ msgstr ""
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:185
+#: src/features/wallet/components/EnableSessionModal.tsx:172
 msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
@@ -2387,7 +2418,7 @@ msgstr ""
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:224
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:214
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr ""
 
@@ -2441,7 +2472,7 @@ msgstr ""
 #: src/features/notifications/settings/email-verify-step.tsx:148
 #: src/features/register-v2/workflow/result/FailureStep.tsx:58
 #: src/features/renew/workflow/result/FailureStep.tsx:60
-#: src/features/wallet/components/EnableSessionModal.tsx:173
+#: src/features/wallet/components/EnableSessionModal.tsx:161
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
 msgstr ""
@@ -2486,7 +2517,7 @@ msgstr ""
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:32
+#: src/features/migration/components/UpgradeBanner.tsx:37
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
@@ -2582,7 +2613,7 @@ msgstr ""
 msgid "Verify Wallet"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:78
+#: src/features/navigation/Header/account/WalletSection.tsx:100
 #: src/features/notifications/RequireBackendAuth.tsx:117
 msgid "Verify wallet ownership"
 msgstr ""
@@ -2591,7 +2622,7 @@ msgstr ""
 msgid "Verify Your Email"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:72
+#: src/features/wallet/components/BackendAuthModal.tsx:80
 msgid "Verify your wallet"
 msgstr ""
 
@@ -2704,7 +2735,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:238
+#: src/lib/smart-account/SmartAccountContext.tsx:240
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2712,7 +2743,7 @@ msgstr ""
 msgid "Wallet Address:"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:106
+#: src/features/wallet/components/BackendAuthModal.tsx:114
 msgid "Wallet client missing, please reconnect your wallet and try again."
 msgstr ""
 
@@ -2720,12 +2751,12 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:237
+#: src/lib/smart-account/SmartAccountContext.tsx:239
 msgid "Wallet funded successfully"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:234
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:183
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:223
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:173
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
 
@@ -2750,7 +2781,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:28
+#: src/features/migration/components/UpgradeBanner.tsx:33
 msgid "Welcome to the new ENS app"
 msgstr ""
 
@@ -2758,7 +2789,7 @@ msgstr ""
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:195
+#: src/features/wallet/components/EnableSessionModal.tsx:182
 msgid "What are smart sessions?"
 msgstr ""
 
@@ -2792,7 +2823,7 @@ msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda ol
 msgid "You can now receive notifications at this email address."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:155
+#: src/features/wallet/components/BackendAuthModal.tsx:163
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
@@ -2828,7 +2859,7 @@ msgstr ""
 msgid "You'll be notified 30, 7, and 1 day before expiry"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:138
+#: src/features/wallet/components/BackendAuthModal.tsx:146
 msgid "You'll miss:"
 msgstr ""
 

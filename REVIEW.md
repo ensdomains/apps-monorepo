@@ -1,47 +1,57 @@
 # Code Review Guidelines
 
-## Authoritative Sources
+## Primary sources
 
-- **STYLEGUIDE.md** — the complete coding standards. Read this in full before reviewing.
-  Every rule in it matters.
-- **CLAUDE.md** files — project and package-level instructions, including
-  `packages/transaction-manager/CLAUDE.md` for neverthrow + XState patterns.
+- **`.greptile/config.json`** — structured atomic rules with id, scope,
+  and severity. Greptile's native rule engine reads this.
+- **`.greptile/rules.md`** — prose context: severity behaviour, what to
+  skip, exemplar files.
 
-## Severity Mapping
+Start with these two files. They are the source of truth for what gets
+flagged in PR review.
 
-Map STYLEGUIDE.md rule severities to review comment severities:
+## Reference sources
 
-- **STYLEGUIDE 🔴 Must** → Flag as important. Always flag violations.
-- **STYLEGUIDE 🟡 Default** → Flag as a nit. Acknowledge that pragmatic exceptions
-  are acceptable when justified with a code comment in the source.
-- **STYLEGUIDE 🟢 Guideline** → Only flag if violated repeatedly across the PR
-  or if it significantly hurts readability.
+- **`STYLEGUIDE.md`** — the full coding standards with rationale and
+  worked examples. Consult only when a rule in `.greptile/config.json`
+  doesn't fit, or for broader context.
+- **`CLAUDE.md`** files — project and package-level instructions,
+  including `packages/transaction-manager/CLAUDE.md` for neverthrow +
+  XState patterns inside that package.
 
-## Documented Exceptions
+## Severity mapping
 
-The STYLEGUIDE.md "Breaking the Rules" section allows any rule to be intentionally
-broken when justified with a code comment. Before flagging a violation, check whether
-the author left a justifying comment. If so, do not flag it.
+`config.json` rule severities map to STYLEGUIDE.md tiers:
 
-## Comment Style
+- **`high`** ≡ STYLEGUIDE 🔴 Must — always flag.
+- **`medium`** ≡ STYLEGUIDE 🟡 Default — flag unless justified by an
+  inline code comment.
+- **`low`** ≡ STYLEGUIDE 🟢 Guideline — flag only when repeated or when
+  it significantly hurts readability.
 
-- Reference the specific STYLEGUIDE.md section name when flagging a violation
-- Include a brief code suggestion showing the correct pattern
-- Never post praise or positive observations as inline comments
-- Positive observations belong only in the summary comment
-- Be concise and actionable
+## Documented exceptions
 
-## What to Skip
+The STYLEGUIDE.md "Breaking the Rules" section allows any rule to be
+intentionally broken when justified with a code comment. Before flagging
+a violation, check whether the author left a justifying comment on or
+near the line. If so, do not flag it.
 
-- Crowdin-generated translation files
-- Generated code or auto-formatted files
-- Lock file changes (unless introducing security vulnerabilities)
-- Formatting-only changes already handled by Biome
-- React Strict Mode double-execution behavior — never flag this as a bug,
-  never suggest caching or flags to prevent it
+## Comment style
 
-## Monorepo Awareness
+- Reference the rule `id` from `config.json` (e.g. `no-effect-data-fetching`).
+- Include a brief code suggestion showing the correct pattern.
+- Never post praise or positive observations as inline comments —
+  positive observations belong only in the PR summary.
+- Be concise and actionable.
 
-- Changes should stay within the relevant `apps/` directory unless genuinely shared
-- Shared code under `packages/` should be justified
-- Check package-specific CLAUDE.md files for additional context
+## What to skip
+
+See "What to skip entirely" in `.greptile/rules.md`.
+
+## Monorepo awareness
+
+- Changes should stay within the relevant `apps/*` directory unless the
+  change genuinely requires shared code.
+- Shared code under `packages/` should be justified.
+- Check package-specific `CLAUDE.md` files for additional context
+  (notably `packages/transaction-manager/CLAUDE.md`).
