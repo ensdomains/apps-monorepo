@@ -12,8 +12,6 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
@@ -43,7 +41,6 @@ function RouteComponent() {
   const { data: walletClient } = useWalletClient()
 
   const labels = name.split('.')
-  const is3LD = labels.length === 3
   const is2LD = labels.length === 2
 
   const { data: ownerData } = useQuery({
@@ -51,14 +48,7 @@ function RouteComponent() {
     enabled: name.endsWith('.eth'),
   })
 
-  const { data: registriesData } = useQuery({
-    ...getNameRegistriesQueryOptions({ name }),
-    enabled: is3LD && ownerData?.protocolVersion === 'ENSv2',
-  })
-
-  const registryAddress = is3LD
-    ? getSubnameRegistryAddress(registriesData ?? null)
-    : ownerData?.registryAddress
+  const registryAddress = ownerData?.registryAddress
 
   const callerAddress = walletClient?.account?.address
   const { data: callerRolesData } = useQuery({

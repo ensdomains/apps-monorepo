@@ -55,6 +55,33 @@ describe('parseName', () => {
     })
   })
 
+  it('returns an error when the name contains unsupported whitespace', () => {
+    const result = parseName('my\tname.eth')
+
+    assert(result.isErr())
+    expect(result.error).toMatchObject({
+      reason: 'SPACE_NOT_ALLOWED',
+    })
+  })
+
+  it('returns an error when a label contains an invalid character', () => {
+    const result = parseName('bad!.vitalik.eth')
+
+    assert(result.isErr())
+    expect(result.error).toMatchObject({
+      reason: 'INVALID_CHARACTER',
+    })
+  })
+
+  it('returns an error when the tld contains an invalid character', () => {
+    const result = parseName('vitalik.e!h')
+
+    assert(result.isErr())
+    expect(result.error).toMatchObject({
+      reason: 'INVALID_CHARACTER',
+    })
+  })
+
   it('returns an error when the name contains consecutive dots', () => {
     const result = parseName('sub..vitalik.eth')
 
