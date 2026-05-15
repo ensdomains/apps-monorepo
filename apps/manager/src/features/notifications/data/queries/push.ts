@@ -153,7 +153,7 @@ const deletePushChannelResult = ResultFn(async function* (channelId: string) {
     })
   }
 
-  const data = yield* parseJsonResult<{ message: string }>(response)
+  const data = yield* parseJsonResult(response)
 
   return ok(data)
 })

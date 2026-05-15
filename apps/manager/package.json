@@ -76,6 +76,7 @@
     "lucide": "^0.542.0",
     "lucide-react": "^0.542.0",
     "motion": "^12.23.25",
+    "motion-plus": "workspace:*",
     "neverthrow": "^8.2.0",
     "permissionless": "^0.2.57",
     "posthog-js": "^1.347.2",
