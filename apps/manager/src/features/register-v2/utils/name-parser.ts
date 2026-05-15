@@ -8,6 +8,8 @@ import { err, ok } from 'neverthrow'
 // - No multiple consecutive dots
 // - Any tld is allowed, if not present, it is assumed to be .eth
 
+const INVALID_LABEL_CHARS = /[&*@#$%^()[\]{}|\\:;"'<>?,=+~`!]/
+
 class ParseNameError<TReason extends string> extends TaggedError(
   'ParseNameError',
 )<{
@@ -26,8 +28,8 @@ export const parseName = (name: string) => {
   // Remove any leading or trailing whitespace
   const normalized = name.trim().toLowerCase()
 
-  // Spaces are not allowed
-  if (normalized.includes(' ')) {
+  // Whitespace is not allowed inside names
+  if (/\s/.test(normalized)) {
     return ParseNameError.err('SPACE_NOT_ALLOWED')
   }
 
@@ -49,6 +51,10 @@ export const parseName = (name: string) => {
 
   if (!label) {
     return ParseNameError.err('LABEL_NOT_FOUND')
+  }
+
+  if ([...labels, label, tld].some((part) => INVALID_LABEL_CHARS.test(part))) {
+    return ParseNameError.err('INVALID_CHARACTER')
   }
 
   return ok({

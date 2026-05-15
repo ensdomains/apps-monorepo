@@ -1,18 +1,28 @@
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
-import { validateENSName } from '@/features/register/utils'
+import {
+  getLabelLength,
+  parseName,
+} from '@/features/register-v2/utils/name-parser'
 import type { SearchHistoryItem } from './useSearchHistory'
+
+const ETH_TLD = 'eth'
+const MIN_REGISTRABLE_LABEL_LENGTH = 3
 
 const isSearchNameSupported = (name: string): boolean => {
   const trimmed = name.trim()
   if (!trimmed) return false
 
-  if (!trimmed.toLowerCase().endsWith('.eth')) {
-    return validateENSName(name) === null
-  }
+  if (trimmed.startsWith('.') || trimmed.endsWith('.')) return false
 
-  const labels = trimmed.slice(0, -4).split('.')
-  return labels.every((label) => validateENSName(`${label}.eth`) === null)
+  const parsedName = parseName(trimmed)
+
+  if (parsedName.isErr()) return false
+
+  return (
+    parsedName.value.tld === ETH_TLD &&
+    getLabelLength(parsedName.value.label) >= MIN_REGISTRABLE_LABEL_LENGTH
+  )
 }
 
 type NameSuggestion = {
