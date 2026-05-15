@@ -613,11 +613,11 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:168
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:170
 msgid "Connect or sign in to register"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:170
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:172
 msgid "Connect or sign in to renew"
 msgstr ""
 
@@ -958,7 +958,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:28
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:40
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:37
 msgid "expiring on"
 msgstr ""
 
@@ -1561,7 +1561,7 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:157
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:159
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr ""
@@ -1735,7 +1735,7 @@ msgstr ""
 msgid "Registering account ownership…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:25
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:24
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
 msgid "Registering for"
 msgstr ""
@@ -1876,7 +1876,7 @@ msgstr ""
 msgid "Renewing"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:34
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:33
 msgid "Renewing for"
 msgstr ""
 
@@ -1932,7 +1932,7 @@ msgid "Save"
 msgstr ""
 
 #. placeholder {0}: discountAmount ?? 0
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:119
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:121
 msgid "Save <0>{0}</0>"
 msgstr ""
 
@@ -2269,7 +2269,7 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:139
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:141
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:279
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
@@ -2443,7 +2443,7 @@ msgstr ""
 msgid "total"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:86
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:88
 msgid "Total"
 msgstr ""
 
@@ -2546,7 +2546,7 @@ msgstr ""
 msgid "Uploading…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:108
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:110
 msgid "USD"
 msgstr ""
 
