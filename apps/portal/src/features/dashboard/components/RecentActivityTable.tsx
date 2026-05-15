@@ -58,7 +58,11 @@ export const RecentActivityTable = () => {
                 <div className="sm:order-2 sm:w-32 sm:shrink-0">
                   {match(nameEntity)
                     .with({ type: 'name' }, ({ value }) => (
-                      <EntityBadgeWithActions variant="name" name={value}>
+                      <EntityBadgeWithActions
+                        variant="name"
+                        name={value}
+                        inline
+                      >
                         {truncateName(value)}
                       </EntityBadgeWithActions>
                     ))
@@ -66,6 +70,7 @@ export const RecentActivityTable = () => {
                       <EntityBadgeWithActions
                         variant="address"
                         address={value as Address}
+                        inline
                       >
                         {truncateAddress(value, 6, 4)}
                       </EntityBadgeWithActions>
@@ -81,7 +86,7 @@ export const RecentActivityTable = () => {
 
               {/* Mobile: bottom row — description + actor wrapping
                   Desktop: right-aligned flex */}
-              <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0 sm:overflow-hidden">
+              <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0">
                 <span className="text-sm text-muted-foreground sm:truncate">
                   {text}
                 </span>
@@ -90,12 +95,13 @@ export const RecentActivityTable = () => {
                     <EntityBadgeWithActions
                       variant="address"
                       address={value as Address}
+                      inline
                     >
                       {truncateAddress(value, 6, 4)}
                     </EntityBadgeWithActions>
                   ))
                   .with({ type: 'name' }, ({ value }) => (
-                    <EntityBadgeWithActions variant="name" name={value}>
+                    <EntityBadgeWithActions variant="name" name={value} inline>
                       {truncateName(value)}
                     </EntityBadgeWithActions>
                   ))

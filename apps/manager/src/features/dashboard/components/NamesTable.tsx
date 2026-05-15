@@ -103,8 +103,10 @@ export const NamesTable = ({
     ],
   })
 
-  const { eligible: eligibleV1Names } = useEligibleV1Names()
-  const v1NamesCount = migrationEnabled ? eligibleV1Names.length : 0
+  const { eligible: eligibleV1Names } = useEligibleV1Names({
+    enabled: migrationEnabled,
+  })
+  const v1NamesCount = eligibleV1Names.length
 
   const { data: favorites = [] } = favoritesQuery
   const { data: ownedNamesCount } = ownedNamesCountQuery

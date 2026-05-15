@@ -15,7 +15,6 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
@@ -207,18 +206,7 @@ const ResolverInfoCard = ({
       </InfoRow>
       <InfoRow label="Node">
         <div className="flex items-center gap-2">
-          <EntityBadgeWithActions
-            variant="name"
-            name={name}
-            avatar={
-              <NameAvatar
-                name={name}
-                width="20px"
-                height="20px"
-                rounded="rounded-sm"
-              />
-            }
-          >
+          <EntityBadgeWithActions variant="name" name={name} showAvatar>
             {name}
           </EntityBadgeWithActions>
           {isAliased && <Badge variant="outline">Aliased</Badge>}

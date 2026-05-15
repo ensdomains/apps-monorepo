@@ -8,17 +8,22 @@ import {
 } from '@/features/migration/service/classifyNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
-export const useEligibleV1Names = () => {
+type UseEligibleV1NamesOptions = {
+  readonly enabled?: boolean
+}
+
+export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
+  const { enabled = true } = options
   const { ownerAddress } = useSmartAccountContext()
-  const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names()
+  const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
 
   const classified = useMemo<ClassifiedName[]>(() => {
-    if (!v1NamesRaw || !ownerAddress) return []
+    if (!enabled || !v1NamesRaw || !ownerAddress) return []
     return classifyNames(v1NamesRaw, ownerAddress as Address).classified
-  }, [v1NamesRaw, ownerAddress])
+  }, [enabled, v1NamesRaw, ownerAddress])
 
   const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(classified, ownerAddress)
+    useMigrationEligibility(classified, enabled ? ownerAddress : undefined)
 
   const eligible = useMemo<readonly ClassifiedName[]>(
     () => eligibility?.eligible ?? classified,
@@ -27,6 +32,8 @@ export const useEligibleV1Names = () => {
 
   return {
     eligible,
-    isPending: isV1Pending || (classified.length > 0 && isEligibilityPending),
+    isPending:
+      enabled &&
+      (isV1Pending || (classified.length > 0 && isEligibilityPending)),
   }
 }

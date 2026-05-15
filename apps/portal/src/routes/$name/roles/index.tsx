@@ -9,8 +9,6 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { getSubnameRegistryAddress } from '@/features/registry/utils/getSubnameRegistryAddress'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
 import { RolesTable } from '@/features/roles/components/RolesTable'
@@ -105,21 +103,13 @@ function RouteComponent() {
   const { address } = useConnection()
   const labels = name.split('.')
   const label = labels[0]
-  const is3LD = labels.length === 3
 
   const { data, isLoading, error } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
   })
 
-  const { data: registriesData } = useQuery({
-    ...getNameRegistriesQueryOptions({ name }),
-    enabled: is3LD && data?.protocolVersion === 'ENSv2',
-  })
-
-  const registryAddress = is3LD
-    ? getSubnameRegistryAddress(registriesData ?? null)
-    : data?.registryAddress
+  const registryAddress = data?.registryAddress
 
   const { data: currentAccountRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({

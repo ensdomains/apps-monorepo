@@ -6,6 +6,7 @@
  */
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
+import { i18n } from '@lingui/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Set up environment before any imports
@@ -103,6 +104,7 @@ describe('initializeRhinestoneAccount', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
     vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
     vi.mocked(registerHCAOwnership).mockResolvedValue({

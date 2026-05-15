@@ -1,7 +1,5 @@
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
-import { getResolver as ensjsGetResolver } from '@ensdomains/ensjs/public'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -10,7 +8,7 @@ import { AlertCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address, PublicClient } from 'viem'
-import { getAddress, namehash } from 'viem'
+import { getAddress } from 'viem'
 import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,6 +30,7 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import { getProfileEthAddressSnapshot } from '../../service/profileEthAddress'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import {
   getEthAddressFromRecords,
@@ -127,36 +126,27 @@ export const SetPrimaryNameDialog = ({
     mutationFn: async () => {
       if (!walletAddress || !account.signer || !account.accountAddress) return
 
-      let resolverAddress = records?.resolverAddress as Address | undefined
-      if (!resolverAddress) {
-        const onChainResolver = await ensjsGetResolver(
-          publicClient as unknown as Parameters<typeof ensjsGetResolver>[0],
-          { name },
-        )
-        resolverAddress = (onChainResolver ?? undefined) as Address | undefined
+      const snapshot = await getProfileEthAddressSnapshot(
+        name,
+        records?.resolverAddress as Address | undefined,
+      )
+
+      if (snapshot.isErr()) {
+        throw new Error(t`Could not read ETH address record for ${name}`)
       }
 
+      const { resolverAddress, ethAddress } = snapshot.value
       if (!resolverAddress) {
         throw new Error(t`Could not find resolver for ${name}`)
       }
 
-      const onChainAddr = (await (publicClient as PublicClient).readContract({
-        address: resolverAddress,
-        abi: publicResolverSingleAddrSnippet,
-        functionName: 'addr',
-        args: [namehash(name)],
-      })) as Address
-
-      if (onChainAddr.toLowerCase() === walletAddress.toLowerCase()) return
+      if (ethAddress?.toLowerCase() === walletAddress.toLowerCase()) return
 
       await saveRecords({
         name,
         before: {
           texts: [],
-          coins:
-            onChainAddr !== '0x0000000000000000000000000000000000000000'
-              ? [{ coinType: 60, value: onChainAddr }]
-              : [],
+          coins: ethAddress ? [{ coinType: 60, value: ethAddress }] : [],
         },
         after: {
           texts: [],
