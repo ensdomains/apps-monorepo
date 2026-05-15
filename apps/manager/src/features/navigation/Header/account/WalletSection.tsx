@@ -2,7 +2,7 @@ import { useLogout, useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import paraColorIcon from '@/assets/icons/para-color.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
@@ -15,7 +15,7 @@ type WalletSectionProps = {
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { walletSource, accountAddress } = useSmartAccountContext()
+  const { walletSource, accountAddress, isLoading } = useSmartAccountContext()
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -28,22 +28,44 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   return (
     <div className="mb-3 space-y-4">
-      {accountAddress && (
-        <button
-          className="flex w-full items-center gap-2"
-          onClick={() => copy(accountAddress)}
-          type="button"
-        >
-          <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
-          <span className="font-[350] text-base text-ens-quartz-400">
-            Address
-          </span>
-          <span className="text-sm leading-ens-tight">
-            {copied ? <Trans>Copied!</Trans> : truncateAddress(accountAddress)}
-          </span>
-          <MSymbol className="ms-opsz-20" symbol="content_copy" />
-        </button>
-      )}
+      {match({ accountAddress, isLoading })
+        .with({ accountAddress: P.nonNullable }, ({ accountAddress }) => (
+          <button
+            className="flex w-full items-center gap-2"
+            onClick={() => copy(accountAddress)}
+            type="button"
+          >
+            <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
+            <span className="font-[350] text-base text-ens-quartz-400">
+              <Trans>Address</Trans>
+            </span>
+            <span className="text-sm leading-ens-tight">
+              {copied ? (
+                <Trans>Copied!</Trans>
+              ) : (
+                truncateAddress(accountAddress)
+              )}
+            </span>
+            <MSymbol className="ms-opsz-20" symbol="content_copy" />
+          </button>
+        ))
+        .with({ isLoading: true }, () => (
+          <div
+            aria-busy="true"
+            aria-live="polite"
+            className="flex w-full items-center gap-2"
+          >
+            <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
+            <span className="font-[350] text-base text-ens-quartz-400">
+              <Trans>Address</Trans>
+            </span>
+            <span className="flex items-center gap-2 text-ens-quartz-400 text-sm leading-ens-tight">
+              <span className="size-3 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
+              <Trans>Deploying smart account…</Trans>
+            </span>
+          </div>
+        ))
+        .otherwise(() => null)}
 
       {match(walletSource)
         .with('para-embedded', () => (

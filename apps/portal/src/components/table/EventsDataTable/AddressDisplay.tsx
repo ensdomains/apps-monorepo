@@ -4,7 +4,6 @@ import {
   EntityBadgeWithActions,
   type EntityVariant,
 } from '@/components/EntityBadge'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 interface AddressDisplayProps {
@@ -37,18 +36,7 @@ export const AddressDisplay = ({
       variant={variant}
       name={ensName ?? undefined}
       address={address}
-      avatar={
-        ensName ? (
-          <NameAvatar
-            name={ensName}
-            height="20px"
-            width="20px"
-            rounded="rounded-sm"
-          />
-        ) : (
-          <div className="w-5 h-5 rounded-sm [background:var(--avatar-placeholder-gradient)]" />
-        )
-      }
+      showAvatar
     >
       {displayName}
     </EntityBadgeWithActions>
