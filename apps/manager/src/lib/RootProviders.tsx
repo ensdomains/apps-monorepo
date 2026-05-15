@@ -149,10 +149,14 @@ const SmartAccountSessionModal = () => {
     dismissSession,
     accountAddress,
     ownerAddress,
+    isCreatingSession,
+    error,
   } = useSmartAccountContext()
 
   return (
     <EnableSessionModal
+      hasError={!!error}
+      isEnabling={isCreatingSession}
       onEnableSession={enableSession}
       onOpenChange={(open) => {
         if (!open) {

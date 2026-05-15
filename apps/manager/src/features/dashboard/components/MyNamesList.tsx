@@ -110,8 +110,9 @@ export const MyNamesList = ({
   const [sort, setSort] = useState<Sort>('name-desc')
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
-  const { eligible: v1Classified, isPending: isV1Pending } =
-    useEligibleV1Names()
+  const { eligible: v1Classified, isPending: isV1Pending } = useEligibleV1Names(
+    { enabled: migrationEnabled },
+  )
   const visibleV1Classified = useMemo(
     () => (migrationEnabled ? v1Classified : []),
     [migrationEnabled, v1Classified],

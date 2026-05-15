@@ -86,7 +86,7 @@ export const RecentActivityTable = () => {
 
               {/* Mobile: bottom row — description + actor wrapping
                   Desktop: right-aligned flex */}
-              <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0 sm:overflow-hidden">
+              <div className="sm:order-3 flex flex-wrap items-center gap-1 pb-3 sm:pb-0 sm:flex-nowrap sm:flex-1 sm:gap-2 sm:justify-end sm:min-w-0">
                 <span className="text-sm text-muted-foreground sm:truncate">
                   {text}
                 </span>

@@ -12,7 +12,6 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
@@ -28,18 +27,7 @@ interface NameDisplayProps {
 
 const NameDisplay = ({ name }: NameDisplayProps) => {
   return (
-    <EntityBadgeWithActions
-      variant="name"
-      name={name}
-      avatar={
-        <NameAvatar
-          name={name}
-          height="20px"
-          width="20px"
-          rounded="rounded-sm"
-        />
-      }
-    >
+    <EntityBadgeWithActions variant="name" name={name} showAvatar>
       {name}
     </EntityBadgeWithActions>
   )
