@@ -1,8 +1,7 @@
 'use client'
 
 import { Trans } from '@lingui/react/macro'
-import { BrainCircuit, CheckCircle2, Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { BrainCircuit, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,18 +18,27 @@ type EnableSessionModalProps = {
   onEnableSession: () => Promise<void>
   walletAddress?: string
   smartAccountAddress?: string
+  /** True while the state machine is in `creatingSession`. */
+  isEnabling?: boolean
+  /** True when the state machine has a session error in context. */
+  hasError?: boolean
 }
 
 export const EnableSessionModal = ({
   open,
-  onOpenChange,
+  onOpenChange: _onOpenChange,
   onEnableSession,
   walletAddress: _walletAddress,
   smartAccountAddress,
+  isEnabling = false,
+  hasError = false,
 }: EnableSessionModalProps) => {
-  const [status, setStatus] = useState<
-    'idle' | 'signing' | 'success' | 'error'
-  >('idle')
+  // Status derived from the state machine so a stale value can't leak across openings/accounts.
+  const status: 'idle' | 'signing' | 'error' = (() => {
+    if (isEnabling) return 'signing'
+    if (hasError) return 'error'
+    return 'idle'
+  })()
 
   const formatAddress = (address?: string) => {
     if (!address) return ''
@@ -39,21 +47,11 @@ export const EnableSessionModal = ({
 
   const handleEnable = async () => {
     if (status === 'signing') return
-
-    setStatus('signing')
-
     try {
       await onEnableSession()
-      setStatus('success')
-
-      // Close modal after a short delay
-      setTimeout(() => {
-        onOpenChange(false)
-        setStatus('idle')
-      }, 1500)
     } catch (error) {
+      // Surfaced via `hasError` from the machine; logged here for devtools visibility.
       console.error('Failed to enable session:', error)
-      setStatus('error')
     }
   }
 
@@ -84,9 +82,7 @@ export const EnableSessionModal = ({
         <div className="flex flex-col items-center gap-4 py-4">
           {/* Icon */}
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ens-blue/10">
-            {status === 'success' ? (
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-            ) : status === 'signing' ? (
+            {status === 'signing' ? (
               <Loader2 className="h-8 w-8 animate-spin text-ens-blue" />
             ) : (
               <BrainCircuit className="h-8 w-8 text-ens-blue" />
@@ -107,14 +103,7 @@ export const EnableSessionModal = ({
 
           {/* Description */}
           <div className="text-center">
-            {status === 'success' ? (
-              <p className="text-green-600">
-                <Trans>
-                  Sessions enabled! You can now transact without signing each
-                  time.
-                </Trans>
-              </p>
-            ) : status === 'error' ? (
+            {status === 'error' ? (
               <div className="flex flex-col gap-2">
                 <p className="font-medium text-ens-blue-midnight">
                   <Trans>Smart sessions are required to use this app.</Trans>
@@ -157,25 +146,23 @@ export const EnableSessionModal = ({
 
         {/* Actions */}
         <div className="flex flex-col gap-2">
-          {status !== 'success' && (
-            <Button
-              className={cn(
-                'h-11 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider',
-                'hover:bg-ens-blue-hover',
-                'disabled:cursor-not-allowed disabled:opacity-50',
-              )}
-              disabled={status === 'signing'}
-              onClick={handleEnable}
-            >
-              {status === 'signing' ? (
-                <Trans>Enabling sessions…</Trans>
-              ) : status === 'error' ? (
-                <Trans>Try Again</Trans>
-              ) : (
-                <Trans>Enable Sessions</Trans>
-              )}
-            </Button>
-          )}
+          <Button
+            className={cn(
+              'h-11 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider',
+              'hover:bg-ens-blue-hover',
+              'disabled:cursor-not-allowed disabled:opacity-50',
+            )}
+            disabled={status === 'signing'}
+            onClick={handleEnable}
+          >
+            {status === 'signing' ? (
+              <Trans>Enabling sessions…</Trans>
+            ) : status === 'error' ? (
+              <Trans>Try Again</Trans>
+            ) : (
+              <Trans>Enable Sessions</Trans>
+            )}
+          </Button>
         </div>
 
         {/* Footer note */}
