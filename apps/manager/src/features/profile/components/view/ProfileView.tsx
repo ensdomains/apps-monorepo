@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import { profileOwnerQuery } from '../../service/profileOwner'
@@ -68,6 +69,7 @@ const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
+  const migrationEnabled = useFeatureFlag('MIGRATION')
   const { data: profileRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -86,7 +88,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
       style={themeVars}
     >
-      {isOwner && <UpgradeBanner />}
+      {migrationEnabled && isOwner && <UpgradeBanner />}
       <ViewHeaderSection name={name} owner={owner} records={records} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
