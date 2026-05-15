@@ -4,16 +4,25 @@ import { skipToken, useQuery } from '@tanstack/react-query'
 import { getV1NamesForAddress } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
-const v1NamesQueryOptions = (address?: string | null) =>
+type UseV1NamesOptions = {
+  readonly enabled?: boolean
+}
+
+const v1NamesQueryOptions = (
+  address?: string | null,
+  enabled: boolean = true,
+) =>
   resultQueryOptions({
     queryKey: qk('migration', 'v1_names', {
       address: address?.toLowerCase(),
     }),
-    queryFn: address ? () => getV1NamesForAddress(address) : skipToken,
+    queryFn:
+      enabled && address ? () => getV1NamesForAddress(address) : skipToken,
     staleTime: 5 * 60 * 1000,
   })
 
-export const useV1Names = () => {
+export const useV1Names = (options: UseV1NamesOptions = {}) => {
+  const { enabled = true } = options
   const { ownerAddress } = useSmartAccountContext()
-  return useQuery(v1NamesQueryOptions(ownerAddress))
+  return useQuery(v1NamesQueryOptions(ownerAddress, enabled))
 }
