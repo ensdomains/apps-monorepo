@@ -2,12 +2,18 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
+import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
 import {
   type ProfileRecordsResult,
@@ -79,6 +85,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
 
+  const { data: expiryData } = useQuery({
+    ...profileExpiryQuery(name),
+  })
+  const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+
   if (shouldHide) {
     return null
   }
@@ -86,10 +97,37 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   return (
     <div
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
-      style={themeVars}
+      style={match(expiry.isInGrace)
+        .with(true, () => undefined)
+        .with(false, () => themeVars)
+        .exhaustive()}
     >
       {migrationEnabled && isOwner && <UpgradeBanner />}
-      <ViewHeaderSection name={name} owner={owner} records={records} />
+      {match({ isOwner, expiry })
+        .with(
+          {
+            isOwner: true,
+            expiry: { isInGrace: true, graceEndDate: P.not(P.nullish) },
+          },
+          ({ expiry: expiryState }) => {
+            const { graceEndDate } = expiryState
+            if (!graceEndDate) return null
+            return (
+              <GracePeriodBanner
+                graceEndDate={graceEndDate}
+                renewName={name}
+                variant="profileOwnName"
+              />
+            )
+          },
+        )
+        .otherwise(() => null)}
+      <ViewHeaderSection
+        isInGrace={expiry.isInGrace}
+        name={name}
+        owner={owner}
+        records={records}
+      />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">

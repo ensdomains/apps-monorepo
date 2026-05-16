@@ -7,7 +7,10 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDashboardDate } from '@/features/dashboard/utils'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
@@ -36,33 +39,68 @@ export const PrimaryNameCard = ({
     ...profileExpiryQuery(primaryName ?? ''),
     enabled: !!primaryName,
   })
+  const { isInGrace, displayExpiryDate } = getProfileNameExpiryStatus(
+    reverseExpiry?.expiry,
+    true,
+  )
 
   const registeredDate =
     registration?.registrationDate != null
       ? new Date(registration.registrationDate * 1000)
       : null
-  const expiryDate =
-    reverseExpiry?.expiry != null
-      ? new Date(Number(reverseExpiry.expiry) * 1000)
-      : null
   const formattedRegisteredDate = formatDashboardDate(registeredDate)
-  const formattedExpiryDate = formatDashboardDate(expiryDate)
-  const hasAvatar = Boolean(avatarUrl)
+  const formattedExpiryDate = formatDashboardDate(displayExpiryDate)
+  const hasAvatar = Boolean(avatarUrl) && !isInGrace
   const displayName = primaryName ?? t`Your ENS name`
   const registeredLabel = isRegistrationLoading
     ? t`Loading...`
     : formattedRegisteredDate
-  const expiryLabel = isReverseExpiryLoading
-    ? t`Loading...`
-    : formattedExpiryDate
+  const expiryLabel = isReverseExpiryLoading ? t`Loading...` : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
   const themeVars = getThemeVars(themeColor) as React.CSSProperties
+  const nameplateClassName = match(isInGrace)
+    .with(
+      true,
+      () =>
+        'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]',
+    )
+    .with(
+      false,
+      () =>
+        'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]',
+    )
+    .exhaustive()
+  const displayNameClassName = match({ isInGrace, isLongName: displayName.length > 10 })
+    .with({ isInGrace: true }, () =>
+      'font-medium font-mono text-[20px] text-foreground leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]',
+    )
+    .with({ isInGrace: false, isLongName: true }, () =>
+      'font-medium font-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]',
+    )
+    .with({ isInGrace: false, isLongName: false }, () =>
+      'font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]',
+    )
+    .exhaustive()
 
   return (
     <Card
-      className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
-      style={themeVars}
+      className={match(isInGrace)
+        .with(
+          true,
+          () =>
+            'rounded-none border-[0.25px] border-border bg-white p-4 opacity-70 shadow-none md:rounded-lg md:p-6',
+        )
+        .with(
+          false,
+          () =>
+            'rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6',
+        )
+        .exhaustive()}
+      style={match(isInGrace)
+        .with(true, () => undefined)
+        .with(false, () => themeVars)
+        .exhaustive()}
     >
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
@@ -100,16 +138,8 @@ export const PrimaryNameCard = ({
                 className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
                 type="button"
               >
-                <div className="inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
-                  <span
-                    className={
-                      displayName.length > 10
-                        ? 'font-medium font-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]'
-                        : 'font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
-                    }
-                  >
-                    {displayName}
-                  </span>
+                <div className={nameplateClassName}>
+                  <span className={displayNameClassName}>{displayName}</span>
                 </div>
                 <PrimaryBadge />
               </button>

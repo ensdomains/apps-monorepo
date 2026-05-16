@@ -9,6 +9,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ChevronDown,
+  ChevronRight,
   CircleAlert,
   CircleArrowLeft,
   CircleArrowRight,
@@ -25,6 +26,7 @@ import {
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
+import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import {
   type AvatarLookupEntry,
@@ -359,6 +361,9 @@ export const MyNamesList = ({
                 isV1,
                 isPrimary,
                 avatarUrl,
+                isInGrace,
+                showProminentRenew,
+                useWireframeNameplate,
               } = mergedRowMetadata(
                 item,
                 primaryLabel,
@@ -398,6 +403,11 @@ export const MyNamesList = ({
                       </Link>
                     </div>
                   )}
+                  {isInGrace && (
+                    <div className="mb-[10px]">
+                      <GracePeriodBadge />
+                    </div>
+                  )}
                   {isPrimary && (
                     <div className="mb-[10px]">
                       <PrimaryBadge />
@@ -408,26 +418,39 @@ export const MyNamesList = ({
                       avatarUrl={avatarUrl}
                       label={label}
                       linkToMigration={migrationEnabled && isV1}
+                      useWireframeNameplate={useWireframeNameplate}
                     />
                     <div className="flex items-start gap-4 md:gap-[30px]">
                       <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
                         <div className="flex flex-col items-start">
                           <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
-                            {formattedExpiryDate}
+                            <Trans>Expires</Trans> {formattedExpiryDate}
                           </span>
                         </div>
-                        {expiringSoon && daysUntilExpiry !== null && (
-                          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
-                            <CircleAlert
-                              className="size-3 shrink-0 text-[#e3a531]"
-                              strokeWidth={2}
-                            />
-                            <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
-                              <Trans>Expires in {daysUntilExpiry} days</Trans>
-                            </span>
-                          </div>
-                        )}
+                        {expiringSoon &&
+                          !isInGrace &&
+                          daysUntilExpiry !== null && (
+                            <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
+                              <CircleAlert
+                                className="size-3 shrink-0 text-[#e3a531]"
+                                strokeWidth={2}
+                              />
+                              <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
+                                <Trans>Expires in {daysUntilExpiry} days</Trans>
+                              </span>
+                            </div>
+                          )}
                       </div>
+                      {showProminentRenew && (
+                        <Link
+                          className="inline-flex shrink-0 items-center gap-0.5 font-sans text-ens-blue text-sm leading-none tracking-[0.28px] hover:underline"
+                          params={{ name: label }}
+                          to="/renew/$name"
+                        >
+                          <Trans>Renew</Trans>
+                          <ChevronRight className="size-4" strokeWidth={2} />
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </motion.div>

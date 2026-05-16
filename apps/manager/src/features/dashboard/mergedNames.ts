@@ -1,4 +1,12 @@
 import type { DomainFragment } from '@ens-apps/indexer'
+import { match, P } from 'ts-pattern'
+import {
+  getDaysSinceExpiry,
+  getDisplayExpiryDate,
+  getGraceEndDate,
+  isInGracePeriod,
+  shouldShowProminentRenew,
+} from '@/features/grace/utils/gracePeriod'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import {
   formatDashboardDate,
@@ -103,11 +111,18 @@ export const buildMergedNamesList = (params: {
 export type MergedRowMetadata = {
   readonly label: string
   readonly expiryDate: Date | null
+  readonly displayExpiryDate: Date | null
+  readonly graceEndDate: Date | null
   readonly daysUntilExpiry: number | null
+  readonly daysSinceExpiry: number | null
   readonly expiringSoon: boolean
   readonly formattedExpiryDate: string
   readonly isV1: boolean
   readonly isPrimary: boolean
+  readonly isInGrace: boolean
+  readonly showProminentRenew: boolean
+  readonly useDefaultAvatar: boolean
+  readonly useWireframeNameplate: boolean
   readonly avatarUrl: string | undefined
 }
 
@@ -118,22 +133,47 @@ export const mergedRowMetadata = (
 ): MergedRowMetadata => {
   const label = item.sortName
   const expiryDate = toDateFromSeconds(item.sortExpiry)
-  const daysUntilExpiry = getDaysUntil(expiryDate)
   const isV1 = item.kind === 'v1'
+  const isV2 = !isV1
+  const isInGrace = isInGracePeriod(expiryDate, isV2)
+  const graceEndDate = match({ expiryDate, isInGrace })
+    .with(
+      { expiryDate: P.not(P.nullish), isInGrace: true },
+      ({ expiryDate: date }) => getGraceEndDate(date, isV2),
+    )
+    .otherwise(() => null)
+  const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2)
+  const daysUntilExpiry = getDaysUntil(expiryDate)
+  const daysSinceExpiry = match({ expiryDate, isInGrace })
+    .with(
+      { expiryDate: P.not(P.nullish), isInGrace: true },
+      ({ expiryDate: date }) => getDaysSinceExpiry(date),
+    )
+    .otherwise(() => null)
   const isPrimary =
     !isV1 &&
     !!primaryLabel &&
     label.toLowerCase() === primaryLabel.toLowerCase()
-  const avatarUrl = isV1 ? undefined : avatarOverride
+  const avatarUrl = match({ isV1, isInGrace })
+    .with({ isV1: true }, () => undefined)
+    .with({ isInGrace: true }, () => undefined)
+    .otherwise(() => avatarOverride)
 
   return {
     label,
     expiryDate,
+    displayExpiryDate,
+    graceEndDate,
     daysUntilExpiry,
+    daysSinceExpiry,
     expiringSoon: isExpiringSoon(expiryDate, 30, daysUntilExpiry),
-    formattedExpiryDate: formatDashboardDate(expiryDate),
+    formattedExpiryDate: formatDashboardDate(displayExpiryDate),
     isV1,
     isPrimary,
+    isInGrace,
+    showProminentRenew: shouldShowProminentRenew(expiryDate, isV2),
+    useDefaultAvatar: isInGrace,
+    useWireframeNameplate: isInGrace,
     avatarUrl,
   }
 }

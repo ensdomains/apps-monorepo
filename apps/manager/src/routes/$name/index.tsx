@@ -10,6 +10,7 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
@@ -22,11 +23,13 @@ export const Route = createFileRoute('/$name/')({
       queryClient.prefetchQuery(profileRegistrationQuery(name)),
     ])
 
-    const isExpired =
-      expiryData?.expiry != null &&
-      Number(expiryData.expiry) * 1000 < Date.now()
+    const expiryDate =
+      expiryData?.expiry != null
+        ? new Date(Number(expiryData.expiry) * 1000)
+        : null
+    const isPastGrace = isPastGracePeriod(expiryDate, true)
 
-    if (isExpired) {
+    if (isPastGrace) {
       throw redirect(
         isFeatureEnabled('REGISTRATION_V2')
           ? {

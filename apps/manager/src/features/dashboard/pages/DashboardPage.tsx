@@ -9,6 +9,7 @@ import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
+import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
@@ -70,9 +71,12 @@ export const DashboardPage = () => {
             <UpgradeBanner />
           </motion.div>
         )}
+        <motion.div className="w-full px-4 md:px-0" {...stagger(1, shouldReduceMotion)}>
+          <DashboardGraceBanner primaryLabel={defaultName} />
+        </motion.div>
         <motion.div
           className="flex items-center gap-3 px-4 md:px-0"
-          {...stagger(1, shouldReduceMotion)}
+          {...stagger(2, shouldReduceMotion)}
         >
           <h1 className="text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
             <Trans>Hello</Trans>{' '}
@@ -103,7 +107,7 @@ export const DashboardPage = () => {
           )}
         </motion.div>
         {hasProfile && (
-          <motion.div {...stagger(2, shouldReduceMotion)}>
+          <motion.div {...stagger(3, shouldReduceMotion)}>
             <PrimaryNameCard
               avatarUrl={avatarUrl}
               primaryName={defaultName}
@@ -113,7 +117,7 @@ export const DashboardPage = () => {
         )}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
-          {...stagger(hasProfile ? 3 : 2, shouldReduceMotion)}
+          {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}
         >
           <div className="space-y-5">
             <NamesTable
@@ -125,11 +129,11 @@ export const DashboardPage = () => {
         {migrationEnabled && <MigrationProgressBanner />}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
-          {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}
+          {...stagger(hasProfile ? 5 : 4, shouldReduceMotion)}
         >
           <EducationCarousel />
         </motion.div>
-        <motion.div {...stagger(hasProfile ? 5 : 4, shouldReduceMotion)}>
+        <motion.div {...stagger(hasProfile ? 6 : 5, shouldReduceMotion)}>
           <FaqSection />
         </motion.div>
       </div>

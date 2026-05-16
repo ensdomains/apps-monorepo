@@ -8,6 +8,8 @@ import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
+import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
+import { isInGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
@@ -92,6 +94,26 @@ export const NameSuggestionItem = ({
     .otherwise(({ registrarQuery: query }) =>
       query.data ? !query.data.isAvailable : undefined,
     )
+  const registeredExpiryQuery = useQuery({
+    ...getDomainsQuery(
+      !isSubname && isRegistered === true
+        ? {
+            where: { name },
+            first: 1,
+            orderBy: Domain_OrderBy.Name,
+            orderDirection: OrderDirection.Asc,
+          }
+        : undefined,
+    ),
+    enabled: !isSubname && isRegistered === true,
+  })
+  const expirySeconds = registeredExpiryQuery.data?.domains[0]?.expiryDate
+  const isInGrace = isInGracePeriod(
+    typeof expirySeconds === 'number'
+      ? new Date(expirySeconds * 1000)
+      : null,
+    true,
+  )
   const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
   const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
   const isAvailable = isSupported && !isSubname && isRegistered === false
@@ -141,11 +163,16 @@ export const NameSuggestionItem = ({
           .with({ isError: true }, () => (
             <XIcon className="size-4 text-slate-500" />
           ))
-          .with({ isRegistered: true }, () => (
-            <div className="shrink-0 rounded-full bg-ens-white px-1.5 py-1 font-normal text-ens-lapis-core text-xs">
-              <Trans>Registered</Trans>
-            </div>
-          ))
+          .with({ isRegistered: true }, () =>
+            match(isInGrace)
+              .with(true, () => <GracePeriodBadge />)
+              .with(false, () => (
+                <div className="shrink-0 rounded-full bg-ens-white px-1.5 py-1 font-normal text-ens-lapis-core text-xs">
+                  <Trans>Registered</Trans>
+                </div>
+              ))
+              .exhaustive(),
+          )
           .with({ isSubname: true }, () => null)
           .with({ isRegistered: false }, () => (
             <div className="shrink-0 rounded-full bg-ens-peridot-bg px-1.5 py-1 font-normal text-ens-peridot-core text-xs">
