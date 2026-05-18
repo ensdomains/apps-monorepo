@@ -1,7 +1,6 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
-import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -132,15 +131,23 @@ export const V2RegistryInfo = ({
 
   if (!registries) return null
 
-  // The name's own subregistry slot. Always at(0) — may be zeroAddress when
-  // not yet deployed. Defined for 2LD, 3LD, 4LD shapes (i.e. anything where
-  // the user could deploy a subregistry for this name).
+  // findRegistries returns `[name's subregistry, ...ancestors..., root]`
+  // per LibRegistry.sol. For any depth ≥ 2LD:
+  //   - registries[0] is the name's own subregistry slot (may be zero).
+  //   - registries[1] is the immediate parent registry — the one that
+  //     holds this name's label and that the role check / deploy flow
+  //     target. The .eth registry happens to be at registries[1] for
+  //     2LDs; for deeper names it sits further along the array.
   const nameSubregistry = registries.at(0)
-
-  // Immediate parent registry — the registry that holds the label for this
-  // name. Same value used by /$name/deploy-registry (deploy-registry.tsx:61)
-  // so the deploy button targets the registry that the role check authorises.
   const parentRegistry = registries.at(1)
+
+  const hasNameSubregistry =
+    nameSubregistry !== undefined && nameSubregistry !== zeroAddress
+
+  // TLDs are redirected to /tld/$tld before this route, so labels.length is
+  // always ≥ 2 here. 2LDs get the VerifiedRegistryCard above the grid; deeper
+  // names use the same layout but without the verified-card highlight.
+  const is2LD = labels.length === 2
 
   return (
     <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
@@ -159,129 +166,34 @@ export const V2RegistryInfo = ({
           )}
       </div>
 
-      {match(registries)
-        .with([P.string, P.string, P.string], () => {
-          // ["2ld.eth"] on V2
-          const hasSubregistry = nameSubregistry !== zeroAddress
-          return (
-            <>
-              {hasSubregistry && <VerifiedRegistryCard />}
-              <RegistryCardsGrid
-                label={firstLabel}
-                protocol={ownerData.protocolVersion}
-                owner={ownerData.owner}
-                contractAddress={
-                  hasSubregistry ? (nameSubregistry as Address) : undefined
-                }
-                factoryAddress={
-                  hasSubregistry ? namechainVerifiableFactory : undefined
-                }
-                chainId={chainId}
-              />
-              <h2 className="leading-none text-heading font-medium">
-                Parent Registry
-              </h2>
-              <RegistryCardsGrid
-                label={labels[1]}
-                protocol={ownerData.protocolVersion}
-                contractAddress={registries.at(-2) as Address}
-                chainId={chainId}
-              />
-            </>
-          )
-        })
-        .with([P.string, P.string, P.string, P.string], () => {
-          // ["sub.2ld.eth"] on V2 — 3LD
-          const hasNameSubregistry = nameSubregistry !== zeroAddress
-          return (
-            <>
-              <RegistryCardsGrid
-                label={firstLabel}
-                protocol={ownerData.protocolVersion}
-                owner={ownerData.owner}
-                contractAddress={
-                  hasNameSubregistry ? (nameSubregistry as Address) : undefined
-                }
-                factoryAddress={
-                  hasNameSubregistry ? namechainVerifiableFactory : undefined
-                }
-                chainId={chainId}
-              />
-              <h2 className="leading-none text-heading font-medium">
-                Parent Registry
-              </h2>
-              <RegistryCardsGrid
-                label={labels[1]}
-                protocol={ownerData.protocolVersion}
-                contractAddress={registries.at(-3) as Address}
-                chainId={chainId}
-              />
-            </>
-          )
-        })
-        .with([P.string, P.string, P.string, P.string, P.string], () => {
-          // ["subsub.sub.2ld.eth"] on V2 — 4LD
-          const hasNameSubregistry = nameSubregistry !== zeroAddress
-          return (
-            <>
-              <RegistryCardsGrid
-                label={firstLabel}
-                protocol={ownerData.protocolVersion}
-                owner={ownerData.owner}
-                contractAddress={
-                  hasNameSubregistry ? (nameSubregistry as Address) : undefined
-                }
-                factoryAddress={
-                  hasNameSubregistry ? namechainVerifiableFactory : undefined
-                }
-                chainId={chainId}
-              />
-              <h2 className="leading-none text-heading font-medium">
-                Parent Registry
-              </h2>
-              <RegistryCardsGrid
-                label={labels[1]}
-                protocol={ownerData.protocolVersion}
-                contractAddress={registries.at(-4) as Address}
-                chainId={chainId}
-              />
-            </>
-          )
-        })
-        .otherwise(() => {
-          // 5LD+ catch-all. Layout matches 3LD/4LD: the name's own
-          // subregistry card plus a single "Parent Registry" card for the
-          // immediate parent (registries[1]). Deeper ancestors aren't shown
-          // — consistent with the convention above.
-          if (!parentRegistry) return null
-          const hasNameSubregistry =
-            nameSubregistry !== undefined && nameSubregistry !== zeroAddress
-          return (
-            <>
-              <RegistryCardsGrid
-                label={firstLabel}
-                protocol={ownerData.protocolVersion}
-                owner={ownerData.owner}
-                contractAddress={
-                  hasNameSubregistry ? (nameSubregistry as Address) : undefined
-                }
-                factoryAddress={
-                  hasNameSubregistry ? namechainVerifiableFactory : undefined
-                }
-                chainId={chainId}
-              />
-              <h2 className="leading-none text-heading font-medium">
-                Parent Registry
-              </h2>
-              <RegistryCardsGrid
-                label={labels[1]}
-                protocol={ownerData.protocolVersion}
-                contractAddress={parentRegistry}
-                chainId={chainId}
-              />
-            </>
-          )
-        })}
+      {is2LD && hasNameSubregistry && <VerifiedRegistryCard />}
+
+      <RegistryCardsGrid
+        label={firstLabel}
+        protocol={ownerData.protocolVersion}
+        owner={ownerData.owner}
+        contractAddress={
+          hasNameSubregistry ? (nameSubregistry as Address) : undefined
+        }
+        factoryAddress={
+          hasNameSubregistry ? namechainVerifiableFactory : undefined
+        }
+        chainId={chainId}
+      />
+
+      {parentRegistry && (
+        <>
+          <h2 className="leading-none text-heading font-medium">
+            Parent Registry
+          </h2>
+          <RegistryCardsGrid
+            label={labels[1]}
+            protocol={ownerData.protocolVersion}
+            contractAddress={parentRegistry}
+            chainId={chainId}
+          />
+        </>
+      )}
     </div>
   )
 }
