@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -21,7 +20,7 @@ vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ name: 'irrelevant.eth' }),
 }))
 
-const mockAccount = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
+const mockAccount = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
@@ -90,12 +89,12 @@ vi.mock('@tanstack/react-query', async () => {
 const { V2RegistryInfo } = await import('./registry')
 
 const ownerData = {
-  owner: '0x1111111111111111111111111111111111111111' as Address,
-  registryAddress: '0x1111111111111111111111111111111111111111' as Address,
+  owner: '0x1111111111111111111111111111111111111111',
+  registryAddress: '0x1111111111111111111111111111111111111111',
   protocolVersion: 'ENSv2' as const,
-}
+} as const
 
-const setRegistries = (registries: readonly (Address | null)[] | undefined) => {
+const setRegistries = (registries: readonly (string | null)[] | undefined) => {
   nameRegistriesResult.data = registries
   nameRegistriesResult.error = undefined
   nameRegistriesResult.isLoading = false
@@ -108,9 +107,9 @@ describe('V2RegistryInfo', () => {
 
   it('renders the deploy button for a 2LD with a deployed subregistry', () => {
     setRegistries([
-      '0x2222222222222222222222222222222222222222' as Address, // foo.eth's subregistry
-      '0x1111111111111111111111111111111111111111' as Address, // .eth registry
-      '0x0000000000000000000000000000000000000000' as Address, // root
+      '0x2222222222222222222222222222222222222222', // foo.eth's subregistry
+      '0x1111111111111111111111111111111111111111', // .eth registry
+      '0x0000000000000000000000000000000000000000', // root
     ])
 
     render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
@@ -123,9 +122,9 @@ describe('V2RegistryInfo', () => {
   it('renders the deploy button for a 3LD without a subregistry (WEB-249)', () => {
     setRegistries([
       zeroAddress, // 1.foo.eth's subregistry — not yet deployed
-      '0x2222222222222222222222222222222222222222' as Address, // foo.eth's subregistry (parent)
-      '0x1111111111111111111111111111111111111111' as Address, // .eth registry
-      '0x0000000000000000000000000000000000000000' as Address, // root
+      '0x2222222222222222222222222222222222222222', // foo.eth's subregistry (parent)
+      '0x1111111111111111111111111111111111111111', // .eth registry
+      '0x0000000000000000000000000000000000000000', // root
     ])
 
     render(<V2RegistryInfo name="1.foo.eth" ownerData={ownerData} />)
@@ -139,9 +138,9 @@ describe('V2RegistryInfo', () => {
     hasRolesResult.data = false
     setRegistries([
       zeroAddress,
-      '0x2222222222222222222222222222222222222222' as Address,
-      '0x1111111111111111111111111111111111111111' as Address,
-      '0x0000000000000000000000000000000000000000' as Address,
+      '0x2222222222222222222222222222222222222222',
+      '0x1111111111111111111111111111111111111111',
+      '0x0000000000000000000000000000000000000000',
     ])
 
     render(<V2RegistryInfo name="1.foo.eth" ownerData={ownerData} />)
@@ -154,10 +153,10 @@ describe('V2RegistryInfo', () => {
   it('renders the 4LD layout and deploy button for a 5-tuple registries shape', () => {
     setRegistries([
       zeroAddress, // x.1.foo.eth's subregistry — not yet deployed
-      '0x3333333333333333333333333333333333333333' as Address, // 1.foo.eth's subregistry (parent)
-      '0x2222222222222222222222222222222222222222' as Address, // foo.eth's subregistry
-      '0x1111111111111111111111111111111111111111' as Address, // .eth registry
-      '0x0000000000000000000000000000000000000000' as Address, // root
+      '0x3333333333333333333333333333333333333333', // 1.foo.eth's subregistry (parent)
+      '0x2222222222222222222222222222222222222222', // foo.eth's subregistry
+      '0x1111111111111111111111111111111111111111', // .eth registry
+      '0x0000000000000000000000000000000000000000', // root
     ])
 
     render(<V2RegistryInfo name="x.1.foo.eth" ownerData={ownerData} />)
