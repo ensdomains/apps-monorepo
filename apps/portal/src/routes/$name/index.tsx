@@ -24,7 +24,6 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
-import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
@@ -105,14 +104,6 @@ const Profile = ({
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
-  // Surfaced separately so the route can render an explicit error / loading
-  // state when the indexer query fails. React-query dedupes the underlying
-  // request shared with useGraceStatus.
-  const v2RegDataQuery = useQuery({
-    ...getV2RegistrationDataQueryOptions({ name }),
-    enabled: isEthTld && is2LD(name),
-  })
-
   // Loading states
   if (ownerQuery.isLoading) {
     return <LoadingSpinner title="Loading owner..." />
@@ -190,15 +181,15 @@ const Profile = ({
     }
 
     // Wait for indexer before deciding between v2 grace and error states
-    if (v2RegDataQuery.isLoading) {
+    if (grace.isLoading) {
       return <LoadingSpinner title="Loading..." />
     }
 
     // Without indexer data we can't distinguish grace from genuinely missing,
     // so surface the failure rather than falling through to "Name not found".
-    if (v2RegDataQuery.error) {
+    if (grace.error) {
       const errorMessage =
-        (v2RegDataQuery.error.cause as Error | undefined)?.message ??
+        (grace.error as { cause?: { message?: string } }).cause?.message ??
         'Failed to load registration data'
       return (
         <ErrorMessage title="Error loading name" description={errorMessage} />
