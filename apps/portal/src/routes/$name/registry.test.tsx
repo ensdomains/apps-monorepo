@@ -105,7 +105,7 @@ describe('V2RegistryInfo', () => {
     hasRolesResult.data = true
   })
 
-  it('renders the deploy button for a 2LD with a deployed subregistry', () => {
+  it('renders the deploy button and VerifiedRegistryCard for a 2LD with a deployed subregistry', () => {
     setRegistries([
       '0x2222222222222222222222222222222222222222', // foo.eth's subregistry
       '0x1111111111111111111111111111111111111111', // .eth registry
@@ -117,6 +117,23 @@ describe('V2RegistryInfo', () => {
     expect(
       screen.getByRole('link', { name: /deploy registry/i }),
     ).toBeInTheDocument()
+    // VerifiedRegistryCard is only shown for 2LDs that have actually
+    // deployed a subregistry.
+    expect(screen.getByTestId('verified-registry-card')).toBeInTheDocument()
+  })
+
+  it('omits VerifiedRegistryCard for a 2LD without a deployed subregistry', () => {
+    setRegistries([
+      zeroAddress, // foo.eth's subregistry not yet deployed
+      '0x1111111111111111111111111111111111111111', // .eth registry
+      '0x0000000000000000000000000000000000000000', // root
+    ])
+
+    render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+    expect(
+      screen.queryByTestId('verified-registry-card'),
+    ).not.toBeInTheDocument()
   })
 
   it('renders the deploy button for a 3LD without a subregistry (WEB-249)', () => {
@@ -132,6 +149,10 @@ describe('V2RegistryInfo', () => {
     expect(
       screen.getByRole('link', { name: /deploy registry/i }),
     ).toBeInTheDocument()
+    // Deeper names never show the verified-card highlight.
+    expect(
+      screen.queryByTestId('verified-registry-card'),
+    ).not.toBeInTheDocument()
   })
 
   it('hides the deploy button when the account lacks ROLE_SET_SUBREGISTRY', () => {
