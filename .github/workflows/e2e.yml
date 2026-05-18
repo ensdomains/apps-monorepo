@@ -23,21 +23,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Detect which apps' surface area changed so each matrix project can opt
-  # out when only unrelated code was touched. Shared paths (workflow,
-  # lockfile, packages/, e2e infra & config) flip both flags.
+  # Detect which apps' surface area changed and emit a JSON matrix of
+  # projects to run. Shared paths (workflow, lockfile, packages/, e2e
+  # infra & base config) flip both flags so any infrastructure change
+  # still runs the full matrix.
   changes:
     runs-on: ubuntu-latest
     outputs:
-      manager: ${{ steps.filter.outputs.manager }}
-      portal: ${{ steps.filter.outputs.portal }}
+      projects: ${{ steps.build-matrix.outputs.projects }}
+      has-projects: ${{ steps.build-matrix.outputs.has-projects }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # Shared paths are inlined into both filters (no YAML anchors,
+          # for compatibility with the action's parser).
           filters: |
-            shared: &shared
+            manager:
               - ".github/workflows/e2e.yml"
               - "packages/**"
               - "pnpm-lock.yaml"
@@ -47,36 +50,54 @@ jobs:
               - "e2e/playwright.config.base.ts"
               - "e2e/package.json"
               - "e2e/.env.ci"
-            manager:
-              - *shared
               - "apps/manager/**"
               - "e2e/projects/manager/**"
             portal:
-              - *shared
+              - ".github/workflows/e2e.yml"
+              - "packages/**"
+              - "pnpm-lock.yaml"
+              - "e2e/fixtures/**"
+              - "e2e/helpers/**"
+              - "e2e/infra/**"
+              - "e2e/playwright.config.base.ts"
+              - "e2e/package.json"
+              - "e2e/.env.ci"
               - "apps/portal/**"
               - "e2e/projects/portal/**"
+      - id: build-matrix
+        env:
+          MANAGER_CHANGED: ${{ steps.filter.outputs.manager }}
+          PORTAL_CHANGED: ${{ steps.filter.outputs.portal }}
+        run: |
+          projects=()
+          if [[ "$MANAGER_CHANGED" == "true" ]]; then
+            projects+=("manager" "manager-premium")
+          fi
+          if [[ "$PORTAL_CHANGED" == "true" ]]; then
+            projects+=("portal")
+          fi
+          # Build a JSON array
+          if [[ ${#projects[@]} -eq 0 ]]; then
+            echo "projects=[]" >> "$GITHUB_OUTPUT"
+            echo "has-projects=false" >> "$GITHUB_OUTPUT"
+          else
+            json=$(printf '"%s",' "${projects[@]}")
+            echo "projects=[${json%,}]" >> "$GITHUB_OUTPUT"
+            echo "has-projects=true" >> "$GITHUB_OUTPUT"
+          fi
 
   e2e:
     needs: changes
-    # Run a matrix project only when its app (or a shared path) changed.
-    # manager and manager-premium share the manager app so they're gated
-    # together. On push events dorny/paths-filter compares against the
-    # previous commit, keeping main-branch runs covered.
-    if: |
-      (matrix.project == 'portal' && needs.changes.outputs.portal == 'true') ||
-      ((matrix.project == 'manager' || matrix.project == 'manager-premium')
-        && needs.changes.outputs.manager == 'true')
+    if: needs.changes.outputs.has-projects == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
-        project:
-          - manager
-          - manager-premium
-          - portal
-          # - cross-app    # Enable when cross-app tests are added
+        # Dynamic — see the `changes` job for which projects this expands
+        # to. cross-app can be added to the array once tests exist.
+        project: ${{ fromJSON(needs.changes.outputs.projects) }}
 
     steps:
       # ── checkout & toolchain ──────────────────────────────────────
