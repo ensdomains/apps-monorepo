@@ -199,6 +199,17 @@ const Profile = ({
       return <LoadingSpinner title="Loading..." />
     }
 
+    // Without indexer data we can't distinguish grace from genuinely missing,
+    // so surface the failure rather than falling through to "Name not found".
+    if (v2RegDataQuery.error) {
+      const errorMessage =
+        (v2RegDataQuery.error.cause as Error | undefined)?.message ??
+        'Failed to load registration data'
+      return (
+        <ErrorMessage title="Error loading name" description={errorMessage} />
+      )
+    }
+
     // V2 grace: registrar's _checkGrace still blocks re-registration, but the
     // registry's ownerOf returned zero. Render banner + Extend so the previous
     // owner can renew before the window closes.
