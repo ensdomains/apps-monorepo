@@ -147,6 +147,7 @@ export const V2RegistryInfo = ({
       <div className="flex items-center justify-between">
         <h1 className="text-heading font-medium leading-none">Registry</h1>
         {parentRegistry &&
+          parentRegistry !== zeroAddress &&
           account &&
           nameSubregistry !== undefined && ( // as long as it returns one, even if zero
             <DeploySubregistryButton
