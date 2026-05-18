@@ -174,4 +174,33 @@ describe('V2RegistryInfo', () => {
       '0x3333333333333333333333333333333333333333',
     )
   })
+
+  // Mirrors on-chain findRegistries(5.4.testing.fresh.eth) on Sepolia.
+  it('renders the 5LD layout and deploy button for a 6-tuple registries shape', () => {
+    setRegistries([
+      zeroAddress, // 5.4.testing.fresh.eth — not yet deployed
+      '0x1e39685086544eD33b561Fb2aa2B22192F5e3c47', // 4.testing.fresh.eth (parent)
+      '0x4d337208B153620A9ec54Fb27aeF50743F7d4A50', // testing.fresh.eth
+      '0x2f8eBF59b8dEeB06d6a0F0443b5bAd9509620d99', // fresh.eth
+      '0x796fFF2E907449be8D5921BCC215B1b76D89d080', // .eth
+      '0x3A3E15A5d27fF6F05C844313312f2e72096D3eD3', // root
+    ])
+
+    render(
+      <V2RegistryInfo name="5.4.testing.fresh.eth" ownerData={ownerData} />,
+    )
+
+    expect(
+      screen.getByRole('link', { name: /deploy registry/i }),
+    ).toBeInTheDocument()
+
+    const grids = screen.getAllByTestId('registry-cards-grid')
+    expect(grids).toHaveLength(2)
+    expect(grids[0]).toHaveAttribute('data-label', '5')
+    expect(grids[1]).toHaveAttribute('data-label', '4')
+    expect(grids[1]).toHaveAttribute(
+      'data-contract',
+      '0x1e39685086544eD33b561Fb2aa2B22192F5e3c47',
+    )
+  })
 })

@@ -149,8 +149,7 @@ export const V2RegistryInfo = ({
         {parentRegistry &&
           parentRegistry !== zeroAddress &&
           account &&
-          nameSubregistry !== undefined && // as long as it returns one, even if zero
-          labels.length <= 4 && ( // body below only renders 2LD / 3LD / 4LD
+          nameSubregistry !== undefined && ( // as long as it returns one, even if zero
             <DeploySubregistryButton
               name={name}
               registryAddress={parentRegistry}
@@ -249,7 +248,40 @@ export const V2RegistryInfo = ({
             </>
           )
         })
-        .otherwise(() => null)}
+        .otherwise(() => {
+          // 5LD+ catch-all. Layout matches 3LD/4LD: the name's own
+          // subregistry card plus a single "Parent Registry" card for the
+          // immediate parent (registries[1]). Deeper ancestors aren't shown
+          // — consistent with the convention above.
+          if (!parentRegistry) return null
+          const hasNameSubregistry =
+            nameSubregistry !== undefined && nameSubregistry !== zeroAddress
+          return (
+            <>
+              <RegistryCardsGrid
+                label={firstLabel}
+                protocol={ownerData.protocolVersion}
+                owner={ownerData.owner}
+                contractAddress={
+                  hasNameSubregistry ? (nameSubregistry as Address) : undefined
+                }
+                factoryAddress={
+                  hasNameSubregistry ? namechainVerifiableFactory : undefined
+                }
+                chainId={chainId}
+              />
+              <h2 className="leading-none text-heading font-medium">
+                Parent Registry
+              </h2>
+              <RegistryCardsGrid
+                label={labels[1]}
+                protocol={ownerData.protocolVersion}
+                contractAddress={parentRegistry}
+                chainId={chainId}
+              />
+            </>
+          )
+        })}
     </div>
   )
 }

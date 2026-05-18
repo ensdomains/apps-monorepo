@@ -18,8 +18,28 @@ type TLD = [tld: Address, ...Root]
 type TwoLD = [nameOrZero: Address, ...TLD]
 type ThreeLD = [nameAddress: Address, ...TwoLD]
 type FourLD = [nameAddress: Address, ...ThreeLD]
+// Names deeper than 4LD: shape is `[name, ...ancestorRegistries, root]`.
+// findRegistries returns one entry per label plus root, so a 5LD has 6
+// elements, a 6LD has 7, etc. The discriminating tuple types above let
+// callers match on the common 2-/3-/4LD shapes; anything deeper falls
+// into this catch-all (5LD+ = at least 6 entries).
+type FiveOrMoreLD = readonly [
+  Address,
+  Address,
+  Address,
+  Address,
+  Address,
+  Address,
+  ...Address[],
+]
 
-export type NameRegistries = Root | TLD | TwoLD | ThreeLD | FourLD
+export type NameRegistries =
+  | Root
+  | TLD
+  | TwoLD
+  | ThreeLD
+  | FourLD
+  | FiveOrMoreLD
 
 class NameRegistriesError extends TaggedError('NameRegistriesError')<{
   cause: GetNameRegistriesErrorType
