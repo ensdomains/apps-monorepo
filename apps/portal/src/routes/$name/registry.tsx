@@ -149,7 +149,8 @@ export const V2RegistryInfo = ({
         {parentRegistry &&
           parentRegistry !== zeroAddress &&
           account &&
-          nameSubregistry !== undefined && ( // as long as it returns one, even if zero
+          nameSubregistry !== undefined && // as long as it returns one, even if zero
+          labels.length <= 4 && ( // body below only renders 2LD / 3LD / 4LD
             <DeploySubregistryButton
               name={name}
               registryAddress={parentRegistry}
@@ -192,8 +193,7 @@ export const V2RegistryInfo = ({
         })
         .with([P.string, P.string, P.string, P.string], () => {
           // ["sub.2ld.eth"] on V2 — 3LD
-          const hasNameSubregistry =
-            nameSubregistry !== undefined && nameSubregistry !== zeroAddress
+          const hasNameSubregistry = nameSubregistry !== zeroAddress
           return (
             <>
               <RegistryCardsGrid
@@ -222,8 +222,7 @@ export const V2RegistryInfo = ({
         })
         .with([P.string, P.string, P.string, P.string, P.string], () => {
           // ["subsub.sub.2ld.eth"] on V2 — 4LD
-          const hasNameSubregistry =
-            nameSubregistry !== undefined && nameSubregistry !== zeroAddress
+          const hasNameSubregistry = nameSubregistry !== zeroAddress
           return (
             <>
               <RegistryCardsGrid
