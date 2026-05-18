@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { CalendarIcon, ClockIcon, PlusCircleIcon } from 'lucide-react'
+import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import type { ProtocolVersion } from '@/utils/types'
@@ -23,7 +23,11 @@ const RegistrationDate = ({ blockNumber }: RegistrationDateProps) => {
 
   if (!data) return null
 
-  return <Timestamp timestamp={data.timestamp} />
+  return (
+    <span className="font-semi-mono">
+      <Timestamp timestamp={data.timestamp} />
+    </span>
+  )
 }
 
 type RegistrationDataProps = RegistrationDateProps
@@ -82,7 +86,9 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Expires
           </span>
-          <Timestamp timestamp={expiry.data.expiry} />
+          <span className="font-semi-mono">
+            <Timestamp timestamp={expiry.data.expiry} />
+          </span>
         </div>
       )}
       {blockNumber && <RegistrationData blockNumber={blockNumber} />}
@@ -124,7 +130,9 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
             <span className="text-sm text-muted-foreground w-24 shrink-0">
               Expires
             </span>
-            <Timestamp timestamp={data.expiry} />
+            <span className="font-semi-mono">
+              <Timestamp timestamp={data.expiry} />
+            </span>
           </div>
         )
       )}
@@ -135,17 +143,9 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Registered
           </span>
-          <Timestamp timestamp={data.registeredAt} />
-        </div>
-      )}
-
-      {data.createdAt !== null && (
-        <div className="flex items-center gap-4 py-3">
-          <PlusCircleIcon className="size-4 text-neutral-7 shrink-0" />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Created
+          <span className="font-semi-mono">
+            <Timestamp timestamp={data.registeredAt} />
           </span>
-          <Timestamp timestamp={data.createdAt} />
         </div>
       )}
     </>

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import type { RefObject } from 'react'
 import { SearchInput } from './SearchInput'
 import { SearchSuggestions } from './SearchSuggestions'
 
@@ -7,6 +8,7 @@ type MobileSearchPanelProps = {
   readonly onClose: () => void
   readonly searchValue: string
   readonly isLoading: boolean
+  readonly containerRef?: RefObject<HTMLDivElement | null>
 }
 
 export const MobileSearchPanel = ({
@@ -14,6 +16,7 @@ export const MobileSearchPanel = ({
   onClose,
   searchValue,
   isLoading,
+  containerRef,
 }: MobileSearchPanelProps) => {
   return (
     <AnimatePresence>
@@ -35,6 +38,7 @@ export const MobileSearchPanel = ({
           >
             <div className="max-h-[60vh] overflow-y-auto rounded-lg bg-white">
               <SearchSuggestions
+                containerRef={containerRef}
                 isLoading={isLoading}
                 onNavigate={onClose}
                 searchValue={searchValue}
@@ -52,6 +56,7 @@ type MobileSearchInputProps = {
   readonly searchValue: string
   readonly setSearchValue: (value: string) => void
   readonly isLoading: boolean
+  readonly inputRef?: RefObject<HTMLInputElement | null>
 }
 
 export const MobileSearchInput = ({
@@ -59,6 +64,7 @@ export const MobileSearchInput = ({
   searchValue,
   setSearchValue,
   isLoading,
+  inputRef,
 }: MobileSearchInputProps) => {
   return (
     <SearchInput
@@ -72,6 +78,7 @@ export const MobileSearchInput = ({
           onClose()
         }
       }}
+      ref={inputRef}
       searchValue={searchValue}
       setSearchValue={setSearchValue}
     />

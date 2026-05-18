@@ -1,5 +1,6 @@
 import { Popover } from '@base-ui/react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { useDebounce } from '@/hooks/useDebounce'
 import { SearchInput } from './SearchInput'
 import { SearchSuggestions } from './SearchSuggestions'
@@ -7,6 +8,8 @@ import { SearchSuggestions } from './SearchSuggestions'
 export const DesktopSearch = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const suggestionsContainerRef = useRef<HTMLDivElement>(null)
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
     delay: 500,
   })
@@ -16,6 +19,12 @@ export const DesktopSearch = () => {
     setSearchValue('')
   }
 
+  useOpenFirstSearchResultHotkey({
+    enabled: debouncedSearchValue === searchValue,
+    resultsContainer: suggestionsContainerRef,
+    target: inputRef,
+  })
+
   return (
     <Popover.Root
       onOpenChange={(open, { reason, cancel }) => {
@@ -24,6 +33,11 @@ export const DesktopSearch = () => {
           cancel()
           return
         }
+
+        if (reason === 'escape-key' && !open) {
+          inputRef.current?.blur()
+        }
+
         setIsOpen(open)
       }}
       open={isOpen}
@@ -33,6 +47,8 @@ export const DesktopSearch = () => {
         render={(props) => (
           <SearchInput
             isLoading={debouncedSearchValue !== searchValue}
+            onFocus={() => setIsOpen(true)}
+            ref={inputRef}
             searchValue={searchValue}
             setSearchValue={setSearchValue}
             wrapperProps={props}
@@ -50,6 +66,7 @@ export const DesktopSearch = () => {
             initialFocus={false}
           >
             <SearchSuggestions
+              containerRef={suggestionsContainerRef}
               isLoading={debouncedSearchValue !== searchValue}
               onNavigate={resetSearch}
               searchValue={debouncedSearchValue}

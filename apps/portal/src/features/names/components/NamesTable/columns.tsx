@@ -4,7 +4,6 @@ import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
@@ -21,12 +20,9 @@ export type NameRow = {
 }
 
 const NameCell = ({ name }: { name: string }) => (
-  <div className="flex flex-row gap-2 items-center">
-    <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-    <EntityBadgeWithActions variant="name" name={name}>
-      {name}
-    </EntityBadgeWithActions>
-  </div>
+  <EntityBadgeWithActions variant="name" name={name} showAvatar>
+    {name}
+  </EntityBadgeWithActions>
 )
 
 export const columns: ColumnDef<NameRow>[] = [

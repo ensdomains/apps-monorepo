@@ -10,7 +10,6 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getNameStatus } from '@/features/renew/utils/nameExtension'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
@@ -27,12 +26,9 @@ interface NameListProps {
 type column = MergedName
 
 const NameCell = ({ name }: { name: string }) => (
-  <div className="flex flex-row gap-2 items-center">
-    <NameAvatar name={name} height="20px" width="20px" rounded="rounded-sm" />
-    <EntityBadgeWithActions variant="name" name={name}>
-      {name}
-    </EntityBadgeWithActions>
-  </div>
+  <EntityBadgeWithActions variant="name" name={name} showAvatar>
+    {name}
+  </EntityBadgeWithActions>
 )
 
 const columns: ColumnDef<column>[] = [
