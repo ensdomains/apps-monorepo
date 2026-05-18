@@ -1,11 +1,23 @@
 /**
- * Session Types for ZeroDev Smart Sessions
+ * Session Types for Smart Sessions
  *
  * Defines the structure for storing and managing session keys.
  * Sessions use sudo policy for unrestricted access (security to be added later).
+ *
+ * Rhinestone-specific session types (`RhinestoneStoredSession`,
+ * `isRhinestoneSession`) live in `@ens-apps/rhinestone` and are re-exported
+ * here so existing call sites can continue to import them from a single
+ * place during the gradual extraction.
  */
 
+import {
+  isRhinestoneSession,
+  type RhinestoneStoredSession,
+} from '@ens-apps/rhinestone'
 import type { Address, Hex } from 'viem'
+
+export { isRhinestoneSession }
+export type { RhinestoneStoredSession }
 
 export type SessionProvider = 'zerodev' | 'rhinestone'
 
@@ -46,28 +58,6 @@ export interface ZeroDevStoredSession extends BaseStoredSession {
   readonly serializedSessionAccount: string
 }
 
-/**
- * Rhinestone session (new format)
- * Uses Rhinestone SDK's session config with on-chain enablement data
- */
-export interface RhinestoneStoredSession extends BaseStoredSession {
-  readonly provider: 'rhinestone'
-  /** JSON-serialized RhinestoneSessionConfig */
-  readonly sessionConfig: string
-  /**
-   * Transitional compatibility field for existing call-sites typed against
-   * ZeroDev sessions while Rhinestone session handling is being adopted.
-   */
-  readonly serializedSessionAccount: string
-  /** Owner signature from experimental_signEnableSession (one-time enablement) */
-  readonly enableSignature: Hex
-  /**
-   * JSON-serialized array of { chainId: string; sessionDigest: Hex }.
-   * chainId is stored as string because bigint is not JSON-serializable.
-   */
-  readonly hashesAndChainIds: string
-}
-
 export type StoredSession = ZeroDevStoredSession | RhinestoneStoredSession
 
 /**
@@ -78,15 +68,6 @@ export function isZeroDevSession(
   session: StoredSession,
 ): session is ZeroDevStoredSession {
   return session.provider === undefined || session.provider === 'zerodev'
-}
-
-/**
- * Type guard for Rhinestone sessions
- */
-export function isRhinestoneSession(
-  session: StoredSession,
-): session is RhinestoneStoredSession {
-  return session.provider === 'rhinestone'
 }
 
 /**

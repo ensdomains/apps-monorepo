@@ -8,6 +8,7 @@
  * React hooks and XState actors alike.
  */
 
+import { SessionError } from '@ens-apps/rhinestone'
 import {
   deserializePermissionAccount,
   serializePermissionAccount,
@@ -45,18 +46,12 @@ const ENTRY_POINT = {
   version: '0.7' as const,
 }
 
-/**
- * Error types for session operations
- */
-export class SessionError extends Error {
-  constructor(
-    public readonly reason: string,
-    public readonly details?: string,
-  ) {
-    super(`${reason}${details ? `: ${details}` : ''}`)
-    this.name = 'SessionError'
-  }
-}
+// Re-export `SessionError` from the shared rhinestone package so the
+// runtime class is the same instance whether the error originated from a
+// ZeroDev session helper here or from a Rhinestone session helper in
+// `@ens-apps/rhinestone`. Existing call sites can continue to import
+// `SessionError` from this file.
+export { SessionError }
 
 export interface CreateZeroDevSessionParams {
   readonly ownerAddress: Address

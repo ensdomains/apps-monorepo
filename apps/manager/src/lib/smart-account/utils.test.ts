@@ -8,10 +8,12 @@
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 import type { Account, Hex } from 'viem'
+import { maxUint256 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   getTxHashResult,
+  normalizeSessionDetailsForEip712Signing,
   WalletClientNoConnectedAccountError,
   walletClientToAccount,
   wrapParaAccount,
@@ -769,5 +771,45 @@ describe('internal function behavior', () => {
         }),
       )
     })
+  })
+})
+
+describe('normalizeSessionDetailsForEip712Signing', () => {
+  it('replaces unsafe JS number expires with maxUint256 (Para / float corruption)', () => {
+    const details = {
+      nonces: [9n],
+      hashesAndChainIds: [
+        { chainId: 11155111n, sessionDigest: '0xdigest' as Hex },
+      ],
+      data: {
+        message: {
+          sessionsAndChainIds: [
+            {
+              chainId: 11155111,
+              session: {
+                expires: 1.157920892373162e77 as number,
+                nonce: 9,
+              },
+            },
+          ],
+        },
+      },
+    }
+
+    normalizeSessionDetailsForEip712Signing(details)
+
+    const [row] = (
+      details.data.message as unknown as {
+        sessionsAndChainIds: Array<{
+          session: { expires: bigint; nonce: bigint }
+        }>
+      }
+    ).sessionsAndChainIds
+
+    if (!row) throw new Error('sessionsAndChainIds row is missing')
+    const sess = row.session
+
+    expect(sess.expires).toBe(maxUint256)
+    expect(sess.nonce).toBe(9n)
   })
 })

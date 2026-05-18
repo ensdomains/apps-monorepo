@@ -1,5 +1,6 @@
 'use client'
 
+import { buildRegistrationSessionActions } from '@ens-apps/rhinestone'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -30,7 +31,6 @@ import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import type { RhinestoneConfig } from './rhinestone'
-import { buildRegistrationSessionActions } from './sessions/build-registration-session'
 import {
   selectIsCreatingSession,
   selectIsLoading,

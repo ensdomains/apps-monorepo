@@ -14,7 +14,7 @@
  * The session is NOT installed on-chain here. It is enabled lazily as part of
  * the first real transaction, via enableData in the experimental_session signers.
  *
- * @see https://docs.rhinestone.dev — multi-chain session “enable mode”
+ * @see https://docs.rhinestone.dev — multi-chain session "enable mode"
  */
 
 import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
@@ -25,8 +25,8 @@ import {
   buildRegistrationSessionActions,
   REGISTRATION_SESSION_VALIDITY_SECONDS,
 } from './build-registration-session'
+import { SessionError } from './errors'
 import type { RhinestoneStoredSession } from './types'
-import { SessionError } from './zerodev-session'
 
 export interface CreateRhinestoneSessionParams {
   readonly ownerAddress: Address

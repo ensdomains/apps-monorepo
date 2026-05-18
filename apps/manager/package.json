@@ -25,6 +25,7 @@
   "dependencies": {
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
+    "@ens-apps/rhinestone": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",

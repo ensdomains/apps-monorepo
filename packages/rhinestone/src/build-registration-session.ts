@@ -38,7 +38,26 @@ import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/ve
 import type { Session } from '@rhinestone/sdk'
 import type { Address } from 'viem'
 import { erc20Abi, getAbiItem, toFunctionSelector } from 'viem'
-import { HCA_FACTORY_ABI } from '@/lib/hca-factory.abi'
+
+/**
+ * HCA Factory `setAccountOwner` ABI fragment.
+ *
+ * Inlined here so this package does not need to reach back into
+ * `apps/manager/src/lib/hca-factory.abi.ts`. Keep this in sync with the
+ * canonical ABI in the manager app if the factory interface ever changes.
+ */
+const HCA_FACTORY_SET_ACCOUNT_OWNER_ABI = [
+  {
+    inputs: [
+      { internalType: 'address', name: 'hca', type: 'address' },
+      { internalType: 'address', name: 'owner', type: 'address' },
+    ],
+    name: 'setAccountOwner',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const
 
 /** Default session lifetime: 30 days. */
 export const REGISTRATION_SESSION_VALIDITY_SECONDS = 30 * 24 * 60 * 60
@@ -73,7 +92,10 @@ const SELECTORS = {
     }),
   ),
   setAccountOwner: toFunctionSelector(
-    getAbiItem({ abi: HCA_FACTORY_ABI, name: 'setAccountOwner' }),
+    getAbiItem({
+      abi: HCA_FACTORY_SET_ACCOUNT_OWNER_ABI,
+      name: 'setAccountOwner',
+    }),
   ),
 } as const
 
