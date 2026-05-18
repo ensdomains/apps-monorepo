@@ -5,12 +5,17 @@ import {
   getSelectedNames,
   isExtendable2LD,
   MS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
 } from './nameExtension'
 
 const future = new Date(Date.now() + 30 * MS_PER_DAY)
-const past = new Date(Date.now() - 30 * MS_PER_DAY)
 const withinGrace = new Date(Date.now() - 10 * MS_PER_DAY)
-const beyondGrace = new Date(Date.now() - (GRACE_PERIOD_DAYS + 1) * MS_PER_DAY)
+const beyondV1Grace = new Date(
+  Date.now() - (GRACE_PERIOD_DAYS + 1) * MS_PER_DAY,
+)
+const beyondV2Grace = new Date(
+  Date.now() - (V2_GRACE_PERIOD_DAYS + 1) * MS_PER_DAY,
+)
 
 describe('isExtendable2LD', () => {
   describe('subname rejection', () => {
@@ -41,25 +46,29 @@ describe('isExtendable2LD', () => {
     })
   })
 
-  describe('v2 names (no grace period)', () => {
+  describe('v2 names (28-day grace period)', () => {
     it('accepts a v2 name with future expiry', () => {
       expect(
         isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: future }),
       ).toBe(true)
     })
 
-    it('rejects a v2 name that has expired', () => {
-      expect(
-        isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: past }),
-      ).toBe(false)
-    })
-
-    it('rejects a v2 name within the v1 grace period', () => {
+    it('accepts a v2 name within the grace period', () => {
       expect(
         isExtendable2LD({
           name: 'alice.eth',
           isV2: true,
           expiryDate: withinGrace,
+        }),
+      ).toBe(true)
+    })
+
+    it('rejects a v2 name beyond the grace period', () => {
+      expect(
+        isExtendable2LD({
+          name: 'alice.eth',
+          isV2: true,
+          expiryDate: beyondV2Grace,
         }),
       ).toBe(false)
     })
@@ -93,7 +102,7 @@ describe('isExtendable2LD', () => {
         isExtendable2LD({
           name: 'alice.eth',
           isV2: false,
-          expiryDate: beyondGrace,
+          expiryDate: beyondV1Grace,
         }),
       ).toBe(false)
     })
