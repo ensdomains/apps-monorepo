@@ -1,5 +1,5 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { err, ok } from 'neverthrow'
+import { err, ok, type Result } from 'neverthrow'
 
 // ENS names rules:
 // - Minimum 3 characters for the label (excluding .eth)
@@ -8,7 +8,9 @@ import { err, ok } from 'neverthrow'
 // - No multiple consecutive dots
 // - Any tld is allowed, if not present, it is assumed to be .eth
 
-class ParseNameError<TReason extends string> extends TaggedError(
+const INVALID_LABEL_CHARS = /[&*@#$%^()[\]{}|\\:;"'<>?,=+~`!]/
+
+export class ParseNameError<TReason extends string> extends TaggedError(
   'ParseNameError',
 )<{
   reason: TReason
@@ -22,12 +24,29 @@ class ParseNameError<TReason extends string> extends TaggedError(
   }
 }
 
-export const parseName = (name: string) => {
+type ParsedName = {
+  subLabels: string[]
+  label: string
+  tld: string
+}
+
+export const parseName = (
+  name: string,
+): Result<
+  ParsedName,
+  ParseNameError<
+    | 'SPACE_NOT_ALLOWED'
+    | 'MULTIPLE_CONSECUTIVE_DOTS'
+    | 'TLD_NOT_FOUND'
+    | 'LABEL_NOT_FOUND'
+    | 'INVALID_CHARACTER'
+  >
+> => {
   // Remove any leading or trailing whitespace
   const normalized = name.trim().toLowerCase()
 
-  // Spaces are not allowed
-  if (normalized.includes(' ')) {
+  // Whitespace is not allowed inside names
+  if (/\s/.test(normalized)) {
     return ParseNameError.err('SPACE_NOT_ALLOWED')
   }
 
@@ -49,6 +68,10 @@ export const parseName = (name: string) => {
 
   if (!label) {
     return ParseNameError.err('LABEL_NOT_FOUND')
+  }
+
+  if ([...labels, label, tld].some((part) => INVALID_LABEL_CHARS.test(part))) {
+    return ParseNameError.err('INVALID_CHARACTER')
   }
 
   return ok({

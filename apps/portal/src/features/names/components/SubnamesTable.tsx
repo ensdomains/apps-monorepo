@@ -29,7 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -44,12 +43,9 @@ export interface SubnameRow {
 const EMPTY_PENDING_SET: ReadonlySet<string> = new Set()
 
 const OwnerCell = ({ owner }: { owner: Address }) => (
-  <div className="flex flex-row gap-2 items-center">
-    <NameAvatar name={owner} height="20px" width="20px" rounded="rounded-sm" />
-    <EntityBadgeWithActions variant="address" address={owner}>
-      {truncateAddress(owner)}
-    </EntityBadgeWithActions>
-  </div>
+  <EntityBadgeWithActions variant="address" address={owner}>
+    {truncateAddress(owner)}
+  </EntityBadgeWithActions>
 )
 
 interface SubnamesTableProps {
@@ -107,17 +103,9 @@ function buildColumns(
       cell: ({ row }) => {
         const name = row.original.name
         return (
-          <div className="flex flex-row gap-2 items-center">
-            <NameAvatar
-              name={name}
-              height="20px"
-              width="20px"
-              rounded="rounded-sm"
-            />
-            <EntityBadgeWithActions variant="name" name={name}>
-              {name}
-            </EntityBadgeWithActions>
-          </div>
+          <EntityBadgeWithActions variant="name" name={name} showAvatar>
+            {name}
+          </EntityBadgeWithActions>
         )
       },
     },
@@ -296,15 +284,10 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <NameAvatar
-                      name={row.original.name}
-                      height="20px"
-                      width="20px"
-                      rounded="rounded-sm"
-                    />
                     <EntityBadgeWithActions
                       variant="name"
                       name={row.original.name}
+                      showAvatar
                     >
                       {row.original.name}
                     </EntityBadgeWithActions>

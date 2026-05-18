@@ -41,8 +41,8 @@ export const useBaseRate = (label: string) => {
     return 0n
   }
 
-  const labelLength = Math.min(getLabelLength(label), baseRates.data.length - 1)
-  const baseRate = baseRates.data[labelLength]
+  const labelLength = Math.min(getLabelLength(label), baseRates.data.length)
+  const baseRate = baseRates.data[labelLength - 1]
 
   if (baseRate === undefined) {
     return 0n

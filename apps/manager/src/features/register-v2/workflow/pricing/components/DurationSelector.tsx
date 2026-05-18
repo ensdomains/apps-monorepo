@@ -1,10 +1,9 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { msg } from '@lingui/core/macro'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
 import { zeroAddress } from 'viem'
-import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
-import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -15,13 +14,30 @@ import {
 } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { DurationCustomRow } from './DurationCustomRow'
-import { DurationPresetRow } from './DurationPresetRow'
+import { type DurationPresetData, DurationPresetRow } from './DurationPresetRow'
 
-export const PRESET_DURATIONS: number[] = [
-  SECONDS_IN_YEAR,
-  SECONDS_IN_YEAR * 3,
-  SECONDS_IN_YEAR * 5,
-  SECONDS_IN_YEAR * 10,
+export const PRESET_DURATIONS: DurationPresetData[] = [
+  {
+    duration: SECONDS_IN_YEAR,
+    title: msg`Starter`,
+    subtitle: msg`Try it out`,
+    kind: 'default',
+    color: 'citrine',
+  },
+  {
+    duration: SECONDS_IN_YEAR * 3,
+    title: msg`Committed`,
+    subtitle: msg`Make it yours`,
+    kind: 'mostPopular',
+    color: 'peridot',
+  },
+  {
+    duration: SECONDS_IN_YEAR * 6,
+    title: msg`Long-term identity`,
+    subtitle: msg`Best yearly price`,
+    kind: 'default',
+    color: 'garnet',
+  },
 ]
 
 type PresetPricingQuery = {
@@ -43,10 +59,8 @@ export const DurationSelector = () => {
 
   const ownerAddress = account.ownerAddress ?? zeroAddress
 
-  const baseRate = useBaseRate(label)
-
   const presetPricingQueries = useQueries({
-    queries: PRESET_DURATIONS.map((duration) =>
+    queries: PRESET_DURATIONS.map(({ duration }) =>
       getPricingQueryOptions(label, ownerAddress, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
@@ -76,32 +90,28 @@ export const DurationSelector = () => {
   })
 
   const selectedPresetIdx = PRESET_DURATIONS.findIndex(
-    (duration) => Math.abs(selectedDuration - duration) < secondsInDay,
+    ({ duration }) => Math.abs(selectedDuration - duration) < secondsInDay,
   )
 
   return (
-    <div className="flex h-full flex-col justify-between gap-1 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-1 shadow-temp-card">
-      {PRESET_DURATIONS.map((duration, idx) => {
+    <div className="flex h-full flex-col justify-between gap-3 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-3 shadow-temp-card">
+      {PRESET_DURATIONS.map((data, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {
           throw new Error('Invalid preset duration index')
         }
 
-        const { discountPercentage } = calculateDiscount(
-          query.data?.basePrice ?? 0,
-          baseRate,
-          BigInt(duration),
-        )
-
         return (
           <DurationPresetRow
-            discountPercentage={discountPercentage}
-            duration={duration}
+            data={data}
             isLoading={query.isPending}
             isSelected={idx === selectedPresetIdx}
-            key={duration}
+            key={data.duration}
             onSelect={() =>
-              uiActor.send({ type: 'pricing.duration.set', duration })
+              uiActor.send({
+                type: 'pricing.duration.set',
+                duration: data.duration,
+              })
             }
             price={query.data?.totalPrice}
           />

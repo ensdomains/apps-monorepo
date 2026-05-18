@@ -1,18 +1,53 @@
+import { normalize } from 'viem/ens'
+
 type Eth2LdName = {
   readonly label: string
   readonly name: string
 }
 
-export const normalizeEth2LdName = (name: string): Eth2LdName | null => {
-  const normalized = name.toLowerCase()
-  const labels = normalized.split('.')
+type EthName = {
+  readonly leafLabel: string
+  readonly name: string
+  readonly parentLabelsRootFirst: readonly string[]
+}
 
-  if (labels.length !== 2 || labels[1] !== 'eth' || !labels[0]) {
+export const normalizeEthName = (name: string): EthName | null => {
+  let normalized: string
+
+  try {
+    normalized = normalize(name)
+  } catch {
+    return null
+  }
+
+  const labels = normalized.split('.')
+  const leafLabel = labels[0]
+
+  if (
+    labels.length < 2 ||
+    labels.at(-1) !== 'eth' ||
+    !leafLabel ||
+    labels.some((label) => !label)
+  ) {
     return null
   }
 
   return {
-    label: labels[0],
+    leafLabel,
     name: normalized,
+    parentLabelsRootFirst: labels.slice(1, -1).reverse(),
+  }
+}
+
+export const normalizeEth2LdName = (name: string): Eth2LdName | null => {
+  const ethName = normalizeEthName(name)
+
+  if (!ethName || ethName.parentLabelsRootFirst.length > 0) {
+    return null
+  }
+
+  return {
+    label: ethName.leafLabel,
+    name: ethName.name,
   }
 }
