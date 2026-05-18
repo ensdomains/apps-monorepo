@@ -24,20 +24,13 @@ export const RegistryLocation = ({
 
   const hasSubregistry = data.registryAddress !== zeroAddress
 
-  return (
-    <div className="flex-1 flex flex-col gap-1">
-      <span className="text-sm text-muted-foreground">Subregistry</span>
+  if (!hasSubregistry) {
+    return <div className="text-muted-foreground">No subregistry</div>
+  }
 
-      {hasSubregistry ? (
-        <EntityBadgeWithActions
-          variant="contract"
-          address={data.registryAddress}
-        >
-          {truncateAddress(data.registryAddress, 6, 4, '...')}
-        </EntityBadgeWithActions>
-      ) : (
-        <div className="text-muted-foreground">No subregistry</div>
-      )}
-    </div>
+  return (
+    <EntityBadgeWithActions variant="contract" address={data.registryAddress}>
+      {truncateAddress(data.registryAddress, 6, 4, '...')}
+    </EntityBadgeWithActions>
   )
 }
