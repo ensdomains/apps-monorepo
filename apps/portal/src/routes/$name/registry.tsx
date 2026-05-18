@@ -103,7 +103,7 @@ const V1RegistryInfo = ({
   )
 }
 
-const V2RegistryInfo = ({
+export const V2RegistryInfo = ({
   name,
   ownerData,
 }: {
@@ -132,21 +132,26 @@ const V2RegistryInfo = ({
 
   if (!registries) return null
 
-  const subregistryAddress = registries.at(-3)
+  // The name's own subregistry slot. Always at(0) — may be zeroAddress when
+  // not yet deployed. Defined for 2LD, 3LD, 4LD shapes (i.e. anything where
+  // the user could deploy a subregistry for this name).
+  const nameSubregistry = registries.at(0)
 
-  const ethRegistryAddress = registries.at(-2)
+  // Immediate parent registry — the registry that holds the label for this
+  // name. Same value used by /$name/deploy-registry (deploy-registry.tsx:61)
+  // so the deploy button targets the registry that the role check authorises.
+  const parentRegistry = registries.at(1)
 
   return (
     <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-heading font-medium leading-none">Registry</h1>
-        {ethRegistryAddress &&
+        {parentRegistry &&
           account &&
-          labels.length === 2 &&
-          subregistryAddress && ( // as long as it returns one, even if zero
+          nameSubregistry !== undefined && ( // as long as it returns one, even if zero
             <DeploySubregistryButton
               name={name}
-              registryAddress={ethRegistryAddress}
+              registryAddress={parentRegistry}
               label={firstLabel}
               account={account}
             />
@@ -156,7 +161,7 @@ const V2RegistryInfo = ({
       {match(registries)
         .with([P.string, P.string, P.string], () => {
           // ["2ld.eth"] on V2
-          const hasSubregistry = subregistryAddress !== zeroAddress
+          const hasSubregistry = nameSubregistry !== zeroAddress
           return (
             <>
               {hasSubregistry && <VerifiedRegistryCard />}
@@ -165,7 +170,7 @@ const V2RegistryInfo = ({
                 protocol={ownerData.protocolVersion}
                 owner={ownerData.owner}
                 contractAddress={
-                  hasSubregistry ? (subregistryAddress as Address) : undefined
+                  hasSubregistry ? (nameSubregistry as Address) : undefined
                 }
                 factoryAddress={
                   hasSubregistry ? namechainVerifiableFactory : undefined
@@ -185,10 +190,9 @@ const V2RegistryInfo = ({
           )
         })
         .with([P.string, P.string, P.string, P.string], () => {
-          const subsubRegistryAddress = registries.at(-4)
-          const hasSubsubRegistry =
-            !!subsubRegistryAddress && subsubRegistryAddress !== zeroAddress
-          // ["sub.2ld.eth"] on V2
+          // ["sub.2ld.eth"] on V2 — 3LD
+          const hasNameSubregistry =
+            nameSubregistry !== undefined && nameSubregistry !== zeroAddress
           return (
             <>
               <RegistryCardsGrid
@@ -196,12 +200,10 @@ const V2RegistryInfo = ({
                 protocol={ownerData.protocolVersion}
                 owner={ownerData.owner}
                 contractAddress={
-                  hasSubsubRegistry
-                    ? (subsubRegistryAddress as Address)
-                    : undefined
+                  hasNameSubregistry ? (nameSubregistry as Address) : undefined
                 }
                 factoryAddress={
-                  hasSubsubRegistry ? namechainVerifiableFactory : undefined
+                  hasNameSubregistry ? namechainVerifiableFactory : undefined
                 }
                 chainId={chainId}
               />
@@ -212,6 +214,36 @@ const V2RegistryInfo = ({
                 label={labels[1]}
                 protocol={ownerData.protocolVersion}
                 contractAddress={registries.at(-3) as Address}
+                chainId={chainId}
+              />
+            </>
+          )
+        })
+        .with([P.string, P.string, P.string, P.string, P.string], () => {
+          // ["subsub.sub.2ld.eth"] on V2 — 4LD
+          const hasNameSubregistry =
+            nameSubregistry !== undefined && nameSubregistry !== zeroAddress
+          return (
+            <>
+              <RegistryCardsGrid
+                label={firstLabel}
+                protocol={ownerData.protocolVersion}
+                owner={ownerData.owner}
+                contractAddress={
+                  hasNameSubregistry ? (nameSubregistry as Address) : undefined
+                }
+                factoryAddress={
+                  hasNameSubregistry ? namechainVerifiableFactory : undefined
+                }
+                chainId={chainId}
+              />
+              <h2 className="leading-none text-heading font-medium">
+                Parent Registry
+              </h2>
+              <RegistryCardsGrid
+                label={labels[1]}
+                protocol={ownerData.protocolVersion}
+                contractAddress={registries.at(-4) as Address}
                 chainId={chainId}
               />
             </>

@@ -57,7 +57,7 @@ const NoSubregistryMessage = ({
       canDeploy
         ? {
             label: 'Deploy subregistry',
-            href: `/${name}/registry`,
+            href: `/${name}/deploy-registry`,
           }
         : undefined
     }
@@ -80,6 +80,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   // The subregistry is always the first element (index 0) in the registries array
   // For 2LD "foo.eth": [subregistry, ethRegistry, root]
   // For 3LD "sub.foo.eth": [subregistry, fooRegistry, ethRegistry, root]
+  // For 4LD "x.sub.foo.eth": [subregistry, subRegistry, fooRegistry, ethRegistry, root]
   const subregistryAddress = registriesData?.[0]
   const hasSubregistry =
     subregistryAddress && subregistryAddress !== zeroAddress

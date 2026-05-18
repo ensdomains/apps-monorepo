@@ -17,8 +17,9 @@ type Root = [root: Address | null]
 type TLD = [tld: Address, ...Root]
 type TwoLD = [nameOrZero: Address, ...TLD]
 type ThreeLD = [nameAddress: Address, ...TwoLD]
+type FourLD = [nameAddress: Address, ...ThreeLD]
 
-export type NameRegistries = Root | TLD | TwoLD | ThreeLD
+export type NameRegistries = Root | TLD | TwoLD | ThreeLD | FourLD
 
 class NameRegistriesError extends TaggedError('NameRegistriesError')<{
   cause: GetNameRegistriesErrorType
