@@ -23,7 +23,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detect which apps' surface area changed so each matrix project can opt
+  # out when only unrelated code was touched. Shared paths (workflow,
+  # lockfile, packages/, e2e infra & config) flip both flags.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      manager: ${{ steps.filter.outputs.manager }}
+      portal: ${{ steps.filter.outputs.portal }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - ".github/workflows/e2e.yml"
+              - "packages/**"
+              - "pnpm-lock.yaml"
+              - "e2e/fixtures/**"
+              - "e2e/helpers/**"
+              - "e2e/infra/**"
+              - "e2e/playwright.config.base.ts"
+              - "e2e/package.json"
+              - "e2e/.env.ci"
+            manager:
+              - *shared
+              - "apps/manager/**"
+              - "e2e/projects/manager/**"
+            portal:
+              - *shared
+              - "apps/portal/**"
+              - "e2e/projects/portal/**"
+
   e2e:
+    needs: changes
+    # Run a matrix project only when its app (or a shared path) changed.
+    # manager and manager-premium share the manager app so they're gated
+    # together. On push events dorny/paths-filter compares against the
+    # previous commit, keeping main-branch runs covered.
+    if: |
+      (matrix.project == 'portal' && needs.changes.outputs.portal == 'true') ||
+      ((matrix.project == 'manager' || matrix.project == 'manager-premium')
+        && needs.changes.outputs.manager == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
