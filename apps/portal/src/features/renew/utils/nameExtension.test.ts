@@ -73,10 +73,10 @@ describe('isExtendable2LD', () => {
       ).toBe(false)
     })
 
-    it('accepts a v2 name with no expiry', () => {
+    it('rejects a v2 name with no expiry (indexer loading/error)', () => {
       expect(
         isExtendable2LD({ name: 'alice.eth', isV2: true, expiryDate: null }),
-      ).toBe(true)
+      ).toBe(false)
     })
   })
 

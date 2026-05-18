@@ -61,7 +61,10 @@ export const isExtendable2LD = ({
   expiryDate,
 }: SelectedName): boolean => {
   if (!/^[^.]+\.eth$/.test(name)) return false
-  if (!expiryDate) return true
+  // When expiry isn't known yet (indexer loading/error), gate v2 conservatively
+  // so we never hand a past-grace name into the renew flow and hit a revert.
+  // v1 stays permissive — its on-chain registrar handles the revert gracefully.
+  if (!expiryDate) return !isV2
   const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
   const cutoff = expiryDate.getTime() + graceDays * MS_PER_DAY
   return cutoff > Date.now()

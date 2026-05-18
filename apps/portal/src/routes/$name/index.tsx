@@ -26,7 +26,6 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
-import { V2_GRACE_PERIOD_DAYS } from '@/features/renew/utils/nameExtension'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
@@ -95,28 +94,24 @@ const Profile = ({
     enabled: shouldCheckAvailability,
   })
 
+  // When ownerQuery returns null, the registry has gated ownerOf on _isExpired,
+  // so we can't tell from the chain alone whether the name is genuinely
+  // unregistered or sitting in its 28-day v2 grace window. Default the hook to
+  // 'ENSv2' in that case so it consults the indexer to detect grace state.
+  // (v1 names in grace still return an owner from the registrar, so a null
+  // owner implies the name isn't a v1-in-grace case.)
   const grace = useGraceStatus({
     name,
-    protocolVersion: ownerQuery.data?.protocolVersion,
+    protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
-  // V2 grace detection: when ownerQuery returns null, the registry has gated
-  // ownerOf on _isExpired so we can't tell from the chain alone whether the
-  // name is genuinely unregistered or sitting in its 28-day grace window. Read
-  // expiry from the indexer (which retains the row past expiry) to decide.
+  // Surfaced separately so the route can render an explicit error / loading
+  // state when the indexer query fails. React-query dedupes the underlying
+  // request shared with useGraceStatus.
   const v2RegDataQuery = useQuery({
     ...getV2RegistrationDataQueryOptions({ name }),
     enabled: isEthTld && is2LD(name),
   })
-  const v2Expiry = v2RegDataQuery.data?.expiry ?? null
-  const v2GraceEndSeconds =
-    v2Expiry !== null ? v2Expiry + V2_GRACE_PERIOD_DAYS * 24 * 60 * 60 : null
-  const nowSeconds = Math.floor(Date.now() / 1000)
-  const isInV2Grace =
-    v2Expiry !== null &&
-    v2GraceEndSeconds !== null &&
-    nowSeconds > v2Expiry &&
-    nowSeconds < v2GraceEndSeconds
 
   // Loading states
   if (ownerQuery.isLoading) {
@@ -213,11 +208,11 @@ const Profile = ({
     // V2 grace: registrar's _checkGrace still blocks re-registration, but the
     // registry's ownerOf returned zero. Render banner + Extend so the previous
     // owner can renew before the window closes.
-    if (isInV2Grace && v2GraceEndSeconds) {
+    if (grace.isInGrace && grace.graceEndDate) {
       return (
         <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
           <GraceBanner
-            graceEndDate={new Date(v2GraceEndSeconds * 1000)}
+            graceEndDate={grace.graceEndDate}
             protocolVersion="ENSv2"
           />
           <div className="flex flex-row justify-between items-center">
