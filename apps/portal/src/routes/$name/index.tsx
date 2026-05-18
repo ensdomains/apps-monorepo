@@ -24,7 +24,9 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
+import { V2_GRACE_PERIOD_DAYS } from '@/features/renew/utils/nameExtension'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
@@ -97,6 +99,24 @@ const Profile = ({
     name,
     protocolVersion: ownerQuery.data?.protocolVersion,
   })
+
+  // V2 grace detection: when ownerQuery returns null, the registry has gated
+  // ownerOf on _isExpired so we can't tell from the chain alone whether the
+  // name is genuinely unregistered or sitting in its 28-day grace window. Read
+  // expiry from the indexer (which retains the row past expiry) to decide.
+  const v2RegDataQuery = useQuery({
+    ...getV2RegistrationDataQueryOptions({ name }),
+    enabled: isEthTld && is2LD(name),
+  })
+  const v2Expiry = v2RegDataQuery.data?.expiry ?? null
+  const v2GraceEndSeconds =
+    v2Expiry !== null ? v2Expiry + V2_GRACE_PERIOD_DAYS * 24 * 60 * 60 : null
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const isInV2Grace =
+    v2Expiry !== null &&
+    v2GraceEndSeconds !== null &&
+    nowSeconds > v2Expiry &&
+    nowSeconds < v2GraceEndSeconds
 
   // Loading states
   if (ownerQuery.isLoading) {
@@ -172,6 +192,31 @@ const Profile = ({
           />
         )
       }
+    }
+
+    // Wait for indexer before deciding between v2 grace and error states
+    if (v2RegDataQuery.isLoading) {
+      return <LoadingSpinner title="Loading..." />
+    }
+
+    // V2 grace: registrar's _checkGrace still blocks re-registration, but the
+    // registry's ownerOf returned zero. Render banner + Extend so the previous
+    // owner can renew before the window closes.
+    if (isInV2Grace && v2GraceEndSeconds) {
+      return (
+        <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+          <GraceBanner
+            graceEndDate={new Date(v2GraceEndSeconds * 1000)}
+            protocolVersion="ENSv2"
+          />
+          <div className="flex flex-row justify-between items-center">
+            <h1 className="font-serif text-4xl font-medium leading-none">
+              {name}
+            </h1>
+            <ExtendNameButton name={name} protocolVersion="ENSv2" />
+          </div>
+        </div>
+      )
     }
 
     // Handle errors
