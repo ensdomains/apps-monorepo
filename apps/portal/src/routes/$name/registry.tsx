@@ -1,6 +1,7 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -166,7 +167,15 @@ export const V2RegistryInfo = ({
           )}
       </div>
 
-      {is2LD && hasNameSubregistry && <VerifiedRegistryCard />}
+      {match({ is2LD, hasNameSubregistry })
+        // Only 2LDs that have actually deployed a subregistry are marked
+        // as "verified" — deeper names share the same registry as the 2LD
+        // they live under, and a 2LD without a deployed subregistry has
+        // nothing to verify yet.
+        .with({ is2LD: true, hasNameSubregistry: true }, () => (
+          <VerifiedRegistryCard />
+        ))
+        .otherwise(() => null)}
 
       <RegistryCardsGrid
         label={firstLabel}
