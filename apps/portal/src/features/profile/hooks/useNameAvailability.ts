@@ -2,9 +2,9 @@ import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/e
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { readContract } from 'viem/actions'
+import { ethRegistrarIsAvailableAbi } from '@/lib/abis/ethRegistrar'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
@@ -39,7 +39,7 @@ export const checkNameAvailability = ResultFn(async function* ({
   const isAvailable = yield* fromPromise(
     readContract(client, {
       address: ethRegistrar,
-      abi: l2EthRegistrarIsAvailableSnippet,
+      abi: ethRegistrarIsAvailableAbi,
       functionName: 'isAvailable',
       args: [cleanName],
     }),

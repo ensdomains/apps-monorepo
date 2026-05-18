@@ -7,7 +7,7 @@ import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
-import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import {
@@ -73,27 +73,23 @@ export const MultiNamePaymentTokenPicker = ({
   })
 
   const usdcPriceQueries = useQueries({
-    queries: renewals.map((renewal) => ({
-      ...getRegistrationPriceQueryOptions({
+    queries: renewals.map((renewal) =>
+      getRenewalPriceQueryOptions({
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.USDC,
-        owner: address,
       }),
-      enabled: hasAddress,
-    })),
+    ),
   })
 
   const daiPriceQueries = useQueries({
-    queries: renewals.map((renewal) => ({
-      ...getRegistrationPriceQueryOptions({
+    queries: renewals.map((renewal) =>
+      getRenewalPriceQueryOptions({
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.DAI,
-        owner: address,
       }),
-      enabled: hasAddress,
-    })),
+    ),
   })
 
   const isLoading =
