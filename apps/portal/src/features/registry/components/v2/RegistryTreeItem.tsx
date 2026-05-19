@@ -1,10 +1,14 @@
+import { useQuery } from '@tanstack/react-query'
+import { ArrowUpRight } from 'lucide-react'
 import { Fragment } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { Button } from '@/components/ui/button'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -26,6 +30,13 @@ export const RegistryTreeItem = ({
   const isRoot = index === 0
   const isParent = index === 1
   const isLast = index === registriesCount - 1
+
+  const { data: summary } = useQuery({
+    ...getRegistryLabelCountQueryOptions({ address }),
+    enabled: isLast && address !== zeroAddress,
+  })
+
+  console.log('registry query', { address, summary })
 
   return (
     <div
@@ -65,28 +76,32 @@ export const RegistryTreeItem = ({
         </span>
       </div>
       {isLast ? (
-        <div className="grid grid-cols-2 max-w-sm pl-14 gap-4 text-sm text-muted-foreground -mt-2">
-          <span>Chain ID:</span>
-          <span className="text-sm text-muted-foreground">{chainId}</span>
-          <span>Protocol Version:</span>
-          <span className="text-sm text-muted-foreground">
-            {ownerData.protocolVersion}
-          </span>
-          <span>Created:</span>
-          <span className="text-sm text-muted-foreground">
+        <dl className="grid grid-cols-2 max-w-sm pl-14 gap-4 text-sm text-muted-foreground -mt-2">
+          <dt>Chain ID:</dt>
+          <dd>{chainId}</dd>
+          <dt>Protocol Version:</dt>
+          <dd>{ownerData.protocolVersion}</dd>
+          <dt>Created:</dt>
+          <dd>
             <EntityBadge
-              label={formatTimestamp(BigInt(Date.now())) ?? undefined}
+              label={
+                formatTimestamp(BigInt(summary?.createdAt ?? 0)) ?? undefined
+              }
               variant="tx"
               className="font-normal"
             >
               {truncateAddress(ownerData.owner, 6, 4, '...')}
             </EntityBadge>
-          </span>
-          <span>Labels:</span>
-          <span className="text-sm text-muted-foreground">
-            {ownerData.protocolVersion}
-          </span>
-        </div>
+          </dd>
+          <dt>Labels:</dt>
+          <dd className="flex items-center gap-4">
+            <span className="text-foreground">{summary?.labelCount}</span>
+            {/* TODO: Add this button back when the new labels page is ready */}
+            {/* <Button variant="outline" size="xs">
+              View subnames <ArrowUpRight className="size-4" />
+            </Button> */}
+          </dd>
+        </dl>
       ) : null}
     </div>
   )

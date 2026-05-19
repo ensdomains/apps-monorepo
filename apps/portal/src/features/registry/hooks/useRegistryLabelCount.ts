@@ -18,7 +18,7 @@ type GetRegistryLabelCountParameters = {
 
 export type RegistrySummary = {
   labelCount: number
-  createdAt: number | null
+  createdAt: number | undefined
 }
 
 const getRegistryLabelCount = ResultFn(async function* ({
@@ -43,7 +43,7 @@ const getRegistryLabelCount = ResultFn(async function* ({
 
   const summary: RegistrySummary = {
     labelCount: registry?.labelCount ?? 0,
-    createdAt: registry?.createdAt ?? null,
+    createdAt: registry?.createdAt,
   }
 
   return ok(summary)
