@@ -48,8 +48,8 @@ export const DurationCustomRow = ({
         <button
           className={cn(
             'group flex w-full cursor-pointer flex-col items-start justify-between gap-3 rounded-lg md:flex-row md:items-center',
-            'border-[#DEDEDF] border-[0.5px] bg-neutral-50 p-5 transition-all focus-within:border-ens-blue hover:border-ens-blue aria-pressed:border-ens-blue max-md:px-3',
-            isSelected && 'border-ens-blue',
+            'border-[#DEDEDF] border-[0.5px] bg-neutral-50 p-5 transition-all focus-within:border-ens-lapis-900 hover:border-ens-lapis-900 aria-pressed:border-ens-lapis-900 max-md:px-3',
+            isSelected && 'border-ens-lapis-900',
           )}
           type="button"
         >
@@ -61,7 +61,7 @@ export const DurationCustomRow = ({
             )}
           </div>
           <PopoverAnchor asChild>
-            <div className="flex w-full items-center justify-between gap-1.5 rounded border border-ens-gray-three bg-white p-3 transition-colors group-data-[state=open]:border-ens-blue md:max-w-1/2 md:gap-2 md:px-5 md:py-4">
+            <div className="flex w-full items-center justify-between gap-1.5 rounded border border-ens-gray-three bg-white p-3 transition-colors group-data-[state=open]:border-ens-blue md:min-w-fit md:max-w-1/3 md:gap-3 md:px-5 md:py-4">
               <span className="font-normal text-ens-blue-dark text-lg leading-ens-none">
                 {format(expirationDate, 'MMMM d, yyyy')}
               </span>

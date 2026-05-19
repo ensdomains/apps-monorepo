@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
+import type { RefObject } from 'react'
 import { useMemo } from 'react'
 import { match } from 'ts-pattern'
 import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
@@ -11,12 +12,14 @@ type SearchSuggestionsProps = {
   readonly searchValue: string
   readonly isLoading: boolean
   readonly onNavigate?: () => void
+  readonly containerRef?: RefObject<HTMLDivElement | null>
 }
 
 export const SearchSuggestions = ({
   searchValue,
   isLoading,
   onNavigate,
+  containerRef,
 }: SearchSuggestionsProps) => {
   const suggestions = useSearchSuggestions(searchValue)
   const isShowingHistory = !searchValue.trim()
@@ -50,7 +53,7 @@ export const SearchSuggestions = ({
   }
 
   return (
-    <>
+    <div ref={containerRef}>
       {suggestions.map((suggestion, index) =>
         match(suggestion)
           .with({ type: 'name' }, (name) => (
@@ -86,6 +89,6 @@ export const SearchSuggestions = ({
 
           .exhaustive(),
       )}
-    </>
+    </div>
   )
 }

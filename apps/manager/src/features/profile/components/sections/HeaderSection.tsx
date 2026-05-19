@@ -1,12 +1,10 @@
-import { Trans } from '@lingui/react/macro'
 import type { Address } from 'viem'
-import { LinkButton } from '@/components/ui/button'
-import { MSymbol } from '@/components/ui/material-symbol'
 import { ProfileHeaderInfo } from '@/features/profile/components/common/ProfileHeaderInfo'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
+import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
 
 interface HeaderSectionProps {
   name: string
@@ -35,15 +33,7 @@ export const HeaderSection = withForm({
           )}
         </form.Field>
         <div className="absolute top-2 left-2">
-          <LinkButton
-            params={{ name }}
-            size="sm"
-            to="/renew/$name"
-            variant="outline"
-          >
-            <Trans>Extend Name</Trans>
-            <MSymbol className="ms-opsz-16 ms-wght-300" symbol="double_arrow" />
-          </LinkButton>
+          <RenewNameButton name={name} />
         </div>
         {/* Share button overlay */}
         <div className="absolute top-2 right-2">

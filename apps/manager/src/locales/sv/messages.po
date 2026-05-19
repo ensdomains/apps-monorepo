@@ -68,10 +68,6 @@ msgstr ""
 msgid "{count} names migrated"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
-msgid "{discountPercentage}% off"
-msgstr ""
-
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
@@ -215,8 +211,8 @@ msgstr ""
 msgid "Adding telegram..."
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:39
-#: src/features/navigation/Header/account/WalletSection.tsx:54
+#: src/features/navigation/Header/account/WalletSection.tsx:40
+#: src/features/navigation/Header/account/WalletSection.tsx:60
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr ""
@@ -241,7 +237,7 @@ msgstr ""
 msgid "Almost there..."
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:122
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:135
 msgid "An error occurred"
 msgstr ""
 
@@ -361,6 +357,10 @@ msgstr ""
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:37
+msgid "Best yearly price"
 msgstr ""
 
 #: src/features/payment/components/add.tsx:44
@@ -537,6 +537,10 @@ msgstr ""
 msgid "Commitment hides your registration intent"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:29
+msgid "Committed"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:51
 msgid "Committing"
 msgstr ""
@@ -605,11 +609,11 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:103
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:170
 msgid "Connect or sign in to register"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:105
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:172
 msgid "Connect or sign in to renew"
 msgstr ""
 
@@ -657,7 +661,7 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:42
+#: src/features/navigation/Header/account/WalletSection.tsx:44
 msgid "Copied!"
 msgstr ""
 
@@ -771,7 +775,7 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:151
+#: src/lib/smart-account/rhinestone.ts:149
 msgid "Deploying on-chain…"
 msgstr ""
 
@@ -779,7 +783,7 @@ msgstr ""
 msgid "Deploying resolver"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:58
+#: src/features/navigation/Header/account/WalletSection.tsx:64
 msgid "Deploying smart account…"
 msgstr ""
 
@@ -791,7 +795,7 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:112
+#: src/features/navigation/Header/account/WalletSection.tsx:119
 msgid "Disconnect"
 msgstr ""
 
@@ -948,9 +952,9 @@ msgstr "Går ut om {daysUntilExpiry} dagar"
 msgid "Expires:"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:31
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:28
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:40
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:37
 msgid "expiring on"
 msgstr ""
 
@@ -966,8 +970,7 @@ msgstr "Utgångsdatum (tidigast)"
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
-#: src/features/profile/components/sections/HeaderSection.tsx:44
-#: src/features/profile/components/view/ViewHeaderSection.tsx:69
+#: src/features/renew/components/RenewNameButton.tsx:17
 msgid "Extend Name"
 msgstr ""
 
@@ -987,7 +990,7 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:174
+#: src/lib/smart-account/rhinestone.ts:169
 msgid "Failed to deploy smart account"
 msgstr ""
 
@@ -1261,6 +1264,14 @@ msgstr "Laddar..."
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
 
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:36
+msgid "Long-term identity"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:30
+msgid "Make it yours"
+msgstr ""
+
 #: src/features/register/components/VerifyWalletModal.tsx:171
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr ""
@@ -1277,7 +1288,7 @@ msgstr ""
 msgid "Manage notification settings"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:76
+#: src/features/navigation/Header/account/WalletSection.tsx:83
 msgid "Manage Para Wallet"
 msgstr ""
 
@@ -1308,6 +1319,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:36
 msgid "Modified"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:92
+msgid "Most popular"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:108
@@ -1439,7 +1454,7 @@ msgstr ""
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr ""
 
-#: src/features/navigation/Header/search/SearchSuggestions.tsx:45
+#: src/features/navigation/Header/search/SearchSuggestions.tsx:48
 msgid "No recent searches"
 msgstr ""
 
@@ -1460,7 +1475,7 @@ msgid "Not set"
 msgstr ""
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx:135
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:146
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:159
 msgid "Not supported"
 msgstr ""
 
@@ -1542,7 +1557,7 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:92
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:159
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr ""
@@ -1674,11 +1689,6 @@ msgstr ""
 msgid "Reading the commit-reveal window from the registrar"
 msgstr ""
 
-#. placeholder {0}: (totalDurationMs / 1000).toFixed(1)
-#: src/lib/smart-account/rhinestone.ts:239
-msgid "Ready in {0}s"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:116
 msgid "Receive crypto from any chain"
 msgstr ""
@@ -1717,11 +1727,11 @@ msgstr ""
 msgid "Registering"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:206
+#: src/lib/smart-account/rhinestone.ts:201
 msgid "Registering account ownership…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:25
+#: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:24
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
 msgid "Registering for"
 msgstr ""
@@ -1862,7 +1872,7 @@ msgstr ""
 msgid "Renewing"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:34
+#: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:33
 msgid "Renewing for"
 msgstr ""
 
@@ -1915,6 +1925,11 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
 msgid "Save"
+msgstr ""
+
+#. placeholder {0}: discountAmount ?? 0
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:121
+msgid "Save <0>{0}</0>"
 msgstr ""
 
 #. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
@@ -2040,10 +2055,6 @@ msgstr ""
 msgid "Sending..."
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx:112
-#~ msgid "Sessions enabled! You can now transact without signing each time."
-#~ msgstr ""
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:399
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
 msgid "Set as Primary"
@@ -2095,8 +2106,8 @@ msgstr ""
 msgid "Setting up resolver"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:150
-#: src/lib/smart-account/rhinestone.ts:205
+#: src/lib/smart-account/rhinestone.ts:148
+#: src/lib/smart-account/rhinestone.ts:200
 msgid "Setting up your smart account"
 msgstr ""
 
@@ -2190,11 +2201,11 @@ msgstr ""
 msgid "Smart Account"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:237
+#: src/lib/smart-account/rhinestone.ts:231
 msgid "Smart account ready"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:219
+#: src/lib/smart-account/rhinestone.ts:214
 msgid "Smart account setup failed"
 msgstr ""
 
@@ -2254,13 +2265,18 @@ msgstr "Sortera favoriter efter"
 msgid "Sort names by"
 msgstr "Sortera namn efter"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:141
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:279
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:275
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:288
 msgid "Start typing to check if your perfect name is available"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:22
+msgid "Starter"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
@@ -2418,12 +2434,12 @@ msgstr ""
 msgid "Too short"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:68
+#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:84
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:68
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:88
 msgid "Total"
 msgstr ""
 
@@ -2455,6 +2471,10 @@ msgstr ""
 #: src/features/wallet/components/EnableSessionModal.tsx:161
 #: src/routes/notifications/channels/email/verify.tsx:196
 msgid "Try Again"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:23
+msgid "Try it out"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:310
@@ -2522,7 +2542,7 @@ msgstr ""
 msgid "Uploading…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:79
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:110
 msgid "USD"
 msgstr ""
 
@@ -2589,7 +2609,7 @@ msgstr ""
 msgid "Verify Wallet"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:93
+#: src/features/navigation/Header/account/WalletSection.tsx:100
 #: src/features/notifications/RequireBackendAuth.tsx:117
 msgid "Verify wallet ownership"
 msgstr ""
