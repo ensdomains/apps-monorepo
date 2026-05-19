@@ -17,25 +17,31 @@ const getV2RegistrationData = ResultFn(async function* ({
   name,
 }: GetRegistrationDataParameters) {
   const { domains } = yield* fromPromise(
-    graphqlIndexerClient.request<{
-      domains:
-        | [
-            {
-              createdAt: number
-              registrationDate: number
-              expiryDate: number
-            },
-          ]
-        | []
-    }>(gql`
-      query getRegistrationAndExpiry {
-        domains(where: {name: "${name}" }) {
-          createdAt
-          registrationDate
-          expiryDate
+    graphqlIndexerClient.request<
+      {
+        domains:
+          | [
+              {
+                createdAt: number
+                registrationDate: number
+                expiryDate: number
+              },
+            ]
+          | []
+      },
+      { name: string }
+    >(
+      gql`
+        query getRegistrationAndExpiry($name: String!) {
+          domains(where: { name: $name }) {
+            createdAt
+            registrationDate
+            expiryDate
+          }
         }
-      }
-      `),
+      `,
+      { name },
+    ),
     (e) =>
       new GetV2RegistrationDataError({
         cause: e as ClientError,
