@@ -50,6 +50,7 @@ export type Domain = {
   id: Scalars['String']['output'];
   isMigrated: Scalars['Boolean']['output'];
   isNormalized: Scalars['Boolean']['output'];
+  isReachable: Scalars['Boolean']['output'];
   labelName?: Maybe<Scalars['String']['output']>;
   labelhash?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
@@ -65,6 +66,7 @@ export type Domain = {
   tokenId?: Maybe<Scalars['String']['output']>;
   tokenVersion?: Maybe<Scalars['Int']['output']>;
   ttl?: Maybe<Scalars['Int']['output']>;
+  unreachableSince?: Maybe<Scalars['Int']['output']>;
 };
 
 
@@ -92,6 +94,7 @@ export type DomainFilter = {
   expiry_lt?: InputMaybe<Scalars['Int']['input']>;
   expiry_lte?: InputMaybe<Scalars['Int']['input']>;
   hasSubdomains?: InputMaybe<Scalars['Boolean']['input']>;
+  includeUnreachable?: InputMaybe<Scalars['Boolean']['input']>;
   isMigrated?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   name_contains?: InputMaybe<Scalars['String']['input']>;
@@ -143,13 +146,13 @@ export type EacRoleAssignmentEdge = {
 export type Event = {
   __typename?: 'Event';
   blockNumber: Scalars['Int']['output'];
-  chain: Scalars['String']['output'];
   contractAddress: Scalars['String']['output'];
   data?: Maybe<Scalars['String']['output']>;
   domain?: Maybe<Domain>;
   id: Scalars['String']['output'];
   name?: Maybe<Scalars['String']['output']>;
   namehash?: Maybe<Scalars['String']['output']>;
+  protocol: Scalars['String']['output'];
   timestamp: Scalars['Int']['output'];
   transactionHash: Scalars['String']['output'];
   type: Scalars['String']['output'];
@@ -170,12 +173,17 @@ export type EventEdge = {
 
 export type EventFilter = {
   blockNumber_gt?: InputMaybe<Scalars['Int']['input']>;
+  blockNumber_gte?: InputMaybe<Scalars['Int']['input']>;
   blockNumber_lt?: InputMaybe<Scalars['Int']['input']>;
+  blockNumber_lte?: InputMaybe<Scalars['Int']['input']>;
   contractAddress?: InputMaybe<Scalars['String']['input']>;
   domain?: InputMaybe<Scalars['String']['input']>;
   namehash?: InputMaybe<Scalars['String']['input']>;
+  protocol?: InputMaybe<Scalars['String']['input']>;
   timestamp_gt?: InputMaybe<Scalars['Int']['input']>;
+  timestamp_gte?: InputMaybe<Scalars['Int']['input']>;
   timestamp_lt?: InputMaybe<Scalars['Int']['input']>;
+  timestamp_lte?: InputMaybe<Scalars['Int']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
   type_in?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -224,6 +232,7 @@ export type Query = {
   registrationConnection: RegistrationConnection;
   registrations: Array<Registration>;
   registries: Array<RegistryInfo>;
+  registry?: Maybe<RegistryInfo>;
   resolver?: Maybe<ResolverDetail>;
   resolvers: Array<ResolverDetail>;
   roleConnection: EacRoleAssignmentConnection;
@@ -317,6 +326,11 @@ export type QueryRegistriesArgs = {
 };
 
 
+export type QueryRegistryArgs = {
+  address: Scalars['String']['input'];
+};
+
+
 export type QueryResolverArgs = {
   id: Scalars['String']['input'];
 };
@@ -344,11 +358,11 @@ export type QueryRolesArgs = {
 
 export type Registration = {
   __typename?: 'Registration';
-  chain: Scalars['String']['output'];
   domain: Domain;
   expiryDate: Scalars['Int']['output'];
   id: Scalars['String']['output'];
   name: Scalars['String']['output'];
+  protocol: Scalars['String']['output'];
   registrant: Account;
   registrationDate: Scalars['Int']['output'];
 };
@@ -367,11 +381,11 @@ export type RegistrationEdge = {
 };
 
 export type RegistrationFilter = {
-  chain?: InputMaybe<Scalars['String']['input']>;
   expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_gte?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lte?: InputMaybe<Scalars['Int']['input']>;
+  protocol?: InputMaybe<Scalars['String']['input']>;
   registrant?: InputMaybe<Scalars['String']['input']>;
   registrant_in?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -388,9 +402,73 @@ export type RegistryInfo = {
   address: Scalars['String']['output'];
   createdAt: Scalars['Int']['output'];
   createdBlock: Scalars['Int']['output'];
+  eventConnection: EventConnection;
+  eventCount: Scalars['Int']['output'];
+  events: Array<Event>;
+  labelConnection: DomainConnection;
+  labelCount: Scalars['Int']['output'];
+  labels: Array<Domain>;
   name: Scalars['String']['output'];
   namehash: Scalars['String']['output'];
+  owner?: Maybe<Account>;
   parentRegistry: Scalars['String']['output'];
+  roleConnection: EacRoleAssignmentConnection;
+  roleCount: Scalars['Int']['output'];
+  roles: Array<EacRoleAssignment>;
+};
+
+
+export type RegistryInfoEventConnectionArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type RegistryInfoEventsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type RegistryInfoLabelConnectionArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Domain_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  where?: InputMaybe<DomainFilter>;
+};
+
+
+export type RegistryInfoLabelsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Domain_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<DomainFilter>;
+};
+
+
+export type RegistryInfoRoleConnectionArgs = {
+  account?: InputMaybe<Scalars['String']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type RegistryInfoRolesArgs = {
+  account?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type Resolver = {
