@@ -39,7 +39,7 @@ const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
     'border border-entity-border group-hover/entity:border-transparent',
-    'font-mono text-sm font-normal tracking-tight whitespace-nowrap no-underline',
+    'font-mono text-sm font-medium tracking-tight whitespace-nowrap no-underline',
     variantClass[variant],
     className,
   )
@@ -108,7 +108,7 @@ export const EntityBadge = ({
   externalHref?: string
 }) => {
   const labelContent = label ? (
-    <span className="bg-background text-center font-sans leading-4 px-1 rounded-l-xs h-4 ml-[-3px] mr-1">
+    <span className="bg-background text-center font-sans font-normal leading-4 px-1 rounded-l-xs h-4 ml-[-3px] mr-1">
       {label}
     </span>
   ) : null

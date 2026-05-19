@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -5,21 +6,21 @@ import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type RegistryTreeItemProps = {
-  name: string | undefined
   chainId: number
   ownerData: NonNullable<GetEnsOwnerReturnType>
   index: number
   registriesCount: number
   address: Address
+  label: string
 }
 
 export const RegistryTreeItem = ({
-  name,
   chainId,
   ownerData,
   index,
   registriesCount,
   address,
+  label,
 }: RegistryTreeItemProps) => {
   const isRoot = index === 0
   const isParent = index === 1
@@ -28,14 +29,18 @@ export const RegistryTreeItem = ({
   return (
     <div className="flex items-center justify-start gap-2">
       {!isRoot && (
-        <div
-          style={{
-            paddingLeft: `${50 * (index - 1)}px`,
-          }}
-        >
-          <RegistryTreePathIcon />
-        </div>
+        <Fragment>
+          <div
+            style={{
+              paddingLeft: `${50 * (index - 1)}px`,
+            }}
+          >
+            <RegistryTreePathIcon />
+          </div>
+          <EntityBadge variant="name">{label}</EntityBadge>
+        </Fragment>
       )}
+
       <EntityBadge
         label={match({ isRoot, isParent, isLast })
           .with({ isRoot: true }, () => 'root registry')
@@ -47,6 +52,7 @@ export const RegistryTreeItem = ({
           )
           .exhaustive()}
         variant="contract"
+        className="font-normal"
       >
         {truncateAddress(address, 6, 4, '...')}
       </EntityBadge>
@@ -56,7 +62,6 @@ export const RegistryTreeItem = ({
       <span className="text-sm text-muted-foreground font-mono">
         {ownerData.protocolVersion}
       </span>
-      {name}
     </div>
   )
 }
