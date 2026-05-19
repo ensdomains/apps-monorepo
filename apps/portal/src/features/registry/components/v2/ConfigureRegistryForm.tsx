@@ -1,3 +1,276 @@
-export function ConfigureRegistryForm() {
-  return <div>ConfigureRegistryForm</div>
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { useQuery } from '@tanstack/react-query'
+import { CircleCheckIcon } from 'lucide-react'
+import { ResultAsync } from 'neverthrow'
+import { useRef, useState } from 'react'
+import { match } from 'ts-pattern'
+import { type Address, isAddress, zeroAddress } from 'viem'
+import { useConnection } from 'wagmi'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { sepoliaWithEns } from '@/lib/wagmi'
+
+const DEPLOY_SUBREGISTRY_TX_ID = 'tx-deploy-subregistry'
+const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
+
+const SUCCESS_LABEL_DURATION_MS = 5000
+
+type ConfigureRegistryFormProps = {
+  name: string
+}
+
+export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
+  const { address: connectedAddress } = useConnection()
+  const [useCustomRegistry, setUseCustomRegistry] = useState(false)
+  const [contractAddress, setContractAddress] = useState('')
+  const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
+  const deployedSubregistryAddressRef = useRef<Address | null>(null)
+
+  const {
+    openModal: openTransactionModal,
+    closeModal: closeTransactionModal,
+    clearTransaction,
+  } = useTransactionModal()
+
+  const { data: registries, isLoading } = useQuery(
+    getNameRegistriesQueryOptions({ name }),
+  )
+
+  const label = name.split('.')[0]
+  const parentRegistry = registries?.at(1) ?? null
+
+  const { data: hasSetSubregistryRole, isLoading: isLoadingRoleCheck } =
+    useQuery({
+      ...getHasRolesQueryOptions({
+        registryAddress: parentRegistry ?? zeroAddress,
+        label,
+        roles: ['ROLE_SET_SUBREGISTRY'],
+        account: connectedAddress ?? zeroAddress,
+      }),
+      enabled: !!connectedAddress && !!parentRegistry && !isLoading,
+    })
+
+  const factoryAddress = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensVerifiableFactory',
+  })
+
+  const implAddress = getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensUserRegistryImpl',
+  })
+
+  const customSubregistryAddress =
+    useCustomRegistry && isAddress(contractAddress)
+      ? (contractAddress as Address)
+      : null
+
+  const isDeployPath = !customSubregistryAddress
+
+  const {
+    deploySubregistryAsync,
+    isConfirming: isDeployConfirming,
+    hasWallet: hasDeployWallet,
+  } = useDeploySubregistry({
+    name,
+    factoryAddress,
+    implAddress,
+  })
+
+  const {
+    setSubregistry,
+    isPending: isSetSubregistryPending,
+    hasWallet: hasSetWallet,
+  } = useSetSubregistry({
+    name,
+    label,
+    parentRegistry: parentRegistry ?? zeroAddress,
+    id: SET_SUBREGISTRY_TX_ID,
+  })
+
+  const walletOk = isDeployPath ? hasDeployWallet : hasSetWallet
+
+  // `Transaction.onStart` is `() => void`, so this Promise is never awaited by
+  // the modal or `useAutoAdvanceTransaction`. That is intentional: failures are
+  // handled inside `ResultAsync.fromPromise` so nothing rejects unhandled.
+  const handleDeploySubregistryStart = async () => {
+    await ResultAsync.fromPromise(
+      deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID }),
+      () => undefined,
+    ).match(
+      (result) => {
+        deployedSubregistryAddressRef.current = result.deployedAddress
+      },
+      () => undefined,
+    )
+  }
+
+  const handleSetSubregistryAfterDeployStart = () => {
+    const deployed = deployedSubregistryAddressRef.current
+    if (!deployed) return
+    setSubregistry(deployed)
+  }
+
+  const handleSetSubregistryStart = () => {
+    if (!customSubregistryAddress) return
+    setSubregistry(customSubregistryAddress)
+  }
+
+  const handleSetSubregistryDone = () => {
+    closeTransactionModal()
+    clearTransaction()
+    setContractAddress('')
+    deployedSubregistryAddressRef.current = null
+    setShowSuccessButtonLabel(true)
+    setTimeout(
+      () => setShowSuccessButtonLabel(false),
+      SUCCESS_LABEL_DURATION_MS,
+    )
+  }
+
+  const handleSubmit = () => {
+    if (useCustomRegistry && !isAddress(contractAddress)) return
+    openTransactionModal()
+  }
+
+  const isSubmitDisabled =
+    (useCustomRegistry && !isAddress(contractAddress)) || !walletOk
+
+  const buttonText = match({
+    isDeployConfirming,
+    isSetSubregistryPending,
+    showSuccessButtonLabel,
+  })
+    .with({ isDeployConfirming: true }, () => 'Deploying...')
+    .with({ isSetSubregistryPending: true }, () => 'Setting subregistry...')
+    .with({ showSuccessButtonLabel: true }, () => 'Complete!')
+    .otherwise(() => 'Deploy subregistry')
+
+  if (isLoading) {
+    return <LoadingSpinner title="Loading registry information" />
+  }
+
+  if (!parentRegistry || parentRegistry === zeroAddress) return null
+
+  if (isLoadingRoleCheck) {
+    return <LoadingSpinner title="Checking permissions..." />
+  }
+
+  if (!connectedAddress) {
+    return (
+      <ErrorMessage
+        title="Wallet Not Connected"
+        description="Please connect your wallet to deploy or change a registry."
+      />
+    )
+  }
+
+  if (!hasSetSubregistryRole) {
+    return (
+      <ErrorMessage
+        title="Permission Denied"
+        description={
+          <>
+            You don't have the required{' '}
+            <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
+              ROLE_SET_SUBREGISTRY
+            </code>{' '}
+            permission to change the registry for <strong>{name}</strong>.
+          </>
+        }
+      />
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <Switch
+          checked={useCustomRegistry}
+          onCheckedChange={setUseCustomRegistry}
+          id="use-custom-registry"
+        />
+        <Label htmlFor="use-custom-registry" className="cursor-pointer">
+          Use custom registry
+        </Label>
+      </div>
+      {!useCustomRegistry && (
+        <span className="text-sm text-muted-foreground">
+          Deploy a new verified subregistry.
+        </span>
+      )}
+      {useCustomRegistry && (
+        <div className="flex flex-col gap-3">
+          <Label
+            htmlFor="contract-address"
+            info="The address of the custom registry contract"
+          >
+            Contract address
+          </Label>
+          <Input
+            id="contract-address"
+            placeholder="HEX address or ENS name"
+            value={contractAddress}
+            onChange={(e) => setContractAddress(e.target.value)}
+          />
+        </div>
+      )}
+
+      <Button
+        variant="default"
+        onClick={handleSubmit}
+        disabled={isSubmitDisabled}
+        className="w-fit"
+      >
+        <span className="flex items-center gap-2">
+          <CircleCheckIcon className="size-4" />
+          {buttonText}
+        </span>
+      </Button>
+
+      <TransactionModal
+        transactions={
+          isDeployPath
+            ? [
+                {
+                  id: DEPLOY_SUBREGISTRY_TX_ID,
+                  title: 'Deploy subregistry',
+                  transactionName: `Deploy subregistry for ${name}`,
+                  estimatedGasCost: 0.0008,
+                  onStart: handleDeploySubregistryStart,
+                  onDone: handleSetSubregistryAfterDeployStart,
+                },
+                {
+                  id: SET_SUBREGISTRY_TX_ID,
+                  title: 'Set subregistry',
+                  transactionName: `Set subregistry for ${name}`,
+                  estimatedGasCost: 0.0001,
+                  onStart: handleSetSubregistryAfterDeployStart,
+                  onDone: handleSetSubregistryDone,
+                },
+              ]
+            : [
+                {
+                  id: SET_SUBREGISTRY_TX_ID,
+                  title: 'Set subregistry',
+                  transactionName: `Set custom subregistry for ${name}`,
+                  estimatedGasCost: 0.0001,
+                  onStart: handleSetSubregistryStart,
+                  onDone: handleSetSubregistryDone,
+                },
+              ]
+        }
+      />
+    </div>
+  )
 }
