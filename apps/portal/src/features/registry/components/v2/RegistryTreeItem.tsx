@@ -3,6 +3,7 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type RegistryTreeItemProps = {
@@ -27,41 +28,66 @@ export const RegistryTreeItem = ({
   const isLast = index === registriesCount - 1
 
   return (
-    <div className="flex items-center justify-start gap-2">
-      {!isRoot && (
-        <Fragment>
-          <div
-            style={{
-              paddingLeft: `${50 * (index - 1)}px`,
-            }}
-          >
+    <div
+      className="flex flex-col gap-2"
+      style={{
+        paddingLeft: `${50 * (index - 1)}px`,
+      }}
+    >
+      <div className="flex items-center justify-start gap-2">
+        {!isRoot ? (
+          <Fragment>
             <RegistryTreePathIcon />
-          </div>
-          <EntityBadge variant="name">{label}</EntityBadge>
-        </Fragment>
-      )}
+            <EntityBadge variant="name">{label}</EntityBadge>
+          </Fragment>
+        ) : null}
 
-      <EntityBadge
-        label={match({ isRoot, isParent, isLast })
-          .with({ isRoot: true }, () => 'root registry')
-          .with({ isParent: true }, () => 'parent registry')
-          .with({ isLast: true }, () => 'permissioned registry')
-          .with(
-            { isRoot: false, isParent: false, isLast: false },
-            () => undefined,
-          )
-          .exhaustive()}
-        variant="contract"
-        className="font-normal"
-      >
-        {truncateAddress(address, 6, 4, '...')}
-      </EntityBadge>
-      <span className="text-sm text-muted-foreground font-mono">
-        Chain ID: {chainId}
-      </span>
-      <span className="text-sm text-muted-foreground font-mono">
-        {ownerData.protocolVersion}
-      </span>
+        <EntityBadge
+          label={match({ isRoot, isParent, isLast })
+            .with({ isRoot: true }, () => 'root registry')
+            .with({ isParent: true }, () => 'parent registry')
+            .with({ isLast: true }, () => 'permissioned registry')
+            .with(
+              { isRoot: false, isParent: false, isLast: false },
+              () => undefined,
+            )
+            .exhaustive()}
+          variant="contract"
+          className="font-normal"
+        >
+          {truncateAddress(address, 6, 4, '...')}
+        </EntityBadge>
+        <span className="text-sm text-muted-foreground font-mono">
+          Chain ID: {chainId}
+        </span>
+        <span className="text-sm text-muted-foreground font-mono">
+          {ownerData.protocolVersion}
+        </span>
+      </div>
+      {isLast ? (
+        <div className="grid grid-cols-2 max-w-sm pl-14 gap-4 text-sm text-muted-foreground -mt-2">
+          <span>Chain ID:</span>
+          <span className="text-sm text-muted-foreground">{chainId}</span>
+          <span>Protocol Version:</span>
+          <span className="text-sm text-muted-foreground">
+            {ownerData.protocolVersion}
+          </span>
+          <span>Created:</span>
+          <span className="text-sm text-muted-foreground">
+            <EntityBadge
+              label={formatTimestamp(BigInt(Date.now())) ?? undefined}
+              variant="tx"
+              className="font-normal"
+            >
+              {truncateAddress(ownerData.owner, 6, 4, '...')}
+            </EntityBadge>
+          </span>
+          <span>Labels:</span>
+          <span className="text-sm text-muted-foreground">
+            {ownerData.protocolVersion}
+          </span>
+        </div>
+      ) : null}
     </div>
   )
 }

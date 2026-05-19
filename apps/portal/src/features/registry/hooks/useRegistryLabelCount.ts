@@ -16,15 +16,23 @@ type GetRegistryLabelCountParameters = {
   address: Address
 }
 
+export type RegistrySummary = {
+  labelCount: number
+  createdAt: number | null
+}
+
 const getRegistryLabelCount = ResultFn(async function* ({
   address,
 }: GetRegistryLabelCountParameters) {
   const { registry } = yield* fromPromise(
-    graphqlIndexerClient.request<{ registry: { labelCount: number } | null }>(
+    graphqlIndexerClient.request<{
+      registry: { labelCount: number; createdAt: number } | null
+    }>(
       gql`
         query getRegistryLabelCount($address: String!) {
           registry(address: $address) {
             labelCount
+            createdAt
           }
         }
       `,
@@ -33,7 +41,12 @@ const getRegistryLabelCount = ResultFn(async function* ({
     (e) => new GetRegistryLabelCountError({ cause: e as ClientError }),
   )
 
-  return ok(registry?.labelCount ?? 0)
+  const summary: RegistrySummary = {
+    labelCount: registry?.labelCount ?? 0,
+    createdAt: registry?.createdAt ?? null,
+  }
+
+  return ok(summary)
 })
 
 const getRegistryLabelCountQueryKey = createQueryKey<
