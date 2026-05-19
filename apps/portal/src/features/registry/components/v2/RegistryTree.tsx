@@ -9,6 +9,7 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
+import { RegistryTreeItem } from './RegistryTreeItem'
 
 const namechainVerifiableFactory = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -16,28 +17,6 @@ const namechainVerifiableFactory = getChainContractAddress({
 })
 
 const chainId = sepoliaWithEns.id
-
-type RegistryTreeItemProps = {
-  name: string | undefined
-  ownerData: NonNullable<GetEnsOwnerReturnType>
-  chainId: number
-}
-
-const RegistryTreeItem = ({ name, ownerData }: RegistryTreeItemProps) => {
-  return (
-    <div className="flex items-center justify-start gap-2">
-      <EntityBadge label="root registry" variant="contract">
-        {truncateAddress(ownerData.registryAddress, 6, 4, '...')}
-      </EntityBadge>
-      <span className="text-sm text-muted-foreground font-mono">
-        Chain ID: {chainId}
-      </span>
-      <span className="text-sm text-muted-foreground font-mono">
-        {ownerData.protocolVersion}
-      </span>
-    </div>
-  )
-}
 
 export const RegistryTree = ({
   name,
@@ -82,12 +61,24 @@ export const RegistryTree = ({
     nameSubregistry !== undefined && nameSubregistry !== zeroAddress
 
   return (
-    <div className="max-w-360">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-medium leading-none">Registry</h1>
-      </div>
+    <div className="mt-8 sm:mt-12 mb-4">
+      <div className="flex flex-col gap-2">
+        {registries.map((registry, index) => {
+          if (registry === null) return null
 
-      <RegistryTreeItem name={name} ownerData={ownerData} />
+          return (
+            <RegistryTreeItem
+              chainId={chainId}
+              key={registry}
+              name={name}
+              ownerData={ownerData}
+              index={index}
+              registriesCount={registries.length}
+              address={registry}
+            />
+          )
+        })}
+      </div>
 
       {/* <RegistryCardsGrid
         label={firstLabel}
