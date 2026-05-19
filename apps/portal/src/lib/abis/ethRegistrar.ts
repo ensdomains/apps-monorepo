@@ -13,7 +13,39 @@
  * registerable/renewable.
  */
 
-/** `getRegisterPrice(label, duration, paymentToken) → (base, premium)` */
+/**
+ * `rentPrice(label, owner, duration, paymentToken) → (base, premium)` —
+ * the pricing function exposed by the **currently deployed** V2 ETHRegistrar
+ * on the Tenderly fork. Premium is non-zero only for recently expired names
+ * (the StandardRentPriceOracle skips premium when owner == address(0)).
+ *
+ * Used for both register and renew pricing today; renewals discard `premium`
+ * downstream since renewals are exempt by design.
+ *
+ * NOTE: The post-audit refactor (PR #286) splits this into separate
+ * `getRegisterPrice` / `getRenewPrice` functions — see the two ABIs below.
+ * Once those contracts are deployed to this fork, swap the call sites in
+ * `useRegistrationPrice` to use those and we can drop this one.
+ */
+export const ethRegistrarRentPriceAbi = [
+  {
+    type: 'function',
+    name: 'rentPrice',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'label', type: 'string' },
+      { name: 'owner', type: 'address' },
+      { name: 'duration', type: 'uint64' },
+      { name: 'paymentToken', type: 'address' },
+    ],
+    outputs: [
+      { name: 'base', type: 'uint256' },
+      { name: 'premium', type: 'uint256' },
+    ],
+  },
+] as const
+
+/** POST-AUDIT (PR #286, not yet deployed): `getRegisterPrice(label, duration, paymentToken) → (base, premium)` */
 export const ethRegistrarGetRegisterPriceAbi = [
   {
     type: 'function',
@@ -31,7 +63,7 @@ export const ethRegistrarGetRegisterPriceAbi = [
   },
 ] as const
 
-/** `getRenewPrice(label, duration, paymentToken) → uint256` — renewals are exempt from premium. */
+/** POST-AUDIT (PR #286, not yet deployed): `getRenewPrice(label, duration, paymentToken) → uint256` */
 export const ethRegistrarGetRenewPriceAbi = [
   {
     type: 'function',
