@@ -18,7 +18,7 @@ type GetRegistryLabelCountParameters = {
 
 export type RegistrySummary = {
   labelCount: number
-  createdAt: number | undefined
+  createdAt: number
 }
 
 const getRegistryLabelCount = ResultFn(async function* ({
@@ -41,12 +41,9 @@ const getRegistryLabelCount = ResultFn(async function* ({
     (e) => new GetRegistryLabelCountError({ cause: e as ClientError }),
   )
 
-  const summary: RegistrySummary = {
-    labelCount: registry?.labelCount ?? 0,
-    createdAt: registry?.createdAt,
-  }
-
-  return ok(summary)
+  // null = indexer has no record for this registry address (not yet indexed,
+  // or contract doesn't exist). Distinct from a registry with 0 labels.
+  return ok(registry as RegistrySummary | null)
 })
 
 const getRegistryLabelCountQueryKey = createQueryKey<

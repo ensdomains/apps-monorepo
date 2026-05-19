@@ -85,7 +85,9 @@ export const RegistryTreeItem = ({
           <dd>
             <EntityBadge
               label={
-                formatTimestamp(BigInt(summary?.createdAt ?? 0)) ?? undefined
+                summary?.createdAt
+                  ? (formatTimestamp(BigInt(summary.createdAt)) ?? undefined)
+                  : undefined
               }
               variant="tx"
               className="font-normal"
@@ -95,7 +97,9 @@ export const RegistryTreeItem = ({
           </dd>
           <dt>Labels:</dt>
           <dd className="flex items-center gap-4">
-            <span className="text-foreground">{summary?.labelCount}</span>
+            <span className="text-foreground">
+              {summary?.labelCount ?? '—'}
+            </span>
             {/* TODO: Add this button back when the new labels page is ready */}
             {/* <Button variant="outline" size="xs">
               View subnames <ArrowUpRight className="size-4" />
