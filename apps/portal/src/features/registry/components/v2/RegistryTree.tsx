@@ -37,7 +37,7 @@ export const RegistryTree = ({
   return (
     <div className="mt-8 sm:mt-12 mb-4">
       <div className="flex flex-col gap-2">
-        {registries.map((registry, index) => {
+        {registries.toReversed().map((registry, index) => {
           if (registry === null) return null
 
           const label = labels[registries.length - index - 1]

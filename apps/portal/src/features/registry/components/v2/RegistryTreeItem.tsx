@@ -29,6 +29,8 @@ export const RegistryTreeItem = ({
   const isParent = index === 1
   const isLast = index === registriesCount - 1
 
+  console.log('registry tree item', { isRoot, isParent, isLast })
+
   const { data: summary } = useQuery({
     ...getRegistryLabelCountQueryOptions({ address }),
     enabled: isLast && address !== zeroAddress,
