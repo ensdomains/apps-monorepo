@@ -9,8 +9,8 @@ type V2RegistryInfoProps = {
 
 export function V2RegistryInfo({ name, ownerData }: V2RegistryInfoProps) {
   return (
-    <section>
-      <RegistryTree />
+    <section className="p-4 gap-4 sm:p-8">
+      <RegistryTree name={name} ownerData={ownerData} />
       <ConfigureRegistryForm />
     </section>
   )

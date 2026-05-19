@@ -38,7 +38,7 @@ export const hoverBgClass: Record<EntityVariant, string> = {
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
-    'border-[0.5px] border-entity-border group-hover/entity:border-transparent',
+    'border border-entity-border group-hover/entity:border-transparent',
     'font-mono text-sm font-medium tracking-tight whitespace-nowrap no-underline',
     variantClass[variant],
     className,
@@ -98,25 +98,39 @@ export const EntityBadge = ({
   variant,
   className,
   externalHref,
+  label,
 }: {
+  label?: string
   children: ReactNode
   variant: EntityVariant
   className?: string
   /** External link — opens in new tab */
   externalHref?: string
 }) => {
+  const labelContent = label ? (
+    <span className="bg-background text-center font-mono leading-4 px-1 rounded-l-xs h-4 ml-[-3px] mr-1">
+      {label}
+    </span>
+  ) : null
+
   if (externalHref) {
     return (
       <ExternalLink
         href={externalHref}
         className={pillClass(variant, className)}
       >
+        {labelContent}
         {children}
       </ExternalLink>
     )
   }
 
-  return <span className={pillClass(variant, className)}>{children}</span>
+  return (
+    <span className={pillClass(variant, className)}>
+      {labelContent}
+      {children}
+    </span>
+  )
 }
 
 interface EntityBadgeWithActionsProps {

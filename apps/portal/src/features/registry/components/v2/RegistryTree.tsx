@@ -1,16 +1,43 @@
 import { useQuery } from '@tanstack/react-query'
 import { type Address, getChainContractAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import type { ProtocolVersion } from '@/utils/types'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
 
 const namechainVerifiableFactory = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensVerifiableFactory',
 })
+
+const chainId = sepoliaWithEns.id
+
+type RegistryTreeItemProps = {
+  name: string | undefined
+  ownerData: NonNullable<GetEnsOwnerReturnType>
+  chainId: number
+}
+
+const RegistryTreeItem = ({ name, ownerData }: RegistryTreeItemProps) => {
+  return (
+    <div className="flex items-center justify-start gap-2">
+      <EntityBadge label="root registry" variant="contract">
+        {truncateAddress(ownerData.registryAddress, 6, 4, '...')}
+      </EntityBadge>
+      <span className="text-sm text-muted-foreground font-mono">
+        Chain ID: {chainId}
+      </span>
+      <span className="text-sm text-muted-foreground font-mono">
+        {ownerData.protocolVersion}
+      </span>
+    </div>
+  )
+}
 
 export const RegistryTree = ({
   name,
@@ -55,23 +82,14 @@ export const RegistryTree = ({
     nameSubregistry !== undefined && nameSubregistry !== zeroAddress
 
   return (
-    <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
+    <div className="max-w-360">
       <div className="flex items-center justify-between">
-        <h1 className="text-heading font-medium leading-none">Registry</h1>
-        {/* {parentRegistry &&
-          parentRegistry !== zeroAddress &&
-          account &&
-          nameSubregistry !== undefined && ( // as long as it returns one, even if zero
-            <DeploySubregistryButton
-              name={name}
-              registryAddress={parentRegistry}
-              label={firstLabel}
-              account={account}
-            />
-          )} */}
+        <h1 className="text-3xl font-medium leading-none">Registry</h1>
       </div>
 
-      <RegistryCardsGrid
+      <RegistryTreeItem name={name} ownerData={ownerData} />
+
+      {/* <RegistryCardsGrid
         label={firstLabel}
         protocol={ownerData.protocolVersion}
         owner={ownerData.owner}
@@ -96,7 +114,7 @@ export const RegistryTree = ({
             chainId={chainId}
           />
         </>
-      )}
+      )} */}
     </div>
   )
 }

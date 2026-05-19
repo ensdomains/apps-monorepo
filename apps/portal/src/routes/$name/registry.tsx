@@ -11,18 +11,11 @@ import {
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryCardsGrid } from '@/features/registry/components/RegistryCardsGrid'
-import { VerifiedRegistryCard } from '@/features/registry/components/VerifiedRegistryCard'
 import { V2RegistryInfo } from '@/features/registry/components/v2/RegistryInfo'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { EditNoteIcon } from '../../assets/icons'
 import { NotFoundMessage } from '../../components/NotFoundMessage'
-
-const namechainVerifiableFactory = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensVerifiableFactory',
-})
 
 const v1LegacyRegistryAddress = getChainContractAddress({
   chain: sepoliaWithEns,
