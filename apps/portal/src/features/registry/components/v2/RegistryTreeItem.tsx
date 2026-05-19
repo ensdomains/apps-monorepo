@@ -29,14 +29,14 @@ export const RegistryTreeItem = ({
   const isParent = index === 1
   const isLast = index === registriesCount - 1
 
-  console.log('registry tree item', { isRoot, isParent, isLast })
+  const isRegistryConfigured = address !== zeroAddress
+
+  const isLastWithRegistryConfigured = isLast && isRegistryConfigured
 
   const { data: summary } = useQuery({
     ...getRegistryLabelCountQueryOptions({ address }),
-    enabled: isLast && address !== zeroAddress,
+    enabled: isLastWithRegistryConfigured,
   })
-
-  console.log('registry query', { address, summary })
 
   return (
     <div
@@ -53,29 +53,33 @@ export const RegistryTreeItem = ({
           </Fragment>
         ) : null}
 
-        <EntityBadge
-          label={match({ isRoot, isParent, isLast })
-            .with({ isRoot: true }, () => 'root registry')
-            .with({ isParent: true }, () => 'parent registry')
-            .with({ isLast: true }, () => 'permissioned registry')
-            .with(
-              { isRoot: false, isParent: false, isLast: false },
-              () => undefined,
-            )
-            .exhaustive()}
-          variant="contract"
-          className="font-normal"
-        >
-          {truncateAddress(address, 6, 4, '...')}
-        </EntityBadge>
-        <span className="text-sm text-muted-foreground font-mono">
-          Chain ID: {chainId}
-        </span>
-        <span className="text-sm text-muted-foreground font-mono">
-          {ownerData.protocolVersion}
-        </span>
+        {isRegistryConfigured ? (
+          <Fragment>
+            <EntityBadge
+              label={match({ isRoot, isParent, isLast })
+                .with({ isRoot: true }, () => 'root registry')
+                .with({ isParent: true }, () => 'parent registry')
+                .with({ isLast: true }, () => 'permissioned registry')
+                .with(
+                  { isRoot: false, isParent: false, isLast: false },
+                  () => undefined,
+                )
+                .exhaustive()}
+              variant="contract"
+              className="font-normal"
+            >
+              {truncateAddress(address, 6, 4, '...')}
+            </EntityBadge>
+            <span className="text-sm text-muted-foreground font-mono">
+              Chain ID: {chainId}
+            </span>
+            <span className="text-sm text-muted-foreground font-mono">
+              {ownerData.protocolVersion}
+            </span>
+          </Fragment>
+        ) : null}
       </div>
-      {isLast ? (
+      {isLastWithRegistryConfigured ? (
         <dl className="grid grid-cols-2 max-w-sm pl-14 gap-4 text-sm text-muted-foreground -mt-2">
           <dt>Chain ID:</dt>
           <dd>{chainId}</dd>
