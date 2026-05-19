@@ -164,6 +164,10 @@ msgstr "Add a credit card"
 msgid "Add a short bio to your profile"
 msgstr "Add a short bio to your profile"
 
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:40
+msgid "Add an external contact method if you also want reminders by email or Telegram or in your browser."
+msgstr "Add an external contact method if you also want reminders by email or Telegram or in your browser."
+
 #: src/features/payment/components/index.tsx:126
 msgid "Add Backup Card"
 msgstr "Add Backup Card"
@@ -189,6 +193,10 @@ msgstr "Add links to your profile"
 msgid "Add more"
 msgstr "Add more"
 
+#: src/features/notifications/settings/contact-methods/index.tsx:41
+msgid "Add more contact methods"
+msgstr "Add more contact methods"
+
 #: src/features/payment/components/add.tsx:23
 #: src/routes/payment/list.tsx:29
 msgid "Add Payment Method"
@@ -206,7 +214,7 @@ msgstr "Add your wallet addresses to receive payments. All addresses will be pub
 msgid "Added"
 msgstr "Added"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:107
+#: src/features/notifications/settings/contact-methods/telegram.tsx:92
 msgid "Adding telegram..."
 msgstr "Adding telegram..."
 
@@ -220,7 +228,7 @@ msgstr "Address"
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 
-#: src/routes/notifications/_authenticated/index.tsx:76
+#: src/routes/notifications/_authenticated/index.tsx:72
 msgid "All Notifications"
 msgstr "All Notifications"
 
@@ -383,7 +391,7 @@ msgstr "Blog"
 msgid "Browse Files"
 msgstr "Browse Files"
 
-#: src/features/notifications/settings/contact-methods/push.tsx:94
+#: src/features/notifications/settings/contact-methods/push.tsx:110
 msgid "Browser Notifications"
 msgstr "Browser Notifications"
 
@@ -418,8 +426,8 @@ msgid "Can you share your order number?"
 msgstr "Can you share your order number?"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:383
-#: src/features/notifications/settings/contact-methods/email.tsx:239
-#: src/features/notifications/settings/contact-methods/telegram.tsx:178
+#: src/features/notifications/settings/contact-methods/email.tsx:232
+#: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
@@ -624,6 +632,10 @@ msgstr "Connect Wallet"
 msgid "Connect your wallet"
 msgstr "Connect your wallet"
 
+#: src/features/notifications/settings/contact-methods/telegram.tsx:181
+msgid "Connected"
+msgstr "Connected"
+
 #: src/routes/wallet.tsx:302
 msgid "Connected via:"
 msgstr "Connected via:"
@@ -643,6 +655,10 @@ msgstr "Connection Details"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx:88
 msgid "Contact"
 msgstr "Contact"
+
+#: src/features/notifications/settings/contact-methods/index.tsx:27
+msgid "Contact methods"
+msgstr "Contact methods"
 
 #: src/features/profile/components/sections/OtherSection.tsx:95
 msgid "Content Hash"
@@ -822,20 +838,20 @@ msgstr "Eligible for upgrade"
 msgid "Email added"
 msgstr "Email added"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:164
-#: src/features/notifications/settings/contact-methods/email.tsx:167
+#: src/features/notifications/settings/contact-methods/email.tsx:163
+#: src/features/notifications/settings/contact-methods/email.tsx:166
 msgid "Email channel removed"
 msgstr "Email channel removed"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:284
+#: src/features/notifications/settings/contact-methods/email.tsx:280
 msgid "Email Notifications"
 msgstr "Email Notifications"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:181
+#: src/features/notifications/settings/contact-methods/email.tsx:180
 msgid "Email options"
 msgstr "Email options"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:144
+#: src/features/notifications/settings/contact-methods/email.tsx:143
 msgid "Email verification sent"
 msgstr "Email verification sent"
 
@@ -851,7 +867,7 @@ msgstr "Email verified successfully! You can now receive notifications."
 msgid "Email Verified!"
 msgstr "Email Verified!"
 
-#: src/features/notifications/settings/contact-methods/push.tsx:120
+#: src/features/notifications/settings/contact-methods/push.tsx:101
 msgid "Enable"
 msgstr "Enable"
 
@@ -876,9 +892,7 @@ msgstr "ENS"
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
 
-#: src/features/notifications/settings/preferences.tsx:131
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:94
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:115
+#: src/features/notifications/settings/preferences.tsx:121
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
@@ -918,7 +932,7 @@ msgstr "Enter URL Manually"
 msgid "Enter wallet address"
 msgstr "Enter wallet address"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:78
+#: src/features/notifications/settings/contact-methods/email.tsx:77
 msgid "Enter your email"
 msgstr "Enter your email"
 
@@ -981,7 +995,7 @@ msgstr "Failed to add email"
 msgid "Failed to add Telegram channel"
 msgstr "Failed to add Telegram channel"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:113
+#: src/features/notifications/settings/contact-methods/telegram.tsx:98
 msgid "Failed to add telegram: "
 msgstr "Failed to add telegram: "
 
@@ -1007,7 +1021,7 @@ msgstr "Failed to fund wallet: {0}"
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:170
+#: src/features/notifications/settings/contact-methods/email.tsx:169
 msgid "Failed to remove email channel"
 msgstr "Failed to remove email channel"
 
@@ -1015,7 +1029,7 @@ msgstr "Failed to remove email channel"
 msgid "Failed to remove Telegram channel"
 msgstr "Failed to remove Telegram channel"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:149
+#: src/features/notifications/settings/contact-methods/email.tsx:148
 msgid "Failed to resend email verification"
 msgstr "Failed to resend email verification"
 
@@ -1041,9 +1055,7 @@ msgstr "Failed to sign in. Please try again."
 msgid "Failed to switch language"
 msgstr "Failed to switch language"
 
-#: src/features/notifications/settings/preferences.tsx:67
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:33
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:54
+#: src/features/notifications/settings/preferences.tsx:44
 msgid "Failed to update preferences"
 msgstr "Failed to update preferences"
 
@@ -1059,11 +1071,9 @@ msgstr "Failed to verify email"
 msgid "Favorites"
 msgstr "Favorites"
 
-#: src/features/notifications/settings/preferences.tsx:149
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:112
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:133
-msgid "Favourited Name Expiry"
-msgstr "Favourited Name Expiry"
+#: src/features/notifications/settings/preferences.tsx:136
+msgid "Favourites"
+msgstr "Favourites"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
 msgid "Finalizing registration"
@@ -1091,29 +1101,25 @@ msgstr "Funding wallet"
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
-#: src/features/notifications/settings/contact-methods/push.tsx:97
+#: src/features/notifications/settings/contact-methods/push.tsx:102
 msgid "Get instant push notifications in your browser"
 msgstr "Get instant push notifications in your browser"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:120
+#: src/features/notifications/settings/contact-methods/telegram.tsx:109
 msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
-#: src/features/notifications/settings/preferences.tsx:140
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:103
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:124
-msgid "Get notified when names in your favourites expire"
-msgstr "Get notified when names in your favourites expire"
+#: src/features/notifications/settings/preferences.tsx:131
+msgid "Get notified when names you favorited expire."
+msgstr "Get notified when names you favorited expire."
 
 #: src/features/dashboard/components/FaqSection.tsx:69
 msgid "Get support"
 msgstr "Get support"
 
-#: src/features/notifications/settings/preferences.tsx:122
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:85
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:106
-msgid "Get updated on the latest releases and features"
-msgstr "Get updated on the latest releases and features"
+#: src/features/notifications/settings/preferences.tsx:116
+msgid "Get updated on the latest releases and features."
+msgstr "Get updated on the latest releases and features."
 
 #: src/features/migration/components/GameStep.tsx:55
 msgid "Getting ready..."
@@ -1175,6 +1181,10 @@ msgstr "Image must be under {MAX_FILE_SIZE_MB}MB"
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:190
 msgid "Image not available"
 msgstr "Image not available"
+
+#: src/features/notifications/settings/preferences.tsx:89
+msgid "In-app notifications are always enabled"
+msgstr "In-app notifications are always enabled"
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:29
 msgid "Inbox"
@@ -1253,7 +1263,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/features/dashboard/components/PrimaryNameCard.tsx:53
 #: src/features/dashboard/components/PrimaryNameCard.tsx:56
 #: src/features/notifications/inbox/list.tsx:47
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:94
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:97
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Loading..."
 msgstr "Loading..."
@@ -1295,16 +1305,11 @@ msgstr "Manage Para Wallet"
 msgid "Manage Renewals"
 msgstr "Manage Renewals"
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:25
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
-msgid "Manage your notification preferences for your name(s) and ENS-related updates."
-msgstr "Manage your notification preferences for your name(s) and ENS-related updates."
-
-#: src/routes/notifications/_authenticated/index.tsx:114
+#: src/routes/notifications/_authenticated/index.tsx:110
 msgid "Mark all as read"
 msgstr "Mark all as read"
 
-#: src/routes/notifications/_authenticated/index.tsx:112
+#: src/routes/notifications/_authenticated/index.tsx:108
 msgid "Marking..."
 msgstr "Marking..."
 
@@ -1350,9 +1355,7 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/notifications/settings/preferences.tsx:113
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:76
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:97
+#: src/features/notifications/settings/preferences.tsx:105
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
@@ -1383,6 +1386,10 @@ msgstr "Need ${0}"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx:79
 msgid "Need help?"
 msgstr "Need help?"
+
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:33
+msgid "Never lose your name to expiry."
+msgstr "Never lose your name to expiry."
 
 #: src/features/migration/components/MigrationModal.tsx:44
 msgid "New Experience"
@@ -1487,24 +1494,17 @@ msgstr "Nothing here yet!"
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 
-#: src/features/notifications/settings/preferences.tsx:97
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
-msgid "Notification Preferences"
-msgstr "Notification Preferences"
-
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:21
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:201
-#: src/routes/notifications/_authenticated/index.tsx:86
+#: src/routes/notifications/_authenticated/index.tsx:82
 msgid "Notification Settings"
 msgstr "Notification Settings"
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx:18
+#: src/features/navigation/Header/NotificationsSection/NotificationsTriggerButton.tsx:17
 #: src/features/notifications/dropdown/notification-dropdown.tsx:28
 msgid "Notifications"
 msgstr "Notifications"
 
-#: src/features/notifications/settings/contact-methods/push.tsx:131
+#: src/features/notifications/settings/contact-methods/push.tsx:117
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
 
@@ -1574,10 +1574,13 @@ msgstr "Payment method options"
 msgid "Payment Methods"
 msgstr "Payment Methods"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:267
-#: src/features/notifications/settings/contact-methods/telegram.tsx:141
+#: src/features/notifications/settings/contact-methods/email.tsx:260
 msgid "Pending"
 msgstr "Pending"
+
+#: src/features/notifications/settings/contact-methods/telegram.tsx:179
+msgid "Pending verification"
+msgstr "Pending verification"
 
 #: src/features/migration/pages/MigrationPage.tsx:67
 msgid "Permission missing. Please try again."
@@ -1601,7 +1604,7 @@ msgstr "Please select a valid image file"
 msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
 msgstr "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:102
+#: src/features/notifications/settings/contact-methods/telegram.tsx:87
 msgid "Please sign in to telegram in the popup window."
 msgstr "Please sign in to telegram in the popup window."
 
@@ -1609,9 +1612,11 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
-#: src/features/notifications/settings/preferences.tsx:64
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:30
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:51
+#: src/features/notifications/settings/preferences.tsx:86
+msgid "Preferences"
+msgstr "Preferences"
+
+#: src/features/notifications/settings/preferences.tsx:41
 msgid "Preferences updated"
 msgstr "Preferences updated"
 
@@ -1692,9 +1697,13 @@ msgstr "Reading the commit-reveal window from the registrar"
 msgid "Receive crypto from any chain"
 msgstr "Receive crypto from any chain"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:287
+#: src/features/notifications/settings/contact-methods/email.tsx:283
 msgid "Receive notifications via email for important domain events"
 msgstr "Receive notifications via email for important domain events"
+
+#: src/features/notifications/settings/preference-card.tsx:63
+msgid "Recommended"
+msgstr "Recommended"
 
 #: src/features/notifications/RequireBackendAuth.tsx:54
 msgid "Reconnect the wallet used for notifications, then sign in again."
@@ -1784,9 +1793,9 @@ msgstr "Registration successful"
 msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr "Registration successful! You'll receive a confirmation shortly."
 
-#: src/features/notifications/settings/contact-methods/email.tsx:214
-#: src/features/notifications/settings/contact-methods/email.tsx:250
-#: src/features/notifications/settings/contact-methods/telegram.tsx:190
+#: src/features/notifications/settings/contact-methods/email.tsx:207
+#: src/features/notifications/settings/contact-methods/email.tsx:243
+#: src/features/notifications/settings/contact-methods/telegram.tsx:170
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:354
 msgid "Remove"
 msgstr "Remove"
@@ -1796,7 +1805,7 @@ msgstr "Remove"
 msgid "Remove Avatar"
 msgstr "Remove Avatar"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:223
+#: src/features/notifications/settings/contact-methods/email.tsx:216
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
 
@@ -1809,7 +1818,7 @@ msgstr "Remove Header"
 msgid "Remove notification"
 msgstr "Remove notification"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:162
+#: src/features/notifications/settings/contact-methods/telegram.tsx:142
 msgid "Remove Telegram Contact Method?"
 msgstr "Remove Telegram Contact Method?"
 
@@ -1821,12 +1830,12 @@ msgstr "Removed"
 msgid "Removed:"
 msgstr "Removed:"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:158
+#: src/features/notifications/settings/contact-methods/email.tsx:157
 msgid "Removing email channel"
 msgstr "Removing email channel"
 
 #. placeholder {0}: email.label
-#: src/features/notifications/settings/contact-methods/email.tsx:160
+#: src/features/notifications/settings/contact-methods/email.tsx:159
 msgid "Removing email for {0}"
 msgstr "Removing email for {0}"
 
@@ -1875,16 +1884,16 @@ msgstr "Renewing"
 msgid "Renewing for"
 msgstr "Renewing for"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:203
+#: src/features/notifications/settings/contact-methods/email.tsx:199
 msgid "Resend Verification"
 msgstr "Resend Verification"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:138
+#: src/features/notifications/settings/contact-methods/email.tsx:137
 msgid "Resending email verification"
 msgstr "Resending email verification"
 
 #. placeholder {0}: email.label
-#: src/features/notifications/settings/contact-methods/email.tsx:140
+#: src/features/notifications/settings/contact-methods/email.tsx:139
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
 
@@ -1936,14 +1945,16 @@ msgstr "Save <0>{0}</0>"
 msgid "Save ${0}"
 msgstr "Save ${0}"
 
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:75
+msgid "Save and Continue"
+msgstr "Save and Continue"
+
 #: src/features/profile/components/dialogs/DiffDialog.tsx:142
 #: src/features/profile/components/dialogs/DiffDialog.tsx:267
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: src/features/notifications/settings/preferences.tsx:178
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:151
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:173
+#: src/features/notifications/settings/preferences.tsx:180
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
@@ -1964,10 +1975,9 @@ msgstr "Saving manager for {label}.eth"
 msgid "Saving managers batch {0} of {total}"
 msgstr "Saving managers batch {0} of {total}"
 
-#: src/features/notifications/settings/preferences.tsx:176
+#: src/features/notifications/settings/preferences.tsx:178
 #: src/features/profile/components/dialogs/DiffDialog.tsx:262
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:151
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:171
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:73
 msgid "Saving..."
 msgstr "Saving..."
 
@@ -2001,8 +2011,8 @@ msgstr "Search name..."
 msgid "Search names"
 msgstr "Search names"
 
-#: src/routes/notifications/_authenticated/index.tsx:120
-#: src/routes/notifications/_authenticated/index.tsx:121
+#: src/routes/notifications/_authenticated/index.tsx:116
+#: src/routes/notifications/_authenticated/index.tsx:117
 msgid "Search notifications"
 msgstr "Search notifications"
 
@@ -2046,11 +2056,11 @@ msgstr "Select payment"
 msgid "Select payment method"
 msgstr "Select payment method"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:122
+#: src/features/notifications/settings/contact-methods/email.tsx:121
 msgid "Send Verification"
 msgstr "Send Verification"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:120
+#: src/features/notifications/settings/contact-methods/email.tsx:119
 msgid "Sending..."
 msgstr "Sending..."
 
@@ -2084,6 +2094,11 @@ msgstr "Set reverse record to show your name"
 #: src/features/profile/components/sections/OtherSection.tsx:39
 msgid "Set the content hash and ABI for your name"
 msgstr "Set the content hash and ABI for your name"
+
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:86
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:123
+msgid "Set up later"
+msgstr "Set up later"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:268
 msgid "Set which ENS name displays as your identity across apps and wallets."
@@ -2173,9 +2188,7 @@ msgstr "Sign once to enable seamless transactions."
 msgid "Signing in..."
 msgstr "Signing in..."
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:45
 #: src/features/register/components/Autorenewal.tsx:110
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:147
 msgid "Skip"
 msgstr "Skip"
 
@@ -2326,7 +2339,7 @@ msgstr "Support"
 msgid "Supports USDC and DAI payments"
 msgstr "Supports USDC and DAI payments"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:135
+#: src/features/notifications/settings/contact-methods/telegram.tsx:190
 msgid "Telegram"
 msgstr "Telegram"
 
@@ -2338,7 +2351,7 @@ msgstr "Telegram channel added"
 msgid "Telegram channel removed"
 msgstr "Telegram channel removed"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:90
+#: src/features/notifications/settings/contact-methods/telegram.tsx:107
 msgid "Telegram Notifications"
 msgstr "Telegram Notifications"
 
@@ -2417,11 +2430,11 @@ msgstr "This will be split into {0} batches — expect that many wallet signatur
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 
-#: src/features/notifications/settings/contact-methods/push.tsx:134
+#: src/features/notifications/settings/contact-methods/push.tsx:120
 msgid "To enable, go to your browser's site settings for this page and allow notifications."
 msgstr "To enable, go to your browser's site settings for this page and allow notifications."
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:199
+#: src/features/notifications/settings/contact-methods/telegram.tsx:194
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 msgstr "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 
@@ -2480,7 +2493,7 @@ msgstr "Try it out"
 msgid "Try searching for a different coin or chain"
 msgstr "Try searching for a different coin or chain"
 
-#: src/routes/notifications/_authenticated/index.tsx:101
+#: src/routes/notifications/_authenticated/index.tsx:97
 msgid "Unread only"
 msgstr "Unread only"
 
@@ -2577,7 +2590,7 @@ msgstr "Verification Code"
 msgid "Verification Failed"
 msgstr "Verification Failed"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:275
+#: src/features/notifications/settings/contact-methods/email.tsx:268
 msgid "Verified"
 msgstr "Verified"
 
@@ -2585,9 +2598,7 @@ msgstr "Verified"
 msgid "Verified!"
 msgstr "Verified!"
 
-#: src/features/notifications/settings/preferences.tsx:185
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:157
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:180
+#: src/features/notifications/settings/preferences.tsx:187
 msgid "Verify at least one contact method to save preferences"
 msgstr "Verify at least one contact method to save preferences"
 
@@ -2603,7 +2614,7 @@ msgstr "Verify Code"
 msgid "Verify Email Address"
 msgstr "Verify Email Address"
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:55
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:115
 #: src/features/register/components/VerifyWalletModal.tsx:108
 msgid "Verify Wallet"
 msgstr "Verify Wallet"
@@ -2831,11 +2842,11 @@ msgstr "You have <0>{0}</0> names that are eligible for upgrade"
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr "You have unsaved changes. Are you sure you want to leave?"
 
-#: src/features/notifications/settings/contact-methods/email.tsx:226
+#: src/features/notifications/settings/contact-methods/email.tsx:219
 msgid "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important alerts if you remove this contact method. Are you sure you want to continue?"
 
-#: src/features/notifications/settings/contact-methods/telegram.tsx:165
+#: src/features/notifications/settings/contact-methods/telegram.tsx:145
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 
@@ -2844,15 +2855,17 @@ msgstr "You may miss important notifications if you remove this contact method. 
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr "You need to connect a wallet to see your stablecoin balances"
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:33
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:101
 msgid "You need to verify your wallet ownership to manage your notification preferences."
 msgstr "You need to verify your wallet ownership to manage your notification preferences."
 
-#: src/features/notifications/settings/preferences.tsx:104
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:67
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:88
-msgid "You'll be notified 30, 7, and 1 day before expiry"
-msgstr "You'll be notified 30, 7, and 1 day before expiry"
+#: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:37
+msgid "You'll always see important notifications in the app."
+msgstr "You'll always see important notifications in the app."
+
+#: src/features/notifications/settings/preferences.tsx:98
+msgid "You'll be notified 30, 7, and 1 day before expiry."
+msgstr "You'll be notified 30, 7, and 1 day before expiry."
 
 #: src/features/wallet/components/BackendAuthModal.tsx:146
 msgid "You'll miss:"
@@ -2911,7 +2924,7 @@ msgstr "Your names are ready to upgrade"
 msgid "Your profile changes have been confirmed on-chain."
 msgstr "Your profile changes have been confirmed on-chain."
 
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:69
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 
