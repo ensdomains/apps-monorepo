@@ -4,21 +4,13 @@ import {
   OrderDirection,
 } from '@ens-apps/indexer'
 import { useWallet } from '@getpara/react-sdk-lite'
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import {
-  ChevronDown,
-  CircleAlert,
-  CircleArrowLeft,
-  CircleArrowRight,
-  Mountain,
-} from 'lucide-react'
+import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
-import ensMarkBadge from '@/assets/ens-mark-badge.svg'
 import {
   buildMergedNamesList,
   mergedRowMetadata,
@@ -33,64 +25,33 @@ import {
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { tw } from '@/utils/tailwind'
 import { getAllDomainsInfiniteQuery } from '../service/queries/getAllDashboardDomains'
+import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
-import { PrimaryBadge } from './PrimaryBadge'
 
 const PAGE_SIZE = 5
 
-type Sort = `${SortField}-${SortDir}`
+export type Sort = `${SortField}-${SortDir}`
 
 interface MyNamesListProps {
   readonly migrationEnabled?: boolean
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
+  readonly sort: Sort
+  readonly favoriteLabels: ReadonlySet<string>
+  readonly onToggleFavorite: (label: string) => void
+  readonly isAuthenticated: boolean
 }
 
 const NameRowSkeleton = () => (
-  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-    <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-      <div className="size-[16px] shrink-0 animate-pulse rounded bg-gray-200" />
-      <div className="flex items-center gap-2 md:gap-[12px]">
-        <div className="size-[32px] shrink-0 animate-pulse rounded-full bg-gray-200 md:size-[36.9px]" />
-        <div className="h-[24px] w-[120px] animate-pulse rounded-[2.8px] bg-gray-200 md:w-[150px]" />
-      </div>
+  <div className="flex flex-col gap-4">
+    <div className="h-5 w-[120px] animate-pulse rounded-full bg-gray-200" />
+    <div className="flex items-center gap-4">
+      <div className="size-[40px] shrink-0 animate-pulse rounded-full bg-gray-200" />
+      <div className="h-[28px] w-[150px] animate-pulse rounded-[2px] bg-gray-200" />
     </div>
-    <div className="flex items-start gap-4 md:gap-[30px]">
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:gap-[4px]">
-        <div className="h-[20px] w-[80px] animate-pulse rounded bg-gray-200" />
-        <div className="h-[16px] w-[50px] animate-pulse rounded bg-gray-200" />
-      </div>
-    </div>
+    <div className="h-4 w-[180px] animate-pulse rounded bg-gray-200" />
   </div>
 )
-
-const SortIndicator = ({
-  direction,
-  isActive,
-}: {
-  readonly direction: 'asc' | 'desc'
-  readonly isActive: boolean
-}) => {
-  if (!isActive) {
-    return (
-      <div className="flex flex-col">
-        <ChevronDown className="size-[8.2px] rotate-180 text-black" />
-        <ChevronDown className="size-[8.2px] text-black" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col">
-      <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === 'asc' ? 'text-ens-blue' : 'text-ens-gray-three'}`}
-      />
-      <ChevronDown
-        className={`size-[8.2px] ${direction === 'desc' ? 'text-ens-blue' : 'text-ens-gray-three'}`}
-      />
-    </div>
-  )
-}
 
 const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
   const [field, dir] = sort.split('-') as [SortField, SortDir]
@@ -101,13 +62,15 @@ export const MyNamesList = ({
   migrationEnabled = false,
   primaryLabel,
   searchQuery = '',
+  sort,
+  favoriteLabels,
+  onToggleFavorite,
+  isAuthenticated,
 }: MyNamesListProps) => {
-  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const { data: wallet } = useWallet()
   const smartAccount = useSmartAccountContextSafe()
   const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<Sort>('name-desc')
   const { field: sortField, dir: sortDir } = parseSort(sort)
 
   const { eligible: v1Classified, isPending: isV1Pending } = useEligibleV1Names(
@@ -140,7 +103,6 @@ export const MyNamesList = ({
   ])
 
   const hasOwnerAddresses = ownerAddresses.length > 0
-  const ownerAddressesKey = ownerAddresses.join(',')
 
   const {
     data: v2Data,
@@ -167,11 +129,6 @@ export const MyNamesList = ({
 
   const v2Names: DomainFragment[] = v2Data ?? []
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Reset page on search change
-  useEffect(() => {
-    setPage(1)
-  }, [searchQuery, ownerAddressesKey])
-
   useEffect(() => {
     if (isV2Error || !hasNextV2Page || isFetchingNextV2Page) return
     void fetchNextV2Page()
@@ -189,25 +146,15 @@ export const MyNamesList = ({
     [v2Names, visibleV1Classified, searchQuery, sortField, sortDir],
   )
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(mergedSortedFiltered.length / PAGE_SIZE),
-  )
+  const total = mergedSortedFiltered.length
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const pageItems = mergedSortedFiltered.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
   )
-  const hasNextPage = currentPage < totalPages
-
-  const toggleSort = (field: 'name' | 'expiry') => {
-    if (sortField === field) {
-      setSort(`${field}-${sortDir === 'desc' ? 'asc' : 'desc'}`)
-    } else {
-      setSort(`${field}-${field === 'expiry' ? 'asc' : 'desc'}`)
-    }
-    setPage(1)
-  }
+  const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
   const avatarLookups = useMemo<AvatarLookupEntry[]>(
     () =>
@@ -246,82 +193,6 @@ export const MyNamesList = ({
           <Trans>Some names could not be loaded</Trans>
         </div>
       ) : null}
-
-      {/* Mobile Sort Dropdown */}
-      <div className="mb-4 flex md:hidden">
-        <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
-          <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            <Trans>Sort by</Trans>
-          </span>
-          <select
-            aria-label={t`Sort names by`}
-            className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
-            onChange={(e) => {
-              setSort(e.target.value as Sort)
-              setPage(1)
-            }}
-            value={sort}
-          >
-            <option value="name-asc">
-              <Trans>Name (A-Z)</Trans>
-            </option>
-            <option value="name-desc">
-              <Trans>Name (Z-A)</Trans>
-            </option>
-            <option value="expiry-asc">
-              <Trans>Expiry date (Earliest)</Trans>
-            </option>
-            <option value="expiry-desc">
-              <Trans>Expiry date (Latest)</Trans>
-            </option>
-          </select>
-        </div>
-      </div>
-
-      {/* Desktop Sort Header */}
-      <div className="hidden w-full md:flex md:items-center md:justify-between">
-        <button
-          aria-label={
-            sortField === 'name'
-              ? sortDir === 'asc'
-                ? t`Sort by name, currently ascending`
-                : t`Sort by name, currently descending`
-              : t`Sort by name, currently unsorted`
-          }
-          className="flex cursor-pointer items-center gap-[8px]"
-          onClick={() => toggleSort('name')}
-          type="button"
-        >
-          <span
-            className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
-          >
-            <Trans>Name</Trans>
-          </span>
-          <SortIndicator direction={sortDir} isActive={sortField === 'name'} />
-        </button>
-        <button
-          aria-label={
-            sortField === 'expiry'
-              ? sortDir === 'asc'
-                ? t`Sort by expiry, currently ascending`
-                : t`Sort by expiry, currently descending`
-              : t`Sort by expiry, currently unsorted`
-          }
-          className="flex cursor-pointer items-center gap-[8px]"
-          onClick={() => toggleSort('expiry')}
-          type="button"
-        >
-          <span
-            className={`font-sans text-[16px] tracking-[0.24px] ${sortField === 'expiry' ? 'text-foreground' : 'text-muted-foreground'}`}
-          >
-            <Trans>Expiry</Trans>
-          </span>
-          <SortIndicator
-            direction={sortDir}
-            isActive={sortField === 'expiry'}
-          />
-        </button>
-      </div>
 
       <div className={tw`flex w-full flex-col`}>
         {match({ isPending, pageItems })
@@ -367,7 +238,7 @@ export const MyNamesList = ({
 
               return (
                 <motion.div
-                  className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+                  className="border-[lightgrey] border-b-[0.5px] py-[32px] first:pt-0 last:border-none"
                   key={item.key}
                   {...(shouldReduceMotion
                     ? {}
@@ -381,86 +252,39 @@ export const MyNamesList = ({
                         },
                       })}
                 >
-                  {migrationEnabled && isV1 && (
-                    <div className="mb-[10px]">
-                      <Link
-                        className="inline-flex items-center gap-1 rounded-full bg-[#feeaf0] px-1 py-0.5 transition-colors hover:bg-[#fcdbe5]"
-                        to="/migration"
-                      >
-                        <img
-                          alt=""
-                          className="mt-[2px] size-4.5 shrink-0"
-                          src={ensMarkBadge}
-                        />
-                        <span className="font-sans text-[#e72a96] text-[14px] leading-[1.05] tracking-[0.28px]">
-                          <Trans>Eligible for upgrade</Trans>
-                        </span>
-                      </Link>
-                    </div>
-                  )}
-                  {isPrimary && (
-                    <div className="mb-[10px]">
-                      <PrimaryBadge />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow
-                      avatarUrl={avatarUrl}
-                      label={label}
-                      linkToMigration={migrationEnabled && isV1}
-                    />
-                    <div className="flex items-start gap-4 md:gap-[30px]">
-                      <div className="flex min-w-0 flex-1 flex-col items-start gap-2 md:w-[120px] md:flex-none md:items-end md:gap-[4px]">
-                        <div className="flex flex-col items-start">
-                          <span className="font-sans text-muted-foreground text-xs leading-[1.6] md:text-sm md:leading-[1.8]">
-                            {formattedExpiryDate}
-                          </span>
-                        </div>
-                        {expiringSoon && daysUntilExpiry !== null && (
-                          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
-                            <CircleAlert
-                              className="size-3 shrink-0 text-[#e3a531]"
-                              strokeWidth={2}
-                            />
-                            <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
-                              <Trans>Expires in {daysUntilExpiry} days</Trans>
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <NameRow
+                    avatarUrl={avatarUrl}
+                    cta={!isV1 && expiringSoon ? 'renew' : null}
+                    expiringInDays={expiringSoon ? daysUntilExpiry : null}
+                    expiryLabel={formattedExpiryDate}
+                    isAuthenticated={isAuthenticated}
+                    isFavorite={favoriteLabels.has(label.toLowerCase())}
+                    label={label}
+                    linkToMigration={migrationEnabled && isV1}
+                    nameRole="owner"
+                    nameVariant={isPrimary ? 'primary' : 'secondary'}
+                    onToggleFavorite={() => onToggleFavorite(label)}
+                    showFavoriteButton
+                    status={isV1 ? 'eligibleUpgrade' : null}
+                    verified={isPrimary}
+                  />
                 </motion.div>
               )
             }),
           )}
       </div>
 
-      <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center justify-center gap-[12px]">
-          <button
-            aria-label={t`Previous page`}
-            className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
-            disabled={isPending || currentPage === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            type="button"
-          >
-            <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
-          </button>
-          <button
-            aria-label={t`Next page`}
-            className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
-            disabled={isPending || !hasNextPage}
-            onClick={() => setPage((p) => p + 1)}
-            type="button"
-          >
-            <CircleArrowRight className="size-[32px]" strokeWidth={1} />
-          </button>
-        </div>
-        <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-          <Trans>Showing your names</Trans>
-        </span>
-      </div>
+      {total > 0 && (
+        <DashboardPagination
+          currentPage={currentPage}
+          disabled={isPending}
+          onPageChange={setPage}
+          rangeEnd={rangeEnd}
+          rangeStart={rangeStart}
+          total={total}
+          totalPages={totalPages}
+        />
+      )}
     </div>
   )
 }

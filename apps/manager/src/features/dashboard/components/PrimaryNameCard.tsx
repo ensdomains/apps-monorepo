@@ -1,11 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, Clock } from 'lucide-react'
+import { Calendar, ChevronDown, History } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { match } from 'ts-pattern'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
@@ -45,25 +46,25 @@ export const PrimaryNameCard = ({
     reverseExpiry?.expiry != null
       ? new Date(Number(reverseExpiry.expiry) * 1000)
       : null
-  const formattedRegisteredDate = formatDashboardDate(registeredDate)
-  const formattedExpiryDate = formatDashboardDate(expiryDate)
   const hasAvatar = Boolean(avatarUrl)
   const displayName = primaryName ?? t`Your ENS name`
   const registeredLabel = isRegistrationLoading
     ? t`Loading...`
-    : formattedRegisteredDate
+    : formatDashboardDate(registeredDate)
   const expiryLabel = isReverseExpiryLoading
     ? t`Loading...`
-    : formattedExpiryDate
+    : formatDashboardDate(expiryDate)
   const canViewProfile = Boolean(primaryName)
 
   const themeVars = getThemeVars(themeColor) as React.CSSProperties
 
   return (
     <Card
-      className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
+      className="flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
       style={themeVars}
     >
+      <PrimaryBadge className="self-start bg-[#f5fcff]" />
+
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
           <motion.div
@@ -94,51 +95,54 @@ export const PrimaryNameCard = ({
                 />
               ))}
           </motion.div>
-          <div className="flex min-h-0 flex-col justify-between md:h-50">
+          <div className="flex min-h-0 flex-col justify-between gap-4 md:h-50">
             <ChoosePrimaryNameDialog>
               <button
-                className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
+                className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
                 type="button"
               >
-                <div className="inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
+                <span className="inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
                   <span
                     className={
                       displayName.length > 10
-                        ? 'font-medium font-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]'
-                        : 'font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
+                        ? 'font-medium font-semi-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]'
+                        : 'font-medium font-semi-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
                     }
                   >
                     {displayName}
                   </span>
-                </div>
-                <PrimaryBadge />
+                </span>
+                <ChevronDown
+                  className="size-6 shrink-0 text-ens-quartz-400"
+                  strokeWidth={2}
+                />
               </button>
             </ChoosePrimaryNameDialog>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-2">
                 <Calendar
-                  className="size-4 text-muted-foreground"
+                  className="size-5 text-ens-quartz-400"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-[16px] leading-normal">
+                  <span className="text-ens-quartz-400">
                     <Trans>Registered</Trans>
                   </span>
-                  <span className="font-semibold text-muted-foreground">
+                  <span className="font-semi-mono text-[#333] text-[13px] tracking-[0.91px]">
                     {registeredLabel}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Clock
-                  className="size-4 text-muted-foreground"
+                <History
+                  className="size-5 text-ens-quartz-400"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-[16px] leading-normal">
+                  <span className="text-ens-quartz-400">
                     <Trans>Expires</Trans>
                   </span>
-                  <span className="font-semibold text-muted-foreground">
+                  <span className="font-semi-mono text-[#333] text-[13px] tracking-[0.91px]">
                     {expiryLabel}
                   </span>
                 </div>
@@ -146,16 +150,18 @@ export const PrimaryNameCard = ({
             </div>
           </div>
         </div>
+
         <LinkButton
-          className="h-10 w-full rounded-xs border border-ens-blue px-[8.5px] py-[4.25px] font-mono text-ens-blue uppercase tracking-wider hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
+          className="group flex h-auto w-full items-center justify-center gap-1.5 bg-transparent p-0 font-mono text-(--theme-color) uppercase tracking-wider hover:bg-transparent hover:text-(--theme-color) hover:no-underline hover:opacity-80 md:w-auto"
           disabled={!canViewProfile}
           params={{ name: primaryName ?? '' }}
           to="/$name"
-          variant="outline"
+          variant="link"
         >
-          <span className="font-sans text-sm leading-normal">
+          <span className="font-mono text-[16px] leading-normal underline-offset-4 group-hover:underline">
             <Trans>View profile</Trans>
           </span>
+          <MSymbol className="ms-opsz-20 text-[16px]" symbol="arrow_forward" />
         </LinkButton>
       </div>
     </Card>
