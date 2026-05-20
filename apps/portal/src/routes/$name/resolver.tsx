@@ -7,7 +7,7 @@ import { sepolia } from 'viem/chains'
 import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { AssuredWorkloadIcon, EditNoteIcon } from '@/assets/icons'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -121,14 +121,14 @@ const ResolverBanner = ({
 }
 
 const ResolverAddressValue = ({ address }: { address: Address }) => (
-  <EntityBadgeWithActions
+  <EntityBadge
     variant="contract"
     address={address}
     etherscanHref={`${sepoliaUrl}/address/${address}`}
     className="max-w-full truncate"
   >
     {address}
-  </EntityBadgeWithActions>
+  </EntityBadge>
 )
 
 const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
@@ -206,9 +206,9 @@ const ResolverInfoCard = ({
       </InfoRow>
       <InfoRow label="Node">
         <div className="flex items-center gap-2">
-          <EntityBadgeWithActions variant="name" name={name} showAvatar>
+          <EntityBadge variant="name" name={name} showAvatar>
             {name}
-          </EntityBadgeWithActions>
+          </EntityBadge>
           {isAliased && <Badge variant="outline">Aliased</Badge>}
         </div>
       </InfoRow>

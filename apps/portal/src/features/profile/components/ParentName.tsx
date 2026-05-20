@@ -1,5 +1,5 @@
 import { SupervisorAccountIcon } from '@/assets/icons'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { BlockCard } from '@/features/dashboard/components'
 import { NameAvatar } from './NameAvatar'
 
@@ -28,9 +28,9 @@ export const ParentName = ({
         <span className="text-sm text-muted-foreground w-24 shrink-0">
           Parent
         </span>
-        <EntityBadgeWithActions variant="name" name={parent}>
+        <EntityBadge variant="name" name={parent}>
           {parent}
-        </EntityBadgeWithActions>
+        </EntityBadge>
       </div>
     )
   }
@@ -57,9 +57,9 @@ export const ParentName = ({
           />
           <span className="text-sm truncate">Parent</span>
         </div>
-        <EntityBadgeWithActions inline variant="name" name={parent}>
+        <EntityBadge inline variant="name" name={parent}>
           {parent}
-        </EntityBadgeWithActions>
+        </EntityBadge>
       </div>
     </BlockCard>
   )

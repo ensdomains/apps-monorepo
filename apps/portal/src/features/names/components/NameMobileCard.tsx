@@ -1,4 +1,4 @@
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
@@ -53,13 +53,9 @@ export const NameMobileCard = ({
             aria-label="Select row"
           />
         )}
-        <EntityBadgeWithActions
-          variant="name"
-          name={name ?? undefined}
-          showAvatar
-        >
+        <EntityBadge variant="name" name={name ?? undefined} showAvatar>
           {name}
-        </EntityBadgeWithActions>
+        </EntityBadge>
       </div>
 
       {/* Expiry section */}
