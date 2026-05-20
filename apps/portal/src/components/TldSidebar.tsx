@@ -147,7 +147,7 @@ export const TldSidebar = ({ tld }: TldSidebarProps) => {
             params={{ tld }}
             activeProps={{ 'data-active': 'true' }}
             activeOptions={{ exact: true }}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-2 outline-hidden ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
           >
             <NameAvatar
               name={tld}

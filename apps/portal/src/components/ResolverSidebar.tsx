@@ -139,7 +139,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
             params={{ address }}
             activeProps={{ 'data-active': 'true' }}
             activeOptions={{ exact: true }}
-            className="group/title flex w-full items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
+            className="group/title flex w-full items-center gap-2 rounded-md px-2 py-2 outline-hidden ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
           >
             <div className="size-6 shrink-0 rounded bg-neutral-2 group-data-[active=true]/title:bg-neutral-3 flex items-center justify-center">
               <ResolverIcon className="size-3.5 text-neutral-6" />
