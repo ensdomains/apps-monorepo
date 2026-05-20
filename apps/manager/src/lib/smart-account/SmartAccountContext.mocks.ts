@@ -3,7 +3,7 @@ import { vi } from 'vitest'
 vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
 vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
 // Tests target the smart-account flow; pin the EOA-only flag to false so it
-// doesn't bypass the Rhinestone/ZeroDev paths under test.
+// doesn't bypass the Rhinestone path under test.
 vi.stubEnv('VITE_FF_USE_EOA', 'false')
 
 // Mock transaction-manager to avoid import issues
@@ -52,33 +52,6 @@ vi.mock('@/utils/backend-client', () => ({
       },
     },
   },
-}))
-
-vi.mock('./pimlico', () => ({
-  initializePimlicoAccount: vi.fn().mockResolvedValue({
-    client: { account: { address: '0xSmartAccount' } },
-    address: '0xSmartAccount123456789012345678901234567890',
-    config: {
-      chain: { id: 11155111 },
-      accountType: 'hca',
-      pimlicoApiKey: 'key',
-    },
-    eoaAddress: '0xEOA1234567890123456789012345678901234567',
-  }),
-}))
-
-vi.mock('./zerodev/kernel', () => ({
-  initializeZeroDevAccount: vi.fn().mockResolvedValue({
-    client: { account: { address: '0xSmartAccount' } },
-    address: '0xSmartAccount123456789012345678901234567890',
-    config: {
-      chain: { id: 11155111 },
-      accountType: 'hca',
-      kernelVersion: '3.1',
-      pimlicoApiKey: 'key',
-    },
-    ecdsaValidator: { type: 'ECDSAValidator' },
-  }),
 }))
 
 vi.mock('./rhinestone', () => ({

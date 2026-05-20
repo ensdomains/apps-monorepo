@@ -41,16 +41,15 @@ function createTransactionRequest(params: {
       }
     }
   | {
-      type: 'zerodev'
+      type: 'erc4337'
       from: Address
       to: Address
       data: `0x${string}`
       value: bigint
       chainId: number
-      zerodevParams: {
+      erc4337Params: {
         calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
         sponsored: boolean
-        useSession?: boolean
       }
     } {
   const { signer, chainId, from, to, data, value, calls } = params
@@ -85,18 +84,17 @@ function createTransactionRequest(params: {
     }
   }
 
-  if (signer.type === 'zerodev') {
+  if (signer.type === 'erc4337') {
     return {
-      type: 'zerodev',
+      type: 'erc4337',
       from,
       to,
       data,
       value,
       chainId,
-      zerodevParams: {
+      erc4337Params: {
         calls,
         sponsored: true,
-        useSession: false,
       },
     }
   }

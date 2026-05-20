@@ -99,7 +99,6 @@ describe('rhinestone-session', () => {
       expect(session.smartAccountAddress).toBe(ACCOUNT_ADDRESS)
       expect(session.ownerAddress).toBe(OWNER_ADDRESS)
       expect(session.chainId).toBe(11155111)
-      expect(session.serializedSessionAccount).toBe('')
       expect(session.enableSignature).toBe(MOCK_ENABLE_SIGNATURE)
       expect(session.hashesAndChainIds).toBeDefined()
     })
@@ -342,7 +341,6 @@ describe('rhinestone-session', () => {
         provider: 'rhinestone',
         chainId: 11155111,
       }),
-      serializedSessionAccount: '',
       enableSignature: MOCK_ENABLE_SIGNATURE,
       hashesAndChainIds: JSON.stringify([
         { chainId: '11155111', sessionDigest: '0xdigest123' },

@@ -47,7 +47,7 @@ interface SnapshotLike {
       maxFeePerGas?: bigint
       maxPriorityFeePerGas?: bigint
       rhinestoneParams?: { sponsored?: boolean }
-      zerodevParams?: { sponsored?: boolean }
+      erc4337Params?: { sponsored?: boolean }
     }
     intent?: { type?: string }
     signer?: { type?: string }
@@ -397,8 +397,8 @@ function resolveSponsorship(
   if (request.type === 'rhinestone-intent') {
     return request.rhinestoneParams?.sponsored
   }
-  if (request.type === 'zerodev') {
-    return request.zerodevParams?.sponsored
+  if (request.type === 'erc4337') {
+    return request.erc4337Params?.sponsored
   }
   return undefined
 }

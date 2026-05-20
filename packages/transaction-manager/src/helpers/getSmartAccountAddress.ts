@@ -2,7 +2,7 @@ import { type Address, isAddress } from 'viem'
 import type { Signer } from '../types/signer.types'
 
 /**
- * Type guard for kernel client with nested account.address structure
+ * Type guard for smart account client with nested account.address structure
  */
 function hasAccountAddress(
   client: unknown,
@@ -20,7 +20,7 @@ function hasAccountAddress(
 }
 
 /**
- * Type guard for kernel client with direct address property
+ * Type guard for smart account client with direct address property
  */
 function hasDirectAddress(client: unknown): client is { address: Address } {
   return (
@@ -43,30 +43,30 @@ export function getSmartAccountAddress(signer: Signer): Address {
     return signer.account.getAddress() as Address
   }
 
-  if (signer.type === 'zerodev') {
+  if (signer.type === 'erc4337') {
     // First, try to get address from config if available
     if (signer.config.accountAddress) {
       return signer.config.accountAddress
     }
 
-    const kernelClient = signer.account
+    const smartAccountClient = signer.account
 
     // Check for nested account.address structure
-    if (hasAccountAddress(kernelClient)) {
-      return kernelClient.account.address
+    if (hasAccountAddress(smartAccountClient)) {
+      return smartAccountClient.account.address
     }
 
     // Fallback: try to get address directly
-    if (hasDirectAddress(kernelClient)) {
-      return kernelClient.address
+    if (hasDirectAddress(smartAccountClient)) {
+      return smartAccountClient.address
     }
 
     throw new Error(
-      'Unable to get smart account address from KernelAccountClient',
+      'Unable to get smart account address from ERC-4337 SmartAccountClient',
     )
   }
 
   throw new Error(
-    'Only Rhinestone or ZeroDev signer is supported for this operation',
+    'Only Rhinestone or ERC-4337 signer is supported for this operation',
   )
 }

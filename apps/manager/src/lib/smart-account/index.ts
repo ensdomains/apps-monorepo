@@ -19,15 +19,9 @@ export {
 export type {
   EthBalance,
   RhinestoneAccountState,
-  SmartAccountProvider,
   SmartAccountState,
   SmartAccountType,
   StablecoinBalance,
   UseSmartAccountConfig,
   WalletSource,
-  ZeroDevAccountState,
 } from './types'
-export {
-  initializeZeroDevAccount,
-  type ZeroDevConfig,
-} from './zerodev/kernel'

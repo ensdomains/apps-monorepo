@@ -117,21 +117,21 @@ export function registerHCAOwnership(
 
     // Build request based on signer type
     let request: TransactionRequest
-    if (signer.type === 'zerodev') {
+    if (signer.type === 'erc4337') {
       request = {
-        type: 'zerodev',
+        type: 'erc4337',
         from: smartAccountAddress,
         to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
         data,
         value: 0n,
         chainId,
-        zerodevParams: {
+        erc4337Params: {
           calls,
           sponsored: true,
         },
       } as TransactionRequest
     } else {
-      // Rhinestone fallback
+      // Rhinestone (default)
       request = {
         type: 'rhinestone-intent',
         from: smartAccountAddress,

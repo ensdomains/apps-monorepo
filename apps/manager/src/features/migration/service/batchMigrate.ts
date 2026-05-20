@@ -1,4 +1,4 @@
-import type { ZeroDevCall } from '@ens-apps/transaction-manager'
+import type { Erc4337Call } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import {
   GAS_HEURISTIC,
@@ -107,7 +107,7 @@ export type BuildBatchedMigrateCallsParams = {
 }
 
 export type BuildBatchedMigrateCallsOutput = {
-  readonly calls: readonly ZeroDevCall[]
+  readonly calls: readonly Erc4337Call[]
   readonly batches: readonly MigrationBatch[]
 }
 
@@ -136,7 +136,7 @@ export const buildBatchedMigrateCalls = (
     gasHeuristic: GAS_HEURISTIC,
   })
 
-  const calls: ZeroDevCall[] = []
+  const calls: Erc4337Call[] = []
   const batches: MigrationBatch[] = []
 
   for (const [index, partition] of partitions.entries()) {
@@ -158,7 +158,7 @@ export const buildBatchedMigrateCalls = (
 }
 
 type MutablePlan = {
-  calls: ZeroDevCall[]
+  calls: Erc4337Call[]
   batches: MigrationBatch[]
 }
 
@@ -182,8 +182,8 @@ const splitMigrateBatch = (
     'migrationOwner' | 'defaultResolver' | 'ownedPermRes'
   >,
 ): {
-  leftCall: ZeroDevCall
-  rightCall: ZeroDevCall
+  leftCall: Erc4337Call
+  rightCall: Erc4337Call
   leftClassified: ClassifiedName[]
   rightClassified: ClassifiedName[]
 } => {
@@ -210,7 +210,7 @@ const splitMigrateBatch = (
 
 export const verifyOrSplit = async (
   p: VerifyOrSplitParams,
-): Promise<ZeroDevCall> => {
+): Promise<Erc4337Call> => {
   const {
     publicClient,
     account,

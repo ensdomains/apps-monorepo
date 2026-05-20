@@ -149,22 +149,23 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  Erc4337Signer,
   RhinestoneSigner,
   Signer,
   TransactionInfra,
-  ZeroDevSigner,
 } from './types/signer.types'
 export {
   isEOASigner,
+  isErc4337Signer,
   isRhinestoneSigner,
   isSessionSigner,
-  isZeroDevSigner,
 } from './types/signer.types'
 export type {
   CustomTransactionIntent,
   ENSRenewalTransactionIntent,
   EOATransactionRequest,
-  ERC4337UserOperation,
+  Erc4337Call,
+  Erc4337TransactionRequest,
   ETHTransferTransactionIntent,
   PaymentMethod,
   PaymentOption,
@@ -178,6 +179,4 @@ export type {
   TransactionResult,
   TransactionStep,
   TransactionType,
-  ZeroDevCall,
-  ZeroDevTransactionRequest,
 } from './types/transaction.types'

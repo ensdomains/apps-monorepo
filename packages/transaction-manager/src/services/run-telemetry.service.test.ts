@@ -72,7 +72,7 @@ describe('run telemetry service v2', () => {
         data: '0x12345678abcdef',
         value: 2n,
       },
-      signer: { type: 'zerodev' } as unknown as Signer,
+      signer: { type: 'erc4337' } as unknown as Signer,
       useSmartAccount: true,
       options: {
         retryCount: 3,

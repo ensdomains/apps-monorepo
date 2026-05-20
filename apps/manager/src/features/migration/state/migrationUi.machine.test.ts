@@ -1,4 +1,4 @@
-import type { Signer, ZeroDevCall } from '@ens-apps/transaction-manager'
+import type { Erc4337Call, Signer } from '@ens-apps/transaction-manager'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -84,7 +84,7 @@ const makePlan = (
       to: '0x0000000000000000000000000000000000000000',
       data: '0x',
       value: 0n,
-    } as ZeroDevCall,
+    } as Erc4337Call,
   ],
   batches: [
     {

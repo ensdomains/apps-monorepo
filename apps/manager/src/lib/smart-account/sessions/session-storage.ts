@@ -1,23 +1,20 @@
 /**
  * Session Storage
  *
- * Handles localStorage persistence for ZeroDev smart sessions.
+ * Handles localStorage persistence for Rhinestone smart sessions.
  * Sessions are keyed by smart account address for easy lookup.
  */
 
 import type { Address } from 'viem'
 import type { StoredSession } from './types'
 
-// Provider-agnostic storage for smart-session credentials (ZeroDev and
-// Rhinestone). The legacy key name `ens-zerodev-sessions` dates from the
-// ZeroDev-only era; we renamed and bumped it in one step to also
-// invalidate any session stored under the previous rhinestone
-// smart-session policy that pinned `register.owner == SCA`. The current
-// policy pins `register.owner == EOA`, which changes the action-set hash
-// → PermissionId, so a stored session from the previous deployment can
-// no longer satisfy the on-chain validator. Old key contents are left
-// in localStorage (harmless cruft); a new session is re-enabled lazily
-// on the next registration with a single wallet prompt.
+// Storage for Rhinestone smart-session credentials. A previous
+// rhinestone smart-session policy pinned `register.owner == SCA`; the
+// current policy pins `register.owner == EOA`, which changes the
+// action-set hash → PermissionId, so the key was bumped from v1 to
+// invalidate any sessions stored under the prior policy. Old key
+// contents are harmless cruft; a new session is re-enabled lazily on
+// the next registration with a single wallet prompt.
 const SESSION_STORAGE_KEY = 'ens-sessions-v2'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 

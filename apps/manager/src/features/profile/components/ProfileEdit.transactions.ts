@@ -8,13 +8,13 @@
 
 import {
   type EOATransactionRequest,
+  type Erc4337TransactionRequest,
   type RhinestoneTransactionRequest,
   type Signer,
   type TransactionRequest,
   transactionManager,
   type WaitForTransactionResult,
   waitForTransaction,
-  type ZeroDevTransactionRequest,
 } from '@ens-apps/transaction-manager'
 import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
 import * as v from 'valibot'
@@ -93,31 +93,31 @@ function getSmartAccountAddress(signer: Signer): Address {
     return signer.account.getAddress() as Address
   }
 
-  if (signer.type === 'zerodev') {
+  if (signer.type === 'erc4337') {
     if (signer.config.accountAddress) {
       return signer.config.accountAddress
     }
 
-    const kernelClient = signer.account as {
+    const smartAccountClient = signer.account as {
       account?: { address: Address }
       address?: Address
     }
 
-    if (kernelClient?.account?.address) {
-      return kernelClient.account.address
+    if (smartAccountClient?.account?.address) {
+      return smartAccountClient.account.address
     }
 
-    if (kernelClient?.address) {
-      return kernelClient.address
+    if (smartAccountClient?.address) {
+      return smartAccountClient.address
     }
 
     throw new Error(
-      'Unable to get smart account address from KernelAccountClient',
+      'Unable to get smart account address from ERC-4337 SmartAccountClient',
     )
   }
 
   throw new Error(
-    'Only Rhinestone or ZeroDev signer is supported for this operation',
+    'Only Rhinestone or ERC-4337 signer is supported for this operation',
   )
 }
 
@@ -265,26 +265,19 @@ function createTransactionRequest(params: {
     } as RhinestoneTransactionRequest
   }
 
-  if (signer.type === 'zerodev') {
+  if (signer.type === 'erc4337') {
     return {
-      type: 'zerodev',
+      type: 'erc4337',
       from,
       to,
       data,
       value,
       chainId,
-      zerodevParams: {
+      erc4337Params: {
         calls,
         sponsored: sponsored ?? true,
-        // Same reasoning as the rhinestone branch above: profile-record
-        // writes aren't covered by the registration-scoped session. The
-        // ZeroDev transport currently can't transparently swap to the
-        // master Kernel client, so this flag is informational until the
-        // signer carries both clients; for now the caller is expected to
-        // pass a non-session zerodev signer for this path.
-        useSession: false,
       },
-    } as ZeroDevTransactionRequest
+    } as Erc4337TransactionRequest
   }
 
   throw new Error(
@@ -335,11 +328,11 @@ async function buildRecordsUpdateRequest(params: {
 
   if (signer.type === 'eoa') {
     fromAddress = accountAddress
-  } else if (signer.type === 'rhinestone' || signer.type === 'zerodev') {
+  } else if (signer.type === 'rhinestone' || signer.type === 'erc4337') {
     fromAddress = getSmartAccountAddress(signer)
   } else {
     throw new Error(
-      'Only EOA, Rhinestone, or ZeroDev signers are supported for profile updates',
+      'Only EOA, Rhinestone, or ERC-4337 signers are supported for profile updates',
     )
   }
 

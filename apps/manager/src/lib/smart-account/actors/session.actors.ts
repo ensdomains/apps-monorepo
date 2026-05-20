@@ -1,40 +1,37 @@
-import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
-import type { Address, Chain, Hex } from 'viem'
-import type { SessionProvider } from '@/utils/feature-flags'
 import {
   createRhinestoneSession,
-  createZeroDevSession,
   restoreRhinestoneSession,
-  restoreZeroDevSession,
-} from '../sessions'
+  SessionError,
+} from '@ens-apps/rhinestone'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
+import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
+import type { Address, Chain, Hex } from 'viem'
 import {
   getSkippedStatus,
   getValidSessionByOwner,
   saveSession,
 } from '../sessions/session-storage'
-import type { SessionConfig, StoredSession } from '../sessions/types'
-import { isRhinestoneSession, isZeroDevSession } from '../sessions/types'
-import { SessionError } from '../sessions/zerodev-session'
+import {
+  isRhinestoneSession,
+  type SessionConfig,
+  type StoredSession,
+} from '../sessions/types'
 
 /**
  * Session client returned by session actors.
- * - ZeroDev: a KernelAccountClient (session-derived)
- * - Rhinestone: session private key + enablement data — the full SDK-compatible
- *   SignerSet is constructed at signer creation time (SmartAccountContext).
+ *
+ * Rhinestone-only: session private key + enablement data. The full
+ * SDK-compatible SignerSet is constructed at signer creation time in
+ * SmartAccountContext.
  */
-export type SessionClient =
-  | KernelAccountClient
-  | {
-      readonly sessionPrivateKey: Hex
-      readonly enableSignature: Hex
-      readonly hashesAndChainIds: string
-    }
+export type SessionClient = {
+  readonly sessionPrivateKey: Hex
+  readonly enableSignature: Hex
+  readonly hashesAndChainIds: string
+}
 
 export interface CheckSessionInput {
   readonly ownerAddress: Address
-  readonly provider: SessionProvider
 }
 
 export interface CheckSessionOutput {
@@ -48,11 +45,9 @@ export function checkExistingSessionActor(
   const session = getValidSessionByOwner(input.ownerAddress)
   const wasSkipped = getSkippedStatus(input.ownerAddress)
 
-  if (session) {
-    const sessionProvider = session.provider ?? 'zerodev'
-    if (sessionProvider !== input.provider) {
-      return okAsync({ session: null, wasSkipped: false })
-    }
+  // Only Rhinestone sessions are supported. Anything else is discarded.
+  if (session && !isRhinestoneSession(session)) {
+    return okAsync({ session: null, wasSkipped: false })
   }
 
   return okAsync({ session, wasSkipped })
@@ -61,13 +56,11 @@ export function checkExistingSessionActor(
 export interface CreateSessionInput {
   readonly ownerAddress: Address
   readonly accountAddress: Address
-  readonly provider: SessionProvider
   readonly chainId: number
-  readonly ecdsaValidator?: KernelValidator<'ECDSAValidator'>
   readonly config?: SessionConfig
-  /** Rhinestone-specific: needed for on-chain session enablement */
-  readonly rhinestoneAccount?: RhinestoneAccount
-  readonly chain?: Chain
+  /** Rhinestone account, needed for on-chain session enablement */
+  readonly rhinestoneAccount: RhinestoneAccount
+  readonly chain: Chain
 }
 
 export interface CreateSessionOutput {
@@ -78,60 +71,29 @@ export interface CreateSessionOutput {
 export function createSessionActor(
   input: CreateSessionInput,
 ): ResultAsync<CreateSessionOutput, SessionError> {
-  if (input.provider === 'rhinestone') {
-    if (!input.rhinestoneAccount || !input.chain) {
-      return errAsync(
-        new SessionError(
-          'Failed to create session',
-          'Missing rhinestoneAccount or chain for Rhinestone session enablement',
-        ),
-      )
-    }
-
-    return createRhinestoneSession({
-      ownerAddress: input.ownerAddress,
-      smartAccountAddress: input.accountAddress,
-      chainId: input.chainId,
-      rhinestoneAccount: input.rhinestoneAccount,
-      chain: input.chain,
-      config: input.config,
-    }).andThen(({ session, sessionPrivateKey }) => {
-      saveSession(session)
-
-      return okAsync({
-        session,
-        sessionClient: {
-          sessionPrivateKey,
-          enableSignature: session.enableSignature,
-          hashesAndChainIds: session.hashesAndChainIds,
-        },
-      })
-    })
-  }
-
-  if (!input.ecdsaValidator) {
-    return errAsync(
-      new SessionError(
-        'Failed to create session',
-        'Missing ECDSA validator for ZeroDev provider',
-      ),
-    )
-  }
-
-  return createZeroDevSession({
+  return createRhinestoneSession({
     ownerAddress: input.ownerAddress,
     smartAccountAddress: input.accountAddress,
-    ecdsaValidator: input.ecdsaValidator,
+    chainId: input.chainId,
+    rhinestoneAccount: input.rhinestoneAccount,
+    chain: input.chain,
     config: input.config,
-  }).andThen(({ session, client }) => {
+  }).andThen(({ session, sessionPrivateKey }) => {
     saveSession(session)
-    return okAsync({ session, sessionClient: client })
+
+    return okAsync({
+      session,
+      sessionClient: {
+        sessionPrivateKey,
+        enableSignature: session.enableSignature,
+        hashesAndChainIds: session.hashesAndChainIds,
+      },
+    })
   })
 }
 
 export interface RestoreSessionInput {
   readonly session: StoredSession
-  readonly provider: SessionProvider
 }
 
 export interface RestoreSessionOutput {
@@ -141,9 +103,9 @@ export interface RestoreSessionOutput {
 export function restoreSessionActor(
   input: RestoreSessionInput,
 ): ResultAsync<RestoreSessionOutput, SessionError> {
-  const { session, provider } = input
+  const { session } = input
 
-  if (provider === 'rhinestone' && !isRhinestoneSession(session)) {
+  if (!isRhinestoneSession(session)) {
     return errAsync(
       new SessionError(
         'Failed to restore session',
@@ -152,26 +114,11 @@ export function restoreSessionActor(
     )
   }
 
-  if (provider === 'zerodev' && !isZeroDevSession(session)) {
-    return errAsync(
-      new SessionError(
-        'Failed to restore session',
-        'Session type mismatch: expected ZeroDev session',
-      ),
-    )
-  }
-
-  if (isRhinestoneSession(session)) {
-    return restoreRhinestoneSession({ session }).map(() => ({
-      sessionClient: {
-        sessionPrivateKey: session.sessionPrivateKey,
-        enableSignature: session.enableSignature,
-        hashesAndChainIds: session.hashesAndChainIds,
-      },
-    }))
-  }
-
-  return restoreZeroDevSession({ session }).map((client) => ({
-    sessionClient: client,
+  return restoreRhinestoneSession({ session }).map(() => ({
+    sessionClient: {
+      sessionPrivateKey: session.sessionPrivateKey,
+      enableSignature: session.enableSignature,
+      hashesAndChainIds: session.hashesAndChainIds,
+    },
   }))
 }

@@ -1,4 +1,4 @@
-import type { ZeroDevCall } from '@ens-apps/transaction-manager'
+import type { Erc4337Call } from '@ens-apps/transaction-manager'
 import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
 import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
@@ -40,7 +40,7 @@ export const buildMigrateCall = ({
   migrationOwner,
   defaultResolver,
   ownedPermRes,
-}: BuildMigrateCallParams): ZeroDevCall => {
+}: BuildMigrateCallParams): Erc4337Call => {
   const unwrapped: MigrationData[] = []
   const unlocked: MigrationData[] = []
   const locked2ld: MigrationData[] = []

@@ -39,11 +39,6 @@ export interface RhinestoneStoredSession extends BaseStoredSession {
   readonly provider: 'rhinestone'
   /** JSON-serialized RhinestoneSessionConfig */
   readonly sessionConfig: string
-  /**
-   * Transitional compatibility field for existing call-sites typed against
-   * ZeroDev sessions while Rhinestone session handling is being adopted.
-   */
-  readonly serializedSessionAccount: string
   /** Owner signature from experimental_signEnableSession (one-time enablement) */
   readonly enableSignature: Hex
   /**

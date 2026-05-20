@@ -30,9 +30,9 @@ import {
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
+  Erc4337TransactionRequest,
   RhinestoneTransactionRequest,
   TransactionRequest,
-  ZeroDevTransactionRequest,
 } from '../../types/transaction.types'
 
 type CommitmentData = {
@@ -212,37 +212,40 @@ export function getSignerAddress(signer: Signer): Address {
     return signer.account.getAddress() as Address
   }
 
-  if (signer.type === 'zerodev') {
+  if (signer.type === 'erc4337') {
     // First, try to get address from config if available
     if (signer.config.accountAddress) {
       return signer.config.accountAddress
     }
 
-    // signer.account is a KernelAccountClient from @zerodev/sdk
-    const kernelClient = signer.account as unknown as Record<string, unknown>
-    const nestedAccount = kernelClient?.account as
+    // signer.account is a permissionless SmartAccountClient
+    const smartAccountClient = signer.account as unknown as Record<
+      string,
+      unknown
+    >
+    const nestedAccount = smartAccountClient?.account as
       | Record<string, unknown>
       | undefined
     if (nestedAccount?.address) {
       return nestedAccount.address as Address
     }
     // Fallback: try to get address directly if it's a string
-    if (typeof kernelClient?.address === 'string') {
-      return kernelClient.address as Address
+    if (typeof smartAccountClient?.address === 'string') {
+      return smartAccountClient.address as Address
     }
     throw new Error(
-      'Unable to get smart account address from KernelAccountClient',
+      'Unable to get smart account address from ERC-4337 SmartAccountClient',
     )
   }
 
   throw new Error(
-    'Only EOA, Rhinestone, or ZeroDev signer is supported for registration',
+    'Only EOA, Rhinestone, or ERC-4337 signer is supported for registration',
   )
 }
 
 /**
  * Create transaction request based on signer type
- * Returns the appropriate transaction request type (rhinestone-intent or zerodev)
+ * Returns the appropriate transaction request type (rhinestone-intent or erc4337)
  */
 export function createTransactionRequest(params: {
   signer: Signer
@@ -282,19 +285,19 @@ export function createTransactionRequest(params: {
     } as RhinestoneTransactionRequest
   }
 
-  if (signer.type === 'zerodev') {
+  if (signer.type === 'erc4337') {
     return {
-      type: 'zerodev',
+      type: 'erc4337',
       from,
       to,
       data,
       value,
       chainId,
-      zerodevParams: {
+      erc4337Params: {
         calls,
         sponsored: sponsored ?? true,
       },
-    } as ZeroDevTransactionRequest
+    } as Erc4337TransactionRequest
   }
 
   signer satisfies never

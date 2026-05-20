@@ -1,9 +1,9 @@
 import {
+  type Erc4337Call,
   type Signer,
   type TransactionRequest,
   transactionManager,
   waitForTransaction,
-  type ZeroDevCall,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
@@ -186,7 +186,7 @@ const ensureResolver = async (
 
 const buildEOARequest = (
   ctx: MigrationCtx,
-  call: ZeroDevCall,
+  call: Erc4337Call,
 ): TransactionRequest => {
   const chainId = ctx.publicClient.chain?.id
   if (!chainId) {
@@ -215,7 +215,7 @@ const wrapBatchError = (
 
 const submitCall = async (
   ctx: MigrationCtx,
-  call: ZeroDevCall,
+  call: Erc4337Call,
   description: string,
 ): Promise<Hex> => {
   const txId = transactionManager.startTransaction(

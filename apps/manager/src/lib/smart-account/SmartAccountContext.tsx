@@ -9,10 +9,8 @@ import {
   useWallet as useParaWallet,
 } from '@getpara/react-sdk-lite'
 import { useLingui } from '@lingui/react/macro'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
-import type { KernelAccountClient } from '@zerodev/sdk'
 import {
   createContext,
   type ReactNode,
@@ -30,7 +28,6 @@ import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
-import type { RhinestoneConfig } from './rhinestone'
 import {
   selectIsCreatingSession,
   selectIsLoading,
@@ -40,21 +37,11 @@ import {
 } from './smart-account.machine'
 import type {
   WalletSource as BaseWalletSource,
-  ZeroDevAccountState,
+  RhinestoneAccountState,
 } from './types'
 import { useSmartAccountBalances } from './useSmartAccountBalances'
 
-/** True when using a local bundler (e.g. Alto) — no Pimlico API key needed. */
-const isLocalBundler = (): boolean => {
-  const url = import.meta.env.VITE_PIMLICO_BUNDLER_URL
-  return typeof url === 'string' && url.length > 0
-}
-
-export interface SmartAccountContextValue
-  extends Omit<ZeroDevAccountState, 'type' | 'client' | 'config'> {
-  readonly type: 'zerodev' | 'rhinestone'
-  readonly client: ZeroDevAccountState['client'] | RhinestoneAccount | null
-  readonly config: ZeroDevAccountState['config'] | RhinestoneConfig | null
+export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly hasInitialized: boolean
   readonly isReady: boolean
   readonly isCreatingSession: boolean
@@ -63,7 +50,6 @@ export interface SmartAccountContextValue
   readonly enableSession: () => Promise<void>
   readonly dismissSession: () => void
   readonly promptSession: () => void
-  readonly provider: 'zerodev' | 'rhinestone'
   readonly infrastructure: 'pimlico' | 'warp'
 }
 
@@ -185,7 +171,7 @@ export const SmartAccountContextProvider = ({
   }, [accountType, send])
 
   // In EOA-only mode the smart-account state machine never runs — skip the
-  // wallet sync hook so we don't kick off Pimlico/Rhinestone initialization
+  // wallet sync hook so we don't kick off Rhinestone initialization
   // (which would trigger HCA registration via Warp etc.).
   const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
@@ -289,7 +275,6 @@ export const SmartAccountContextProvider = ({
   const sessionClient = snapshot.context.sessionClient
   const isSessionClient = !!sessionClient
 
-  const provider = snapshot.context.provider
   const infrastructure = snapshot.context.infrastructure
 
   const signer: Signer | null = useMemo(() => {
@@ -306,105 +291,83 @@ export const SmartAccountContextProvider = ({
 
     if (!baseClient || !accountAddress) return null
 
-    if (provider === 'rhinestone') {
-      const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
-      const rhinestoneApiKey =
-        import.meta.env.VITE_RHINESTONE_API_KEY ||
-        (isLocalOrchestrator ? 'local-dev' : undefined)
-      if (!rhinestoneApiKey) {
-        logger.error('Rhinestone API key not configured - cannot create signer')
-        return null
-      }
-      // The session policy pins both `register.owner == SCA` and
-      // `HCAFactory.setAccountOwner.eoa == EOA`. Without a known EOA we
-      // cannot reproduce the actions baked into the enable signature, so
-      // refuse to construct the signer rather than risk an
-      // `InvalidSignature()` revert at orchestrator time.
-      if (!ownerAddress) {
-        logger.error('Rhinestone signer: missing EOA owner address')
-        return null
-      }
-
-      const rhinestoneSessionClient = sessionClient as {
-        sessionPrivateKey: Hex
-        enableSignature: Hex
-        hashesAndChainIds: string
-      } | null
-
-      // Deserialize hashesAndChainIds from localStorage format (string chainId → bigint)
-      const deserializeHashes = (json: string) =>
-        (JSON.parse(json) as { chainId: string; sessionDigest: Hex }[]).map(
-          (h) => ({
-            chainId: BigInt(h.chainId),
-            sessionDigest: h.sessionDigest,
-          }),
-        )
-
-      return {
-        type: 'rhinestone' as const,
-        account: baseClient as unknown as RhinestoneSigner['account'],
-        config: {
-          chain: customSepolia,
-          accountAddress,
-          accountType,
-          rhinestoneApiKey,
-          isSessionClient,
-          ...(rhinestoneSessionClient && {
-            sessionPrivateKey: rhinestoneSessionClient.sessionPrivateKey,
-            sessionConfig: {
-              signers: {
-                type: 'experimental_session' as const,
-                session: {
-                  owners: {
-                    type: 'ecdsa' as const,
-                    accounts: [
-                      privateKeyToAccount(
-                        rhinestoneSessionClient.sessionPrivateKey,
-                      ),
-                    ],
-                  },
-                  chain: customSepolia,
-                  // Must match the actions baked into the EIP-712 enable
-                  // signature produced in sessions/rhinestone-session.ts at
-                  // session creation time. Any divergence breaks the
-                  // PermissionId and yields `InvalidSignature()`.
-                  actions: buildRegistrationSessionActions({
-                    smartAccountAddress: accountAddress,
-                    eoaAddress: ownerAddress,
-                  }),
-                },
-                enableData: {
-                  userSignature: rhinestoneSessionClient.enableSignature,
-                  hashesAndChainIds: deserializeHashes(
-                    rhinestoneSessionClient.hashesAndChainIds,
-                  ),
-                  sessionToEnableIndex: 0,
-                },
-              },
-            } as unknown as RhinestoneSigner['config']['sessionConfig'],
-          }),
-          defaultInfra: infrastructure,
-        },
-      }
+    const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+    const rhinestoneApiKey =
+      import.meta.env.VITE_RHINESTONE_API_KEY ||
+      (isLocalOrchestrator ? 'local-dev' : undefined)
+    if (!rhinestoneApiKey) {
+      logger.error('Rhinestone API key not configured - cannot create signer')
+      return null
     }
-
-    const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY || ''
-    // Local bundler (Alto) does not need a Pimlico API key
-    if (!pimlicoApiKey && !isLocalBundler()) {
-      logger.error('Pimlico API key not configured - cannot create signer')
+    // The session policy pins both `register.owner == SCA` and
+    // `HCAFactory.setAccountOwner.eoa == EOA`. Without a known EOA we
+    // cannot reproduce the actions baked into the enable signature, so
+    // refuse to construct the signer rather than risk an
+    // `InvalidSignature()` revert at orchestrator time.
+    if (!ownerAddress) {
+      logger.error('Rhinestone signer: missing EOA owner address')
       return null
     }
 
-    const client = sessionClient ?? baseClient
+    const rhinestoneSessionClient = sessionClient as {
+      sessionPrivateKey: Hex
+      enableSignature: Hex
+      hashesAndChainIds: string
+    } | null
+
+    // Deserialize hashesAndChainIds from localStorage format (string chainId → bigint)
+    const deserializeHashes = (json: string) =>
+      (JSON.parse(json) as { chainId: string; sessionDigest: Hex }[]).map(
+        (h) => ({
+          chainId: BigInt(h.chainId),
+          sessionDigest: h.sessionDigest,
+        }),
+      )
+
     return {
-      type: 'zerodev' as const,
-      account: client as KernelAccountClient,
+      type: 'rhinestone' as const,
+      account: baseClient as unknown as RhinestoneSigner['account'],
       config: {
         chain: customSepolia,
         accountAddress,
         accountType,
-        pimlicoApiKey,
+        rhinestoneApiKey,
         isSessionClient,
+        ...(rhinestoneSessionClient && {
+          sessionPrivateKey: rhinestoneSessionClient.sessionPrivateKey,
+          sessionConfig: {
+            signers: {
+              type: 'experimental_session' as const,
+              session: {
+                owners: {
+                  type: 'ecdsa' as const,
+                  accounts: [
+                    privateKeyToAccount(
+                      rhinestoneSessionClient.sessionPrivateKey,
+                    ),
+                  ],
+                },
+                chain: customSepolia,
+                // Must match the actions baked into the EIP-712 enable
+                // signature produced in @ens-apps/rhinestone at session
+                // creation time. Any divergence breaks the PermissionId
+                // and yields `InvalidSignature()`.
+                actions: buildRegistrationSessionActions({
+                  smartAccountAddress: accountAddress,
+                  eoaAddress: ownerAddress,
+                }),
+              },
+              enableData: {
+                userSignature: rhinestoneSessionClient.enableSignature,
+                hashesAndChainIds: deserializeHashes(
+                  rhinestoneSessionClient.hashesAndChainIds,
+                ),
+                sessionToEnableIndex: 0,
+              },
+            },
+          } as unknown as RhinestoneSigner['config']['sessionConfig'],
+        }),
+        defaultInfra: infrastructure,
       },
     }
   }, [
@@ -414,7 +377,6 @@ export const SmartAccountContextProvider = ({
     ownerAddress,
     accountType,
     isSessionClient,
-    provider,
     infrastructure,
     wagmiWalletClient,
   ])
@@ -473,7 +435,7 @@ export const SmartAccountContextProvider = ({
         // In EOA-only mode the wagmi wallet client is both the EOA and the
         // "smart account" address. All smart-account-specific fields are
         // zeroed out; the session prompt is suppressed.
-        type: 'zerodev',
+        type: 'rhinestone',
         client: null,
         config: null,
         accountAddress: eoaAddress,
@@ -490,7 +452,6 @@ export const SmartAccountContextProvider = ({
         signer,
         session: null,
         isSessionClient: false,
-        ecdsaValidator: null,
         isAccountReady,
         hasInitialized,
         showSessionModal: false,
@@ -500,14 +461,14 @@ export const SmartAccountContextProvider = ({
         enableSession: async () => {},
         dismissSession: () => {},
         promptSession: () => {},
-        provider: 'zerodev',
         infrastructure: 'pimlico',
       }
     : {
-        type: provider,
-        client: (snapshot.context.sessionClient ??
-          snapshot.context.client) as SmartAccountContextValue['client'],
-        config: snapshot.context.config as SmartAccountContextValue['config'],
+        type: 'rhinestone',
+        client:
+          (snapshot.context.client as RhinestoneAccountState['client']) ?? null,
+        config:
+          (snapshot.context.config as RhinestoneAccountState['config']) ?? null,
         accountAddress: snapshot.context.accountAddress,
         isLoading,
         error: snapshot.context.error,
@@ -522,7 +483,6 @@ export const SmartAccountContextProvider = ({
         signer,
         session: snapshot.context.session,
         isSessionClient,
-        ecdsaValidator: snapshot.context.ecdsaValidator,
         isAccountReady,
         hasInitialized,
         showSessionModal,
@@ -532,7 +492,6 @@ export const SmartAccountContextProvider = ({
         enableSession,
         dismissSession,
         promptSession,
-        provider: snapshot.context.provider,
         infrastructure: snapshot.context.infrastructure,
       }
 

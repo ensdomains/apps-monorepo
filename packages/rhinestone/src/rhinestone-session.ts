@@ -142,7 +142,6 @@ export function createRhinestoneSession(
         validUntil,
         sessionPrivateKey,
         sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId }),
-        serializedSessionAccount: '',
         enableSignature,
         hashesAndChainIds: serializedHashes,
       }
