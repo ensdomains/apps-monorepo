@@ -7,7 +7,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
-import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
+import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
 import { ConfigureRegistryForm } from './ConfigureRegistryForm'
@@ -64,29 +64,31 @@ export const RegistryTreeItem = ({
         paddingLeft: `${50 * Math.max(index - 1, 0)}px`,
       }}
     >
-      <div className="flex items-center justify-start gap-2">
-        {!isRoot ? (
-          <Fragment>
-            <RegistryTreePathIcon />
-            <EntityBadge className="flex items-center gap-1" variant="name">
-              {isEthTld ? (
-                <img
-                  src="/favicon-32x32.png"
-                  alt="ENS"
-                  className="size-4 rounded-xs"
-                />
-              ) : (
-                <NameAvatar
-                  name={levelName}
-                  width="16px"
-                  height="16px"
-                  rounded="rounded-xs"
-                />
-              )}
-              {label}
-            </EntityBadge>
-          </Fragment>
-        ) : null}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-start gap-2">
+        <div className="flex flex-row items-center justify-start gap-2">
+          {!isRoot ? (
+            <>
+              <RegistryTreePathIcon />
+              <EntityBadge className="flex items-center gap-1" variant="name">
+                {isEthTld ? (
+                  <img
+                    src="/favicon-32x32.png"
+                    alt="ENS"
+                    className="size-4 rounded-xs"
+                  />
+                ) : (
+                  <NameAvatar
+                    name={levelName}
+                    width="16px"
+                    height="16px"
+                    rounded="rounded-xs"
+                  />
+                )}
+                {label}
+              </EntityBadge>
+            </>
+          ) : null}
+        </div>
 
         {isRegistryConfigured ? (
           <Fragment>
@@ -105,17 +107,21 @@ export const RegistryTreeItem = ({
             >
               {truncateAddress(address, 6, 4, '...')}
             </EntityBadge>
-            <span className="text-sm text-muted-foreground font-mono">
-              Chain ID: {chainId}
-            </span>
-            <span className="text-sm text-muted-foreground font-mono">
-              {ownerData.protocolVersion}
-            </span>
+            {isLastWithoutRegistryConfigured ? (
+              <div className="flex flex-row items-center justify-start gap-2">
+                <span className="text-sm text-muted-foreground font-mono">
+                  Chain ID: {chainId}
+                </span>
+                <span className="text-sm text-muted-foreground font-mono">
+                  {ownerData.protocolVersion}
+                </span>
+              </div>
+            ) : null}
           </Fragment>
         ) : null}
       </div>
       {isLastWithRegistryConfigured ? (
-        <dl className="grid grid-cols-2 max-w-sm pl-14 gap-4 text-sm text-muted-foreground -mt-2">
+        <dl className="grid grid-cols-2 max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
           <dt>Chain ID:</dt>
           <dd>{chainId}</dd>
           <dt>Protocol Version:</dt>
@@ -129,8 +135,12 @@ export const RegistryTreeItem = ({
               .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
               .otherwise(() =>
                 summary?.createdAt ? (
-                  <EntityBadge variant="tx" className="font-normal">
-                    {formatTimestamp(BigInt(summary.createdAt)) ?? '—'}
+                  <EntityBadge
+                    variant="tx"
+                    className="font-normal"
+                    label={formatTimestampDate(summary.createdAt) ?? '—'}
+                  >
+                    {truncateAddress(ownerData.owner, 6, 4, '...')}
                   </EntityBadge>
                 ) : (
                   <span>—</span>
@@ -178,6 +188,7 @@ const RegistryTreePathIcon = () => {
       viewBox="0 0 45 52"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0 xl:ml-0 -ml-4"
     >
       <title>Registry tree path</title>
       <path
