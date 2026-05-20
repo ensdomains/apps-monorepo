@@ -147,6 +147,7 @@ function buildRenewTransaction(
     duration: params.duration,
     paymentToken: params.tokenAddress,
     referrer: REFERER_ADDRESS,
+    registrarAddress: ethRegistrar,
   })
   const renewData = encodeFunctionData({
     ...writeParams,

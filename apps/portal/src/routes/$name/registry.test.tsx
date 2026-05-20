@@ -86,7 +86,9 @@ vi.mock('@tanstack/react-query', async () => {
   }
 })
 
-const { V2RegistryInfo } = await import('./registry')
+const { V2RegistryInfo } = await import(
+  '@/features/registry/components/v2/RegistryInfo'
+)
 
 const ownerData = {
   owner: '0x1111111111111111111111111111111111111111',
