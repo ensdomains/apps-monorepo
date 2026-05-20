@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
-import { LogoSVG } from '@/assets/logo'
 import { EntityBadge } from '@/components/EntityBadge'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
@@ -65,15 +64,17 @@ export const RegistryTreeItem = ({
             <RegistryTreePathIcon />
             <EntityBadge className="flex items-center gap-2" variant="name">
               {isEthTld ? (
-                <span className="flex size-5 items-center justify-center rounded-sm bg-accent-fill text-accent-text dark:bg-entity-bg">
-                  <LogoSVG className="h-3 w-auto" />
-                </span>
+                <img
+                  src="/address/DefaultIcon.svg"
+                  alt="ENS"
+                  className="size-5"
+                />
               ) : (
                 <NameAvatar
                   name={levelName}
                   width="16px"
                   height="16px"
-                  rounded="rounded-sm"
+                  rounded="rounded-xs"
                 />
               )}
               {label}
