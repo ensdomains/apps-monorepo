@@ -10,7 +10,7 @@ import {
   type RhinestoneStoredSession,
   restoreRhinestoneSession,
   SessionError,
-} from '@ens-apps/rhinestone'
+} from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import type { Address, Chain, Hex } from 'viem'

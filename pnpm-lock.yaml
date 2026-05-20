@@ -123,12 +123,12 @@ importers:
       '@ens-apps/l2-primary':
         specifier: workspace:*
         version: link:../../packages/l2-primary
-      '@ens-apps/rhinestone':
-        specifier: workspace:*
-        version: link:../../packages/rhinestone
       '@ens-apps/shared-schema':
         specifier: workspace:*
         version: link:../../packages/shared-schema
+      '@ens-apps/smart-account':
+        specifier: workspace:*
+        version: link:../../packages/smart-account
       '@ens-apps/transaction-manager':
         specifier: workspace:*
         version: link:../../packages/transaction-manager
@@ -752,7 +752,20 @@ importers:
         specifier: ^12.23.6
         version: 12.36.0
 
-  packages/rhinestone:
+  packages/shared-schema:
+    dependencies:
+      valibot:
+        specifier: ^1.2.0
+        version: 1.2.0(typescript@6.0.3)
+    devDependencies:
+      typescript:
+        specifier: catalog:typescript6
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.2)(@vitest/coverage-v8@4.1.5)(happy-dom@18.0.1)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
+
+  packages/smart-account:
     dependencies:
       '@ens-apps/transaction-manager':
         specifier: workspace:*
@@ -769,19 +782,6 @@ importers:
       viem:
         specifier: ^2.21.58
         version: 2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
-    devDependencies:
-      typescript:
-        specifier: catalog:typescript6
-        version: 6.0.3
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.2)(@vitest/coverage-v8@4.1.5)(happy-dom@18.0.1)(vite@8.0.10(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
-
-  packages/shared-schema:
-    dependencies:
-      valibot:
-        specifier: ^1.2.0
-        version: 1.2.0(typescript@6.0.3)
     devDependencies:
       typescript:
         specifier: catalog:typescript6

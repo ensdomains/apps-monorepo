@@ -1,6 +1,6 @@
 'use client'
 
-import { buildRegistrationSessionActions } from '@ens-apps/rhinestone'
+import { buildRegistrationSessionActions } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -344,7 +344,7 @@ export const SmartAccountContextProvider = ({
                 },
                 chain: customSepolia,
                 // Must match the actions baked into the EIP-712 enable
-                // signature produced in @ens-apps/rhinestone at session
+                // signature produced in @ens-apps/smart-account at session
                 // creation time. Any divergence breaks the PermissionId
                 // and yields `InvalidSignature()`.
                 actions: buildRegistrationSessionActions({

@@ -3,14 +3,14 @@
  *
  * Defines the structure for storing and managing session keys.
  * Only Rhinestone sessions are supported; the canonical types live in
- * `@ens-apps/rhinestone` and are re-exported here for a single import
+ * `@ens-apps/smart-account` and are re-exported here for a single import
  * point inside the app.
  */
 
 import {
   isRhinestoneSession,
   type RhinestoneStoredSession,
-} from '@ens-apps/rhinestone'
+} from '@ens-apps/smart-account'
 
 export { isRhinestoneSession }
 export type { RhinestoneStoredSession }

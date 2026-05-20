@@ -5,7 +5,7 @@
  * hex values from `cast sig`, plus shape checks on the action set.
  */
 
-import { buildRegistrationSessionActions } from '@ens-apps/rhinestone'
+import { buildRegistrationSessionActions } from '@ens-apps/smart-account'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 

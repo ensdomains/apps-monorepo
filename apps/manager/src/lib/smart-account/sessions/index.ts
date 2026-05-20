@@ -9,5 +9,5 @@ export {
   type RestoreRhinestoneSessionParams,
   restoreRhinestoneSession,
   SessionError,
-} from '@ens-apps/rhinestone'
+} from '@ens-apps/smart-account'
 export * from './types'

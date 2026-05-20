@@ -2,7 +2,7 @@ import {
   createRhinestoneSession,
   restoreRhinestoneSession,
   SessionError,
-} from '@ens-apps/rhinestone'
+} from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'

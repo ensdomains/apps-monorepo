@@ -7,7 +7,7 @@
  * - restoreSessionActor
  */
 
-import { SessionError } from '@ens-apps/rhinestone'
+import { SessionError } from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,10 +26,10 @@ vi.mock('../sessions/session-storage', () => ({
   saveSession: vi.fn(),
 }))
 
-vi.mock('@ens-apps/rhinestone', async () => {
-  const actual = await vi.importActual<typeof import('@ens-apps/rhinestone')>(
-    '@ens-apps/rhinestone',
-  )
+vi.mock('@ens-apps/smart-account', async () => {
+  const actual = await vi.importActual<
+    typeof import('@ens-apps/smart-account')
+  >('@ens-apps/smart-account')
   return {
     ...actual,
     createRhinestoneSession: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock('@ens-apps/rhinestone', async () => {
 import {
   createRhinestoneSession,
   restoreRhinestoneSession,
-} from '@ens-apps/rhinestone'
+} from '@ens-apps/smart-account'
 import { okAsync } from 'neverthrow'
 import {
   getSkippedStatus,
