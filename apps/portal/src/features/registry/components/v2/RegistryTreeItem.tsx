@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Fragment } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
+import { LogoSVG } from '@/assets/logo'
 import { EntityBadge } from '@/components/EntityBadge'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -32,6 +34,14 @@ export const RegistryTreeItem = ({
   const isLast = index === registriesCount - 1
   const isParent = !isRoot && !isLast
 
+  // registries are ordered `[name, ...ancestors, root]`, so this reversed item's
+  // full name is the suffix of labels starting at its position.
+  const levelName = name
+    .split('.')
+    .slice(registriesCount - index - 1)
+    .join('.')
+  const isEthTld = levelName === 'eth'
+
   const isRegistryConfigured = address !== zeroAddress
 
   const isLastWithRegistryConfigured = isLast && isRegistryConfigured
@@ -53,7 +63,21 @@ export const RegistryTreeItem = ({
         {!isRoot ? (
           <Fragment>
             <RegistryTreePathIcon />
-            <EntityBadge variant="name">{label}</EntityBadge>
+            <EntityBadge className="flex items-center gap-2" variant="name">
+              {isEthTld ? (
+                <span className="flex size-5 items-center justify-center rounded-sm bg-accent-fill text-accent-text dark:bg-entity-bg">
+                  <LogoSVG className="h-3 w-auto" />
+                </span>
+              ) : (
+                <NameAvatar
+                  name={levelName}
+                  width="16px"
+                  height="16px"
+                  rounded="rounded-sm"
+                />
+              )}
+              {label}
+            </EntityBadge>
           </Fragment>
         ) : null}
 
