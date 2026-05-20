@@ -1,6 +1,4 @@
-import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
-import { useWallet } from '@getpara/react-sdk-lite'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { match } from 'ts-pattern'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
@@ -11,8 +9,7 @@ import {
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
-import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
-import { getAllDomainsInfiniteQuery } from '../service/queries/getAllDashboardDomains'
+import { useOwnedDomains } from '../useOwnedDomains'
 
 type DashboardGraceBannerProps = {
   readonly primaryLabel: string | null
@@ -22,39 +19,7 @@ export const DashboardGraceBanner = ({
   primaryLabel,
 }: DashboardGraceBannerProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
-  const { data: wallet } = useWallet()
-  const smartAccount = useSmartAccountContextSafe()
-
-  const ownerAddresses = useMemo(() => {
-    const candidates = [
-      wallet?.address,
-      smartAccount?.accountAddress,
-      smartAccount?.ownerAddress,
-    ]
-    const unique = new Set<string>()
-    for (const addr of candidates) {
-      if (addr) unique.add(addr.toLowerCase())
-    }
-    return Array.from(unique)
-  }, [
-    wallet?.address,
-    smartAccount?.accountAddress,
-    smartAccount?.ownerAddress,
-  ])
-
-  const hasOwnerAddresses = ownerAddresses.length > 0
-
-  const { data: v2Data } = useInfiniteQuery(
-    getAllDomainsInfiniteQuery(
-      hasOwnerAddresses
-        ? {
-            where: { owner_in: ownerAddresses },
-            orderBy: Domain_OrderBy.ExpiryDate,
-            orderDirection: OrderDirection.Asc,
-          }
-        : undefined,
-    ),
-  )
+  const { v2Names, isAllPagesLoaded } = useOwnedDomains()
 
   const { eligible: v1Classified } = useEligibleV1Names({
     enabled: migrationEnabled,
@@ -73,14 +38,16 @@ export const DashboardGraceBanner = ({
           primaryExpiryData?.expiry,
           true,
         ),
-        v2Names: v2Data ?? [],
+        // Wait for all indexer pages before scanning for non-primary grace names.
+        v2Names: isAllPagesLoaded ? v2Names : [],
         v1Classified: migrationEnabled ? v1Classified : [],
       }),
     [
       primaryLabel,
       primaryExpiryData?.expiry,
       v1Classified,
-      v2Data,
+      v2Names,
+      isAllPagesLoaded,
       migrationEnabled,
     ],
   )

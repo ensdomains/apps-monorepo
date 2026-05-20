@@ -49,6 +49,7 @@ const resolveAnyNameGraceBanner = ({
   })) {
     const meta = mergedRowMetadata(item, primaryLabel)
     if (
+      meta.isV1 ||
       !meta.isInGrace ||
       !meta.graceEndDate ||
       isPrimaryLabelMatch(primaryLabel, meta.label)
