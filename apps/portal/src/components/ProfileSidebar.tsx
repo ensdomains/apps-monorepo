@@ -183,7 +183,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
             params={{ name }}
             activeProps={{ 'data-active': 'true' }}
             activeOptions={{ exact: true }}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:p-2"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
           >
             <NameAvatar
               name={name}

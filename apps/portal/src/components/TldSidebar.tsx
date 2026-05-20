@@ -146,12 +146,13 @@ export const TldSidebar = ({ tld }: TldSidebarProps) => {
             to="/tld/$tld"
             params={{ tld }}
             activeProps={{ 'data-active': 'true' }}
-            className="flex items-center gap-2 hover:opacity-80"
+            activeOptions={{ exact: true }}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
           >
             <NameAvatar
               name={tld}
-              height="36px"
-              width="36px"
+              height="24px"
+              width="24px"
               rounded="rounded-xs"
             />
             <span className="group-data-[collapsible=icon]:hidden text-base font-medium text-foreground break-all leading-tight">
