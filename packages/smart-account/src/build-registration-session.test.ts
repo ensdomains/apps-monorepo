@@ -5,9 +5,9 @@
  * hex values from `cast sig`, plus shape checks on the action set.
  */
 
-import { buildRegistrationSessionActions } from '@ens-apps/smart-account'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
+import { buildRegistrationSessionActions } from './build-registration-session'
 
 const SCA = '0x1111111111111111111111111111111111111111' as Address
 const EOA = '0x2222222222222222222222222222222222222222' as Address

@@ -4,17 +4,17 @@
  * Tests for createRhinestoneSession and restoreRhinestoneSession.
  */
 
-import {
-  buildRegistrationSessionActions,
-  createRhinestoneSession,
-  type RhinestoneStoredSession,
-  restoreRhinestoneSession,
-  SessionError,
-} from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildRegistrationSessionActions } from './build-registration-session'
+import { SessionError } from './errors'
+import {
+  createRhinestoneSession,
+  restoreRhinestoneSession,
+} from './rhinestone-session'
+import type { RhinestoneStoredSession } from './types'
 
 vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
   experimental_enableSession: vi.fn(() => ({
