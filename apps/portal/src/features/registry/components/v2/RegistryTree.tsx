@@ -37,16 +37,19 @@ export const RegistryTree = ({
   return (
     <div className="mt-8 sm:mt-12 mb-4">
       <div className="flex flex-col gap-2">
-        {registries.toReversed().map((registry, index) => {
+        {[...registries].reverse().map((registry, index) => {
           if (registry === null) return null
 
           const label = labels[registries.length - index - 1]
+          const levelName = labels
+            .slice(registries.length - index - 1)
+            .join('.')
 
           return (
             <RegistryTreeItem
               chainId={chainId}
               name={name}
-              key={registry}
+              key={levelName}
               ownerData={ownerData}
               index={index}
               registriesCount={registries.length}

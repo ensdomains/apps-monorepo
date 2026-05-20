@@ -50,9 +50,11 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
     clearTransaction,
   } = useTransactionModal()
 
-  const { data: registries, isLoading } = useQuery(
-    getNameRegistriesQueryOptions({ name }),
-  )
+  const {
+    data: registries,
+    isLoading,
+    error,
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
 
   const label = name.split('.')[0]
   const parentRegistry = registries?.at(1) ?? null
@@ -167,6 +169,15 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
 
   if (isLoading) {
     return <LoadingSpinner title="Loading registry information" />
+  }
+
+  if (error) {
+    return (
+      <ErrorMessage
+        title={error.cause.name}
+        description={error.message || error.cause.message}
+      />
+    )
   }
 
   if (!parentRegistry || parentRegistry === zeroAddress) return null
@@ -301,7 +312,7 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
                   transactionName: `Deploy subregistry for ${name}`,
                   estimatedGasCost: 0.0008,
                   onStart: handleDeploySubregistryStart,
-                  onDone: handleSetSubregistryAfterDeployStart,
+                  onDone: () => {},
                 },
                 {
                   id: SET_SUBREGISTRY_TX_ID,
