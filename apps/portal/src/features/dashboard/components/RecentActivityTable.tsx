@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { truncateName } from '@/utils/formatting/truncateName'
@@ -58,25 +58,21 @@ export const RecentActivityTable = () => {
                 <div className="sm:order-2 sm:w-32 sm:shrink-0">
                   {match(nameEntity)
                     .with({ type: 'name' }, ({ value }) => (
-                      <EntityBadgeWithActions
-                        variant="name"
-                        name={value}
-                        inline
-                      >
+                      <EntityBadge variant="name" name={value} inline>
                         {truncateName(value)}
-                      </EntityBadgeWithActions>
+                      </EntityBadge>
                     ))
                     .with({ type: 'address' }, ({ value }) => (
-                      <EntityBadgeWithActions
+                      <EntityBadge
                         variant="address"
                         address={value as Address}
                         inline
                       >
                         {truncateAddress(value, 6, 4)}
-                      </EntityBadgeWithActions>
+                      </EntityBadge>
                     ))
                     .otherwise(() => (
-                      <BlockExplorerTxLink txHash={txHash} />
+                      <BlockExplorerTxLink txHash={txHash} inline />
                     ))}
                 </div>
                 <span className="sm:order-1 font-mono text-xs sm:text-sm text-muted-foreground sm:w-24 sm:shrink-0 tabular-nums">
@@ -92,18 +88,18 @@ export const RecentActivityTable = () => {
                 </span>
                 {match(actor)
                   .with({ type: 'address' }, ({ value }) => (
-                    <EntityBadgeWithActions
+                    <EntityBadge
                       variant="address"
                       address={value as Address}
                       inline
                     >
                       {truncateAddress(value, 6, 4)}
-                    </EntityBadgeWithActions>
+                    </EntityBadge>
                   ))
                   .with({ type: 'name' }, ({ value }) => (
-                    <EntityBadgeWithActions variant="name" name={value} inline>
+                    <EntityBadge variant="name" name={value} inline>
                       {truncateName(value)}
-                    </EntityBadgeWithActions>
+                    </EntityBadge>
                   ))
                   .otherwise(() => null)}
               </div>

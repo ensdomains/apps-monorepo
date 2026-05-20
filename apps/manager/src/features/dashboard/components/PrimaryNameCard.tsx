@@ -1,11 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, Clock } from 'lucide-react'
+import { Calendar, ChevronDown, History } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { match } from 'ts-pattern'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import {
   getProfileNameExpiryStatus,
@@ -48,16 +49,14 @@ export const PrimaryNameCard = ({
     registration?.registrationDate != null
       ? new Date(registration.registrationDate * 1000)
       : null
-  const formattedRegisteredDate = formatDashboardDate(registeredDate)
-  const formattedExpiryDate = formatDashboardDate(displayExpiryDate)
   const hasAvatar = Boolean(avatarUrl) && !isInGrace
   const displayName = primaryName ?? t`Your ENS name`
   const registeredLabel = isRegistrationLoading
     ? t`Loading...`
-    : formattedRegisteredDate
+    : formatDashboardDate(registeredDate)
   const expiryLabel = isReverseExpiryLoading
     ? t`Loading...`
-    : formattedExpiryDate
+    : formatDashboardDate(displayExpiryDate)
   const canViewProfile = Boolean(primaryName)
 
   const themeVars = getThemeVars(themeColor) as React.CSSProperties
@@ -85,12 +84,12 @@ export const PrimaryNameCard = ({
     .with(
       { isInGrace: false, isLongName: true },
       () =>
-        'font-medium font-mono text-2xl text-ens-white leading-ens-none tracking-tight',
+        'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight',
     )
     .with(
       { isInGrace: false, isLongName: false },
       () =>
-        'font-medium font-mono text-ens-white text-xl leading-ens-none tracking-tight md:text-3xl',
+        'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]',
     )
     .exhaustive()
 
@@ -100,12 +99,12 @@ export const PrimaryNameCard = ({
         .with(
           true,
           () =>
-            'rounded-none border-[0.25px] border-border bg-white p-4 opacity-70 shadow-none md:rounded-lg md:p-6',
+            'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 opacity-70 shadow-none md:rounded-lg md:p-6',
         )
         .with(
           false,
           () =>
-            'rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6',
+            'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6',
         )
         .exhaustive()}
       style={match(isInGrace)
@@ -113,6 +112,8 @@ export const PrimaryNameCard = ({
         .with(false, () => themeVars)
         .exhaustive()}
     >
+      <PrimaryBadge className="self-start bg-ens-lapis-tint" />
+
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
           <motion.div
@@ -143,43 +144,46 @@ export const PrimaryNameCard = ({
                 />
               ))}
           </motion.div>
-          <div className="flex min-h-0 flex-col justify-between md:h-50">
+          <div className="flex min-h-0 flex-col justify-between gap-4 md:h-50">
             <ChoosePrimaryNameDialog>
               <button
-                className="mb-4 flex cursor-pointer flex-col items-start gap-2 transition-opacity hover:opacity-80 md:gap-3"
+                className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
                 type="button"
               >
                 <div className={nameplateClassName}>
                   <span className={displayNameClassName}>{displayName}</span>
                 </div>
-                <PrimaryBadge />
+                <ChevronDown
+                  className="size-6 shrink-0 text-ens-quartz-400"
+                  strokeWidth={2}
+                />
               </button>
             </ChoosePrimaryNameDialog>
             <div className="flex flex-col gap-[8.5px]">
               <div className="flex items-center gap-2">
                 <Calendar
-                  className="size-4 text-muted-foreground"
+                  className="size-5 text-ens-quartz-400"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-base leading-normal">
+                  <span className="text-ens-quartz-400">
                     <Trans>Registered</Trans>
                   </span>
-                  <span className="font-semibold text-muted-foreground">
+                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
                     {registeredLabel}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Clock
-                  className="size-4 text-muted-foreground"
+                <History
+                  className="size-5 text-ens-quartz-400"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-end gap-1 text-xs leading-[0.96] tracking-[-0.24px] md:text-sm">
-                  <span className="text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-base leading-normal">
+                  <span className="text-ens-quartz-400">
                     <Trans>Expires</Trans>
                   </span>
-                  <span className="font-semibold text-muted-foreground">
+                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
                     {expiryLabel}
                   </span>
                 </div>
@@ -187,16 +191,18 @@ export const PrimaryNameCard = ({
             </div>
           </div>
         </div>
+
         <LinkButton
-          className="h-10 w-full rounded-xs border border-ens-blue px-[8.5px] py-[4.25px] font-mono text-ens-blue uppercase tracking-wider hover:bg-ens-blue/5 hover:text-ens-blue md:w-auto"
+          className="group flex h-auto w-full items-center justify-center gap-1.5 bg-transparent p-0 font-mono text-(--theme-color) uppercase tracking-wider hover:bg-transparent hover:text-(--theme-color) hover:no-underline hover:opacity-80 md:w-auto"
           disabled={!canViewProfile}
           params={{ name: primaryName ?? '' }}
           to="/$name"
-          variant="outline"
+          variant="link"
         >
-          <span className="font-sans text-sm leading-normal">
+          <span className="font-mono text-base leading-normal underline-offset-4 group-hover:underline">
             <Trans>View profile</Trans>
           </span>
+          <MSymbol className="ms-opsz-20 text-base" symbol="arrow_forward" />
         </LinkButton>
       </div>
     </Card>

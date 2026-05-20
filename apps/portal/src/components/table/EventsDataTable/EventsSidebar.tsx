@@ -1,7 +1,7 @@
 import type { FC, PropsWithChildren } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
@@ -27,9 +27,9 @@ interface NameDisplayProps {
 
 const NameDisplay = ({ name }: NameDisplayProps) => {
   return (
-    <EntityBadgeWithActions variant="name" name={name} showAvatar>
+    <EntityBadge variant="name" name={name} showAvatar>
       {name}
-    </EntityBadgeWithActions>
+    </EntityBadge>
   )
 }
 
@@ -87,13 +87,9 @@ const TransactionDetails = ({
         )}
 
         <InfoRow label="Tx Hash">
-          <EntityBadgeWithActions
-            variant="tx"
-            copyValue={txHash}
-            etherscanHref={txUrl}
-          >
+          <EntityBadge variant="tx" copyValue={txHash} etherscanHref={txUrl}>
             {truncateAddress(txHash, 10, 8, '...')}
-          </EntityBadgeWithActions>
+          </EntityBadge>
         </InfoRow>
 
         {formattedTimestamp && (

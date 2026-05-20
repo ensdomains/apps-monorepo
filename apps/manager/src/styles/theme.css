@@ -19,6 +19,8 @@
   --color-ens-lapis-surface: #79b1d0;
   --color-ens-lapis-core: #0080bc;
   --color-ens-lapis-dense: #093c52;
+  --color-ens-lapis-bg: #e5f7ff;
+  --color-ens-lapis-tint: #f5fcff;
 
   --color-ens-bronzite-dust: #f8f6d6;
   --color-ens-bronzite-surface: #ae9582;
@@ -54,10 +56,11 @@
   --color-ens-garnet-900: #5a0024;
   --color-ens-error: #f53f3f;
 
-  --color-ens-citrine-50: #fffddc;
+  --color-ens-citrine-50: #fff8f0;
   --color-ens-citrine-100: #f8f7e2;
   --color-ens-citrine-300: #e1b77e;
   --color-ens-citrine-400: #e7a259;
+  --color-ens-citrine-450: #c68a1b;
   --color-ens-citrine-500: #984d1b;
   --color-ens-citrine-600: #b35600;
   --color-ens-citrine-900: #441b03;
@@ -68,12 +71,20 @@
 
   --color-ens-quartz-0: #ffffff;
   --color-ens-quartz-50: #faf9f7;
+  --color-ens-quartz-75: #f4f4f4;
   --color-ens-quartz-100: #eeeded;
+  --color-ens-quartz-150: #eae8e8;
   --color-ens-quartz-200: #e1e1e0;
+  --color-ens-quartz-250: #d9d9d9;
   --color-ens-quartz-300: #c7c6c4;
   --color-ens-quartz-350: #a1a1a1;
+  --color-ens-quartz-360: #9b9ba7;
+  --color-ens-quartz-380: #7d7d7d;
   --color-ens-quartz-400: #737373;
+  --color-ens-quartz-450: #454444;
   --color-ens-quartz-500: #595755;
+  --color-ens-quartz-550: #515151;
+  --color-ens-quartz-700: #333333;
   --color-ens-quartz-900: #191919;
 
   --color-ens-signal-danger-100: #ffedeb;

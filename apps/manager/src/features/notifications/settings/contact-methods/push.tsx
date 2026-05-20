@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
 import type { Channel } from '@/features/notifications/data/queries/channels'
@@ -12,6 +11,7 @@ import {
   disableBrowserPushMutationOptions,
   enableBrowserPushMutationOptions,
 } from '@/features/notifications/data/queries/push'
+import { ContactMethodCard } from './contact-method-card'
 
 type PushContactMethodProps = {
   pushChannels: Channel[]
@@ -82,48 +82,34 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
     disableMutation.mutate()
   }
 
+  const action = match({ isSupported, permission })
+    .with({ isSupported: true, permission: 'granted' }, () => (
+      <Switch
+        checked={isEnabled}
+        disabled={isPending || browserState.isFetching}
+        onCheckedChange={onToggle}
+      />
+    ))
+    .otherwise(() => null)
+
+  const showEnableButton = isSupported && permission === 'default'
+
   return (
-    <div className="flex flex-col gap-3 rounded-lg bg-[#FAFAFB] p-5">
-      <div className="flex items-start gap-2">
+    <ContactMethodCard
+      action={action ?? undefined}
+      actionDisabled={isPending || browserState.isFetching}
+      actionLabel={showEnableButton ? t`Enable` : undefined}
+      description={t`Get instant push notifications in your browser`}
+      icon={
         <MSymbol
-          className="ms-wght-300 text-ens-lapis-surface"
-          symbol="notifications"
+          className="ms-opsz-18 ms-wght-400 text-ens-lapis-core not-italic leading-[19.6px]"
+          symbol="computer"
         />
-        <div className="flex flex-col gap-1.5">
-          <div className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
-            <Trans>Browser Notifications</Trans>
-          </div>
-          <div className="text-slate-600 text-sm">
-            <Trans>Get instant push notifications in your browser</Trans>
-          </div>
-        </div>
-
-        <div className="ml-auto">
-          {match({ isSupported, permission })
-            .with({ isSupported: true, permission: 'granted' }, () => (
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={isEnabled}
-                  disabled={isPending || browserState.isFetching}
-                  onCheckedChange={onToggle}
-                />
-              </div>
-            ))
-            .with({ isSupported: true, permission: 'default' }, () => (
-              <Button
-                className="uppercase"
-                disabled={isPending || browserState.isFetching}
-                onClick={() => enableMutation.mutate()}
-                size="lg"
-                variant="lightBlue"
-              >
-                <Trans>Enable</Trans>
-              </Button>
-            ))
-            .otherwise(() => null)}
-        </div>
-      </div>
-
+      }
+      onAction={showEnableButton ? () => enableMutation.mutate() : undefined}
+      title={<Trans>Browser Notifications</Trans>}
+      variant="browser-not"
+    >
       {isSupported && permission === 'denied' && (
         <Alert variant="destructive">
           <MSymbol className="ms-opsz-16 ms-wght-300 block" symbol="warning" />
@@ -138,6 +124,6 @@ export const PushContactMethod = ({ pushChannels }: PushContactMethodProps) => {
           </AlertDescription>
         </Alert>
       )}
-    </div>
+    </ContactMethodCard>
   )
 }

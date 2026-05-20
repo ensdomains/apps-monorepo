@@ -48,7 +48,7 @@ vi.mock('wagmi', () => ({
 
 // Mock other dependencies
 vi.mock('@/components/EntityBadge', () => ({
-  EntityBadgeWithActions: ({ children }: { children: React.ReactNode }) => (
+  EntityBadge: ({ children }: { children: React.ReactNode }) => (
     <span data-testid="entity-badge">{children}</span>
   ),
 }))

@@ -1,7 +1,7 @@
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
 import { ShieldPersonIcon } from '@/assets/icons'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { BlockCard } from '@/features/dashboard/components'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
@@ -55,13 +55,13 @@ export const Owner = ({
         <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
           {label}
         </span>
-        <EntityBadgeWithActions
+        <EntityBadge
           variant={variant}
           name={ownerName ?? undefined}
           address={owner}
         >
           {ownerName || shortenedAddress}
-        </EntityBadgeWithActions>
+        </EntityBadge>
       </div>
     )
   }
@@ -78,14 +78,14 @@ export const Owner = ({
           />
           <span className="text-sm truncate">{label}</span>
         </div>
-        <EntityBadgeWithActions
+        <EntityBadge
           inline
           variant={variant}
           name={ownerName ?? undefined}
           address={owner}
         >
           {ownerName || shortenedAddress}
-        </EntityBadgeWithActions>
+        </EntityBadge>
       </div>
     </BlockCard>
   )

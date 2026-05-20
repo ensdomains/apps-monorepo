@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useChainId } from 'wagmi'
@@ -93,33 +92,7 @@ const CopyChip = ({
   )
 }
 
-export const EntityBadge = ({
-  children,
-  variant,
-  className,
-  externalHref,
-}: {
-  children: ReactNode
-  variant: EntityVariant
-  className?: string
-  /** External link — opens in new tab */
-  externalHref?: string
-}) => {
-  if (externalHref) {
-    return (
-      <ExternalLink
-        href={externalHref}
-        className={pillClass(variant, className)}
-      >
-        {children}
-      </ExternalLink>
-    )
-  }
-
-  return <span className={pillClass(variant, className)}>{children}</span>
-}
-
-interface EntityBadgeWithActionsProps {
+interface EntityBadgeProps {
   readonly children: ReactNode
   readonly variant: EntityVariant
   readonly className?: string
@@ -141,7 +114,7 @@ interface EntityBadgeWithActionsProps {
   readonly inline?: boolean
 }
 
-export const EntityBadgeWithActions = ({
+export const EntityBadge = ({
   children,
   variant,
   className,
@@ -153,7 +126,7 @@ export const EntityBadgeWithActions = ({
   copyValue,
   showAvatar = false,
   inline = false,
-}: EntityBadgeWithActionsProps) => {
+}: EntityBadgeProps) => {
   const navigate = useNavigate()
   const chainId = useChainId()
 
@@ -188,11 +161,7 @@ export const EntityBadgeWithActions = ({
   )
 
   if (!hasChips) {
-    return (
-      <EntityBadge variant={variant} className={className}>
-        {children}
-      </EntityBadge>
-    )
+    return <span className={pillClass(variant, className)}>{children}</span>
   }
 
   const hasPrimaryAction =
