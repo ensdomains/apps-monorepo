@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -25,6 +25,8 @@ const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
 
 const SUCCESS_LABEL_DURATION_MS = 5000
 
+type RegistryOption = 'deploy' | 'use-existing'
+
 type ConfigureRegistryFormProps = {
   name: string
 }
@@ -32,8 +34,10 @@ type ConfigureRegistryFormProps = {
 export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   const { address: connectedAddress } = useConnection()
 
-  const [useCustomRegistry, setUseCustomRegistry] = useState(false)
+  const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
   const [contractAddress, setContractAddress] = useState('')
+
+  const useCustomRegistry = registryOption === 'use-existing'
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   const deployedSubregistryAddressRef = useRef<Address | null>(null)
 
@@ -134,6 +138,7 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
     closeTransactionModal()
     clearTransaction()
     setContractAddress('')
+    setRegistryOption('deploy')
     deployedSubregistryAddressRef.current = null
     setShowSuccessButtonLabel(true)
     setTimeout(
@@ -210,12 +215,71 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
         </p>
       </div>
       {showDeploySubregistryForm ? (
-        <div className="flex flex-col gap-4">
-          <h4 className="text-lg font-medium font-serif">Deploy subregistry</h4>
-          <p className="text-base">
-            Deploy a new verified subregistry for <strong>{name}</strong>.
-          </p>
-        </div>
+        <form
+          className="flex flex-col gap-5 border border-border rounded-lg p-5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSubmit()
+          }}
+        >
+          <RadioGroup
+            value={registryOption}
+            onValueChange={(value) =>
+              setRegistryOption(value as RegistryOption)
+            }
+          >
+            <div className="flex items-center gap-3">
+              <RadioGroupItem value="deploy" id="registry-option-deploy" />
+              <Label
+                htmlFor="registry-option-deploy"
+                className="cursor-pointer text-foreground"
+              >
+                Deploy a new Permissioned Registry contract
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <RadioGroupItem
+                value="use-existing"
+                id="registry-option-use-existing"
+              />
+              <Label
+                htmlFor="registry-option-use-existing"
+                className="cursor-pointer text-foreground"
+              >
+                Use a pre-existing registry contract
+              </Label>
+            </div>
+          </RadioGroup>
+          {useCustomRegistry && (
+            <div className="flex flex-col gap-3">
+              <Input
+                id="contract-address"
+                placeholder="Paste contract address"
+                value={contractAddress}
+                className="w-full p-3 h-9 bg-background border border-border rounded-md"
+                onChange={(e) => setContractAddress(e.target.value)}
+              />
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="col-span-1"
+              onClick={() => setShowDeploySubregistryForm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              className="col-span-2"
+              disabled={isSubmitDisabled}
+            >
+              <span className="flex items-center gap-2">{buttonText}</span>
+            </Button>
+          </div>
+        </form>
       ) : (
         <Button
           className="w-full"
@@ -226,88 +290,40 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
           Configure registry
         </Button>
       )}
+
+      <TransactionModal
+        transactions={
+          isDeployPath
+            ? [
+                {
+                  id: DEPLOY_SUBREGISTRY_TX_ID,
+                  title: 'Deploy subregistry',
+                  transactionName: `Deploy subregistry for ${name}`,
+                  estimatedGasCost: 0.0008,
+                  onStart: handleDeploySubregistryStart,
+                  onDone: handleSetSubregistryAfterDeployStart,
+                },
+                {
+                  id: SET_SUBREGISTRY_TX_ID,
+                  title: 'Set subregistry',
+                  transactionName: `Set subregistry for ${name}`,
+                  estimatedGasCost: 0.0001,
+                  onStart: handleSetSubregistryAfterDeployStart,
+                  onDone: handleSetSubregistryDone,
+                },
+              ]
+            : [
+                {
+                  id: SET_SUBREGISTRY_TX_ID,
+                  title: 'Set subregistry',
+                  transactionName: `Set custom subregistry for ${name}`,
+                  estimatedGasCost: 0.0001,
+                  onStart: handleSetSubregistryStart,
+                  onDone: handleSetSubregistryDone,
+                },
+              ]
+        }
+      />
     </div>
   )
-
-  // return (
-  //   <div className="flex flex-col gap-4">
-  //     <div className="flex items-center gap-3">
-  //       <Switch
-  //         checked={useCustomRegistry}
-  //         onCheckedChange={setUseCustomRegistry}
-  //         id="use-custom-registry"
-  //       />
-  //       <Label htmlFor="use-custom-registry" className="cursor-pointer">
-  //         Use custom registry
-  //       </Label>
-  //     </div>
-  //     {!useCustomRegistry && (
-  //       <span className="text-sm text-muted-foreground">
-  //         Deploy a new verified subregistry.
-  //       </span>
-  //     )}
-  //     {useCustomRegistry && (
-  //       <div className="flex flex-col gap-3">
-  //         <Label
-  //           htmlFor="contract-address"
-  //           info="The address of the custom registry contract"
-  //         >
-  //           Contract address
-  //         </Label>
-  //         <Input
-  //           id="contract-address"
-  //           placeholder="HEX address or ENS name"
-  //           value={contractAddress}
-  //           onChange={(e) => setContractAddress(e.target.value)}
-  //         />
-  //       </div>
-  //     )}
-
-  //     <Button
-  //       variant="default"
-  //       onClick={handleSubmit}
-  //       disabled={isSubmitDisabled}
-  //       className="w-fit"
-  //     >
-  //       <span className="flex items-center gap-2">
-  //         <CircleCheckIcon className="size-4" />
-  //         {buttonText}
-  //       </span>
-  //     </Button>
-
-  //     <TransactionModal
-  //       transactions={
-  //         isDeployPath
-  //           ? [
-  //               {
-  //                 id: DEPLOY_SUBREGISTRY_TX_ID,
-  //                 title: 'Deploy subregistry',
-  //                 transactionName: `Deploy subregistry for ${name}`,
-  //                 estimatedGasCost: 0.0008,
-  //                 onStart: handleDeploySubregistryStart,
-  //                 onDone: handleSetSubregistryAfterDeployStart,
-  //               },
-  //               {
-  //                 id: SET_SUBREGISTRY_TX_ID,
-  //                 title: 'Set subregistry',
-  //                 transactionName: `Set subregistry for ${name}`,
-  //                 estimatedGasCost: 0.0001,
-  //                 onStart: handleSetSubregistryAfterDeployStart,
-  //                 onDone: handleSetSubregistryDone,
-  //               },
-  //             ]
-  //           : [
-  //               {
-  //                 id: SET_SUBREGISTRY_TX_ID,
-  //                 title: 'Set subregistry',
-  //                 transactionName: `Set custom subregistry for ${name}`,
-  //                 estimatedGasCost: 0.0001,
-  //                 onStart: handleSetSubregistryStart,
-  //                 onDone: handleSetSubregistryDone,
-  //               },
-  //             ]
-  //       }
-  //     />
-  //   </div>
-  // )
 }
