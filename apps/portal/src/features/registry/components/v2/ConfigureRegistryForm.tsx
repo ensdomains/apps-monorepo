@@ -1,6 +1,6 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
-import { CircleCheckIcon, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
