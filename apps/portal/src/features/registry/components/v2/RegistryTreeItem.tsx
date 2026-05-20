@@ -29,8 +29,8 @@ export const RegistryTreeItem = ({
   name,
 }: RegistryTreeItemProps) => {
   const isRoot = index === 0
-  const isParent = index === 1
   const isLast = index === registriesCount - 1
+  const isParent = !isRoot && !isLast
 
   const isRegistryConfigured = address !== zeroAddress
 
