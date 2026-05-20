@@ -9,6 +9,19 @@ import {
 
 const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
   {
+    id: 'upgrade-names',
+    question: (
+      <Trans>Do I have to upgrade my names? What happens if I don't?</Trans>
+    ),
+    answer: (
+      <Trans>
+        Upgrading is optional. Your existing names keep working as they do
+        today. Upgrading unlocks the latest features and lower fees, and you can
+        do it whenever you're ready.
+      </Trans>
+    ),
+  },
+  {
     id: 'send-crypto',
     question: (
       <Trans>Can I send crypto to a .eth name (instead of an address)?</Trans>
@@ -17,6 +30,16 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
       <Trans>
         Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the
         app looks up the address automatically.
+      </Trans>
+    ),
+  },
+  {
+    id: 'what-is-primary-name',
+    question: <Trans>What is a primary name?</Trans>,
+    answer: (
+      <Trans>
+        Your primary name is the .eth name that apps show in place of your
+        wallet address, so people see alice.eth instead of 0x74...2d35.
       </Trans>
     ),
   },
