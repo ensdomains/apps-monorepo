@@ -1,6 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { PrivacyPolicyPage } from '@/features/legal/pages/PrivacyPolicyPage'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/legal/privacy-policy')({
-  component: PrivacyPolicyPage,
+  beforeLoad: () => {
+    throw redirect({ href: 'https://ens.domains/legal/privacy-policy' })
+  },
 })

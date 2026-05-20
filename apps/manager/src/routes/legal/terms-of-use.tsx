@@ -1,6 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { TermsOfUsePage } from '@/features/legal/pages/TermsOfUsePage'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/legal/terms-of-use')({
-  component: TermsOfUsePage,
+  beforeLoad: () => {
+    throw redirect({ href: 'https://ens.domains/legal/terms-of-use' })
+  },
 })

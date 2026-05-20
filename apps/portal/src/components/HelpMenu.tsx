@@ -8,13 +8,13 @@ export const HelpMenu = () => {
     <div className="flex flex-col gap-1">
       <ExternalLink
         className={MENU_ITEM_CLASS}
-        href="https://app.ens.domains/legal/terms-of-use"
+        href="https://ens.domains/legal/terms-of-use"
       >
         Terms of Use
       </ExternalLink>
       <ExternalLink
         className={MENU_ITEM_CLASS}
-        href="https://app.ens.domains/legal/privacy-policy"
+        href="https://ens.domains/legal/privacy-policy"
       >
         Privacy Policy
       </ExternalLink>
