@@ -5,7 +5,7 @@ import { match, P } from 'ts-pattern'
 import { useCountdown } from '@/hooks/useCountdown'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
-import { NotificationSettingsStep } from './components/NotificationSettingsStep'
+import { NotificationSettings } from './components/NotificationSettings'
 import { RegistrationCompletionBanner } from './components/RegistrationCompletionBanner'
 import { RegistrationDetails } from './components/RegistrationDetails'
 import { RegistrationProgressBar } from './components/RegistrationProgressBar'
@@ -51,9 +51,12 @@ export const RegisteringStep = () => {
       ? _(stageMessages.stageDescription)
       : undefined
 
-  /** Child machine success must win even if UI actor has not raised `transaction.success` yet */
+  // Child machine success can arrive before the UI actor reflects it.
   const isRegistrationComplete =
     registeringTx.value === 'success' || uiStage?.transaction === 'success'
+  const advanceNotificationsStep = () => {
+    uiActor.send({ type: 'notifications.step.next' })
+  }
 
   useBlocker({
     shouldBlockFn: () => {
@@ -101,13 +104,9 @@ export const RegisteringStep = () => {
       <div className="mx-auto w-full-[32px] max-w-6xl space-y-6.5">
         {match(uiStage)
           .with({ notifications: 'settings' }, () => (
-            <NotificationSettingsStep
-              onConfirm={() => {
-                uiActor.send({ type: 'notifications.step.next' })
-              }}
-              onSkip={() => {
-                uiActor.send({ type: 'notifications.step.next' })
-              }}
+            <NotificationSettings
+              onConfirm={advanceNotificationsStep}
+              onSkip={advanceNotificationsStep}
             />
           ))
           .with({ transaction: P.string }, () => <RegistrationDetails />)
