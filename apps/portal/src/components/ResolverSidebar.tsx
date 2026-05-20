@@ -193,7 +193,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 text-muted-foreground hover:text-foreground"
+                className="size-8 text-neutral-6 hover:text-foreground"
                 aria-label="Help"
               >
                 <CircleQuestionMarkIcon className="size-4" />
@@ -209,7 +209,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 text-muted-foreground hover:text-foreground"
+                className="size-8 text-neutral-6 hover:text-foreground"
                 aria-label="Settings"
               >
                 <SettingsIcon className="size-4" />
@@ -223,7 +223,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-muted-foreground hover:text-foreground"
+            className="size-8 text-neutral-6 hover:text-foreground"
             aria-label="Documentation"
             asChild
           >
