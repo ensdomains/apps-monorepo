@@ -55,19 +55,21 @@ const resolveAnyNameGraceBanner = ({
     )
   })
 
-  if (!graceItem) return null
-
-  const meta = mergedRowMetadata(graceItem, primaryLabel)
-  if (!meta.graceEndDate) return null
-
-  return {
-    show: true,
-    variant: 'anyNameExpired',
-    renewName: meta.label,
-    graceEndDate: meta.graceEndDate,
-    daysSinceExpiry: meta.daysSinceExpiry,
-    isV2: !meta.isV1,
-  }
+  return match(graceItem)
+    .with(P.nullish, () => null)
+    .otherwise((item) => {
+      const meta = mergedRowMetadata(item, primaryLabel)
+      return match(meta.graceEndDate)
+        .with(P.nullish, () => null)
+        .otherwise((graceEndDate) => ({
+          show: true as const,
+          variant: 'anyNameExpired' as const,
+          renewName: meta.label,
+          graceEndDate,
+          daysSinceExpiry: meta.daysSinceExpiry,
+          isV2: !meta.isV1,
+        }))
+    })
 }
 
 export const resolveDashboardGraceBanner = (

@@ -69,7 +69,10 @@ export const DashboardGraceBanner = ({
     () =>
       resolveDashboardGraceBanner({
         primaryLabel,
-        primaryGrace: getProfileNameExpiryStatus(primaryExpiryData?.expiry, true),
+        primaryGrace: getProfileNameExpiryStatus(
+          primaryExpiryData?.expiry,
+          true,
+        ),
         v2Names: v2Data ?? [],
         v1Classified: migrationEnabled ? v1Classified : [],
       }),

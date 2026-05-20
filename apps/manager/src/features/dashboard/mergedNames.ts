@@ -135,14 +135,14 @@ export const mergedRowMetadata = (
   const expiryDate = toDateFromSeconds(item.sortExpiry)
   const isV1 = item.kind === 'v1'
   const isV2 = !isV1
-  const isInGrace = isInGracePeriod(expiryDate, isV2)
+  const isInGrace = isInGracePeriod(expiryDate, isV2, new Date())
   const graceEndDate = match({ expiryDate, isInGrace })
     .with(
       { expiryDate: P.not(P.nullish), isInGrace: true },
       ({ expiryDate: date }) => getGraceEndDate(date, isV2),
     )
     .otherwise(() => null)
-  const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2)
+  const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2, new Date())
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const daysSinceExpiry = match({ expiryDate, isInGrace })
     .with(
@@ -171,7 +171,7 @@ export const mergedRowMetadata = (
     isV1,
     isPrimary,
     isInGrace,
-    showProminentRenew: shouldShowProminentRenew(expiryDate, isV2),
+    showProminentRenew: shouldShowProminentRenew(expiryDate, isV2, new Date()),
     useDefaultAvatar: isInGrace,
     useWireframeNameplate: isInGrace,
     avatarUrl,

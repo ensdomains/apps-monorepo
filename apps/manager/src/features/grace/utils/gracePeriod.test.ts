@@ -6,6 +6,7 @@ import {
   getGraceEndDate,
   isInGracePeriod,
   isPastGracePeriod,
+  isRenewableV2EthName,
   MS_PER_DAY,
   shouldShowProminentRenew,
   V2_GRACE_PERIOD_DAYS,
@@ -115,6 +116,38 @@ describe('shouldShowProminentRenew', () => {
   it('returns false more than 30 days before expiry', () => {
     vi.setSystemTime(base.getTime() - 31 * MS_PER_DAY)
     expect(shouldShowProminentRenew(base, true)).toBe(false)
+  })
+})
+
+describe('isRenewableV2EthName', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('accepts a v2 name before expiry', () => {
+    vi.setSystemTime(base.getTime() - MS_PER_DAY)
+    expect(isRenewableV2EthName('alice.eth', base)).toBe(true)
+  })
+
+  it('accepts a v2 name within grace', () => {
+    vi.setSystemTime(base.getTime() + MS_PER_DAY)
+    expect(isRenewableV2EthName('alice.eth', base)).toBe(true)
+  })
+
+  it('rejects a v2 name after grace ends', () => {
+    vi.setSystemTime(base.getTime() + V2_GRACE_PERIOD_DAYS * MS_PER_DAY)
+    expect(isRenewableV2EthName('alice.eth', base)).toBe(false)
+  })
+
+  it('rejects when expiry is unknown', () => {
+    expect(isRenewableV2EthName('alice.eth', null)).toBe(false)
+  })
+
+  it('rejects subnames', () => {
+    expect(isRenewableV2EthName('sub.alice.eth', base)).toBe(false)
   })
 })
 

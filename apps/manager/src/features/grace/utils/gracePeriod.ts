@@ -1,10 +1,4 @@
 import { match, P } from 'ts-pattern'
-// REMOVE_BEFORE_GRACE_PR: delete `gracePeriodSimulation` import + `expiryDateForGraceCheck`;
-// use `normalizeExpiryDate` for grace helpers; restore `getNameExpiryStatus` date = raw expiry only.
-import {
-  getSimulatedExpiryDate,
-  isGracePeriodSimulationEnabled,
-} from '@/features/grace/utils/gracePeriodSimulation'
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 export const GRACE_PERIOD_DAYS = 90
@@ -25,27 +19,32 @@ const normalizeExpiryDate = (
 ): Date | null =>
   expiryDate != null && !Number.isNaN(expiryDate.getTime()) ? expiryDate : null
 
-/** REMOVE_BEFORE_GRACE_PR: remove this helper and use `normalizeExpiryDate(expiryDate)` below. */
-const expiryDateForGraceCheck = (
-  expiryDate: Date | null | undefined,
-  now: Date,
-): Date | null => {
-  if (isGracePeriodSimulationEnabled()) {
-    return getSimulatedExpiryDate(now)
-  }
-  return normalizeExpiryDate(expiryDate)
-}
-
 export const isInGracePeriod = (
   expiryDate: Date | null | undefined,
   isV2: boolean,
   now: Date = new Date(),
 ): boolean => {
-  const date = expiryDateForGraceCheck(expiryDate, now)
+  const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => false)
     .when((value) => now <= value, () => false)
     .otherwise((value) => now < getGraceEndDate(value, isV2))
+}
+
+/** V2 .eth 2LD: renew allowed until grace ends (portal `isExtendable2LD` for ENSv2). */
+export const isRenewableV2EthName = (
+  name: string,
+  expiryDate: Date | null | undefined,
+  now: Date = new Date(),
+): boolean => {
+  const date = normalizeExpiryDate(expiryDate)
+  return match({ name, date })
+    .with({ name: P.when((value) => !/^[^.]+\.eth$/.test(value)) }, () => false)
+    .with(
+      { date: P.not(P.nullish) },
+      ({ date: value }) => getGraceEndDate(value, true).getTime() > now.getTime(),
+    )
+    .otherwise(() => false)
 }
 
 export const isPastGracePeriod = (
@@ -70,13 +69,10 @@ export const shouldShowProminentRenew = (
   isV2: boolean,
   now: Date = new Date(),
 ): boolean => {
-  const date = expiryDateForGraceCheck(expiryDate, now)
+  const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => false)
-    .when(
-      (value) => isInGracePeriod(value, isV2, now),
-      () => true,
-    )
+    .when((value) => isInGracePeriod(value, isV2, now), () => true)
     .otherwise((value) => {
       const daysUntil = Math.ceil(
         (value.getTime() - now.getTime()) / MS_PER_DAY,
@@ -90,7 +86,7 @@ export const getDisplayExpiryDate = (
   isV2: boolean,
   now: Date = new Date(),
 ): Date | null => {
-  const date = expiryDateForGraceCheck(expiryDate, now)
+  const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => null)
     .when(
@@ -114,7 +110,7 @@ export const getNameExpiryStatus = (
   isV2: boolean,
   now: Date = new Date(),
 ): NameExpiryStatus => {
-  const date = expiryDateForGraceCheck(expiryDate, now)
+  const date = normalizeExpiryDate(expiryDate)
   const inGrace = date ? isInGracePeriod(date, isV2, now) : false
 
   return {

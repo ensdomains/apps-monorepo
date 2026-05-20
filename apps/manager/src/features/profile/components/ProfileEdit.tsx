@@ -11,6 +11,10 @@ import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '../service/profileExpiry'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import { createDiff } from '../utils/createDiff'
@@ -52,7 +56,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   const { data: ownerData, refetch: refetchOwner } = useQuery({
     ...profileOwnerQuery(name),
   })
-
+  const { data: expiryData } = useQuery({
+    ...profileExpiryQuery(name),
+  })
+  const { isInGrace } = getProfileNameExpiryStatus(expiryData?.expiry, true)
   const account = useSmartAccountContext()
   const chainId = useChainId()
   const queryClient = useQueryClient()
@@ -139,6 +146,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       refetchRecords,
       refetchOwner,
     })
+
+  if (isInGrace) {
+    return null
+  }
 
   return (
     <form

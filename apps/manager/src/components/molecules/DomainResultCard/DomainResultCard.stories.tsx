@@ -12,7 +12,7 @@ const meta = {
   argTypes: {
     status: {
       control: 'select',
-      options: ['available', 'premium'],
+      options: ['available', 'premium', 'registered'],
     },
     price: {
       control: 'number',
@@ -36,6 +36,22 @@ export const Premium: Story = {
     domainName: 'premium.eth',
     status: 'premium',
     price: 245000,
+  },
+}
+
+export const Registered: Story = {
+  args: {
+    domainName: 'earl.eth',
+    status: 'registered',
+    isInGrace: false,
+  },
+}
+
+export const RegisteredInGrace: Story = {
+  args: {
+    domainName: 'earl.eth',
+    status: 'registered',
+    isInGrace: true,
   },
 }
 

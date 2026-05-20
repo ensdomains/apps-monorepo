@@ -1,5 +1,6 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok } from 'neverthrow'
+import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
 import { parseName } from '@/features/register-v2/utils/name-parser'
 
 type RenewableNameErrorReason = 'TLD_NOT_SUPPORTED' | 'SUBNAMES_NOT_SUPPORTED'
@@ -35,3 +36,9 @@ export const parseRenewableName = (name: string) =>
   })
 
 export const isRenewableName = (name: string) => parseRenewableName(name).isOk()
+
+export const canRenewV2Name = (
+  name: string,
+  expiryDate: Date | null | undefined,
+) =>
+  parseRenewableName(name).isOk() && isRenewableV2EthName(name, expiryDate)

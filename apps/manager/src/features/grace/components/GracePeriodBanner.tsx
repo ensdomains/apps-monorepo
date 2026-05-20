@@ -1,9 +1,9 @@
 import { Plural, Trans } from '@lingui/react/macro'
-import { Hourglass } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { LinkButton } from '@/components/ui/button'
 import { formatDashboardDate } from '@/features/dashboard/utils'
 import { V2_GRACE_PERIOD_DAYS } from '@/features/grace/utils/gracePeriod'
+import { GracePeriodCalendarIcon } from './GracePeriodCalendarIcon'
 
 export type GracePeriodBannerVariant =
   | 'primaryExpired'
@@ -22,6 +22,12 @@ type GracePeriodBannerProps = {
 
 const renewButtonClassName =
   'flex h-[37px] w-full items-center justify-center rounded-xs border-[#b35600] border-[0.5px] bg-transparent px-3 font-mono text-[#b35600] text-sm uppercase tracking-[0.28px] hover:bg-[#b35600]/5 @md:h-14 @md:w-[298px]'
+
+const bannerTitleClassName =
+  'col-start-2 row-start-1 min-w-0 font-sans font-[460] text-[20px] text-[#b35600] leading-[110%] tracking-[-0.4px] [leading-trim:both] [text-edge:cap]'
+
+const bannerBodyClassName =
+  'col-start-2 row-start-2 min-w-0 font-sans font-normal text-sm text-ens-citrine-500 leading-[120%] tracking-[0.14px] [leading-trim:both] [text-edge:cap]'
 
 const gracePeriodDaysLabel = (isV2: boolean): number =>
   match(isV2)
@@ -82,18 +88,12 @@ export const GracePeriodBanner = ({
   const graceDays = gracePeriodDaysLabel(isV2)
 
   return (
-    <div className="@container w-full rounded-xs border-[0.5px] border-[#e1b77e] bg-[#f8f7e2] p-5">
+    <div className="@container w-full rounded-xs border-[0.5px] border-[#e1b77e] bg-[#f8f7e2] p-4">
       <div className="flex w-full flex-col gap-4 @md:flex-row @md:items-center @md:justify-between @md:gap-6">
         <div className="grid w-full min-w-0 grid-cols-[auto_1fr] gap-x-3 gap-y-2 @md:flex-1">
-          <Hourglass
-            aria-hidden
-            className="col-start-1 row-span-2 row-start-1 size-6 shrink-0 self-start text-[#b35600]"
-            strokeWidth={2}
-          />
-          <p className="col-start-2 row-start-1 min-w-0 font-sans text-[#b35600] text-base leading-[1.1] tracking-[-0.32px]">
-            {bannerTitle(variant)}
-          </p>
-          <p className="col-start-2 row-start-2 min-w-0 font-sans text-[#984d1b] text-sm leading-[1.2] tracking-[0.14px]">
+          <GracePeriodCalendarIcon className="col-start-1 row-span-2 row-start-1 self-start text-[#984d1b]" />
+          <p className={bannerTitleClassName}>{bannerTitle(variant)}</p>
+          <p className={bannerBodyClassName}>
             {bannerBody({
               daysSinceExpiry,
               formattedGraceEnd,

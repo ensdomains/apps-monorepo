@@ -113,6 +113,7 @@ export const NameSuggestionItem = ({
       ? new Date(expirySeconds * 1000)
       : null,
     true,
+    new Date(),
   )
   const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
   const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
@@ -163,16 +164,14 @@ export const NameSuggestionItem = ({
           .with({ isError: true }, () => (
             <XIcon className="size-4 text-slate-500" />
           ))
-          .with({ isRegistered: true }, () =>
-            match(isInGrace)
-              .with(true, () => <GracePeriodBadge />)
-              .with(false, () => (
-                <div className="shrink-0 rounded-full bg-ens-white px-1.5 py-1 font-normal text-ens-lapis-core text-xs">
-                  <Trans>Registered</Trans>
-                </div>
-              ))
-              .exhaustive(),
-          )
+          .with({ isRegistered: true }, () => (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <span className="inline-flex h-5 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
+                <Trans>Registered</Trans>
+              </span>
+              {isInGrace && <GracePeriodBadge />}
+            </div>
+          ))
           .with({ isSubname: true }, () => null)
           .with({ isRegistered: false }, () => (
             <div className="shrink-0 rounded-full bg-ens-peridot-bg px-1.5 py-1 font-normal text-ens-peridot-core text-xs">

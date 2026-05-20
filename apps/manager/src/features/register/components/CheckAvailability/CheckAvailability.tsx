@@ -14,7 +14,10 @@ import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
@@ -98,6 +101,12 @@ export const CheckAvailability = ({
   })
 
   const showResults = displayState.type !== 'idle' && !error
+
+  const registeredNameInGrace = match(displayState)
+    .with({ type: 'unavailable' }, () =>
+      getProfileNameExpiryStatus(profileExpiry?.expiry, true).isInGrace,
+    )
+    .otherwise(() => false)
 
   const blurBackdropEnabled = useFeatureFlag('SEARCH_RESULTS_BLUR_BACKDROP')
 
@@ -258,23 +267,11 @@ export const CheckAvailability = ({
                     {...dropdownAnimation}
                   >
                     <Link params={{ name: state.domainName }} to="/$name">
-                      <DomainProfileCard
-                        avatarUrl={profileAvatar}
+                      <DomainResultCard
                         clickable
                         domainName={state.domainName}
-                        expiryDate={
-                          profileExpiry?.expiry != null
-                            ? new Date(Number(profileExpiry.expiry) * 1000)
-                            : null
-                        }
-                        registeredDate={
-                          profileRegistration?.registrationDate != null
-                            ? new Date(
-                                profileRegistration.registrationDate * 1000,
-                              )
-                            : null
-                        }
-                        themeColor={themeColor}
+                        isInGrace={registeredNameInGrace}
+                        status="registered"
                       />
                     </Link>
                   </motion.div>

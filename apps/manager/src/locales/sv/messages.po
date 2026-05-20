@@ -144,7 +144,7 @@ msgstr ""
 msgid "Account address:"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:95
+#: src/features/profile/components/ProfileEdit.tsx:102
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr ""
 
@@ -241,7 +241,7 @@ msgstr ""
 msgid "Almost there..."
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:135
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:144
 msgid "An error occurred"
 msgstr ""
 
@@ -319,7 +319,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:179
+#: src/features/navigation/Header/search/SuggestionItem.tsx:178
 msgid "Available"
 msgstr ""
 
@@ -433,11 +433,11 @@ msgstr ""
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: src/features/profile/components/ProfileEdit.tsx:88
+#: src/features/profile/components/ProfileEdit.tsx:95
 msgid "Cannot save profile - ENS owner is not available."
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:106
+#: src/features/profile/components/ProfileEdit.tsx:113
 msgid "Cannot save profile - resolver address is not available."
 msgstr ""
 
@@ -819,6 +819,10 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileView.tsx:191
+msgid "Edit Profile"
+msgstr ""
+
 #: src/features/dashboard/components/MyNamesList.tsx:401
 msgid "Eligible for upgrade"
 msgstr ""
@@ -976,7 +980,7 @@ msgstr "Utgångsdatum (tidigast)"
 msgid "Expiry date (Latest)"
 msgstr "Utgångsdatum (senast)"
 
-#: src/features/renew/components/RenewNameButton.tsx:17
+#: src/features/renew/components/RenewNameButton.tsx:27
 msgid "Extend Name"
 msgstr ""
 
@@ -1012,6 +1016,10 @@ msgstr ""
 #: src/features/notifications/dropdown/notification-dropdown.tsx:58
 #: src/features/notifications/inbox/list.tsx:98
 msgid "Failed to load notifications"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileView.tsx:124
+msgid "Failed to load registration data for this name."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx:170
@@ -1484,8 +1492,8 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:157
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:159
+#: src/features/navigation/Header/search/SuggestionItem.tsx:158
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:168
 msgid "Not supported"
 msgstr ""
 
@@ -1523,7 +1531,7 @@ msgstr ""
 msgid "One of your names can't be upgraded right now."
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:35
+#: src/features/grace/components/GracePeriodBanner.tsx:41
 msgid "One of your names expired."
 msgstr ""
 
@@ -1732,10 +1740,11 @@ msgid "Register to date"
 msgstr ""
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
+#: src/components/molecules/DomainResultCard/DomainResultCard.tsx:84
 #: src/features/dashboard/components/PrimaryNameCard.tsx:155
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/search/SuggestionItem.tsx:171
+#: src/features/navigation/Header/search/SuggestionItem.tsx:170
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1917,7 +1926,7 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:182
+#: src/features/profile/components/ProfileEdit.tsx:193
 msgid "Reset Changes"
 msgstr ""
 
@@ -2299,7 +2308,8 @@ msgstr "Sortera namn efter"
 msgid "Stables accepted"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:288
+#: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx:67
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:285
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
@@ -2928,11 +2938,11 @@ msgstr ""
 msgid "Your ENS name works across web3"
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:66
+#: src/features/grace/components/GracePeriodBanner.tsx:72
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:36
+#: src/features/grace/components/GracePeriodBanner.tsx:42
 msgid "Your name is in grace period"
 msgstr ""
 
@@ -2944,11 +2954,11 @@ msgstr ""
 msgid "Your names are ready to upgrade"
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:57
+#: src/features/grace/components/GracePeriodBanner.tsx:63
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:34
+#: src/features/grace/components/GracePeriodBanner.tsx:40
 msgid "Your primary name has expired."
 msgstr ""
 
