@@ -90,7 +90,7 @@ interface ResolverSidebarProps {
 export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
   const items = getItems(address)
   const [helpOpen, setHelpOpen] = useState(false)
-  const { state, isMobile } = useSidebar()
+  const { state, isMobile, setOpenMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
 
   return (
@@ -139,6 +139,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
             params={{ address }}
             activeProps={{ 'data-active': 'true' }}
             activeOptions={{ exact: true }}
+            onClick={() => setOpenMobile(false)}
             className="group/title flex w-full items-center gap-2 rounded-md px-2 py-2 outline-hidden ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
           >
             <div className="size-6 shrink-0 rounded bg-neutral-2 group-data-[active=true]/title:bg-neutral-3 flex items-center justify-center">
