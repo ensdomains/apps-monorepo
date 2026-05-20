@@ -13,11 +13,7 @@ import {
   initializeRhinestoneAccount,
   type RhinestoneInitResult,
 } from '../rhinestone'
-import type {
-  WalletSource as BaseWalletSource,
-  ParaClient,
-  SmartAccountType,
-} from '../types'
+import type { WalletSource as BaseWalletSource, ParaClient } from '../types'
 
 type WalletSource = Exclude<BaseWalletSource, null>
 
@@ -45,7 +41,6 @@ export interface InitializeAccountInput {
   readonly walletSource: WalletSource
   readonly walletClient?: WalletClient
   readonly paraClient?: ParaClient
-  readonly accountType?: SmartAccountType
   readonly infrastructure?: TransactionInfra
 }
 
@@ -63,7 +58,6 @@ function mapRhinestoneConfig(
   const smartConfig: SmartAccountConfig = {
     chain: result.config.chain,
     accountAddress: result.address,
-    accountType: result.config.accountType,
     rhinestoneApiKey: result.config.rhinestoneApiKey,
   }
 
@@ -79,12 +73,13 @@ function mapRhinestoneConfig(
  * Initialize smart account.
  *
  * Rhinestone is the only smart-account provider used by the manager app;
- * it supports both external wallets and Para-embedded accounts.
+ * it supports both external wallets and Para-embedded accounts. The
+ * account is always deployed in HCA (Hybrid Custodial Account) mode.
  */
 export function initializeAccountActor(
   input: InitializeAccountInput,
 ): ResultAsync<AccountInitResult, AccountInitializationError> {
-  const { walletClient, paraClient, accountType, infrastructure } = input
+  const { walletClient, paraClient, infrastructure } = input
 
   if (!walletClient && !paraClient) {
     return errAsync(
@@ -101,7 +96,6 @@ export function initializeAccountActor(
     initializeRhinestoneAccount({
       walletClient,
       paraClient,
-      accountType,
       infrastructure,
     }),
     (error) =>

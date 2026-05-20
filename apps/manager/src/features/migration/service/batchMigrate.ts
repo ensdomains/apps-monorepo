@@ -1,4 +1,4 @@
-import type { Erc4337Call } from '@ens-apps/transaction-manager'
+import type { Call } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import {
   GAS_HEURISTIC,
@@ -107,7 +107,7 @@ export type BuildBatchedMigrateCallsParams = {
 }
 
 export type BuildBatchedMigrateCallsOutput = {
-  readonly calls: readonly Erc4337Call[]
+  readonly calls: readonly Call[]
   readonly batches: readonly MigrationBatch[]
 }
 
@@ -136,7 +136,7 @@ export const buildBatchedMigrateCalls = (
     gasHeuristic: GAS_HEURISTIC,
   })
 
-  const calls: Erc4337Call[] = []
+  const calls: Call[] = []
   const batches: MigrationBatch[] = []
 
   for (const [index, partition] of partitions.entries()) {
@@ -158,7 +158,7 @@ export const buildBatchedMigrateCalls = (
 }
 
 type MutablePlan = {
-  calls: Erc4337Call[]
+  calls: Call[]
   batches: MigrationBatch[]
 }
 
@@ -182,8 +182,8 @@ const splitMigrateBatch = (
     'migrationOwner' | 'defaultResolver' | 'ownedPermRes'
   >,
 ): {
-  leftCall: Erc4337Call
-  rightCall: Erc4337Call
+  leftCall: Call
+  rightCall: Call
   leftClassified: ClassifiedName[]
   rightClassified: ClassifiedName[]
 } => {
@@ -208,9 +208,7 @@ const splitMigrateBatch = (
   }
 }
 
-export const verifyOrSplit = async (
-  p: VerifyOrSplitParams,
-): Promise<Erc4337Call> => {
+export const verifyOrSplit = async (p: VerifyOrSplitParams): Promise<Call> => {
   const {
     publicClient,
     account,

@@ -153,20 +153,7 @@ export const submitPrimaryNameWithSignatureActor = (input: {
 
       let request: TransactionRequest
 
-      if (signer.type === 'erc4337') {
-        request = {
-          type: 'erc4337' as const,
-          from: smartAccountAddress,
-          to: defaultRegistrar,
-          data: defaultData,
-          value: 0n,
-          chainId,
-          erc4337Params: {
-            calls: batchedCalls,
-            sponsored: true,
-          },
-        }
-      } else if (signer.type === 'rhinestone') {
+      if (signer.type === 'rhinestone') {
         request = {
           type: 'rhinestone-intent' as const,
           from: smartAccountAddress,
@@ -272,19 +259,6 @@ export const submitPrimaryNameUpdateActor = (input: {
               // Reverse-registrar writes aren't in the registration-
               // scoped smart-session allowlist; force EOA-owner signing.
               useSession: false,
-            },
-          }
-        } else if (input.signer.type === 'erc4337') {
-          request = {
-            type: 'erc4337' as const,
-            from: fromAddress,
-            to: defaultRegistrar,
-            data: defaultData,
-            value: 0n,
-            chainId: input.chainId,
-            erc4337Params: {
-              calls: batchedCalls,
-              sponsored: true,
             },
           }
         } else {

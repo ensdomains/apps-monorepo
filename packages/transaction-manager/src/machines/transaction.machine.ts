@@ -3,7 +3,6 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
-import { submitErc4337Transaction } from '../actors/erc4337-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
@@ -31,7 +30,6 @@ import type {
  * based on transaction type:
  * - EOA: Standard wallet transactions via submitEOATransaction
  * - Rhinestone: Smart account transactions via submitRhinestoneTransaction
- * - ERC-4337: Generic permissionless SmartAccountClient via submitErc4337Transaction
  *
  * This machine focuses solely on transaction lifecycle (submit → pending → confirm).
  * Account initialization and management is handled externally by AccountProvider.
@@ -122,7 +120,6 @@ export const transactionMachine = setup({
      * - eoa → submitEOATransaction
      * - rhinestone + warp → submitWarpTransaction
      * - rhinestone + pimlico → submitRhinestoneTransaction
-     * - erc4337 → submitErc4337Transaction (Pimlico bundler)
      */
     submitTransaction: fromResultAsync(
       ({
@@ -203,14 +200,8 @@ export const transactionMachine = setup({
               })
             }
 
-            case 'erc4337':
-              return submitErc4337Transaction({
-                request,
-                signer,
-                publicClient,
-              })
-
             default:
+              signer satisfies never
               return errAsync(
                 new TransactionSubmissionError(
                   request,
@@ -341,11 +332,9 @@ export const transactionMachine = setup({
           )
         }
 
-        if (
-          request.type === 'erc4337' ||
-          request.type === 'rhinestone-intent'
-        ) {
-          // For ERC-4337 and Rhinestone, we'd need different simulation methods
+        if (request.type === 'rhinestone-intent') {
+          // Rhinestone intents simulate via the orchestrator; skip the
+          // eth_call fallback path entirely.
           return ResultAsync.fromSafePromise(
             Promise.resolve({ wouldSucceed: true }),
           )
@@ -636,8 +625,6 @@ export const transactionMachine = setup({
           actions: [
             assign({
               hash: ({ event }) => event.output,
-              userOpHash: ({ event, context }) =>
-                context.request?.type === 'erc4337' ? event.output : undefined,
             }),
             'recordTransition',
             ({ event }) => {

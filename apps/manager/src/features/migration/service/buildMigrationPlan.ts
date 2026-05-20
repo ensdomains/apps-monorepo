@@ -1,4 +1,4 @@
-import type { Erc4337Call } from '@ens-apps/transaction-manager'
+import type { Call } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
@@ -37,9 +37,9 @@ export type MigrationPlan = {
   readonly preflight: MigrationPreflight
   readonly ownedPermRes: Address | null
   readonly profiles: ReadonlyMap<Hex, Profile>
-  readonly migrateCalls: readonly Erc4337Call[]
-  readonly roleGrantCalls: readonly Erc4337Call[]
-  readonly profileReplayCalls: readonly Erc4337Call[]
+  readonly migrateCalls: readonly Call[]
+  readonly roleGrantCalls: readonly Call[]
+  readonly profileReplayCalls: readonly Call[]
   readonly batches: readonly MigrationBatch[]
   readonly stepDescriptors: readonly MigrationStepDescriptor[]
 }
@@ -88,10 +88,10 @@ const assemblePlanParts = (params: {
   ownedPermRes: Address | null
   profiles: ReadonlyMap<Hex, Profile>
 }): {
-  migrateCalls: readonly Erc4337Call[]
+  migrateCalls: readonly Call[]
   batches: readonly MigrationBatch[]
-  roleGrantCalls: readonly Erc4337Call[]
-  profileReplayCalls: readonly Erc4337Call[]
+  roleGrantCalls: readonly Call[]
+  profileReplayCalls: readonly Call[]
 } => {
   const { classified, migrationOwner, ownedPermRes, profiles } = params
 
@@ -102,7 +102,7 @@ const assemblePlanParts = (params: {
     ownedPermRes,
   })
 
-  const roleGrantCalls: Erc4337Call[] = []
+  const roleGrantCalls: Call[] = []
   for (const n of classified) {
     if (n.managerAddress) roleGrantCalls.push(buildRoleGrantCall(n))
   }

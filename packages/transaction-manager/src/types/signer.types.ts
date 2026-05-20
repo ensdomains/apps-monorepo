@@ -1,5 +1,4 @@
 import type { RhinestoneAccount, SignerSet } from '@rhinestone/sdk'
-import type { SmartAccountClient } from 'permissionless'
 import type { Address, Hex, WalletClient } from 'viem'
 
 import type { SmartAccountConfig } from './transaction.types'
@@ -15,7 +14,7 @@ export type TransactionInfra = 'warp' | 'pimlico'
  * Signer Types
  *
  * Abstract signer interface that decouples transaction submission
- * from specific account implementations (EOA, Rhinestone, ERC-4337, etc.)
+ * from specific account implementations (EOA, Rhinestone).
  */
 
 /**
@@ -55,24 +54,9 @@ export interface RhinestoneSigner {
 }
 
 /**
- * Generic ERC-4337 Smart Account Signer
- *
- * Wraps a permissionless `SmartAccountClient` (e.g. the Para-embedded
- * Pimlico bundled client). Transactions are submitted as user operations
- * via the underlying client's `sendUserOperation` method. Sessions are
- * not modelled here — session-based smart-account UX flows through the
- * Rhinestone signer instead.
- */
-export interface Erc4337Signer {
-  type: 'erc4337'
-  account: SmartAccountClient
-  config: SmartAccountConfig
-}
-
-/**
  * Union type of all supported signers
  */
-export type Signer = EOASigner | RhinestoneSigner | Erc4337Signer
+export type Signer = EOASigner | RhinestoneSigner
 
 /**
  * Type guard to check if signer is EOA
@@ -89,17 +73,9 @@ export function isRhinestoneSigner(signer: Signer): signer is RhinestoneSigner {
 }
 
 /**
- * Type guard to check if signer is a generic ERC-4337 smart account
- */
-export function isErc4337Signer(signer: Signer): signer is Erc4337Signer {
-  return signer.type === 'erc4337'
-}
-
-/**
  * Type guard to check if signer is session-enabled.
  *
- * Only Rhinestone signers currently support sessions; ERC-4337 signers
- * are non-session by construction.
+ * Only Rhinestone signers support sessions.
  */
 export function isSessionSigner(signer: Signer): boolean {
   if (isRhinestoneSigner(signer)) {

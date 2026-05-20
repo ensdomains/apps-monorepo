@@ -171,7 +171,7 @@ const startRegistrationAction = machineSetup.createAction(
     }
 
     // Register the ENS name directly to the EOA on every signer path
-    // (eoa, erc4337, rhinestone). The rhinestone smart-session policy is
+    // (eoa, rhinestone). The rhinestone smart-session policy is
     // configured to pin `register.owner == EOA` to match (see
     // @ens-apps/rhinestone build-registration-session.ts).
     //

@@ -75,7 +75,6 @@
     "motion": "^12.23.25",
     "motion-plus": "workspace:*",
     "neverthrow": "^8.2.0",
-    "permissionless": "^0.2.57",
     "posthog-js": "^1.347.2",
     "react": "^19.2.5",
     "react-day-picker": "^9.9.0",

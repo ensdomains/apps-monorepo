@@ -10,7 +10,7 @@ import type {
 } from 'viem'
 import type { TransactionInfra } from './signer.types'
 
-export type TransactionType = 'eoa' | 'erc4337' | 'rhinestone-intent'
+export type TransactionType = 'eoa' | 'rhinestone-intent'
 
 export interface BaseTransactionRequest {
   type: TransactionType
@@ -31,27 +31,14 @@ export interface EOATransactionRequest extends BaseTransactionRequest {
 }
 
 /**
- * ERC-4337 transaction request
+ * Neutral call shape used by batched transaction requests (Rhinestone
+ * intents today; potentially other batchable signers in the future).
  *
- * Submitted via a permissionless `SmartAccountClient` (e.g. Pimlico-bundled
- * Para-embedded accounts). Carries a `calls` array which is forwarded to
- * `client.sendUserOperation({ calls })`.
+ * Also re-used by code paths that build up call lists ahead of time
+ * (e.g. the migration service), independent of which transport submits
+ * them.
  */
-export interface Erc4337Call {
-  to: Address
-  data: Hex
-  value: bigint
-}
-
-export interface Erc4337TransactionRequest extends BaseTransactionRequest {
-  type: 'erc4337'
-  erc4337Params: {
-    calls: Erc4337Call[]
-    sponsored?: boolean
-  }
-}
-
-export interface RhinestoneCall {
+export interface Call {
   to: Address
   data: Hex
   value: bigint
@@ -60,7 +47,7 @@ export interface RhinestoneCall {
 export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   type: 'rhinestone-intent'
   rhinestoneParams: {
-    calls: RhinestoneCall[]
+    calls: Call[]
     sponsored?: boolean
     /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
     tokenRequests?: TokenRequest[]
@@ -81,7 +68,6 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
 
 export type TransactionRequest =
   | EOATransactionRequest
-  | Erc4337TransactionRequest
   | RhinestoneTransactionRequest
 
 // Transaction Intents - High-level descriptions of what the user wants to do
@@ -114,19 +100,13 @@ export type TransactionIntent =
 /**
  * Smart Account Configuration
  *
- * Shared config interface for all smart account signers (Pimlico, Rhinestone, etc.)
- * Contains chain info, bundler/paymaster URLs, and account details.
+ * Config interface for the Rhinestone smart-account signer.
  */
 export type SmartAccountConfig = {
   chain?: Chain
-  bundlerUrl?: string
-  paymasterUrl?: string
-  sponsorshipPolicyId?: string
-  walletClient?: WalletClient
   accountAddress?: Address
-  accountType?: 'simple' | 'hca'
-  hcaFactoryAddress?: Address
-} & ({ rhinestoneApiKey: string } | { pimlicoApiKey: string })
+  rhinestoneApiKey: string
+}
 
 export interface TransactionOptions {
   usePrivateMempool?: boolean

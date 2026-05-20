@@ -8,7 +8,7 @@
 
 import {
   type EOATransactionRequest,
-  type Erc4337TransactionRequest,
+  getSmartAccountAddress,
   type RhinestoneTransactionRequest,
   type Signer,
   type TransactionRequest,
@@ -84,42 +84,6 @@ export interface SaveRecordsResult extends WaitForTransactionResult {
 }
 
 // --- Internal helpers ---
-
-function getSmartAccountAddress(signer: Signer): Address {
-  if (signer.type === 'rhinestone') {
-    if (signer.config.accountAddress) {
-      return signer.config.accountAddress
-    }
-    return signer.account.getAddress() as Address
-  }
-
-  if (signer.type === 'erc4337') {
-    if (signer.config.accountAddress) {
-      return signer.config.accountAddress
-    }
-
-    const smartAccountClient = signer.account as {
-      account?: { address: Address }
-      address?: Address
-    }
-
-    if (smartAccountClient?.account?.address) {
-      return smartAccountClient.account.address
-    }
-
-    if (smartAccountClient?.address) {
-      return smartAccountClient.address
-    }
-
-    throw new Error(
-      'Unable to get smart account address from ERC-4337 SmartAccountClient',
-    )
-  }
-
-  throw new Error(
-    'Only Rhinestone or ERC-4337 signer is supported for this operation',
-  )
-}
 
 const computeRecordChanges = (
   before: ServiceRecordSnapshot,
@@ -265,21 +229,7 @@ function createTransactionRequest(params: {
     } as RhinestoneTransactionRequest
   }
 
-  if (signer.type === 'erc4337') {
-    return {
-      type: 'erc4337',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-      erc4337Params: {
-        calls,
-        sponsored: sponsored ?? true,
-      },
-    } as Erc4337TransactionRequest
-  }
-
+  signer satisfies never
   throw new Error(
     `Unsupported signer type for transaction request: ${(signer as { type: string }).type}`,
   )
@@ -328,11 +278,12 @@ async function buildRecordsUpdateRequest(params: {
 
   if (signer.type === 'eoa') {
     fromAddress = accountAddress
-  } else if (signer.type === 'rhinestone' || signer.type === 'erc4337') {
+  } else if (signer.type === 'rhinestone') {
     fromAddress = getSmartAccountAddress(signer)
   } else {
+    signer satisfies never
     throw new Error(
-      'Only EOA, Rhinestone, or ERC-4337 signers are supported for profile updates',
+      'Only EOA or Rhinestone signer is supported for profile updates',
     )
   }
 

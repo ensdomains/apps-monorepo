@@ -787,7 +787,7 @@ msgstr "Default"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/lib/smart-account/rhinestone.ts:149
+#: src/lib/smart-account/rhinestone.ts:148
 msgid "Deploying on-chain…"
 msgstr "Deploying on-chain…"
 
@@ -1013,16 +1013,16 @@ msgstr "Failed to add telegram: "
 msgid "Failed to authenticate with Telegram"
 msgstr "Failed to authenticate with Telegram"
 
-#: src/lib/smart-account/rhinestone.ts:169
+#: src/lib/smart-account/rhinestone.ts:168
 msgid "Failed to deploy smart account"
 msgstr "Failed to deploy smart account"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:237
+#: src/lib/smart-account/SmartAccountContext.tsx:233
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:238
+#: src/lib/smart-account/SmartAccountContext.tsx:234
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
@@ -1103,11 +1103,11 @@ msgstr "Frequently Asked Questions"
 msgid "From:"
 msgstr "From:"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:208
+#: src/lib/smart-account/SmartAccountContext.tsx:204
 msgid "Funding wallet"
 msgstr "Funding wallet"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:209
+#: src/lib/smart-account/SmartAccountContext.tsx:205
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
@@ -1776,7 +1776,7 @@ msgstr "Registered ENS names"
 msgid "Registering"
 msgstr "Registering"
 
-#: src/lib/smart-account/rhinestone.ts:201
+#: src/lib/smart-account/rhinestone.ts:200
 msgid "Registering account ownership…"
 msgstr "Registering account ownership…"
 
@@ -2166,8 +2166,8 @@ msgstr "Setting up registration"
 msgid "Setting up resolver"
 msgstr "Setting up resolver"
 
-#: src/lib/smart-account/rhinestone.ts:148
-#: src/lib/smart-account/rhinestone.ts:200
+#: src/lib/smart-account/rhinestone.ts:147
+#: src/lib/smart-account/rhinestone.ts:199
 msgid "Setting up your smart account"
 msgstr "Setting up your smart account"
 
@@ -2251,11 +2251,11 @@ msgstr "Slide {0}"
 msgid "Smart Account"
 msgstr "Smart Account"
 
-#: src/lib/smart-account/rhinestone.ts:231
+#: src/lib/smart-account/rhinestone.ts:230
 msgid "Smart account ready"
 msgstr "Smart account ready"
 
-#: src/lib/smart-account/rhinestone.ts:214
+#: src/lib/smart-account/rhinestone.ts:213
 msgid "Smart account setup failed"
 msgstr "Smart account setup failed"
 
@@ -2748,7 +2748,7 @@ msgstr "Waiting for transaction"
 msgid "Waiting period"
 msgstr "Waiting period"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:226
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
@@ -2764,7 +2764,7 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 msgid "Wallet Connected"
 msgstr "Wallet Connected"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:225
+#: src/lib/smart-account/SmartAccountContext.tsx:221
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 

@@ -1,5 +1,5 @@
 import {
-  type Erc4337Call,
+  type Call,
   type Signer,
   type TransactionRequest,
   transactionManager,
@@ -184,10 +184,7 @@ const ensureResolver = async (
   return resolver
 }
 
-const buildEOARequest = (
-  ctx: MigrationCtx,
-  call: Erc4337Call,
-): TransactionRequest => {
+const buildEOARequest = (ctx: MigrationCtx, call: Call): TransactionRequest => {
   const chainId = ctx.publicClient.chain?.id
   if (!chainId) {
     throw new Error('publicClient is missing a chain configuration')
@@ -215,7 +212,7 @@ const wrapBatchError = (
 
 const submitCall = async (
   ctx: MigrationCtx,
-  call: Erc4337Call,
+  call: Call,
   description: string,
 ): Promise<Hex> => {
   const txId = transactionManager.startTransaction(

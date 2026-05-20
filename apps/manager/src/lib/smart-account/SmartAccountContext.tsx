@@ -57,7 +57,6 @@ const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
 
 interface SmartAccountContextProviderProps {
   readonly children: ReactNode
-  readonly accountType?: 'simple' | 'hca'
 }
 
 function detectWalletSource(
@@ -151,7 +150,6 @@ function useWalletConnectionSync(
 
 export const SmartAccountContextProvider = ({
   children,
-  accountType = 'hca',
 }: SmartAccountContextProviderProps) => {
   const queryClient = useQueryClient()
   const { t } = useLingui()
@@ -165,10 +163,6 @@ export const SmartAccountContextProvider = ({
   const isReady = useSelector(actorRef, selectIsReady)
   const showSessionModal = useSelector(actorRef, selectShowSessionModal)
   const isCreatingSession = useSelector(actorRef, selectIsCreatingSession)
-
-  useEffect(() => {
-    send({ type: 'SET_ACCOUNT_TYPE', accountType })
-  }, [accountType, send])
 
   // In EOA-only mode the smart-account state machine never runs — skip the
   // wallet sync hook so we don't kick off Rhinestone initialization
@@ -193,10 +187,12 @@ export const SmartAccountContextProvider = ({
   const balances = useSmartAccountBalances({
     accountAddress,
     ownerAddress,
-    accountType,
   })
 
-  const addressToFund = accountType === 'hca' ? ownerAddress : accountAddress
+  // Smart account is HCA-only: fund the EOA (which holds the ENS name and
+  // stablecoins the smart account spends from). ETH for gas is sponsored
+  // by Rhinestone, so the SCA itself doesn't need funding.
+  const addressToFund = ownerAddress
 
   const autoFundingMutation = useMutation({
     mutationKey: $qk({
@@ -330,7 +326,6 @@ export const SmartAccountContextProvider = ({
       config: {
         chain: customSepolia,
         accountAddress,
-        accountType,
         rhinestoneApiKey,
         isSessionClient,
         ...(rhinestoneSessionClient && {
@@ -375,7 +370,6 @@ export const SmartAccountContextProvider = ({
     sessionClient,
     accountAddress,
     ownerAddress,
-    accountType,
     isSessionClient,
     infrastructure,
     wagmiWalletClient,

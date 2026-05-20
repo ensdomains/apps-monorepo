@@ -118,7 +118,7 @@ describe('initializeRhinestoneAccount', () => {
     vi.unstubAllEnvs()
   })
 
-  it('creates a Rhinestone account with default simple type', async () => {
+  it('creates a Rhinestone HCA account and registers ownership by default', async () => {
     const result = await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
     })
@@ -126,8 +126,16 @@ describe('initializeRhinestoneAccount', () => {
     expect(result.client).toBeDefined()
     expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
     expect(result.ownerAddress).toBe(MOCK_OWNER_ADDRESS)
-    expect(result.config.accountType).toBe('simple')
     expect(result.config.rhinestoneApiKey).toBe('test-rhinestone-key')
+    expect(registerHCAOwnership).toHaveBeenCalledWith(
+      expect.objectContaining({
+        smartAccountAddress: MOCK_SMART_ACCOUNT_ADDRESS,
+        eoaAddress: MOCK_OWNER_ADDRESS,
+        signer: expect.objectContaining({
+          type: 'rhinestone',
+        }),
+      }),
+    )
   })
 
   it('calls SDK without bundler for default warp infrastructure', async () => {
@@ -176,37 +184,9 @@ describe('initializeRhinestoneAccount', () => {
     })
   })
 
-  it('creates a Rhinestone account with HCA type and registers ownership', async () => {
-    const result = await initializeRhinestoneAccount({
-      walletClient: mockWalletClient,
-      accountType: 'hca',
-    })
-
-    expect(result.config.accountType).toBe('hca')
-    expect(registerHCAOwnership).toHaveBeenCalledWith(
-      expect.objectContaining({
-        smartAccountAddress: MOCK_SMART_ACCOUNT_ADDRESS,
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        signer: expect.objectContaining({
-          type: 'rhinestone',
-        }),
-      }),
-    )
-  })
-
-  it('does not register HCA ownership for simple account type', async () => {
+  it('respects explicit registerHCA=false', async () => {
     await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
-      accountType: 'simple',
-    })
-
-    expect(registerHCAOwnership).not.toHaveBeenCalled()
-  })
-
-  it('respects explicit registerHCA=false for HCA account type', async () => {
-    await initializeRhinestoneAccount({
-      walletClient: mockWalletClient,
-      accountType: 'hca',
       registerHCA: false,
     })
 
@@ -234,16 +214,13 @@ describe('initializeRhinestoneAccount', () => {
   it('returns correct config shape', async () => {
     const result = await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
+      registerHCA: false,
     })
 
     const config: RhinestoneConfig = result.config
 
     expect(config).toEqual({
       chain: expect.objectContaining({ id: 11155111 }),
-      accountType: 'simple',
-      bundlerUrl: undefined,
-      paymasterUrl: undefined,
-      sponsorshipPolicyId: undefined,
       rhinestoneApiKey: 'test-rhinestone-key',
     })
   })
@@ -275,6 +252,7 @@ describe('initializeRhinestoneAccount', () => {
     const result = await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
       infrastructure: 'warp',
+      registerHCA: false,
     })
 
     expect(result.client).toBeDefined()
@@ -294,7 +272,6 @@ describe('initializeRhinestoneAccount', () => {
     await expect(
       initializeRhinestoneAccount({
         walletClient: mockWalletClient,
-        accountType: 'hca',
       }),
     ).rejects.toThrow('HCA registration failed')
   })

@@ -20,8 +20,6 @@ export type {
   EthBalance,
   RhinestoneAccountState,
   SmartAccountState,
-  SmartAccountType,
   StablecoinBalance,
-  UseSmartAccountConfig,
   WalletSource,
 } from './types'

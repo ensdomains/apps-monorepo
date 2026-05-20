@@ -1,4 +1,4 @@
-import type { Erc4337Call } from '@ens-apps/transaction-manager'
+import type { Call } from '@ens-apps/transaction-manager'
 import { type Address, type Hex, zeroAddress } from 'viem'
 import {
   MULTICALL_OVERHEAD,
@@ -37,7 +37,7 @@ const flattenWithCosts = (
 
 export const buildBatchedProfileReplayCalls = (
   params: BuildBatchedProfileReplayParams,
-): readonly Erc4337Call[] => {
+): readonly Call[] => {
   const { resolver, profiles, targetGas = TARGET_GAS } = params
   if (resolver === zeroAddress) {
     throw new Error(
@@ -49,7 +49,7 @@ export const buildBatchedProfileReplayCalls = (
   const tagged = flattenWithCosts(profiles)
   if (tagged.length === 0) return []
 
-  const calls: Erc4337Call[] = []
+  const calls: Call[] = []
   let current: Hex[] = []
   let currentGas = MULTICALL_OVERHEAD
 

@@ -115,35 +115,18 @@ export function registerHCAOwnership(
       )
     }
 
-    // Build request based on signer type
-    let request: TransactionRequest
-    if (signer.type === 'erc4337') {
-      request = {
-        type: 'erc4337',
-        from: smartAccountAddress,
-        to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-        data,
-        value: 0n,
-        chainId,
-        erc4337Params: {
-          calls,
-          sponsored: true,
-        },
-      } as TransactionRequest
-    } else {
-      // Rhinestone (default)
-      request = {
-        type: 'rhinestone-intent',
-        from: smartAccountAddress,
-        to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-        data,
-        value: 0n,
-        chainId,
-        rhinestoneParams: {
-          calls,
-          sponsored: true,
-        },
-      } as TransactionRequest
+    // Build Rhinestone request (the only smart-account path)
+    const request: TransactionRequest = {
+      type: 'rhinestone-intent',
+      from: smartAccountAddress,
+      to: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+      data,
+      value: 0n,
+      chainId,
+      rhinestoneParams: {
+        calls,
+        sponsored: true,
+      },
     }
 
     // Submit transaction

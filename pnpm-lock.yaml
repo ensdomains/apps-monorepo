@@ -273,9 +273,6 @@ importers:
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
-      permissionless:
-        specifier: ^0.2.57
-        version: 0.2.57(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       posthog-js:
         specifier: ^1.347.2
         version: 1.347.2
@@ -822,9 +819,6 @@ importers:
       neverthrow:
         specifier: ^8.1.1
         version: 8.2.0
-      permissionless:
-        specifier: ^0.2.57
-        version: 0.2.57(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       valibot:
         specifier: ^1.2.0
         version: 1.2.0(typescript@6.0.3)
@@ -7970,15 +7964,6 @@ packages:
 
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
-
-  permissionless@0.2.57:
-    resolution: {integrity: sha512-QrzAoQGYPV/NJ2x5Sj18h7qed6f+kCyQAojrncN091UPiGqHjFNjgdsgreiv8pxlQgF4UcpuJUvsHLpOEBd6cQ==}
-    peerDependencies:
-      ox: ^0.8.0
-      viem: ^2.28.1
-    peerDependenciesMeta:
-      ox:
-        optional: true
 
   pg-cloudflare@1.2.7:
     resolution: {integrity: sha512-YgCtzMH0ptvZJslLM1ffsY4EuGaU0cx4XSdXLRFae8bPP4dS5xL1tNB3k2o/N64cHJpwU7dxKli/nZ2lUa5fLg==}
@@ -17814,10 +17799,6 @@ snapshots:
       to-buffer: 1.2.2
 
   pend@1.2.0: {}
-
-  permissionless@0.2.57(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)):
-    dependencies:
-      viem: 2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
 
   pg-cloudflare@1.2.7:
     optional: true

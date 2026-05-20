@@ -3,55 +3,24 @@ import { fromPromise, type ResultAsync } from 'neverthrow'
 import {
   type Address,
   encodeFunctionData,
+  type Hex,
   labelhash,
   type PublicClient,
 } from 'viem'
 import { ENS_SEPOLIA_CONTRACTS } from '../../contracts/ens-sepolia'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { transactionManager } from '../../providers/transactionManager'
+import type { Call, TransactionRequest } from '../../types/transaction.types'
 
 function createTransactionRequest(params: {
   signer: import('../..').Signer
   from: Address
   to: Address
-  data: `0x${string}`
+  data: Hex
   value: bigint
   chainId: number
-  calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
-}):
-  | {
-      type: 'eoa'
-      from: Address
-      to: Address
-      data: `0x${string}`
-      value: bigint
-      chainId: number
-    }
-  | {
-      type: 'rhinestone-intent'
-      from: Address
-      to: Address
-      data: `0x${string}`
-      value: bigint
-      chainId: number
-      rhinestoneParams: {
-        calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
-        sponsored: boolean
-        useSession?: boolean
-      }
-    }
-  | {
-      type: 'erc4337'
-      from: Address
-      to: Address
-      data: `0x${string}`
-      value: bigint
-      chainId: number
-      erc4337Params: {
-        calls: Array<{ to: Address; data: `0x${string}`; value: bigint }>
-        sponsored: boolean
-      }
-    } {
+  calls: Call[]
+}): TransactionRequest {
   const { signer, chainId, from, to, data, value, calls } = params
 
   if (signer.type === 'eoa') {
@@ -80,21 +49,6 @@ function createTransactionRequest(params: {
         // session allowlist (see build-registration-session.ts). Force the
         // SDK to use the SCA's default validator (EOA-owner signature).
         useSession: false,
-      },
-    }
-  }
-
-  if (signer.type === 'erc4337') {
-    return {
-      type: 'erc4337',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-      erc4337Params: {
-        calls,
-        sponsored: true,
       },
     }
   }

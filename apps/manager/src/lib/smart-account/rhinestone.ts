@@ -25,23 +25,23 @@ import {
 } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from './hca-registry'
-import type { ParaClient, SmartAccountType } from './types'
+import type { ParaClient } from './types'
 import { walletClientToAccount, wrapParaAccount } from './utils'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
-  accountType: SmartAccountType
-  bundlerUrl?: string
-  paymasterUrl?: string
-  sponsorshipPolicyId?: string
   rhinestoneApiKey: string
 }
 
 export interface InitializeRhinestoneParams {
   walletClient?: WalletClient
   paraClient?: ParaClient
-  accountType?: SmartAccountType
-  registerHCA?: boolean // Whether to register HCA ownership after account creation
+  /**
+   * Whether to register HCA ownership in the HCAFactory after the smart
+   * account is deployed. Defaults to `true` because manager only uses
+   * HCA-mode accounts in production.
+   */
+  registerHCA?: boolean
   infrastructure?: TransactionInfra
 }
 
@@ -65,8 +65,7 @@ export async function initializeRhinestoneAccount(
   const {
     walletClient,
     paraClient,
-    accountType = 'simple',
-    registerHCA = accountType === 'hca',
+    registerHCA = true,
     infrastructure = 'warp',
   } = params
 
@@ -236,10 +235,6 @@ export async function initializeRhinestoneAccount(
 
   const config: RhinestoneConfig = {
     chain: customSepolia,
-    accountType,
-    bundlerUrl: undefined,
-    paymasterUrl: undefined,
-    sponsorshipPolicyId: undefined,
     rhinestoneApiKey: apiKey,
   }
 

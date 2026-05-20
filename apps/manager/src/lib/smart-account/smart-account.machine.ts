@@ -19,7 +19,7 @@ import {
 } from './actors/session.actors'
 import { setSkippedStatus } from './sessions/session-storage'
 import type { StoredSession } from './sessions/types'
-import type { ParaClient, SmartAccountType } from './types'
+import type { ParaClient } from './types'
 
 export type WalletSource = 'external-wallet' | 'para-embedded'
 
@@ -32,7 +32,6 @@ interface SmartAccountContext {
   readonly walletClient: WalletClient | null
   readonly paraClient: ParaClient | null
   readonly infrastructure: TransactionInfra
-  readonly accountType: SmartAccountType
   readonly session: StoredSession | null
   readonly sessionClient: SessionClient | null
   readonly error: string | null
@@ -55,7 +54,6 @@ type WalletConnectedEvent =
 type SmartAccountEvent =
   | WalletConnectedEvent
   | { type: 'WALLET_DISCONNECTED' }
-  | { type: 'SET_ACCOUNT_TYPE'; accountType: SmartAccountType }
   | { type: 'PROMPT_SESSION' }
   | { type: 'ENABLE_SESSION' }
   | { type: 'DISMISS_SESSION' }
@@ -69,7 +67,6 @@ const INITIAL_CONTEXT: SmartAccountContext = {
   walletClient: null,
   paraClient: null,
   infrastructure: 'pimlico',
-  accountType: 'hca',
   session: null,
   sessionClient: null,
   error: null,
@@ -200,11 +197,6 @@ export const smartAccountMachine = setup({
             }
           }),
         },
-        SET_ACCOUNT_TYPE: {
-          actions: assign(({ event }) => ({
-            accountType: event.accountType,
-          })),
-        },
       },
     },
 
@@ -216,7 +208,6 @@ export const smartAccountMachine = setup({
           walletSource: requireWalletSource(context),
           walletClient: context.walletClient ?? undefined,
           paraClient: context.paraClient ?? undefined,
-          accountType: context.accountType,
           infrastructure: context.infrastructure,
         }),
         onDone: {

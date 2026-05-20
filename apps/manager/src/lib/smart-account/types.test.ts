@@ -47,7 +47,6 @@ describe('isRhinestoneAccount', () => {
       client: { getAddress: () => '0x123' } as any,
       config: {
         chain: {} as any,
-        accountType: 'simple',
         rhinestoneApiKey: 'test-key',
       },
     })

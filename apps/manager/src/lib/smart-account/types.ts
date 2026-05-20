@@ -17,8 +17,6 @@ export type ParaClient = ReturnType<typeof useParaClient>
 
 export type WalletSource = 'para-embedded' | 'external-wallet' | null
 
-export type SmartAccountType = 'simple' | 'hca'
-
 export interface StablecoinBalance {
   address: Address
   symbol: string
@@ -66,7 +64,9 @@ export interface BaseAccountState {
 /**
  * Rhinestone account result
  *
- * Rhinestone is the only smart-account provider used by the manager app.
+ * Rhinestone is the only smart-account provider used by the manager app
+ * and the account is always deployed in HCA (Hybrid Custodial Account)
+ * mode — there is no longer a `'simple'` mode in production.
  */
 export interface RhinestoneAccountState extends BaseAccountState {
   type: 'rhinestone'
@@ -81,24 +81,11 @@ export interface RhinestoneAccountState extends BaseAccountState {
 }
 
 /**
- * The manager app currently only supports the Rhinestone smart account
- * provider. Para-embedded users still flow through the Pimlico ERC-4337
- * client at the transaction-manager layer, but they share the same
- * `RhinestoneAccountState` shape (no session — `session` is null and
- * `isSessionClient` is false).
+ * The manager app only supports the Rhinestone smart-account provider in
+ * HCA mode. Para-embedded and external-wallet users flow through the
+ * same Rhinestone path.
  */
 export type SmartAccountState = RhinestoneAccountState
-
-/**
- * Hook configuration
- */
-export interface UseSmartAccountConfig {
-  /**
-   * Account type (simple or HCA)
-   * @default 'simple'
-   */
-  accountType?: SmartAccountType
-}
 
 /**
  * Type guard to check if account is Rhinestone
