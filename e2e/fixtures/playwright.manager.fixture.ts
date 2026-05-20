@@ -6,7 +6,10 @@ import { config as loadEnv } from 'dotenv'
 import type { Address, Hash } from 'viem'
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
 import { bytesToHex } from 'viem'
-import { authenticateWithPara } from '../helpers/para-auth.js'
+import {
+  authenticateWithPara,
+  dismissBackendAuthModal,
+} from '../helpers/para-auth.js'
 import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
@@ -148,6 +151,16 @@ export const test = base.extend<ManagerFixtures>({
     } catch {
       // Modal never appeared — sessions already enabled or feature flag off
     }
+
+    // After the smart account becomes ready, the app shows a
+    // BackendAuthModal ("Verify your wallet" / SIWE) that blocks
+    // pointer events on the rest of the page. On a fresh Anvil fork
+    // the SCA-ready state can arrive 30-60 s after Para auth, so we
+    // give the modal a generous window to appear. We skip rather
+    // than complete the SIWE flow because the backend API worker is
+    // not part of the e2e infra stack — see `dismissBackendAuthModal`
+    // for the rationale.
+    await dismissBackendAuthModal(page)
 
     await use(page)
   },
