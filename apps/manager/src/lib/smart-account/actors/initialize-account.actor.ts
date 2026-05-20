@@ -17,17 +17,14 @@ import type { WalletSource as BaseWalletSource, ParaClient } from '../types'
 
 type WalletSource = Exclude<BaseWalletSource, null>
 
-// Provider-specific error cause types
-export type RhinestoneErrorCause =
-  | AccountError
-  | ExecutionError
-  | OrchestratorError
+// Provider-specific error cause types. Internal to this module — the
+// machine only consumes the `Error` produced by `AccountInitializationError`
+// and never narrows on `provider`, so these don't need to be exported.
+type RhinestoneErrorCause = AccountError | ExecutionError | OrchestratorError
 
-export type RoutingErrorCause = Error
+type RoutingErrorCause = Error
 
-export type AccountInitializationErrorCause =
-  | RhinestoneErrorCause
-  | RoutingErrorCause
+type AccountInitializationErrorCause = RhinestoneErrorCause | RoutingErrorCause
 
 export type AccountClient = RhinestoneAccount
 export interface AccountInitResult {
@@ -37,14 +34,14 @@ export interface AccountInitResult {
   readonly config: SmartAccountConfig
 }
 
-export interface InitializeAccountInput {
+interface InitializeAccountInput {
   readonly walletSource: WalletSource
   readonly walletClient?: WalletClient
   readonly paraClient?: ParaClient
   readonly infrastructure?: TransactionInfra
 }
 
-export class AccountInitializationError extends TaggedError(
+class AccountInitializationError extends TaggedError(
   'AccountInitializationError',
 )<{
   provider: 'rhinestone' | 'routing'
@@ -105,14 +102,3 @@ export function initializeAccountActor(
       }),
   ).map((result) => mapRhinestoneConfig(result, result.ownerAddress))
 }
-
-// Type guards for narrowing AccountInitializationError by provider
-export const isRhinestoneInitError = (
-  error: AccountInitializationError,
-): error is AccountInitializationError & { provider: 'rhinestone' } =>
-  error.provider === 'rhinestone'
-
-export const isRoutingInitError = (
-  error: AccountInitializationError,
-): error is AccountInitializationError & { provider: 'routing' } =>
-  error.provider === 'routing'

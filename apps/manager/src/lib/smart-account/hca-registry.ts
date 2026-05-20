@@ -30,16 +30,19 @@ export class HCARegistrationError extends Error {
 }
 
 /**
- * Discriminated union result type for HCA registration
+ * Discriminated union result type for HCA registration. Internal to
+ * this module — consumers inspect `result.value.status` after the
+ * `ResultAsync` resolves rather than importing the type directly.
  */
-export type HCARegistrationResult =
+type HCARegistrationResult =
   | { status: 'already-registered' }
   | { status: 'registered'; hash: string }
 
 /**
- * Parameters for HCA registration
+ * Parameters for HCA registration. Internal to this module — see
+ * `registerHCAOwnership`'s inferred signature for the public shape.
  */
-export interface HCARegistrationParams {
+interface HCARegistrationParams {
   smartAccountAddress: Address
   eoaAddress: Address
   signer: Signer
@@ -155,26 +158,4 @@ export function registerHCAOwnership(
         return new HCARegistrationError('tx-failed', error)
       })
   })
-}
-
-/**
- * Get the registered owner of an HCA smart account
- *
- * @returns The EOA owner address, or zeroAddress if not registered
- */
-export function getHCAOwner(params: {
-  smartAccountAddress: Address
-  publicClient: PublicClient
-}): ResultAsync<Address, HCARegistrationError> {
-  const { smartAccountAddress, publicClient } = params
-
-  return fromPromise(
-    publicClient.readContract({
-      address: ENS_SEPOLIA_CONTRACTS.HCAFactory,
-      abi: HCA_FACTORY_ABI,
-      functionName: 'getAccountOwner',
-      args: [smartAccountAddress],
-    }),
-    (error) => new HCARegistrationError('read-failed', error),
-  )
 }
