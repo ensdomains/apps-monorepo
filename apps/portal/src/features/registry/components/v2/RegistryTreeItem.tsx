@@ -62,12 +62,12 @@ export const RegistryTreeItem = ({
         {!isRoot ? (
           <Fragment>
             <RegistryTreePathIcon />
-            <EntityBadge className="flex items-center gap-2" variant="name">
+            <EntityBadge className="flex items-center gap-1" variant="name">
               {isEthTld ? (
                 <img
-                  src="/address/DefaultIcon.svg"
+                  src="/favicon-32x32.png"
                   alt="ENS"
-                  className="size-5"
+                  className="size-4 rounded-xs"
                 />
               ) : (
                 <NameAvatar
