@@ -18,11 +18,11 @@ import {
   canRenewV2Name,
   parseRenewableName,
 } from '@/features/renew/utils/renewableName'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { RenewPricingStep } from '@/features/renew/workflow/pricing/PricingStep'
 import { RenewingStep } from '@/features/renew/workflow/renewing/RenewingStep'
 import { RenewFailureStep } from '@/features/renew/workflow/result/FailureStep'
 import { RenewSuccessStep } from '@/features/renew/workflow/result/SuccessStep'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const Route = createFileRoute('/renew/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {

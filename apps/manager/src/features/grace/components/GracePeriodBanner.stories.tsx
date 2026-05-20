@@ -72,7 +72,7 @@ export const V1GracePeriod: Story = {
 
 export const MobileWidth: Story = {
   render: (args) => (
-    <div className="w-[390px] max-w-full">
+    <div className="w-full max-w-sm">
       <GracePeriodBanner {...args} />
     </div>
   ),

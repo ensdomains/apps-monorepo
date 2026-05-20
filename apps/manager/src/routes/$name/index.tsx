@@ -3,6 +3,7 @@ import {
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
+import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
@@ -10,7 +11,6 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 

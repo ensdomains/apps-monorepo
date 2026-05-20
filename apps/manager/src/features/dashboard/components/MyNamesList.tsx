@@ -430,12 +430,12 @@ export const MyNamesList = ({
                         {expiringSoon &&
                           !isInGrace &&
                           daysUntilExpiry !== null && (
-                            <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#fff8f0] px-2 py-1">
+                            <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-ens-signal-warning-surface px-2 py-1">
                               <CircleAlert
-                                className="size-3 shrink-0 text-[#e3a531]"
+                                className="size-3 shrink-0 text-ens-signal-warning-icon"
                                 strokeWidth={2}
                               />
-                              <span className="font-medium font-sans text-[#c68a1b] text-xs leading-none tracking-[0.24px]">
+                              <span className="font-medium font-sans text-ens-signal-warning-text text-xs leading-none">
                                 <Trans>Expires in {daysUntilExpiry} days</Trans>
                               </span>
                             </div>
@@ -443,7 +443,7 @@ export const MyNamesList = ({
                       </div>
                       {showProminentRenew && (
                         <Link
-                          className="inline-flex shrink-0 items-center gap-0.5 font-sans text-ens-blue text-sm leading-none tracking-[0.28px] hover:underline"
+                          className="inline-flex shrink-0 items-center gap-0.5 font-sans text-ens-blue text-sm leading-none hover:underline"
                           params={{ name: label }}
                           to="/renew/$name"
                         >

@@ -44,7 +44,7 @@ export const NameRow = ({
     }))
     .with(false, () => ({
       container:
-        'flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]',
+        'flex min-w-0 flex-1 items-center justify-center rounded-[2.8px] bg-ens-lapis-100 px-2 py-1 md:px-[8px] md:py-[4px]',
       label:
         'mr-1 max-w-full break-all font-medium font-mono text-sm tracking-[-0.28px] text-ens-blue [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]',
       icon: 'size-2 shrink-0 text-ens-blue md:size-3',
@@ -110,10 +110,7 @@ export const NameRow = ({
               {label}
             </Link>
           )}
-          <ArrowUpRight
-            className={nameplateStyles.icon}
-            strokeWidth={2}
-          />
+          <ArrowUpRight className={nameplateStyles.icon} strokeWidth={2} />
         </div>
       </div>
     </div>

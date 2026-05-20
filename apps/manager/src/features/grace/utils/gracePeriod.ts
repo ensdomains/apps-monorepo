@@ -27,7 +27,10 @@ export const isInGracePeriod = (
   const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => false)
-    .when((value) => now <= value, () => false)
+    .when(
+      (value) => now <= value,
+      () => false,
+    )
     .otherwise((value) => now < getGraceEndDate(value, isV2))
 }
 
@@ -42,7 +45,8 @@ export const isRenewableV2EthName = (
     .with({ name: P.when((value) => !/^[^.]+\.eth$/.test(value)) }, () => false)
     .with(
       { date: P.not(P.nullish) },
-      ({ date: value }) => getGraceEndDate(value, true).getTime() > now.getTime(),
+      ({ date: value }) =>
+        getGraceEndDate(value, true).getTime() > now.getTime(),
     )
     .otherwise(() => false)
 }
@@ -72,7 +76,10 @@ export const shouldShowProminentRenew = (
   const date = normalizeExpiryDate(expiryDate)
   return match(date)
     .with(P.nullish, () => false)
-    .when((value) => isInGracePeriod(value, isV2, now), () => true)
+    .when(
+      (value) => isInGracePeriod(value, isV2, now),
+      () => true,
+    )
     .otherwise((value) => {
       const daysUntil = Math.ceil(
         (value.getTime() - now.getTime()) / MS_PER_DAY,

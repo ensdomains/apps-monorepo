@@ -64,7 +64,8 @@ export const RegisteredInGrace: Story = {
         </motion.div>
       </motion.div>
       <p className="pl-1 font-medium font-sans text-ens-lapis-surface text-sm leading-normal tracking-wide">
-        <Trans>Start typing to check if your perfect name is available</Trans> 🕵️‍♀️
+        <Trans>Start typing to check if your perfect name is available</Trans>{' '}
+        🕵️‍♀️
       </p>
     </div>
   ),

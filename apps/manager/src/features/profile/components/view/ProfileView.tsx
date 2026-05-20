@@ -1,5 +1,5 @@
-import { Trans } from '@lingui/react/macro'
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
@@ -7,8 +7,8 @@ import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
-import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
@@ -47,20 +47,26 @@ const hasConfiguredProfileRecords = ({
   Boolean(contentHash?.trim()) ||
   Boolean(abi?.trim())
 
-const useOwnerRedirect = (
-  name: string,
-  isProfileEmpty: boolean,
-  isInGrace: boolean,
-) => {
-  const navigate = useNavigate()
-  const { data: ownerData, isPending: isOwnerPending } = useQuery({
-    ...profileOwnerQuery(name),
-  })
+type UseOwnerRedirectParams = {
+  readonly name: string
+  readonly isProfileEmpty: boolean
+  readonly isInGrace: boolean
+  readonly owner: Address | undefined
+  readonly isOwnerPending: boolean
+}
 
+const useOwnerRedirect = ({
+  name,
+  isProfileEmpty,
+  isInGrace,
+  owner,
+  isOwnerPending,
+}: UseOwnerRedirectParams) => {
+  const navigate = useNavigate()
   const { data: wallet } = useWallet()
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
-  const normalizedOwner = ownerData?.owner?.toLowerCase()
+  const normalizedOwner = owner?.toLowerCase()
   const isOwner =
     !!normalizedOwner &&
     [wallet?.address, smartAccountAddress]
@@ -77,7 +83,6 @@ const useOwnerRedirect = (
 
   return {
     isOwner,
-    owner: ownerData?.owner as Address | undefined,
     shouldHide: (isOwner || isOwnerPending) && isProfileEmpty && !isInGrace,
   }
 }
@@ -104,11 +109,15 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
   const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
 
-  const { isOwner, owner, shouldHide } = useOwnerRedirect(
+  const owner = ownerData?.owner as Address | undefined
+
+  const { isOwner, shouldHide } = useOwnerRedirect({
     name,
     isProfileEmpty,
-    expiry.isInGrace,
-  )
+    isInGrace: expiry.isInGrace,
+    owner,
+    isOwnerPending,
+  })
 
   // Registry ownerOf is zero when expired; expiry distinguishes v2 grace from missing.
   const ownerMissing = !isOwnerPending && !ownerData?.owner

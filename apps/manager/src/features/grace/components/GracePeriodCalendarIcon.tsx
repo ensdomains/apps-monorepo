@@ -7,6 +7,7 @@ type GracePeriodCalendarIconProps = {
 export const GracePeriodCalendarIcon = ({
   className,
 }: GracePeriodCalendarIconProps) => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative grace-period glyph
   <svg
     aria-hidden
     className={cn('shrink-0', className)}

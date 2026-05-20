@@ -40,5 +40,4 @@ export const isRenewableName = (name: string) => parseRenewableName(name).isOk()
 export const canRenewV2Name = (
   name: string,
   expiryDate: Date | null | undefined,
-) =>
-  parseRenewableName(name).isOk() && isRenewableV2EthName(name, expiryDate)
+) => parseRenewableName(name).isOk() && isRenewableV2EthName(name, expiryDate)

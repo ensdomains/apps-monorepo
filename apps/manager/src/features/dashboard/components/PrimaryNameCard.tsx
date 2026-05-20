@@ -55,7 +55,9 @@ export const PrimaryNameCard = ({
   const registeredLabel = isRegistrationLoading
     ? t`Loading...`
     : formattedRegisteredDate
-  const expiryLabel = isReverseExpiryLoading ? t`Loading...` : formattedExpiryDate
+  const expiryLabel = isReverseExpiryLoading
+    ? t`Loading...`
+    : formattedExpiryDate
   const canViewProfile = Boolean(primaryName)
 
   const themeVars = getThemeVars(themeColor) as React.CSSProperties
@@ -71,15 +73,24 @@ export const PrimaryNameCard = ({
         'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]',
     )
     .exhaustive()
-  const displayNameClassName = match({ isInGrace, isLongName: displayName.length > 10 })
-    .with({ isInGrace: true }, () =>
-      'font-medium font-mono text-[20px] text-foreground leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]',
+  const displayNameClassName = match({
+    isInGrace,
+    isLongName: displayName.length > 10,
+  })
+    .with(
+      { isInGrace: true },
+      () =>
+        'font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl',
     )
-    .with({ isInGrace: false, isLongName: true }, () =>
-      'font-medium font-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]',
+    .with(
+      { isInGrace: false, isLongName: true },
+      () =>
+        'font-medium font-mono text-2xl text-ens-white leading-ens-none tracking-tight',
     )
-    .with({ isInGrace: false, isLongName: false }, () =>
-      'font-medium font-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]',
+    .with(
+      { isInGrace: false, isLongName: false },
+      () =>
+        'font-medium font-mono text-ens-white text-xl leading-ens-none tracking-tight md:text-3xl',
     )
     .exhaustive()
 

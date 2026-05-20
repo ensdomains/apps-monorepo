@@ -56,7 +56,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   const { data: ownerData, refetch: refetchOwner } = useQuery({
     ...profileOwnerQuery(name),
   })
-  const { data: expiryData } = useQuery({
+  const { data: expiryData, isPending: isExpiryPending } = useQuery({
     ...profileExpiryQuery(name),
   })
   const { isInGrace } = getProfileNameExpiryStatus(expiryData?.expiry, true)
@@ -91,6 +91,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     handleProfileFormSubmit(event, form.handleSubmit)
 
   const handleSave = () => {
+    if (isInGrace) {
+      return
+    }
+
     if (!ownerAddress) {
       const message = t`Cannot save profile - ENS owner is not available.`
       console.warn(message)
@@ -100,7 +104,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
     if (!account.signer || !account.accountAddress) {
       const message = t`Account not ready. Please wait for wallet to connect.`
-      console.error('❌ Smart account not connected or not initialized', {
+      console.error('Smart account not connected or not initialized', {
         accountAddress: account.accountAddress,
         hasSigner: !!account.signer,
         type: account.type,
@@ -121,7 +125,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     const accountAddress = (account.ownerAddress ??
       account.accountAddress) as Address
 
-    console.log('✅ Starting profile records update:', {
+    console.log('Starting profile records update:', {
       name,
       resolverAddress,
       accountAddress,
@@ -147,7 +151,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       refetchOwner,
     })
 
-  if (isInGrace) {
+  if (isExpiryPending || isInGrace) {
     return null
   }
 

@@ -4,12 +4,12 @@ import { motion, useReducedMotion } from 'motion/react'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
+import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
-import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
@@ -71,7 +71,10 @@ export const DashboardPage = () => {
             <UpgradeBanner />
           </motion.div>
         )}
-        <motion.div className="w-full px-4 md:px-0" {...stagger(1, shouldReduceMotion)}>
+        <motion.div
+          className="w-full px-4 md:px-0"
+          {...stagger(1, shouldReduceMotion)}
+        >
           <DashboardGraceBanner primaryLabel={defaultName} />
         </motion.div>
         <motion.div

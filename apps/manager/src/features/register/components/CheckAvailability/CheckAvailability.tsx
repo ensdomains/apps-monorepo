@@ -103,8 +103,9 @@ export const CheckAvailability = ({
   const showResults = displayState.type !== 'idle' && !error
 
   const registeredNameInGrace = match(displayState)
-    .with({ type: 'unavailable' }, () =>
-      getProfileNameExpiryStatus(profileExpiry?.expiry, true).isInGrace,
+    .with(
+      { type: 'unavailable' },
+      () => getProfileNameExpiryStatus(profileExpiry?.expiry, true).isInGrace,
     )
     .otherwise(() => false)
 

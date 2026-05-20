@@ -36,40 +36,37 @@ const resolveAnyNameGraceBanner = ({
   primaryLabel,
   v2Names,
   v1Classified,
-}: Omit<
-  ResolveDashboardGraceBannerParams,
-  'primaryGrace'
->): Extract<DashboardGraceBannerState, { show: true }> | null => {
-  const graceItem = buildMergedNamesList({
+}: Omit<ResolveDashboardGraceBannerParams, 'primaryGrace'>): Extract<
+  DashboardGraceBannerState,
+  { show: true }
+> | null => {
+  for (const item of buildMergedNamesList({
     v2Names,
     v1Classified,
     searchQuery: '',
     sortField: 'expiry',
     sortDir: 'asc',
-  }).find((item) => {
+  })) {
     const meta = mergedRowMetadata(item, primaryLabel)
-    return (
-      meta.isInGrace &&
-      meta.graceEndDate &&
-      !isPrimaryLabelMatch(primaryLabel, meta.label)
-    )
-  })
+    if (
+      !meta.isInGrace ||
+      !meta.graceEndDate ||
+      isPrimaryLabelMatch(primaryLabel, meta.label)
+    ) {
+      continue
+    }
 
-  return match(graceItem)
-    .with(P.nullish, () => null)
-    .otherwise((item) => {
-      const meta = mergedRowMetadata(item, primaryLabel)
-      return match(meta.graceEndDate)
-        .with(P.nullish, () => null)
-        .otherwise((graceEndDate) => ({
-          show: true as const,
-          variant: 'anyNameExpired' as const,
-          renewName: meta.label,
-          graceEndDate,
-          daysSinceExpiry: meta.daysSinceExpiry,
-          isV2: !meta.isV1,
-        }))
-    })
+    return {
+      show: true as const,
+      variant: 'anyNameExpired' as const,
+      renewName: meta.label,
+      graceEndDate: meta.graceEndDate,
+      daysSinceExpiry: meta.daysSinceExpiry,
+      isV2: !meta.isV1,
+    }
+  }
+
+  return null
 }
 
 export const resolveDashboardGraceBanner = (
@@ -87,12 +84,13 @@ export const resolveDashboardGraceBanner = (
           graceEndDate: P.not(P.nullish),
         },
       },
-      ({ primaryLabel, primaryGrace }) => ({
+      ({ primaryLabel, primaryGrace: { graceEndDate, daysSinceExpiry } }) => ({
         show: true as const,
         variant: 'primaryExpired' as const,
         renewName: primaryLabel,
-        graceEndDate: primaryGrace.graceEndDate as Date,
-        daysSinceExpiry: primaryGrace.daysSinceExpiry,
+        graceEndDate,
+        daysSinceExpiry,
+        // Reverse primary names in manager are v2 registrations.
         isV2: true,
       }),
     )

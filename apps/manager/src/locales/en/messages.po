@@ -139,7 +139,7 @@ msgstr "A simpler way to<0/><1>get paid.</1>"
 msgid "Account address:"
 msgstr "Account address:"
 
-#: src/features/profile/components/ProfileEdit.tsx:102
+#: src/features/profile/components/ProfileEdit.tsx:106
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr "Account not ready. Please wait for wallet to connect."
 
@@ -236,7 +236,7 @@ msgstr "Almost ready"
 msgid "Almost there..."
 msgstr "Almost there..."
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:144
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:145
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -314,7 +314,7 @@ msgstr "Autorenews on"
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:178
+#: src/features/navigation/Header/search/SuggestionItem.tsx:176
 msgid "Available"
 msgstr "Available"
 
@@ -428,11 +428,11 @@ msgstr "Can you share your order number?"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/features/profile/components/ProfileEdit.tsx:95
+#: src/features/profile/components/ProfileEdit.tsx:99
 msgid "Cannot save profile - ENS owner is not available."
 msgstr "Cannot save profile - ENS owner is not available."
 
-#: src/features/profile/components/ProfileEdit.tsx:113
+#: src/features/profile/components/ProfileEdit.tsx:117
 msgid "Cannot save profile - resolver address is not available."
 msgstr "Cannot save profile - resolver address is not available."
 
@@ -814,7 +814,7 @@ msgstr "Done"
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
-#: src/features/profile/components/view/ProfileView.tsx:191
+#: src/features/profile/components/view/ProfileView.tsx:200
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
@@ -932,7 +932,7 @@ msgstr "Error loading names"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
 #: src/features/dashboard/components/MyNamesList.tsx:427
-#: src/features/dashboard/components/PrimaryNameCard.tsx:169
+#: src/features/dashboard/components/PrimaryNameCard.tsx:180
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx:99
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:127
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
@@ -1013,7 +1013,7 @@ msgstr "Failed to fund wallet: {0}"
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
 
-#: src/features/profile/components/view/ProfileView.tsx:124
+#: src/features/profile/components/view/ProfileView.tsx:133
 msgid "Failed to load registration data for this name."
 msgstr "Failed to load registration data for this name."
 
@@ -1158,7 +1158,7 @@ msgstr "Go to slide {0}"
 msgid "Grace period"
 msgstr "Grace period"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:82
+#: src/features/dashboard/pages/DashboardPage.tsx:85
 msgid "Hello"
 msgstr "Hello"
 
@@ -1265,7 +1265,7 @@ msgstr "Loading your stablecoin balances..."
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:215
 #: src/features/dashboard/components/PrimaryNameCard.tsx:56
-#: src/features/dashboard/components/PrimaryNameCard.tsx:58
+#: src/features/dashboard/components/PrimaryNameCard.tsx:59
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:94
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
@@ -1487,8 +1487,8 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:158
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:168
+#: src/features/navigation/Header/search/SuggestionItem.tsx:156
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:169
 msgid "Not supported"
 msgstr "Not supported"
 
@@ -1736,10 +1736,10 @@ msgstr "Register to date"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/components/molecules/DomainResultCard/DomainResultCard.tsx:84
-#: src/features/dashboard/components/PrimaryNameCard.tsx:155
+#: src/features/dashboard/components/PrimaryNameCard.tsx:166
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/search/SuggestionItem.tsx:170
+#: src/features/navigation/Header/search/SuggestionItem.tsx:168
 msgid "Registered"
 msgstr "Registered"
 
@@ -1867,8 +1867,8 @@ msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
 #: src/features/dashboard/components/MyNamesList.tsx:450
-#: src/features/grace/components/GracePeriodBanner.tsx:108
-#: src/features/grace/components/GracePeriodBanner.tsx:117
+#: src/features/grace/components/GracePeriodBanner.tsx:109
+#: src/features/grace/components/GracePeriodBanner.tsx:118
 msgid "Renew"
 msgstr "Renew"
 
@@ -1921,7 +1921,7 @@ msgstr "Resending email verification"
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
 
-#: src/features/profile/components/ProfileEdit.tsx:193
+#: src/features/profile/components/ProfileEdit.tsx:197
 msgid "Reset Changes"
 msgstr "Reset Changes"
 
@@ -2100,7 +2100,7 @@ msgstr "Set it as your primary name. You can do this from your profile page in t
 msgid "Set multiple records: ETH, BTC, email"
 msgstr "Set multiple records: ETH, BTC, email"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:103
+#: src/features/dashboard/pages/DashboardPage.tsx:106
 msgid "Set primary name"
 msgstr "Set primary name"
 
@@ -2304,7 +2304,7 @@ msgid "Stables accepted"
 msgstr "Stables accepted"
 
 #: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx:67
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:285
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:286
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
@@ -2667,7 +2667,7 @@ msgstr "Verifying registration on-chain"
 msgid "Verifying..."
 msgstr "Verifying..."
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:187
+#: src/features/dashboard/components/PrimaryNameCard.tsx:198
 msgid "View profile"
 msgstr "View profile"
 
@@ -2933,7 +2933,7 @@ msgstr "Your ENS name replaces your wallet addresses so friends and clients can 
 msgid "Your ENS name works across web3"
 msgstr "Your ENS name works across web3"
 
-#: src/features/grace/components/GracePeriodBanner.tsx:72
+#: src/features/grace/components/GracePeriodBanner.tsx:73
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
 msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
 

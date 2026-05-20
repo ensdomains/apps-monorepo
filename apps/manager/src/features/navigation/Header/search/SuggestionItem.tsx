@@ -109,9 +109,7 @@ export const NameSuggestionItem = ({
   })
   const expirySeconds = registeredExpiryQuery.data?.domains[0]?.expiryDate
   const isInGrace = isInGracePeriod(
-    typeof expirySeconds === 'number'
-      ? new Date(expirySeconds * 1000)
-      : null,
+    typeof expirySeconds === 'number' ? new Date(expirySeconds * 1000) : null,
     true,
     new Date(),
   )

@@ -76,7 +76,13 @@ export const DashboardGraceBanner = ({
         v2Names: v2Data ?? [],
         v1Classified: migrationEnabled ? v1Classified : [],
       }),
-    [primaryLabel, primaryExpiryData?.expiry, v1Classified, v2Data],
+    [
+      primaryLabel,
+      primaryExpiryData?.expiry,
+      v1Classified,
+      v2Data,
+      migrationEnabled,
+    ],
   )
 
   return match(banner)

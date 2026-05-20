@@ -59,7 +59,12 @@
   --color-ens-citrine-300: #e1b77e;
   --color-ens-citrine-400: #e7a259;
   --color-ens-citrine-500: #984d1b;
+  --color-ens-citrine-600: #b35600;
   --color-ens-citrine-900: #441b03;
+
+  --color-ens-signal-warning-surface: #fff8f0;
+  --color-ens-signal-warning-icon: #e3a531;
+  --color-ens-signal-warning-text: #c68a1b;
 
   --color-ens-quartz-0: #ffffff;
   --color-ens-quartz-50: #faf9f7;

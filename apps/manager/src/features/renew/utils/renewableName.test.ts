@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MS_PER_DAY, V2_GRACE_PERIOD_DAYS } from '@/features/grace/utils/gracePeriod'
+import {
+  MS_PER_DAY,
+  V2_GRACE_PERIOD_DAYS,
+} from '@/features/grace/utils/gracePeriod'
 import { canRenewV2Name } from './renewableName'
 
 const base = new Date('2024-06-01T12:00:00Z')

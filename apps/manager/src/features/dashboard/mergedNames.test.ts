@@ -241,7 +241,9 @@ describe('mergedRowMetadata', () => {
   })
 
   it('flags grace period metadata for expired v2 names', () => {
-    const expired = Math.floor(new Date('2023-12-20T00:00:00Z').getTime() / 1000)
+    const expired = Math.floor(
+      new Date('2023-12-20T00:00:00Z').getTime() / 1000,
+    )
     const item = makeMergedV2({ sortName: 'grace.eth', sortExpiry: expired })
     const meta = mergedRowMetadata(item, null)
     expect(meta.isInGrace).toBe(true)
@@ -249,7 +251,7 @@ describe('mergedRowMetadata', () => {
     expect(meta.useWireframeNameplate).toBe(true)
     expect(meta.showProminentRenew).toBe(true)
     expect(meta.displayExpiryDate?.getTime()).toBeGreaterThan(
-      (meta.expiryDate?.getTime() ?? 0),
+      meta.expiryDate?.getTime() ?? 0,
     )
   })
 })

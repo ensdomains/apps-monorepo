@@ -12,7 +12,9 @@ describe('resolveDashboardGraceBanner', () => {
   })
 
   it('shows primary expired banner when primary is in grace', () => {
-    const expired = Math.floor(new Date('2023-12-20T00:00:00Z').getTime() / 1000)
+    const expired = Math.floor(
+      new Date('2023-12-20T00:00:00Z').getTime() / 1000,
+    )
     const graceEnd = new Date('2024-01-17T00:00:00Z')
 
     const result = resolveDashboardGraceBanner({
@@ -53,7 +55,9 @@ describe('resolveDashboardGraceBanner', () => {
       v2Names: [
         {
           name: 'active.eth',
-          expiryDate: Math.floor(new Date('2025-01-01T00:00:00Z').getTime() / 1000),
+          expiryDate: Math.floor(
+            new Date('2025-01-01T00:00:00Z').getTime() / 1000,
+          ),
         } as never,
       ],
       v1Classified: [],
