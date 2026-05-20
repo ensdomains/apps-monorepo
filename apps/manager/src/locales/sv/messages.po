@@ -778,8 +778,8 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:98
-#: src/features/dashboard/components/NamesTable.tsx:103
+#: src/features/dashboard/components/NamesTable.tsx:89
+#: src/features/dashboard/components/NamesTable.tsx:94
 msgid "Date added"
 msgstr ""
 
@@ -946,7 +946,7 @@ msgstr ""
 msgid "Enter your email"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:181
+#: src/features/dashboard/components/MyNamesList.tsx:131
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
@@ -985,16 +985,16 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:83
-#: src/features/dashboard/components/NamesTable.tsx:88
+#: src/features/dashboard/components/NamesTable.tsx:74
+#: src/features/dashboard/components/NamesTable.tsx:79
 msgid "Expiry"
 msgstr "Utgång"
 
-#: src/features/dashboard/components/NamesTable.tsx:87
+#: src/features/dashboard/components/NamesTable.tsx:78
 msgid "Expiry (Latest)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:82
+#: src/features/dashboard/components/NamesTable.tsx:73
 msgid "Expiry (Soonest)"
 msgstr ""
 
@@ -1082,7 +1082,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:111
+#: src/features/dashboard/components/NamesTable.tsx:102
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1363,25 +1363,25 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:122
+#: src/features/dashboard/components/NamesTable.tsx:113
 msgid "My Names"
 msgstr "Mina namn"
 
-#: src/features/dashboard/components/NamesTable.tsx:78
-#: src/features/dashboard/components/NamesTable.tsx:79
-#: src/features/dashboard/components/NamesTable.tsx:93
-#: src/features/dashboard/components/NamesTable.tsx:94
+#: src/features/dashboard/components/NamesTable.tsx:69
+#: src/features/dashboard/components/NamesTable.tsx:70
+#: src/features/dashboard/components/NamesTable.tsx:84
+#: src/features/dashboard/components/NamesTable.tsx:85
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
 msgid "Name"
 msgstr "Namn"
 
-#: src/features/dashboard/components/NamesTable.tsx:78
-#: src/features/dashboard/components/NamesTable.tsx:93
+#: src/features/dashboard/components/NamesTable.tsx:69
+#: src/features/dashboard/components/NamesTable.tsx:84
 msgid "Name (A-Z)"
 msgstr "Namn (A-Ö)"
 
-#: src/features/dashboard/components/NamesTable.tsx:79
-#: src/features/dashboard/components/NamesTable.tsx:94
+#: src/features/dashboard/components/NamesTable.tsx:70
+#: src/features/dashboard/components/NamesTable.tsx:85
 msgid "Name (Z-A)"
 msgstr "Namn (Ö-A)"
 
@@ -1463,8 +1463,8 @@ msgstr ""
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
 
-#: src/features/dashboard/components/FavoritesList.tsx:113
-#: src/features/dashboard/components/FavoritesList.tsx:124
+#: src/features/dashboard/components/FavoritesList.tsx:125
+#: src/features/dashboard/components/FavoritesList.tsx:136
 msgid "No favorites to display"
 msgstr ""
 
@@ -1480,7 +1480,7 @@ msgstr "Inga namn hittades"
 msgid "No names match your search"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:219
+#: src/features/dashboard/components/MyNamesList.tsx:169
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1539,7 +1539,7 @@ msgstr ""
 msgid "Notifications blocked"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:102
+#: src/features/dashboard/components/NamesTable.tsx:93
 msgid "Oldest first"
 msgstr ""
 
@@ -1571,7 +1571,7 @@ msgstr ""
 msgid "Over 2 million ENS names registered"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:108
+#: src/features/dashboard/components/NamesTable.tsx:99
 msgid "Owned"
 msgstr ""
 
@@ -1743,7 +1743,7 @@ msgstr ""
 msgid "Receive notifications via email for important domain events"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:97
+#: src/features/dashboard/components/NamesTable.tsx:88
 msgid "Recently added"
 msgstr ""
 
@@ -2049,7 +2049,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:128
+#: src/features/dashboard/components/NamesTable.tsx:119
 msgid "Search my names"
 msgstr ""
 
@@ -2272,7 +2272,7 @@ msgstr ""
 msgid "Social Links"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:193
+#: src/features/dashboard/components/MyNamesList.tsx:143
 msgid "Some names could not be loaded"
 msgstr ""
 

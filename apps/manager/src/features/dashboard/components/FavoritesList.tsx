@@ -23,6 +23,7 @@ export type FavoritesSort = `${FavoritesSortField}-${'asc' | 'desc'}`
 interface FavoritesListProps {
   readonly searchQuery?: string
   readonly sort: FavoritesSort
+  readonly isAuthenticated: boolean
 }
 
 const PAGE_SIZE = 5
@@ -48,12 +49,23 @@ const parseSort = (
 export const FavoritesList = ({
   searchQuery = '',
   sort,
+  isAuthenticated,
 }: FavoritesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
   const { field: sortField, direction: sortDirection } = parseSort(sort)
 
-  const { data: apiFavorites = [], isLoading } = useQuery(favoritesQueryOptions)
+  const filterKey = `${searchQuery} ${sort}`
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey)
+    setPage(1)
+  }
+
+  const { data: apiFavorites = [], isLoading } = useQuery({
+    ...favoritesQueryOptions,
+    enabled: isAuthenticated,
+  })
   const favorites = apiFavorites.map(toLocalEntry)
   const favoritesCount = apiFavorites.length
   const removeMutation = useMutation(removeFavoriteMutationOptions)

@@ -1,6 +1,5 @@
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useMutation, useQueries } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -8,11 +7,11 @@ import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import { useOwnedDomains } from '../useOwnedDomains'
 import { FavoritesList, type FavoritesSort } from './FavoritesList'
 import { type FilterChipDef, FilterChips } from './FilterChips'
 import { MyNamesList, type Sort } from './MyNamesList'
@@ -30,34 +29,26 @@ export const NamesTable = ({
   primaryLabel,
 }: NamesTableProps) => {
   const { t } = useLingui()
-  const [activeFilter, setActiveFilter] = useState<FilterKey>('owned')
+  const [filter, setFilter] = useState<FilterKey>('owned')
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const { data: wallet } = useWallet()
-  const normalizedAddress = wallet?.address?.toLowerCase()
+  const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
-  const [favoritesQuery, ownedNamesCountQuery] = useQueries({
-    queries: [
-      { ...favoritesQueryOptions, enabled: isAuthed },
-      {
-        ...ownedNamesCountQueryOptions(normalizedAddress),
-        enabled: Boolean(normalizedAddress),
-      },
-    ],
+  const { v2Names } = useOwnedDomains()
+  const { data: favorites = [] } = useQuery({
+    ...favoritesQueryOptions,
+    enabled: isAuthed,
   })
 
   const { eligible: eligibleV1Names } = useEligibleV1Names({
     enabled: migrationEnabled,
   })
-  const v1NamesCount = eligibleV1Names.length
 
-  const { data: favorites = [] } = favoritesQuery
-  const { data: ownedNamesCount } = ownedNamesCountQuery
   const favoritesCount = favorites.length
-  const ownedCount = (ownedNamesCount ?? 0) + v1NamesCount
+  const ownedCount = v2Names.length + eligibleV1Names.length
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
@@ -149,7 +140,7 @@ export const NamesTable = ({
           <FilterChips
             chips={chips}
             onChange={(next) => {
-              setActiveFilter(next)
+              setFilter(next)
               setSearchQuery('')
             }}
             value={activeFilter}
@@ -200,7 +191,11 @@ export const NamesTable = ({
                     },
                   })}
             >
-              <FavoritesList searchQuery={searchQuery} sort={favoritesSort} />
+              <FavoritesList
+                isAuthenticated={isAuthed}
+                searchQuery={searchQuery}
+                sort={favoritesSort}
+              />
             </motion.div>
           ))
           .exhaustive()}
