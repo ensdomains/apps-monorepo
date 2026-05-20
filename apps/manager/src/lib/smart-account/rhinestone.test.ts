@@ -243,7 +243,7 @@ describe('initializeRhinestoneAccount', () => {
         walletClient: mockWalletClient,
         infrastructure: 'pimlico',
       }),
-    ).rejects.toThrow('Pimlico API key not configured')
+    ).rejects.toThrow(/pimlicoApiKey is required/)
   })
 
   it('does not require Pimlico API key for warp infrastructure', async () => {

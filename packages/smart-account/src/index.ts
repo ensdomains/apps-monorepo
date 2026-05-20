@@ -1,16 +1,25 @@
 /**
  * @ens-apps/smart-account
  *
- * Shared smart-account helpers for ENS apps. Today this is a Rhinestone-only
- * implementation: it owns the smart-session enablement flow and the
- * registration-scoped action set. Session storage and SDK account
- * initialization currently live in the consuming app because they couple to
- * app-specific concerns (wagmi chain config, toaster, env vars); moving those
- * in is tracked as a follow-up.
+ * Shared smart-account helpers for ENS apps. Today this is a
+ * Rhinestone-only implementation covering:
  *
- * The package is named `smart-account` rather than after the vendor so we
- * don't have to rename it if the implementation backend changes (Rhinestone,
- * ZeroDev, Biconomy, etc. — all interchangeable behind the same surface).
+ *   - SDK account initialization (`initializeRhinestoneAccount`)
+ *   - Smart-session lifecycle (`createRhinestoneSession`,
+ *     `restoreRhinestoneSession`)
+ *   - The registration/renewal-scoped session policy
+ *     (`buildRegistrationSessionActions`)
+ *   - Persisted session shape (`RhinestoneStoredSession`)
+ *
+ * App-specific concerns (Para wallet wrapping, wagmi chain config,
+ * toaster, i18n, env vars, session storage location) stay in the
+ * consuming app. Initialization takes injected dependencies via
+ * `InitializeRhinestoneAccountParams`.
+ *
+ * The package is named `smart-account` rather than after the vendor so
+ * we don't have to rename it if the implementation backend changes
+ * (Rhinestone, ZeroDev, Biconomy, etc. — all interchangeable behind
+ * the same surface).
  */
 
 export {
@@ -19,6 +28,14 @@ export {
   REGISTRATION_SESSION_VALIDITY_SECONDS,
 } from './build-registration-session'
 export { SessionError } from './errors'
+export {
+  type InitializeRhinestoneAccountParams,
+  type InitProgressStage,
+  initializeRhinestoneAccount,
+  type RhinestoneInitConfig,
+  type RhinestoneInitResult,
+  type SmartAccountInfrastructure,
+} from './initialize-account'
 export {
   type CreateRhinestoneSessionParams,
   createRhinestoneSession,
