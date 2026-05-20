@@ -59,8 +59,7 @@ export const useOwnedDomains = () => {
   const v2Names: DomainFragment[] = data ?? []
 
   const isAllPagesLoaded =
-    !hasOwnerAddresses ||
-    (!isPending && !isFetchingNextPage && !hasNextPage)
+    !hasOwnerAddresses || (!isPending && !isFetchingNextPage && !hasNextPage)
 
   return {
     v2Names,

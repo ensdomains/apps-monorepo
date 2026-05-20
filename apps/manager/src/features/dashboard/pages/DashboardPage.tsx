@@ -70,7 +70,10 @@ export const DashboardPage = () => {
             <UpgradeBanner />
           </motion.div>
         )}
-        <motion.div className="w-full px-4 md:px-0" {...stagger(1, shouldReduceMotion)}>
+        <motion.div
+          className="w-full px-4 md:px-0"
+          {...stagger(1, shouldReduceMotion)}
+        >
           <DashboardGraceBanner primaryLabel={defaultName} />
         </motion.div>
         {hasProfile ? (
