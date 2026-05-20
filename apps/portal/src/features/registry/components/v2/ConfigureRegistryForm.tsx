@@ -100,6 +100,7 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   const {
     setSubregistry,
     isPending: isSetSubregistryPending,
+    isSuccess: isSetSubregistrySuccess,
     hasWallet: hasSetWallet,
   } = useSetSubregistry({
     name,
@@ -128,6 +129,11 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   const handleSetSubregistryAfterDeployStart = () => {
     const deployed = deployedSubregistryAddressRef.current
     if (!deployed) return
+    // Both the deploy step's `onDone` (fired automatically on success by
+    // `useAutoAdvanceTransaction`) and the set step's `onStart` route here, so
+    // guard against resubmitting while a set is already in flight or done. An
+    // errored set leaves both flags false, so "Try again" still works.
+    if (isSetSubregistryPending || isSetSubregistrySuccess) return
     setSubregistry(deployed)
   }
 
@@ -312,7 +318,9 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
                   transactionName: `Deploy subregistry for ${name}`,
                   estimatedGasCost: 0.0008,
                   onStart: handleDeploySubregistryStart,
-                  onDone: () => {},
+                  // Chains into the set step once the deploy succeeds; the
+                  // handler is idempotent so this can't double-submit.
+                  onDone: handleSetSubregistryAfterDeployStart,
                 },
                 {
                   id: SET_SUBREGISTRY_TX_ID,
