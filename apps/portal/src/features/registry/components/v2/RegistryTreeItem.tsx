@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
+import { TriangleAlert } from 'lucide-react'
 import { Fragment } from 'react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
@@ -46,7 +48,11 @@ export const RegistryTreeItem = ({
   const isLastWithRegistryConfigured = isLast && isRegistryConfigured
   const isLastWithoutRegistryConfigured = isLast && !isRegistryConfigured
 
-  const { data: summary } = useQuery({
+  const {
+    data: summary,
+    isLoading: isSummaryLoading,
+    error: summaryError,
+  } = useQuery({
     ...getRegistryLabelCountQueryOptions({ address }),
     enabled: isLastWithRegistryConfigured,
   })
@@ -55,7 +61,7 @@ export const RegistryTreeItem = ({
     <div
       className="flex flex-col gap-2"
       style={{
-        paddingLeft: `${50 * (index - 1)}px`,
+        paddingLeft: `${50 * Math.max(index - 1, 0)}px`,
       }}
     >
       <div className="flex items-center justify-start gap-2">
@@ -116,23 +122,33 @@ export const RegistryTreeItem = ({
           <dd>{ownerData.protocolVersion}</dd>
           <dt>Created:</dt>
           <dd>
-            <EntityBadge
-              label={
-                summary?.createdAt
-                  ? (formatTimestamp(BigInt(summary.createdAt)) ?? undefined)
-                  : undefined
-              }
-              variant="tx"
-              className="font-normal"
-            >
-              {truncateAddress(ownerData.owner, 6, 4, '...')}
-            </EntityBadge>
+            {match({ isSummaryLoading, summaryError })
+              .with({ isSummaryLoading: true }, () => (
+                <Skeleton className="h-5 w-32" />
+              ))
+              .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
+              .otherwise(() =>
+                summary?.createdAt ? (
+                  <EntityBadge variant="tx" className="font-normal">
+                    {formatTimestamp(BigInt(summary.createdAt)) ?? '—'}
+                  </EntityBadge>
+                ) : (
+                  <span>—</span>
+                ),
+              )}
           </dd>
           <dt>Labels:</dt>
           <dd className="flex items-center gap-4">
-            <span className="text-foreground">
-              {summary?.labelCount ?? '—'}
-            </span>
+            {match({ isSummaryLoading, summaryError })
+              .with({ isSummaryLoading: true }, () => (
+                <Skeleton className="h-5 w-8" />
+              ))
+              .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
+              .otherwise(() => (
+                <span className="text-foreground">
+                  {summary?.labelCount ?? '—'}
+                </span>
+              ))}
             {/* TODO: Add this button back when the new labels page is ready */}
             {/* <Button variant="outline" size="xs">
               View subnames <ArrowUpRight className="size-4" />
@@ -146,6 +162,13 @@ export const RegistryTreeItem = ({
     </div>
   )
 }
+
+const SummaryLoadError = () => (
+  <span className="inline-flex items-center gap-1 text-destructive">
+    <TriangleAlert className="size-3.5" />
+    Failed to load
+  </span>
+)
 
 const RegistryTreePathIcon = () => {
   return (
