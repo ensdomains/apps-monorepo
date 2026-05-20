@@ -116,17 +116,17 @@ export const NamesTable = ({
 
   return (
     <div className="w-full">
-      <div className="mb-[20px] flex flex-col gap-[20px]">
+      <div className="mb-5 flex flex-col gap-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="font-sans text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
             <Trans>My Names</Trans>
           </h2>
           <div className="w-full md:w-[352px]">
             <Input
-              className="h-10 rounded-full border-none bg-ens-white text-[16px] text-foreground tracking-[-0.32px] placeholder:text-ens-quartz-350"
+              className="h-10 rounded-full border-none bg-ens-white text-base text-foreground tracking-[-0.32px] placeholder:text-ens-quartz-350"
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={t`Search my names`}
-              startIcon={<Search className="size-[18px] text-ens-quartz-350" />}
+              startIcon={<Search className="size-4.5 text-ens-quartz-350" />}
               value={searchQuery}
             />
           </div>

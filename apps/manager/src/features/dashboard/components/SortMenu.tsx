@@ -32,7 +32,7 @@ export const SortMenu = <T extends string>({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-ens-white px-3 font-sans text-[12px] text-foreground tracking-[0.24px] outline-none"
+          className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-ens-white px-3 font-sans text-foreground text-xs tracking-[0.24px] outline-none"
           type="button"
         >
           <ChevronsUpDown className="size-3 text-ens-quartz-400" />

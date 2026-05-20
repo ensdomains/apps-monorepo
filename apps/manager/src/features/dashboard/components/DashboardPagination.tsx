@@ -26,23 +26,23 @@ export const DashboardPagination = ({
   const pages = getPageWindow(currentPage, totalPages)
 
   return (
-    <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center justify-center gap-[12px]">
+    <div className="mt-8 flex flex-col gap-3 md:h-14 md:flex-row md:items-center md:justify-between">
+      <div className="flex items-center justify-center gap-3">
         <button
           aria-label={t`Previous page`}
-          className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
+          className="flex size-8 items-center justify-center text-ens-blue disabled:text-border"
           disabled={disabled || currentPage <= 1}
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           type="button"
         >
-          <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
+          <CircleArrowLeft className="size-8" strokeWidth={1} />
         </button>
 
         <div className="flex items-center gap-1">
           {pages.map((page, index) =>
             page === 'ellipsis' ? (
               <span
-                className="flex size-[32px] items-center justify-center font-sans text-ens-quartz-400 text-sm"
+                className="flex size-8 items-center justify-center font-sans text-ens-quartz-400 text-sm"
                 key={`ellipsis-after-${pages[index - 1]}`}
               >
                 …
@@ -52,9 +52,9 @@ export const DashboardPagination = ({
                 aria-current={page === currentPage ? 'page' : undefined}
                 aria-label={t`Go to page ${page}`}
                 className={cn(
-                  'flex size-[32px] items-center justify-center rounded-[6px] font-sans text-[16px] leading-none',
+                  'flex size-8 items-center justify-center rounded-md font-sans text-base leading-none',
                   page === currentPage
-                    ? 'bg-[#e5f7ff] font-medium text-ens-lapis-core'
+                    ? 'bg-ens-lapis-bg font-medium text-ens-lapis-core'
                     : 'text-ens-quartz-400 hover:bg-ens-quartz-100',
                 )}
                 disabled={disabled}
@@ -70,16 +70,16 @@ export const DashboardPagination = ({
 
         <button
           aria-label={t`Next page`}
-          className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
+          className="flex size-8 items-center justify-center text-ens-blue disabled:text-border"
           disabled={disabled || currentPage >= totalPages}
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           type="button"
         >
-          <CircleArrowRight className="size-[32px]" strokeWidth={1} />
+          <CircleArrowRight className="size-8" strokeWidth={1} />
         </button>
       </div>
 
-      <span className="font-sans text-[14px] text-ens-quartz-400 leading-[1.2] tracking-[0.14px]">
+      <span className="font-sans text-ens-quartz-400 text-sm leading-[1.2] tracking-[0.14px]">
         <Trans>
           Showing {rangeStart}-{rangeEnd} of {total}
         </Trans>

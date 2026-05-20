@@ -1,5 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
+import { cva } from 'class-variance-authority'
 import { ArrowRight, Check, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
@@ -47,6 +48,18 @@ interface NameRowProps {
 
 const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
 
+const namePillVariants = cva(
+  'inline-flex max-w-full items-center gap-2 rounded-xs px-2 py-1',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-ens-lapis-core text-ens-lapis-bg',
+        secondary: 'bg-ens-quartz-200 text-ens-quartz-450',
+      },
+    },
+  },
+)
+
 const NamePill = ({
   label,
   variant,
@@ -56,14 +69,9 @@ const NamePill = ({
   readonly variant: 'primary' | 'secondary'
   readonly linkToMigration: boolean
 }) => {
-  const className = cn(
-    'inline-flex max-w-full items-center gap-2 rounded-[2px] px-2 py-1',
-    variant === 'primary'
-      ? 'bg-ens-lapis-core text-[#e5f7ff]'
-      : 'bg-ens-quartz-200 text-[#454444]',
-  )
+  const className = namePillVariants({ variant })
   const textClassName =
-    'min-w-0 break-all font-medium font-semi-mono text-[16px] leading-none tracking-[-0.32px] [text-wrap:pretty]'
+    'min-w-0 break-all font-medium font-semi-mono text-base leading-none tracking-[-0.32px] [text-wrap:pretty]'
 
   const inner = (
     <>
@@ -84,9 +92,21 @@ const NamePill = ({
 }
 
 const VerifiedCheck = () => (
-  <span className="flex size-[14px] shrink-0 items-center justify-center rounded-[4px] bg-ens-lapis-500">
+  <span className="flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-ens-lapis-500">
     <Check className="size-[9px] text-white" strokeWidth={4} />
   </span>
+)
+
+const ctaVariants = cva(
+  'flex items-center gap-1.5 font-medium font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
+  {
+    variants: {
+      kind: {
+        renew: 'text-ens-lapis-core',
+        manageExplorer: 'text-ens-garnet-500',
+      },
+    },
+  },
 )
 
 const RowCta = ({
@@ -96,31 +116,28 @@ const RowCta = ({
   readonly cta: NameRowCta
   readonly label: string
 }) => {
-  const text =
-    'flex items-center gap-1.5 font-medium font-semi-mono text-[16px] uppercase leading-none tracking-[-0.16px]'
-
   if (cta === 'manageExplorer') {
     return (
       <a
-        className={cn(text, 'text-ens-garnet-500 hover:opacity-80')}
+        className={ctaVariants({ kind: 'manageExplorer' })}
         href={explorerUrl(label)}
         rel="noopener noreferrer"
         target="_blank"
       >
         <Trans>Manage on explorer</Trans>
-        <MSymbol className="ms-opsz-20 text-[20px]" symbol="arrow_outward" />
+        <MSymbol className="ms-opsz-20 text-xl" symbol="arrow_outward" />
       </a>
     )
   }
 
   return (
     <Link
-      className={cn(text, 'text-ens-lapis-core hover:opacity-80')}
+      className={ctaVariants({ kind: 'renew' })}
       params={{ name: label }}
       to="/$name"
     >
       <Trans>Renew name</Trans>
-      <MSymbol className="ms-opsz-20 text-[20px]" symbol="double_arrow" />
+      <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
     </Link>
   )
 }
@@ -156,8 +173,10 @@ export const NameRow = ({
     >
       <Heart
         className={cn(
-          'size-[26px]',
-          isFavorite ? 'fill-ens-magenta text-ens-magenta' : 'text-[#d3d3d3]',
+          'size-6.5',
+          isFavorite
+            ? 'fill-ens-magenta text-ens-magenta'
+            : 'text-ens-quartz-250',
           !isAuthenticated && 'opacity-50',
         )}
         strokeWidth={2}
@@ -195,7 +214,7 @@ export const NameRow = ({
                 </TooltipContent>
               </Tooltip>
             ))}
-          <div className="relative size-[40px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6]">
+          <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-ens-quartz-50">
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 alt={t`${label} avatar`}
@@ -225,7 +244,7 @@ export const NameRow = ({
               className="flex shrink-0 items-center justify-center text-ens-quartz-400 outline-none hover:text-foreground"
               type="button"
             >
-              <MSymbol className="ms-opsz-20 text-[20px]" symbol="more_horiz" />
+              <MSymbol className="ms-opsz-20 text-xl" symbol="more_horiz" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -260,11 +279,11 @@ export const NameRow = ({
         <div className="flex items-center justify-between gap-3">
           {expiryLabel ? (
             <div className="flex items-center gap-2">
-              <History className="size-4 shrink-0 text-[#9b9ba7]" />
-              <span className="font-sans text-[#7d7d7d] text-[14px]">
+              <History className="size-4 shrink-0 text-ens-quartz-360" />
+              <span className="font-sans text-ens-quartz-380 text-sm">
                 <Trans>Expires on</Trans>
               </span>
-              <span className="font-sans text-[#515151] text-[14px]">
+              <span className="font-sans text-ens-quartz-550 text-sm">
                 {expiryLabel}
               </span>
             </div>

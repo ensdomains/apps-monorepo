@@ -73,7 +73,7 @@ msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:323
-#: src/features/dashboard/components/NameRow.tsx:201
+#: src/features/dashboard/components/NameRow.tsx:220
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
@@ -176,7 +176,7 @@ msgstr "Add credit card"
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
 
-#: src/features/dashboard/components/NameRow.tsx:148
+#: src/features/dashboard/components/NameRow.tsx:165
 msgid "Add favorite"
 msgstr "Add favorite"
 
@@ -831,7 +831,7 @@ msgstr "Done"
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
-#: src/features/dashboard/components/DashboardPills.tsx:26
+#: src/features/dashboard/components/DashboardPills.tsx:28
 msgid "Eligible for upgrade"
 msgstr "Eligible for upgrade"
 
@@ -909,7 +909,7 @@ msgstr "ENS names can be up to 255 characters"
 msgid "ENS v2 Names"
 msgstr "ENS v2 Names"
 
-#: src/features/dashboard/components/DashboardPills.tsx:33
+#: src/features/dashboard/components/DashboardPills.tsx:35
 msgid "ENSv1 only"
 msgstr "ENSv1 only"
 
@@ -962,11 +962,11 @@ msgstr "Expires {0}"
 msgid "expires {expiryDateString}"
 msgstr "expires {expiryDateString}"
 
-#: src/features/dashboard/components/DashboardPills.tsx:56
+#: src/features/dashboard/components/DashboardPills.tsx:53
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 
-#: src/features/dashboard/components/NameRow.tsx:265
+#: src/features/dashboard/components/NameRow.tsx:284
 msgid "Expires on"
 msgstr "Expires on"
 
@@ -1278,7 +1278,7 @@ msgstr "Loading your stablecoin balances..."
 msgid "Loading..."
 msgstr "Loading..."
 
-#: src/features/dashboard/components/NameRow.tsx:194
+#: src/features/dashboard/components/NameRow.tsx:213
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Login to favorite"
@@ -1307,8 +1307,8 @@ msgstr "Makes crypto addresses human-readable"
 msgid "Manage notification settings"
 msgstr "Manage notification settings"
 
-#: src/features/dashboard/components/NameRow.tsx:110
-#: src/features/dashboard/components/NameRow.tsx:251
+#: src/features/dashboard/components/NameRow.tsx:127
+#: src/features/dashboard/components/NameRow.tsx:270
 msgid "Manage on explorer"
 msgstr "Manage on explorer"
 
@@ -1320,7 +1320,7 @@ msgstr "Manage Para Wallet"
 msgid "Manage Renewals"
 msgstr "Manage Renewals"
 
-#: src/features/dashboard/components/DashboardPills.tsx:46
+#: src/features/dashboard/components/DashboardPills.tsx:43
 msgid "Manager"
 msgstr "Manager"
 
@@ -1344,7 +1344,7 @@ msgstr "MM/YY"
 msgid "Modified"
 msgstr "Modified"
 
-#: src/features/dashboard/components/NameRow.tsx:224
+#: src/features/dashboard/components/NameRow.tsx:243
 msgid "More options for {label}"
 msgstr "More options for {label}"
 
@@ -1570,7 +1570,7 @@ msgstr "Over 2 million ENS names registered"
 msgid "Owned"
 msgstr "Owned"
 
-#: src/features/dashboard/components/DashboardPills.tsx:42
+#: src/features/dashboard/components/DashboardPills.tsx:43
 msgid "Owner"
 msgstr "Owner"
 
@@ -1850,7 +1850,7 @@ msgstr "Remove Avatar"
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
 
-#: src/features/dashboard/components/NameRow.tsx:148
+#: src/features/dashboard/components/NameRow.tsx:165
 msgid "Remove favorite"
 msgstr "Remove favorite"
 
@@ -1893,8 +1893,8 @@ msgstr "Removing telegram channel"
 msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
-#: src/features/dashboard/components/NameRow.tsx:122
-#: src/features/dashboard/components/NameRow.tsx:240
+#: src/features/dashboard/components/NameRow.tsx:139
+#: src/features/dashboard/components/NameRow.tsx:259
 msgid "Renew name"
 msgstr "Renew name"
 
@@ -2650,7 +2650,7 @@ msgstr "Verifying registration on-chain"
 msgid "Verifying..."
 msgstr "Verifying..."
 
-#: src/features/dashboard/components/NameRow.tsx:234
+#: src/features/dashboard/components/NameRow.tsx:253
 #: src/features/dashboard/components/PrimaryNameCard.tsx:162
 msgid "View profile"
 msgstr "View profile"

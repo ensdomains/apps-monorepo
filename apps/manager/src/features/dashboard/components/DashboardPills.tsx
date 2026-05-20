@@ -1,58 +1,55 @@
 import { Trans } from '@lingui/react/macro'
+import { cva } from 'class-variance-authority'
 import { CircleAlert } from 'lucide-react'
-import type { ReactNode } from 'react'
 import ensMarkBadge from '@/assets/ens-mark-badge.svg'
-import { cn } from '@/lib/utils'
 
-const pillBase =
-  'inline-flex h-5 w-fit shrink-0 items-center gap-1 rounded-full px-2 font-sans text-[14px] leading-none tracking-[0.28px] whitespace-nowrap'
-
-type PillProps = {
-  readonly className?: string
-  readonly children: ReactNode
-}
-
-const Pill = ({ className, children }: PillProps) => (
-  <span className={cn(pillBase, className)}>{children}</span>
+const pillVariants = cva(
+  'inline-flex h-5 w-fit shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 font-sans text-sm leading-none tracking-[0.28px]',
+  {
+    variants: {
+      tone: {
+        eligibleUpgrade: 'bg-ens-garnet-100 text-ens-garnet-500',
+        ensv1Only: 'border-[0.5px] border-ens-peridot-500 text-ens-peridot-500',
+        owner: 'border-[0.5px] border-ens-peridot-900 text-ens-peridot-900',
+        manager: 'border-[0.5px] border-ens-quartz-400 text-ens-quartz-500',
+        expiring: 'bg-ens-citrine-50 text-ens-citrine-450',
+      },
+    },
+  },
 )
 
-const EnsMark = ({ className }: { readonly className?: string }) => (
-  <img alt="" className={cn('size-4 shrink-0', className)} src={ensMarkBadge} />
+const EnsMark = () => (
+  <img alt="" className="size-4 shrink-0" src={ensMarkBadge} />
 )
 
 export const EligibleForUpgradePill = () => (
-  <Pill className="bg-ens-garnet-100 text-ens-garnet-500">
+  <span className={pillVariants({ tone: 'eligibleUpgrade' })}>
     <EnsMark />
     <Trans>Eligible for upgrade</Trans>
-  </Pill>
+  </span>
 )
 
 export const Ensv1OnlyPill = () => (
-  <Pill className="border-[0.5px] border-ens-peridot-500 text-ens-peridot-500">
+  <span className={pillVariants({ tone: 'ensv1Only' })}>
     <EnsMark />
     <Trans>ENSv1 only</Trans>
-  </Pill>
+  </span>
 )
 
 export type NameRole = 'owner' | 'manager'
 
-export const RolePill = ({ role }: { readonly role: NameRole }) =>
-  role === 'owner' ? (
-    <Pill className="border-[0.5px] border-ens-peridot-900 text-ens-peridot-900">
-      <Trans>Owner</Trans>
-    </Pill>
-  ) : (
-    <Pill className="border-[0.5px] border-ens-quartz-400 text-ens-quartz-500">
-      <Trans>Manager</Trans>
-    </Pill>
-  )
+export const RolePill = ({ role }: { readonly role: NameRole }) => (
+  <span className={pillVariants({ tone: role })}>
+    {role === 'owner' ? <Trans>Owner</Trans> : <Trans>Manager</Trans>}
+  </span>
+)
 
 export const ExpiringPill = ({ days }: { readonly days: number }) => (
-  <Pill className="bg-[#fff8f0] text-[#c68a1b]">
+  <span className={pillVariants({ tone: 'expiring' })}>
     <CircleAlert
       className="size-4 shrink-0 text-ens-citrine-500"
       strokeWidth={2}
     />
     <Trans>Expires in {days} days</Trans>
-  </Pill>
+  </span>
 )

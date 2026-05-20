@@ -63,7 +63,7 @@ export const PrimaryNameCard = ({
       className="flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
       style={themeVars}
     >
-      <PrimaryBadge className="self-start bg-[#f5fcff]" />
+      <PrimaryBadge className="self-start bg-ens-lapis-tint" />
 
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
         <div className="flex flex-row items-start gap-4 md:gap-5">
@@ -105,8 +105,8 @@ export const PrimaryNameCard = ({
                   <span
                     className={
                       displayName.length > 10
-                        ? 'font-medium font-semi-mono text-[24px] text-ens-white leading-[0.96] tracking-[-0.48px]'
-                        : 'font-medium font-semi-mono text-[20px] text-ens-white leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
+                        ? 'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-[-0.48px]'
+                        : 'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
                     }
                   >
                     {displayName}
@@ -124,11 +124,11 @@ export const PrimaryNameCard = ({
                   className="size-5 text-ens-quartz-400"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-center gap-1.5 text-[16px] leading-normal">
+                <div className="flex items-center gap-1.5 text-base leading-normal">
                   <span className="text-ens-quartz-400">
                     <Trans>Registered</Trans>
                   </span>
-                  <span className="font-semi-mono text-[#333] text-[13px] tracking-[0.91px]">
+                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
                     {registeredLabel}
                   </span>
                 </div>
@@ -138,11 +138,11 @@ export const PrimaryNameCard = ({
                   className="size-5 text-ens-quartz-400"
                   strokeWidth={1.5}
                 />
-                <div className="flex items-center gap-1.5 text-[16px] leading-normal">
+                <div className="flex items-center gap-1.5 text-base leading-normal">
                   <span className="text-ens-quartz-400">
                     <Trans>Expires</Trans>
                   </span>
-                  <span className="font-semi-mono text-[#333] text-[13px] tracking-[0.91px]">
+                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
                     {expiryLabel}
                   </span>
                 </div>
@@ -158,10 +158,10 @@ export const PrimaryNameCard = ({
           to="/$name"
           variant="link"
         >
-          <span className="font-mono text-[16px] leading-normal underline-offset-4 group-hover:underline">
+          <span className="font-mono text-base leading-normal underline-offset-4 group-hover:underline">
             <Trans>View profile</Trans>
           </span>
-          <MSymbol className="ms-opsz-20 text-[16px]" symbol="arrow_forward" />
+          <MSymbol className="ms-opsz-20 text-base" symbol="arrow_forward" />
         </LinkButton>
       </div>
     </Card>

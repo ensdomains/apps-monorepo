@@ -1,5 +1,5 @@
+import { cva } from 'class-variance-authority'
 import type { ReactNode } from 'react'
-import { cn } from '@/lib/utils'
 
 export interface FilterChipDef<T extends string> {
   readonly value: T
@@ -14,6 +14,30 @@ interface FilterChipsProps<T extends string> {
   readonly onChange: (value: T) => void
 }
 
+const chipVariants = cva(
+  'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 font-sans text-sm uppercase tracking-[0.28px] disabled:cursor-not-allowed disabled:opacity-50',
+  {
+    variants: {
+      active: {
+        true: 'bg-ens-quartz-250 text-ens-quartz-900',
+        false: 'bg-ens-quartz-75 text-ens-quartz-400 hover:bg-ens-quartz-100',
+      },
+    },
+  },
+)
+
+const chipCountVariants = cva(
+  'inline-flex items-center justify-center rounded-sm px-1.5 py-0.5 font-sans text-[11.5px] leading-none',
+  {
+    variants: {
+      active: {
+        true: 'bg-white text-ens-quartz-500',
+        false: 'bg-ens-quartz-150 text-ens-quartz-400',
+      },
+    },
+  },
+)
+
 export const FilterChips = <T extends string>({
   value,
   chips,
@@ -26,14 +50,7 @@ export const FilterChips = <T extends string>({
       return (
         <button
           aria-pressed={isActive}
-          className={cn(
-            'flex h-8 shrink-0 items-center gap-1.5 rounded-[6px] px-2.5',
-            'font-sans text-[14px] uppercase tracking-[0.28px]',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-            isActive
-              ? 'bg-[#d9d9d9] text-ens-quartz-900'
-              : 'bg-[#f4f4f4] text-ens-quartz-400 hover:bg-ens-quartz-100',
-          )}
+          className={chipVariants({ active: isActive })}
           disabled={chip.disabled}
           key={chip.value}
           onClick={() => onChange(chip.value)}
@@ -41,15 +58,7 @@ export const FilterChips = <T extends string>({
         >
           <span>{chip.label}</span>
           {chip.count !== undefined && chip.count > 0 && (
-            <span
-              className={cn(
-                'inline-flex items-center justify-center rounded-[4px] px-1.5 py-0.5',
-                'font-sans text-[11.5px] leading-none',
-                isActive
-                  ? 'bg-white text-ens-quartz-500'
-                  : 'bg-[#eae8e8] text-ens-quartz-400',
-              )}
-            >
+            <span className={chipCountVariants({ active: isActive })}>
               {chip.count}
             </span>
           )}

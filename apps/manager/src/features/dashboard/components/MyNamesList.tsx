@@ -198,13 +198,13 @@ export const MyNamesList = ({
         {match({ isPending, pageItems })
           .with({ isPending: true }, () => (
             <>
-              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
+              <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
                 <NameRowSkeleton />
               </div>
-              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
+              <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
                 <NameRowSkeleton />
               </div>
-              <div className="py-[24px]">
+              <div className="py-6">
                 <NameRowSkeleton />
               </div>
             </>
@@ -238,7 +238,7 @@ export const MyNamesList = ({
 
               return (
                 <motion.div
-                  className="border-[lightgrey] border-b-[0.5px] py-[32px] first:pt-0 last:border-none"
+                  className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none"
                   key={item.key}
                   {...(shouldReduceMotion
                     ? {}
