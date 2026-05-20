@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { ResolverIcon } from '@/assets/icons'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -17,9 +17,9 @@ export const ResolverCard = ({
   const navigate = useNavigate()
 
   const value = (
-    <EntityBadgeWithActions variant="contract" address={resolverAddress}>
+    <EntityBadge variant="contract" address={resolverAddress}>
       {truncateAddress(resolverAddress, 6, 4, '...')}
-    </EntityBadgeWithActions>
+    </EntityBadge>
   )
 
   if (asRow) {

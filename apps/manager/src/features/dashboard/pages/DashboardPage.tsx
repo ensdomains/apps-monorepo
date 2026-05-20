@@ -1,7 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
-import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
@@ -64,28 +63,28 @@ export const DashboardPage = () => {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 py-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:py-10">
       {migrationEnabled && <MigrationModal />}
-      <div className="min-w-0 flex-1 space-y-6 md:space-y-8">
+      <div className="min-w-0 flex-1 space-y-6 md:space-y-6">
         {migrationEnabled && (
           <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
             <UpgradeBanner />
           </motion.div>
         )}
-        <motion.div
-          className="flex items-center gap-3 px-4 md:px-0"
-          {...stagger(1, shouldReduceMotion)}
-        >
-          <h1 className="text-[28px] text-foreground leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]">
-            <Trans>Hello</Trans>{' '}
-            {defaultName ??
-              (ownerAddress && (
-                <CopyableAddress
-                  address={ownerAddress}
-                  textClassName="text-[28px] leading-[0.96] tracking-[0.28px] md:text-[40px] md:tracking-[0.4px]"
-                  truncate={true}
-                />
-              ))}
-          </h1>
-          {!hasProfile && (
+        {hasProfile ? (
+          <motion.div {...stagger(1, shouldReduceMotion)}>
+            <PrimaryNameCard
+              avatarUrl={avatarUrl}
+              primaryName={defaultName}
+              themeColor={themeColor}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            className="flex flex-col items-start gap-3 border-[0.25px] border-border bg-white px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:px-6 md:py-8"
+            {...stagger(1, shouldReduceMotion)}
+          >
+            <span className="font-sans text-[16px] text-foreground">
+              <Trans>You haven't set a primary name yet.</Trans>
+            </span>
             <ChoosePrimaryNameDialog>
               <button
                 className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-ens-blue/20 bg-ens-blue/5 px-3 py-1.5 text-ens-blue transition-colors hover:bg-ens-blue/10"
@@ -100,36 +99,25 @@ export const DashboardPage = () => {
                 </span>
               </button>
             </ChoosePrimaryNameDialog>
-          )}
-        </motion.div>
-        {hasProfile && (
-          <motion.div {...stagger(2, shouldReduceMotion)}>
-            <PrimaryNameCard
-              avatarUrl={avatarUrl}
-              primaryName={defaultName}
-              themeColor={themeColor}
-            />
           </motion.div>
         )}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
-          {...stagger(hasProfile ? 3 : 2, shouldReduceMotion)}
+          {...stagger(2, shouldReduceMotion)}
         >
-          <div className="space-y-5">
-            <NamesTable
-              migrationEnabled={migrationEnabled}
-              primaryLabel={defaultName}
-            />
-          </div>
+          <NamesTable
+            migrationEnabled={migrationEnabled}
+            primaryLabel={defaultName}
+          />
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
         <motion.div
           className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
-          {...stagger(hasProfile ? 4 : 3, shouldReduceMotion)}
+          {...stagger(3, shouldReduceMotion)}
         >
           <EducationCarousel />
         </motion.div>
-        <motion.div {...stagger(hasProfile ? 5 : 4, shouldReduceMotion)}>
+        <motion.div {...stagger(4, shouldReduceMotion)}>
           <FaqSection />
         </motion.div>
       </div>

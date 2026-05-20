@@ -51,7 +51,6 @@ const NewEmailContactMethod = () => {
     },
   })
 
-  // TODO: autofill email from para if signed in with an email option
   const form = useForm({
     defaultValues: {
       email: '',
@@ -106,7 +105,7 @@ const NewEmailContactMethod = () => {
       >
         {([canSubmit, isSubmitting]) => (
           <Button
-            className="uppercase"
+            className="w-full uppercase md:w-auto"
             disabled={!canSubmit || isSubmitting}
             onClick={(e) => {
               e.preventDefault()
@@ -192,10 +191,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
         <DropdownMenuContent align="end">
           {email.status === 'pending' && (
             <>
-              <DropdownMenuItem
-                className=""
-                onClick={() => resendMutation.mutate(email.id)}
-              >
+              <DropdownMenuItem onClick={() => resendMutation.mutate(email.id)}>
                 <MSymbol
                   className="ms-wght-300 text-[#515151]"
                   symbol="cached"
@@ -206,10 +202,7 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
             </>
           )}
 
-          <DropdownMenuItem
-            className=""
-            onClick={() => setShowDeleteDialog(true)}
-          >
+          <DropdownMenuItem onClick={() => setShowDeleteDialog(true)}>
             <MSymbol className="ms-wght-300 text-[#515151]" symbol="delete" />
             <Trans>Remove</Trans>
           </DropdownMenuItem>
@@ -278,7 +271,10 @@ export const EmailContactMethod = ({ email }: { email?: Channel }) => {
         ))
         .otherwise(() => null)}
       <div className="flex items-start gap-2">
-        <MSymbol className="ms-wght-300 text-ens-lapis-surface" symbol="mail" />
+        <MSymbol
+          className="ms-opsz-18 ms-wght-400 text-ens-lapis-core not-italic leading-[19.6px]"
+          symbol="mail"
+        />
         <div className="flex flex-col gap-1.5">
           <div className="font-normal font-sans text-base text-ens-blue-dark leading-ens-normal">
             <Trans>Email Notifications</Trans>

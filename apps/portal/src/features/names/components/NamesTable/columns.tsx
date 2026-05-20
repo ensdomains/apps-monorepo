@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,9 +20,9 @@ export type NameRow = {
 }
 
 const NameCell = ({ name }: { name: string }) => (
-  <EntityBadgeWithActions variant="name" name={name} showAvatar>
+  <EntityBadge variant="name" name={name} showAvatar>
     {name}
-  </EntityBadgeWithActions>
+  </EntityBadge>
 )
 
 export const columns: ColumnDef<NameRow>[] = [

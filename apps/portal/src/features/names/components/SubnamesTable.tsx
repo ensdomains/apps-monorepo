@@ -12,7 +12,7 @@ import {
 import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -43,9 +43,9 @@ export interface SubnameRow {
 const EMPTY_PENDING_SET: ReadonlySet<string> = new Set()
 
 const OwnerCell = ({ owner }: { owner: Address }) => (
-  <EntityBadgeWithActions variant="address" address={owner}>
+  <EntityBadge variant="address" address={owner}>
     {truncateAddress(owner)}
-  </EntityBadgeWithActions>
+  </EntityBadge>
 )
 
 interface SubnamesTableProps {
@@ -103,9 +103,9 @@ function buildColumns(
       cell: ({ row }) => {
         const name = row.original.name
         return (
-          <EntityBadgeWithActions variant="name" name={name} showAvatar>
+          <EntityBadge variant="name" name={name} showAvatar>
             {name}
-          </EntityBadgeWithActions>
+          </EntityBadge>
         )
       },
     },
@@ -284,13 +284,13 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <EntityBadgeWithActions
+                    <EntityBadge
                       variant="name"
                       name={row.original.name}
                       showAvatar
                     >
                       {row.original.name}
-                    </EntityBadgeWithActions>
+                    </EntityBadge>
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"
@@ -308,12 +308,9 @@ export const SubnamesTable = ({
                     <span className="text-sm text-muted-foreground">
                       Owner:
                     </span>
-                    <EntityBadgeWithActions
-                      variant="address"
-                      address={row.original.owner}
-                    >
+                    <EntityBadge variant="address" address={row.original.owner}>
                       {truncateAddress(row.original.owner)}
-                    </EntityBadgeWithActions>
+                    </EntityBadge>
                   </div>
                 </div>
                 {isPendingDelete && (
