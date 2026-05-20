@@ -23,7 +23,12 @@ export const BlockExplorerTxLink = ({
   const href = useBlockExplorerTxUrl(txHash, chainId)
 
   return (
-    <div className={cn('flex w-full items-center', className)}>
+    <div
+      className={cn(
+        inline ? 'inline-flex items-center' : 'flex w-full items-center',
+        className,
+      )}
+    >
       <EntityBadge
         variant="tx"
         copyValue={txHash}
