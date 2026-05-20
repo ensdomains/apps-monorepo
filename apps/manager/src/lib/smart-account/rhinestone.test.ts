@@ -25,7 +25,14 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   },
 }))
 
-// Mock RhinestoneSDK
+// Mock the Rhinestone SDK. We need to surface three exports: the
+// `RhinestoneSDK` class (used by the package's
+// `initializeRhinestoneAccount`), and the `walletClientToAccount` /
+// `wrapParaAccount` helpers (used by the manager-side wrapper to build
+// the owner account before handing off to the package). After the
+// utils.ts cleanup the manager imports both helpers directly from the
+// SDK, so they live in the SDK mock instead of a separate `./utils`
+// mock.
 vi.mock(import('@rhinestone/sdk'), () => ({
   RhinestoneSDK: vi.fn(function (this: RhinestoneSDK) {
     this.createAccount = vi.fn().mockResolvedValue({
@@ -38,9 +45,6 @@ vi.mock(import('@rhinestone/sdk'), () => ({
 
     return this
   }),
-}))
-
-vi.mock('./utils', () => ({
   walletClientToAccount: vi.fn().mockReturnValue({
     address: MOCK_OWNER_ADDRESS,
     signMessage: vi.fn(),
@@ -81,13 +85,16 @@ vi.mock('@getpara/viem-v2-integration', () => ({
   }),
 }))
 
-import { RhinestoneSDK } from '@rhinestone/sdk'
+import {
+  RhinestoneSDK,
+  walletClientToAccount,
+  wrapParaAccount,
+} from '@rhinestone/sdk'
 import { registerHCAOwnership } from './hca-registry'
 import {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
 } from './rhinestone'
-import { walletClientToAccount, wrapParaAccount } from './utils'
 
 type WalletClientParam = Parameters<
   typeof initializeRhinestoneAccount

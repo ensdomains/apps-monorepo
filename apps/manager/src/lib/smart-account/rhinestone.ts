@@ -30,13 +30,16 @@ import type {
 import { createParaAccount } from '@getpara/viem-v2-integration'
 import { i18n } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
+import {
+  type RhinestoneAccount,
+  walletClientToAccount,
+  wrapParaAccount,
+} from '@rhinestone/sdk'
 import { toast } from 'sonner'
 import type { Account, Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient } from './types'
-import { walletClientToAccount, wrapParaAccount } from './utils'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
