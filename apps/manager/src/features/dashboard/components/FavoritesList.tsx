@@ -1,12 +1,7 @@
 import { OrderDirection } from '@ens-apps/indexer'
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  ChevronDown,
-  CircleArrowLeft,
-  CircleArrowRight,
-  Mountain,
-} from 'lucide-react'
+import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
@@ -19,63 +14,58 @@ import {
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
 
-const NameRowSkeleton = () => (
-  <div className="flex w-full items-center gap-3 md:w-[340px] md:gap-[12px]">
-    <div className="size-[16px] shrink-0 animate-pulse rounded bg-gray-200" />
-    <div className="flex items-center gap-2 md:gap-[12px]">
-      <div className="size-[32px] shrink-0 animate-pulse rounded-full bg-gray-200 md:size-[36.9px]" />
-      <div className="h-[24px] w-[120px] animate-pulse rounded-[2.8px] bg-gray-200 md:w-[150px]" />
-    </div>
-  </div>
-)
+export type FavoritesSortField = 'name' | 'addedAt'
+export type FavoritesSort = `${FavoritesSortField}-${'asc' | 'desc'}`
 
 interface FavoritesListProps {
   readonly searchQuery?: string
+  readonly sort: FavoritesSort
+  readonly isAuthenticated: boolean
 }
-
-type SortIndicatorProps = {
-  readonly direction?: OrderDirection
-  readonly isActive: boolean
-}
-
-type SortField = 'name' | 'addedAt'
 
 const PAGE_SIZE = 5
 
-const SortIndicator = ({ direction, isActive }: SortIndicatorProps) => {
-  if (!isActive) {
-    return (
-      <div className="flex flex-col">
-        <ChevronDown className="size-[8.2px] rotate-180 text-ens-gray-three" />
-        <ChevronDown className="size-[8.2px] text-ens-gray-three" />
-      </div>
-    )
-  }
+const NameRowSkeleton = () => (
+  <div className="flex items-center gap-4">
+    <div className="size-[26px] shrink-0 animate-pulse rounded bg-gray-200" />
+    <div className="size-[40px] shrink-0 animate-pulse rounded-full bg-gray-200" />
+    <div className="h-[28px] w-[150px] animate-pulse rounded-[2px] bg-gray-200" />
+  </div>
+)
 
-  return (
-    <div className="flex flex-col">
-      <ChevronDown
-        className={`size-[8.2px] rotate-180 ${direction === OrderDirection.Asc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
-      />
-      <ChevronDown
-        className={`size-[8.2px] ${direction === OrderDirection.Desc ? 'text-ens-blue' : 'text-ens-gray-three'}`}
-      />
-    </div>
-  )
+const parseSort = (
+  sort: FavoritesSort,
+): { field: FavoritesSortField; direction: OrderDirection } => {
+  const [field, dir] = sort.split('-') as [FavoritesSortField, 'asc' | 'desc']
+  return {
+    field,
+    direction: dir === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
+  }
 }
 
-export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
-  const { t } = useLingui()
+export const FavoritesList = ({
+  searchQuery = '',
+  sort,
+  isAuthenticated,
+}: FavoritesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
-  const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDirection, setSortDirection] = useState<OrderDirection | null>(
-    null,
-  )
+  const { field: sortField, direction: sortDirection } = parseSort(sort)
 
-  const { data: apiFavorites = [], isLoading } = useQuery(favoritesQueryOptions)
+  const filterKey = `${searchQuery} ${sort}`
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey)
+    setPage(1)
+  }
+
+  const { data: apiFavorites = [], isLoading } = useQuery({
+    ...favoritesQueryOptions,
+    enabled: isAuthenticated,
+  })
   const favorites = apiFavorites.map(toLocalEntry)
   const favoritesCount = apiFavorites.length
   const removeMutation = useMutation(removeFavoriteMutationOptions)
@@ -84,20 +74,20 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     removeMutation.mutate({ name: label })
   }
 
-  const paginatedData = useMemo(() => {
+  const sortedFiltered = useMemo(() => {
     const filtered = filterFavoritesBySearch(favorites, searchQuery)
-    const sorted = sortDirection
-      ? sortFavorites(filtered, sortField, sortDirection)
-      : filtered
-    return paginateFavorites(sorted, page, PAGE_SIZE)
-  }, [favorites, searchQuery, sortField, sortDirection, page])
+    return sortFavorites(filtered, sortField, sortDirection)
+  }, [favorites, searchQuery, sortField, sortDirection])
 
+  const totalCount = sortedFiltered.length
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedData = paginateFavorites(
+    sortedFiltered,
+    currentPage,
+    PAGE_SIZE,
+  )
   const paginatedFavorites = paginatedData.favorites
-  const totalCount = paginatedData.totalCount
-  const hasNextPage = paginatedData.hasNextPage
-  const hasPrevPage = paginatedData.hasPrevPage
-  const startIndex = paginatedData.startIndex
-  const endIndex = paginatedData.endIndex
 
   const visibleLabels = useMemo(
     () => paginatedFavorites.map((fav) => fav.label),
@@ -108,111 +98,19 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
     namesAvatarsByNameQuery(visibleLabels),
   )
 
-  const handlePrev = () => {
-    if (page > 1) {
-      setPage((p) => p - 1)
-    }
-  }
-
-  const handleNext = () => {
-    if (hasNextPage) {
-      setPage((p) => p + 1)
-    }
-  }
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field && sortDirection !== null) {
-      setSortDirection((prev) =>
-        prev === OrderDirection.Desc ? OrderDirection.Asc : OrderDirection.Desc,
-      )
-    } else {
-      setSortField(field)
-      setSortDirection(OrderDirection.Asc)
-    }
-    setPage(1)
-  }
-
   return (
     <div className="w-full">
-      {/* Mobile Sort Dropdown */}
-      <div className="mb-4 flex md:hidden">
-        <div className="flex h-8 items-center gap-1 rounded-full border border-border bg-white px-2">
-          <span className="font-sans text-foreground text-xs tracking-[0.24px]">
-            <Trans>Sort by</Trans>
-          </span>
-          <select
-            aria-label={t`Sort favorites by`}
-            className="bg-transparent font-medium font-sans text-foreground text-xs tracking-[0.24px] outline-none"
-            onChange={(e) => {
-              const [field, direction] = e.target.value.split('-') as [
-                SortField,
-                'asc' | 'desc',
-              ]
-              setSortField(field)
-              setSortDirection(
-                direction === 'asc' ? OrderDirection.Asc : OrderDirection.Desc,
-              )
-              setPage(1)
-            }}
-            value={
-              sortDirection
-                ? `${sortField}-${sortDirection === OrderDirection.Asc ? 'asc' : 'desc'}`
-                : 'name-asc'
-            }
-          >
-            <option value="name-asc">
-              <Trans>Name (A-Z)</Trans>
-            </option>
-            <option value="name-desc">
-              <Trans>Name (Z-A)</Trans>
-            </option>
-            <option value="addedAt-asc">
-              <Trans>Date added (Oldest)</Trans>
-            </option>
-            <option value="addedAt-desc">
-              <Trans>Date added (Newest)</Trans>
-            </option>
-          </select>
-        </div>
-      </div>
-
-      {/* Desktop Sort Header */}
-      <div className="hidden w-full md:flex md:items-center md:justify-between">
-        <button
-          aria-label={
-            sortDirection !== null && sortField === 'name'
-              ? sortDirection === OrderDirection.Asc
-                ? t`Sort by name, currently ascending`
-                : t`Sort by name, currently descending`
-              : t`Sort by name, currently unsorted`
-          }
-          className="flex cursor-pointer items-center gap-[8px]"
-          onClick={() => handleSort('name')}
-          type="button"
-        >
-          <span
-            className={`font-sans text-[16px] tracking-[0.24px] ${sortDirection !== null && sortField === 'name' ? 'text-foreground' : 'text-muted-foreground'}`}
-          >
-            <Trans>Name</Trans>
-          </span>
-          <SortIndicator
-            direction={sortDirection ?? undefined}
-            isActive={sortDirection !== null && sortField === 'name'}
-          />
-        </button>
-      </div>
-
       <div className="flex w-full flex-col">
         {match({ isLoading, paginatedFavorites, favoritesCount })
           .with({ isLoading: true }, () => (
             <>
-              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
+              <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
                 <NameRowSkeleton />
               </div>
-              <div className="border-[lightgrey] border-b-[0.41px] py-[24px]">
+              <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
                 <NameRowSkeleton />
               </div>
-              <div className="py-[24px]">
+              <div className="py-6">
                 <NameRowSkeleton />
               </div>
             </>
@@ -224,7 +122,7 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                <Trans>No names to display</Trans>
+                <Trans>No favorites to display</Trans>
               </span>
             </div>
           ))
@@ -235,73 +133,50 @@ export const FavoritesList = ({ searchQuery = '' }: FavoritesListProps) => {
                 strokeWidth={1}
               />
               <span className="font-sans text-muted-foreground text-sm">
-                <Trans>No names to display</Trans>
+                <Trans>No favorites to display</Trans>
               </span>
             </div>
           ))
           .otherwise(({ paginatedFavorites }) =>
-            paginatedFavorites.map((fav, index) => {
-              const avatarUrl = avatarsByName?.[fav.label]
-
-              return (
-                <motion.div
-                  className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
-                  key={fav.label}
-                  {...(shouldReduceMotion
-                    ? {}
-                    : {
-                        initial: { opacity: 0, y: 6 },
-                        animate: { opacity: 1, y: 0 },
-                        transition: {
-                          duration: 0.2,
-                          ease: [0.25, 0.46, 0.45, 0.94] as const,
-                          delay: index * 0.04,
-                        },
-                      })}
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <NameRow
-                      avatarUrl={avatarUrl}
-                      isFavorite={true}
-                      label={fav.label}
-                      onToggleFavorite={() => toggleFavorite(fav.label)}
-                      showFavoriteButton={true}
-                    />
-                  </div>
-                </motion.div>
-              )
-            }),
+            paginatedFavorites.map((fav, index) => (
+              <motion.div
+                className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none"
+                key={fav.label}
+                {...(shouldReduceMotion
+                  ? {}
+                  : {
+                      initial: { opacity: 0, y: 6 },
+                      animate: { opacity: 1, y: 0 },
+                      transition: {
+                        duration: 0.2,
+                        ease: [0.25, 0.46, 0.45, 0.94] as const,
+                        delay: index * 0.04,
+                      },
+                    })}
+              >
+                <NameRow
+                  avatarUrl={avatarsByName?.[fav.label]}
+                  isAuthenticated
+                  isFavorite
+                  label={fav.label}
+                  onToggleFavorite={() => toggleFavorite(fav.label)}
+                  showFavoriteButton
+                />
+              </motion.div>
+            )),
           )}
       </div>
 
       {totalCount > 0 && (
-        <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center justify-center gap-[12px]">
-            <button
-              aria-label={t`Previous page`}
-              className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
-              disabled={isLoading || !hasPrevPage}
-              onClick={handlePrev}
-              type="button"
-            >
-              <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
-            </button>
-            <button
-              aria-label={t`Next page`}
-              className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
-              disabled={isLoading || !hasNextPage}
-              onClick={handleNext}
-              type="button"
-            >
-              <CircleArrowRight className="size-[32px]" strokeWidth={1} />
-            </button>
-          </div>
-          <span className="font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-            <Trans>
-              Showing {startIndex}-{endIndex} of {totalCount}
-            </Trans>
-          </span>
-        </div>
+        <DashboardPagination
+          currentPage={currentPage}
+          disabled={isLoading}
+          onPageChange={setPage}
+          rangeEnd={paginatedData.endIndex}
+          rangeStart={paginatedData.startIndex}
+          total={totalCount}
+          totalPages={totalPages}
+        />
       )}
     </div>
   )

@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useChainId } from 'wagmi'
@@ -93,50 +92,12 @@ const CopyChip = ({
   )
 }
 
-export const EntityBadge = ({
-  children,
-  variant,
-  className,
-  externalHref,
-  label,
-}: {
-  label?: string
-  children: ReactNode
-  variant: EntityVariant
-  className?: string
-  /** External link — opens in new tab */
-  externalHref?: string
-}) => {
-  const labelContent = label ? (
-    <span className="bg-background text-center font-sans font-normal leading-4 px-1 rounded-l-xs h-4 ml-[-3px] mr-1">
-      {label}
-    </span>
-  ) : null
-
-  if (externalHref) {
-    return (
-      <ExternalLink
-        href={externalHref}
-        className={pillClass(variant, className)}
-      >
-        {labelContent}
-        {children}
-      </ExternalLink>
-    )
-  }
-
-  return (
-    <span className={pillClass(variant, className)}>
-      {labelContent}
-      {children}
-    </span>
-  )
-}
-
-interface EntityBadgeWithActionsProps {
+interface EntityBadgeProps {
   readonly children: ReactNode
   readonly variant: EntityVariant
   readonly className?: string
+  /** Optional leading label rendered inside the pill */
+  readonly label?: string
   /** ENS name — enables Name chip (→ /$name) + Copy chip */
   readonly name?: string
   /** Owner ENS name — enables Owner chip (→ /$ownerName) */
@@ -155,10 +116,11 @@ interface EntityBadgeWithActionsProps {
   readonly inline?: boolean
 }
 
-export const EntityBadgeWithActions = ({
+export const EntityBadge = ({
   children,
   variant,
   className,
+  label,
   name,
   ownerName,
   ownerAddress,
@@ -167,9 +129,15 @@ export const EntityBadgeWithActions = ({
   copyValue,
   showAvatar = false,
   inline = false,
-}: EntityBadgeWithActionsProps) => {
+}: EntityBadgeProps) => {
   const navigate = useNavigate()
   const chainId = useChainId()
+
+  const labelContent = label ? (
+    <span className="bg-background text-center font-sans font-normal leading-4 px-1 rounded-l-xs h-4 ml-[-3px] mr-1">
+      {label}
+    </span>
+  ) : null
 
   const { data: resolverInterfaces } = useQuery({
     ...getSupportsInterfacesQueryOptions({
@@ -203,9 +171,10 @@ export const EntityBadgeWithActions = ({
 
   if (!hasChips) {
     return (
-      <EntityBadge variant={variant} className={className}>
+      <span className={pillClass(variant, className)}>
+        {labelContent}
         {children}
-      </EntityBadge>
+      </span>
     )
   }
 
@@ -343,7 +312,10 @@ export const EntityBadgeWithActions = ({
           onClick={triggerPrimaryAction}
         >
           {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
+          <span className={pillClass(variant, className)}>
+            {labelContent}
+            {children}
+          </span>
         </button>
       ) : (
         <div
@@ -356,7 +328,10 @@ export const EntityBadgeWithActions = ({
           )}
         >
           {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
+          <span className={pillClass(variant, className)}>
+            {labelContent}
+            {children}
+          </span>
         </div>
       )}
     </div>
