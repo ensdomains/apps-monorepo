@@ -1,6 +1,6 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
-import { CircleCheckIcon } from 'lucide-react'
+import { CircleCheckIcon, Plus } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
@@ -31,10 +31,14 @@ type ConfigureRegistryFormProps = {
 
 export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   const { address: connectedAddress } = useConnection()
+
   const [useCustomRegistry, setUseCustomRegistry] = useState(false)
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   const deployedSubregistryAddressRef = useRef<Address | null>(null)
+
+  const [showDeploySubregistryForm, setShowDeploySubregistryForm] =
+    useState(false)
 
   const {
     openModal: openTransactionModal,
@@ -193,84 +197,117 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <Switch
-          checked={useCustomRegistry}
-          onCheckedChange={setUseCustomRegistry}
-          id="use-custom-registry"
-        />
-        <Label htmlFor="use-custom-registry" className="cursor-pointer">
-          Use custom registry
-        </Label>
+    <div className="flex flex-col gap-4 max-w-xl pl-14">
+      <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
+        <h3 className="text-3xl font-medium font-serif">
+          No registry configured
+        </h3>
+        <p className="text-base">
+          This name doesn't have a contract set to create and manage subnames.
+          Create one to turn <strong>{name}</strong> into its own namespace with
+          subnames like <strong>cold.{name}</strong> or{' '}
+          <strong>agent.{name}</strong>.
+        </p>
       </div>
-      {!useCustomRegistry && (
-        <span className="text-sm text-muted-foreground">
-          Deploy a new verified subregistry.
-        </span>
-      )}
-      {useCustomRegistry && (
-        <div className="flex flex-col gap-3">
-          <Label
-            htmlFor="contract-address"
-            info="The address of the custom registry contract"
-          >
-            Contract address
-          </Label>
-          <Input
-            id="contract-address"
-            placeholder="HEX address or ENS name"
-            value={contractAddress}
-            onChange={(e) => setContractAddress(e.target.value)}
-          />
+      {showDeploySubregistryForm ? (
+        <div className="flex flex-col gap-4">
+          <h4 className="text-lg font-medium font-serif">Deploy subregistry</h4>
+          <p className="text-base">
+            Deploy a new verified subregistry for <strong>{name}</strong>.
+          </p>
         </div>
+      ) : (
+        <Button
+          className="w-full"
+          variant="default"
+          onClick={() => setShowDeploySubregistryForm(true)}
+        >
+          <Plus className="size-3" />
+          Configure registry
+        </Button>
       )}
-
-      <Button
-        variant="default"
-        onClick={handleSubmit}
-        disabled={isSubmitDisabled}
-        className="w-fit"
-      >
-        <span className="flex items-center gap-2">
-          <CircleCheckIcon className="size-4" />
-          {buttonText}
-        </span>
-      </Button>
-
-      <TransactionModal
-        transactions={
-          isDeployPath
-            ? [
-                {
-                  id: DEPLOY_SUBREGISTRY_TX_ID,
-                  title: 'Deploy subregistry',
-                  transactionName: `Deploy subregistry for ${name}`,
-                  estimatedGasCost: 0.0008,
-                  onStart: handleDeploySubregistryStart,
-                  onDone: handleSetSubregistryAfterDeployStart,
-                },
-                {
-                  id: SET_SUBREGISTRY_TX_ID,
-                  title: 'Set subregistry',
-                  transactionName: `Set subregistry for ${name}`,
-                  estimatedGasCost: 0.0001,
-                  onStart: handleSetSubregistryAfterDeployStart,
-                  onDone: handleSetSubregistryDone,
-                },
-              ]
-            : [
-                {
-                  id: SET_SUBREGISTRY_TX_ID,
-                  title: 'Set subregistry',
-                  transactionName: `Set custom subregistry for ${name}`,
-                  estimatedGasCost: 0.0001,
-                  onStart: handleSetSubregistryStart,
-                  onDone: handleSetSubregistryDone,
-                },
-              ]
-        }
-      />
     </div>
   )
+
+  // return (
+  //   <div className="flex flex-col gap-4">
+  //     <div className="flex items-center gap-3">
+  //       <Switch
+  //         checked={useCustomRegistry}
+  //         onCheckedChange={setUseCustomRegistry}
+  //         id="use-custom-registry"
+  //       />
+  //       <Label htmlFor="use-custom-registry" className="cursor-pointer">
+  //         Use custom registry
+  //       </Label>
+  //     </div>
+  //     {!useCustomRegistry && (
+  //       <span className="text-sm text-muted-foreground">
+  //         Deploy a new verified subregistry.
+  //       </span>
+  //     )}
+  //     {useCustomRegistry && (
+  //       <div className="flex flex-col gap-3">
+  //         <Label
+  //           htmlFor="contract-address"
+  //           info="The address of the custom registry contract"
+  //         >
+  //           Contract address
+  //         </Label>
+  //         <Input
+  //           id="contract-address"
+  //           placeholder="HEX address or ENS name"
+  //           value={contractAddress}
+  //           onChange={(e) => setContractAddress(e.target.value)}
+  //         />
+  //       </div>
+  //     )}
+
+  //     <Button
+  //       variant="default"
+  //       onClick={handleSubmit}
+  //       disabled={isSubmitDisabled}
+  //       className="w-fit"
+  //     >
+  //       <span className="flex items-center gap-2">
+  //         <CircleCheckIcon className="size-4" />
+  //         {buttonText}
+  //       </span>
+  //     </Button>
+
+  //     <TransactionModal
+  //       transactions={
+  //         isDeployPath
+  //           ? [
+  //               {
+  //                 id: DEPLOY_SUBREGISTRY_TX_ID,
+  //                 title: 'Deploy subregistry',
+  //                 transactionName: `Deploy subregistry for ${name}`,
+  //                 estimatedGasCost: 0.0008,
+  //                 onStart: handleDeploySubregistryStart,
+  //                 onDone: handleSetSubregistryAfterDeployStart,
+  //               },
+  //               {
+  //                 id: SET_SUBREGISTRY_TX_ID,
+  //                 title: 'Set subregistry',
+  //                 transactionName: `Set subregistry for ${name}`,
+  //                 estimatedGasCost: 0.0001,
+  //                 onStart: handleSetSubregistryAfterDeployStart,
+  //                 onDone: handleSetSubregistryDone,
+  //               },
+  //             ]
+  //           : [
+  //               {
+  //                 id: SET_SUBREGISTRY_TX_ID,
+  //                 title: 'Set subregistry',
+  //                 transactionName: `Set custom subregistry for ${name}`,
+  //                 estimatedGasCost: 0.0001,
+  //                 onStart: handleSetSubregistryStart,
+  //                 onDone: handleSetSubregistryDone,
+  //               },
+  //             ]
+  //       }
+  //     />
+  //   </div>
+  // )
 }

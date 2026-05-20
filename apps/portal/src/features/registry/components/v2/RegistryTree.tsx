@@ -45,6 +45,7 @@ export const RegistryTree = ({
           return (
             <RegistryTreeItem
               chainId={chainId}
+              name={name}
               key={registry}
               ownerData={ownerData}
               index={index}

@@ -7,6 +7,7 @@ import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
+import { ConfigureRegistryForm } from './ConfigureRegistryForm'
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -15,6 +16,7 @@ type RegistryTreeItemProps = {
   registriesCount: number
   address: Address
   label: string
+  name: string
 }
 
 export const RegistryTreeItem = ({
@@ -24,6 +26,7 @@ export const RegistryTreeItem = ({
   registriesCount,
   address,
   label,
+  name,
 }: RegistryTreeItemProps) => {
   const isRoot = index === 0
   const isParent = index === 1
@@ -32,6 +35,7 @@ export const RegistryTreeItem = ({
   const isRegistryConfigured = address !== zeroAddress
 
   const isLastWithRegistryConfigured = isLast && isRegistryConfigured
+  const isLastWithoutRegistryConfigured = isLast && !isRegistryConfigured
 
   const { data: summary } = useQuery({
     ...getRegistryLabelCountQueryOptions({ address }),
@@ -110,6 +114,9 @@ export const RegistryTreeItem = ({
             </Button> */}
           </dd>
         </dl>
+      ) : null}
+      {isLastWithoutRegistryConfigured ? (
+        <ConfigureRegistryForm name={name} />
       ) : null}
     </div>
   )
