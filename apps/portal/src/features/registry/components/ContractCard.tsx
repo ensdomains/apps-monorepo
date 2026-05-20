@@ -1,6 +1,6 @@
 import { FileCode } from 'lucide-react'
 import type { Address } from 'viem'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { BlockCard } from '@/features/dashboard/components'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -25,14 +25,14 @@ export function ContractCard({
           <FileCode className="size-4 shrink-0" />
           <span className="text-sm truncate">{label}</span>
         </div>
-        <EntityBadgeWithActions
+        <EntityBadge
           inline
           variant="contract"
           address={address}
           etherscanHref={explorerUrl}
         >
           {truncateAddress(address)}
-        </EntityBadgeWithActions>
+        </EntityBadge>
       </div>
     </BlockCard>
   )

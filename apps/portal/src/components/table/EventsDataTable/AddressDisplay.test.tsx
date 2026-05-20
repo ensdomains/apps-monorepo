@@ -23,7 +23,7 @@ vi.mock('wagmi', () => ({
 }))
 
 vi.mock('@/components/EntityBadge', () => ({
-  EntityBadgeWithActions: ({
+  EntityBadge: ({
     children,
     name,
     address,

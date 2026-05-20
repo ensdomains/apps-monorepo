@@ -4,12 +4,12 @@ import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useSelector } from '@xstate/react'
 import type { ActorRefFrom } from 'xstate'
 import { calculateExpirationDate } from '@/features/register/components/Pricing/utils'
-import { NotificationSettings } from '@/features/register/components/RegistrationInProgress/NotificationSettings'
 import {
   ProgressBar,
   type ProgressStage,
 } from '@/features/register/components/RegistrationInProgress/ProgressBar'
 import { RegistrationDetails } from '@/features/register/components/RegistrationInProgress/RegistrationDetails'
+import { NotificationSettings } from '@/features/register-v2/workflow/registering/components/NotificationSettings'
 
 interface RegistrationInProgressProps {
   domainName: string
@@ -25,19 +25,15 @@ interface RegistrationInProgressProps {
   showRegistrationDetails?: boolean
 }
 
-/**
- * Maps machine state to progress bar stage
- * Handles both simple string states and nested states (like error.submission)
- */
+const noop = () => {}
+
 function mapMachineStateToProgressStage(
   stateValue: string | Record<string, unknown>,
 ): ProgressStage {
-  // Handle nested error states
   if (typeof stateValue === 'object' && 'error' in stateValue) {
     return 'error'
   }
 
-  // Convert to string for simple state matching
   const machineState = String(stateValue)
 
   switch (machineState) {
@@ -73,13 +69,12 @@ export const RegistrationInProgress = ({
   duration,
   totalPrice,
   discountAmount,
-  onNotificationConfirm,
-  onNotificationSkip,
+  onNotificationConfirm = noop,
+  onNotificationSkip = noop,
   onGoToDashboard,
   onProfileNavigate,
   showRegistrationDetails = false,
 }: RegistrationInProgressProps) => {
-  // Get the raw state value (can be string or object for nested states)
   const stateValue = useSelector(actor, (state) => state.value)
 
   const error = useSelector(actor, (state) => state.context.error)
@@ -88,14 +83,6 @@ export const RegistrationInProgress = ({
   const isRegistrationComplete = stateValue === 'success'
 
   const expiresDate = calculateExpirationDate(duration)
-
-  const handleNotificationConfirm = () => {
-    onNotificationConfirm?.()
-  }
-
-  const handleNotificationSkip = () => {
-    onNotificationSkip?.()
-  }
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-0 pt-10 pb-6 md:px-6">
@@ -119,8 +106,8 @@ export const RegistrationInProgress = ({
           />
         ) : (
           <NotificationSettings
-            onConfirm={handleNotificationConfirm}
-            onSkip={handleNotificationSkip}
+            onConfirm={onNotificationConfirm}
+            onSkip={onNotificationSkip}
           />
         )}
       </div>

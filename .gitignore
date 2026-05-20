@@ -11,3 +11,4 @@ package-lock.json
 .pnpm-store/
 opencode.json
 e2e/test-results/*
+.security-audit/
