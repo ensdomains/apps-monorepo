@@ -93,6 +93,7 @@ export const RegistryTreeItem = ({
               variant="contract"
               className="font-normal"
               address={address}
+              isRegistry
             >
               {truncateAddress(address, 6, 4)}
             </EntityBadge>

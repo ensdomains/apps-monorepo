@@ -10,6 +10,7 @@ import {
   ChipLinkIcon,
   ChipNameIcon,
   ChipWalletIcon,
+  HubIcon,
   ResolverIcon,
 } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -130,6 +131,8 @@ interface EntityBadgeProps {
   readonly ownerAddress?: Address
   /** Address — enables Address chip (→ /addr/$address) */
   readonly address?: Address
+  /** Mark a contract `address` as a registry — enables Registry chip + primary action (→ /registry/$address) */
+  readonly isRegistry?: boolean
   /** Block explorer URL — enables Etherscan chip */
   readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
@@ -147,6 +150,7 @@ export const EntityBadge = ({
   ownerName,
   ownerAddress,
   address,
+  isRegistry = false,
   etherscanHref,
   copyValue,
   showAvatar = false,
@@ -207,7 +211,8 @@ export const EntityBadge = ({
   const hasPrimaryAction =
     (variant === 'name' && !!name) ||
     (variant === 'address' && !!address) ||
-    (variant === 'contract' && (isResolver ? !!address : !!etherscanHref)) ||
+    (variant === 'contract' &&
+      (isRegistry || isResolver ? !!address : !!etherscanHref)) ||
     (variant === 'tx' && !!etherscanHref)
 
   const triggerPrimaryAction = () => {
@@ -222,7 +227,9 @@ export const EntityBadge = ({
     }
 
     if (variant === 'contract') {
-      if (isResolver && address) {
+      if (isRegistry && address) {
+        navigate({ to: '/registry/$address', params: { address } })
+      } else if (isResolver && address) {
         navigate({ to: '/resolver/$address', params: { address } })
       } else if (etherscanHref) {
         window.open(etherscanHref, '_blank', 'noopener,noreferrer')
@@ -357,6 +364,17 @@ export const EntityBadge = ({
             label={contractName}
             showIcon={false}
           />
+        )}
+
+        {variant === 'contract' && isRegistry && address && (
+          <Link
+            to="/registry/$address"
+            params={{ address }}
+            className={chipClass}
+          >
+            <HubIcon className="size-3.25" />
+            Registry
+          </Link>
         )}
 
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
