@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import type { Address } from 'viem'
@@ -18,13 +18,14 @@ import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
 
-export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
+export type EntityVariant = 'name' | 'address' | 'contract' | 'tx' | 'default'
 
 const variantClass: Record<EntityVariant, string> = {
   name: 'bg-accent-fill dark:bg-entity-bg text-accent-text',
   address: 'bg-success-fill dark:bg-entity-bg text-success-text',
   contract: 'bg-danger-fill dark:bg-entity-bg text-danger-text',
   tx: 'bg-warning-fill dark:bg-entity-bg text-warning-text',
+  default: 'bg-default-fill dark:bg-entity-bg text-default-text',
 }
 
 export const hoverBgClass: Record<EntityVariant, string> = {
@@ -32,6 +33,7 @@ export const hoverBgClass: Record<EntityVariant, string> = {
   address: 'hover:bg-success-fill dark:hover:bg-entity-bg',
   contract: 'hover:bg-danger-fill dark:hover:bg-entity-bg',
   tx: 'hover:bg-warning-fill dark:hover:bg-entity-bg',
+  default: 'hover:bg-default-fill dark:hover:bg-entity-bg',
 }
 
 const pillClass = (variant: EntityVariant, className?: string) =>
@@ -81,13 +83,18 @@ const CopyChip = ({
   }, [copied])
 
   return (
-    <button type="button" className={chipClass} onClick={handleCopy}>
+    <button
+      type="button"
+      className={chipClass}
+      onClick={handleCopy}
+      aria-label={label || 'Copy'}
+    >
       {copied ? (
         <CheckIcon className="size-3.25" />
       ) : (
         showIcon && <ChipCopyIcon className="size-3.25" />
       )}
-      {!copied && label}
+      {!copied && label ? label : null}
     </button>
   )
 }
@@ -127,7 +134,6 @@ export const EntityBadge = ({
   showAvatar = false,
   inline = false,
 }: EntityBadgeProps) => {
-  const navigate = useNavigate()
   const chainId = useChainId()
 
   const { data: resolverInterfaces } = useQuery({
@@ -160,39 +166,121 @@ export const EntityBadge = ({
     derivedCopyValue
   )
 
+  // Default variant: plain truncatable text with a floating Copy chip above
+  // it on hover — same overlay pattern as the other variants, but with only
+  // the Copy chip and a non-interactive (no link/button) primary.
+  if (variant === 'default') {
+    return (
+      <div
+        className={cn(
+          'relative group/entity',
+          inline ? 'inline-flex' : 'flex w-full min-w-0',
+        )}
+      >
+        {derivedCopyValue && (
+          <div
+            className={cn(
+              'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
+              inline ? 'right-0' : 'left-0',
+            )}
+          >
+            <CopyChip value={derivedCopyValue} />
+          </div>
+        )}
+        <span
+          className={cn(
+            'block min-w-0 truncate font-mono text-sm font-medium tracking-tight',
+            'px-1 rounded border-[0.5px] border-entity-border',
+            'bg-default-fill text-default-text',
+            'dark:bg-entity-bg',
+            className,
+          )}
+        >
+          {children}
+        </span>
+      </div>
+    )
+  }
+
   if (!hasChips) {
     return <span className={pillClass(variant, className)}>{children}</span>
   }
 
-  const hasPrimaryAction =
-    (variant === 'name' && !!name) ||
-    (variant === 'address' && !!address) ||
-    (variant === 'contract' && (isResolver ? !!address : !!etherscanHref)) ||
-    (variant === 'tx' && !!etherscanHref)
+  const wrapperBase = cn(
+    'items-center gap-2 rounded-lg transition-colors',
+    inline ? 'inline-flex px-1.5 py-1 rounded' : 'flex w-full px-3.5 py-3.5',
+    hoverBgClass[variant],
+  )
+  const interactiveWrapper = cn(
+    wrapperBase,
+    'cursor-pointer text-left no-underline',
+  )
 
-  const triggerPrimaryAction = () => {
+  const wrapperContent = (
+    <>
+      {resolvedAvatar}
+      <span className={pillClass(variant, className)}>{children}</span>
+    </>
+  )
+
+  // Real <Link>/<a> elements preserve middle-click, ⌘+click, "Open in new tab",
+  // status-bar URL preview, and right-click affordances — none of which work
+  // with a button + navigate() pattern.
+  const renderPrimary = () => {
     if (variant === 'name' && name) {
-      navigate({ to: '/$name', params: { name } })
-      return
+      return (
+        <Link to="/$name" params={{ name }} className={interactiveWrapper}>
+          {wrapperContent}
+        </Link>
+      )
     }
-
     if (variant === 'address' && address) {
-      navigate({ to: '/addr/$addr', params: { addr: address } })
-      return
+      return (
+        <Link
+          to="/addr/$addr"
+          params={{ addr: address }}
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </Link>
+      )
     }
-
-    if (variant === 'contract') {
-      if (isResolver && address) {
-        navigate({ to: '/resolver/$address', params: { address } })
-      } else if (etherscanHref) {
-        window.open(etherscanHref, '_blank', 'noopener,noreferrer')
-      }
-      return
+    if (variant === 'contract' && isResolver && address) {
+      return (
+        <Link
+          to="/resolver/$address"
+          params={{ address }}
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </Link>
+      )
     }
-
+    if (variant === 'contract' && !isResolver && etherscanHref) {
+      return (
+        <a
+          href={etherscanHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </a>
+      )
+    }
     if (variant === 'tx' && etherscanHref) {
-      window.open(etherscanHref, '_blank', 'noopener,noreferrer')
+      return (
+        <a
+          href={etherscanHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </a>
+      )
     }
+    return <div className={wrapperBase}>{wrapperContent}</div>
   }
 
   return (
@@ -285,35 +373,7 @@ export const EntityBadge = ({
         )}
       </div>
 
-      {hasPrimaryAction ? (
-        <button
-          type="button"
-          className={cn(
-            'items-center gap-2 rounded-lg transition-colors cursor-pointer text-left',
-            inline
-              ? 'inline-flex px-1.5 py-1 rounded'
-              : 'flex w-full px-3.5 py-3.5',
-            hoverBgClass[variant],
-          )}
-          onClick={triggerPrimaryAction}
-        >
-          {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
-        </button>
-      ) : (
-        <div
-          className={cn(
-            'items-center gap-2 rounded-lg transition-colors',
-            inline
-              ? 'inline-flex px-1.5 py-1 rounded'
-              : 'flex w-full px-3.5 py-3.5',
-            hoverBgClass[variant],
-          )}
-        >
-          {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
-        </div>
-      )}
+      {renderPrimary()}
     </div>
   )
 }

@@ -115,6 +115,7 @@
   --success-text: #007c20;
   --danger-text: #e72a96;
   --warning-text: #984d1b;
+  --default-text: #595755;
   --entity-bg: transparent;
   --entity-border: transparent;
   /* Semantic fill colors — light mode per-variant backgrounds */
@@ -122,6 +123,7 @@
   --success-fill: #e8f6ef;
   --danger-fill: #fef0f6;
   --warning-fill: #fdf6ee;
+  --default-fill: #F2F2F2;
   --icon-foreground: #191919;
 
   /* Button component tokens */
@@ -258,12 +260,14 @@
   --color-success-text: var(--success-text);
   --color-danger-text: var(--danger-text);
   --color-warning-text: var(--warning-text);
+  --color-default-text: var(--default-text);
   --color-entity-bg: var(--entity-bg);
   --color-entity-border: var(--entity-border);
   --color-accent-fill: var(--accent-fill);
   --color-success-fill: var(--success-fill);
   --color-danger-fill: var(--danger-fill);
   --color-warning-fill: var(--warning-fill);
+  --color-default-fill: var(--default-fill);
   --color-icon-foreground: var(--icon-foreground);
   --color-button-danger-default: var(--button-danger-default);
   --color-button-danger-hover: var(--button-danger-hover);
@@ -321,6 +325,7 @@
   --success-text: #1cbf46;
   --danger-text: #f569ab;
   --warning-text: #e7a259;
+  --default-text: #a1a1a1;
   --icon-foreground: #595755;
 
   /* Button component tokens — dark */
