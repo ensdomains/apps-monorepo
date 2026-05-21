@@ -17,7 +17,10 @@ import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Hash } from 'viem'
 import { sepolia } from 'viem/chains'
-import { TransactionSubmissionError } from '../errors/transaction.errors'
+import {
+  extractOrchestratorErrorContext,
+  TransactionSubmissionError,
+} from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
 import type { TransactionRequest } from '../types/transaction.types'
 
@@ -183,30 +186,41 @@ export function submitWarpTransaction(
       return txHash
     })(),
     (error: unknown) => {
-      // Surface full orchestrator error context (errorType, traceId, simulations)
-      // SDK throws SimulationFailedError / OrchestratorError with rich fields the
-      // default Error.message hides. Logging here so the next 400 is debuggable.
+      // Surface full orchestrator error context. The Rhinestone SDK
+      // throws `SimulationFailedError` / `OrchestratorError` instances
+      // that carry `context`, `errorType`, `traceId`, `statusCode`,
+      // `simulations` as enumerable properties — none of which show up
+      // in the default `Error.message` and none of which survive a
+      // structured-clone round-trip via `postMessage` or react devtools'
+      // collapsed-object preview.
+      //
+      // Three things are done here so the next 400 is debuggable:
+      //   1. Pretty-print the orchestrator fields (bigint-safe) to the
+      //      logger so they're in the dev console regardless of how the
+      //      logger sink formats objects.
+      //   2. Pass the original `error` as the cause; the
+      //      `TransactionSubmissionError` constructor now lifts the
+      //      orchestrator fields onto `error.orchestrator` AND inlines
+      //      a one-line summary into `error.message`, so the rich
+      //      context propagates through XState's error event without
+      //      consumers having to re-parse the cause.
+      const orchestrator = extractOrchestratorErrorContext(error)
+      const message = error instanceof Error ? error.message : String(error)
       try {
-        const e = error as {
-          message?: string
-          context?: unknown
-          errorType?: string
-          traceId?: string
-          statusCode?: number
-          simulations?: unknown
-          name?: string
-        }
-        logger.error('🛑 [WARP] Orchestrator error detail:', {
-          name: e.name,
-          message: e.message,
-          errorType: e.errorType,
-          traceId: e.traceId,
-          statusCode: e.statusCode,
-          context: e.context,
-          simulations: e.simulations,
-        })
+        logger.error(
+          '🛑 [WARP] Orchestrator error detail:',
+          JSON.stringify(
+            { message, ...orchestrator },
+            (_, v) => (typeof v === 'bigint' ? v.toString() : v),
+            2,
+          ),
+        )
       } catch {
-        logger.error('🛑 [WARP] Orchestrator error (unserializable):', error)
+        logger.error(
+          '🛑 [WARP] Orchestrator error (unserializable):',
+          message,
+          orchestrator,
+        )
       }
       return new TransactionSubmissionError(request, error as Error)
     },
