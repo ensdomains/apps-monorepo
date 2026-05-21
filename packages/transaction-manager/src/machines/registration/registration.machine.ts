@@ -58,7 +58,7 @@ export type RegistrationContext = {
   // Account & client
   signer?: Signer
   accountAddress?: Address
-  ownerAddress?: Address // ENS name owner (for rhinestone smart-session policy this is the SCA; for EOA flow it's the EOA)
+  ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA` (see @ens-apps/smart-account build-registration-session.ts), so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
   resolverOwnerAddress?: Address // Address to grant EACL roles to on the dedicated resolver. Must be the EOA that the resolver will see at write time after SCA→EOA unwrap; defaults to ownerAddress.
   publicClient?: PublicClient
   chainId: number
@@ -102,7 +102,7 @@ export type RegistrationEvent =
       price: bigint
       signer: Signer
       accountAddress: Address
-      ownerAddress?: Address // ENS name owner (SCA for rhinestone smart-session policy, EOA for EOA-only flow)
+      ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
       useFastRegistrar?: boolean
