@@ -212,7 +212,7 @@ const CreateSubnameForm = ({
           create subnames.
         </p>
         <Button asChild variant="default" className="w-fit">
-          <Link to="/$name/deploy-registry" params={{ name }}>
+          <Link to="/$name/registry" params={{ name }}>
             Deploy subregistry
           </Link>
         </Button>

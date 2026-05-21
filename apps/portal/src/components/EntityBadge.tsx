@@ -37,7 +37,7 @@ export const hoverBgClass: Record<EntityVariant, string> = {
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
-    'border-[0.5px] border-entity-border group-hover/entity:border-transparent',
+    'border border-entity-border group-hover/entity:border-transparent',
     'font-mono text-sm font-medium tracking-tight whitespace-nowrap no-underline',
     variantClass[variant],
     className,
@@ -96,6 +96,8 @@ interface EntityBadgeProps {
   readonly children: ReactNode
   readonly variant: EntityVariant
   readonly className?: string
+  /** Optional leading label rendered inside the pill */
+  readonly label?: string
   /** ENS name — enables Name chip (→ /$name) + Copy chip */
   readonly name?: string
   /** Owner ENS name — enables Owner chip (→ /$ownerName) */
@@ -118,6 +120,7 @@ export const EntityBadge = ({
   children,
   variant,
   className,
+  label,
   name,
   ownerName,
   ownerAddress,
@@ -129,6 +132,12 @@ export const EntityBadge = ({
 }: EntityBadgeProps) => {
   const navigate = useNavigate()
   const chainId = useChainId()
+
+  const labelContent = label ? (
+    <span className="bg-background text-center font-sans font-normal leading-4 px-1 rounded-l-xs h-4 ml-[-3px] mr-1">
+      {label}
+    </span>
+  ) : null
 
   const { data: resolverInterfaces } = useQuery({
     ...getSupportsInterfacesQueryOptions({
@@ -161,7 +170,12 @@ export const EntityBadge = ({
   )
 
   if (!hasChips) {
-    return <span className={pillClass(variant, className)}>{children}</span>
+    return (
+      <span className={pillClass(variant, className)}>
+        {labelContent}
+        {children}
+      </span>
+    )
   }
 
   const hasPrimaryAction =
@@ -298,7 +312,10 @@ export const EntityBadge = ({
           onClick={triggerPrimaryAction}
         >
           {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
+          <span className={pillClass(variant, className)}>
+            {labelContent}
+            {children}
+          </span>
         </button>
       ) : (
         <div
@@ -311,7 +328,10 @@ export const EntityBadge = ({
           )}
         >
           {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
+          <span className={pillClass(variant, className)}>
+            {labelContent}
+            {children}
+          </span>
         </div>
       )}
     </div>
