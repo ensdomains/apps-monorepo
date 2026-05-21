@@ -55,14 +55,20 @@ const chipClass = cn(
 
 // Chip overlay reveal behavior. Uses opacity + pointer-events instead of
 // display:none so the chip stays in the tab order and the accessibility
-// tree. Reveals on mouse hover, on keyboard focus-within the badge group,
-// and is always visible on touch devices (no hover capability).
+// tree. Reveals on mouse hover and on keyboard focus-within the badge group.
 const chipOverlayBase = cn(
   'absolute bottom-full pb-2 flex flex-row gap-1 z-50',
   'opacity-0 pointer-events-none transition-opacity',
   'group-hover/entity:opacity-100 group-hover/entity:pointer-events-auto',
   'group-focus-within/entity:opacity-100 group-focus-within/entity:pointer-events-auto',
-  '[@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto',
+)
+
+// Default variant only: also show on touch devices, since copy is the
+// primary affordance for read-only fields and there's no badge-level tap
+// fallback the way other variants have a link.
+const chipOverlayAlwaysOnTouch = cn(
+  '[@media(hover:none)]:opacity-100',
+  '[@media(hover:none)]:pointer-events-auto',
 )
 
 const CopyChip = ({
@@ -190,7 +196,13 @@ export const EntityBadge = ({
         )}
       >
         {derivedCopyValue && (
-          <div className={cn(chipOverlayBase, inline ? 'right-0' : 'left-0')}>
+          <div
+            className={cn(
+              chipOverlayBase,
+              chipOverlayAlwaysOnTouch,
+              inline ? 'right-0' : 'left-0',
+            )}
+          >
             <CopyChip value={derivedCopyValue} />
           </div>
         )}
