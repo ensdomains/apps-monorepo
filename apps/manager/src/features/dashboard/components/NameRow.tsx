@@ -18,8 +18,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
+import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
   Ensv1OnlyPill,
