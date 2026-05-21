@@ -133,7 +133,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
   const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
   const protocolVersion = ownerData?.protocolVersion
   const items = getItems(name, protocolVersion)
-  const { state, isMobile } = useSidebar()
+  const { state, isMobile, setOpenMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
 
   return (
@@ -182,12 +182,14 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
             to="/$name"
             params={{ name }}
             activeProps={{ 'data-active': 'true' }}
-            className="flex items-center gap-2 hover:opacity-80"
+            activeOptions={{ exact: true }}
+            onClick={() => setOpenMobile(false)}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-2 outline-hidden ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
           >
             <NameAvatar
               name={name}
-              height="36px"
-              width="36px"
+              height="24px"
+              width="24px"
               rounded="rounded-xs"
             />
             <span className="group-data-[collapsible=icon]:hidden text-base font-medium text-foreground break-all leading-tight">
