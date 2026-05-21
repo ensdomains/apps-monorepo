@@ -87,7 +87,7 @@ interface AddrSidebarProps {
 
 export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
   const items = getItems(addr)
-  const { state, isMobile } = useSidebar()
+  const { state, isMobile, setOpenMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
 
   return (
@@ -135,10 +135,12 @@ export const AddrSidebar = ({ addr }: AddrSidebarProps) => {
             to="/addr/$addr"
             params={{ addr }}
             activeProps={{ 'data-active': 'true' }}
-            className="flex items-center gap-2 hover:opacity-80"
+            activeOptions={{ exact: true }}
+            onClick={() => setOpenMobile(false)}
+            className="group/title flex w-full items-center gap-2 rounded-md px-2 py-2 outline-hidden ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
           >
-            <div className="size-9 shrink-0 rounded bg-muted flex items-center justify-center">
-              <WalletIcon className="size-4 text-muted-foreground" />
+            <div className="size-6 shrink-0 rounded bg-neutral-2 group-data-[active=true]/title:bg-neutral-3 flex items-center justify-center">
+              <WalletIcon className="size-3.5 text-neutral-6" />
             </div>
             <span className="group-data-[collapsible=icon]:hidden text-sm font-mono font-medium text-foreground break-all leading-tight">
               {truncateAddress(addr, 6, 4, '...')}
