@@ -8,14 +8,21 @@
 import type { Address } from 'viem'
 import type { StoredSession } from './types'
 
-// Storage for Rhinestone smart-session credentials. A previous
-// rhinestone smart-session policy pinned `register.owner == SCA`; the
-// current policy pins `register.owner == EOA`, which changes the
-// action-set hash → PermissionId, so the key was bumped from v1 to
-// invalidate any sessions stored under the prior policy. Old key
+// Storage for Rhinestone smart-session credentials.
+//
+// Key history:
+//   v1 → v2: pinned `register.owner == EOA` (was SCA), changing the
+//            action-set hash → PermissionId.
+//   v2 → v3: added a `time-frame` policy to every action so on-chain
+//            enforcement matches the client-side `validUntil`. Again
+//            changes the action-set hash → PermissionId.
+//
+// Each bump invalidates sessions stored under prior policies — using a
+// stale `enableSignature` against a different PermissionId yields
+// `InvalidSignature()` at orchestrator simulation time. Old key
 // contents are harmless cruft; a new session is re-enabled lazily on
 // the next registration with a single wallet prompt.
-const SESSION_STORAGE_KEY = 'ens-sessions-v2'
+const SESSION_STORAGE_KEY = 'ens-sessions-v3'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**
@@ -188,7 +195,18 @@ export function setSkippedStatus(
 }
 
 /**
- * Check if a session is expired
+ * Client-side staleness check used to evict expired rows from
+ * localStorage and surface a "reconnect" prompt before the user spends
+ * a transaction.
+ *
+ * NOT a security boundary — the on-chain `time-frame` policy baked into
+ * the session's actions is what actually rejects an exfiltrated key
+ * past `validUntil`. This helper just keeps the dApp's view of storage
+ * in sync with that on-chain bound.
+ *
+ * Returns `false` for sessions with no `validUntil` set (treat as
+ * non-expiring at the client level — the on-chain policy is still
+ * authoritative for newly issued sessions, which always set it).
  */
 export function isSessionExpired(session: StoredSession): boolean {
   if (!session.validUntil) return false
@@ -196,7 +214,12 @@ export function isSessionExpired(session: StoredSession): boolean {
 }
 
 /**
- * Get a valid (non-expired) session for an account
+ * Get a non-stale session for an account, evicting it from
+ * localStorage if its `validUntil` has passed.
+ *
+ * "Non-stale" here is the client-side cache check (see
+ * `isSessionExpired`) — on-chain enforcement of the same bound lives in
+ * the session's time-frame policy.
  */
 export function getValidSession(accountAddress: Address): StoredSession | null {
   const session = getSession(accountAddress)
@@ -209,7 +232,8 @@ export function getValidSession(accountAddress: Address): StoredSession | null {
 }
 
 /**
- * Get a valid session by owner address
+ * Get a non-stale session by owner EOA, evicting from localStorage on
+ * expiry. Same client-side-only semantics as {@link getValidSession}.
  */
 export function getValidSessionByOwner(
   ownerAddress: Address,

@@ -28,6 +28,13 @@ export type SessionClient = {
   readonly sessionPrivateKey: Hex
   readonly enableSignature: Hex
   readonly hashesAndChainIds: string
+  /**
+   * Session expiry (unix seconds). Required for signer construction —
+   * the `time-frame` policy baked into the actions array is derived from
+   * this value, and the rebuild in SmartAccountContext must reproduce the
+   * exact same actions to match the PermissionId.
+   */
+  readonly validUntil: number
 }
 
 export interface CheckSessionInput {
@@ -79,6 +86,19 @@ export function createSessionActor(
     chain: input.chain,
     config: input.config,
   }).andThen(({ session, sessionPrivateKey }) => {
+    // `validUntil` is always populated by `createRhinestoneSession`
+    // (default 30 days, or `config.validUntil` if provided). Guard
+    // anyway so a future regression surfaces here rather than as an
+    // `InvalidSignature()` revert at signer-construction time.
+    if (typeof session.validUntil !== 'number') {
+      return errAsync(
+        new SessionError(
+          'Failed to create session',
+          'Created Rhinestone session is missing validUntil',
+        ),
+      )
+    }
+
     saveSession(session)
 
     return okAsync({
@@ -87,6 +107,7 @@ export function createSessionActor(
         sessionPrivateKey,
         enableSignature: session.enableSignature,
         hashesAndChainIds: session.hashesAndChainIds,
+        validUntil: session.validUntil,
       },
     })
   })
@@ -114,11 +135,27 @@ export function restoreSessionActor(
     )
   }
 
+  // The on-chain `time-frame` policy is keyed off `validUntil` and is
+  // part of the PermissionId. A session persisted under an older code
+  // path (no time-frame policy) cannot be replayed correctly — refuse
+  // to restore it; the dApp will prompt for a fresh enable.
+  if (typeof session.validUntil !== 'number') {
+    return errAsync(
+      new SessionError(
+        'Failed to restore session',
+        'Stored Rhinestone session is missing validUntil',
+      ),
+    )
+  }
+
+  const restoredValidUntil = session.validUntil
+
   return restoreRhinestoneSession({ session }).map(() => ({
     sessionClient: {
       sessionPrivateKey: session.sessionPrivateKey,
       enableSignature: session.enableSignature,
       hashesAndChainIds: session.hashesAndChainIds,
+      validUntil: restoredValidUntil,
     },
   }))
 }

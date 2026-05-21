@@ -21,7 +21,7 @@ import {
 } from './session-storage'
 import type { RhinestoneStoredSession, StoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v2'
+const SESSION_STORAGE_KEY = 'ens-sessions-v3'
 
 const createMockSession = (
   overrides: Partial<RhinestoneStoredSession> = {},

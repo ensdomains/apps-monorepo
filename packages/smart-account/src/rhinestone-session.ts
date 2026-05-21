@@ -76,12 +76,22 @@ export function createRhinestoneSession(
       const sessionPrivateKey = generatePrivateKey()
       const sessionAccount = privateKeyToAccount(sessionPrivateKey)
 
-      // 2. Define session scoped to the registration / renewal flows.
+      // 2. Compute expiry up-front (unix seconds). It is baked into every
+      //    action via `time-frame` policy, persisted on the stored session,
+      //    and consulted both client-side (`restoreRhinestoneSession`) and
+      //    on-chain (TIME_FRAME_POLICY) — must be a single canonical value.
+      const validUntil =
+        config?.validUntil ??
+        Math.floor(Date.now() / 1000) + REGISTRATION_SESSION_VALIDITY_SECONDS
+
+      // 3. Define session scoped to the registration / renewal flows.
       //    See ./build-registration-session.ts for the action set + threat
       //    model. The same actions array MUST be reproduced byte-for-byte at
       //    signer-construction time (SmartAccountContext.tsx) — the
       //    PermissionId is derived from this config; mismatch yields
-      //    `InvalidSignature()` at runtime.
+      //    `InvalidSignature()` at runtime. `validUntil` is part of the
+      //    actions (via time-frame policy), so it must round-trip through
+      //    `RhinestoneStoredSession` into the rebuild call.
       const sdkSession: Session = {
         owners: {
           type: 'ecdsa' as const,
@@ -91,10 +101,11 @@ export function createRhinestoneSession(
         actions: buildRegistrationSessionActions({
           smartAccountAddress,
           eoaAddress: ownerAddress,
+          validUntil,
         }),
       }
 
-      // 3. Get session details (on-chain validation data)
+      // 4. Get session details (on-chain validation data)
       const sessionDetails =
         await rhinestoneAccount.experimental_getSessionDetails([sdkSession])
 
@@ -106,11 +117,11 @@ export function createRhinestoneSession(
       // `InvalidSignature()` reverts at orchestrator simulation time.
       // Leaving the payload as the SDK returns it.
 
-      // 4. Sign enablement (owner EIP-712 — MultiChainSession)
+      // 5. Sign enablement (owner EIP-712 — MultiChainSession)
       const enableSignature =
         await rhinestoneAccount.experimental_signEnableSession(sessionDetails)
 
-      // 5. Serialize hashesAndChainIds for localStorage (bigint → string)
+      // 6. Serialize hashesAndChainIds for localStorage (bigint → string)
       // Session is enabled lazily as part of the first real transaction via enableData in signers.
       const serializedHashes = JSON.stringify(
         sessionDetails.hashesAndChainIds.map(
@@ -120,20 +131,6 @@ export function createRhinestoneSession(
           }),
         ),
       )
-
-      // Default to a 30-day client-side expiry. This is enforced in
-      // `restoreRhinestoneSession`; the on-chain SmartSession validator
-      // does not yet receive a `validUntil` because the high-level
-      // `Session` type in `@rhinestone/sdk@1.5.1` does not expose userOp-
-      // level policies. A stolen session key is therefore bounded by:
-      //  (a) this client-side expiry — the dApp refuses to use the key
-      //      after it lapses, and
-      //  (b) explicit revocation via `removeSession(permissionId)`.
-      // Plumbing `validUntil` into the on-chain policy is tracked as a
-      // mainnet-blocking follow-up.
-      const validUntil =
-        config?.validUntil ??
-        Math.floor(Date.now() / 1000) + REGISTRATION_SESSION_VALIDITY_SECONDS
 
       const session: RhinestoneStoredSession = {
         id: crypto.randomUUID(),
@@ -167,9 +164,20 @@ export interface RestoreRhinestoneSessionParams {
 /**
  * Restore a Rhinestone session from stored data.
  *
- * Validates that the session has not expired. The enableSignature and
- * hashesAndChainIds from storage are used at signer construction time
- * to build the full SessionSignerSet with enableData.
+ * Performs a UX preflight: fails fast if the session's `validUntil` has
+ * already passed, so callers can prompt for a fresh enable instead of
+ * sending a userOp that would revert at the on-chain `time-frame` policy.
+ *
+ * This is **not** the security boundary — that lives on-chain
+ * (`TIME_FRAME_POLICY` checks `block.timestamp` against `validUntil`
+ * during userOp validation, so a stolen key is bounded regardless of
+ * which client relays it). The client-side check exists purely to give
+ * the user a clean "session expired" prompt and avoid burning a tx on
+ * something we already know will revert.
+ *
+ * The `enableSignature` and `hashesAndChainIds` from storage are used at
+ * signer construction time to build the full SessionSignerSet with
+ * enableData.
  */
 export function restoreRhinestoneSession(
   params: RestoreRhinestoneSessionParams,
@@ -178,6 +186,8 @@ export function restoreRhinestoneSession(
 
   return fromPromise(
     (async () => {
+      // UX preflight only; the authoritative bound is the on-chain
+      // time-frame policy baked into the session's actions.
       if (session.validUntil && Date.now() > session.validUntil * 1000) {
         throw new Error('Session has expired')
       }

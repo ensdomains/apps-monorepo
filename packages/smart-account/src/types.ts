@@ -24,7 +24,23 @@ export interface BaseStoredSession {
   readonly createdAt: number
   /** Chain ID the session is valid for */
   readonly chainId: number
-  /** Optional expiry timestamp (seconds) */
+  /**
+   * Expiry timestamp (unix seconds).
+   *
+   * This single value drives two checks:
+   *  - On-chain: baked into the `time-frame` policy on every session
+   *    action via the PermissionId, so the SmartSession validator
+   *    rejects any userOp after this instant (the actual security
+   *    boundary — applies regardless of which client submits).
+   *  - Client-side: `restoreRhinestoneSession` and
+   *    `isSessionExpired`/`getValidSession*` use it to detect and
+   *    evict stale rows from localStorage so the dApp surfaces a
+   *    clean "session expired" prompt instead of waiting for the
+   *    on-chain revert.
+   *
+   * Optional only for backwards compatibility with the type — newly
+   * created sessions always populate it.
+   */
   readonly validUntil?: number
   /** Session private key (hex) for signing */
   readonly sessionPrivateKey: Hex

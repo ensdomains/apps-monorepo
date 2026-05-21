@@ -309,6 +309,7 @@ export const SmartAccountContextProvider = ({
       sessionPrivateKey: Hex
       enableSignature: Hex
       hashesAndChainIds: string
+      validUntil: number
     } | null
 
     // Deserialize hashesAndChainIds from localStorage format (string chainId → bigint)
@@ -346,10 +347,14 @@ export const SmartAccountContextProvider = ({
                 // Must match the actions baked into the EIP-712 enable
                 // signature produced in @ens-apps/smart-account at session
                 // creation time. Any divergence breaks the PermissionId
-                // and yields `InvalidSignature()`.
+                // and yields `InvalidSignature()` — in particular,
+                // `validUntil` must be the exact same unix-seconds value
+                // persisted on the stored session (the `time-frame`
+                // policy initData is part of the PermissionId hash).
                 actions: buildRegistrationSessionActions({
                   smartAccountAddress: accountAddress,
                   eoaAddress: ownerAddress,
+                  validUntil: rhinestoneSessionClient.validUntil,
                 }),
               },
               enableData: {

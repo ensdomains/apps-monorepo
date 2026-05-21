@@ -123,6 +123,10 @@ describe('rhinestone-session', () => {
 
     it('calls experimental_getSessionDetails with the registration-scoped action set', async () => {
       const mockAccount = createMockRhinestoneAccount()
+      // Pin `validUntil` so the actions array used internally is the same
+      // as the one we rebuild below for the equality check. Otherwise the
+      // default-30d path picks up `Date.now()` and races the rebuild.
+      const validUntil = 2_000_000_000
 
       await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
@@ -130,6 +134,7 @@ describe('rhinestone-session', () => {
         chainId: 11155111,
         rhinestoneAccount: mockAccount,
         chain: MOCK_CHAIN,
+        config: { validUntil },
       })
 
       // The session must be enabled with the same actions array the runtime
@@ -138,6 +143,7 @@ describe('rhinestone-session', () => {
       const expectedActions = buildRegistrationSessionActions({
         smartAccountAddress: ACCOUNT_ADDRESS,
         eoaAddress: OWNER_ADDRESS,
+        validUntil,
       })
 
       expect(mockAccount.experimental_getSessionDetails).toHaveBeenCalledWith([

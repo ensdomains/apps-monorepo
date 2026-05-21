@@ -12,11 +12,18 @@
  *    constrains static-offset args via UniversalActionPolicy so a stolen
  *    session key cannot redirect funds to an attacker, register names to an
  *    attacker, or hijack HCA ownership.
- *  - Residual surface (accepted "for now"): `ETHRegistrar.renew(...)` has no
- *    on-chain `owner` arg — a stolen key can renew an attacker-controlled
- *    name on the user's USDC/DAI balance. Bounded only by token balance and
- *    `validUntil`. Revisit before mainnet (likely via
- *    `ERC20SpendingLimitsPolicy`).
+ *  - Every action also carries a `time-frame` policy keyed off the session's
+ *    `validUntil` — the on-chain SmartSession validator rejects userOps
+ *    submitted after expiry from *any* client (not just this dApp), so an
+ *    exfiltrated key has a hard wall-clock bound regardless of who relays
+ *    it. The matching client-side check in `restoreRhinestoneSession` /
+ *    `isSessionExpired` is a UX preflight only (prompt the user to
+ *    re-enable before they spend a tx); the security control is on-chain.
+ *  - Residual surface (accepted "for now"): within the time window,
+ *    `ETHRegistrar.renew(...)` has no on-chain `owner` arg — a stolen key
+ *    can renew an attacker-controlled name on the user's USDC/DAI balance,
+ *    bounded by token allowance and the time-frame. Tighten before mainnet
+ *    via `SpendingLimitsPolicy` on the USDC/DAI approves.
  *
  * Calldata offset semantics (verified against on-chain
  * UniversalActionPolicy + Biconomy abstractjs `calldataArgument` helper):
@@ -104,6 +111,15 @@ export interface BuildRegistrationSessionActionsParams {
   readonly smartAccountAddress: Address
   /** EOA owning the smart account. Pinned as `register.owner` and `HCAFactory.setAccountOwner.eoa`. */
   readonly eoaAddress: Address
+  /**
+   * Session expiry as a unix timestamp in **seconds**. Used to construct an
+   * on-chain `time-frame` policy on every action so a stolen session key
+   * cannot be used past this instant from any client (not just this dApp).
+   *
+   * Must be reproduced byte-for-byte at signer-construction time — it is
+   * baked into the EIP-712 enable signature via the PermissionId.
+   */
+  readonly validUntil: number
 }
 
 /**
@@ -111,11 +127,29 @@ export interface BuildRegistrationSessionActionsParams {
  *
  * Returns a non-empty array of `ScopedAction`s. Plug into a `Session` along
  * with `owners` and `chain` at the call site.
+ *
+ * Every action is gated by an additional `time-frame` policy (validAfter=0,
+ * validUntil=params.validUntil) so the on-chain SmartSession validator
+ * rejects userOps after expiry — the dApp's client-side `validUntil` check
+ * alone would not bind an attacker submitting through their own bundler.
+ *
+ * SDK note: `TimeFramePolicy` takes timestamps in **milliseconds** and the
+ * SDK internally floors to seconds (`Math.floor(validUntil / 1000)`) before
+ * encoding as a `uint48` for the on-chain TIME_FRAME_POLICY contract. We
+ * accept seconds at this API boundary (matches `RhinestoneStoredSession`
+ * and `block.timestamp`) and multiply by 1000 at the SDK boundary.
  */
 export function buildRegistrationSessionActions(
   params: BuildRegistrationSessionActionsParams,
 ): NonNullable<Session['actions']> {
-  const { smartAccountAddress, eoaAddress } = params
+  const { smartAccountAddress, eoaAddress, validUntil } = params
+
+  /** Shared time-frame policy applied to every action in this session. */
+  const timeFramePolicy = {
+    type: 'time-frame' as const,
+    validAfter: 0,
+    validUntil: validUntil * 1000,
+  }
 
   const ETHRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const VerifiableFactory = ENS_SEPOLIA_CONTRACTS.VerifiableFactory
@@ -133,7 +167,7 @@ export function buildRegistrationSessionActions(
     {
       target: ETHRegistrar,
       selector: SELECTORS.commit,
-      policies: [{ type: 'sudo' as const }],
+      policies: [{ type: 'sudo' as const }, timeFramePolicy],
     },
 
     // 2. ETHRegistrar.register(string,address,bytes32,address,address,uint64,address,bytes32)
@@ -161,6 +195,7 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
+        timeFramePolicy,
       ],
     },
 
@@ -172,7 +207,7 @@ export function buildRegistrationSessionActions(
     {
       target: ETHRegistrar,
       selector: SELECTORS.renew,
-      policies: [{ type: 'sudo' as const }],
+      policies: [{ type: 'sudo' as const }, timeFramePolicy],
     },
 
     // 4. USDC.approve(address spender, uint256 amount) — pin spender.
@@ -190,6 +225,7 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
+        timeFramePolicy,
       ],
     },
 
@@ -208,6 +244,7 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
+        timeFramePolicy,
       ],
     },
 
@@ -231,6 +268,7 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
+        timeFramePolicy,
       ],
     },
 
@@ -256,6 +294,7 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
+        timeFramePolicy,
       ],
     },
   ]
