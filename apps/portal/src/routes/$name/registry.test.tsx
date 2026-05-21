@@ -26,6 +26,7 @@ vi.mock('wagmi', async (importOriginal) => {
   return {
     ...actual,
     useConnection: () => ({ address: mockAccount }),
+    useEnsName: () => ({ data: undefined }),
   }
 })
 
@@ -45,6 +46,26 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 vi.mock('@/features/registry/components/v2/ConfigureRegistryForm', () => ({
   ConfigureRegistryForm: ({ name }: { name: string }) => (
     <div data-testid="configure-registry-form" data-name={name} />
+  ),
+}))
+
+// EntityBadge is the actions-enabled badge: it pulls in `useNavigate` and wagmi
+// hooks (useChainId/useConfig) that need a router + WagmiProvider. These tests
+// only care about the tree-row layout, so stub it to render its label/children
+// (which carry the truncated addresses the assertions look for). The badge's own
+// behaviour is covered by its dedicated tests.
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadge: ({
+    children,
+    label,
+  }: {
+    children?: React.ReactNode
+    label?: string
+  }) => (
+    <span>
+      {label ? <span>{label}</span> : null}
+      <span>{children}</span>
+    </span>
   ),
 }))
 
