@@ -201,7 +201,13 @@ export async function initializeRhinestoneAccount(
   if (!deployed) {
     onProgress?.('deploying')
     try {
-      await rhinestoneAccount.sendTransaction({
+      // `sendTransaction` only submits — it does not wait for the fill
+      // to land. Without an explicit `waitForExecution` here, callers'
+      // `onAccountReady` hooks (e.g. HCA ownership registration in
+      // manager) can race the bootstrap deploy and intermittently fail
+      // on fresh wallets. Mirror the Rhinestone SDK examples and wait
+      // for execution before declaring the account deployed.
+      const deployTx = await rhinestoneAccount.sendTransaction({
         chain,
         calls: [
           {
@@ -212,6 +218,7 @@ export async function initializeRhinestoneAccount(
         ],
         sponsored: true,
       })
+      await rhinestoneAccount.waitForExecution(deployTx)
       wasDeployedInThisCall = true
     } catch (error) {
       const wrapped = error instanceof Error ? error : new Error(String(error))
