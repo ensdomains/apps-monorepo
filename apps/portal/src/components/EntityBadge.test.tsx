@@ -1,6 +1,14 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const queryRef = vi.hoisted(() => ({
+  current: { data: undefined as unknown, isLoading: false },
+}))
+
+const contractNameRef = vi.hoisted(() => ({
+  current: undefined as string | undefined,
+}))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -26,7 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: undefined, isLoading: false }),
+  useQuery: () => queryRef.current,
 }))
 
 vi.mock('wagmi', () => ({
@@ -45,8 +53,15 @@ vi.mock('@/hooks/useSupportsInterfaces', () => ({
 }))
 
 vi.mock('@/utils/ens/ensContractNames', () => ({
-  getEnsContractName: () => undefined,
+  getEnsContractName: () => contractNameRef.current,
 }))
+
+// Reset shared mock state between tests so resolver / contractName overrides
+// don't leak across cases.
+beforeEach(() => {
+  queryRef.current = { data: undefined, isLoading: false }
+  contractNameRef.current = undefined
+})
 
 const { EntityBadge } = await import('./EntityBadge')
 
@@ -152,5 +167,145 @@ describe('EntityBadge primary action', () => {
     const buttons = screen.getAllByRole('button')
     expect(buttons).toHaveLength(1)
     expect(buttons[0]).toHaveTextContent('Copy')
+  })
+
+  it('variant="contract" + isResolver renders a Link to /resolver/$address (not Etherscan)', () => {
+    queryRef.current = { data: [true], isLoading: false }
+    render(
+      <EntityBadge
+        variant="contract"
+        address={TEST_ADDRESS}
+        etherscanHref={TEST_TX_URL}
+      >
+        contract-content
+      </EntityBadge>,
+    )
+    const primary = screen.getByText('contract-content').closest('a')
+    expect(primary).toHaveAttribute('href', '/resolver/$address')
+    expect(primary?.dataset.params).toBe(
+      JSON.stringify({ address: TEST_ADDRESS }),
+    )
+    // Not an external link
+    expect(primary).not.toHaveAttribute('target', '_blank')
+  })
+})
+
+describe('EntityBadge hover chips', () => {
+  // Chip text labels collide with SVG <title> elements that share the same
+  // string (e.g. <title>Name</title> inside ChipNameIcon). Exclude title nodes
+  // when searching by text so the visible chip label is matched instead.
+  const IGNORE_SVG_TITLE = { ignore: 'script, style, title' }
+
+  it('variant="name" shows Name + Owner chips', () => {
+    render(
+      <EntityBadge variant="name" name="alice.eth" ownerName="bob.eth">
+        alice-content
+      </EntityBadge>,
+    )
+    const nameChip = screen.getByText('Name', IGNORE_SVG_TITLE).closest('a')
+    expect(nameChip).toHaveAttribute('href', '/$name')
+    expect(nameChip?.dataset.params).toBe(JSON.stringify({ name: 'alice.eth' }))
+
+    const ownerChip = screen.getByText('Owner', IGNORE_SVG_TITLE).closest('a')
+    expect(ownerChip).toHaveAttribute('href', '/$name')
+    expect(ownerChip?.dataset.params).toBe(JSON.stringify({ name: 'bob.eth' }))
+  })
+
+  it('variant="name" falls back to ownerAddress when ownerName is absent', () => {
+    render(
+      <EntityBadge variant="name" name="alice.eth" ownerAddress={TEST_ADDRESS}>
+        alice-content
+      </EntityBadge>,
+    )
+    const ownerChip = screen.getByText('Owner', IGNORE_SVG_TITLE).closest('a')
+    expect(ownerChip).toHaveAttribute('href', '/addr/$addr')
+    expect(ownerChip?.dataset.params).toBe(
+      JSON.stringify({ addr: TEST_ADDRESS }),
+    )
+  })
+
+  it('variant="address" shows an Address chip', () => {
+    render(
+      <EntityBadge variant="address" address={TEST_ADDRESS}>
+        addr-content
+      </EntityBadge>,
+    )
+    const addressChip = screen
+      .getByText('Address', IGNORE_SVG_TITLE)
+      .closest('a')
+    expect(addressChip).toHaveAttribute('href', '/addr/$addr')
+    expect(addressChip?.dataset.params).toBe(
+      JSON.stringify({ addr: TEST_ADDRESS }),
+    )
+  })
+
+  it('variant="tx" shows an Etherscan chip when etherscanHref is set', () => {
+    render(
+      <EntityBadge variant="tx" etherscanHref={TEST_TX_URL}>
+        0xabc
+      </EntityBadge>,
+    )
+    const chip = screen.getByText('Etherscan', IGNORE_SVG_TITLE).closest('a')
+    expect(chip).toHaveAttribute('href', TEST_TX_URL)
+    expect(chip).toHaveAttribute('target', '_blank')
+    expect(chip).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('variant="contract" shows the contract name chip when getEnsContractName returns a name', () => {
+    contractNameRef.current = 'ENS Public Resolver'
+    render(
+      <EntityBadge
+        variant="contract"
+        address={TEST_ADDRESS}
+        etherscanHref={TEST_TX_URL}
+      >
+        contract-content
+      </EntityBadge>,
+    )
+    // Chip surfaces the contract name as both label and copy value.
+    const contractNameChip = screen.getByText('ENS Public Resolver')
+    expect(contractNameChip.closest('button')).not.toBeNull()
+  })
+})
+
+describe('CopyChip clipboard interaction', () => {
+  let writeText: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    })
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('writes the copy value to the clipboard and shows the copied state, then reverts after 2s', async () => {
+    render(
+      <EntityBadge variant="default" copyValue="0xabc">
+        default-with-copy
+      </EntityBadge>,
+    )
+    const button = screen.getByRole('button', { name: /copy/i })
+    expect(button).toHaveTextContent('Copy')
+
+    await act(async () => {
+      fireEvent.click(button)
+    })
+
+    expect(writeText).toHaveBeenCalledWith('0xabc')
+    // Copied state: label is suppressed, only the check icon remains.
+    expect(button).not.toHaveTextContent('Copy')
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    expect(button).toHaveTextContent('Copy')
   })
 })
