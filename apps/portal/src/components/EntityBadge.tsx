@@ -53,6 +53,18 @@ const chipClass = cn(
   'text-[11px] font-normal no-underline',
 )
 
+// Chip overlay reveal behavior. Uses opacity + pointer-events instead of
+// display:none so the chip stays in the tab order and the accessibility
+// tree. Reveals on mouse hover, on keyboard focus-within the badge group,
+// and is always visible on touch devices (no hover capability).
+const chipOverlayBase = cn(
+  'absolute bottom-full pb-2 flex flex-row gap-1 z-50',
+  'opacity-0 pointer-events-none transition-opacity',
+  'group-hover/entity:opacity-100 group-hover/entity:pointer-events-auto',
+  'group-focus-within/entity:opacity-100 group-focus-within/entity:pointer-events-auto',
+  '[@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto',
+)
+
 const CopyChip = ({
   value,
   label = 'Copy',
@@ -178,12 +190,7 @@ export const EntityBadge = ({
         )}
       >
         {derivedCopyValue && (
-          <div
-            className={cn(
-              'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
-              inline ? 'right-0' : 'left-0',
-            )}
-          >
+          <div className={cn(chipOverlayBase, inline ? 'right-0' : 'left-0')}>
             <CopyChip value={derivedCopyValue} />
           </div>
         )}
@@ -297,12 +304,7 @@ export const EntityBadge = ({
         pb-2 creates an invisible 8px bridge at the bottom of this container,
         so hovering from badge upward to chips doesn't break the hover state.
       */}
-      <div
-        className={cn(
-          'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
-          inline ? 'right-0' : 'left-3.5',
-        )}
-      >
+      <div className={cn(chipOverlayBase, inline ? 'right-0' : 'left-3.5')}>
         {variant === 'name' && name && (
           <Link to="/$name" params={{ name }} className={chipClass}>
             <ChipNameIcon className="size-3.25" />
