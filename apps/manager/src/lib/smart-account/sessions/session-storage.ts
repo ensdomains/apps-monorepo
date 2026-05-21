@@ -15,14 +15,24 @@ import type { StoredSession } from './types'
 //            action-set hash → PermissionId.
 //   v2 → v3: added a `time-frame` policy to every action so on-chain
 //            enforcement matches the client-side `validUntil`. Again
-//            changes the action-set hash → PermissionId.
+//            changed the action-set hash → PermissionId.
+//   v3 → v4: removed the `time-frame` policy. Rhinestone SDK 1.5.1's
+//            `'time-frame'` encoder produces 12-byte initData but the
+//            deployed `TimeFramePolicy` on Sepolia expects 32 bytes
+//            (rhinestonewtf/smartsessions fork with struct-based
+//            config), so enable-mode simulation reverts on
+//            `initializeWithMultiplexer`'s second `bytes16` slice. The
+//            v3 action set is therefore on-chain-incompatible; bumping
+//            the key forces a fresh enable that uses the v4 (no
+//            time-frame) action set. See `build-registration-session.ts`
+//            for the full diagnosis and the conditions for re-enabling.
 //
 // Each bump invalidates sessions stored under prior policies — using a
 // stale `enableSignature` against a different PermissionId yields
 // `InvalidSignature()` at orchestrator simulation time. Old key
 // contents are harmless cruft; a new session is re-enabled lazily on
 // the next registration with a single wallet prompt.
-const SESSION_STORAGE_KEY = 'ens-sessions-v3'
+const SESSION_STORAGE_KEY = 'ens-sessions-v4'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**
@@ -195,18 +205,18 @@ export function setSkippedStatus(
 }
 
 /**
- * Client-side staleness check used to evict expired rows from
- * localStorage and surface a "reconnect" prompt before the user spends
- * a transaction.
+ * Client-side expiry check used to evict expired rows from localStorage
+ * and surface a "reconnect" prompt before the user spends a transaction.
  *
- * NOT a security boundary — the on-chain `time-frame` policy baked into
- * the session's actions is what actually rejects an exfiltrated key
- * past `validUntil`. This helper just keeps the dApp's view of storage
- * in sync with that on-chain bound.
+ * Today this is the **only** expiry bound — see
+ * `@ens-apps/smart-account/build-registration-session.ts` for why the
+ * matching on-chain `time-frame` policy is disabled. A stolen session
+ * key submitted from outside this dApp is not bound by this check;
+ * only by `removeSession(permissionId)` revocation.
  *
  * Returns `false` for sessions with no `validUntil` set (treat as
- * non-expiring at the client level — the on-chain policy is still
- * authoritative for newly issued sessions, which always set it).
+ * non-expiring at the client level). Newly issued sessions always set
+ * it, so this only matters for hand-tampered storage.
  */
 export function isSessionExpired(session: StoredSession): boolean {
   if (!session.validUntil) return false
@@ -214,12 +224,9 @@ export function isSessionExpired(session: StoredSession): boolean {
 }
 
 /**
- * Get a non-stale session for an account, evicting it from
- * localStorage if its `validUntil` has passed.
- *
- * "Non-stale" here is the client-side cache check (see
- * `isSessionExpired`) — on-chain enforcement of the same bound lives in
- * the session's time-frame policy.
+ * Get a non-stale session for an account, evicting it from localStorage
+ * if its `validUntil` has passed. See {@link isSessionExpired} for the
+ * caveat that this is currently the only expiry bound.
  */
 export function getValidSession(accountAddress: Address): StoredSession | null {
   const session = getSession(accountAddress)

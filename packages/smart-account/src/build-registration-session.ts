@@ -12,18 +12,20 @@
  *    constrains static-offset args via UniversalActionPolicy so a stolen
  *    session key cannot redirect funds to an attacker, register names to an
  *    attacker, or hijack HCA ownership.
- *  - Every action also carries a `time-frame` policy keyed off the session's
- *    `validUntil` — the on-chain SmartSession validator rejects userOps
- *    submitted after expiry from *any* client (not just this dApp), so an
- *    exfiltrated key has a hard wall-clock bound regardless of who relays
- *    it. The matching client-side check in `restoreRhinestoneSession` /
- *    `isSessionExpired` is a UX preflight only (prompt the user to
- *    re-enable before they spend a tx); the security control is on-chain.
- *  - Residual surface (accepted "for now"): within the time window,
- *    `ETHRegistrar.renew(...)` has no on-chain `owner` arg — a stolen key
- *    can renew an attacker-controlled name on the user's USDC/DAI balance,
- *    bounded by token allowance and the time-frame. Tighten before mainnet
- *    via `SpendingLimitsPolicy` on the USDC/DAI approves.
+ *  - On-chain time-bound enforcement (a per-action `time-frame` policy
+ *    keyed off `validUntil`) is currently DISABLED — see the JSDoc on
+ *    `buildRegistrationSessionActions` below for the SDK ↔ deployed
+ *    contract initData mismatch that forced this. Until upstream is
+ *    fixed, the only expiry check is the client-side staleness window in
+ *    `restoreRhinestoneSession` / `isSessionExpired`, which an attacker
+ *    can bypass by submitting userOps from their own client. A stolen
+ *    key is therefore usable for the full 30-day window from any client.
+ *  - Residual surface (accepted "for now"): `ETHRegistrar.renew(...)`
+ *    has no on-chain `owner` arg — a stolen key can renew an
+ *    attacker-controlled name on the user's USDC/DAI balance, bounded
+ *    only by token allowance. Tighten before mainnet via
+ *    `SpendingLimitsPolicy` on the USDC/DAI approves (independent of
+ *    the time-frame work above).
  *
  * Calldata offset semantics (verified against on-chain
  * UniversalActionPolicy + Biconomy abstractjs `calldataArgument` helper):
@@ -112,12 +114,14 @@ export interface BuildRegistrationSessionActionsParams {
   /** EOA owning the smart account. Pinned as `register.owner` and `HCAFactory.setAccountOwner.eoa`. */
   readonly eoaAddress: Address
   /**
-   * Session expiry as a unix timestamp in **seconds**. Used to construct an
-   * on-chain `time-frame` policy on every action so a stolen session key
-   * cannot be used past this instant from any client (not just this dApp).
+   * Session expiry as a unix timestamp in **seconds**.
    *
-   * Must be reproduced byte-for-byte at signer-construction time — it is
-   * baked into the EIP-712 enable signature via the PermissionId.
+   * Currently threaded through `RhinestoneStoredSession.validUntil` and
+   * consumed only by the client-side staleness check
+   * (`restoreRhinestoneSession` / `isSessionExpired`) — see the function-
+   * level JSDoc for why the matching on-chain `time-frame` policy is
+   * disabled. Kept in this params type so the API doesn't churn when
+   * upstream is fixed and the policy is re-enabled.
    */
   readonly validUntil: number
 }
@@ -128,28 +132,51 @@ export interface BuildRegistrationSessionActionsParams {
  * Returns a non-empty array of `ScopedAction`s. Plug into a `Session` along
  * with `owners` and `chain` at the call site.
  *
- * Every action is gated by an additional `time-frame` policy (validAfter=0,
- * validUntil=params.validUntil) so the on-chain SmartSession validator
- * rejects userOps after expiry — the dApp's client-side `validUntil` check
- * alone would not bind an attacker submitting through their own bundler.
+ * `validUntil` (unix seconds) is **accepted but not currently attached as
+ * an on-chain `time-frame` policy** due to a Rhinestone SDK ↔ deployed
+ * contract mismatch:
  *
- * SDK note: `TimeFramePolicy` takes timestamps in **milliseconds** and the
- * SDK internally floors to seconds (`Math.floor(validUntil / 1000)`) before
- * encoding as a `uint48` for the on-chain TIME_FRAME_POLICY contract. We
- * accept seconds at this API boundary (matches `RhinestoneStoredSession`
- * and `block.timestamp`) and multiply by 1000 at the SDK boundary.
+ *   - SDK 1.5.1 encodes `TimeFramePolicy` initData as
+ *     `encodePacked(['uint48','uint48'], [validUntil, validAfter])` →
+ *     12 bytes.
+ *   - The TimeFramePolicy contract deployed on Sepolia at
+ *     `0x8177451511de0577b911c254e9551d981c26dc72` reads
+ *     `uint48(uint128(bytes16(initData[0:16])))` and
+ *     `uint48(uint128(bytes16(initData[16:32])))` → 32 bytes.
+ *
+ * Initialization reverts at the calldata-bounds check on the second
+ * `bytes16(initData[16:32])` slice, surfacing as a generic
+ * "Bundle simulation failed" 400 from the orchestrator with no inner
+ * revert reason. Confirmed against the verified source on Sourcify
+ * (rhinestonewtf/smartsessions fork — struct-based config instead of
+ * the upstream erc7579/smartsessions packed `type ... is uint256`).
+ *
+ * Until Rhinestone publishes an SDK release whose `'time-frame'` policy
+ * encoder matches the deployed contracts, on-chain expiry enforcement is
+ * not available. The dApp falls back to client-side `validUntil`
+ * checking only (`restoreRhinestoneSession` / `isSessionExpired`), which
+ * is a UX preflight, not a security boundary — a stolen session key
+ * remains usable for the full 30-day window from any client until the
+ * SDK is fixed and we re-enable the policy here.
+ *
+ * Tracking: file follow-up against `rhinestonewtf/sdk` reproducing the
+ * initData mismatch with a 32-byte `encodePacked(['uint128','uint128'])`
+ * encoding as the suggested fix.
+ *
+ * @param params.validUntil Required at the API level to keep the
+ *   signature stable when on-chain enforcement is re-enabled; threaded
+ *   through `RhinestoneStoredSession.validUntil` and used only by the
+ *   client-side staleness check today.
  */
 export function buildRegistrationSessionActions(
   params: BuildRegistrationSessionActionsParams,
 ): NonNullable<Session['actions']> {
-  const { smartAccountAddress, eoaAddress, validUntil } = params
-
-  /** Shared time-frame policy applied to every action in this session. */
-  const timeFramePolicy = {
-    type: 'time-frame' as const,
-    validAfter: 0,
-    validUntil: validUntil * 1000,
-  }
+  // `validUntil` is accepted but intentionally unused on-chain today —
+  // see the JSDoc above for the SDK↔contract mismatch that forced this.
+  // Pulled into a void to keep linters happy without changing the API
+  // shape that the actor + signer construction both rely on.
+  void params.validUntil
+  const { smartAccountAddress, eoaAddress } = params
 
   const ETHRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const VerifiableFactory = ENS_SEPOLIA_CONTRACTS.VerifiableFactory
@@ -167,7 +194,7 @@ export function buildRegistrationSessionActions(
     {
       target: ETHRegistrar,
       selector: SELECTORS.commit,
-      policies: [{ type: 'sudo' as const }, timeFramePolicy],
+      policies: [{ type: 'sudo' as const }],
     },
 
     // 2. ETHRegistrar.register(string,address,bytes32,address,address,uint64,address,bytes32)
@@ -195,7 +222,6 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
-        timeFramePolicy,
       ],
     },
 
@@ -207,7 +233,7 @@ export function buildRegistrationSessionActions(
     {
       target: ETHRegistrar,
       selector: SELECTORS.renew,
-      policies: [{ type: 'sudo' as const }, timeFramePolicy],
+      policies: [{ type: 'sudo' as const }],
     },
 
     // 4. USDC.approve(address spender, uint256 amount) — pin spender.
@@ -225,7 +251,6 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
-        timeFramePolicy,
       ],
     },
 
@@ -244,7 +269,6 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
-        timeFramePolicy,
       ],
     },
 
@@ -268,7 +292,6 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
-        timeFramePolicy,
       ],
     },
 
@@ -294,7 +317,6 @@ export function buildRegistrationSessionActions(
             },
           ],
         },
-        timeFramePolicy,
       ],
     },
   ]

@@ -27,16 +27,14 @@ export interface BaseStoredSession {
   /**
    * Expiry timestamp (unix seconds).
    *
-   * This single value drives two checks:
-   *  - On-chain: baked into the `time-frame` policy on every session
-   *    action via the PermissionId, so the SmartSession validator
-   *    rejects any userOp after this instant (the actual security
-   *    boundary — applies regardless of which client submits).
-   *  - Client-side: `restoreRhinestoneSession` and
-   *    `isSessionExpired`/`getValidSession*` use it to detect and
-   *    evict stale rows from localStorage so the dApp surfaces a
-   *    clean "session expired" prompt instead of waiting for the
-   *    on-chain revert.
+   * Used by `restoreRhinestoneSession` and `isSessionExpired` to detect
+   * stale rows in localStorage and prompt for a fresh enable. This is a
+   * **client-side check only** — the matching on-chain `time-frame`
+   * policy is currently disabled due to a Rhinestone SDK ↔ deployed-
+   * contract initData mismatch (see
+   * `@ens-apps/smart-account/build-registration-session.ts` for the
+   * full diagnosis). A stolen key remains usable for the full session
+   * lifetime from any client until upstream is fixed.
    *
    * Optional only for backwards compatibility with the type — newly
    * created sessions always populate it.

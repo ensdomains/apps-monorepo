@@ -347,10 +347,12 @@ export const SmartAccountContextProvider = ({
                 // Must match the actions baked into the EIP-712 enable
                 // signature produced in @ens-apps/smart-account at session
                 // creation time. Any divergence breaks the PermissionId
-                // and yields `InvalidSignature()` — in particular,
-                // `validUntil` must be the exact same unix-seconds value
-                // persisted on the stored session (the `time-frame`
-                // policy initData is part of the PermissionId hash).
+                // and yields `InvalidSignature()`. `validUntil` is
+                // currently not part of the action set on-chain (the
+                // `time-frame` policy is disabled — see
+                // @ens-apps/smart-account/build-registration-session.ts),
+                // but we still thread the same value through so the
+                // rebuild stays correct once upstream is fixed.
                 actions: buildRegistrationSessionActions({
                   smartAccountAddress: accountAddress,
                   eoaAddress: ownerAddress,

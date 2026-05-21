@@ -63,8 +63,10 @@ describe('buildRegistrationSessionActions', () => {
     )
     expect(registerAction).toBeDefined()
     const policies = registerAction?.policies ?? []
-    // [universal-action, time-frame]
-    expect(policies).toHaveLength(2)
+    // Only the universal-action policy today; see
+    // `build-registration-session.ts` JSDoc for why the on-chain
+    // `time-frame` policy is intentionally absent.
+    expect(policies).toHaveLength(1)
     const policy = policies[0]
     expect(policy?.type).toBe('universal-action')
     if (policy?.type !== 'universal-action') throw new Error('unreachable')
@@ -112,30 +114,39 @@ describe('buildRegistrationSessionActions', () => {
     })
   })
 
-  it('every action carries a time-frame policy keyed off validUntil', () => {
-    // The SDK encodes `time-frame` policy initData with
-    // `Math.floor(validUntil / 1000)`, so we accept seconds at this API
-    // and multiply by 1000 before handing to the SDK. The on-chain
-    // `TIME_FRAME_POLICY` ultimately stores a `uint48` of seconds.
+  it('no `time-frame` policy is attached on any action (SDK/contract mismatch)', () => {
+    // The Rhinestone SDK 1.5.1 `'time-frame'` encoder produces 12-byte
+    // initData but the deployed Sepolia TimeFramePolicy expects 32 bytes
+    // (rhinestonewtf/smartsessions fork), so enable-mode simulation
+    // reverts inside `initializeWithMultiplexer`. Until upstream is
+    // fixed, on-chain expiry enforcement is disabled and this test
+    // pins the absence so a future re-add doesn't silently regress.
     for (const action of actions) {
       const policies = action.policies ?? []
       const timeFrame = policies.find((p) => p.type === 'time-frame')
-      expect(timeFrame).toBeDefined()
-      if (timeFrame?.type !== 'time-frame') throw new Error('unreachable')
-      expect(timeFrame.validAfter).toBe(0)
-      expect(timeFrame.validUntil).toBe(VALID_UNTIL_SEC * 1000)
+      expect(timeFrame).toBeUndefined()
     }
   })
 
-  it('time-frame validUntil changes when caller passes a different value', () => {
-    const other = buildRegistrationSessionActions({
-      smartAccountAddress: SCA,
-      eoaAddress: EOA,
-      validUntil: 1_700_000_000,
-    })
-    const policies = other[0]?.policies ?? []
-    const timeFrame = policies.find((p) => p.type === 'time-frame')
-    if (timeFrame?.type !== 'time-frame') throw new Error('unreachable')
-    expect(timeFrame.validUntil).toBe(1_700_000_000 * 1000)
+  it('accepts validUntil at the API level even when not used on-chain', () => {
+    // `validUntil` still has to round-trip from session-create to
+    // signer-rebuild so the client-side staleness check
+    // (`isSessionExpired`) and the future on-chain re-enablement both
+    // see the same value. The function must accept the param without
+    // throwing regardless of value, since today it is unused.
+    expect(() =>
+      buildRegistrationSessionActions({
+        smartAccountAddress: SCA,
+        eoaAddress: EOA,
+        validUntil: 0,
+      }),
+    ).not.toThrow()
+    expect(() =>
+      buildRegistrationSessionActions({
+        smartAccountAddress: SCA,
+        eoaAddress: EOA,
+        validUntil: Number.MAX_SAFE_INTEGER,
+      }),
+    ).not.toThrow()
   })
 })
