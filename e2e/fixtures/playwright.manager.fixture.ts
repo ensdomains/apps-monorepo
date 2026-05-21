@@ -9,6 +9,7 @@ import { bytesToHex } from 'viem'
 import {
   authenticateWithPara,
   dismissBackendAuthModal,
+  signInBackendAuthModal,
 } from '../helpers/para-auth.js'
 import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import { createMakeName } from './makeName.js'
@@ -77,7 +78,27 @@ const PARA_EOA_ADDRESS = (() => {
 const indexerMock = createIndexerMock()
 
 type ManagerFixtures = {
+  /**
+   * Page authenticated via Para email+OTP, with the EnableSessions
+   * modal clicked through and the BackendAuthModal **dismissed**
+   * (skip-for-now). Suitable for tests that only need Para auth + SCA
+   * setup. Notification/favorites/anything gated by
+   * `RequireBackendAuth` should use `authenticatedPageWithBackend`
+   * instead.
+   */
   authenticatedPage: Page
+  /**
+   * Same as `authenticatedPage` but completes the BackendAuthModal
+   * SIWE prompt (signs in with the connected wallet) instead of
+   * dismissing it. Required for tests that touch backend-gated
+   * features: notification settings, favorites, anything under
+   * `/notifications/_authenticated`.
+   *
+   * Note: this hits the deployed Cloudflare worker (no local SIWE
+   * stack), so flakes from the worker propagate here. Tests that
+   * don't need backend state should stay on `authenticatedPage`.
+   */
+  authenticatedPageWithBackend: Page
   /** Time fixture for syncing anvil block time with the browser clock. */
   time: Time
   /** Register names on the anvil fork (supports expired / premium states). */
@@ -106,6 +127,51 @@ type ManagerFixtures = {
 }
 
 /**
+ * Shared Para+EnableSessions setup. Runs the email+OTP flow, then
+ * clicks through the EnableSessions modal if it appears. Stops short
+ * of the BackendAuthModal so individual fixtures can choose whether
+ * to dismiss it (default) or complete the SIWE sign-in.
+ */
+async function setupAuthenticatedPage(page: Page): Promise<void> {
+  const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
+  await page.goto(baseURL)
+  // Brief wait for app initialisation; cap at 5 s so HMR websocket doesn't block
+  await Promise.race([
+    page.waitForLoadState('networkidle'),
+    page.waitForTimeout(5_000),
+  ]).catch(() => {})
+
+  await authenticateWithPara(page, {
+    email: PARA_EMAIL,
+    pin: PARA_PIN,
+  })
+
+  // The smart account initialises asynchronously after Para auth.
+  // When Rhinestone sessions are enabled, an "Enable Smart Sessions"
+  // modal appears that CANNOT be dismissed — the user must click
+  // "Enable Sessions".  We wait for it to appear, click through it,
+  // and then wait for the overlay to fully close.
+  //
+  // Note: EnableSessionModal uses Radix `Dialog`, so its overlay is
+  // `dialog-overlay`. The matching wait below targets that exact
+  // slot — `alert-dialog-overlay` would belong to the BackendAuth
+  // dialog instead and would never appear at this stage of the flow
+  // (the BackendAuthModal is gated on the session prompt being
+  // settled — see apps/manager/.../BackendAuthModal.tsx).
+  const enableBtn = page.getByRole('button', { name: /enable sessions/i })
+  try {
+    await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
+    await enableBtn.click()
+    const overlay = page.locator('[data-slot="dialog-overlay"]')
+    await overlay
+      .waitFor({ state: 'hidden', timeout: 30_000 })
+      .catch(() => {})
+  } catch {
+    // Modal never appeared — sessions already enabled or feature flag off
+  }
+}
+
+/**
  * Playwright-native fixture with an `authenticatedPage` that handles
  * Para wallet login using frameLocator() + native shadow DOM piercing,
  * plus `time` and `makeName` for chain-level test setup.
@@ -119,38 +185,7 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   authenticatedPage: async ({ page }, use) => {
-    // Mock indexer already installed via the page fixture above.
-    const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
-    await page.goto(baseURL)
-    // Brief wait for app initialisation; cap at 5 s so HMR websocket doesn't block
-    await Promise.race([
-      page.waitForLoadState('networkidle'),
-      page.waitForTimeout(5_000),
-    ]).catch(() => {})
-
-    await authenticateWithPara(page, {
-      email: PARA_EMAIL,
-      pin: PARA_PIN,
-    })
-
-    // The smart account initialises asynchronously after Para auth.
-    // When Rhinestone sessions are enabled, an "Enable Smart Sessions"
-    // modal appears that CANNOT be dismissed — the user must click
-    // "Enable Sessions".  We wait for it to appear, click through it,
-    // and then wait for the overlay to fully close.
-    const enableBtn = page.getByRole('button', { name: /enable sessions/i })
-    try {
-      await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
-      await enableBtn.click()
-      // Modal shows a 1.5 s success state before closing; wait for the
-      // dialog overlay to disappear so subsequent navigations are clean.
-      const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-      await overlay
-        .waitFor({ state: 'hidden', timeout: 30_000 })
-        .catch(() => {})
-    } catch {
-      // Modal never appeared — sessions already enabled or feature flag off
-    }
+    await setupAuthenticatedPage(page)
 
     // After the smart account becomes ready, the app shows a
     // BackendAuthModal ("Verify your wallet" / SIWE) that blocks
@@ -159,8 +194,22 @@ export const test = base.extend<ManagerFixtures>({
     // give the modal a generous window to appear. We skip rather
     // than complete the SIWE flow because the backend API worker is
     // not part of the e2e infra stack — see `dismissBackendAuthModal`
-    // for the rationale.
+    // for the rationale. Tests that need backend auth (notifications,
+    // favorites, anything under `/notifications/_authenticated`)
+    // should use `authenticatedPageWithBackend` instead.
     await dismissBackendAuthModal(page)
+
+    await use(page)
+  },
+
+  authenticatedPageWithBackend: async ({ page }, use) => {
+    await setupAuthenticatedPage(page)
+
+    // Complete the SIWE flow against the deployed backend worker.
+    // Adds external-flake exposure to the deployed Cloudflare worker
+    // — only use this for tests that genuinely need backend-gated
+    // state (RequireBackendAuth, FavoriteButton, etc).
+    await signInBackendAuthModal(page)
 
     await use(page)
   },
