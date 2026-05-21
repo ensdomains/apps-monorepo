@@ -102,14 +102,18 @@ const TokenInfoCard = ({
               <div className="flex flex-col gap-6 py-6">
                 <InfoCard title="Token ID details">
                   <InfoRow label="Hash">
-                    <div>
-                      <CopyableRecord value={tokenId} />
+                    <div className="min-w-0 w-full">
+                      <EntityBadge variant="default" copyValue={tokenId}>
+                        {tokenId}
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
                   <InfoRow label="HEX">
-                    <div>
-                      <CopyableRecord value={hex} />
+                    <div className="min-w-0 w-full">
+                      <EntityBadge variant="default" copyValue={hex}>
+                        {hex}
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
