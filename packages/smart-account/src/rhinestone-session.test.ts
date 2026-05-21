@@ -287,7 +287,9 @@ describe('rhinestone-session', () => {
 
     it('respects config.validUntil when provided', async () => {
       const mockAccount = createMockRhinestoneAccount()
-      const validUntil = Date.now() + 3600_000
+      // unix seconds — matches the unit used by the default path and the
+      // expiry check in restoreRhinestoneSession (`validUntil * 1000`).
+      const validUntil = Math.floor(Date.now() / 1000) + 3600
 
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,

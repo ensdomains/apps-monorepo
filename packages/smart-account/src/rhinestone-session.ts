@@ -35,6 +35,10 @@ export interface CreateRhinestoneSessionParams {
   readonly rhinestoneAccount: RhinestoneAccount
   readonly chain: Chain
   readonly config?: {
+    /**
+     * Optional expiry timestamp (unix seconds).
+     * Defaults to `now + REGISTRATION_SESSION_VALIDITY_SECONDS` (30 days).
+     */
     readonly validUntil?: number
   }
 }
