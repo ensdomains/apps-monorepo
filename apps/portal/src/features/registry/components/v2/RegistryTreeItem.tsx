@@ -93,6 +93,7 @@ export const RegistryTreeItem = ({
               variant="contract"
               className="font-normal"
               address={address}
+              isRegistry
               inline
             >
               {truncateAddress(address, 6, 4, '...')}
