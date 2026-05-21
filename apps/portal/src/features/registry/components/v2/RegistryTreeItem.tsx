@@ -3,9 +3,9 @@ import { TriangleAlert } from 'lucide-react'
 import { Fragment } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
+import { useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -41,7 +41,6 @@ export const RegistryTreeItem = ({
     .split('.')
     .slice(registriesCount - index - 1)
     .join('.')
-  const isEthTld = levelName === 'eth'
 
   const isRegistryConfigured = address !== zeroAddress
 
@@ -57,6 +56,9 @@ export const RegistryTreeItem = ({
     enabled: isLastWithRegistryConfigured,
   })
 
+  // Reverse-resolve the owner so the Created badge can link to their profile.
+  const { data: ownerEnsName } = useEnsName({ address: ownerData.owner })
+
   return (
     <div
       className="flex flex-col gap-2"
@@ -69,21 +71,7 @@ export const RegistryTreeItem = ({
           {!isRoot ? (
             <>
               <RegistryTreePathIcon />
-              <EntityBadge className="flex items-center gap-1" variant="name">
-                {isEthTld ? (
-                  <img
-                    src="/favicon-32x32.png"
-                    alt="ENS"
-                    className="size-4 rounded-xs"
-                  />
-                ) : (
-                  <NameAvatar
-                    name={levelName}
-                    width="16px"
-                    height="16px"
-                    rounded="rounded-xs"
-                  />
-                )}
+              <EntityBadge variant="name" name={levelName} showAvatar inline>
                 {label}
               </EntityBadge>
             </>
@@ -104,6 +92,8 @@ export const RegistryTreeItem = ({
                 .exhaustive()}
               variant="contract"
               className="font-normal"
+              address={address}
+              inline
             >
               {truncateAddress(address, 6, 4, '...')}
             </EntityBadge>
@@ -136,11 +126,15 @@ export const RegistryTreeItem = ({
               .otherwise(() =>
                 summary?.createdAt ? (
                   <EntityBadge
-                    variant="tx"
+                    variant={ownerEnsName ? 'name' : 'address'}
                     className="font-normal"
                     label={formatTimestampDate(summary.createdAt) ?? '—'}
+                    name={ownerEnsName ?? undefined}
+                    address={ownerData.owner}
+                    inline
                   >
-                    {truncateAddress(ownerData.owner, 6, 4, '...')}
+                    {ownerEnsName ??
+                      truncateAddress(ownerData.owner, 6, 4, '...')}
                   </EntityBadge>
                 ) : (
                   <span>—</span>
