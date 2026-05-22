@@ -17,8 +17,8 @@ import type { Address, Client, Transport } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import type { sepoliaWithEns } from '@/lib/wagmi'
-import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { l2WagmiConfig } from '@/lib/wagmiL2'
 
 type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
 
@@ -107,12 +107,18 @@ async function getL2ReverseRecord(
   const chainId = getChainIdForReverseRegistrarChainId(
     network.reverseRegistrarChainId as ReverseRegistrarChainId,
     REVERSE_RESOLUTION_NETWORK,
-  ) as 11155420 | 421614 | 84532 | 59141 | 534351
+  )
 
-  // L2 chains are not in wagmiConfig (Tenderly fork = L1 only); cast keeps
-  // this dead branch type-checking. REVERSE_RESOLUTION_NETWORKS no longer
-  // produces L2 entries, so this code is unreachable in practice.
-  const l2Client = wagmiConfig.getClient({ chainId: chainId as never })
+  // L2 chains live in a separate, local-only wagmi config so we don't have
+  // to pollute the explorer's global Sepolia-only config. See `@/lib/wagmiL2`.
+  let l2Client: ReturnType<typeof l2WagmiConfig.getClient>
+  try {
+    l2Client = l2WagmiConfig.getClient({
+      chainId: chainId as (typeof l2WagmiConfig)['chains'][number]['id'],
+    })
+  } catch {
+    return createEmptyResult(network)
+  }
   if (!l2Client) {
     return createEmptyResult(network)
   }
