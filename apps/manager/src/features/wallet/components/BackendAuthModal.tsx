@@ -30,9 +30,27 @@ export const BackendAuthModal = () => {
   const isSmartAccountReady =
     smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
 
+  // Don't co-mount with the EnableSessionModal. Two Radix dialogs whose
+  // open states transition in the same React commit hit a known
+  // `pointer-events: none` ref-counting bug in `@radix-ui/react-dismissable-layer`
+  // (the close-side cleanup sees `layersWithOutsidePointerEventsDisabled.size > 1`
+  // and skips restoring the body style; the new layer captures `none` as the
+  // "original" and never restores it on its own unmount). The visible
+  // symptom is a transparent overlay that blocks the whole page after
+  // session enable, only fixable by deleting the node in devtools.
+  //
+  // Mounting BackendAuthModal only when the session prompt is fully
+  // settled (neither open nor mid-create) sidesteps the race entirely.
+  const isSessionPromptSettled =
+    smartAccount === null ||
+    (!smartAccount.showSessionModal && !smartAccount.isCreatingSession)
+
   const isWalletConnected = !!wallet && !walletLoading
   const shouldShowModal =
-    isWalletConnected && isNotAuthedOrDismissed && isSmartAccountReady
+    isWalletConnected &&
+    isNotAuthedOrDismissed &&
+    isSmartAccountReady &&
+    isSessionPromptSettled
 
   const handleSignIn = async () => {
     if (!walletClient) {

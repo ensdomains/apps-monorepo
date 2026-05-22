@@ -110,7 +110,7 @@ describe('buildBatchedMigrateCalls', () => {
     expect(out.batches).toEqual([])
   })
 
-  it('emits one ZeroDevCall per batch with matching MigrationBatch metadata', () => {
+  it('emits one Call per batch with matching MigrationBatch metadata', () => {
     const names = Array.from({ length: 150 }, (_, i) =>
       makeName(`name${i}.eth`, 'unwrapped'),
     )

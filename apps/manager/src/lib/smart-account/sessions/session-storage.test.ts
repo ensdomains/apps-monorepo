@@ -1,7 +1,7 @@
 /**
  * Session Storage Tests
  *
- * Tests for localStorage persistence of ZeroDev smart sessions.
+ * Tests for localStorage persistence of Rhinestone smart sessions.
  * Mocks localStorage and window to test browser-specific behavior.
  */
 
@@ -19,14 +19,15 @@ import {
   removeSessionsByOwner,
   saveSession,
 } from './session-storage'
-import type { StoredSession, ZeroDevStoredSession } from './types'
+import type { RhinestoneStoredSession, StoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v2'
+const SESSION_STORAGE_KEY = 'ens-sessions-v4'
 
 const createMockSession = (
-  overrides: Partial<ZeroDevStoredSession> = {},
+  overrides: Partial<RhinestoneStoredSession> = {},
 ): StoredSession => ({
   id: 'session-123',
+  provider: 'rhinestone',
   sessionKeyAddress:
     '0xSessionKey1234567890123456789012345678901234' as Address,
   smartAccountAddress:
@@ -34,8 +35,10 @@ const createMockSession = (
   ownerAddress: '0xOwner12345678901234567890123456789012345678' as Address,
   createdAt: Date.now(),
   chainId: 11155111,
-  serializedSessionAccount: 'serialized-session-data',
   sessionPrivateKey: '0xprivatekey123456789' as Hex,
+  sessionConfig: '{}',
+  enableSignature: '0xenable' as Hex,
+  hashesAndChainIds: '[]',
   ...overrides,
 })
 

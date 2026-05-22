@@ -10,11 +10,7 @@ import type {
 } from 'viem'
 import type { TransactionInfra } from './signer.types'
 
-export type TransactionType =
-  | 'eoa'
-  | 'erc4337'
-  | 'rhinestone-intent'
-  | 'zerodev'
+export type TransactionType = 'eoa' | 'rhinestone-intent'
 
 export interface BaseTransactionRequest {
   type: TransactionType
@@ -34,21 +30,15 @@ export interface EOATransactionRequest extends BaseTransactionRequest {
   nonce?: number
 }
 
-export interface ERC4337UserOperation extends BaseTransactionRequest {
-  type: 'erc4337'
-  callData: Hex
-  callGasLimit: bigint
-  verificationGasLimit: bigint
-  preVerificationGas: bigint
-  maxFeePerGas: bigint
-  maxPriorityFeePerGas: bigint
-  paymasterAndData?: Hex
-  signature?: Hex
-  entryPoint: Address
-  [key: string]: unknown
-}
-
-export interface RhinestoneCall {
+/**
+ * Neutral call shape used by batched transaction requests (Rhinestone
+ * intents today; potentially other batchable signers in the future).
+ *
+ * Also re-used by code paths that build up call lists ahead of time
+ * (e.g. the migration service), independent of which transport submits
+ * them.
+ */
+export interface Call {
   to: Address
   data: Hex
   value: bigint
@@ -57,7 +47,7 @@ export interface RhinestoneCall {
 export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   type: 'rhinestone-intent'
   rhinestoneParams: {
-    calls: RhinestoneCall[]
+    calls: Call[]
     sponsored?: boolean
     /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
     tokenRequests?: TokenRequest[]
@@ -76,39 +66,9 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   }
 }
 
-/**
- * ZeroDev Transaction Request
- * Uses ZeroDev KernelAccountClient with calls array
- * Works with both master account and session-derived clients
- * Bundled via Pimlico
- */
-export interface ZeroDevCall {
-  to: Address
-  data: Hex
-  value: bigint
-}
-
-export interface ZeroDevTransactionRequest extends BaseTransactionRequest {
-  type: 'zerodev'
-  zerodevParams: {
-    calls: ZeroDevCall[]
-    sponsored?: boolean
-    /**
-     * Whether to submit through the active smart-session client (when
-     * the signer is a session client). Defaults to `true`. Set to
-     * `false` for calls whose (target, selector) is not in the session
-     * permissions; the caller is then expected to fall back to the
-     * master kernel client (EOA-owner signature).
-     */
-    useSession?: boolean
-  }
-}
-
 export type TransactionRequest =
   | EOATransactionRequest
-  | ERC4337UserOperation
   | RhinestoneTransactionRequest
-  | ZeroDevTransactionRequest
 
 // Transaction Intents - High-level descriptions of what the user wants to do
 // (Distinct from Rhinestone intents, which are chain abstraction intents)
@@ -140,19 +100,13 @@ export type TransactionIntent =
 /**
  * Smart Account Configuration
  *
- * Shared config interface for all smart account signers (Pimlico, Rhinestone, etc.)
- * Contains chain info, bundler/paymaster URLs, and account details.
+ * Config interface for the Rhinestone smart-account signer.
  */
 export type SmartAccountConfig = {
   chain?: Chain
-  bundlerUrl?: string
-  paymasterUrl?: string
-  sponsorshipPolicyId?: string
-  walletClient?: WalletClient
   accountAddress?: Address
-  accountType?: 'simple' | 'hca'
-  hcaFactoryAddress?: Address
-} & ({ rhinestoneApiKey: string } | { pimlicoApiKey: string })
+  rhinestoneApiKey: string
+}
 
 export interface TransactionOptions {
   usePrivateMempool?: boolean

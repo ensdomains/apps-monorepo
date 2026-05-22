@@ -85,7 +85,6 @@ export function handleStartRegistration(
     hasPublicClient: !!publicClient,
     useFastRegistrar,
     sponsored: enableSponsorship,
-    accountType: account.config?.accountType,
     ownerAddress,
     smartAccountAddress: account.accountAddress,
   })
@@ -99,7 +98,7 @@ export function handleStartRegistration(
     price: tokenPrice,
     signer: account.signer,
     accountAddress: account.accountAddress,
-    ownerAddress, // Use EOA for HCA, smart account for simple
+    ownerAddress, // HCA-only: register the ENS name to the EOA
     resolverOwnerAddress, // Always the EOA — resolver EACL grantee
     publicClient,
     useFastRegistrar,
