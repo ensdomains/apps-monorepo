@@ -22,23 +22,22 @@ import { getEnsContractName } from '@/utils/ens/ensContractNames'
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
 
 const variantClass: Record<EntityVariant, string> = {
-  name: 'bg-accent-fill dark:bg-entity-bg text-accent-text',
-  address: 'bg-success-fill dark:bg-entity-bg text-success-text',
-  contract: 'bg-danger-fill dark:bg-entity-bg text-danger-text',
-  tx: 'bg-warning-fill dark:bg-entity-bg text-warning-text',
+  name: 'bg-accent-fill text-accent-text',
+  address: 'bg-success-fill text-success-text',
+  contract: 'bg-danger-fill text-danger-text',
+  tx: 'bg-warning-fill text-warning-text',
 }
 
 export const hoverBgClass: Record<EntityVariant, string> = {
-  name: 'hover:bg-accent-fill dark:hover:bg-entity-bg',
-  address: 'hover:bg-success-fill dark:hover:bg-entity-bg',
-  contract: 'hover:bg-danger-fill dark:hover:bg-entity-bg',
-  tx: 'hover:bg-warning-fill dark:hover:bg-entity-bg',
+  name: 'hover:bg-accent-fill',
+  address: 'hover:bg-success-fill',
+  contract: 'hover:bg-danger-fill',
+  tx: 'hover:bg-warning-fill',
 }
 
 const pillClass = (variant: EntityVariant, className?: string) =>
   cn(
     'inline-flex items-center h-5 px-1 rounded w-fit',
-    'border border-entity-border group-hover/entity:border-transparent',
     'font-mono text-sm font-medium tracking-tight whitespace-nowrap no-underline',
     variantClass[variant],
     className,
@@ -233,7 +232,7 @@ export const EntityBadge = ({
       <div
         className={cn(
           'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
-          inline ? 'right-0' : 'left-3.5',
+          inline ? 'left-[-4px]' : 'left-3.5',
         )}
       >
         {variant === 'name' && name && (
