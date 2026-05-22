@@ -1,3 +1,4 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
@@ -30,7 +31,7 @@ import {
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
-import { wagmiConfig } from '@/lib/wagmi'
+import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 import { NameSubgraphHistory } from '../../components/table/NameSubgraphHistory/NameSubgraphHistory'
@@ -42,8 +43,12 @@ export const Route = createFileRoute('/$name/resolver')({
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
 
-const officialPublicResolverAddress =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
+// Sourced from ensjs so this constant tracks the current Sepolia
+// PublicResolver deployment automatically when the package is bumped.
+const officialPublicResolverAddress: Address = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensPublicResolver',
+})
 
 const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
   ([name, value]) => [value, name as ResolverInterfaceName] as const,

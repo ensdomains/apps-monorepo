@@ -4,6 +4,10 @@
  * Pure functions for ENS registration operations.
  */
 
+import {
+  proxyInitializeSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
@@ -21,7 +25,6 @@ import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
-import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
@@ -39,10 +42,6 @@ type CommitmentData = {
   secret: Hash
 }
 
-const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
-  'function initialize(address owner, uint256 bitmap)',
-])
-
 const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
@@ -58,7 +57,7 @@ function generateResolverSalt(name: string): bigint {
 
 function getResolverInitCalldata(ownerAddress: Address): Hex {
   return encodeFunctionData({
-    abi: DEDICATED_RESOLVER_INIT_ABI,
+    abi: proxyInitializeSnippet,
     functionName: 'initialize',
     args: [ownerAddress, DEDICATED_RESOLVER_ROLE_BITMAP],
   })
@@ -70,7 +69,7 @@ function parseProxyDeployedAddress(
   for (const log of receipt.logs) {
     try {
       const decoded = decodeEventLog({
-        abi: VERIFIABLE_FACTORY_ABI,
+        abi: verifiableFactoryDeployProxySnippet,
         data: log.data,
         topics: log.topics,
       })
@@ -283,7 +282,7 @@ export function submitResolverDeploymentActor(input: {
       const initCalldata = getResolverInitCalldata(input.owner)
 
       const deployCalldata = encodeFunctionData({
-        abi: VERIFIABLE_FACTORY_ABI,
+        abi: verifiableFactoryDeployProxySnippet,
         functionName: 'deployProxy',
         args: [ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl, salt, initCalldata],
       })

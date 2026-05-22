@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Page } from '@playwright/test'
 import { test as base } from '@playwright/test'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { config as loadEnv } from 'dotenv'
 import {
   type Account,
@@ -54,7 +55,9 @@ loadEnv({ path: path.resolve(__dirname, '..', '.env') })
 // ---------------------------------------------------------------------------
 const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
-const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
+const sepoliaContracts = ensL1Contracts[supportedL1Chains.sepolia]
+const MOCK_USDC: Address = sepoliaContracts.usdc.address
+// MockDAI isn't tracked in ensjs; kept hard-coded.
 const MOCK_DAI = '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as const
 const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',

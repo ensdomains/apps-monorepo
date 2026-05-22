@@ -13,6 +13,7 @@
  *   4. rentPrice → approve USDC → register
  *   5. (If negative duration) increaseTime to push past expiry
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type Address,
   type Hash,
@@ -33,13 +34,18 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses (same as packages/transaction-manager/src/contracts/ens-sepolia.ts)
+// Contract addresses (sourced from ensjs; mirrors
+// packages/transaction-manager/src/contracts/ens-sepolia.ts)
 // ---------------------------------------------------------------------------
-const FAST_TEST_ETH_REGISTRAR =
-  '0x68586418353b771cf2425ed14a07512aa880c532' as const
-const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
-const DEDICATED_RESOLVER =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
+const sepoliaContracts = ensL1Contracts[supportedL1Chains.sepolia]
+
+// Despite the historical name, this fixture talks to the *standard*
+// ETHRegistrar (`ensEthRegistrar`). The dedicated fast-test variant
+// (MIN_COMMITMENT_AGE=0) lives in `makeV2Name.ts`.
+const FAST_TEST_ETH_REGISTRAR: Address = sepoliaContracts.ensEthRegistrar.address
+const MOCK_USDC: Address = sepoliaContracts.usdc.address
+const DEDICATED_RESOLVER: Address =
+  sepoliaContracts.ensPublicResolver.address
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
@@ -61,7 +67,7 @@ const REGISTRY_ABI = parseAbi([
 ])
 
 // V2 ENS Registry (root + ETH registry)
-const ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as const
+const ETH_REGISTRY: Address = sepoliaContracts.ensRegistry.address
 
 const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',

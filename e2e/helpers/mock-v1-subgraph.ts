@@ -9,10 +9,13 @@
  * test domain(s) into the response.
  */
 import type { Page } from '@playwright/test'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { keccak256, namehash, toHex } from 'viem'
 import type { V1NameType, V1TextRecord, V1AddressRecord } from '../fixtures/makeV1Name.js'
 
-const V1_PUBLIC_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
+const sepoliaContracts = ensL1Contracts[supportedL1Chains.sepolia]
+const V1_PUBLIC_RESOLVER = sepoliaContracts.ensPublicResolver.address
+const V1_NAME_WRAPPER = sepoliaContracts.ensNameWrapper.address
 
 const V1_SUBGRAPH_URL = 'ensnode-api-sepolia-staging-v1.up.railway.app/subgraph'
 
@@ -77,9 +80,7 @@ function buildV1Domain(params: {
         : null,
     // For unwrapped: owner is the EOA. For wrapped: owner is the NameWrapper.
     owner: {
-      id: isWrapped
-        ? '0xc7e033b8836e4bd55d069d113f018b98478cb091' // NameWrapper
-        : owner,
+      id: isWrapped ? V1_NAME_WRAPPER : owner,
     },
     // registrant is always the EOA (BaseRegistrar ERC-721 holder or original registrant)
     registrant: { id: owner },

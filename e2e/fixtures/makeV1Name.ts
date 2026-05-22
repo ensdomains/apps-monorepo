@@ -10,6 +10,7 @@
  *
  * The registered name is owned by the specified account's EOA address.
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type Address,
   type Hash,
@@ -30,18 +31,20 @@ import {
 } from '../helpers/anvil-client.js'
 
 // ---------------------------------------------------------------------------
-// V1 Contract addresses (Sepolia)
+// V1 Contract addresses (Sepolia, sourced from ensjs)
 // ---------------------------------------------------------------------------
+const sepoliaContracts = ensL1Contracts[supportedL1Chains.sepolia]
+
+// The V1 ETHRegistrarController used to mint *unwrapped* ENSv1 names is the
+// historical (pre-NameWrapper) controller, not the wrapped one currently
+// exposed by ensjs (`ensEthRegistrarController`). Keep it hard-coded.
 const V1_ETH_REGISTRAR_CONTROLLER =
   '0xF42dF26c1b222bee5a6B78cBB8bbfaa0Ba07786a' as const
-const V1_BASE_REGISTRAR =
-  '0x6409609247722761b8ba96371485de92a6d7b83b' as const
-const V1_NAME_WRAPPER =
-  '0xc7e033b8836e4bd55d069d113f018b98478cb091' as const
-const V1_PUBLIC_RESOLVER =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
-const V1_ENS_REGISTRY =
-  '0x7e89b563f936c68c31a360840eb7f9a4aacaf014' as const
+const V1_BASE_REGISTRAR: Address =
+  sepoliaContracts.ensBaseRegistrarImplementation.address
+const V1_NAME_WRAPPER: Address = sepoliaContracts.ensNameWrapper.address
+const V1_PUBLIC_RESOLVER: Address = sepoliaContracts.ensPublicResolver.address
+const V1_ENS_REGISTRY: Address = sepoliaContracts.ensLegacyRegistry.address
 
 // ---------------------------------------------------------------------------
 // ABIs — struct-based controller

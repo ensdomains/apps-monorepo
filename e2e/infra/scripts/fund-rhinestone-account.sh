@@ -17,8 +17,10 @@ set -euo pipefail
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-# Contract addresses (USDC & DAI on Sepolia fork — must match SUPPORTED_TOKENS in the app)
-MOCK_USDC="0x302edecc2b8d1f3f4625b8a825a42f9adc102e65"
+# Contract addresses (USDC & DAI on Sepolia fork — must match SUPPORTED_TOKENS in the app).
+# MockUSDC tracks `ensL1Contracts[sepolia].usdc` from @ensdomains/ensjs/chain;
+# update on every ensjs bump.
+MOCK_USDC="0x6fdfd2a902ae83a1617abc47eec6d9d2cbe7d38e"
 MOCK_DAI="0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4"
 
 # Known addresses to fund (add more as needed).

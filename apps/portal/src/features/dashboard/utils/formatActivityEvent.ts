@@ -86,6 +86,27 @@ const EVENT_DESCRIPTORS: Record<
   },
   FusesSet: { text: 'Fuses updated' },
   ExpiryExtended: { text: 'Expiry extended' },
+
+  // ENSv2 user-registry lifecycle
+  LabelReserved: { text: 'Label reserved' },
+  LabelUnregistered: { text: 'Label unregistered' },
+  ExpiryUpdated: { text: 'Expiry updated' },
+  ParentUpdated: {
+    text: 'Parent registry updated',
+    entityField: 'label',
+    entityType: 'name',
+  },
+  SubregistryUpdated: {
+    text: 'Subregistry updated to',
+    actorField: 'subregistry',
+    actorType: 'address',
+  },
+  TokenResource: { text: 'Token resource updated' },
+  Upgraded: {
+    text: 'Resolver implementation upgraded to',
+    actorField: 'implementation',
+    actorType: 'address',
+  },
 }
 
 export const formatRelativeTime = (timestamp: number): string => {

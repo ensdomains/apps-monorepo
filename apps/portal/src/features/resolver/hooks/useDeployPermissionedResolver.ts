@@ -4,8 +4,9 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { type Address, encodeFunctionData, type Hash, parseAbi } from 'viem'
+import { type Address, encodeFunctionData, type Hash } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
@@ -16,11 +17,6 @@ import {
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
-
-const verifiableFactoryAbi = parseAbi([
-  'function deployProxy(address implementation, uint256 salt, bytes data)',
-  'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
-])
 
 interface DeployPermissionedResolverResult {
   txId: string
@@ -59,7 +55,7 @@ const deployPermissionedResolver = async ({
   const salt = generateResolverSalt(name)
   const initCalldata = getResolverInitCalldata(accountAddress)
   const deployCalldata = encodeFunctionData({
-    abi: verifiableFactoryAbi,
+    abi: verifiableFactoryDeployProxySnippet,
     functionName: 'deployProxy',
     args: [permissionedResolverImpl, salt, initCalldata],
   })

@@ -1038,8 +1038,46 @@ async function registerEnsDomain(
           '\n💡 Commitment is too new. Wait longer before registering.',
         )
       }
-      if (error.message.includes('InsufficientValue')) {
-        console.log('\n💡 Insufficient value sent. Price may have changed.')
+      if (error.message.includes('CommitmentTooOld')) {
+        console.log(
+          '\n💡 Commitment expired. Recommit and re-attempt registration.',
+        )
+      }
+      if (error.message.includes('UnexpiredCommitmentExists')) {
+        console.log(
+          '\n💡 An unexpired commitment already exists for these params.',
+        )
+      }
+      if (error.message.includes('DurationTooShort')) {
+        console.log(
+          '\n💡 Registration duration is below the registrar minimum.',
+        )
+      }
+      if (error.message.includes('PaymentTokenNotSupported')) {
+        console.log(
+          '\n💡 Payment token is not accepted by the ETHRegistrar (post-ensjs#324, USDC/DAI on Sepolia).',
+        )
+      }
+      if (error.message.includes('SafeERC20FailedOperation')) {
+        console.log(
+          '\n💡 ERC20 transfer/transferFrom failed — check token allowance and balance.',
+        )
+      }
+      if (error.message.includes('NameNotAvailable')) {
+        console.log('\n💡 Name is not available (already registered).')
+      }
+      if (error.message.includes('NameIsAvailable')) {
+        console.log(
+          '\n💡 Name is available but the call required it to be taken.',
+        )
+      }
+      if (error.message.includes('InvalidOwner')) {
+        console.log('\n💡 The provided owner address is not valid.')
+      }
+      if (error.message.includes('NotValid')) {
+        console.log(
+          '\n💡 The provided label is not valid (failed normalisation/validation).',
+        )
       }
     }
     try {

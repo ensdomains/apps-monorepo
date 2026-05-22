@@ -20,6 +20,11 @@ describe('isKnownPublicResolver', () => {
       '0xC30BA2BD21583605D815826C3807E8224E398E10',
       true,
     ],
+    [
+      'current Sepolia PublicResolver (post-ensjs#324)',
+      '0xb441cb480460eb8b2964dcb82b64a883b14abf3e',
+      true,
+    ],
     // This actually resolves to 0x640294a2b2d87e7f522db3e3e3e876764bce170d
     // [
     //   'Sepolia V1 PublicResolver',

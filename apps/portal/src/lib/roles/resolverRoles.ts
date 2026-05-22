@@ -18,7 +18,8 @@
  * Admin bits are at position + 128.
  */
 
-import { encodePacked, keccak256 } from 'viem'
+import { computeResolverResource } from '@ensdomains/ensjs/public/v2'
+import { type Hex, pad, toHex } from 'viem'
 import { namehash } from 'viem/ens'
 
 export const resolverRoles = {
@@ -128,17 +129,18 @@ export const decodeResolverRoleBitmap = (
 
 const ROOT_RESOURCE =
   '0x0000000000000000000000000000000000000000000000000000000000000000'
-const ZERO_BYTES32 =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const
+const ZERO_BYTES32: Hex =
+  '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 /**
- * Compute the EAC resource ID for a name (with part = 0).
- * Mirrors `PermissionedResolverLib.resource(node, 0)` in Solidity.
+ * Compute the EAC resource ID for a name (with part = 0) as a 32-byte hex
+ * string. Delegates to ensjs's `computeResolverResource` so the on-chain
+ * semantics (including the `(0, 0) -> 0n` shortcut) stay in sync.
  */
 export const computeNameResource = (name: string): string =>
-  keccak256(
-    encodePacked(['bytes32', 'bytes32'], [namehash(name), ZERO_BYTES32]),
-  )
+  pad(toHex(computeResolverResource(namehash(name), ZERO_BYTES32)), {
+    size: 32,
+  })
 
 /**
  * Build a lookup map from resource hash → node name using the resolver's

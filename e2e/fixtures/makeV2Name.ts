@@ -18,6 +18,11 @@
  *   3. makeCommitment → commit (signed by EOA)
  *   4. rentPrice → approve USDC → register (signed by EOA)
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import {
+  proxyInitializeSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
   type Hash,
@@ -40,23 +45,27 @@ import {
 } from '../helpers/anvil-client.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses — match the app (ens-sepolia.ts / ensjs)
+// Contract addresses (sourced from ensjs)
 // ---------------------------------------------------------------------------
+const sepoliaContracts = ensL1Contracts[supportedL1Chains.sepolia]
 
-/** FastTestETHRegistrar (MIN_COMMITMENT_AGE=0) */
+/**
+ * FastTestETHRegistrar (MIN_COMMITMENT_AGE=0). This is a fork-local helper
+ * contract not present in the canonical Sepolia deployment, so it stays
+ * hard-coded.
+ */
 const FAST_TEST_ETH_REGISTRAR =
   '0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39' as const
 
 /** Mock USDC on the Sepolia fork (6 decimals) */
-const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
+const MOCK_USDC: Address = sepoliaContracts.usdc.address
 
 /** PermissionedResolver implementation — proxies are deployed per name */
-const PERMISSIONED_RESOLVER_IMPL =
-  '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as const
+const PERMISSIONED_RESOLVER_IMPL: Address =
+  sepoliaContracts.ensPermissionedResolverImpl.address
 
 /** VerifiableFactory for deploying resolver proxies */
-const VERIFIABLE_FACTORY =
-  '0x9240c5f31d747d60b3d9aed2f57995094342b1ed' as const
+const VERIFIABLE_FACTORY: Address = sepoliaContracts.ensVerifiableFactory.address
 
 const REFERRER = zeroHash
 
@@ -78,14 +87,8 @@ const ERC20_ABI = parseAbi([
   'function balanceOf(address owner) view returns (uint256)',
 ])
 
-const VERIFIABLE_FACTORY_ABI = parseAbi([
-  'function deployProxy(address implementation, uint256 salt, bytes data)',
-  'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
-])
-
-const RESOLVER_INIT_ABI = parseAbi([
-  'function initialize(address owner, uint256 bitmap)',
-])
+const VERIFIABLE_FACTORY_ABI = verifiableFactoryDeployProxySnippet
+const RESOLVER_INIT_ABI = proxyInitializeSnippet
 
 const RESOLVER_ABI = parseAbi([
   'function setText(bytes32 node, string key, string value)',

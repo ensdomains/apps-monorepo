@@ -78,7 +78,31 @@ describe('getEventSignature', () => {
       'ABIChanged (bytes32 indexed node, uint256 indexed contentType)',
     )
     expect(getEventSignature('ResolverUpdated')).toBe(
-      'ResolverUpdated (uint256 tokenId, address resolver)',
+      'ResolverUpdated (uint256 indexed tokenId, address indexed resolver, address indexed sender)',
+    )
+    expect(getEventSignature('LabelRegistered')).toBe(
+      'LabelRegistered (uint256 indexed tokenId, bytes32 indexed labelHash, string label, address owner, uint64 expiry, address indexed sender)',
+    )
+    expect(getEventSignature('LabelReserved')).toBe(
+      'LabelReserved (uint256 indexed tokenId, bytes32 indexed labelHash, string label, uint64 expiry, address indexed sender)',
+    )
+    expect(getEventSignature('LabelUnregistered')).toBe(
+      'LabelUnregistered (uint256 indexed tokenId, address indexed sender)',
+    )
+    expect(getEventSignature('ExpiryUpdated')).toBe(
+      'ExpiryUpdated (uint256 indexed tokenId, uint64 indexed newExpiry, address indexed sender)',
+    )
+    expect(getEventSignature('ParentUpdated')).toBe(
+      'ParentUpdated (address indexed parent, string label, address indexed sender)',
+    )
+    expect(getEventSignature('SubregistryUpdated')).toBe(
+      'SubregistryUpdated (uint256 indexed tokenId, address indexed subregistry, address indexed sender)',
+    )
+    expect(getEventSignature('TokenResource')).toBe(
+      'TokenResource (uint256 indexed tokenId, uint256 indexed resource)',
+    )
+    expect(getEventSignature('Upgraded')).toBe(
+      'Upgraded (address indexed implementation)',
     )
   })
 })
@@ -108,6 +132,19 @@ describe('getEventFieldType', () => {
     expect(getEventFieldType('AddressChanged', 'address')).toBe('bytes')
     expect(getEventFieldType('AliasChanged', 'alias')).toBe('bytes')
     expect(getEventFieldType('ResolverUpdated', 'resolver')).toBe('address')
+    expect(getEventFieldType('ResolverUpdated', 'sender')).toBe('address')
+    expect(getEventFieldType('LabelRegistered', 'labelHash')).toBe('bytes32')
+    expect(getEventFieldType('LabelRegistered', 'owner')).toBe('address')
+    expect(getEventFieldType('LabelRegistered', 'expiry')).toBe('uint64')
+    expect(getEventFieldType('LabelReserved', 'expiry')).toBe('uint64')
+    expect(getEventFieldType('LabelUnregistered', 'sender')).toBe('address')
+    expect(getEventFieldType('ExpiryUpdated', 'newExpiry')).toBe('uint64')
+    expect(getEventFieldType('ParentUpdated', 'parent')).toBe('address')
+    expect(getEventFieldType('SubregistryUpdated', 'subregistry')).toBe(
+      'address',
+    )
+    expect(getEventFieldType('TokenResource', 'resource')).toBe('uint256')
+    expect(getEventFieldType('Upgraded', 'implementation')).toBe('address')
   })
 
   it('should return unknown for non-existent fields on resolver indexer events', () => {

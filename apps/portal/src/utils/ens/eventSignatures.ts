@@ -53,7 +53,24 @@ const RESOLVER_INDEXER_EVENT_SIGNATURES: Record<string, string> = {
   AliasChanged: 'AliasChanged (bytes32 indexed node, bytes alias)',
   EACRolesChanged:
     'EACRolesChanged (uint256 resource, address account, uint256 oldRoleBitmap, uint256 newRoleBitmap)',
-  ResolverUpdated: 'ResolverUpdated (uint256 tokenId, address resolver)',
+  // ENSv2 user-registry / permissioned-resolver events
+  ResolverUpdated:
+    'ResolverUpdated (uint256 indexed tokenId, address indexed resolver, address indexed sender)',
+  LabelRegistered:
+    'LabelRegistered (uint256 indexed tokenId, bytes32 indexed labelHash, string label, address owner, uint64 expiry, address indexed sender)',
+  LabelReserved:
+    'LabelReserved (uint256 indexed tokenId, bytes32 indexed labelHash, string label, uint64 expiry, address indexed sender)',
+  LabelUnregistered:
+    'LabelUnregistered (uint256 indexed tokenId, address indexed sender)',
+  ExpiryUpdated:
+    'ExpiryUpdated (uint256 indexed tokenId, uint64 indexed newExpiry, address indexed sender)',
+  ParentUpdated:
+    'ParentUpdated (address indexed parent, string label, address indexed sender)',
+  SubregistryUpdated:
+    'SubregistryUpdated (uint256 indexed tokenId, address indexed subregistry, address indexed sender)',
+  TokenResource:
+    'TokenResource (uint256 indexed tokenId, uint256 indexed resource)',
+  Upgraded: 'Upgraded (address indexed implementation)',
 }
 
 // Type mapping for decoded data based on ENS subgraph types
@@ -105,7 +122,53 @@ const RESOLVER_INDEXER_TYPE_MAPPING: Record<string, Record<string, string>> = {
     oldRoleBitmap: 'uint256',
     newRoleBitmap: 'uint256',
   },
-  ResolverUpdated: { tokenId: 'uint256', resolver: 'address' },
+  // ENSv2 user-registry / permissioned-resolver events
+  ResolverUpdated: {
+    tokenId: 'uint256',
+    resolver: 'address',
+    sender: 'address',
+  },
+  LabelRegistered: {
+    tokenId: 'uint256',
+    labelHash: 'bytes32',
+    label: 'string',
+    owner: 'address',
+    expiry: 'uint64',
+    sender: 'address',
+  },
+  LabelReserved: {
+    tokenId: 'uint256',
+    labelHash: 'bytes32',
+    label: 'string',
+    expiry: 'uint64',
+    sender: 'address',
+  },
+  LabelUnregistered: {
+    tokenId: 'uint256',
+    sender: 'address',
+  },
+  ExpiryUpdated: {
+    tokenId: 'uint256',
+    newExpiry: 'uint64',
+    sender: 'address',
+  },
+  ParentUpdated: {
+    parent: 'address',
+    label: 'string',
+    sender: 'address',
+  },
+  SubregistryUpdated: {
+    tokenId: 'uint256',
+    subregistry: 'address',
+    sender: 'address',
+  },
+  TokenResource: {
+    tokenId: 'uint256',
+    resource: 'uint256',
+  },
+  Upgraded: {
+    implementation: 'address',
+  },
 }
 
 type EventFieldTypes<T extends EventKey> = (typeof TYPE_MAPPING)[T]

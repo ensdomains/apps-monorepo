@@ -3,6 +3,9 @@ import { V1_CONTRACTS } from './addresses'
 
 const KNOWN_PUBLIC_RESOLVERS: readonly Address[] = [
   V1_CONTRACTS.PublicResolver,
+  // Current Sepolia PublicResolver (post-ensjs#324 deployment)
+  '0xb441cb480460eb8b2964dcb82b64a883b14abf3e',
+  // Prior Sepolia PublicResolver deployment
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d',
   '0xc30ba2bd21583605d815826c3807e8224e398e10',
   '0x1da022710dF5002339274AaDEe8D58218e9D6AB5',

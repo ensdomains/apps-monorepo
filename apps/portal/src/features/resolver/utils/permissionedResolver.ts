@@ -1,26 +1,20 @@
 import {
+  proxyInitializeSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2/verifiableFactory'
+import {
   type Address,
   decodeEventLog,
   encodeFunctionData,
   getAddress,
   type Hex,
   keccak256,
-  parseAbi,
   stringToBytes,
 } from 'viem'
-
-const permissionedResolverInitAbi = parseAbi([
-  'function initialize(address owner, uint256 bitmap)',
-])
 
 const permissionedResolverRoleBitmap = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
-
-const verifiableFactoryAbi = parseAbi([
-  'function deployProxy(address implementation, uint256 salt, bytes data)',
-  'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
-])
 
 export const generateResolverSalt = (name: string) => {
   const timestamp = new Date().toISOString()
@@ -29,7 +23,7 @@ export const generateResolverSalt = (name: string) => {
 
 export const getResolverInitCalldata = (ownerAddress: Address): Hex => {
   return encodeFunctionData({
-    abi: permissionedResolverInitAbi,
+    abi: proxyInitializeSnippet,
     functionName: 'initialize',
     args: [ownerAddress, permissionedResolverRoleBitmap],
   })
@@ -43,7 +37,7 @@ export const parseProxyDeployedAddress = (
 
     try {
       const decoded = decodeEventLog({
-        abi: verifiableFactoryAbi,
+        abi: verifiableFactoryDeployProxySnippet,
         data: log.data,
         topics: log.topics as [Hex, ...Hex[]],
       })

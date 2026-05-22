@@ -450,7 +450,7 @@ describe('transformAndMergeNameHistory', () => {
       const v2History: V2NameHistoryEvent[] = [
         {
           name: 'vitalik.eth',
-          type: 'ResolverUpdate',
+          type: 'ResolverUpdated',
           transactionHash: '0x123',
           timestamp: 1000,
           blockNumber: 100,
