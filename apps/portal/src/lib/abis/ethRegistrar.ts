@@ -5,8 +5,7 @@
  * pricing / registration / renewal paths have a single source of truth for the
  * registrar interface and no ensjs chain-config coupling.
  *
- * Signatures match `contracts-v2` (`post-audit`) — PR #286
- * (`Refactor ETHRegistrar and add ETHRenewerV1`). The registrar exposes
+ *The registrar exposes
  * state-aware pricing: pass the label/duration/payment token and the contract
  * computes price against real registry state (premium for recently expired
  * names on register; never on renew). Reverts if the name isn't

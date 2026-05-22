@@ -1,12 +1,11 @@
-import { STANDARD_RENT_PRICE_ORACLE_ABI } from '@ens-apps/transaction-manager/contracts/abis/StandardRentPriceOracle.abi'
 import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getBaseRates as ensGetBaseRates } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { ReadContractErrorType } from 'viem'
-import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 
@@ -28,10 +27,8 @@ export const getBaseRates = ResultFn(async function* () {
   const client = yield* safeGetClient()
 
   const rates = yield* fromPromise(
-    readContract(client, {
-      address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-      abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-      functionName: 'getBaseRates',
+    ensGetBaseRates(client, {
+      oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
     }),
     (e) => new GetBaseRatesError({ cause: e as ReadContractErrorType }),
   )

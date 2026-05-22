@@ -11,7 +11,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   PublicResolver: ensjsSepolia.ensPublicResolver.address,
   ReverseRegistrar: ensjsSepolia.ensReverseRegistrar.address,
 
-  // --- V2 (Sepolia deployment — contracts-v2 post-audit) ---
+  // --- V2 (Sepolia deployment — contracts-v2) ---
   ETHRegistry: '0x64c81210d0e580cfc7746f3fb910bf0e8f6378e1',
   ETHRegistrar: '0xb68e594a47fe057bd31e7a8229ffcfd85b2e28af',
   // DedicatedResolverImpl is the PermissionedResolverImpl in this deployment.

@@ -3,14 +3,10 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
+import { getRegisterPrice, getRenewPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import type { Address, ReadContractErrorType } from 'viem'
-import { readContract } from 'viem/actions'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
-import {
-  ethRegistrarGetRegisterPriceAbi,
-  ethRegistrarGetRenewPriceAbi,
-} from '@/lib/abis/ethRegistrar'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
@@ -41,10 +37,11 @@ export type RegistrationPriceResult = {
   readonly hasPremium: boolean
 }
 
-// pricing functions: `getRegisterPrice` returns (base, premium) and pays both;
-// `getRenewPrice` returns a single amount (renewals are exempt from premium by
-// design). Both compute against real registry state and revert if the name
-// isn't registerable/renewable — see ABIs in lib/abis/ethRegistrar.ts.
+// Pricing is delegated to ensjs (`@ensdomains/ensjs/public/v2`):
+// `getRegisterPrice` returns (base, premium) and pays both; `getRenewPrice`
+// returns a single amount (renewals are premium-exempt). Both are state-aware
+// and revert if the name isn't registerable/renewable. The registrar address is
+// passed in (caller-provided) since it's a per-deployment value.
 const getNamePrice = (mode: PriceMode) =>
   ResultFn(async function* ({
     name,
@@ -65,15 +62,17 @@ const getNamePrice = (mode: PriceMode) =>
       )
     }
 
+    // ensjs requires a full eth-2ld name; reconstruct from the normalized label.
+    const ethName = `${label}.eth`
     const decimals = getTokenMetadataWithAddress(resolvedToken).decimals
 
     if (mode === 'renew') {
       const base = yield* fromPromise(
-        readContract(client, {
-          address: ethRegistrar,
-          abi: ethRegistrarGetRenewPriceAbi,
-          functionName: 'getRenewPrice',
-          args: [label, BigInt(duration), resolvedToken] as const,
+        getRenewPrice(client, {
+          registrarAddress: ethRegistrar,
+          name: ethName,
+          duration,
+          paymentToken: resolvedToken,
         }),
         (e) =>
           new GetRegistrationPriceError({ cause: e as ReadContractErrorType }),
@@ -88,12 +87,12 @@ const getNamePrice = (mode: PriceMode) =>
       })
     }
 
-    const [base, premium] = yield* fromPromise(
-      readContract(client, {
-        address: ethRegistrar,
-        abi: ethRegistrarGetRegisterPriceAbi,
-        functionName: 'getRegisterPrice',
-        args: [label, BigInt(duration), resolvedToken] as const,
+    const { base, premium } = yield* fromPromise(
+      getRegisterPrice(client, {
+        registrarAddress: ethRegistrar,
+        name: ethName,
+        duration,
+        paymentToken: resolvedToken,
       }),
       (e) =>
         new GetRegistrationPriceError({ cause: e as ReadContractErrorType }),

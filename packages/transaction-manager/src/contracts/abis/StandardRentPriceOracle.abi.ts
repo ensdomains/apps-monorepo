@@ -1,12 +1,6 @@
 import type { Abi } from 'viem'
 
-/**
- * Minimal ABI for the post-audit StandardRentPriceOracle (contracts-v2
- * `post-audit`, PR #286). The pre-audit `rentPrice` / `integratedDiscount` /
- * lowercase `premium*` getters were removed; pricing is now exposed via
- * `getBasePrice` + `applyDiscount` and the premium params are immutable
- * UPPERCASE getters. Only the fragments the apps actually call are included.
- */
+/** Minimal ABI for the StandardRentPriceOracle. */
 export const STANDARD_RENT_PRICE_ORACLE_ABI = [
   {
     type: 'function',
