@@ -153,25 +153,7 @@ export const submitPrimaryNameWithSignatureActor = (input: {
 
       let request: TransactionRequest
 
-      if (signer.type === 'zerodev') {
-        request = {
-          type: 'zerodev' as const,
-          from: smartAccountAddress,
-          to: defaultRegistrar,
-          data: defaultData,
-          value: 0n,
-          chainId,
-          zerodevParams: {
-            calls: batchedCalls,
-            sponsored: true,
-            // ReverseRegistrar.setName / setNameForAddrWithSignature are
-            // not in the registration-scoped smart-session allowlist
-            // (see build-registration-session.ts), so we fall back to the
-            // SCA's default validator (EOA-owner signature).
-            useSession: false,
-          },
-        }
-      } else if (signer.type === 'rhinestone') {
+      if (signer.type === 'rhinestone') {
         request = {
           type: 'rhinestone-intent' as const,
           from: smartAccountAddress,
@@ -276,20 +258,6 @@ export const submitPrimaryNameUpdateActor = (input: {
               sponsored: true,
               // Reverse-registrar writes aren't in the registration-
               // scoped smart-session allowlist; force EOA-owner signing.
-              useSession: false,
-            },
-          }
-        } else if (input.signer.type === 'zerodev') {
-          request = {
-            type: 'zerodev' as const,
-            from: fromAddress,
-            to: defaultRegistrar,
-            data: defaultData,
-            value: 0n,
-            chainId: input.chainId,
-            zerodevParams: {
-              calls: batchedCalls,
-              sponsored: true,
               useSession: false,
             },
           }

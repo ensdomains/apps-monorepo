@@ -7,15 +7,11 @@
  * - restoreSessionActor
  */
 
+import { SessionError } from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
 import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type {
-  RhinestoneStoredSession,
-  ZeroDevStoredSession,
-} from '../sessions/types'
-import { SessionError } from '../sessions/zerodev-session'
+import type { RhinestoneStoredSession } from '../sessions/types'
 import {
   checkExistingSessionActor,
   createSessionActor,
@@ -30,20 +26,22 @@ vi.mock('../sessions/session-storage', () => ({
   saveSession: vi.fn(),
 }))
 
-vi.mock('../sessions', () => ({
-  createRhinestoneSession: vi.fn(),
-  createZeroDevSession: vi.fn(),
-  restoreRhinestoneSession: vi.fn(),
-  restoreZeroDevSession: vi.fn(),
-}))
+vi.mock('@ens-apps/smart-account', async () => {
+  const actual = await vi.importActual<
+    typeof import('@ens-apps/smart-account')
+  >('@ens-apps/smart-account')
+  return {
+    ...actual,
+    createRhinestoneSession: vi.fn(),
+    restoreRhinestoneSession: vi.fn(),
+  }
+})
 
-import { okAsync } from 'neverthrow'
 import {
   createRhinestoneSession,
-  createZeroDevSession,
   restoreRhinestoneSession,
-  restoreZeroDevSession,
-} from '../sessions'
+} from '@ens-apps/smart-account'
+import { okAsync } from 'neverthrow'
 import {
   getSkippedStatus,
   getValidSessionByOwner,
@@ -54,9 +52,7 @@ const mockedGetValidSessionByOwner = vi.mocked(getValidSessionByOwner)
 const mockedGetSkippedStatus = vi.mocked(getSkippedStatus)
 const mockedSaveSession = vi.mocked(saveSession)
 const mockedCreateRhinestoneSession = vi.mocked(createRhinestoneSession)
-const mockedCreateZeroDevSession = vi.mocked(createZeroDevSession)
 const mockedRestoreRhinestoneSession = vi.mocked(restoreRhinestoneSession)
-const mockedRestoreZeroDevSession = vi.mocked(restoreZeroDevSession)
 
 // ── Fixtures ───────────────────────────────────────────────────────────
 
@@ -65,21 +61,6 @@ const ACCOUNT_ADDRESS = '0xAccount1234567890123456789012345678901234' as Address
 const SESSION_KEY_ADDRESS =
   '0xSessionKey1234567890123456789012345678901234' as Address
 const SESSION_PRIVATE_KEY = '0xdeadbeef1234567890abcdef' as Hex
-
-const createMockZeroDevSession = (
-  overrides: Partial<ZeroDevStoredSession> = {},
-): ZeroDevStoredSession => ({
-  id: 'session-zerodev-1',
-  provider: 'zerodev',
-  sessionKeyAddress: SESSION_KEY_ADDRESS,
-  smartAccountAddress: ACCOUNT_ADDRESS,
-  ownerAddress: OWNER_ADDRESS,
-  createdAt: Date.now(),
-  chainId: 11155111,
-  sessionPrivateKey: SESSION_PRIVATE_KEY,
-  serializedSessionAccount: 'serialized-data',
-  ...overrides,
-})
 
 const MOCK_ENABLE_SIGNATURE = '0xenablesig123' as Hex
 const MOCK_HASHES_JSON = JSON.stringify([
@@ -98,9 +79,11 @@ const createMockRhinestoneSession = (
   chainId: 11155111,
   sessionPrivateKey: SESSION_PRIVATE_KEY,
   sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId: 11155111 }),
-  serializedSessionAccount: '',
   enableSignature: MOCK_ENABLE_SIGNATURE,
   hashesAndChainIds: MOCK_HASHES_JSON,
+  // Future unix timestamp (2033-05-18) — keep tests deterministic and
+  // well clear of any expiry checks.
+  validUntil: 2_000_000_000,
   ...overrides,
 })
 
@@ -115,14 +98,13 @@ describe('session.actors', () => {
   // ─── checkExistingSessionActor ───────────────────────────────────
 
   describe('checkExistingSessionActor', () => {
-    it('returns session when valid session exists with matching provider', async () => {
+    it('returns session when a valid rhinestone session exists', async () => {
       const session = createMockRhinestoneSession()
       mockedGetValidSessionByOwner.mockReturnValue(session)
       mockedGetSkippedStatus.mockReturnValue(false)
 
       const result = await checkExistingSessionActor({
         ownerAddress: OWNER_ADDRESS,
-        provider: 'rhinestone',
       })
 
       expect(result.isOk()).toBe(true)
@@ -132,14 +114,19 @@ describe('session.actors', () => {
       })
     })
 
-    it('returns null session when provider mismatches stored session', async () => {
-      const session = createMockZeroDevSession()
+    it('returns null session when stored session is not a rhinestone session', async () => {
+      // Simulate a legacy/unknown session shape — any non-rhinestone
+      // provider must be discarded so the user is re-prompted to enable a
+      // rhinestone session.
+      const session = {
+        ...createMockRhinestoneSession(),
+        provider: 'something-else',
+      } as unknown as RhinestoneStoredSession
       mockedGetValidSessionByOwner.mockReturnValue(session)
       mockedGetSkippedStatus.mockReturnValue(false)
 
       const result = await checkExistingSessionActor({
         ownerAddress: OWNER_ADDRESS,
-        provider: 'rhinestone',
       })
 
       expect(result.isOk()).toBe(true)
@@ -155,7 +142,6 @@ describe('session.actors', () => {
 
       const result = await checkExistingSessionActor({
         ownerAddress: OWNER_ADDRESS,
-        provider: 'rhinestone',
       })
 
       expect(result.isOk()).toBe(true)
@@ -171,7 +157,6 @@ describe('session.actors', () => {
 
       const result = await checkExistingSessionActor({
         ownerAddress: OWNER_ADDRESS,
-        provider: 'zerodev',
       })
 
       expect(result.isOk()).toBe(true)
@@ -179,20 +164,6 @@ describe('session.actors', () => {
         session: null,
         wasSkipped: false,
       })
-    })
-
-    it('treats missing session.provider as zerodev (backwards compat)', async () => {
-      const session = createMockZeroDevSession({ provider: undefined })
-      mockedGetValidSessionByOwner.mockReturnValue(session)
-      mockedGetSkippedStatus.mockReturnValue(false)
-
-      const result = await checkExistingSessionActor({
-        ownerAddress: OWNER_ADDRESS,
-        provider: 'zerodev',
-      })
-
-      expect(result.isOk()).toBe(true)
-      expect(result._unsafeUnwrap().session).toBe(session)
     })
   })
 
@@ -214,7 +185,6 @@ describe('session.actors', () => {
       const result = await createSessionActor({
         ownerAddress: OWNER_ADDRESS,
         accountAddress: ACCOUNT_ADDRESS,
-        provider: 'rhinestone',
         chainId: 11155111,
         rhinestoneAccount: mockRhinestoneAccount,
         chain: mockChain,
@@ -227,6 +197,7 @@ describe('session.actors', () => {
         sessionPrivateKey: SESSION_PRIVATE_KEY,
         enableSignature: MOCK_ENABLE_SIGNATURE,
         hashesAndChainIds: MOCK_HASHES_JSON,
+        validUntil: 2_000_000_000,
       })
     })
 
@@ -239,87 +210,12 @@ describe('session.actors', () => {
       await createSessionActor({
         ownerAddress: OWNER_ADDRESS,
         accountAddress: ACCOUNT_ADDRESS,
-        provider: 'rhinestone',
         chainId: 11155111,
         rhinestoneAccount: mockRhinestoneAccount,
         chain: mockChain,
       })
 
       expect(mockedSaveSession).toHaveBeenCalledWith(session)
-    })
-
-    it('returns error when rhinestoneAccount is missing for rhinestone provider', async () => {
-      const result = await createSessionActor({
-        ownerAddress: OWNER_ADDRESS,
-        accountAddress: ACCOUNT_ADDRESS,
-        provider: 'rhinestone',
-        chainId: 11155111,
-      })
-
-      expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SessionError)
-      expect(result._unsafeUnwrapErr().message).toContain(
-        'Missing rhinestoneAccount or chain',
-      )
-    })
-
-    it('creates zerodev session and returns client', async () => {
-      const session = createMockZeroDevSession()
-      const mockClient = {
-        mock: 'kernel-client',
-      } as unknown as KernelAccountClient
-      mockedCreateZeroDevSession.mockReturnValue(
-        okAsync({ session, client: mockClient }),
-      )
-
-      const result = await createSessionActor({
-        ownerAddress: OWNER_ADDRESS,
-        accountAddress: ACCOUNT_ADDRESS,
-        provider: 'zerodev',
-        chainId: 11155111,
-        ecdsaValidator: {} as unknown as KernelValidator<'ECDSAValidator'>,
-      })
-
-      expect(result.isOk()).toBe(true)
-      expect(result.isOk()).toBe(true)
-      const output = result._unsafeUnwrap()
-      expect(output.session).toBe(session)
-      expect(output.sessionClient).toBe(mockClient)
-    })
-
-    it('saves zerodev session before returning', async () => {
-      const session = createMockZeroDevSession()
-      const mockClient = {
-        mock: 'kernel-client',
-      } as unknown as KernelAccountClient
-      mockedCreateZeroDevSession.mockReturnValue(
-        okAsync({ session, client: mockClient }),
-      )
-
-      await createSessionActor({
-        ownerAddress: OWNER_ADDRESS,
-        accountAddress: ACCOUNT_ADDRESS,
-        provider: 'zerodev',
-        chainId: 11155111,
-        ecdsaValidator: {} as unknown as KernelValidator<'ECDSAValidator'>,
-      })
-
-      expect(mockedSaveSession).toHaveBeenCalledWith(session)
-    })
-
-    it('returns error when ecdsaValidator missing for zerodev provider', async () => {
-      const result = await createSessionActor({
-        ownerAddress: OWNER_ADDRESS,
-        accountAddress: ACCOUNT_ADDRESS,
-        provider: 'zerodev',
-        chainId: 11155111,
-      })
-
-      expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SessionError)
-      expect(result._unsafeUnwrapErr().message).toContain(
-        'Missing ECDSA validator',
-      )
     })
   })
 
@@ -330,10 +226,7 @@ describe('session.actors', () => {
       const session = createMockRhinestoneSession()
       mockedRestoreRhinestoneSession.mockReturnValue(okAsync(undefined))
 
-      const result = await restoreSessionActor({
-        session,
-        provider: 'rhinestone',
-      })
+      const result = await restoreSessionActor({ session })
 
       expect(result.isOk()).toBe(true)
       expect(result._unsafeUnwrap()).toEqual({
@@ -341,51 +234,23 @@ describe('session.actors', () => {
           sessionPrivateKey: SESSION_PRIVATE_KEY,
           enableSignature: MOCK_ENABLE_SIGNATURE,
           hashesAndChainIds: MOCK_HASHES_JSON,
+          validUntil: 2_000_000_000,
         },
       })
     })
 
-    it('restores zerodev session and returns client', async () => {
-      const session = createMockZeroDevSession()
-      const mockClient = {
-        mock: 'kernel-client',
-      } as unknown as KernelAccountClient
-      mockedRestoreZeroDevSession.mockReturnValue(okAsync(mockClient))
+    it('returns error when given a non-rhinestone session', async () => {
+      const session = {
+        ...createMockRhinestoneSession(),
+        provider: 'something-else',
+      } as unknown as RhinestoneStoredSession
 
-      const result = await restoreSessionActor({
-        session,
-        provider: 'zerodev',
-      })
-
-      expect(result.isOk()).toBe(true)
-      expect(result._unsafeUnwrap().sessionClient).toBe(mockClient)
-    })
-
-    it('returns error for rhinestone provider with zerodev session', async () => {
-      const session = createMockZeroDevSession()
-
-      const result = await restoreSessionActor({
-        session,
-        provider: 'rhinestone',
-      })
+      const result = await restoreSessionActor({ session })
 
       expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SessionError)
       expect(result._unsafeUnwrapErr().message).toContain(
         'Session type mismatch: expected Rhinestone session',
-      )
-    })
-
-    it('returns error for zerodev provider with rhinestone session', async () => {
-      const session = createMockRhinestoneSession()
-
-      const result = await restoreSessionActor({
-        session,
-        provider: 'zerodev',
-      })
-
-      expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().message).toContain(
-        'Session type mismatch: expected ZeroDev session',
       )
     })
   })

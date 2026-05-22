@@ -17,7 +17,14 @@ if (!process.env.MAILINATOR_DOMAIN) {
 }
 
 test.describe('Notifications email flow', () => {
-  test('verify email + welcome message', async ({ authenticatedPage: page }) => {
+  test('verify email + welcome message', async ({
+    // The /notifications/settings route is gated by `RequireBackendAuth`
+    // — without backend SIWE sign-in the route renders a "Verify
+    // wallet ownership" prompt instead of the contact-methods form
+    // we want to interact with. Use the sign-in fixture variant so
+    // the rest of the spec runs against the actual settings UI.
+    authenticatedPageWithBackend: page,
+  }) => {
     const inbox = createRandomInbox()
     const email = createEmailAddress(inbox)
 

@@ -32,7 +32,6 @@ import { transactionManager } from '../../providers/transactionManager'
 import type {
   RhinestoneTransactionRequest,
   TransactionRequest,
-  ZeroDevTransactionRequest,
 } from '../../types/transaction.types'
 
 type CommitmentData = {
@@ -212,37 +211,13 @@ export function getSignerAddress(signer: Signer): Address {
     return signer.account.getAddress() as Address
   }
 
-  if (signer.type === 'zerodev') {
-    // First, try to get address from config if available
-    if (signer.config.accountAddress) {
-      return signer.config.accountAddress
-    }
-
-    // signer.account is a KernelAccountClient from @zerodev/sdk
-    const kernelClient = signer.account as unknown as Record<string, unknown>
-    const nestedAccount = kernelClient?.account as
-      | Record<string, unknown>
-      | undefined
-    if (nestedAccount?.address) {
-      return nestedAccount.address as Address
-    }
-    // Fallback: try to get address directly if it's a string
-    if (typeof kernelClient?.address === 'string') {
-      return kernelClient.address as Address
-    }
-    throw new Error(
-      'Unable to get smart account address from KernelAccountClient',
-    )
-  }
-
-  throw new Error(
-    'Only EOA, Rhinestone, or ZeroDev signer is supported for registration',
-  )
+  signer satisfies never
+  throw new Error('Only EOA or Rhinestone signer is supported for registration')
 }
 
 /**
- * Create transaction request based on signer type
- * Returns the appropriate transaction request type (rhinestone-intent or zerodev)
+ * Create transaction request based on signer type.
+ * Returns either an EOA request or a rhinestone-intent request.
  */
 export function createTransactionRequest(params: {
   signer: Signer
@@ -280,21 +255,6 @@ export function createTransactionRequest(params: {
         sponsored: sponsored ?? true,
       },
     } as RhinestoneTransactionRequest
-  }
-
-  if (signer.type === 'zerodev') {
-    return {
-      type: 'zerodev',
-      from,
-      to,
-      data,
-      value,
-      chainId,
-      zerodevParams: {
-        calls,
-        sponsored: sponsored ?? true,
-      },
-    } as ZeroDevTransactionRequest
   }
 
   signer satisfies never
