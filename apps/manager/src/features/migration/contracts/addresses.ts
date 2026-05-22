@@ -19,8 +19,8 @@ export const V2_CONTRACTS = {
   ETHRegistry: ensjsSepolia.ensRegistry.address,
   VerifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
   PermissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
-  UnlockedMigrationController: '0x76ae358d9ad91651b78463ae609dadc9e7ce4402',
-  LockedMigrationController: '0x22cd7e6a89f5bf4510ef22b3dd4ef190d22f95c3',
-  MigrationHelper: '0x09B9E95D8633EDA8d9E530f258c634A2953Cd3FA',
-  ENSV2Resolver: '0x18cb116a1c88531a4bb2996e4fef136a31e11a80',
+  UnlockedMigrationController: '0xde85e6b9928062fd2347d78a5bcac6266078f381',
+  LockedMigrationController: '0xc8283ef6e8b596d28f0fab1d77a2b6d5c11a56cc',
+  MigrationHelper: '0xe22200c1f0c83e7f544e26a424f2c571958bf763',
+  ENSV2Resolver: '0x89b5bcfa024ae4a70e4479f806c2929c6e373476',
 } as const
