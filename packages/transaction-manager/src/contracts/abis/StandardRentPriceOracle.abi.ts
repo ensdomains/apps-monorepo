@@ -76,6 +76,14 @@ export const STANDARD_RENT_PRICE_ORACLE_ABI = [
 
   {
     type: 'function',
+    name: 'isPaymentToken',
+    stateMutability: 'view',
+    inputs: [{ name: 'paymentToken', type: 'address' }],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+
+  {
+    type: 'function',
     name: 'PREMIUM_PRICE_INITIAL',
     stateMutability: 'view',
     inputs: [],

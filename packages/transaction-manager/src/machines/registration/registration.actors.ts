@@ -21,6 +21,7 @@ import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
+import { STANDARD_RENT_PRICE_ORACLE_ABI } from '../../contracts/abis/StandardRentPriceOracle.abi'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
@@ -775,10 +776,9 @@ export function submitRegistrationActor(input: {
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
-      // Check if the payment token is supported
       const isSupported = await readContract(input.publicClient, {
-        address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
+        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
         functionName: 'isPaymentToken',
         args: [normalizedPaymentToken],
       })
@@ -868,8 +868,8 @@ export function submitApprovalAndRegistrationActor(input: {
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
       const isSupported = await readContract(input.publicClient, {
-        address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
+        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
         functionName: 'isPaymentToken',
         args: [normalizedPaymentToken],
       })
