@@ -1,7 +1,7 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getPremiumDecayParams } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { MulticallErrorType } from 'viem'
@@ -32,7 +32,10 @@ export const getOracleParams = ResultFn(async function* () {
 
   const { priceInitial, halvingPeriod, period } = yield* fromPromise(
     getPremiumDecayParams(client, {
-      oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+      oracleAddress: getChainContractAddress({
+        chain: client.chain,
+        contract: 'ensStandardRentPriceOracle',
+      }),
     }),
     (e) => new GetOracleParamsError({ cause: e as MulticallErrorType }),
   )

@@ -1,7 +1,7 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getBaseRates as ensGetBaseRates } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
@@ -28,7 +28,10 @@ export const getBaseRates = ResultFn(async function* () {
 
   const rates = yield* fromPromise(
     ensGetBaseRates(client, {
-      oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+      oracleAddress: getChainContractAddress({
+        chain: client.chain,
+        contract: 'ensStandardRentPriceOracle',
+      }),
     }),
     (e) => new GetBaseRatesError({ cause: e as ReadContractErrorType }),
   )

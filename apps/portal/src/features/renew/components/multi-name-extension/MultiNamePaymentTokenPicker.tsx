@@ -1,4 +1,4 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
@@ -16,9 +16,13 @@ import {
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import type { MultiRenewalEntry } from '../../hooks/useRenewalTransactions'
 
-const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 const Skeleton = () => (
   <div className="space-y-4">

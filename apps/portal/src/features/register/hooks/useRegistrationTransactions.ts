@@ -4,7 +4,7 @@ import {
   registrationMachine,
   transactionManager,
 } from '@ens-apps/transaction-manager'
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useMemo, useState } from 'react'
@@ -21,7 +21,10 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
-const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 type UseRegistrationTransactionsParams = {
   readonly name: string

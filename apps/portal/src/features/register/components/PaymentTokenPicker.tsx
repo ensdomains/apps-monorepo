@@ -1,4 +1,4 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
@@ -9,12 +9,16 @@ import { MessageCard } from '@/components/ui/message-card'
 import { PaymentTokenList } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import {
   buildTokenData,
   type TokenWithPriceAndBalance,
 } from '../utils/tokenData'
 
-const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 const Skeleton = () => (
   <div className="space-y-4">

@@ -1,7 +1,8 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { applyDiscount } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 export type DiscountInput = {
   /** Undiscounted value (e.g. baseRate × duration), in oracle units. */
@@ -33,7 +34,10 @@ export const useAppliedDiscounts = (inputs: readonly DiscountInput[]) => {
       return Promise.all(
         inputs.map(({ value, duration }) =>
           applyDiscount(publicClient, {
-            oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+            oracleAddress: getChainContractAddress({
+              chain: sepoliaWithEns,
+              contract: 'ensStandardRentPriceOracle',
+            }),
             value,
             duration,
           }),

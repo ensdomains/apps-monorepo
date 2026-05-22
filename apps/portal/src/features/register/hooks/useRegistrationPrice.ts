@@ -1,8 +1,8 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getRegisterPrice, getRenewPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import type { Address, ReadContractErrorType } from 'viem'
@@ -11,8 +11,6 @@ import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
-
-const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
@@ -49,6 +47,10 @@ const getNamePrice = (mode: PriceMode) =>
     token,
   }: RegistrationPriceParameters) {
     const client = yield* safeGetClient()
+    const ethRegistrar = getChainContractAddress({
+      chain: client.chain,
+      contract: 'ensEthRegistrar',
+    })
     const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
     let label: string

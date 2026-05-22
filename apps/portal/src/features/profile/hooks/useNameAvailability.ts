@@ -1,13 +1,11 @@
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { fromPromise, ok } from 'neverthrow'
 import { readContract } from 'viem/actions'
 import { ethRegistrarIsAvailableAbi } from '@/lib/abis/ethRegistrar'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-
-const ethRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
 export class CheckNameAvailabilityError extends TaggedError(
   'CheckNameAvailabilityError',
@@ -32,6 +30,10 @@ export const checkNameAvailability = ResultFn(async function* ({
   name,
 }: CheckNameAvailabilityParameters) {
   const client = yield* safeGetClient()
+  const ethRegistrar = getChainContractAddress({
+    chain: client.chain,
+    contract: 'ensEthRegistrar',
+  })
 
   // Remove .eth suffix if present
   const cleanName = name.replace(/\.eth$/i, '')
