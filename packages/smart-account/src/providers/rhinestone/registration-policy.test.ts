@@ -7,7 +7,7 @@
 
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { buildRegistrationSessionActions } from './build-registration-session'
+import { buildRegistrationSessionActions } from './registration-policy'
 
 const SCA = '0x1111111111111111111111111111111111111111' as Address
 const EOA = '0x2222222222222222222222222222222222222222' as Address
@@ -64,7 +64,7 @@ describe('buildRegistrationSessionActions', () => {
     expect(registerAction).toBeDefined()
     const policies = registerAction?.policies ?? []
     // Only the universal-action policy today; see
-    // `build-registration-session.ts` JSDoc for why the on-chain
+    // `registration-policy.ts` JSDoc for why the on-chain
     // `time-frame` policy is intentionally absent.
     expect(policies).toHaveLength(1)
     const policy = policies[0]

@@ -209,7 +209,7 @@ export function setSkippedStatus(
  * and surface a "reconnect" prompt before the user spends a transaction.
  *
  * Today this is the **only** expiry bound — see
- * `@ens-apps/smart-account/build-registration-session.ts` for why the
+ * `@ens-apps/smart-account` (providers/rhinestone/registration-policy.ts) for why the
  * matching on-chain `time-frame` policy is disabled. A stolen session
  * key submitted from outside this dApp is not bound by this check;
  * only by `removeSession(permissionId)` revocation.

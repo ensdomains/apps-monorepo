@@ -8,12 +8,9 @@ import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildRegistrationSessionActions } from './build-registration-session'
-import { SessionError } from './errors'
-import {
-  createRhinestoneSession,
-  restoreRhinestoneSession,
-} from './rhinestone-session'
+import { SessionError } from '../../errors'
+import { buildRegistrationSessionActions } from './registration-policy'
+import { createRhinestoneSession, restoreRhinestoneSession } from './session'
 import type { RhinestoneStoredSession } from './types'
 
 vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
@@ -70,7 +67,7 @@ function createMockRhinestoneAccount(): RhinestoneAccount {
 
 // ── Tests ──────────────────────────────────────────────────────────────
 
-describe('rhinestone-session', () => {
+describe('session', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(MOCK_UUID)

@@ -350,7 +350,7 @@ export const SmartAccountContextProvider = ({
                 // and yields `InvalidSignature()`. `validUntil` is
                 // currently not part of the action set on-chain (the
                 // `time-frame` policy is disabled — see
-                // @ens-apps/smart-account/build-registration-session.ts),
+                // @ens-apps/smart-account providers/rhinestone/registration-policy.ts),
                 // but we still thread the same value through so the
                 // rebuild stays correct once upstream is fixed.
                 actions: buildRegistrationSessionActions({

@@ -1,9 +1,9 @@
 /**
- * Rhinestone session types
+ * Cross-provider smart-account types.
  *
- * Provider-tagged stored session shape persisted to localStorage by consuming
- * apps. Mirrors the rhinestone-specific subset of what was previously the
- * `StoredSession` union in `apps/manager/src/lib/smart-account/sessions/types.ts`.
+ * Only provider-agnostic shapes live here. Provider-specific session
+ * shapes (e.g. `RhinestoneStoredSession`) live under
+ * `providers/<provider>/types.ts` and extend `BaseStoredSession`.
  */
 
 import type { Address, Hex } from 'viem'
@@ -27,13 +27,14 @@ export interface BaseStoredSession {
   /**
    * Expiry timestamp (unix seconds).
    *
-   * Used by `restoreRhinestoneSession` and `isSessionExpired` to detect
-   * stale rows in localStorage and prompt for a fresh enable. This is a
+   * Used by provider session-restore helpers (e.g.
+   * `restoreRhinestoneSession`) and `isSessionExpired` to detect stale
+   * rows in localStorage and prompt for a fresh enable. This is a
    * **client-side check only** — the matching on-chain `time-frame`
    * policy is currently disabled due to a Rhinestone SDK ↔ deployed-
    * contract initData mismatch (see
-   * `@ens-apps/smart-account/build-registration-session.ts` for the
-   * full diagnosis). A stolen key remains usable for the full session
+   * `providers/rhinestone/registration-policy.ts` for the full
+   * diagnosis). A stolen key remains usable for the full session
    * lifetime from any client until upstream is fixed.
    *
    * Optional only for backwards compatibility with the type — newly
@@ -42,35 +43,4 @@ export interface BaseStoredSession {
   readonly validUntil?: number
   /** Session private key (hex) for signing */
   readonly sessionPrivateKey: Hex
-}
-
-/**
- * Rhinestone session — uses Rhinestone SDK's session config with on-chain
- * enablement data. Created by `createRhinestoneSession` and consumed by
- * `restoreRhinestoneSession` + signer construction at the app boundary.
- */
-export interface RhinestoneStoredSession extends BaseStoredSession {
-  readonly provider: 'rhinestone'
-  /** JSON-serialized RhinestoneSessionConfig */
-  readonly sessionConfig: string
-  /** Owner signature from experimental_signEnableSession (one-time enablement) */
-  readonly enableSignature: Hex
-  /**
-   * JSON-serialized array of { chainId: string; sessionDigest: Hex }.
-   * chainId is stored as string because bigint is not JSON-serializable.
-   */
-  readonly hashesAndChainIds: string
-}
-
-/**
- * Type guard for Rhinestone sessions.
- *
- * Generic over the broader stored-session union owned by the host app, so
- * consumers do not have to depend on a specific union shape from this
- * package.
- */
-export function isRhinestoneSession<T extends { provider?: string }>(
-  session: T,
-): session is T & RhinestoneStoredSession {
-  return session.provider === 'rhinestone'
 }

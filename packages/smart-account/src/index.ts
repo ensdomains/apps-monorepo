@@ -19,31 +19,32 @@
  * The package is named `smart-account` rather than after the vendor so
  * we don't have to rename it if the implementation backend changes
  * (Rhinestone, ZeroDev, Biconomy, etc. — all interchangeable behind
- * the same surface).
+ * the same surface). Provider-specific code lives under
+ * `providers/<provider>/`; this root barrel re-exports the current
+ * provider's surface so consumers can stay on a single import path
+ * until we actually need to expose multiple providers.
  */
 
+// Shared / cross-provider surface.
+export { SessionError } from './errors'
+// Current provider (Rhinestone). Explicit, vendor-named re-exports —
+// we'll introduce a generic provider contract once a second provider
+// exists and proves what the abstraction needs to look like.
 export {
   type BuildRegistrationSessionActionsParams,
   buildRegistrationSessionActions,
-  REGISTRATION_SESSION_VALIDITY_SECONDS,
-} from './build-registration-session'
-export { SessionError } from './errors'
-export {
+  type CreateRhinestoneSessionParams,
+  createRhinestoneSession,
   type InitializeRhinestoneAccountParams,
   type InitProgressStage,
   initializeRhinestoneAccount,
+  isRhinestoneSession,
+  REGISTRATION_SESSION_VALIDITY_SECONDS,
+  type RestoreRhinestoneSessionParams,
   type RhinestoneInitConfig,
   type RhinestoneInitResult,
-  type SmartAccountInfrastructure,
-} from './initialize-account'
-export {
-  type CreateRhinestoneSessionParams,
-  createRhinestoneSession,
-  type RestoreRhinestoneSessionParams,
-  restoreRhinestoneSession,
-} from './rhinestone-session'
-export {
-  type BaseStoredSession,
-  isRhinestoneSession,
   type RhinestoneStoredSession,
-} from './types'
+  restoreRhinestoneSession,
+  type SmartAccountInfrastructure,
+} from './providers/rhinestone'
+export type { BaseStoredSession } from './types'

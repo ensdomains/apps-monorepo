@@ -21,11 +21,11 @@ import type { RhinestoneAccount, Session } from '@rhinestone/sdk'
 import { fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { SessionError } from '../../errors'
 import {
   buildRegistrationSessionActions,
   REGISTRATION_SESSION_VALIDITY_SECONDS,
-} from './build-registration-session'
-import { SessionError } from './errors'
+} from './registration-policy'
 import type { RhinestoneStoredSession } from './types'
 
 export interface CreateRhinestoneSessionParams {
@@ -80,7 +80,7 @@ export function createRhinestoneSession(
       //    session and consulted client-side by `restoreRhinestoneSession`
       //    and `isSessionExpired`. Currently NOT baked into the action set
       //    (the on-chain `time-frame` policy is disabled — see
-      //    ./build-registration-session.ts for the SDK ↔ deployed contract
+      //    ./registration-policy.ts for the SDK ↔ deployed contract
       //    initData mismatch). Once upstream is fixed, this value will
       //    round-trip into `buildRegistrationSessionActions` so the rebuild
       //    in SmartAccountContext produces the same PermissionId.
@@ -89,7 +89,7 @@ export function createRhinestoneSession(
         Math.floor(Date.now() / 1000) + REGISTRATION_SESSION_VALIDITY_SECONDS
 
       // 3. Define session scoped to the registration / renewal flows.
-      //    See ./build-registration-session.ts for the action set + threat
+      //    See ./registration-policy.ts for the action set + threat
       //    model. The same actions array MUST be reproduced byte-for-byte at
       //    signer-construction time (SmartAccountContext.tsx) — the
       //    PermissionId is derived from this config; mismatch yields
@@ -167,7 +167,7 @@ export interface RestoreRhinestoneSessionParams {
  * Restore a Rhinestone session from stored data.
  *
  * Refuses to restore once `session.validUntil` has passed. Today this is
- * the **only** expiry check — see `build-registration-session.ts` for why
+ * the **only** expiry check — see `registration-policy.ts` for why
  * the matching on-chain `time-frame` policy is currently disabled. A
  * stolen session key submitted from an attacker's bundler is therefore
  * not bound by this check; the bound is just the dApp's own refusal to

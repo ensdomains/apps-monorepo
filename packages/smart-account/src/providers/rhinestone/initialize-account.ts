@@ -173,7 +173,7 @@ export async function initializeRhinestoneAccount(
     ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
     ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
     // Always include Pimlico when available. Warp (intents) doesn't need
-    // it, but session-based user-ops do — see rhinestone-session.ts.
+    // it, but session-based user-ops do — see session.ts.
     ...(pimlicoApiKey && {
       bundler: { type: 'pimlico' as const, apiKey: pimlicoApiKey },
     }),
