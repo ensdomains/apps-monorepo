@@ -37,19 +37,19 @@
   --sidebar-ring: #737373;
 
   --lapis-100: #dbf0f8;
-  --lapis-200: #d2edf9;
+  --lapis-200: #daf1fb;
   --lapis-400: #80c4e0;
   --lapis-500: #0082bb;
   --lapis-900: #02293b;
 
   --citrine-100: #f8f7e2;
-  --citrine-200: #fedec3;
+  --citrine-200: #fee0c8;
   --citrine-400: #e1b77e;
   --citrine-500: #914b1c;
   --citrine-900: #441b03;
 
   --peridot-100: #d1eedf;
-  --peridot-200: #d2f9de;
+  --peridot-200: #c9f7d7;
   --peridot-400: #65d388;
   --peridot-500: #007c20;
   --peridot-900: #033010;
@@ -320,9 +320,9 @@
   --entity-bg: #222222;
   --entity-border: #383838;
   /* Semantic fill colors — dark mode per-variant backgrounds */
-  --accent-fill: #172c36;
+  --accent-fill: #152d37;
   --success-fill: #142f1c;
-  --danger-fill: #3d1427;
+  --danger-fill: #391925;
   --warning-fill: #41250c;
   /* Semantic text colors — dark mode values (light rock-name 200s) */
   --accent-text: var(--lapis-200);
