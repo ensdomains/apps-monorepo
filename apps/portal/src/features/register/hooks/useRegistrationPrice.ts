@@ -4,9 +4,9 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
-  type GetRegisterPriceErrorType,
+  type GetPriceErrorType,
   type GetRenewPriceErrorType,
-  getRegisterPrice,
+  getPrice,
   getRenewPrice,
 } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
@@ -26,7 +26,7 @@ const ethRegistrar = getChainContractAddress({
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  readonly cause: GetRegisterPriceErrorType | GetRenewPriceErrorType
+  readonly cause: GetPriceErrorType | GetRenewPriceErrorType
 }> {}
 
 type PriceMode = 'register' | 'renew'
@@ -97,15 +97,15 @@ const getNamePrice = (mode: PriceMode) =>
     }
 
     const { base, premium } = yield* fromPromise(
-      getRegisterPrice(client, {
+      getPrice(client, {
         registrarAddress: ethRegistrar,
-        name: ethName,
+        nameOrNames: ethName,
         duration,
         paymentToken: resolvedToken,
       }),
       (e) =>
         new GetRegistrationPriceError({
-          cause: e as GetRegisterPriceErrorType,
+          cause: e as GetPriceErrorType,
         }),
     )
 
