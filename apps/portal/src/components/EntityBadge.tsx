@@ -66,7 +66,7 @@ const pillClass = (variant: EntityVariant, className?: string) =>
 
 const chipClass = cn(
   'inline-flex items-center cursor-pointer transition-colors',
-  'h-7 px-2 gap-1 rounded-sm',
+  'h-7 px-2 gap-1.5 rounded-sm',
   // Default: outline variant — neutral-0 fill, neutral-3 border, neutral-7 text
   'border border-neutral-3 bg-neutral-0 text-neutral-7',
   // Hover: border → neutral-5, text → neutral-8 (fill stays neutral-0)
