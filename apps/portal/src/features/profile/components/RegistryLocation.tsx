@@ -29,7 +29,12 @@ export const RegistryLocation = ({
   }
 
   return (
-    <EntityBadge variant="contract" address={data.registryAddress}>
+    <EntityBadge
+      variant="contract"
+      address={data.registryAddress}
+      label="permissioned registry"
+      isRegistry
+    >
       {truncateAddress(data.registryAddress, 6, 4, '...')}
     </EntityBadge>
   )
