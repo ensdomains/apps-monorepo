@@ -1,49 +1,8 @@
 /**
- * Minimal, deploy-agnostic ABI fragments for the V2 ETHRegistrar.
- *
- * Kept local (rather than importing from `@ensdomains/ensjs-abi`) so the
- * pricing / registration / renewal paths have a single source of truth for the
- * registrar interface and no ensjs chain-config coupling.
- *
- *The registrar exposes
- * state-aware pricing: pass the label/duration/payment token and the contract
- * computes price against real registry state (premium for recently expired
- * names on register; never on renew). Reverts if the name isn't
- * registerable/renewable.
+ * Minimal, local ABI fragments for the V2 ETHRegistrar write/availability paths
+ * that haven't been migrated to ensjs yet. Pricing reads now live in
+ * `@ensdomains/ensjs/public/v2` (getRegisterPrice / getRenewPrice).
  */
-
-/** `getRegisterPrice(label, duration, paymentToken) → (base, premium)` */
-export const ethRegistrarGetRegisterPriceAbi = [
-  {
-    type: 'function',
-    name: 'getRegisterPrice',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'paymentToken', type: 'address' },
-    ],
-    outputs: [
-      { name: 'base', type: 'uint256' },
-      { name: 'premium', type: 'uint256' },
-    ],
-  },
-] as const
-
-/** `getRenewPrice(label, duration, paymentToken) → uint256` */
-export const ethRegistrarGetRenewPriceAbi = [
-  {
-    type: 'function',
-    name: 'getRenewPrice',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'duration', type: 'uint64' },
-      { name: 'paymentToken', type: 'address' },
-    ],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
-] as const
 
 /** `isAvailable(label) → bool` */
 export const ethRegistrarIsAvailableAbi = [

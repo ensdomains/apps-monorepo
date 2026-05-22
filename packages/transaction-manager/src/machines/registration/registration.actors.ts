@@ -4,6 +4,7 @@
  * Pure functions for ENS registration operations.
  */
 
+import { isPaymentToken as ensIsPaymentToken } from '@ensdomains/ensjs/public/v2'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
@@ -21,7 +22,6 @@ import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
-import { STANDARD_RENT_PRICE_ORACLE_ABI } from '../../contracts/abis/StandardRentPriceOracle.abi'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import {
   ENS_SEPOLIA_CONTRACTS,
@@ -776,11 +776,9 @@ export function submitRegistrationActor(input: {
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
-      const isSupported = await readContract(input.publicClient, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'isPaymentToken',
-        args: [normalizedPaymentToken],
+      const isSupported = await ensIsPaymentToken(input.publicClient, {
+        oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+        paymentToken: normalizedPaymentToken,
       })
 
       console.log(
@@ -867,11 +865,9 @@ export function submitApprovalAndRegistrationActor(input: {
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
-      const isSupported = await readContract(input.publicClient, {
-        address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-        functionName: 'isPaymentToken',
-        args: [normalizedPaymentToken],
+      const isSupported = await ensIsPaymentToken(input.publicClient, {
+        oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
+        paymentToken: normalizedPaymentToken,
       })
 
       if (!isSupported) {
