@@ -184,7 +184,12 @@ export const EntityBadge = ({
 
   const resolvedAvatar =
     showAvatar && variant === 'name' && name ? (
-      <NameAvatar name={name} width="20px" height="20px" rounded="rounded-sm" />
+      <NameAvatar
+        name={name}
+        width="20px"
+        height="20px"
+        rounded="rounded-[2px]"
+      />
     ) : null
 
   const hasChips = !!(
@@ -264,7 +269,11 @@ export const EntityBadge = ({
           // No label: bg extends 1px beyond pill edge → ~5px colored strip to text (matches top)
           // With label: label sub-chip (~18px) in a 20px pill leaves only 1px above it, so
           //   push x inset 1px *inside* the pill edge → 3px strip to sub-chip (matches top)
-          label ? 'inset-x-px' : 'inset-x-[-1px]',
+          label
+            ? 'inset-x-px'
+            : resolvedAvatar
+              ? 'inset-x-[-2px]'
+              : 'inset-x-[-1px]',
           'group-hover/entity:inset-[-12px]',
           variantBgClass[variant],
         )}
@@ -275,9 +284,13 @@ export const EntityBadge = ({
           pillBase,
           'relative z-10',
           variantTextClass[variant],
+          // Avatar sits flush against the left edge — remove left padding
+          // and add gap-1 so avatar doesn't touch the text
+          resolvedAvatar && 'pl-0 gap-1.5',
           className,
         )}
       >
+        {resolvedAvatar}
         {labelContent}
         {children}
       </span>
@@ -387,12 +400,10 @@ export const EntityBadge = ({
           className="inline-flex items-center gap-2 py-4 px-2 rounded cursor-pointer text-left"
           onClick={triggerPrimaryAction}
         >
-          {resolvedAvatar}
           {pillNode}
         </button>
       ) : (
         <div className="inline-flex items-center gap-2 py-4 px-2 rounded">
-          {resolvedAvatar}
           {pillNode}
         </div>
       )}
