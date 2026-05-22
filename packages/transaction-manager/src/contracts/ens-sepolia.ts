@@ -11,29 +11,32 @@ export const ENS_SEPOLIA_CONTRACTS = {
   PublicResolver: ensjsSepolia.ensPublicResolver.address,
   ReverseRegistrar: ensjsSepolia.ensReverseRegistrar.address,
 
-  // --- V2 (Tenderly virtual Sepolia deployment — contracts-v2 redeploy, block 10887910) ---
-  // NOTE: Tenderly-fork-specific addresses; do not merge to `main`.
-  ETHRegistry: '0xc328a01a4800fb52ec5a6ab4190356962ab719e5',
-  ETHRegistrar: '0xd859dac731dab4aecddb154b639d868dc951da62',
-  // DedicatedResolverImpl is the PermissionedResolverImpl in the new deployment.
-  DedicatedResolverImpl: '0xae90dcc93f59d01124c9f4da4ef217b8934497ed',
-  VerifiableFactory: '0x5587003f8eeee1bc236d48ab39059cbfd99207d7',
+  // --- V2 (Sepolia deployment — contracts-v2 post-audit) ---
+  ETHRegistry: '0x64c81210d0e580cfc7746f3fb910bf0e8f6378e1',
+  ETHRegistrar: '0xb68e594a47fe057bd31e7a8229ffcfd85b2e28af',
+  // DedicatedResolverImpl is the PermissionedResolverImpl in this deployment.
+  DedicatedResolverImpl: '0xaccbdb224df4110c86441f8f2b967af19e60e6e0',
+  VerifiableFactory: '0x7dd7f5b46005c11c89ec3eeecbfcce6234ef5a36',
 
-  // --- Not (yet) in ensjs chain definitions; canonical Sepolia V2 deployments ---
-  // Fast Test ETH Registrar (test deployments with MIN_COMMITMENT_AGE=0).
-  FastTestETHRegistrar: '0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39',
-  // Default reverse registrar (sets primary/default ENS name per coin type)
+  // --- Not in ensjs chain definitions; canonical Sepolia V2 deployments ---
+  // No fast-test registrar on Sepolia (no MIN_COMMITMENT_AGE=0 variant); the fast
+  // path is gated off (useFastRegistrar=false), so this points at the real
+  // ETHRegistrar as a safe fallback.
+  FastTestETHRegistrar: '0xb68e594a47fe057bd31e7a8229ffcfd85b2e28af',
+  // Default reverse registrar (sets primary/default ENS name per coin type).
+  // NOTE: not part of the V2 deployment list — verify before using the
+  // set-primary-name flow on Sepolia.
   DefaultReverseRegistrar: '0xeb8269fb39290f31c4c29cec548807ca2133abb4',
   // Standard Rent Price Oracle
-  StandardRentPriceOracle: '0x685201280115cd5f949f60e6c320aeca0487fb9b',
+  StandardRentPriceOracle: '0xf33d548997e2975c8ff04f66219564d8c7a95e26',
   // HCA Factory
-  HCAFactory: '0xd309105793dbb2ed39f3d3418cbde80852decd1a',
+  HCAFactory: '0x4327e31b4111dc0fb54517cd0fed82680840f32e',
 } as const
 
-// Payment tokens — Tenderly virtual Sepolia deployment (MockUSDC / MockDAI).
+// Payment tokens — Sepolia deployment (MockUSDC / MockDAI).
 export const SUPPORTED_TOKENS = {
-  USDC: '0x35e1136beea9d67f55b6ec98fcda8d1dd9a487ad',
-  DAI: '0xa51c9e6efe589407c72984e93b45e35a71a398ec',
+  USDC: '0x6fdfd2a902ae83a1617abc47eec6d9d2cbe7d38e',
+  DAI: '0xa4e569b57e0d6ac518c73ebdaa67e11c96dbd7a4',
 } as const satisfies Record<'USDC' | 'DAI', Address>
 
 export const TOKENS = {

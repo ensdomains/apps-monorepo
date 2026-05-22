@@ -42,9 +42,8 @@ const DEFAULT_REVERSE_RECORD: ReverseResolutionNetwork = {
 function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
   const networks: ReverseResolutionNetwork[] = [DEFAULT_REVERSE_RECORD]
 
-  // L2 reverse resolution disabled while running against a Tenderly L1 fork —
-  // the L2 chains in wagmi config aren't part of the fork, so reads/writes
-  // against them would hit live sepolia L2s and diverge from forked state.
+  // L2 reverse resolution disabled — wagmi config is L1-only (Sepolia), so the
+  // per-chain L2 reverse registrars aren't wired up here.
   // for (const reverseRegistrarChainIdKey of Object.keys(icons)) {
   //   const reverseRegistrarChainId = Number(
   //     reverseRegistrarChainIdKey,

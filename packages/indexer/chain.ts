@@ -6,7 +6,7 @@ import { sepolia } from 'viem/chains'
  */
 
 const DEFAULT_SEPOLIA_RPC_URL =
-  'https://virtual.sepolia.us-east.rpc.tenderly.co/8ac7f709-c00b-49e9-a353-4e0bfcfeef1a'
+  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j'
 
 function resolveRpcUrl(): string {
   try {
