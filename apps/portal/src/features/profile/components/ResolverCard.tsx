@@ -33,7 +33,7 @@ export const ResolverCard = ({
 
   if (asRow) {
     return (
-      <div className="flex items-center gap-4 w-full">
+      <div className="flex items-center gap-4 w-full min-h-7">
         <ResolverIcon className="size-4 shrink-0 text-neutral-7" />
         <span className="text-sm text-muted-foreground w-24 shrink-0">
           Resolver

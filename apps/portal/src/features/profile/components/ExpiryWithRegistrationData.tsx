@@ -41,7 +41,7 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="flex items-center gap-4 py-3">
+    <div className="flex items-center gap-4 min-h-7">
       <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
       <span className="text-sm text-muted-foreground w-24 shrink-0">
         Registered
@@ -52,7 +52,7 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
 }
 
 const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
-  <div className="flex items-center gap-4 py-3">
+  <div className="flex items-center gap-4 min-h-7">
     <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
     <span className="text-sm text-muted-foreground w-24 shrink-0">
       Grace ends
@@ -88,7 +88,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {expiry.data && (
-        <div className="flex items-center gap-4 py-3">
+        <div className="flex items-center gap-4 min-h-7">
           <ClockIcon className="size-4 text-neutral-7 shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Expires
@@ -151,7 +151,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       )}
 
       {data.registeredAt !== null && (
-        <div className="flex items-center gap-4 py-3">
+        <div className="flex items-center gap-4 min-h-7">
           <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Registered
