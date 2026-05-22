@@ -25,7 +25,9 @@ export const RegistryLocation = ({
   const hasSubregistry = data.registryAddress !== zeroAddress
 
   if (!hasSubregistry) {
-    return <div className="text-muted-foreground">No subregistry</div>
+    return (
+      <div className="font-semi-mono text-muted-foreground">No subregistry</div>
+    )
   }
 
   return (
