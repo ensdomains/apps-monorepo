@@ -3,9 +3,14 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { getRegisterPrice, getRenewPrice } from '@ensdomains/ensjs/public/v2'
+import {
+  type GetRegisterPriceErrorType,
+  type GetRenewPriceErrorType,
+  getRegisterPrice,
+  getRenewPrice,
+} from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
-import type { Address, ReadContractErrorType } from 'viem'
+import type { Address } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -21,7 +26,7 @@ const ethRegistrar = getChainContractAddress({
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  readonly cause: ReadContractErrorType | UnsupportedNameTypeError
+  readonly cause: GetRegisterPriceErrorType | GetRenewPriceErrorType
 }> {}
 
 type PriceMode = 'register' | 'renew'
@@ -79,7 +84,7 @@ const getNamePrice = (mode: PriceMode) =>
           paymentToken: resolvedToken,
         }),
         (e) =>
-          new GetRegistrationPriceError({ cause: e as ReadContractErrorType }),
+          new GetRegistrationPriceError({ cause: e as GetRenewPriceErrorType }),
       )
 
       return ok<RegistrationPriceResult>({
@@ -99,7 +104,9 @@ const getNamePrice = (mode: PriceMode) =>
         paymentToken: resolvedToken,
       }),
       (e) =>
-        new GetRegistrationPriceError({ cause: e as ReadContractErrorType }),
+        new GetRegistrationPriceError({
+          cause: e as GetRegisterPriceErrorType,
+        }),
     )
 
     return ok<RegistrationPriceResult>({

@@ -2,16 +2,18 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { getPremiumDecayParams } from '@ensdomains/ensjs/public/v2'
+import {
+  type GetPremiumDecayParamsErrorType,
+  getPremiumDecayParams,
+} from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
-import type { MulticallErrorType } from 'viem'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
-  readonly cause: MulticallErrorType
+  readonly cause: GetPremiumDecayParamsErrorType
 }> {}
 
 export type OracleParams = {
@@ -38,7 +40,8 @@ export const getOracleParams = ResultFn(async function* () {
         contract: 'ensStandardRentPriceOracle',
       }),
     }),
-    (e) => new GetOracleParamsError({ cause: e as MulticallErrorType }),
+    (e) =>
+      new GetOracleParamsError({ cause: e as GetPremiumDecayParamsErrorType }),
   )
 
   const premiumDecay: PremiumDecayConfig = {

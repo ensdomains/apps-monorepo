@@ -3,6 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
+import type { GetAvailableErrorType } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
 import { readContract } from 'viem/actions'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -16,7 +17,7 @@ const ethRegistrar = getChainContractAddress({
 export class CheckNameAvailabilityError extends TaggedError(
   'CheckNameAvailabilityError',
 )<{
-  cause: unknown
+  cause: GetAvailableErrorType
 }> {}
 
 type CheckNameAvailabilityParameters = {
@@ -47,7 +48,8 @@ export const checkNameAvailability = ResultFn(async function* ({
       functionName: 'isAvailable',
       args: [cleanName],
     }),
-    (e) => new CheckNameAvailabilityError({ cause: e }),
+    (e) =>
+      new CheckNameAvailabilityError({ cause: e as GetAvailableErrorType }),
   )
 
   return ok<CheckNameAvailabilityReturnType>({
