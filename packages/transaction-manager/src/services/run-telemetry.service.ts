@@ -47,7 +47,6 @@ interface SnapshotLike {
       maxFeePerGas?: bigint
       maxPriorityFeePerGas?: bigint
       rhinestoneParams?: { sponsored?: boolean }
-      zerodevParams?: { sponsored?: boolean }
     }
     intent?: { type?: string }
     signer?: { type?: string }
@@ -397,9 +396,6 @@ function resolveSponsorship(
   if (request.type === 'rhinestone-intent') {
     return request.rhinestoneParams?.sponsored
   }
-  if (request.type === 'zerodev') {
-    return request.zerodevParams?.sponsored
-  }
   return undefined
 }
 
@@ -441,7 +437,6 @@ function buildInitialSnapshot(
     smartAccount: {
       enabled: Boolean(input.useSmartAccount || input.signer?.type !== 'eoa'),
       signerType: input.signer?.type,
-      accountType: input.options?.smartAccountConfig?.accountType,
       sponsored: resolveSponsorship(request),
     },
   }

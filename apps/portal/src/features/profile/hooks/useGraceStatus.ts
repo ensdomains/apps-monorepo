@@ -15,6 +15,7 @@ export type UseGraceStatusReturnType = {
   isInGrace: boolean
   graceEndDate: Date | null
   isLoading: boolean
+  error: Error | null
 }
 
 export function useGraceStatus({
@@ -33,27 +34,64 @@ export function useGraceStatus({
 
   if (protocolVersion === 'ENSv1') {
     if (v1Query.isLoading) {
-      return { isInGrace: false, graceEndDate: null, isLoading: true }
+      return {
+        isInGrace: false,
+        graceEndDate: null,
+        isLoading: true,
+        error: null,
+      }
+    }
+    if (v1Query.error) {
+      return {
+        isInGrace: false,
+        graceEndDate: null,
+        isLoading: false,
+        error: v1Query.error,
+      }
     }
     const data = v1Query.data
     if (!data) {
-      return { isInGrace: false, graceEndDate: null, isLoading: false }
+      return {
+        isInGrace: false,
+        graceEndDate: null,
+        isLoading: false,
+        error: null,
+      }
     }
     const graceEndSeconds = data.expiry + BigInt(data.gracePeriod)
     return {
       isInGrace: data.status === 'gracePeriod',
       graceEndDate: new Date(Number(graceEndSeconds) * 1000),
       isLoading: false,
+      error: null,
     }
   }
 
   if (protocolVersion === 'ENSv2') {
     if (v2Query.isLoading) {
-      return { isInGrace: false, graceEndDate: null, isLoading: true }
+      return {
+        isInGrace: false,
+        graceEndDate: null,
+        isLoading: true,
+        error: null,
+      }
+    }
+    if (v2Query.error) {
+      return {
+        isInGrace: false,
+        graceEndDate: null,
+        isLoading: false,
+        error: v2Query.error,
+      }
     }
     const data = v2Query.data
     if (!data || data.expiry === null) {
-      return { isInGrace: false, graceEndDate: null, isLoading: false }
+      return {
+        isInGrace: false,
+        graceEndDate: null,
+        isLoading: false,
+        error: null,
+      }
     }
     const nowSeconds = Math.floor(Date.now() / 1000)
     const graceEndSeconds = data.expiry + V2_GRACE_DURATION_SECONDS
@@ -61,8 +99,9 @@ export function useGraceStatus({
       isInGrace: nowSeconds > data.expiry && nowSeconds < graceEndSeconds,
       graceEndDate: new Date(graceEndSeconds * 1000),
       isLoading: false,
+      error: null,
     }
   }
 
-  return { isInGrace: false, graceEndDate: null, isLoading: false }
+  return { isInGrace: false, graceEndDate: null, isLoading: false, error: null }
 }

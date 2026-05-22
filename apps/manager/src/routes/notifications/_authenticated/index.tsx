@@ -19,11 +19,7 @@ import { FilterBadge } from '@/features/notifications/inbox/filter-badge'
 import { NotificationsList } from '@/features/notifications/inbox/list'
 import { UnreadCount } from '@/features/notifications/inbox/unread-count'
 
-export const Route = createFileRoute('/notifications/_authenticated/')({
-  component: RouteComponent,
-})
-
-function RouteComponent() {
+export const AllNotificationsPage = () => {
   const { t } = useLingui()
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [selectedTag, setSelectedTag] = useState<string>('all')
@@ -68,7 +64,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
+    <div className="mx-auto w-full max-w-5xl flex-1 space-y-12 rounded-lg border-[#dededf] bg-white px-8 py-8 sm:px-6 lg:my-5 lg:border">
       <div className="mb-24 flex flex-col gap-8">
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
@@ -124,23 +120,29 @@ function RouteComponent() {
             <MSymbol className="ms-opsz-24 ms-wght-200" symbol="search" />
           </InputGroupAddon>
         </InputGroup>
-        <div className="flex gap-4">
-          <FilterBadge
-            active={selectedTag === 'all'}
-            label="All"
-            onClick={() => setSelectedTag('all')}
-          />
-          {tagOptions.map((tag) => (
+        <div className="-mx-8 sm:-mx-6 overflow-x-auto px-8 [scrollbar-width:none] sm:px-6 [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-max gap-4">
             <FilterBadge
-              active={selectedTag === tag}
-              key={tag}
-              label={formatTagLabel(tag)}
-              onClick={() => setSelectedTag(tag)}
+              active={selectedTag === 'all'}
+              label="All"
+              onClick={() => setSelectedTag('all')}
             />
-          ))}
+            {tagOptions.map((tag) => (
+              <FilterBadge
+                active={selectedTag === tag}
+                key={tag}
+                label={formatTagLabel(tag)}
+                onClick={() => setSelectedTag(tag)}
+              />
+            ))}
+          </div>
         </div>
       </div>
       <NotificationsList selectedTag={selectedTag} unreadOnly={unreadOnly} />
     </div>
   )
 }
+
+export const Route = createFileRoute('/notifications/_authenticated/')({
+  component: AllNotificationsPage,
+})

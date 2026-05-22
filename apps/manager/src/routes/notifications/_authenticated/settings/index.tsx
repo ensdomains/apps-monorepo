@@ -2,16 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ContactMethods } from '@/features/notifications/settings/contact-methods'
 import { NotificationPreferences } from '@/features/notifications/settings/preferences'
 
-export const Route = createFileRoute('/notifications/_authenticated/settings/')(
-  {
-    component: RouteComponent,
-  },
-)
-
-function RouteComponent() {
+export const NotificationSettingsPage = () => {
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-12 rounded-lg border-[#dededf] bg-white px-6 py-8 lg:my-5 lg:border">
-      <div className="flex flex-col gap-4">
+    <div className="mx-auto w-full max-w-5xl px-2 py-8 lg:my-5">
+      <div className="flex flex-col gap-4 pb-6">
         <h1 className="font-[350] text-[#232222] text-temp-32px leading-ens-none">
           Notification Settings
         </h1>
@@ -22,9 +16,19 @@ function RouteComponent() {
         </p>
       </div>
 
-      <ContactMethods />
+      <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-[3fr_2fr]">
+        <div className="rounded-xl border-[#ddddde] border-[0.5px] bg-white p-6 shadow-[0px_4px_24.1px_rgba(7,28,47,0.07)]">
+          <ContactMethods />
+        </div>
 
-      <NotificationPreferences />
+        <NotificationPreferences />
+      </div>
     </div>
   )
 }
+
+export const Route = createFileRoute('/notifications/_authenticated/settings/')(
+  {
+    component: NotificationSettingsPage,
+  },
+)

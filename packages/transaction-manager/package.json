@@ -21,10 +21,8 @@
     "@rhinestone/module-sdk": "^0.4.0",
     "@rhinestone/sdk": "1.5.1",
     "@xstate/react": "^4.0.0-beta.12",
-    "@zerodev/sdk": "^5.5.7",
     "idb": "^8.0.3",
     "neverthrow": "^8.1.1",
-    "permissionless": "^0.2.57",
     "valibot": "^1.2.0",
     "viem": "^2.21.58",
     "xstate": "catalog:"

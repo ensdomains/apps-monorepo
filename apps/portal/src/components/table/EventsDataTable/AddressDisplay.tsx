@@ -1,9 +1,6 @@
 import type { Address } from 'viem'
 import { useEnsName } from 'wagmi'
-import {
-  EntityBadgeWithActions,
-  type EntityVariant,
-} from '@/components/EntityBadge'
+import { EntityBadge, type EntityVariant } from '@/components/EntityBadge'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 interface AddressDisplayProps {
@@ -32,13 +29,13 @@ export const AddressDisplay = ({
   const variant = ensName ? 'name' : variantProp
 
   return (
-    <EntityBadgeWithActions
+    <EntityBadge
       variant={variant}
       name={ensName ?? undefined}
       address={address}
       showAvatar
     >
       {displayName}
-    </EntityBadgeWithActions>
+    </EntityBadge>
   )
 }

@@ -12,11 +12,20 @@
  *    constrains static-offset args via UniversalActionPolicy so a stolen
  *    session key cannot redirect funds to an attacker, register names to an
  *    attacker, or hijack HCA ownership.
- *  - Residual surface (accepted "for now"): `ETHRegistrar.renew(...)` has no
- *    on-chain `owner` arg — a stolen key can renew an attacker-controlled
- *    name on the user's USDC/DAI balance. Bounded only by token balance and
- *    `validUntil`. Revisit before mainnet (likely via
- *    `ERC20SpendingLimitsPolicy`).
+ *  - On-chain time-bound enforcement (a per-action `time-frame` policy
+ *    keyed off `validUntil`) is currently DISABLED — see the JSDoc on
+ *    `buildRegistrationSessionActions` below for the SDK ↔ deployed
+ *    contract initData mismatch that forced this. Until upstream is
+ *    fixed, the only expiry check is the client-side staleness window in
+ *    `restoreRhinestoneSession` / `isSessionExpired`, which an attacker
+ *    can bypass by submitting userOps from their own client. A stolen
+ *    key is therefore usable for the full 30-day window from any client.
+ *  - Residual surface (accepted "for now"): `ETHRegistrar.renew(...)`
+ *    has no on-chain `owner` arg — a stolen key can renew an
+ *    attacker-controlled name on the user's USDC/DAI balance, bounded
+ *    only by token allowance. Tighten before mainnet via
+ *    `SpendingLimitsPolicy` on the USDC/DAI approves (independent of
+ *    the time-frame work above).
  *
  * Calldata offset semantics (verified against on-chain
  * UniversalActionPolicy + Biconomy abstractjs `calldataArgument` helper):
@@ -38,7 +47,26 @@ import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/ve
 import type { Session } from '@rhinestone/sdk'
 import type { Address } from 'viem'
 import { erc20Abi, getAbiItem, toFunctionSelector } from 'viem'
-import { HCA_FACTORY_ABI } from '@/lib/hca-factory.abi'
+
+/**
+ * HCA Factory `setAccountOwner` ABI fragment.
+ *
+ * Inlined here so this package does not need to reach back into
+ * `apps/manager/src/lib/hca-factory.abi.ts`. Keep this in sync with the
+ * canonical ABI in the manager app if the factory interface ever changes.
+ */
+const HCA_FACTORY_SET_ACCOUNT_OWNER_ABI = [
+  {
+    inputs: [
+      { internalType: 'address', name: 'hca', type: 'address' },
+      { internalType: 'address', name: 'owner', type: 'address' },
+    ],
+    name: 'setAccountOwner',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const
 
 /** Default session lifetime: 30 days. */
 export const REGISTRATION_SESSION_VALIDITY_SECONDS = 30 * 24 * 60 * 60
@@ -73,7 +101,10 @@ const SELECTORS = {
     }),
   ),
   setAccountOwner: toFunctionSelector(
-    getAbiItem({ abi: HCA_FACTORY_ABI, name: 'setAccountOwner' }),
+    getAbiItem({
+      abi: HCA_FACTORY_SET_ACCOUNT_OWNER_ABI,
+      name: 'setAccountOwner',
+    }),
   ),
 } as const
 
@@ -82,6 +113,17 @@ export interface BuildRegistrationSessionActionsParams {
   readonly smartAccountAddress: Address
   /** EOA owning the smart account. Pinned as `register.owner` and `HCAFactory.setAccountOwner.eoa`. */
   readonly eoaAddress: Address
+  /**
+   * Session expiry as a unix timestamp in **seconds**.
+   *
+   * Currently threaded through `RhinestoneStoredSession.validUntil` and
+   * consumed only by the client-side staleness check
+   * (`restoreRhinestoneSession` / `isSessionExpired`) — see the function-
+   * level JSDoc for why the matching on-chain `time-frame` policy is
+   * disabled. Kept in this params type so the API doesn't churn when
+   * upstream is fixed and the policy is re-enabled.
+   */
+  readonly validUntil: number
 }
 
 /**
@@ -89,10 +131,51 @@ export interface BuildRegistrationSessionActionsParams {
  *
  * Returns a non-empty array of `ScopedAction`s. Plug into a `Session` along
  * with `owners` and `chain` at the call site.
+ *
+ * `validUntil` (unix seconds) is **accepted but not currently attached as
+ * an on-chain `time-frame` policy** due to a Rhinestone SDK ↔ deployed
+ * contract mismatch:
+ *
+ *   - SDK 1.5.1 encodes `TimeFramePolicy` initData as
+ *     `encodePacked(['uint48','uint48'], [validUntil, validAfter])` →
+ *     12 bytes.
+ *   - The TimeFramePolicy contract deployed on Sepolia at
+ *     `0x8177451511de0577b911c254e9551d981c26dc72` reads
+ *     `uint48(uint128(bytes16(initData[0:16])))` and
+ *     `uint48(uint128(bytes16(initData[16:32])))` → 32 bytes.
+ *
+ * Initialization reverts at the calldata-bounds check on the second
+ * `bytes16(initData[16:32])` slice, surfacing as a generic
+ * "Bundle simulation failed" 400 from the orchestrator with no inner
+ * revert reason. Confirmed against the verified source on Sourcify
+ * (rhinestonewtf/smartsessions fork — struct-based config instead of
+ * the upstream erc7579/smartsessions packed `type ... is uint256`).
+ *
+ * Until Rhinestone publishes an SDK release whose `'time-frame'` policy
+ * encoder matches the deployed contracts, on-chain expiry enforcement is
+ * not available. The dApp falls back to client-side `validUntil`
+ * checking only (`restoreRhinestoneSession` / `isSessionExpired`), which
+ * is a UX preflight, not a security boundary — a stolen session key
+ * remains usable for the full 30-day window from any client until the
+ * SDK is fixed and we re-enable the policy here.
+ *
+ * Tracking: file follow-up against `rhinestonewtf/sdk` reproducing the
+ * initData mismatch with a 32-byte `encodePacked(['uint128','uint128'])`
+ * encoding as the suggested fix.
+ *
+ * @param params.validUntil Required at the API level to keep the
+ *   signature stable when on-chain enforcement is re-enabled; threaded
+ *   through `RhinestoneStoredSession.validUntil` and used only by the
+ *   client-side staleness check today.
  */
 export function buildRegistrationSessionActions(
   params: BuildRegistrationSessionActionsParams,
 ): NonNullable<Session['actions']> {
+  // `validUntil` is accepted but intentionally unused on-chain today —
+  // see the JSDoc above for the SDK↔contract mismatch that forced this.
+  // Pulled into a void to keep linters happy without changing the API
+  // shape that the actor + signer construction both rely on.
+  void params.validUntil
   const { smartAccountAddress, eoaAddress } = params
 
   const ETHRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar

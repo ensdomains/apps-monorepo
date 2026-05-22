@@ -10,7 +10,7 @@ import {
 import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { CopyableRecord } from '@/components/CopyableRecord'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -75,9 +75,9 @@ const TokenInfoCard = ({
       </InfoRow>
 
       <InfoRow label="Contract">
-        <EntityBadgeWithActions variant="contract" address={contractAddress}>
+        <EntityBadge variant="contract" address={contractAddress}>
           {contractAddress}
-        </EntityBadgeWithActions>
+        </EntityBadge>
       </InfoRow>
 
       <InfoRow label="Token ID">
@@ -102,14 +102,18 @@ const TokenInfoCard = ({
               <div className="flex flex-col gap-6 py-6">
                 <InfoCard title="Token ID details">
                   <InfoRow label="Hash">
-                    <div>
-                      <CopyableRecord value={tokenId} />
+                    <div className="min-w-0 w-full">
+                      <EntityBadge variant="default" copyValue={tokenId}>
+                        {tokenId}
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
                   <InfoRow label="HEX">
-                    <div>
-                      <CopyableRecord value={hex} />
+                    <div className="min-w-0 w-full">
+                      <EntityBadge variant="default" copyValue={hex}>
+                        {hex}
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 

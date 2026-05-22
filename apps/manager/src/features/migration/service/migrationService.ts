@@ -1,9 +1,9 @@
 import {
+  type Call,
   type Signer,
   type TransactionRequest,
   transactionManager,
   waitForTransaction,
-  type ZeroDevCall,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
@@ -184,10 +184,7 @@ const ensureResolver = async (
   return resolver
 }
 
-const buildEOARequest = (
-  ctx: MigrationCtx,
-  call: ZeroDevCall,
-): TransactionRequest => {
+const buildEOARequest = (ctx: MigrationCtx, call: Call): TransactionRequest => {
   const chainId = ctx.publicClient.chain?.id
   if (!chainId) {
     throw new Error('publicClient is missing a chain configuration')
@@ -215,7 +212,7 @@ const wrapBatchError = (
 
 const submitCall = async (
   ctx: MigrationCtx,
-  call: ZeroDevCall,
+  call: Call,
   description: string,
 ): Promise<Hex> => {
   const txId = transactionManager.startTransaction(

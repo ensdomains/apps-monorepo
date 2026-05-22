@@ -86,7 +86,7 @@ const PUBLIC_CLIENT = {
   chain: { id: 11155111 },
   estimateGas: vi.fn(() => Promise.resolve(15_000_000n)),
 } as unknown as PublicClient
-const SIGNER = { type: 'zerodev' } as unknown as Signer
+const SIGNER = { type: 'rhinestone' } as unknown as Signer
 
 const unwrappedDomain = (id: string): V1Domain =>
   ({
