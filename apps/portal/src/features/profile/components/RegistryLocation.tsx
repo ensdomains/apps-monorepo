@@ -35,7 +35,7 @@ export const RegistryLocation = ({
       label="permissioned registry"
       isRegistry
     >
-      {truncateAddress(data.registryAddress, 6, 4, '...')}
+      {truncateAddress(data.registryAddress, 6, 4)}
     </EntityBadge>
   )
 }

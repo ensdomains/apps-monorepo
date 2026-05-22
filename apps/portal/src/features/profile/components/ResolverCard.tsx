@@ -27,7 +27,7 @@ export const ResolverCard = ({
       address={resolverAddress}
       label={resolverLabel}
     >
-      {truncateAddress(resolverAddress, 6, 4, '...')}
+      {truncateAddress(resolverAddress, 6, 4)}
     </EntityBadge>
   )
 

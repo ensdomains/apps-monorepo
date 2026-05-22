@@ -96,7 +96,7 @@ export const RegistryTreeItem = ({
               isRegistry
               inline
             >
-              {truncateAddress(address, 6, 4, '...')}
+              {truncateAddress(address, 6, 4)}
             </EntityBadge>
             {isLastWithoutRegistryConfigured ? (
               <div className="flex flex-row items-center justify-start gap-2">
@@ -134,8 +134,7 @@ export const RegistryTreeItem = ({
                     address={ownerData.owner}
                     inline
                   >
-                    {ownerEnsName ??
-                      truncateAddress(ownerData.owner, 6, 4, '...')}
+                    {ownerEnsName ?? truncateAddress(ownerData.owner, 6, 4)}
                   </EntityBadge>
                 ) : (
                   <span>—</span>

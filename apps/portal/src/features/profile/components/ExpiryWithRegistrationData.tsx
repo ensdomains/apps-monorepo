@@ -164,7 +164,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
               copyValue={registrationTxHash}
               inline
             >
-              {truncateAddress(registrationTxHash, 6, 4, '...')}
+              {truncateAddress(registrationTxHash, 6, 4)}
             </EntityBadge>
           ) : (
             <span className="font-semi-mono">

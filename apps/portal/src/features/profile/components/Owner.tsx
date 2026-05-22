@@ -45,7 +45,7 @@ export const Owner = ({
     )
   }
 
-  const shortenedAddress = truncateAddress(owner, 6, 4, '...')
+  const shortenedAddress = truncateAddress(owner, 6, 4)
   const variant = ownerName ? 'name' : 'address'
 
   if (asRow) {
