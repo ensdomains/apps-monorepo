@@ -6,6 +6,7 @@ import { getBaseRates as ensGetBaseRates } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { ReadContractErrorType } from 'viem'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 
@@ -29,7 +30,7 @@ export const getBaseRates = ResultFn(async function* () {
   const rates = yield* fromPromise(
     ensGetBaseRates(client, {
       oracleAddress: getChainContractAddress({
-        chain: client.chain,
+        chain: sepoliaWithEns,
         contract: 'ensStandardRentPriceOracle',
       }),
     }),

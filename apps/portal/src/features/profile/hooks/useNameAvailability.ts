@@ -2,10 +2,16 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { fromPromise, ok } from 'neverthrow'
 import { readContract } from 'viem/actions'
-import { ethRegistrarIsAvailableAbi } from '@/lib/abis/ethRegistrar'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export class CheckNameAvailabilityError extends TaggedError(
   'CheckNameAvailabilityError',
@@ -30,10 +36,6 @@ export const checkNameAvailability = ResultFn(async function* ({
   name,
 }: CheckNameAvailabilityParameters) {
   const client = yield* safeGetClient()
-  const ethRegistrar = getChainContractAddress({
-    chain: client.chain,
-    contract: 'ensEthRegistrar',
-  })
 
   // Remove .eth suffix if present
   const cleanName = name.replace(/\.eth$/i, '')
@@ -41,7 +43,7 @@ export const checkNameAvailability = ResultFn(async function* ({
   const isAvailable = yield* fromPromise(
     readContract(client, {
       address: ethRegistrar,
-      abi: ethRegistrarIsAvailableAbi,
+      abi: l2EthRegistrarIsAvailableSnippet,
       functionName: 'isAvailable',
       args: [cleanName],
     }),

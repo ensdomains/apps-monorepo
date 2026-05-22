@@ -8,9 +8,15 @@ import { err, fromPromise, ok } from 'neverthrow'
 import type { Address, ReadContractErrorType } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 import type { SupportedTokenAddresses } from '../types/tokens'
+
+const ethRegistrar = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensEthRegistrar',
+})
 
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
@@ -47,10 +53,6 @@ const getNamePrice = (mode: PriceMode) =>
     token,
   }: RegistrationPriceParameters) {
     const client = yield* safeGetClient()
-    const ethRegistrar = getChainContractAddress({
-      chain: client.chain,
-      contract: 'ensEthRegistrar',
-    })
     const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
     let label: string

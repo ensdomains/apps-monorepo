@@ -7,6 +7,7 @@ import { fromPromise, ok } from 'neverthrow'
 import type { MulticallErrorType } from 'viem'
 import type { PremiumDecayConfig } from '@/features/register/utils/premiumDecay'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
@@ -33,7 +34,7 @@ export const getOracleParams = ResultFn(async function* () {
   const { priceInitial, halvingPeriod, period } = yield* fromPromise(
     getPremiumDecayParams(client, {
       oracleAddress: getChainContractAddress({
-        chain: client.chain,
+        chain: sepoliaWithEns,
         contract: 'ensStandardRentPriceOracle',
       }),
     }),
