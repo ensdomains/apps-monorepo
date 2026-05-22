@@ -4,10 +4,13 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { err, fromPromise, ok } from 'neverthrow'
-import { type Address, type ReadContractErrorType, zeroAddress } from 'viem'
+import type { Address, ReadContractErrorType } from 'viem'
 import { readContract } from 'viem/actions'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
-import { ethRegistrarRentPriceAbi } from '@/lib/abis/ethRegistrar'
+import {
+  ethRegistrarGetRegisterPriceAbi,
+  ethRegistrarGetRenewPriceAbi,
+} from '@/lib/abis/ethRegistrar'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
@@ -38,17 +41,15 @@ export type RegistrationPriceResult = {
   readonly hasPremium: boolean
 }
 
-// The currently-deployed V2 ETHRegistrar exposes a single `rentPrice` that
-// returns (base, premium). Registration pays both; renewals pay base only
-// (renewals are exempt from premium by design). When the post-audit refactor
-// (PR #286) ships separate getRegisterPrice/getRenewPrice on-chain, switch
-// the call sites to those — see ABIs in lib/abis/ethRegistrar.ts.
+// pricing functions: `getRegisterPrice` returns (base, premium) and pays both;
+// `getRenewPrice` returns a single amount (renewals are exempt from premium by
+// design). Both compute against real registry state and revert if the name
+// isn't registerable/renewable — see ABIs in lib/abis/ethRegistrar.ts.
 const getNamePrice = (mode: PriceMode) =>
   ResultFn(async function* ({
     name,
     duration,
     token,
-    owner,
   }: RegistrationPriceParameters) {
     const client = yield* safeGetClient()
     const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
@@ -66,23 +67,18 @@ const getNamePrice = (mode: PriceMode) =>
 
     const decimals = getTokenMetadataWithAddress(resolvedToken).decimals
 
-    const [base, premium] = yield* fromPromise(
-      readContract(client, {
-        address: ethRegistrar,
-        abi: ethRegistrarRentPriceAbi,
-        functionName: 'rentPrice',
-        args: [
-          label,
-          owner ?? zeroAddress,
-          BigInt(duration),
-          resolvedToken,
-        ] as const,
-      }),
-      (e) =>
-        new GetRegistrationPriceError({ cause: e as ReadContractErrorType }),
-    )
-
     if (mode === 'renew') {
+      const base = yield* fromPromise(
+        readContract(client, {
+          address: ethRegistrar,
+          abi: ethRegistrarGetRenewPriceAbi,
+          functionName: 'getRenewPrice',
+          args: [label, BigInt(duration), resolvedToken] as const,
+        }),
+        (e) =>
+          new GetRegistrationPriceError({ cause: e as ReadContractErrorType }),
+      )
+
       return ok<RegistrationPriceResult>({
         base,
         premium: 0n,
@@ -91,6 +87,17 @@ const getNamePrice = (mode: PriceMode) =>
         hasPremium: false,
       })
     }
+
+    const [base, premium] = yield* fromPromise(
+      readContract(client, {
+        address: ethRegistrar,
+        abi: ethRegistrarGetRegisterPriceAbi,
+        functionName: 'getRegisterPrice',
+        args: [label, BigInt(duration), resolvedToken] as const,
+      }),
+      (e) =>
+        new GetRegistrationPriceError({ cause: e as ReadContractErrorType }),
+    )
 
     return ok<RegistrationPriceResult>({
       base,

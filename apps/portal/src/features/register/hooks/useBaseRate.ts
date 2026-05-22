@@ -43,6 +43,11 @@ export const getBaseRates = ResultFn(async function* () {
  * Looks up the per-second oracle base rate for a name's label length.
  * Mirrors StandardRentPriceOracle.baseRate(): clamps to last entry for
  * names longer than the rate table. Returns 0n if rates are missing.
+ *
+ * Length is counted in Unicode codepoints to match the contract's
+ * `StringUtils.strlen` (which counts UTF-8 codepoints). Spreading the string
+ * iterates by codepoint — collapsing surrogate pairs — unlike `.length`, which
+ * counts UTF-16 code units and would over-count emoji / multi-byte labels.
  */
 export const getBaseRateForName = (
   rates: readonly bigint[] | undefined,
@@ -52,7 +57,7 @@ export const getBaseRateForName = (
 
   let labelLength: number
   try {
-    labelLength = getLabel(name).length
+    labelLength = [...getLabel(name)].length
   } catch {
     return 0n
   }

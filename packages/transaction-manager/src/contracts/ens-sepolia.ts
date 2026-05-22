@@ -11,12 +11,13 @@ export const ENS_SEPOLIA_CONTRACTS = {
   PublicResolver: ensjsSepolia.ensPublicResolver.address,
   ReverseRegistrar: ensjsSepolia.ensReverseRegistrar.address,
 
-  // --- V2 (Tenderly virtual Sepolia deployment — contracts-v2 PR #301) ---
+  // --- V2 (Tenderly virtual Sepolia deployment — contracts-v2 redeploy, block 10887910) ---
   // NOTE: Tenderly-fork-specific addresses; do not merge to `main`.
-  ETHRegistry: '0x31a2bb5d933557cce1b3129993193896d074db92',
-  ETHRegistrar: '0x26e5e80e8f36607ef401443fb34eea363c86e8f7',
-  DedicatedResolverImpl: '0x73bad0460ef02b8d6a9de17550218e9e20663c19',
-  VerifiableFactory: '0x26997c9d0f3dcbae3f78c69e621a3926ee30bb98',
+  ETHRegistry: '0xc328a01a4800fb52ec5a6ab4190356962ab719e5',
+  ETHRegistrar: '0xd859dac731dab4aecddb154b639d868dc951da62',
+  // DedicatedResolverImpl is the PermissionedResolverImpl in the new deployment.
+  DedicatedResolverImpl: '0xae90dcc93f59d01124c9f4da4ef217b8934497ed',
+  VerifiableFactory: '0x5587003f8eeee1bc236d48ab39059cbfd99207d7',
 
   // --- Not (yet) in ensjs chain definitions; canonical Sepolia V2 deployments ---
   // Fast Test ETH Registrar (test deployments with MIN_COMMITMENT_AGE=0).
@@ -24,15 +25,15 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // Default reverse registrar (sets primary/default ENS name per coin type)
   DefaultReverseRegistrar: '0xeb8269fb39290f31c4c29cec548807ca2133abb4',
   // Standard Rent Price Oracle
-  StandardRentPriceOracle: '0x20a494e8a6ce80826477dd1d468337b990d71795',
+  StandardRentPriceOracle: '0x685201280115cd5f949f60e6c320aeca0487fb9b',
   // HCA Factory
-  HCAFactory: '0xb6fb46e1458915dd828633d91e1df8e4c3f2d4dd',
+  HCAFactory: '0xd309105793dbb2ed39f3d3418cbde80852decd1a',
 } as const
 
 // Payment tokens — Tenderly virtual Sepolia deployment (MockUSDC / MockDAI).
 export const SUPPORTED_TOKENS = {
-  USDC: '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6',
-  DAI: '0xb21412bb6816601dd840b93a5d19a8fe671cb74e',
+  USDC: '0x35e1136beea9d67f55b6ec98fcda8d1dd9a487ad',
+  DAI: '0xa51c9e6efe589407c72984e93b45e35a71a398ec',
 } as const satisfies Record<'USDC' | 'DAI', Address>
 
 export const TOKENS = {

@@ -47,8 +47,11 @@ export const getNameStatus = (
 export const getNameLength = (name: string | null): string => {
   if (!name) return '5+'
   const label = name.split('.')[0]
-  if (label.length === 3) return '3'
-  if (label.length === 4) return '4'
+  // Codepoint count to match the contract's StringUtils.strlen, not UTF-16
+  // code units — see getBaseRateForName.
+  const length = [...label].length
+  if (length === 3) return '3'
+  if (length === 4) return '4'
   return '5+'
 }
 

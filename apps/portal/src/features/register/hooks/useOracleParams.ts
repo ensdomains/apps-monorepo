@@ -39,17 +39,17 @@ export const getOracleParams = ResultFn(async function* () {
           {
             address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
             abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-            functionName: 'premiumPriceInitial',
+            functionName: 'PREMIUM_PRICE_INITIAL',
           },
           {
             address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
             abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-            functionName: 'premiumHalvingPeriod',
+            functionName: 'PREMIUM_HALVING_PERIOD',
           },
           {
             address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
             abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-            functionName: 'premiumPeriod',
+            functionName: 'PREMIUM_PERIOD',
           },
         ],
       }),
