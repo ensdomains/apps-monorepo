@@ -36,10 +36,128 @@ import {
   wrapParaAccount,
 } from '@rhinestone/sdk'
 import { toast } from 'sonner'
-import type { Account, Address, WalletClient } from 'viem'
+import {
+  type Account,
+  type Address,
+  numberToHex,
+  type WalletClient,
+} from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
 import { registerHCAOwnership } from './hca-registry'
 import type { ParaClient } from './types'
+
+/**
+ * Wallet-compatibility shim for EIP-712 integer fields.
+ *
+ * Rhinestone's typed-data schemas declare opaque 32-byte orchestrator-issued
+ * identifiers (e.g. `SingleChainOps.nonce`) as `uint256`. viem serializes
+ * `uint256` bigints as JSON decimal strings on the wire — legal, but some
+ * wallets (Zerion observed; any ethers-v6-backed parser at risk) coerce
+ * >2^53 decimal-string numerics into JS `Number`, lose precision, and reject
+ * signing with:
+ *
+ *   overflow (argument="value", value=4.46e+71, code=INVALID_ARGUMENT, ...)
+ *
+ * Pre-encoding every `uint*`/`int*` field as a `0x`-hex string before signing
+ * is digest-preserving (the EIP-712 type stays `uint256`, only the wire
+ * encoding changes — `encodeData` produces the identical 32-byte word for
+ * either encoding) and immune to JSON parser coercion.
+ *
+ * TODO: remove once the SDK ships hex pre-encoding at its signing boundary
+ * (or declares opaque-bytes32 fields as `bytes32` in the EIP-712 schema, which
+ * is the proper fix but requires an on-chain verifier upgrade).
+ */
+function convertIntegerFieldsToHex(
+  types: Record<string, ReadonlyArray<{ name: string; type: string }>>,
+  primaryType: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const struct = types[primaryType]
+  if (!struct) return data
+
+  const result: Record<string, unknown> = { ...data }
+  for (const { name, type } of struct) {
+    const value = result[name]
+    if (value === undefined || value === null) continue
+
+    // Strip array suffix (e.g. `Ops[]` -> `Ops`).
+    const elementType = type.replace(/\[\d*\]$/, '')
+    const isArray = type !== elementType
+
+    const integerMatch = elementType.match(/^(u?int)(\d+)$/)
+    const baseType = integerMatch?.[1]
+    const sizeBitsStr = integerMatch?.[2]
+    if (
+      baseType &&
+      sizeBitsStr &&
+      (typeof value === 'bigint' || typeof value === 'number')
+    ) {
+      result[name] = numberToHex(value, {
+        signed: baseType === 'int',
+        size: Number.parseInt(sizeBitsStr, 10) / 8,
+      })
+      continue
+    }
+
+    // Recurse into nested struct types.
+    if (types[elementType]) {
+      if (isArray && Array.isArray(value)) {
+        result[name] = value.map((item) =>
+          convertIntegerFieldsToHex(
+            types,
+            elementType,
+            item as Record<string, unknown>,
+          ),
+        )
+      } else if (typeof value === 'object') {
+        result[name] = convertIntegerFieldsToHex(
+          types,
+          elementType,
+          value as Record<string, unknown>,
+        )
+      }
+    }
+  }
+  return result
+}
+
+/**
+ * Wrap an account so its `signTypedData` pre-converts `uint*`/`int*` fields to
+ * hex strings. See `convertIntegerFieldsToHex` for the rationale.
+ */
+function withHexIntegerTypedData(account: Account): Account {
+  const originalSign = account.signTypedData
+  if (!originalSign) return account
+  const original = originalSign.bind(account) as NonNullable<
+    Account['signTypedData']
+  >
+  const wrapped: NonNullable<Account['signTypedData']> = async (parameters) => {
+    const typed = parameters as unknown as {
+      domain?: Record<string, unknown>
+      message: Record<string, unknown>
+      primaryType: string
+      types: Record<string, ReadonlyArray<{ name: string; type: string }>>
+    }
+    const nextDomain =
+      typed.domain && typed.types.EIP712Domain
+        ? convertIntegerFieldsToHex(typed.types, 'EIP712Domain', typed.domain)
+        : typed.domain
+    const nextMessage =
+      typed.primaryType === 'EIP712Domain'
+        ? typed.message
+        : convertIntegerFieldsToHex(
+            typed.types,
+            typed.primaryType,
+            typed.message,
+          )
+    return original({
+      ...parameters,
+      domain: nextDomain,
+      message: nextMessage,
+    } as typeof parameters)
+  }
+  return { ...account, signTypedData: wrapped } as Account
+}
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
@@ -78,7 +196,9 @@ function resolveOwnerAccount(params: {
 
   if (walletClient?.account?.address) {
     return {
-      ownerAccount: walletClientToAccount(walletClient),
+      ownerAccount: withHexIntegerTypedData(
+        walletClientToAccount(walletClient),
+      ),
       eoaAddress: walletClient.account.address,
     }
   }
@@ -88,7 +208,7 @@ function resolveOwnerAccount(params: {
     return {
       // Para's MPC signatures use 0/1 v-byte recovery; Rhinestone /
       // ERC-4337 modules expect 27/28. `wrapParaAccount` adjusts.
-      ownerAccount: wrapParaAccount(paraAccount),
+      ownerAccount: withHexIntegerTypedData(wrapParaAccount(paraAccount)),
       eoaAddress: paraAccount.address as Address,
     }
   }
