@@ -1,0 +1,84 @@
+diff --git a/dist/cryptography/webAuth.js b/dist/cryptography/webAuth.js
+index b5745045ffe5d3e591adbcf72e786246b4918681..158efbd510871643fbd5c7470e93d9174378fe4e 100644
+--- a/dist/cryptography/webAuth.js
++++ b/dist/cryptography/webAuth.js
+@@ -2,10 +2,30 @@
+ import {
+   __async
+ } from "../chunk-YJOFEY2L.js";
+-import base64url from "base64url";
+-import * as cbor from "cbor-web";
++import { base64url } from "@scure/base";
+ import forge from "node-forge";
+ import { getPortalDomain } from "@getpara/core-sdk";
++
++function _decodeCBOR(data) {
++  const u8 = new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer || data);
++  let off = 0;
++  const r = n => { const v = u8.slice(off, off+n); off += n; return v };
++  const dv = () => new DataView(u8.buffer, u8.byteOffset + off);
++  function d() {
++    const ib = u8[off++], mt = ib >> 5, ai = ib & 0x1f;
++    const av = () => { if(ai<24) return ai; if(ai===24) return u8[off++]; if(ai===25){const v=dv().getUint16(0);off+=2;return v} if(ai===26){const v=dv().getUint32(0);off+=4;return v} throw Error("cbor: unsupported ai "+ai) };
++    switch(mt) {
++      case 0: return av();
++      case 1: return -1 - av();
++      case 2: return r(av());
++      case 3: return new TextDecoder().decode(r(av()));
++      case 4: { const a=[]; for(let i=av();i>0;i--) a.push(d()); return a }
++      case 5: { const m=new Map(); for(let i=av();i>0;i--) m.set(d(), d()); return m }
++      default: throw Error("cbor: unsupported mt "+mt);
++    }
++  }
++  return d();
++}
+ const ES256_ALGORITHM = -7;
+ const RS256_ALGORITHM = -257;
+ function publicKeyCredentialToJSON(pubKeyCred) {
+@@ -50,18 +70,18 @@ function parseMakeCredAuthData(buffer) {
+   };
+ }
+ function parseAttestationObject(attestationObject) {
+-  const attestationObjectBuffer = base64url.toBuffer(attestationObject);
+-  return cbor.decodeAllSync(attestationObjectBuffer)[0];
++  const attestationObjectBuffer = base64url.decode(attestationObject);
++  return _decodeCBOR(attestationObjectBuffer)[0];
+ }
+ function COSEECDSAtoPKCS(COSEPublicKey) {
+-  const coseStruct = cbor.decodeAllSync(COSEPublicKey)[0];
++  const coseStruct = _decodeCBOR(COSEPublicKey)[0];
+   const tag = Buffer.from([4]);
+   const x = coseStruct.get(-2);
+   const y = coseStruct.get(-3);
+   return Buffer.concat([tag, x, y]);
+ }
+ function COSERSAtoPKCS(COSEPublicKey) {
+-  const coseStruct = cbor.decodeAllSync(COSEPublicKey)[0];
++  const coseStruct = _decodeCBOR(COSEPublicKey)[0];
+   const n = coseStruct.get(-1);
+   const e = coseStruct.get(-2);
+   const nForge = forge.util.createBuffer(n.toString("binary"));
+@@ -144,7 +164,7 @@ function generateSignature(env, challenge, allowedPublicKeys, isE2E, rpIdOverrid
+         timeout: 6e4,
+         challenge: Buffer.from(challenge, "base64"),
+         allowCredentials: allowedPublicKeys.map((key) => ({
+-          id: base64url.toBuffer(key),
++          id: base64url.decode(key),
+           type: "public-key"
+         })),
+         userVerification: "required",
+diff --git a/package.json b/package.json
+index 46c36c51bc2d2d5561bc09e28e16fd070cc69a8d..d26714656f2d85920ec1c5fd9b9218509c577079 100644
+--- a/package.json
++++ b/package.json
+@@ -4,9 +4,8 @@
+   "dependencies": {
+     "@getpara/core-sdk": "2.12.0",
+     "@getpara/user-management-client": "2.12.0",
+-    "base64url": "^3.0.1",
++    "@scure/base": "^1.0.0",
+     "buffer": "6.0.3",
+-    "cbor-web": "^9.0.2",
+     "node-forge": "1.3.1",
+     "ua-parser-js": "^2.0.2"
+   },

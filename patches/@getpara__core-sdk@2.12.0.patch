@@ -1,0 +1,197 @@
+diff --git a/dist/cjs/cryptography/utils.js b/dist/cjs/cryptography/utils.js
+index fba474fe0a0fabbfe81577fc32006def8a00d390..ea530702e604604c67a13ebf2d39a404e151954b 100644
+--- a/dist/cjs/cryptography/utils.js
++++ b/dist/cjs/cryptography/utils.js
+@@ -68,7 +68,7 @@ __export(utils_exports, {
+   symmetricKeyEncryptMessage: () => symmetricKeyEncryptMessage
+ });
+ module.exports = __toCommonJS(utils_exports);
+-var import_base64url = __toESM(require("base64url"));
++var import_scure_base = require("@scure/base");
+ var import_node_forge = __toESM(require("node-forge"));
+ var import_utils = require("../utils/index.js");
+ const rsa = import_node_forge.default.pki.rsa;
+@@ -176,7 +176,7 @@ function getAsymmetricKeyPair(ctx, seedValue) {
+ }
+ function getPublicKeyFromSignature(ctx, userHandle) {
+   return __async(this, null, function* () {
+-    const encodedUserHandle = import_base64url.default.encode(userHandle);
++    const encodedUserHandle = import_scure_base.base64url.encode(userHandle);
+     const keyPair = yield getAsymmetricKeyPair(ctx, encodedUserHandle);
+     return getPublicKeyHex(keyPair);
+   });
+diff --git a/dist/cjs/transmission/transmissionUtils.js b/dist/cjs/transmission/transmissionUtils.js
+index d11870926dc54fb542feab5adc7c834b77609d6b..8b0d07d19e930dc90e12769ebb3f19e4373c7f00 100644
+--- a/dist/cjs/transmission/transmissionUtils.js
++++ b/dist/cjs/transmission/transmissionUtils.js
+@@ -53,7 +53,7 @@ __export(transmissionUtils_exports, {
+ module.exports = __toCommonJS(transmissionUtils_exports);
+ var import_ecies = require("@celo/utils/lib/ecies.js");
+ var import_buffer = require("buffer");
+-var eutil = __toESM(require("@ethereumjs/util"));
++var import_noble_curves = require("@noble/curves/secp256k1");
+ function upload(message, userManagementClient) {
+   return __async(this, null, function* () {
+     let secret;
+@@ -62,8 +62,8 @@ function upload(message, userManagementClient) {
+       try {
+         const privateKeyUint8Array = new Uint8Array(32);
+         crypto.getRandomValues(privateKeyUint8Array);
+-        secret = import_buffer.Buffer.from(privateKeyUint8Array).toString("hex");
+-        publicKeyUint8Array = eutil.privateToPublic(privateKeyUint8Array);
++        secret = Array.from(privateKeyUint8Array).map((b) => b.toString(16).padStart(2, "0")).join("");
++        publicKeyUint8Array = import_noble_curves.secp256k1.getPublicKey(privateKeyUint8Array, false).slice(1);
+         break;
+       } catch (e) {
+         continue;
+diff --git a/dist/cjs/utils/formatting.js b/dist/cjs/utils/formatting.js
+index 819269844705928e256264da0dcfb0cd0883d44f..f7248de25c059cd37f6327637c94b41776310eee 100644
+--- a/dist/cjs/utils/formatting.js
++++ b/dist/cjs/utils/formatting.js
+@@ -38,11 +38,15 @@ __export(formatting_exports, {
+   truncateAddress: () => truncateAddress
+ });
+ module.exports = __toCommonJS(formatting_exports);
+-var import_encoding = require("@cosmjs/encoding");
++var import_scure_base = require("@scure/base");
+ var import_sha256 = require("@noble/hashes/sha256");
+ var import_ripemd160 = require("@noble/hashes/ripemd160");
+-var import_elliptic = __toESM(require("elliptic"));
+-const secp256k1 = new import_elliptic.default.ec("secp256k1");
++
++function compressPubkey(pubkey) {
++  if (pubkey.length === 33) return pubkey;
++  if (pubkey.length !== 65 || pubkey[0] !== 4) throw new Error("Invalid pubkey length");
++  return new Uint8Array([0x02 | (pubkey[64] & 1), ...pubkey.slice(1, 33)]);
++}
+ function hexStringToBase64(hexString) {
+   if (hexString.substring(0, 2) === "0x") {
+     hexString = hexString.substring(2);
+@@ -71,16 +75,6 @@ function hexToDecimal(hex) {
+ function decimalToHex(decimal) {
+   return `0x${parseInt(decimal).toString(16)}`;
+ }
+-function compressPubkey(pubkey) {
+-  switch (pubkey.length) {
+-    case 33:
+-      return pubkey;
+-    case 65:
+-      return Uint8Array.from(secp256k1.keyFromPublic(pubkey).getPublic(true, "array"));
+-    default:
+-      throw new Error("Invalid pubkey length");
+-  }
+-}
+ function rawSecp256k1PubkeyToRawAddress(pubkeyData) {
+   if (pubkeyData.length !== 33) {
+     throw new Error(`Invalid Secp256k1 pubkey length (compressed): ${pubkeyData.length}`);
+@@ -92,7 +86,7 @@ function getCosmosAddress(publicKey, prefix) {
+     Buffer.from(publicKey.startsWith("0x") ? publicKey.slice(2) : publicKey, "hex")
+   );
+   const compressedPublicKey = compressPubkey(uncompressedPublicKey);
+-  return (0, import_encoding.toBech32)(prefix, rawSecp256k1PubkeyToRawAddress(compressedPublicKey));
++  return import_scure_base.bech32.encode(prefix, rawSecp256k1PubkeyToRawAddress(compressedPublicKey));
+ }
+ function truncateAddress(str, addressType, {
+   prefix = addressType === "COSMOS" ? "cosmos" : void 0,
+diff --git a/dist/esm/cryptography/utils.js b/dist/esm/cryptography/utils.js
+index 99687af60470c08d3bdbc5378ded4f108d5afbec..ef3ed6245564e8a6e5effcd2c3d42ec5d96ff9ce 100644
+--- a/dist/esm/cryptography/utils.js
++++ b/dist/esm/cryptography/utils.js
+@@ -1,7 +1,7 @@
+ import {
+   __async
+ } from "../chunk-7B52C2XE.js";
+-import base64url from "base64url";
++import { base64url } from "@scure/base";
+ import forge from "node-forge";
+ import { getPortalBaseURL } from "../utils/index.js";
+ const rsa = forge.pki.rsa;
+diff --git a/dist/esm/transmission/transmissionUtils.js b/dist/esm/transmission/transmissionUtils.js
+index fe8a279eff84a9f25337412497cc870b5e579f0a..4cc1fefa5cf04078de0a1db6aa692a501bdabb1d 100644
+--- a/dist/esm/transmission/transmissionUtils.js
++++ b/dist/esm/transmission/transmissionUtils.js
+@@ -3,7 +3,7 @@ import {
+ } from "../chunk-7B52C2XE.js";
+ import { Encrypt as ECIESEncrypt, Decrypt as ECIESDecrypt } from "@celo/utils/lib/ecies.js";
+ import { Buffer } from "buffer";
+-import * as eutil from "@ethereumjs/util";
++import { secp256k1 } from "@noble/curves/secp256k1";
+ function upload(message, userManagementClient) {
+   return __async(this, null, function* () {
+     let secret;
+@@ -12,8 +12,8 @@ function upload(message, userManagementClient) {
+       try {
+         const privateKeyUint8Array = new Uint8Array(32);
+         crypto.getRandomValues(privateKeyUint8Array);
+-        secret = Buffer.from(privateKeyUint8Array).toString("hex");
+-        publicKeyUint8Array = eutil.privateToPublic(privateKeyUint8Array);
++        secret = Array.from(privateKeyUint8Array).map((b) => b.toString(16).padStart(2, "0")).join("");
++        publicKeyUint8Array = secp256k1.getPublicKey(privateKeyUint8Array, false).slice(1);
+         break;
+       } catch (e) {
+         continue;
+diff --git a/dist/esm/utils/formatting.js b/dist/esm/utils/formatting.js
+index d654e6f3641c35ec9d03b7e0e2d556275560b853..b1a32ced83935ece5b9b1ec5eec8cff32195ef3e 100644
+--- a/dist/esm/utils/formatting.js
++++ b/dist/esm/utils/formatting.js
+@@ -1,9 +1,13 @@
+ import "../chunk-7B52C2XE.js";
+-import { toBech32 } from "@cosmjs/encoding";
++import { bech32 } from "@scure/base";
+ import { sha256 } from "@noble/hashes/sha256";
+ import { ripemd160 } from "@noble/hashes/ripemd160";
+-import elliptic from "elliptic";
+-const secp256k1 = new elliptic.ec("secp256k1");
++
++function compressPubkey(pubkey) {
++  if (pubkey.length === 33) return pubkey;
++  if (pubkey.length !== 65 || pubkey[0] !== 4) throw new Error("Invalid pubkey length");
++  return new Uint8Array([0x02 | (pubkey[64] & 1), ...pubkey.slice(1, 33)]);
++}
+ function hexStringToBase64(hexString) {
+   if (hexString.substring(0, 2) === "0x") {
+     hexString = hexString.substring(2);
+@@ -32,16 +36,6 @@ function hexToDecimal(hex) {
+ function decimalToHex(decimal) {
+   return `0x${parseInt(decimal).toString(16)}`;
+ }
+-function compressPubkey(pubkey) {
+-  switch (pubkey.length) {
+-    case 33:
+-      return pubkey;
+-    case 65:
+-      return Uint8Array.from(secp256k1.keyFromPublic(pubkey).getPublic(true, "array"));
+-    default:
+-      throw new Error("Invalid pubkey length");
+-  }
+-}
+ function rawSecp256k1PubkeyToRawAddress(pubkeyData) {
+   if (pubkeyData.length !== 33) {
+     throw new Error(`Invalid Secp256k1 pubkey length (compressed): ${pubkeyData.length}`);
+@@ -53,7 +47,7 @@ function getCosmosAddress(publicKey, prefix) {
+     Buffer.from(publicKey.startsWith("0x") ? publicKey.slice(2) : publicKey, "hex")
+   );
+   const compressedPublicKey = compressPubkey(uncompressedPublicKey);
+-  return toBech32(prefix, rawSecp256k1PubkeyToRawAddress(compressedPublicKey));
++  return bech32.encode(prefix, rawSecp256k1PubkeyToRawAddress(compressedPublicKey));
+ }
+ function truncateAddress(str, addressType, {
+   prefix = addressType === "COSMOS" ? "cosmos" : void 0,
+diff --git a/package.json b/package.json
+index 72e1d7d28cde0a0b2471b992adcbe55e60808753..d1250d754fa21512ae1ecad6e31186c684195af9 100644
+--- a/package.json
++++ b/package.json
+@@ -3,11 +3,10 @@
+   "version": "2.12.0",
+   "dependencies": {
+     "@celo/utils": "^8.0.2",
+-    "@cosmjs/encoding": "^0.32.4",
+-    "@ethereumjs/util": "^9.1.0",
+     "@getpara/user-management-client": "2.12.0",
++    "@noble/curves": "^1.0.0",
+     "@noble/hashes": "^1.5.0",
+-    "base64url": "^3.0.1",
++    "@scure/base": "^1.0.0",
+     "libphonenumber-js": "^1.11.7",
+     "node-forge": "^1.3.1",
+     "uuid": "^11.1.0"

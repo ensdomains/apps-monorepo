@@ -56,7 +56,9 @@
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
       "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch",
-      "class-variance-authority": "patches/class-variance-authority.patch"
+      "class-variance-authority": "patches/class-variance-authority.patch",
+      "@getpara/core-sdk@2.12.0": "patches/@getpara__core-sdk@2.12.0.patch",
+      "@getpara/web-sdk@2.12.0": "patches/@getpara__web-sdk@2.12.0.patch"
     },
     "overrides": {
       "@rhinestone/sdk": "1.5.1",
