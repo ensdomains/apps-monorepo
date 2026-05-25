@@ -120,9 +120,10 @@ describe('session', () => {
 
     it('calls experimental_getSessionDetails with the registration-scoped action set', async () => {
       const mockAccount = createMockRhinestoneAccount()
-      // Pin `validUntil` so the actions array used internally is the same
+      // Pin timestamps so the actions array used internally is the same
       // as the one we rebuild below for the equality check. Otherwise the
       // default-30d path picks up `Date.now()` and races the rebuild.
+      const validAfter = 1_700_000_000
       const validUntil = 2_000_000_000
 
       await createRhinestoneSession({
@@ -131,7 +132,7 @@ describe('session', () => {
         chainId: 11155111,
         rhinestoneAccount: mockAccount,
         chain: MOCK_CHAIN,
-        config: { validUntil },
+        config: { validAfter, validUntil },
       })
 
       // The session must be enabled with the same actions array the runtime
@@ -140,6 +141,7 @@ describe('session', () => {
       const expectedActions = buildRegistrationSessionActions({
         smartAccountAddress: ACCOUNT_ADDRESS,
         eoaAddress: OWNER_ADDRESS,
+        validAfter,
         validUntil,
       })
 
@@ -288,11 +290,12 @@ describe('session', () => {
       expect(parsed).toEqual({ provider: 'rhinestone', chainId: 11155111 })
     })
 
-    it('respects config.validUntil when provided', async () => {
+    it('respects config timestamps when provided', async () => {
       const mockAccount = createMockRhinestoneAccount()
       // unix seconds — matches the unit used by the default path and the
       // expiry check in restoreRhinestoneSession (`validUntil * 1000`).
-      const validUntil = Math.floor(Date.now() / 1000) + 3600
+      const validAfter = Math.floor(Date.now() / 1000)
+      const validUntil = validAfter + 3600
 
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
@@ -300,11 +303,12 @@ describe('session', () => {
         chainId: 11155111,
         rhinestoneAccount: mockAccount,
         chain: MOCK_CHAIN,
-        config: { validUntil },
+        config: { validAfter, validUntil },
       })
 
       const { session } = result._unsafeUnwrap()
 
+      expect(session.validAfter).toBe(validAfter)
       expect(session.validUntil).toBe(validUntil)
     })
 

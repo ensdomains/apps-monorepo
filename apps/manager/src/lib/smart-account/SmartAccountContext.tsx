@@ -344,18 +344,17 @@ export const SmartAccountContextProvider = ({
                   ],
                 },
                 chain: customSepolia,
-                // Must match the actions baked into the EIP-712 enable
+                // Must match the actions (including the per-action
+                // `time-frame` policy) baked into the EIP-712 enable
                 // signature produced in @ens-apps/smart-account at session
                 // creation time. Any divergence breaks the PermissionId
-                // and yields `InvalidSignature()`. `validUntil` is
-                // currently not part of the action set on-chain (the
-                // `time-frame` policy is disabled — see
-                // @ens-apps/smart-account providers/rhinestone/registration-policy.ts),
-                // but we still thread the same value through so the
-                // rebuild stays correct once upstream is fixed.
+                // and yields `InvalidSignature()`.
                 actions: buildRegistrationSessionActions({
                   smartAccountAddress: accountAddress,
                   eoaAddress: ownerAddress,
+                  validAfter:
+                    rhinestoneSessionClient.validAfter ??
+                    Math.floor(Date.now() / 1000),
                   validUntil: rhinestoneSessionClient.validUntil,
                 }),
               },

@@ -25,20 +25,25 @@ export interface BaseStoredSession {
   /** Chain ID the session is valid for */
   readonly chainId: number
   /**
+   * Start timestamp (unix seconds).
+   *
+   * On-chain enforcement via the per-action `time-frame` policy. Must
+   * round-trip through session storage so signer-reconstruction produces
+   * the same PermissionId.
+   *
+   * Optional for backwards compatibility with pre-time-frame sessions.
+   */
+  readonly validAfter?: number
+  /**
    * Expiry timestamp (unix seconds).
    *
-   * Used by provider session-restore helpers (e.g.
-   * `restoreRhinestoneSession`) and `isSessionExpired` to detect stale
-   * rows in localStorage and prompt for a fresh enable. This is a
-   * **client-side check only** — the matching on-chain `time-frame`
-   * policy is currently disabled due to a Rhinestone SDK ↔ deployed-
-   * contract initData mismatch (see
-   * `providers/rhinestone/registration-policy.ts` for the full
-   * diagnosis). A stolen key remains usable for the full session
-   * lifetime from any client until upstream is fixed.
+   * Used by on-chain `time-frame` policy enforcement AND the client-side
+   * staleness check (`restoreRhinestoneSession` / `isSessionExpired`).
+   * Both must agree on the same value for the PermissionId to be
+   * reproducible at signer-construction time.
    *
-   * Optional only for backwards compatibility with the type — newly
-   * created sessions always populate it.
+   * Optional for backwards compatibility — newly created sessions always
+   * populate it.
    */
   readonly validUntil?: number
   /** Session private key (hex) for signing */

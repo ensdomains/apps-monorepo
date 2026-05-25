@@ -6,7 +6,8 @@
  *
  * Session creation performs the Rhinestone SDK enablement flow:
  * 1. Generate session key pair
- * 2. Define Session with sudo policy
+ * 2. Define Session with registration-scoped actions (each carrying a
+ *    `time-frame` policy for on-chain expiry enforcement)
  * 3. experimental_getSessionDetails() — get on-chain validation data
  * 4. experimental_signEnableSession() — owner signs MultiChainSession (one wallet prompt, done)
  * 5. Store enableSignature + hashesAndChainIds for later use
@@ -36,8 +37,14 @@ export interface CreateRhinestoneSessionParams {
   readonly chain: Chain
   readonly config?: {
     /**
+     * Optional start timestamp (unix seconds).
+     * Defaults to `Math.floor(Date.now() / 1000)`.
+     * Used as `validAfter` in the per-action `time-frame` policy.
+     */
+    readonly validAfter?: number
+    /**
      * Optional expiry timestamp (unix seconds).
-     * Defaults to `now + REGISTRATION_SESSION_VALIDITY_SECONDS` (30 days).
+     * Defaults to `validAfter + REGISTRATION_SESSION_VALIDITY_SECONDS` (30 days).
      */
     readonly validUntil?: number
   }
@@ -76,17 +83,13 @@ export function createRhinestoneSession(
       const sessionPrivateKey = generatePrivateKey()
       const sessionAccount = privateKeyToAccount(sessionPrivateKey)
 
-      // 2. Compute expiry up-front (unix seconds). Persisted on the stored
-      //    session and consulted client-side by `restoreRhinestoneSession`
-      //    and `isSessionExpired`. Currently NOT baked into the action set
-      //    (the on-chain `time-frame` policy is disabled — see
-      //    ./registration-policy.ts for the SDK ↔ deployed contract
-      //    initData mismatch). Once upstream is fixed, this value will
-      //    round-trip into `buildRegistrationSessionActions` so the rebuild
-      //    in SmartAccountContext produces the same PermissionId.
+      // 2. Compute start + expiry (unix seconds). Persisted on the stored
+      //    session so signer-reconstruction produces the same PermissionId.
+      //    Both feed into the per-action `time-frame` policy (on-chain) AND
+      //    the client-side staleness check in `restoreRhinestoneSession`.
+      const validAfter = config?.validAfter ?? Math.floor(Date.now() / 1000)
       const validUntil =
-        config?.validUntil ??
-        Math.floor(Date.now() / 1000) + REGISTRATION_SESSION_VALIDITY_SECONDS
+        config?.validUntil ?? validAfter + REGISTRATION_SESSION_VALIDITY_SECONDS
 
       // 3. Define session scoped to the registration / renewal flows.
       //    See ./registration-policy.ts for the action set + threat
@@ -103,6 +106,7 @@ export function createRhinestoneSession(
         actions: buildRegistrationSessionActions({
           smartAccountAddress,
           eoaAddress: ownerAddress,
+          validAfter,
           validUntil,
         }),
       }
@@ -142,6 +146,7 @@ export function createRhinestoneSession(
         ownerAddress,
         createdAt: Date.now(),
         chainId,
+        validAfter,
         validUntil,
         sessionPrivateKey,
         sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId }),
@@ -166,12 +171,9 @@ export interface RestoreRhinestoneSessionParams {
 /**
  * Restore a Rhinestone session from stored data.
  *
- * Refuses to restore once `session.validUntil` has passed. Today this is
- * the **only** expiry check — see `registration-policy.ts` for why
- * the matching on-chain `time-frame` policy is currently disabled. A
- * stolen session key submitted from an attacker's bundler is therefore
- * not bound by this check; the bound is just the dApp's own refusal to
- * use a stale key plus the user revoking the session.
+ * Refuses to restore once `session.validUntil` has passed. This is a UX
+ * preflight — on-chain enforcement is handled by the `time-frame` policy
+ * baked into every action at session-creation time.
  *
  * The `enableSignature` and `hashesAndChainIds` from storage are used at
  * signer construction time to build the full SessionSignerSet with

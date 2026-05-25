@@ -11,7 +11,8 @@ import { buildRegistrationSessionActions } from './registration-policy'
 
 const SCA = '0x1111111111111111111111111111111111111111' as Address
 const EOA = '0x2222222222222222222222222222222222222222' as Address
-/** Fixed unix-seconds value for deterministic snapshot/equality checks. */
+/** Fixed unix-seconds values for deterministic snapshot/equality checks. */
+const VALID_AFTER_SEC = 1_700_000_000 // 2023-11-14
 const VALID_UNTIL_SEC = 2_000_000_000 // 2033-05-18
 
 const KNOWN_SELECTORS = {
@@ -27,6 +28,7 @@ describe('buildRegistrationSessionActions', () => {
   const actions = buildRegistrationSessionActions({
     smartAccountAddress: SCA,
     eoaAddress: EOA,
+    validAfter: VALID_AFTER_SEC,
     validUntil: VALID_UNTIL_SEC,
   })
 
@@ -63,15 +65,14 @@ describe('buildRegistrationSessionActions', () => {
     )
     expect(registerAction).toBeDefined()
     const policies = registerAction?.policies ?? []
-    // Only the universal-action policy today; see
-    // `registration-policy.ts` JSDoc for why the on-chain
-    // `time-frame` policy is intentionally absent.
-    expect(policies).toHaveLength(1)
-    const policy = policies[0]
-    expect(policy?.type).toBe('universal-action')
-    if (policy?.type !== 'universal-action') throw new Error('unreachable')
-    expect(policy.rules).toHaveLength(1)
-    expect(policy.rules[0]).toMatchObject({
+    // time-frame + universal-action
+    // time-frame + universal-action
+    expect(policies).toHaveLength(2)
+    const uaPolicy = policies[1]
+    expect(uaPolicy?.type).toBe('universal-action')
+    if (uaPolicy?.type !== 'universal-action') throw new Error('unreachable')
+    expect(uaPolicy.rules).toHaveLength(1)
+    expect(uaPolicy.rules[0]).toMatchObject({
       condition: 'equal',
       calldataOffset: 32n,
       referenceValue: EOA,
@@ -85,7 +86,8 @@ describe('buildRegistrationSessionActions', () => {
     // USDC + DAI → 2 approve actions
     expect(approveActions).toHaveLength(2)
     for (const action of approveActions) {
-      const policy = (action.policies ?? [])[0]
+      expect(action.policies).toHaveLength(2)
+      const policy = (action.policies ?? [])[1]
       expect(policy?.type).toBe('universal-action')
       if (policy?.type !== 'universal-action') throw new Error('unreachable')
       expect(policy.rules[0]).toMatchObject({
@@ -100,7 +102,8 @@ describe('buildRegistrationSessionActions', () => {
       (a) => 'selector' in a && a.selector === KNOWN_SELECTORS.setAccountOwner,
     )
     expect(action).toBeDefined()
-    const policy = (action?.policies ?? [])[0]
+    expect(action?.policies).toHaveLength(2)
+    const policy = (action?.policies ?? [])[1]
     expect(policy?.type).toBe('universal-action')
     if (policy?.type !== 'universal-action') throw new Error('unreachable')
     expect(policy.rules).toHaveLength(2)
@@ -114,17 +117,15 @@ describe('buildRegistrationSessionActions', () => {
     })
   })
 
-  it('no `time-frame` policy is attached on any action (SDK/contract mismatch)', () => {
-    // The Rhinestone SDK 1.5.1 `'time-frame'` encoder produces 12-byte
-    // initData but the deployed Sepolia TimeFramePolicy expects 32 bytes
-    // (rhinestonewtf/smartsessions fork), so enable-mode simulation
-    // reverts inside `initializeWithMultiplexer`. Until upstream is
-    // fixed, on-chain expiry enforcement is disabled and this test
-    // pins the absence so a future re-add doesn't silently regress.
+  it('every action carries a `time-frame` policy with correct timestamps', () => {
     for (const action of actions) {
       const policies = action.policies ?? []
       const timeFrame = policies.find((p) => p.type === 'time-frame')
-      expect(timeFrame).toBeUndefined()
+      expect(timeFrame).toBeDefined()
+      if (timeFrame?.type !== 'time-frame') throw new Error('unreachable')
+      // SDK expects ms, params are in seconds; verify conversion.
+      expect(timeFrame.validAfter).toBe(VALID_AFTER_SEC * 1000)
+      expect(timeFrame.validUntil).toBe(VALID_UNTIL_SEC * 1000)
     }
   })
 
@@ -138,6 +139,7 @@ describe('buildRegistrationSessionActions', () => {
       buildRegistrationSessionActions({
         smartAccountAddress: SCA,
         eoaAddress: EOA,
+        validAfter: 0,
         validUntil: 0,
       }),
     ).not.toThrow()
@@ -145,6 +147,7 @@ describe('buildRegistrationSessionActions', () => {
       buildRegistrationSessionActions({
         smartAccountAddress: SCA,
         eoaAddress: EOA,
+        validAfter: Number.MAX_SAFE_INTEGER,
         validUntil: Number.MAX_SAFE_INTEGER,
       }),
     ).not.toThrow()
