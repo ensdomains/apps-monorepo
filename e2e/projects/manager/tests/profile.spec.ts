@@ -157,6 +157,7 @@ test.describe('ENS profile', () => {
         authenticatedPage: page,
         makeV2Name,
     }) => {
+        test.skip(process.env.E2E_MOCK_INDEXER === 'true', 'Requires real indexer (SSR bypasses Playwright mock)')
         // Register with a record so the profile view page renders
         // (empty profiles redirect to /edit where there's no heart button)
         const name = await makeV2Name({
