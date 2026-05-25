@@ -176,8 +176,8 @@ services:
       - ./mockestrator/chains.json:/app/chains.json
     restart: on-failure
     healthcheck:
-      # TCP port check — nc is available in Bun-based image; passes as soon as port 3000 is open.
-      test: ["CMD-SHELL", "nc -z localhost 3000"]
+      # HTTP check — verifies the HTTP server is actually responding, not just that the port is open.
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:3000"]
       interval: 5s
       timeout: 5s
       retries: 12

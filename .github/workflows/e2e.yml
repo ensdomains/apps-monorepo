@@ -168,7 +168,10 @@ jobs:
             ANVIL_TIMEOUT=60
           fi
 
-          # Core services — no Panoptes (saves ~1 GB RAM, prevents Anvil OOM)
+          # Core services — Panoptes (indexer + API) is intentionally omitted.
+          # All indexer GraphQL queries are intercepted by Playwright's route mock
+          # (E2E_MOCK_INDEXER=true in e2e/.env.ci), so no live indexer is needed.
+          # This saves ~1 GB RAM and prevents Anvil OOM in CI.
           SERVICES="anvil alto paymaster"
 
           # Manager jobs use Rhinestone and need the mockestrator

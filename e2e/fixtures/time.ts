@@ -20,6 +20,7 @@ type Dependencies = {
 }
 
 export const createTime = ({ page }: Dependencies) => {
+  let clockInstalled = false
   return {
     /**
      * Install the browser clock at the current anvil block timestamp.
@@ -31,7 +32,12 @@ export const createTime = ({ page }: Dependencies) => {
       const blockTime = Number(block.timestamp)
       const time = new Date((blockTime + offset) * 1000)
       console.log(`[time] sync — browser clock set to ${time.toISOString()}`)
-      await page.clock.install({ time })
+      if (clockInstalled) {
+        await page.clock.setSystemTime(time)
+      } else {
+        await page.clock.install({ time })
+        clockInstalled = true
+      }
     },
 
     /**

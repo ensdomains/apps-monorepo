@@ -184,7 +184,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     const hasRecords = config.records && config.records.length > 0
 
     console.log(
-      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s${hasRecords ? `, records=${config.records!.length}` : ''})`,
+      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s${hasRecords ? `, records=${config.records?.length}` : ''})`,
     )
 
     // ── 0. Clear any contract code at owner address ───────────────

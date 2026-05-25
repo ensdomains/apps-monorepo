@@ -188,7 +188,7 @@ test.describe('ENS profile', () => {
             .evaluate((el) => el.classList.contains('fill-[#f53293]'))
         if (isAlreadyFavourited) {
             const removePrior = page.waitForResponse(
-                (resp) => resp.url().includes('/favorites'),
+                (resp) => resp.url().includes('/favorites') && resp.request().method() === 'DELETE',
                 { timeout: 10_000 },
             )
             await heartButton.click()
@@ -196,7 +196,7 @@ test.describe('ENS profile', () => {
         }
 
         const addDone = page.waitForResponse(
-            (resp) => resp.url().includes('/favorites'),
+            (resp) => resp.url().includes('/favorites') && resp.request().method() === 'PUT',
             { timeout: 10_000 },
         )
         await heartButton.click()
@@ -215,7 +215,7 @@ test.describe('ENS profile', () => {
         await unfavButton.waitFor({ state: 'visible', timeout: 10_000 })
 
         const removeDone = page.waitForResponse(
-            (resp) => resp.url().includes('/favorites'),
+            (resp) => resp.url().includes('/favorites') && resp.request().method() === 'DELETE',
             { timeout: 10_000 },
         )
         await unfavButton.click()
