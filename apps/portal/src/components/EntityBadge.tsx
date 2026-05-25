@@ -139,8 +139,6 @@ interface EntityBadgeProps {
   readonly copyValue?: string
   /** Opt-in to a leading NameAvatar (only renders for variant="name" + name). */
   readonly showAvatar?: boolean
-  /** @deprecated No-op. Layout is now unified — kept for backwards compatibility. */
-  readonly inline?: boolean
 }
 
 export const EntityBadge = ({

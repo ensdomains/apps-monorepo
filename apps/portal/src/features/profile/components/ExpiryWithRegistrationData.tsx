@@ -162,7 +162,6 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
               label={formatTimestampDate(data.registeredAt) ?? '—'}
               etherscanHref={`${sepoliaUrl}/tx/${registrationTxHash}`}
               copyValue={registrationTxHash}
-              inline
             >
               {truncateAddress(registrationTxHash, 6, 4)}
             </EntityBadge>

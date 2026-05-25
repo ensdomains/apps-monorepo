@@ -57,7 +57,7 @@ export const ParentName = ({
           />
           <span className="text-sm truncate">Parent</span>
         </div>
-        <EntityBadge inline variant="name" name={parent}>
+        <EntityBadge variant="name" name={parent}>
           {parent}
         </EntityBadge>
       </div>

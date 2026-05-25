@@ -79,7 +79,6 @@ export const Owner = ({
           <span className="text-sm truncate">{label}</span>
         </div>
         <EntityBadge
-          inline
           variant={variant}
           name={ownerName ?? undefined}
           address={owner}

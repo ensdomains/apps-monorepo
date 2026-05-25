@@ -104,7 +104,7 @@ function RouteComponent() {
         <dl className="flex-1 grid grid-cols-[auto_1fr] items-center gap-x-8 gap-y-4 text-sm">
           <dt className="text-muted-foreground">Address</dt>
           <dd>
-            <EntityBadge variant="contract" address={address} inline>
+            <EntityBadge variant="contract" address={address}>
               {truncateAddress(address, 6, 4, '...')}
             </EntityBadge>
           </dd>
@@ -119,7 +119,6 @@ function RouteComponent() {
               label="registry factory"
               address={factoryAddress}
               className="font-normal"
-              inline
             >
               {truncateAddress(factoryAddress, 6, 4, '...')}
             </EntityBadge>
@@ -128,7 +127,7 @@ function RouteComponent() {
           <dt className="text-muted-foreground">Parent</dt>
           <dd>
             {parent?.name ? (
-              <EntityBadge variant="name" name={parent.name} showAvatar inline>
+              <EntityBadge variant="name" name={parent.name} showAvatar>
                 {parent.name}
               </EntityBadge>
             ) : (
@@ -145,7 +144,6 @@ function RouteComponent() {
                   variant="name"
                   name={ref.name}
                   showAvatar
-                  inline
                 >
                   {ref.name}
                 </EntityBadge>
