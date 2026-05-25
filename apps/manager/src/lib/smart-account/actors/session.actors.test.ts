@@ -83,6 +83,7 @@ const createMockRhinestoneSession = (
   hashesAndChainIds: MOCK_HASHES_JSON,
   // Future unix timestamp (2033-05-18) — keep tests deterministic and
   // well clear of any expiry checks.
+  validAfter: 1_700_000_000,
   validUntil: 2_000_000_000,
   ...overrides,
 })
@@ -197,6 +198,7 @@ describe('session.actors', () => {
         sessionPrivateKey: SESSION_PRIVATE_KEY,
         enableSignature: MOCK_ENABLE_SIGNATURE,
         hashesAndChainIds: MOCK_HASHES_JSON,
+        validAfter: 1_700_000_000,
         validUntil: 2_000_000_000,
       })
     })
@@ -234,6 +236,7 @@ describe('session.actors', () => {
           sessionPrivateKey: SESSION_PRIVATE_KEY,
           enableSignature: MOCK_ENABLE_SIGNATURE,
           hashesAndChainIds: MOCK_HASHES_JSON,
+          validAfter: 1_700_000_000,
           validUntil: 2_000_000_000,
         },
       })

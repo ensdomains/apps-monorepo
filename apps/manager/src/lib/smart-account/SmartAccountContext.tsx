@@ -309,6 +309,7 @@ export const SmartAccountContextProvider = ({
       sessionPrivateKey: Hex
       enableSignature: Hex
       hashesAndChainIds: string
+      validAfter: number
       validUntil: number
     } | null
 
@@ -352,9 +353,7 @@ export const SmartAccountContextProvider = ({
                 actions: buildRegistrationSessionActions({
                   smartAccountAddress: accountAddress,
                   eoaAddress: ownerAddress,
-                  validAfter:
-                    rhinestoneSessionClient.validAfter ??
-                    Math.floor(Date.now() / 1000),
+                  validAfter: rhinestoneSessionClient.validAfter,
                   validUntil: rhinestoneSessionClient.validUntil,
                 }),
               },

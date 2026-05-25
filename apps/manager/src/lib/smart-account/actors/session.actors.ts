@@ -29,6 +29,12 @@ export type SessionClient = {
   readonly enableSignature: Hex
   readonly hashesAndChainIds: string
   /**
+   * Session start timestamp (unix seconds). Keyed into the per-action
+   * `time-frame` policy — must round-trip so signer reconstruction
+   * reproduces the same PermissionId.
+   */
+  readonly validAfter: number
+  /**
    * Session expiry (unix seconds). Required for signer construction —
    * the `time-frame` policy baked into the actions array is derived from
    * this value, and the rebuild in SmartAccountContext must reproduce the
@@ -87,14 +93,20 @@ export function createSessionActor(
     config: input.config,
   }).andThen(({ session, sessionPrivateKey }) => {
     // `validUntil` is always populated by `createRhinestoneSession`
-    // (default 30 days, or `config.validUntil` if provided). Guard
-    // anyway so a future regression surfaces here rather than as an
-    // `InvalidSignature()` revert at signer-construction time.
+    // (default 24h, or `config.validUntil` if provided).
     if (typeof session.validUntil !== 'number') {
       return errAsync(
         new SessionError(
           'Failed to create session',
           'Created Rhinestone session is missing validUntil',
+        ),
+      )
+    }
+    if (typeof session.validAfter !== 'number') {
+      return errAsync(
+        new SessionError(
+          'Failed to create session',
+          'Created Rhinestone session is missing validAfter',
         ),
       )
     }
@@ -107,6 +119,7 @@ export function createSessionActor(
         sessionPrivateKey,
         enableSignature: session.enableSignature,
         hashesAndChainIds: session.hashesAndChainIds,
+        validAfter: session.validAfter,
         validUntil: session.validUntil,
       },
     })
@@ -135,10 +148,10 @@ export function restoreSessionActor(
     )
   }
 
-  // The on-chain `time-frame` policy is keyed off `validUntil` and is
-  // part of the PermissionId. A session persisted under an older code
-  // path (no time-frame policy) cannot be replayed correctly — refuse
-  // to restore it; the dApp will prompt for a fresh enable.
+  // Both `validUntil` and `validAfter` are part of the PermissionId.
+  // Sessions from the v4 storage key (no time-frame policy) or
+  // hand-tampered storage will lack these — refuse to restore so the
+  // dApp prompts for a fresh enable.
   if (typeof session.validUntil !== 'number') {
     return errAsync(
       new SessionError(
@@ -147,7 +160,16 @@ export function restoreSessionActor(
       ),
     )
   }
+  if (typeof session.validAfter !== 'number') {
+    return errAsync(
+      new SessionError(
+        'Failed to restore session',
+        'Stored Rhinestone session is missing validAfter',
+      ),
+    )
+  }
 
+  const restoredValidAfter = session.validAfter
   const restoredValidUntil = session.validUntil
 
   return restoreRhinestoneSession({ session }).map(() => ({
@@ -155,6 +177,7 @@ export function restoreSessionActor(
       sessionPrivateKey: session.sessionPrivateKey,
       enableSignature: session.enableSignature,
       hashesAndChainIds: session.hashesAndChainIds,
+      validAfter: restoredValidAfter,
       validUntil: restoredValidUntil,
     },
   }))

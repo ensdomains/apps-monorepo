@@ -26,13 +26,19 @@ import type { StoredSession } from './types'
 //            the key forces a fresh enable that uses the v4 (no
 //            time-frame) action set. See `build-registration-session.ts`
 //            for the full diagnosis and the conditions for re-enabling.
+//   v4 → v5: re-enabled the `time-frame` policy now that
+//            @rhinestone/sdk@1.6.4 encodes initData as
+//            `encodePacked(['uint128','uint128'])` (32 bytes), matching
+//            the deployed `TimeFramePolicy` contract. Also adds
+//            `validAfter` to the session shape for deterministic
+//            PermissionId reproduction.
 //
 // Each bump invalidates sessions stored under prior policies — using a
 // stale `enableSignature` against a different PermissionId yields
 // `InvalidSignature()` at orchestrator simulation time. Old key
 // contents are harmless cruft; a new session is re-enabled lazily on
 // the next registration with a single wallet prompt.
-const SESSION_STORAGE_KEY = 'ens-sessions-v4'
+const SESSION_STORAGE_KEY = 'ens-sessions-v5'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**
@@ -208,11 +214,8 @@ export function setSkippedStatus(
  * Client-side expiry check used to evict expired rows from localStorage
  * and surface a "reconnect" prompt before the user spends a transaction.
  *
- * Today this is the **only** expiry bound — see
- * `@ens-apps/smart-account` (providers/rhinestone/registration-policy.ts) for why the
- * matching on-chain `time-frame` policy is disabled. A stolen session
- * key submitted from outside this dApp is not bound by this check;
- * only by `removeSession(permissionId)` revocation.
+ * On-chain enforcement is handled by the per-action `time-frame` policy;
+ * this is a UX preflight, not a security boundary.
  *
  * Returns `false` for sessions with no `validUntil` set (treat as
  * non-expiring at the client level). Newly issued sessions always set
