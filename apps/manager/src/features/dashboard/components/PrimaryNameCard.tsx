@@ -60,18 +60,9 @@ export const PrimaryNameCard = ({
   const canViewProfile = Boolean(primaryName)
 
   const themeVars = getThemeVars(themeColor) as React.CSSProperties
-  const nameplateClassName = match(isInGrace)
-    .with(
-      true,
-      () =>
-        'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]',
-    )
-    .with(
-      false,
-      () =>
-        'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]',
-    )
-    .exhaustive()
+  const nameplateClassName = isInGrace
+    ? 'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+    : 'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
   const displayNameClassName = match({
     isInGrace,
     isLongName: displayName.length > 10,
@@ -95,22 +86,12 @@ export const PrimaryNameCard = ({
 
   return (
     <Card
-      className={match(isInGrace)
-        .with(
-          true,
-          () =>
-            'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 opacity-70 shadow-none md:rounded-lg md:p-6',
-        )
-        .with(
-          false,
-          () =>
-            'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6',
-        )
-        .exhaustive()}
-      style={match(isInGrace)
-        .with(true, () => undefined)
-        .with(false, () => themeVars)
-        .exhaustive()}
+      className={
+        isInGrace
+          ? 'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 opacity-70 shadow-none md:rounded-lg md:p-6'
+          : 'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6'
+      }
+      style={isInGrace ? undefined : themeVars}
     >
       <PrimaryBadge className="self-start bg-ens-lapis-tint" />
 

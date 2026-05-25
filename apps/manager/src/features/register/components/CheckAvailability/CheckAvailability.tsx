@@ -9,6 +9,7 @@ import {
   AddressSuggestionCard,
   DomainProfileCard,
   DomainResultCard,
+  domainResultStatusFromGrace,
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -101,13 +102,6 @@ export const CheckAvailability = ({
   })
 
   const showResults = displayState.type !== 'idle' && !error
-
-  const registeredNameInGrace = match(displayState)
-    .with(
-      { type: 'unavailable' },
-      () => getProfileNameExpiryStatus(profileExpiry?.expiry, true).isInGrace,
-    )
-    .otherwise(() => false)
 
   const blurBackdropEnabled = useFeatureFlag('SEARCH_RESULTS_BLUR_BACKDROP')
 
@@ -271,8 +265,12 @@ export const CheckAvailability = ({
                       <DomainResultCard
                         clickable
                         domainName={state.domainName}
-                        isInGrace={registeredNameInGrace}
-                        status="registered"
+                        status={domainResultStatusFromGrace(
+                          getProfileNameExpiryStatus(
+                            profileExpiry?.expiry,
+                            true,
+                          ).isInGrace,
+                        )}
                       />
                     </Link>
                   </motion.div>

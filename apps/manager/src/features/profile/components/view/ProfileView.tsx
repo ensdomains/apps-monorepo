@@ -146,10 +146,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   return (
     <div
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
-      style={match(expiry.isInGrace)
-        .with(true, () => undefined)
-        .with(false, () => themeVars)
-        .exhaustive()}
+      style={expiry.isInGrace ? undefined : themeVars}
     >
       {migrationEnabled && isOwner && <UpgradeBanner />}
       {match(expiry)

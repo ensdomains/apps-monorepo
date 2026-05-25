@@ -6,10 +6,7 @@ export const V2_GRACE_PERIOD_DAYS = 28
 export const PROMINENT_RENEW_THRESHOLD_DAYS = 30
 
 const graceDaysFor = (isV2: boolean): number =>
-  match(isV2)
-    .with(true, () => V2_GRACE_PERIOD_DAYS)
-    .with(false, () => GRACE_PERIOD_DAYS)
-    .exhaustive()
+  isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
 
 export const getGraceEndDate = (expiryDate: Date, isV2: boolean): Date =>
   new Date(expiryDate.getTime() + graceDaysFor(isV2) * MS_PER_DAY)

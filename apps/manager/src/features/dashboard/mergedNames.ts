@@ -1,5 +1,4 @@
 import type { DomainFragment } from '@ens-apps/indexer'
-import { match, P } from 'ts-pattern'
 import {
   getDaysSinceExpiry,
   getDisplayExpiryDate,
@@ -137,28 +136,17 @@ export const mergedRowMetadata = (
   const isV1 = item.kind === 'v1'
   const isV2 = !isV1
   const isInGrace = isInGracePeriod(expiryDate, isV2, now)
-  const graceEndDate = match({ expiryDate, isInGrace })
-    .with(
-      { expiryDate: P.not(P.nullish), isInGrace: true },
-      ({ expiryDate: date }) => getGraceEndDate(date, isV2),
-    )
-    .otherwise(() => null)
+  const graceEndDate =
+    expiryDate && isInGrace ? getGraceEndDate(expiryDate, isV2) : null
   const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2, now)
   const daysUntilExpiry = getDaysUntil(expiryDate)
-  const daysSinceExpiry = match({ expiryDate, isInGrace })
-    .with(
-      { expiryDate: P.not(P.nullish), isInGrace: true },
-      ({ expiryDate: date }) => getDaysSinceExpiry(date, now),
-    )
-    .otherwise(() => null)
+  const daysSinceExpiry =
+    expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
   const isPrimary =
     !isV1 &&
     !!primaryLabel &&
     label.toLowerCase() === primaryLabel.toLowerCase()
-  const avatarUrl = match({ isV1, isInGrace })
-    .with({ isV1: true }, () => undefined)
-    .with({ isInGrace: true }, () => undefined)
-    .otherwise(() => avatarOverride)
+  const avatarUrl = isV1 || isInGrace ? undefined : avatarOverride
 
   return {
     label,

@@ -58,8 +58,7 @@ export const RegisteredInGrace: Story = {
           <DomainResultCard
             clickable
             domainName={GRACE_DOMAIN}
-            isInGrace
-            status="registered"
+            status="grace"
           />
         </motion.div>
       </motion.div>

@@ -2,7 +2,6 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Calendar, Check, Clock, Copy, User } from 'lucide-react'
 import { useState } from 'react'
-import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { Highlight } from '@/components/atoms/Highlight'
 import { PrimaryBadge } from '@/features/dashboard/components/PrimaryBadge'
@@ -24,13 +23,11 @@ const formatDate = (date: Date) => {
 interface ProfileHeaderInfoProps {
   name: string
   owner?: Address
-  isInGrace?: boolean
 }
 
 export const ProfileHeaderInfo = ({
   name,
   owner,
-  isInGrace: isInGraceProp = false,
 }: ProfileHeaderInfoProps) => {
   const expiry = useSuspenseQuery({
     ...profileExpiryQuery(name),
@@ -47,9 +44,10 @@ export const ProfileHeaderInfo = ({
   const [copied, setCopied] = useState(false)
   const isPrimaryName = ownerReverseName.data === name
 
-  const { isInGrace: isInGraceFromExpiry, displayExpiryDate } =
-    getProfileNameExpiryStatus(expiry.data?.expiry, true)
-  const isInGrace = isInGraceProp || isInGraceFromExpiry
+  const { isInGrace, displayExpiryDate } = getProfileNameExpiryStatus(
+    expiry.data?.expiry,
+    true,
+  )
 
   return (
     <div className="flex w-full flex-col items-start gap-3 bg-white px-4 pt-16 pb-4 md:px-6 md:pt-16 md:pb-6">
@@ -69,10 +67,7 @@ export const ProfileHeaderInfo = ({
           type="button"
         >
           <User className="size-4" />
-          {match(isInGrace)
-            .with(true, () => <Trans>Previous owner</Trans>)
-            .with(false, () => <Trans>Owned by</Trans>)
-            .exhaustive()}{' '}
+          {isInGrace ? <Trans>Previous owner</Trans> : <Trans>Owned by</Trans>}{' '}
           <span className="font-medium">
             {ownerReverseName.data ??
               `${owner.slice(0, 6)}...${owner.slice(-4)}`}

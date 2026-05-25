@@ -5,17 +5,20 @@ import type { PremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
 import { getByteLength, getDomainCardSizeClasses } from '@/utils/domain'
 import { DomainAttributePill } from './DomainAttributePill'
+import {
+  type DomainResultStatus,
+  isRegisteredDomainResultStatus,
+} from './types'
 
-interface DomainResultCardProps {
+export type DomainResultCardProps = {
   domainName: string
-  status: 'available' | 'premium' | 'registered'
+  status: DomainResultStatus
   premiumLabel?: PremiumLabel
   price?: number
   priceLabel?: string
   className?: string
   isLoading?: boolean
   clickable?: boolean
-  isInGrace?: boolean
 }
 
 const statusIconMap = {
@@ -32,7 +35,6 @@ export const DomainResultCard = ({
   className,
   isLoading = false,
   clickable = false,
-  isInGrace = false,
 }: DomainResultCardProps) => {
   const baseClasses = cn(
     'domain-result-card',
@@ -67,7 +69,7 @@ export const DomainResultCard = ({
             <span className="inline-block h-6 w-32 animate-pulse rounded-full bg-slate-200" />
           </div>
         </>
-      ) : status === 'registered' ? (
+      ) : isRegisteredDomainResultStatus(status) ? (
         <>
           <span
             className={cn(
@@ -83,7 +85,7 @@ export const DomainResultCard = ({
             <span className="inline-flex h-5 shrink-0 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
               <Trans>Registered</Trans>
             </span>
-            {isInGrace && <GracePeriodBadge />}
+            {status === 'grace' && <GracePeriodBadge />}
           </div>
         </>
       ) : (

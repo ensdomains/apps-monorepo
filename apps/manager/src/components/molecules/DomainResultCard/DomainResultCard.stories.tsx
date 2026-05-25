@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { getByteLength } from '@/utils/domain'
 import { DomainResultCard } from './DomainResultCard'
+import { DOMAIN_RESULT_STATUSES } from './types'
 
 const meta = {
   title: 'Molecules/DomainResultCard',
@@ -12,7 +13,7 @@ const meta = {
   argTypes: {
     status: {
       control: 'select',
-      options: ['available', 'premium', 'registered'],
+      options: [...DOMAIN_RESULT_STATUSES],
     },
     price: {
       control: 'number',
@@ -43,15 +44,13 @@ export const Registered: Story = {
   args: {
     domainName: 'earl.eth',
     status: 'registered',
-    isInGrace: false,
   },
 }
 
 export const RegisteredInGrace: Story = {
   args: {
     domainName: 'earl.eth',
-    status: 'registered',
-    isInGrace: true,
+    status: 'grace',
   },
 }
 
