@@ -36,6 +36,7 @@ export const MATERIAL_SYMBOLS = [
   'edit',
   'favorite',
   'history',
+  'hourglass',
   'keyboard_arrow_down',
   'login',
   'logout',

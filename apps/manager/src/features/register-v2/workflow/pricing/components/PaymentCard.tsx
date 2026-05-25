@@ -14,6 +14,7 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { PaymentCardPremiumLine } from './PaymentCardPremiumLine'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -36,6 +37,7 @@ export const PaymentCard = () => {
     select: (data) => ({
       totalPrice: decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
       basePrice: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),
+      premiumPrice: decimalBigintToNumber(data.premium, TOKENS.USDC.decimals),
     }),
     placeholderData: keepPreviousData,
   })
@@ -53,6 +55,7 @@ export const PaymentCard = () => {
       discountAmount={discountAmount}
       isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+      premiumAmount={pricingQuery.data?.premiumPrice}
       type="register"
     />
   )
@@ -64,12 +67,14 @@ export const PaymentCardBase = ({
   amount,
   isLoading,
   discountAmount,
+  premiumAmount,
   type,
 }: {
   canNext: boolean
   onNext: () => void
   amount: number | undefined
   discountAmount?: number
+  premiumAmount?: number
   isLoading: boolean
   type: 'register' | 'renew'
 }) => {
@@ -84,6 +89,13 @@ export const PaymentCardBase = ({
       )}
     >
       <div className="w-full max-w-55 space-y-3 text-center">
+        {premiumAmount !== undefined && premiumAmount > 0 && (
+          <PaymentCardPremiumLine
+            isLoading={isLoading}
+            premiumAmount={premiumAmount}
+          />
+        )}
+
         <p className="text-ens-lapis-surface text-xs uppercase">
           <Trans>Total</Trans>
         </p>

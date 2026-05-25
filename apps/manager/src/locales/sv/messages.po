@@ -223,6 +223,10 @@ msgstr ""
 msgid "Adding telegram..."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx:74
+msgid "Additional fee"
+msgstr ""
+
 #: src/features/navigation/Header/account/WalletSection.tsx:40
 #: src/features/navigation/Header/account/WalletSection.tsx:60
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
@@ -340,7 +344,8 @@ msgstr ""
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:567
-#: src/features/register-v2/workflow/pricing/PricingStep.tsx:22
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:183
+#: src/features/register-v2/workflow/pricing/PricingStep.tsx:23
 #: src/features/renew/workflow/pricing/PricingStep.tsx:20
 msgid "Back"
 msgstr ""
@@ -369,6 +374,11 @@ msgstr ""
 
 #: src/features/payment/components/index.tsx:111
 msgid "Backup Card"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx:69
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx:93
+msgid "Base price"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:37
@@ -621,11 +631,11 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:170
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:182
 msgid "Connect or sign in to register"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:172
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:184
 msgid "Connect or sign in to renew"
 msgstr ""
 
@@ -922,6 +932,10 @@ msgstr ""
 msgid "Enter 6-digit code"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:77
+msgid "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:221
 msgid "Enter custom duration"
 msgstr ""
@@ -979,6 +993,7 @@ msgstr ""
 msgid "Expires:"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:43
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:28
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:119
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx:37
@@ -1090,6 +1105,15 @@ msgstr "Favoriter"
 msgid "Favourites"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx:86
+msgid "Fee at this moment"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:142
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:214
+msgid "Fee hits $0 on"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
 msgid "Finalizing registration"
 msgstr ""
@@ -1176,6 +1200,11 @@ msgstr "Hur kan jag säkra mitt ENS-namn?"
 #: src/features/dashboard/components/FaqSection.tsx:48
 msgid "How do I show my .eth name instead of my address?"
 msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx:65
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:131
+msgid "How it works"
+msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:112
 msgid "Human-readable addresses for wallets"
@@ -1539,6 +1568,10 @@ msgstr ""
 msgid "Notifications blocked"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx:99
+msgid "now"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx:93
 msgid "Oldest first"
 msgstr ""
@@ -1599,7 +1632,8 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:159
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:171
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:115
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr ""
@@ -1623,6 +1657,10 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx:179
 msgid "Pending verification"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:46
+msgid "people have favorited this name"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:67
@@ -1706,6 +1744,10 @@ msgstr ""
 msgid "Previous slide"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCardPremiumLine.tsx:22
+msgid "Price cooldown fee"
+msgstr ""
+
 #: src/features/dashboard/components/PrimaryBadge.tsx:20
 msgid "Primary Name"
 msgstr "Primärt namn"
@@ -1747,6 +1789,10 @@ msgstr ""
 msgid "Recently added"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx:36
+msgid "Recently expired names have a temporary fee that decreases to $0 over {periodDays} days. It's added only once when you register — renewals are always at the base price."
+msgstr ""
+
 #: src/features/notifications/settings/preference-card.tsx:63
 msgid "Recommended"
 msgstr ""
@@ -1785,6 +1831,7 @@ msgstr ""
 msgid "Registering account ownership…"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:39
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx:24
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx:99
 msgid "Registering for"
@@ -1991,11 +2038,13 @@ msgid "Save"
 msgstr ""
 
 #. placeholder {0}: discountAmount ?? 0
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:121
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:133
 msgid "Save <0>{0}</0>"
 msgstr ""
 
 #. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
+#. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:88
 #: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:55
 msgid "Save ${0}"
 msgstr ""
@@ -2196,6 +2245,15 @@ msgstr ""
 msgid "Short Description"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:168
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:191
+msgid "Should I buy now or wait?"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx:65
+msgid "Show less"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardPagination.tsx:83
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
@@ -2283,7 +2341,8 @@ msgstr ""
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:141
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:153
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:101
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:279
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
@@ -2419,6 +2478,10 @@ msgstr ""
 msgid "This name is already registered or not available for registration."
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx:28
+msgid "This name is in price cooldown"
+msgstr ""
+
 #: src/routes/notifications/channels/email/verify.tsx:105
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr ""
@@ -2434,6 +2497,10 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:214
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx:107
+msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx:120
@@ -2457,7 +2524,8 @@ msgstr ""
 msgid "total"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:88
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:100
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:72
 msgid "Total"
 msgstr ""
 
@@ -2497,6 +2565,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:310
 msgid "Try searching for a different coin or chain"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:55
+msgid "unique searches in the last 30 days"
 msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx:97
@@ -2564,7 +2636,8 @@ msgstr ""
 msgid "Uploading…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:110
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:122
+#: src/features/register-v2/workflow/pricing/components/PricingStepScreen.tsx:82
 msgid "USD"
 msgstr ""
 
@@ -2814,9 +2887,17 @@ msgstr ""
 msgid "What is a primary name?"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:83
+msgid "What price are you willing to pay?"
+msgstr ""
+
 #: src/features/register-v2/workflow/result/FailureStep.tsx:40
 #: src/features/renew/workflow/result/FailureStep.tsx:43
 msgid "What would you like to do?"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:134
+msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:76
@@ -2839,6 +2920,11 @@ msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 
 #: src/features/dashboard/components/FaqSection.tsx:60
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:171
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:194
+msgid "You can buy this name at any point during the {periodDays}-day cooldown. Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx:150
 msgid "You can now receive notifications at this email address."
