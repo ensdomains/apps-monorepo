@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { AnimatePresence, motion } from 'motion/react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { useDebounce } from '@/hooks/useDebounce'
 import { MobileAccountDrawer } from '../account/MobileAccountDrawer'
 import { MobileNavigationDrawer } from '../navigation/MobileNavigationDrawer'
@@ -19,6 +20,8 @@ type MobileHeaderProps = {
 export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const suggestionsContainerRef = useRef<HTMLDivElement>(null)
   const { debouncedValue: debouncedSearchValue } = useDebounce(searchValue, {
     delay: 500,
   })
@@ -27,6 +30,12 @@ export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
     setSearchOpen(false)
     setSearchValue('')
   }
+
+  useOpenFirstSearchResultHotkey({
+    enabled: searchOpen && debouncedSearchValue === searchValue,
+    resultsContainer: suggestionsContainerRef,
+    target: inputRef,
+  })
 
   return (
     <header className="sticky top-0 z-20 bg-white">
@@ -42,6 +51,7 @@ export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               <MobileSearchInput
+                inputRef={inputRef}
                 isLoading={debouncedSearchValue !== searchValue}
                 onClose={closeSearch}
                 searchValue={searchValue}
@@ -85,6 +95,7 @@ export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
         </AnimatePresence>
       </nav>
       <MobileSearchPanel
+        containerRef={suggestionsContainerRef}
         isLoading={debouncedSearchValue !== searchValue}
         onClose={closeSearch}
         open={searchOpen}

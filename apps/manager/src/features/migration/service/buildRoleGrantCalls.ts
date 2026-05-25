@@ -1,4 +1,4 @@
-import type { ZeroDevCall } from '@ens-apps/transaction-manager'
+import type { Call } from '@ens-apps/transaction-manager'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { encodeFunctionData } from 'viem'
 import { ETH_REGISTRY_V2_ABI } from '../contracts/abis'
@@ -7,7 +7,7 @@ import type { ClassifiedName } from './classifyNames'
 
 const ROLE_SET_RESOLVER = 1n << 12n
 
-export const buildRoleGrantCall = (name: ClassifiedName): ZeroDevCall => {
+export const buildRoleGrantCall = (name: ClassifiedName): Call => {
   if (!name.managerAddress) {
     throw new Error(`No manager address for ${name.domain.name}`)
   }

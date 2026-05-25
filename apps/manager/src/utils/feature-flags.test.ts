@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FEATURE_FLAGS,
   type FeatureFlag,
-  getSessionProvider,
   getTransactionInfra,
   isFeatureEnabled,
   resolveInfrastructure,
@@ -258,28 +257,6 @@ describe('feature-flags', () => {
   })
 
   describe('provider and infra helpers', () => {
-    it('getSessionProvider returns zerodev when flag is disabled', () => {
-      const original = FEATURE_FLAGS.RHINESTONE_SESSIONS
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.RHINESTONE_SESSIONS = { enabled: false }
-
-      expect(getSessionProvider()).toBe('zerodev')
-
-      mutableFlags.RHINESTONE_SESSIONS =
-        original as unknown as MutableFeatureFlags[string]
-    })
-
-    it('getSessionProvider returns rhinestone when flag is enabled', () => {
-      const original = FEATURE_FLAGS.RHINESTONE_SESSIONS
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.RHINESTONE_SESSIONS = { enabled: true }
-
-      expect(getSessionProvider()).toBe('rhinestone')
-
-      mutableFlags.RHINESTONE_SESSIONS =
-        original as unknown as MutableFeatureFlags[string]
-    })
-
     it('getTransactionInfra returns pimlico when flag is disabled', () => {
       const original = FEATURE_FLAGS.USE_WARP_INFRA
       const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags

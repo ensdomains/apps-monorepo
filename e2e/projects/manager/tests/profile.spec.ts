@@ -154,7 +154,11 @@ test.describe('ENS profile', () => {
     })
 
     test('add and remove name from favourites', async ({
-        authenticatedPage: page,
+        // Favorites require backend auth — the FavoriteButton's
+        // `disabled` prop is bound to `useAtom(isBackendAuthed)` and
+        // the API mutations call the deployed worker. Use the
+        // sign-in fixture variant so the heart button is interactive.
+        authenticatedPageWithBackend: page,
         makeV2Name,
     }) => {
         test.skip(process.env.E2E_MOCK_INDEXER === 'true', 'Requires real indexer (SSR bypasses Playwright mock)')
@@ -228,7 +232,9 @@ test.describe('ENS profile', () => {
     })
 
     test('can favourite a name not owned by the user', async ({
-        authenticatedPage: page,
+        // Same backend-auth requirement as the owned-name favorites
+        // test above — see comment there.
+        authenticatedPageWithBackend: page,
         makeV2Name,
     }) => {
         // Skip when indexer is mocked — page.goto('/dashboard') triggers SSR which

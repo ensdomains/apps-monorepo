@@ -1,6 +1,4 @@
 import type { RhinestoneAccount, SignerSet } from '@rhinestone/sdk'
-import type { KernelAccountClient } from '@zerodev/sdk'
-import type { SmartAccountClient } from 'permissionless'
 import type { Address, Hex, WalletClient } from 'viem'
 
 import type { SmartAccountConfig } from './transaction.types'
@@ -16,7 +14,7 @@ export type TransactionInfra = 'warp' | 'pimlico'
  * Signer Types
  *
  * Abstract signer interface that decouples transaction submission
- * from specific account implementations (EOA, Rhinestone, ZeroDev, etc.)
+ * from specific account implementations (EOA, Rhinestone).
  */
 
 /**
@@ -56,27 +54,9 @@ export interface RhinestoneSigner {
 }
 
 /**
- * ZeroDev Smart Account Signer
- * Uses ZeroDev Kernel with smart sessions for sign-once UX
- * Bundled via Pimlico
- *
- * Supports both:
- * - KernelAccountClient (external wallets with sessions)
- * - SmartAccountClient (Para-embedded wallets without sessions)
- */
-export interface ZeroDevSigner {
-  type: 'zerodev'
-  account: KernelAccountClient | SmartAccountClient // Both use Pimlico bundler
-  config: SmartAccountConfig & {
-    /** Whether this client is a session-derived client */
-    isSessionClient?: boolean
-  }
-}
-
-/**
  * Union type of all supported signers
  */
-export type Signer = EOASigner | RhinestoneSigner | ZeroDevSigner
+export type Signer = EOASigner | RhinestoneSigner
 
 /**
  * Type guard to check if signer is EOA
@@ -93,18 +73,12 @@ export function isRhinestoneSigner(signer: Signer): signer is RhinestoneSigner {
 }
 
 /**
- * Type guard to check if signer is ZeroDev
- */
-export function isZeroDevSigner(signer: Signer): signer is ZeroDevSigner {
-  return signer.type === 'zerodev'
-}
-
-/**
- * Type guard to check if signer is session-enabled smart account signer
- * (supported for both ZeroDev and Rhinestone signer configs).
+ * Type guard to check if signer is session-enabled.
+ *
+ * Only Rhinestone signers support sessions.
  */
 export function isSessionSigner(signer: Signer): boolean {
-  if (isZeroDevSigner(signer) || isRhinestoneSigner(signer)) {
+  if (isRhinestoneSigner(signer)) {
     return signer.config.isSessionClient ?? false
   }
   return false

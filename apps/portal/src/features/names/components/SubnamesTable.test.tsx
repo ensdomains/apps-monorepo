@@ -48,7 +48,7 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 }))
 
 vi.mock('@/components/EntityBadge', () => ({
-  EntityBadgeWithActions: ({
+  EntityBadge: ({
     children,
     name,
     variant,

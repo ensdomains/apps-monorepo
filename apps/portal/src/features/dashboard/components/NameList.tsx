@@ -5,7 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
 import { DataTable } from '@/components/DataTable'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
@@ -26,9 +26,9 @@ interface NameListProps {
 type column = MergedName
 
 const NameCell = ({ name }: { name: string }) => (
-  <EntityBadgeWithActions variant="name" name={name} showAvatar>
+  <EntityBadge variant="name" name={name} showAvatar>
     {name}
-  </EntityBadgeWithActions>
+  </EntityBadge>
 )
 
 const columns: ColumnDef<column>[] = [

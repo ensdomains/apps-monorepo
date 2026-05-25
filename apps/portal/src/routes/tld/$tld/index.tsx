@@ -6,7 +6,7 @@ import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { CardsStackIcon, HubIcon } from '@/assets/icons'
 import { CopyButton } from '@/components/CopyButton'
-import { EntityBadgeWithActions } from '@/components/EntityBadge'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -109,12 +109,9 @@ const TldRegistryCard = ({
         <div className="flex flex-col gap-1 min-w-0">
           <span className="text-sm text-muted-foreground">Registry</span>
           {hasRegistry ? (
-            <EntityBadgeWithActions
-              variant="contract"
-              address={registryAddress}
-            >
+            <EntityBadge variant="contract" address={registryAddress}>
               {truncateAddress(registryAddress, 6, 4, '...')}
-            </EntityBadgeWithActions>
+            </EntityBadge>
           ) : (
             <span className="text-muted-foreground">No registry deployed</span>
           )}

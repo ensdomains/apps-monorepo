@@ -1,78 +1,23 @@
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useQueries } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { type ReactNode, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
-import { CountBadge } from '@/components/atoms/CountBadge'
 import { Input } from '@/components/ui/input'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
-import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
+import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
+import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
-import { FavoritesList } from './FavoritesList'
-import { MyNamesList } from './MyNamesList'
+import { useOwnedDomains } from '../useOwnedDomains'
+import { FavoritesList, type FavoritesSort } from './FavoritesList'
+import { type FilterChipDef, FilterChips } from './FilterChips'
+import { MyNamesList, type Sort } from './MyNamesList'
+import { SortMenu, type SortOption } from './SortMenu'
 
-type TabKey = 'myNames' | 'favorites'
-
-type TabButtonProps = {
-  readonly label: ReactNode
-  readonly isActive: boolean
-  readonly onClick: () => void
-  readonly badge?: number
-  readonly disabled?: boolean
-  readonly disabledTooltip?: string
-}
-
-const DashboardTabButton = ({
-  label,
-  isActive,
-  onClick,
-  badge,
-  disabled = false,
-  disabledTooltip,
-}: TabButtonProps) => {
-  const button = (
-    <button
-      className={cn(
-        'flex shrink-0 items-center gap-[12px]',
-        disabled && 'cursor-not-allowed opacity-50',
-      )}
-      disabled={disabled}
-      onClick={disabled ? undefined : onClick}
-      type="button"
-    >
-      <span
-        className={cn(
-          'text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]',
-          isActive ? 'text-foreground' : 'text-ens-quartz-400',
-        )}
-      >
-        {label}
-      </span>
-      {badge !== undefined && badge > 0 && <CountBadge value={badge} />}
-    </button>
-  )
-
-  if (disabled && disabledTooltip) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent>{disabledTooltip}</TooltipContent>
-      </Tooltip>
-    )
-  }
-
-  return button
-}
+type FilterKey = 'owned' | 'favorites'
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
@@ -84,94 +29,130 @@ export const NamesTable = ({
   primaryLabel,
 }: NamesTableProps) => {
   const { t } = useLingui()
-  const [activeTab, setActiveTab] = useState<TabKey>('myNames')
+  const [filter, setFilter] = useState<FilterKey>('owned')
   const [searchQuery, setSearchQuery] = useState('')
+  const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
+  const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const { data: wallet } = useWallet()
-  const normalizedAddress = wallet?.address?.toLowerCase()
-  const [favoritesQuery, ownedNamesCountQuery] = useQueries({
-    queries: [
-      {
-        ...favoritesQueryOptions,
-        enabled: isAuthed,
-      },
-      {
-        ...ownedNamesCountQueryOptions(normalizedAddress),
-        enabled: Boolean(normalizedAddress),
-      },
-    ],
+  const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
+
+  const { v2Names } = useOwnedDomains()
+  const { data: favorites = [] } = useQuery({
+    ...favoritesQueryOptions,
+    enabled: isAuthed,
   })
 
-  const { eligible: eligibleV1Names } = useEligibleV1Names()
-  const v1NamesCount = migrationEnabled ? eligibleV1Names.length : 0
+  const { eligible: eligibleV1Names } = useEligibleV1Names({
+    enabled: migrationEnabled,
+  })
 
-  const { data: favorites = [] } = favoritesQuery
-  const { data: ownedNamesCount } = ownedNamesCountQuery
   const favoritesCount = favorites.length
-  const combinedCount = (ownedNamesCount ?? 0) + v1NamesCount
-  const totalNamesCount = combinedCount > 0 ? combinedCount : undefined
+  const ownedCount = v2Names.length + eligibleV1Names.length
 
-  const tabs = [
+  const favoriteLabels = useMemo(
+    () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
+    [favorites],
+  )
+
+  const addMutation = useMutation(addFavoriteMutationOptions)
+  const removeMutation = useMutation(removeFavoriteMutationOptions)
+  const onToggleFavorite = (label: string) => {
+    if (favoriteLabels.has(label.toLowerCase())) {
+      removeMutation.mutate({ name: label })
+    } else {
+      addMutation.mutate({ name: label })
+    }
+  }
+
+  const ownedSortOptions: SortOption<Sort>[] = [
+    { value: 'name-asc', label: t`Name (A-Z)`, triggerLabel: t`Name` },
+    { value: 'name-desc', label: t`Name (Z-A)`, triggerLabel: t`Name` },
     {
-      key: 'myNames' as const,
-      label: <Trans>My Names</Trans>,
-      badge: totalNamesCount,
+      value: 'expiry-asc',
+      label: t`Expiry (Soonest)`,
+      triggerLabel: t`Expiry`,
     },
     {
-      key: 'favorites' as const,
-      label: <Trans>Favorites</Trans>,
-      badge: favoritesCount,
+      value: 'expiry-desc',
+      label: t`Expiry (Latest)`,
+      triggerLabel: t`Expiry`,
+    },
+  ]
+
+  const favoritesSortOptions: SortOption<FavoritesSort>[] = [
+    { value: 'name-asc', label: t`Name (A-Z)`, triggerLabel: t`Name` },
+    { value: 'name-desc', label: t`Name (Z-A)`, triggerLabel: t`Name` },
+    {
+      value: 'addedAt-desc',
+      label: t`Recently added`,
+      triggerLabel: t`Date added`,
+    },
+    {
+      value: 'addedAt-asc',
+      label: t`Oldest first`,
+      triggerLabel: t`Date added`,
+    },
+  ]
+
+  const chips: FilterChipDef<FilterKey>[] = [
+    { value: 'owned', label: t`Owned`, count: ownedCount },
+    {
+      value: 'favorites',
+      label: t`Favorites`,
+      count: favoritesCount,
       disabled: !isAuthed,
-      disabledTooltip: t`Sign in to view favorites`,
     },
   ]
 
   return (
     <div className="w-full">
-      <div className="mb-[20px] flex flex-col gap-4 md:gap-[20px]">
-        <div className="flex items-center gap-4 md:gap-[40px]">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.key
-
-            return (
-              <DashboardTabButton
-                badge={'badge' in tab ? tab.badge : undefined}
-                disabled={'disabled' in tab ? tab.disabled : false}
-                disabledTooltip={
-                  'disabledTooltip' in tab ? tab.disabledTooltip : undefined
-                }
-                isActive={isActive}
-                key={tab.key}
-                label={tab.label}
-                onClick={() => {
-                  setActiveTab(tab.key)
-                  setSearchQuery('')
-                }}
-              />
-            )
-          })}
+      <div className="mb-5 flex flex-col gap-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h2 className="font-sans text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
+            <Trans>My Names</Trans>
+          </h2>
+          <div className="w-full md:w-[352px]">
+            <Input
+              className="h-10 rounded-full border-none bg-ens-white text-base text-foreground tracking-[-0.32px] placeholder:text-ens-quartz-350"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t`Search my names`}
+              startIcon={<Search className="size-4.5 text-ens-quartz-350" />}
+              value={searchQuery}
+            />
+          </div>
         </div>
 
-        <div className="w-full md:w-[292px]">
-          <Input
-            className="h-[32px] rounded-[4.1px] border-none bg-ens-white text-[13.12px] text-muted-foreground placeholder:text-muted-foreground"
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={
-              activeTab === 'myNames' ? t`Search my name...` : t`Search name...`
-            }
-            size="sm"
-            startIcon={<Search className="size-[18px] text-muted-foreground" />}
-            value={searchQuery}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
+          {activeFilter === 'owned' ? (
+            <SortMenu
+              onChange={setOwnedSort}
+              options={ownedSortOptions}
+              value={ownedSort}
+            />
+          ) : (
+            <SortMenu
+              onChange={setFavoritesSort}
+              options={favoritesSortOptions}
+              value={favoritesSort}
+            />
+          )}
+          <FilterChips
+            chips={chips}
+            onChange={(next) => {
+              setFilter(next)
+              setSearchQuery('')
+            }}
+            value={activeFilter}
           />
         </div>
       </div>
 
       <AnimatePresence mode="popLayout">
-        {match(activeTab)
-          .with('myNames', () => (
+        {match(activeFilter)
+          .with('owned', () => (
             <motion.div
-              key="myNames"
+              key="owned"
               {...(shouldReduceMotion
                 ? {}
                 : {
@@ -185,9 +166,13 @@ export const NamesTable = ({
                   })}
             >
               <MyNamesList
+                favoriteLabels={favoriteLabels}
+                isAuthenticated={isAuthed}
                 migrationEnabled={migrationEnabled}
+                onToggleFavorite={onToggleFavorite}
                 primaryLabel={primaryLabel}
                 searchQuery={searchQuery}
+                sort={ownedSort}
               />
             </motion.div>
           ))
@@ -206,7 +191,11 @@ export const NamesTable = ({
                     },
                   })}
             >
-              <FavoritesList searchQuery={searchQuery} />
+              <FavoritesList
+                isAuthenticated={isAuthed}
+                searchQuery={searchQuery}
+                sort={favoritesSort}
+              />
             </motion.div>
           ))
           .exhaustive()}

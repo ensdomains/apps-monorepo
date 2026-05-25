@@ -77,63 +77,129 @@ export async function fillParaPasswordInput(
 }
 
 /**
- * Click the modal action(s) to complete auth.
+ * Dismiss the app's BackendAuthModal (SIWE prompt) by clicking
+ * "Skip for now" → "Skip Anyway". Idempotent: if the modal doesn't
+ * appear within the timeout, returns silently.
  *
- * After Para email+OTP, up to two app modals appear in sequence:
- *   1. EnableSessionModal  — "Enable Sessions" (Rhinestone smart-account session)
- *   2. BackendAuthModal    — "Sign in with Wallet" (SIWE for notification backend)
+ * Why skip rather than complete:
+ *   - SIWE requires reaching the backend API worker, which is not part
+ *     of the e2e infra stack (we point at the deployed worker, which
+ *     introduces external flakiness).
+ *   - The modal blocks pointer events on the rest of the page; until
+ *     it closes, no test can interact with anything else.
+ *   - The modal appears AFTER `smartAccount.isAccountReady`, which on a
+ *     fresh fork can take 30-60 s (Rhinestone SCA deploy + HCA
+ *     registration + session enable). The helper therefore needs a
+ *     generous wait window.
  *
- * On a **fresh Anvil fork** the session creation deploys the smart account
- * on-chain for the first time, which can take 30-60 s. The function waits
- * for each modal to fully close before moving on.
+ * Tests that want to exercise the SIWE flow itself should call
+ * `signInBackendAuthModal` instead.
  */
-export async function clickParaSignInButton(page: Page): Promise<void> {
-  // ── 1. Handle EnableSessionModal ─────────────────────────────────────
-  const enableBtn = page.getByRole('button', { name: 'Enable Sessions' })
+export async function dismissBackendAuthModal(
+  page: Page,
+  options: { timeout?: number } = {},
+): Promise<void> {
+  const timeout = options.timeout ?? 60_000
+
+  // The verification step's title is "Verify your wallet".
+  // The skip-confirmation step's title is "Are you sure?".
+  // We key off the "Skip for now" cancel button which is only present
+  // in the verification step.
+  const skipBtn = page.getByRole('button', { name: 'Skip for now' })
 
   try {
-    await enableBtn.waitFor({ state: 'visible', timeout: 15_000 })
-    console.log('[para-auth] EnableSessionModal visible — clicking "Enable Sessions"')
-    await enableBtn.click()
-
-    // Session creation runs on-chain. On a fresh fork this deploys the smart
-    // account + installs the session module, which can take a while.
-    // Wait for the success message or the button to disappear.
-    // const sessionsEnabled = page.getByText('Sessions enabled!')
-    // await sessionsEnabled
-    //   .waitFor({ state: 'visible', timeout: 120_000 })
-    //   .catch(() => {
-    //     console.warn('[para-auth] Did not see "Sessions enabled!" text — session creation may have failed')
-    //   })
-
-    // The modal auto-closes 1.5 s after success. Wait for the dialog to disappear.
-    const sessionDialog = page.locator('[role="dialog"]:has-text("Smart Sessions")')
-    await sessionDialog
-      .waitFor({ state: 'hidden', timeout: 10_000 })
-      .catch(() => { })
-
-    console.log('[para-auth] EnableSessionModal closed')
+    await skipBtn.waitFor({ state: 'visible', timeout })
   } catch {
-    // EnableSessionModal may not appear if sessions are already set up.
-    console.log('[para-auth] EnableSessionModal did not appear — sessions may already be active')
+    // Modal never appeared — already skipped/dismissed, EOA-only mode,
+    // or feature disabled. Either way, nothing to do.
+    console.log(
+      '[para-auth] BackendAuthModal did not appear within timeout — skipping',
+    )
+    return
   }
 
-  // ── 2. Handle BackendAuthModal (SIWE) ────────────────────────────────
-  const signInBtn = page.getByRole('button', { name: 'Sign in with Wallet' })
+  console.log('[para-auth] BackendAuthModal visible — clicking "Skip for now"')
+  await skipBtn.click()
 
-  try {
-    await signInBtn.waitFor({ state: 'visible', timeout: 15_000 })
-    console.log('[para-auth] BackendAuthModal visible — clicking "Sign in with Wallet"')
-    await signInBtn.click()
-  } catch {
-    // BackendAuthModal may not appear (e.g. already authed, or feature disabled).
-    console.log('[para-auth] BackendAuthModal did not appear — skipping SIWE')
-  }
+  // The skip-confirmation step replaces the modal contents but keeps
+  // the dialog open. Click "Skip Anyway" to fully dismiss.
+  const skipAnywayBtn = page.getByRole('button', { name: 'Skip Anyway' })
+  await skipAnywayBtn.waitFor({ state: 'visible', timeout: 10_000 })
+  await skipAnywayBtn.click()
+
+  // Wait for the dialog overlay to disappear so subsequent navigations
+  // are clean and pointer-events on the page are restored.
+  const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+  await overlay
+    .waitFor({ state: 'hidden', timeout: 10_000 })
+    .catch(() => {
+      // Best-effort: if the overlay lingers, downstream interactions
+      // will hit retry logic via Playwright's auto-waiting anyway.
+    })
+
+  console.log('[para-auth] BackendAuthModal dismissed')
 }
 
 /**
- * Full Para authentication flow: email → OTP → sign in.
- * Waits for each step's UI to be ready before proceeding.
+ * Complete the app's BackendAuthModal (SIWE prompt) by signing the
+ * message with the connected wallet. Use this only when the test
+ * specifically exercises the SIWE / backend-auth flow.
+ *
+ * Returns silently if the modal does not appear within `timeout`.
+ */
+export async function signInBackendAuthModal(
+  page: Page,
+  options: { timeout?: number } = {},
+): Promise<void> {
+  const timeout = options.timeout ?? 60_000
+
+  // The button stays disabled until the wagmi walletClient is ready,
+  // so we explicitly wait for the enabled state rather than just
+  // visible.
+  const signInBtn = page.getByRole('button', { name: 'Sign in with Wallet' })
+
+  try {
+    await signInBtn.waitFor({ state: 'visible', timeout })
+  } catch {
+    console.log(
+      '[para-auth] BackendAuthModal did not appear within timeout — skipping SIWE',
+    )
+    return
+  }
+
+  // Wait for the button to become enabled (walletClient resolved).
+  await signInBtn.waitFor({ state: 'attached', timeout: 10_000 })
+  for (let i = 0; i < 30; i += 1) {
+    if (await signInBtn.isEnabled()) break
+    await page.waitForTimeout(500)
+  }
+
+  console.log(
+    '[para-auth] BackendAuthModal visible — clicking "Sign in with Wallet"',
+  )
+  await signInBtn.click()
+
+  // The modal closes once `backendAuthStore.authKey` is populated.
+  await signInBtn
+    .waitFor({ state: 'hidden', timeout: 30_000 })
+    .catch(() => {
+      console.warn(
+        '[para-auth] BackendAuthModal did not close after Sign in — backend may be unreachable',
+      )
+    })
+
+  const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+  await overlay
+    .waitFor({ state: 'hidden', timeout: 10_000 })
+    .catch(() => {})
+}
+
+/**
+ * Full Para authentication flow: email → OTP.
+ *
+ * Does NOT handle the post-auth app modals (EnableSessions,
+ * BackendAuthModal) — those are app-level and should be handled by
+ * the test fixture so each spec can choose what to do with them.
  */
 export async function authenticateWithPara(
   page: Page,
@@ -159,7 +225,4 @@ export async function authenticateWithPara(
 
   // Fill OTP
   await fillParaOtpInput(page, pin)
-
-  // Wait for and click "Sign in with Wallet"
-  await clickParaSignInButton(page)
 }

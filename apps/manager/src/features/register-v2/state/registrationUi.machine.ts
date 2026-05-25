@@ -171,9 +171,9 @@ const startRegistrationAction = machineSetup.createAction(
     }
 
     // Register the ENS name directly to the EOA on every signer path
-    // (eoa, zerodev, rhinestone). The rhinestone smart-session policy is
+    // (eoa, rhinestone). The rhinestone smart-session policy is
     // configured to pin `register.owner == EOA` to match (see
-    // lib/smart-account/sessions/build-registration-session.ts).
+    // @ens-apps/smart-account providers/rhinestone/registration-policy.ts).
     //
     // Rationale: with the EOA as the on-chain ENS owner, indexer "My names"
     // lookups by EOA work without HCA-equivalence, and registry-level
@@ -278,7 +278,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   initial: 'pricing',
   context: ({ input }) => ({
     chainId: input.chainId,
-    duration: SECONDS_IN_YEAR,
+    duration: SECONDS_IN_YEAR * 3,
     selectedToken: undefined,
     lastErrorMessage: undefined,
     maxProgressReached: undefined,

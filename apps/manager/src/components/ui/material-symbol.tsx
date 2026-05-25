@@ -14,40 +14,46 @@ const GRADE: RangeOrValue = '-50..200'
  *
  * @see {@link https://fonts.google.com/icons Material Symbols} for available icon names
  */
-const MATERIAL_SYMBOLS = [
-  'drafts',
-  'notifications',
-  'waving_hand',
-  'settings',
-  'search',
-  'sentiment_calm',
-  'schedule',
-  'favorite',
-  'mail',
-  'check',
-  'priority_high',
-  'more_horiz',
-  'delete',
+export const MATERIAL_SYMBOLS = [
+  'account_balance_wallet',
+  'account_circle',
+  'arrow_back',
+  'arrow_drop_down',
+  'arrow_forward',
+  'arrow_outward',
   'badge',
   'cached',
-  'close',
-  'warning',
-  'edit',
-  'arrow_back',
   'calendar_month',
-  'double_arrow',
-  'arrow_drop_down',
-  'login',
-  'keyboard_arrow_down',
-  'dehaze',
-  'dashboard',
-  'account_circle',
-  'notifications_unread',
-  'account_balance_wallet',
+  'check',
+  'close',
+  'computer',
   'content_copy',
+  'dashboard',
+  'dehaze',
+  'delete',
+  'double_arrow',
+  'drafts',
+  'edit',
+  'favorite',
+  'history',
+  'keyboard_arrow_down',
+  'login',
   'logout',
-  'arrow_outward',
+  'mail',
+  'message',
+  'more_horiz',
+  'notifications',
+  'notifications_unread',
+  'priority_high',
+  'schedule',
+  'search',
+  'sentiment_calm',
+  'settings',
+  'warning',
+  'waving_hand',
 ] as const satisfies readonly string[]
+
+export type MaterialSymbol = (typeof MATERIAL_SYMBOLS)[number]
 
 // Google Fonts requires the icons to be sorted alphabetically
 const MATERIAL_SYMBOLS_SORTED = (MATERIAL_SYMBOLS as unknown as string[]).sort(
@@ -58,11 +64,11 @@ const MATERIAL_SYMBOLS_SORTED = (MATERIAL_SYMBOLS as unknown as string[]).sort(
  * Google Fonts URL for Material Symbols with variable font settings.
  * This URL is configured to load only the symbols defined in MATERIAL_SYMBOLS
  * to optimize font loading performance.
+ *
+ * Lives in a JSX-free module so it can be imported from non-React contexts
+ * (e.g. `.storybook/main.ts`) without esbuild trying to parse JSX.
  */
 export const MATERIAL_SYMBOLS_URL = `https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@${OPTICAL_SIZE},${WEIGHT},${FILL},${GRADE}&icon_names=${MATERIAL_SYMBOLS_SORTED.join(',')}&display=block`
-
-type MaterialSymbol = (typeof MATERIAL_SYMBOLS)[number]
-
 export interface MaterialSymbolProps
   extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'symbol' | 'className'>,
     React.RefAttributes<HTMLSpanElement> {

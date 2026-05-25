@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useChainId } from 'wagmi'
@@ -19,13 +18,14 @@ import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
 
-export type EntityVariant = 'name' | 'address' | 'contract' | 'tx'
+export type EntityVariant = 'name' | 'address' | 'contract' | 'tx' | 'default'
 
 const variantClass: Record<EntityVariant, string> = {
   name: 'bg-accent-fill dark:bg-entity-bg text-accent-text',
   address: 'bg-success-fill dark:bg-entity-bg text-success-text',
   contract: 'bg-danger-fill dark:bg-entity-bg text-danger-text',
   tx: 'bg-warning-fill dark:bg-entity-bg text-warning-text',
+  default: 'bg-default-fill dark:bg-entity-bg text-default-text',
 }
 
 export const hoverBgClass: Record<EntityVariant, string> = {
@@ -33,6 +33,7 @@ export const hoverBgClass: Record<EntityVariant, string> = {
   address: 'hover:bg-success-fill dark:hover:bg-entity-bg',
   contract: 'hover:bg-danger-fill dark:hover:bg-entity-bg',
   tx: 'hover:bg-warning-fill dark:hover:bg-entity-bg',
+  default: 'hover:bg-default-fill dark:hover:bg-entity-bg',
 }
 
 const pillClass = (variant: EntityVariant, className?: string) =>
@@ -50,6 +51,24 @@ const chipClass = cn(
   'border border-border bg-popover text-popover-foreground',
   'hover:bg-accent hover:text-accent-foreground',
   'text-[11px] font-normal no-underline',
+)
+
+// Chip overlay reveal behavior. Uses opacity + pointer-events instead of
+// display:none so the chip stays in the tab order and the accessibility
+// tree. Reveals on mouse hover and on keyboard focus-within the badge group.
+const chipOverlayBase = cn(
+  'absolute bottom-full pb-2 flex flex-row gap-1 z-50',
+  'opacity-0 pointer-events-none transition-opacity',
+  'group-hover/entity:opacity-100 group-hover/entity:pointer-events-auto',
+  'group-focus-within/entity:opacity-100 group-focus-within/entity:pointer-events-auto',
+)
+
+// Default variant only: also show on touch devices, since copy is the
+// primary affordance for read-only fields and there's no badge-level tap
+// fallback the way other variants have a link.
+const chipOverlayAlwaysOnTouch = cn(
+  '[@media(hover:none)]:opacity-100',
+  '[@media(hover:none)]:pointer-events-auto',
 )
 
 const CopyChip = ({
@@ -82,44 +101,23 @@ const CopyChip = ({
   }, [copied])
 
   return (
-    <button type="button" className={chipClass} onClick={handleCopy}>
+    <button
+      type="button"
+      className={chipClass}
+      onClick={handleCopy}
+      aria-label={label || 'Copy'}
+    >
       {copied ? (
         <CheckIcon className="size-3.25" />
       ) : (
         showIcon && <ChipCopyIcon className="size-3.25" />
       )}
-      {!copied && label}
+      {!copied && label ? label : null}
     </button>
   )
 }
 
-export const EntityBadge = ({
-  children,
-  variant,
-  className,
-  externalHref,
-}: {
-  children: ReactNode
-  variant: EntityVariant
-  className?: string
-  /** External link — opens in new tab */
-  externalHref?: string
-}) => {
-  if (externalHref) {
-    return (
-      <ExternalLink
-        href={externalHref}
-        className={pillClass(variant, className)}
-      >
-        {children}
-      </ExternalLink>
-    )
-  }
-
-  return <span className={pillClass(variant, className)}>{children}</span>
-}
-
-interface EntityBadgeWithActionsProps {
+interface EntityBadgeProps {
   readonly children: ReactNode
   readonly variant: EntityVariant
   readonly className?: string
@@ -141,7 +139,7 @@ interface EntityBadgeWithActionsProps {
   readonly inline?: boolean
 }
 
-export const EntityBadgeWithActions = ({
+export const EntityBadge = ({
   children,
   variant,
   className,
@@ -153,8 +151,7 @@ export const EntityBadgeWithActions = ({
   copyValue,
   showAvatar = false,
   inline = false,
-}: EntityBadgeWithActionsProps) => {
-  const navigate = useNavigate()
+}: EntityBadgeProps) => {
   const chainId = useChainId()
 
   const { data: resolverInterfaces } = useQuery({
@@ -187,43 +184,122 @@ export const EntityBadgeWithActions = ({
     derivedCopyValue
   )
 
-  if (!hasChips) {
+  // Default variant: plain truncatable text with a floating Copy chip above
+  // it on hover — same overlay pattern as the other variants, but with only
+  // the Copy chip and a non-interactive (no link/button) primary.
+  if (variant === 'default') {
     return (
-      <EntityBadge variant={variant} className={className}>
-        {children}
-      </EntityBadge>
+      <div
+        className={cn(
+          'relative group/entity',
+          inline ? 'inline-flex' : 'flex w-full min-w-0',
+        )}
+      >
+        {derivedCopyValue && (
+          <div
+            className={cn(
+              chipOverlayBase,
+              chipOverlayAlwaysOnTouch,
+              inline ? 'right-0' : 'left-0',
+            )}
+          >
+            <CopyChip value={derivedCopyValue} />
+          </div>
+        )}
+        <span
+          className={cn(
+            'block min-w-0 truncate font-mono text-sm font-medium tracking-tight',
+            'px-1 rounded border-[0.5px] border-entity-border',
+            'bg-default-fill text-default-text',
+            'dark:bg-entity-bg',
+            className,
+          )}
+        >
+          {children}
+        </span>
+      </div>
     )
   }
 
-  const hasPrimaryAction =
-    (variant === 'name' && !!name) ||
-    (variant === 'address' && !!address) ||
-    (variant === 'contract' && (isResolver ? !!address : !!etherscanHref)) ||
-    (variant === 'tx' && !!etherscanHref)
+  if (!hasChips) {
+    return <span className={pillClass(variant, className)}>{children}</span>
+  }
 
-  const triggerPrimaryAction = () => {
+  const wrapperBase = cn(
+    'items-center gap-2 rounded-lg transition-colors',
+    inline ? 'inline-flex px-1.5 py-1 rounded' : 'flex w-full px-3.5 py-3.5',
+    hoverBgClass[variant],
+  )
+  const interactiveWrapper = cn(
+    wrapperBase,
+    'cursor-pointer text-left no-underline',
+  )
+
+  const wrapperContent = (
+    <>
+      {resolvedAvatar}
+      <span className={pillClass(variant, className)}>{children}</span>
+    </>
+  )
+
+  // Real <Link>/<a> elements preserve middle-click, ⌘+click, "Open in new tab",
+  // status-bar URL preview, and right-click affordances — none of which work
+  // with a button + navigate() pattern.
+  const renderPrimary = () => {
     if (variant === 'name' && name) {
-      navigate({ to: '/$name', params: { name } })
-      return
+      return (
+        <Link to="/$name" params={{ name }} className={interactiveWrapper}>
+          {wrapperContent}
+        </Link>
+      )
     }
-
     if (variant === 'address' && address) {
-      navigate({ to: '/addr/$addr', params: { addr: address } })
-      return
+      return (
+        <Link
+          to="/addr/$addr"
+          params={{ addr: address }}
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </Link>
+      )
     }
-
-    if (variant === 'contract') {
-      if (isResolver && address) {
-        navigate({ to: '/resolver/$address', params: { address } })
-      } else if (etherscanHref) {
-        window.open(etherscanHref, '_blank', 'noopener,noreferrer')
-      }
-      return
+    if (variant === 'contract' && isResolver && address) {
+      return (
+        <Link
+          to="/resolver/$address"
+          params={{ address }}
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </Link>
+      )
     }
-
+    if (variant === 'contract' && !isResolver && etherscanHref) {
+      return (
+        <a
+          href={etherscanHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </a>
+      )
+    }
     if (variant === 'tx' && etherscanHref) {
-      window.open(etherscanHref, '_blank', 'noopener,noreferrer')
+      return (
+        <a
+          href={etherscanHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={interactiveWrapper}
+        >
+          {wrapperContent}
+        </a>
+      )
     }
+    return <div className={wrapperBase}>{wrapperContent}</div>
   }
 
   return (
@@ -240,12 +316,7 @@ export const EntityBadgeWithActions = ({
         pb-2 creates an invisible 8px bridge at the bottom of this container,
         so hovering from badge upward to chips doesn't break the hover state.
       */}
-      <div
-        className={cn(
-          'absolute bottom-full pb-2 hidden group-hover/entity:flex flex-row gap-1 z-50',
-          inline ? 'right-0' : 'left-3.5',
-        )}
-      >
+      <div className={cn(chipOverlayBase, inline ? 'right-0' : 'left-3.5')}>
         {variant === 'name' && name && (
           <Link to="/$name" params={{ name }} className={chipClass}>
             <ChipNameIcon className="size-3.25" />
@@ -316,35 +387,7 @@ export const EntityBadgeWithActions = ({
         )}
       </div>
 
-      {hasPrimaryAction ? (
-        <button
-          type="button"
-          className={cn(
-            'items-center gap-2 rounded-lg transition-colors cursor-pointer text-left',
-            inline
-              ? 'inline-flex px-1.5 py-1 rounded'
-              : 'flex w-full px-3.5 py-3.5',
-            hoverBgClass[variant],
-          )}
-          onClick={triggerPrimaryAction}
-        >
-          {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
-        </button>
-      ) : (
-        <div
-          className={cn(
-            'items-center gap-2 rounded-lg transition-colors',
-            inline
-              ? 'inline-flex px-1.5 py-1 rounded'
-              : 'flex w-full px-3.5 py-3.5',
-            hoverBgClass[variant],
-          )}
-        >
-          {resolvedAvatar}
-          <span className={pillClass(variant, className)}>{children}</span>
-        </div>
-      )}
+      {renderPrimary()}
     </div>
   )
 }

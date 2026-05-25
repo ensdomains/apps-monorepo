@@ -93,9 +93,15 @@ const Profile = ({
     enabled: shouldCheckAvailability,
   })
 
+  // When ownerQuery returns null, the registry has gated ownerOf on _isExpired,
+  // so we can't tell from the chain alone whether the name is genuinely
+  // unregistered or sitting in its 28-day v2 grace window. Default the hook to
+  // 'ENSv2' in that case so it consults the indexer to detect grace state.
+  // (v1 names in grace still return an owner from the registrar, so a null
+  // owner implies the name isn't a v1-in-grace case.)
   const grace = useGraceStatus({
     name,
-    protocolVersion: ownerQuery.data?.protocolVersion,
+    protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
   // Loading states
@@ -172,6 +178,42 @@ const Profile = ({
           />
         )
       }
+    }
+
+    // Wait for indexer before deciding between v2 grace and error states
+    if (grace.isLoading) {
+      return <LoadingSpinner title="Loading..." />
+    }
+
+    // Without indexer data we can't distinguish grace from genuinely missing,
+    // so surface the failure rather than falling through to "Name not found".
+    if (grace.error) {
+      const errorMessage =
+        (grace.error as { cause?: { message?: string } }).cause?.message ??
+        'Failed to load registration data'
+      return (
+        <ErrorMessage title="Error loading name" description={errorMessage} />
+      )
+    }
+
+    // V2 grace: registrar's _checkGrace still blocks re-registration, but the
+    // registry's ownerOf returned zero. Render banner + Extend so the previous
+    // owner can renew before the window closes.
+    if (grace.isInGrace && grace.graceEndDate) {
+      return (
+        <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+          <GraceBanner
+            graceEndDate={grace.graceEndDate}
+            protocolVersion="ENSv2"
+          />
+          <div className="flex flex-row justify-between items-center">
+            <h1 className="font-serif text-4xl font-medium leading-none">
+              {name}
+            </h1>
+            <ExtendNameButton name={name} protocolVersion="ENSv2" />
+          </div>
+        </div>
+      )
     }
 
     // Handle errors

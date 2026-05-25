@@ -1,6 +1,5 @@
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import {
-  REFERER_ADDRESS,
   type SUPPORTED_TOKEN,
   SUPPORTED_TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
@@ -13,8 +12,9 @@ import {
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
-import { type Address, encodeFunctionData } from 'viem'
+import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import type { Address } from 'viem'
+import { encodeFunctionData } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
 import { IS_PAYMENT_TOKEN_SNIPPET } from '@/features/register/services/nameChainContractService'
@@ -78,10 +78,17 @@ const startRenewalTransaction = async ({
     )
   }
 
+  const writeParams = renewNameWriteParameters(
+    publicClient as unknown as Parameters<typeof renewNameWriteParameters>[0],
+    {
+      name: `${label}.eth`,
+      duration,
+      paymentToken: normalizedPaymentToken,
+    },
+  )
+
   const txData = encodeFunctionData({
-    abi: l2EthRegistrarRenewSnippet,
-    functionName: 'renew',
-    args: [label, duration, normalizedPaymentToken, REFERER_ADDRESS],
+    ...writeParams,
   })
 
   const request = createTransactionRequest({

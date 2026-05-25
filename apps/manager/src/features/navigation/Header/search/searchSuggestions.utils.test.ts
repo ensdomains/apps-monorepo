@@ -95,6 +95,69 @@ describe('buildSuggestions', () => {
     })
   })
 
+  it('supports subnames with short child labels', () => {
+    const result = buildSuggestions({
+      parsedInput: { type: 'name', value: '1.sugh1405202602.eth' },
+      history: emptyHistory,
+    })
+
+    expect(result[0]).toMatchObject({
+      type: 'name',
+      value: '1.sugh1405202602.eth',
+      isSupported: true,
+    })
+  })
+
+  it('marks subnames with invalid child labels as not supported', () => {
+    const result = buildSuggestions({
+      parsedInput: { type: 'name', value: 'bad!.sugh1405202602.eth' },
+      history: emptyHistory,
+    })
+
+    expect(result[0]).toMatchObject({
+      type: 'name',
+      value: 'bad!.sugh1405202602.eth',
+      isSupported: false,
+    })
+  })
+
+  it('marks short subnames with invalid child labels as not supported', () => {
+    const result = buildSuggestions({
+      parsedInput: { type: 'name', value: '!.sugh1405202602.eth' },
+      history: emptyHistory,
+    })
+
+    expect(result[0]).toMatchObject({
+      type: 'name',
+      value: '!.sugh1405202602.eth',
+      isSupported: false,
+    })
+  })
+
+  it('marks names with leading or trailing dots as not supported', () => {
+    expect(
+      buildSuggestions({
+        parsedInput: { type: 'name', value: '.bigint.eth' },
+        history: emptyHistory,
+      })[0],
+    ).toMatchObject({
+      type: 'name',
+      value: '.bigint.eth',
+      isSupported: false,
+    })
+
+    expect(
+      buildSuggestions({
+        parsedInput: { type: 'name', value: 'bigint.eth.' },
+        history: emptyHistory,
+      })[0],
+    ).toMatchObject({
+      type: 'name',
+      value: 'bigint.eth.',
+      isSupported: false,
+    })
+  })
+
   it('returns address suggestion with primary name', () => {
     const address = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
     const result = buildSuggestions({

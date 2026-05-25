@@ -52,7 +52,8 @@ export const getNameLength = (name: string | null): string => {
   return '5+'
 }
 
-// V2: ETHRegistrar.renew reverts once expiry <= now (no grace period).
+// V2: owner can renew until the end of the 28-day grace period; after that
+// the name becomes available for registration.
 // V1: ETHRegistrarController.renew reverts once past grace (in premium window).
 export const isExtendable2LD = ({
   name,
@@ -60,9 +61,11 @@ export const isExtendable2LD = ({
   expiryDate,
 }: SelectedName): boolean => {
   if (!/^[^.]+\.eth$/.test(name)) return false
-  if (!expiryDate) return true
-  const cutoff = isV2
-    ? expiryDate.getTime()
-    : expiryDate.getTime() + GRACE_PERIOD_DAYS * MS_PER_DAY
+  // When expiry isn't known yet (indexer loading/error), gate v2 conservatively
+  // so we never hand a past-grace name into the renew flow and hit a revert.
+  // v1 stays permissive — its on-chain registrar handles the revert gracefully.
+  if (!expiryDate) return !isV2
+  const graceDays = isV2 ? V2_GRACE_PERIOD_DAYS : GRACE_PERIOD_DAYS
+  const cutoff = expiryDate.getTime() + graceDays * MS_PER_DAY
   return cutoff > Date.now()
 }
