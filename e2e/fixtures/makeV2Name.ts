@@ -38,6 +38,7 @@ import {
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
 // Contract addresses — match the app (ens-sepolia.ts / ensjs)
@@ -95,6 +96,14 @@ const RESOLVER_ABI = parseAbi([
 // Constants
 // ---------------------------------------------------------------------------
 
+// V2 permissioned registry ABI — getExpiry takes uint256 tokenId (labelhash as BigInt)
+const REGISTRY_ABI = parseAbi([
+  'function getExpiry(uint256 anyId) view returns (uint64)',
+])
+
+// V2 ENS Registry (root + ETH registry)
+const ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as const
+
 /** Minimum registration duration the contract accepts (28 days). */
 const MIN_REGISTRATION_DURATION = 28 * 24 * 60 * 60
 
@@ -126,7 +135,12 @@ const PARA_EOA = privateKeyToAccount(PARA_EOA_KEY)
 export type V2NameConfig = {
   /** The label (without `.eth`). A timestamp suffix is appended for uniqueness. */
   label: string
-  /** Duration in seconds (default: 28 days minimum). */
+  /**
+   * Duration in seconds.
+   *  - Positive: name will expire this many seconds from now.
+   *  - Negative: name will have expired |duration| seconds ago
+   *    (e.g. -86400 = expired 1 day ago → grace period).
+   */
   duration?: number
   /** Optional text records to set on the resolver after registration. */
   records?: { key: string; value: string }[]
@@ -155,10 +169,17 @@ function generateResolverSalt(name: string): bigint {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createMakeV2Name() {
+type MakeV2NameDependencies = {
+  time?: Time
+}
+
+export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
   /**
    * Register a V2 .eth name on the anvil fork, owned by the Para EOA,
    * with a dedicated resolver proxy.
+   *
+   * If `duration` is negative the name is registered then anvil time is
+   * advanced so the name appears expired by |duration| seconds.
    */
   return async function makeV2Name(
     config: V2NameConfig,
@@ -168,14 +189,23 @@ export function createMakeV2Name() {
     const ownerAccount = isOther ? ANVIL_FUNDER : PARA_EOA
     const timestamp = Math.floor(Date.now() / 1000)
     const uniqueLabel = `${config.label}-${timestamp}`
-    const registrationDuration = Math.max(
-      config.duration ?? MIN_REGISTRATION_DURATION,
-      MIN_REGISTRATION_DURATION,
-    )
+
+    const requestedDuration = config.duration ?? MIN_REGISTRATION_DURATION
+    let registrationDuration: number
+    /** Seconds past expiry the name should be (0 = not expired). */
+    let desiredGapPastExpiry = 0
+
+    if (requestedDuration < 0) {
+      registrationDuration = MIN_REGISTRATION_DURATION
+      desiredGapPastExpiry = Math.abs(requestedDuration)
+    } else {
+      registrationDuration = Math.max(requestedDuration, MIN_REGISTRATION_DURATION)
+    }
+
     const secret = keccak256(toHex(`v2-${uniqueLabel}:${Math.random()}`))
 
     console.log(
-      `[makeV2Name] registering ${uniqueLabel}.eth → ${ownerAddress} (EOA)`,
+      `[makeV2Name] registering ${uniqueLabel}.eth → ${ownerAddress} (EOA) (duration=${registrationDuration}s, gap=${desiredGapPastExpiry}s)`,
     )
 
     // ── 1. Deploy dedicated resolver proxy ──────────────────────────
@@ -334,6 +364,31 @@ export function createMakeV2Name() {
     }
 
     console.log(`[makeV2Name] ✅ registered ${ethName}`)
+
+    // ── 10. Fast-forward to exact target timestamp if needed ─────────
+    if (desiredGapPastExpiry > 0) {
+      const labelHash = BigInt(keccak256(toHex(uniqueLabel)))
+      const expiry = await publicClient.readContract({
+        address: ETH_REGISTRY,
+        abi: REGISTRY_ABI,
+        functionName: 'getExpiry',
+        args: [labelHash],
+      })
+      const targetTimestamp = Number(expiry) + desiredGapPastExpiry
+      console.log(
+        `[makeV2Name] name expiry=${expiry}, target block.timestamp=${targetTimestamp} (${desiredGapPastExpiry}s past expiry)`,
+      )
+      await testClient.setNextBlockTimestamp({
+        timestamp: BigInt(targetTimestamp),
+      })
+      await testClient.mine({ blocks: 1 })
+    }
+
+    // Sync browser clock if time fixture is available
+    if (deps.time) {
+      await deps.time.sync()
+    }
+
     return ethName
   }
 }

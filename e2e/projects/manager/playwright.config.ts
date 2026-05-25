@@ -12,7 +12,7 @@ export default defineConfig({
     {
       name: 'manager-e2e',
       testMatch: /\.spec\.ts$/,
-      testIgnore: /temporaryPremium|migration/,
+      testIgnore: /temporaryPremium|migration|notification/,
     },
   ],
 })

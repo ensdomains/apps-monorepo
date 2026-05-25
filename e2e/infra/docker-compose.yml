@@ -101,7 +101,7 @@ services:
     command: ["/app/ensv2-indexer-v2"]
     volumes:
       - panoptes-data:/app/data
-      - ./panoptes/contracts.json:/app/config/contracts.json:ro
+      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
     environment:
       - DATABASE_PATH=/app/data/ens_v2.db
       - RAINBOW_PATH=/app/data/ens_rainbow.db
@@ -135,7 +135,7 @@ services:
       - "5655:5655"
     volumes:
       - panoptes-data:/app/data:ro
-      - ./panoptes/contracts.json:/app/config/contracts.json:ro
+      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
     environment:
       - DATABASE_PATH=/app/data/ens_v2.db
       - RAINBOW_PATH=/app/data/ens_rainbow.db
@@ -176,7 +176,8 @@ services:
       - ./mockestrator/chains.json:/app/chains.json
     restart: on-failure
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      # TCP port check — nc is available in Bun-based image; passes as soon as port 3000 is open.
+      test: ["CMD-SHELL", "nc -z localhost 3000"]
       interval: 5s
       timeout: 5s
       retries: 12

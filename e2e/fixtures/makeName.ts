@@ -16,9 +16,12 @@
 import {
   type Address,
   type Hash,
+  decodeEventLog,
   encodeFunctionData,
   keccak256,
+  namehash,
   parseAbi,
+  stringToBytes,
   toHex,
   zeroAddress,
   zeroHash,
@@ -40,6 +43,10 @@ const FAST_TEST_ETH_REGISTRAR =
 const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
 const DEDICATED_RESOLVER =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
+const PERMISSIONED_RESOLVER_IMPL =
+  '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as const
+const VERIFIABLE_FACTORY =
+  '0x9240c5f31d747d60b3d9aed2f57995094342b1ed' as const
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
@@ -69,6 +76,21 @@ const ERC20_ABI = parseAbi([
   'function balanceOf(address owner) view returns (uint256)',
 ])
 
+const VERIFIABLE_FACTORY_ABI = parseAbi([
+  'function deployProxy(address implementation, uint256 salt, bytes data)',
+  'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
+])
+const RESOLVER_INIT_ABI = parseAbi([
+  'function initialize(address owner, uint256 bitmap)',
+])
+const RESOLVER_ABI = parseAbi([
+  'function setText(bytes32 node, string key, string value)',
+])
+
+const FULL_ROLE_BITMAP = BigInt(
+  '0x1111111111111111111111111111111111111111111111111111111111111111',
+)
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -94,6 +116,13 @@ export type NameConfig = {
    *     -7890000 = ~3 months ago → temporary premium window).
    */
   duration?: number
+  /**
+   * Optional text records to set on the resolver after registration.
+   * When provided, a dedicated PermissionedResolver proxy is deployed
+   * (instead of using the shared DEDICATED_RESOLVER) so the owner
+   * has permission to call setText.
+   */
+  records?: { key: string; value: string }[]
 }
 
 type Dependencies = {
@@ -152,9 +181,10 @@ export function createMakeName({ accounts, time }: Dependencies) {
     }
 
     const secret = keccak256(toHex(`${uniqueLabel}:${Math.random()}`))
+    const hasRecords = config.records && config.records.length > 0
 
     console.log(
-      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s)`,
+      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s${hasRecords ? `, records=${config.records!.length}` : ''})`,
     )
 
     // ── 0. Clear any contract code at owner address ───────────────
@@ -177,6 +207,13 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     await waitForTx(mintTx)
 
+    // ── 1a. Deploy dedicated resolver proxy if records are needed ───
+    let resolverAddress: Address = DEDICATED_RESOLVER
+    if (hasRecords) {
+      resolverAddress = await deployResolverProxy(uniqueLabel, ownerAddress)
+      console.log(`[makeName] resolver proxy: ${resolverAddress}`)
+    }
+
     // ── 2. Make commitment ────────────────────────────────────────
     const commitment = await publicClient.readContract({
       address: FAST_TEST_ETH_REGISTRAR,
@@ -187,7 +224,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
         ownerAddress,
         secret,
         zeroAddress,
-        DEDICATED_RESOLVER,
+        resolverAddress,
         BigInt(registrationDuration),
         REFERRER,
       ],
@@ -252,7 +289,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     await waitForTx(approveTx)
 
-    // ── 7. Register ───────────────────────────────────────────────
+    // ── 7. Register ───────────────────────────────────────────
     const registerData = encodeFunctionData({
       abi: REGISTRAR_ABI,
       functionName: 'register',
@@ -261,7 +298,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
         ownerAddress,
         secret,
         zeroAddress,
-        DEDICATED_RESOLVER,
+        resolverAddress,
         BigInt(registrationDuration),
         MOCK_USDC,
         REFERRER,
@@ -274,7 +311,30 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     await waitForTx(registerTx)
 
-    console.log(`[makeName] ✅ registered ${uniqueLabel}.eth`)
+    const ethName = `${uniqueLabel}.eth`
+
+    // ── 7a. Set text records (if any) ────────────────────────────
+    if (hasRecords) {
+      const node = namehash(ethName)
+      for (const { key, value } of config.records!) {
+        const setTextData = encodeFunctionData({
+          abi: RESOLVER_ABI,
+          functionName: 'setText',
+          args: [node, key, value],
+        })
+        const setTextTx = await walletClient.sendTransaction({
+          account: ownerAccount,
+          to: resolverAddress,
+          data: setTextData,
+        })
+        await waitForTx(setTextTx)
+      }
+      console.log(
+        `[makeName] set ${config.records!.length} record(s) on ${ethName}`,
+      )
+    }
+
+    console.log(`[makeName] ✅ registered ${ethName}`)
 
     // ── 8. Fast-forward to exact target timestamp if needed ───────
     // We read the on-chain expiry and set block.timestamp to exactly
@@ -302,8 +362,54 @@ export function createMakeName({ accounts, time }: Dependencies) {
     const timeOffset = options.timeOffset ?? 0
     await time.sync(timeOffset)
 
-    const ethName = `${uniqueLabel}.eth`
     console.log(`[makeName] ready: ${ethName}`)
     return ethName
   }
+}
+
+// ---------------------------------------------------------------------------
+// Resolver deployment helper (same as makeV2Name.ts)
+// ---------------------------------------------------------------------------
+async function deployResolverProxy(
+  nameLabel: string,
+  owner: Address,
+): Promise<Address> {
+  const salt = BigInt(
+    keccak256(stringToBytes(`${nameLabel}:${new Date().toISOString()}`)),
+  )
+  const initCalldata = encodeFunctionData({
+    abi: RESOLVER_INIT_ABI,
+    functionName: 'initialize',
+    args: [owner, FULL_ROLE_BITMAP],
+  })
+  const deployData = encodeFunctionData({
+    abi: VERIFIABLE_FACTORY_ABI,
+    functionName: 'deployProxy',
+    args: [PERMISSIONED_RESOLVER_IMPL, salt, initCalldata],
+  })
+  const deployTx = await walletClient.sendTransaction({
+    account: ANVIL_FUNDER,
+    to: VERIFIABLE_FACTORY,
+    data: deployData,
+  })
+  const receipt = await waitForTx(deployTx)
+
+  for (const log of receipt.logs) {
+    try {
+      const decoded = decodeEventLog({
+        abi: VERIFIABLE_FACTORY_ABI,
+        data: log.data,
+        topics: log.topics,
+      })
+      if (decoded.eventName === 'ProxyDeployed') {
+        return (decoded.args as { proxyAddress: Address }).proxyAddress
+      }
+    } catch {
+      // Ignore non-matching logs
+    }
+  }
+
+  throw new Error(
+    `[makeName] ProxyDeployed event not found in resolver deployment receipt`,
+  )
 }

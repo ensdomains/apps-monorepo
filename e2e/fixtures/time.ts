@@ -40,11 +40,18 @@ export const createTime = ({ page }: Dependencies) => {
      * After this call:
      *   - The next anvil block will have a timestamp ≥ old + seconds.
      *   - The browser's Date.now() will have advanced by the same amount.
+     *
+     * Uses `page.clock.setSystemTime` instead of `fastForward` because
+     * fastForward's tick parameter overflows a 32-bit signed integer at
+     * ~24.8 days (2,147,483,647 ms), which breaks grace-period tests.
      */
     increaseTime: async ({ seconds }: { seconds: number }) => {
       await testClient.increaseTime({ seconds })
       await testClient.mine({ blocks: 1 })
-      await page.clock.fastForward(seconds * 1000)
+      const block = await publicClient.getBlock()
+      const newTime = new Date(Number(block.timestamp) * 1000)
+      console.log(`[time] increaseTime +${seconds}s → ${newTime.toISOString()}`)
+      await page.clock.setSystemTime(newTime)
     },
 
     /**

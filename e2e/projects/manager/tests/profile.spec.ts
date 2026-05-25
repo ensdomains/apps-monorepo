@@ -169,11 +169,33 @@ test.describe('ENS profile', () => {
         await goToProfile(page, name)
         await page.waitForTimeout(3_000)
 
-        // Add to favourites — heart button is in the top-right of the profile card
+        // Add to favourites — register the response listener BEFORE the click so we
+        // never miss a fast response. Accept any /favorites request (POST or DELETE)
+        // so the test stays green on retries where the name may already be favourited.
         const heartButton = page.locator('button:has(.lucide-heart)').first()
         await heartButton.waitFor({ state: 'visible', timeout: 10_000 })
+
+        // If already favourited from a previous retry, unfavourite first so the
+        // dashboard assertion (name IN Favorites) is reliable.
+        const isAlreadyFavourited = await page
+            .locator('button:has(.lucide-heart) svg.lucide-heart')
+            .first()
+            .evaluate((el) => el.classList.contains('fill-[#f53293]'))
+        if (isAlreadyFavourited) {
+            const removePrior = page.waitForResponse(
+                (resp) => resp.url().includes('/favorites'),
+                { timeout: 10_000 },
+            )
+            await heartButton.click()
+            await removePrior
+        }
+
+        const addDone = page.waitForResponse(
+            (resp) => resp.url().includes('/favorites'),
+            { timeout: 10_000 },
+        )
         await heartButton.click()
-        await page.waitForTimeout(2_000)
+        await addDone
 
         // Verify name appears under the Favorites tab on the dashboard
         await page.goto(`${MANAGER_APP_URL}/dashboard`)
@@ -181,20 +203,25 @@ test.describe('ENS profile', () => {
         await page.getByText('Favorites').click()
         await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 })
 
-        // Remove from favourites — go back to the profile page and click the heart again
+        // Remove from favourites — listener registered before click, then wait for it
         await goToProfile(page, name)
         await page.waitForTimeout(3_000)
         const unfavButton = page.locator('button:has(.lucide-heart)').first()
         await unfavButton.waitFor({ state: 'visible', timeout: 10_000 })
-        await unfavButton.click()
-        await page.waitForTimeout(2_000)
 
-        // Verify name is gone from the Favorites tab
+        const removeDone = page.waitForResponse(
+            (resp) => resp.url().includes('/favorites'),
+            { timeout: 10_000 },
+        )
+        await unfavButton.click()
+        await removeDone
+
+        // Verify name is gone from the Favorites tab.
         await page.goto(`${MANAGER_APP_URL}/dashboard`)
         await page.waitForLoadState('networkidle')
         await page.getByText('Favorites').click()
         await page.waitForTimeout(2_000)
-        await expect(page.getByText(name)).not.toBeVisible({ timeout: 10_000 })
+        await expect(page.getByText(name).first()).not.toBeVisible({ timeout: 10_000 })
 
         console.log(`[profile] ✅ Favourites add/remove succeeded for ${name}`)
     })

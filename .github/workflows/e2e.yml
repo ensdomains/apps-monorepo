@@ -77,13 +77,33 @@ jobs:
         with:
           cache: true
 
+      - name: Pull ENS V2 snapshot image
+        id: box
+        continue-on-error: true
+        run: |
+          if docker pull ghcr.io/ensdomains/ens-v2-snapshot:latest; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::ens-v2-snapshot not available — falling back to live Sepolia fork"
+          fi
+
       # ── local blockchain stack ────────────────────────────────────
       # Only start the services each job needs to reduce memory pressure.
       # Anvil on a GitHub Actions runner (7 GB RAM) can OOM (exit 139)
       # when too many containers run alongside Node + Chromium.
       - name: Start E2E stack
         run: |
-          COMPOSE="docker compose -f e2e/infra/docker-compose.yml"
+          if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
+            echo "Using ENS V2 snapshot (no live Sepolia fork)"
+            COMPOSE_FILES="-f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml"
+            export PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json"
+            ANVIL_TIMEOUT=30
+          else
+            echo "Live Sepolia fork (box not available)"
+            COMPOSE_FILES="-f e2e/infra/docker-compose.yml"
+            ANVIL_TIMEOUT=60
+          fi
 
           # Core services — no Panoptes (saves ~1 GB RAM, prevents Anvil OOM)
           SERVICES="anvil alto paymaster"
@@ -94,10 +114,10 @@ jobs:
           fi
 
           echo "Starting: $SERVICES"
-          $COMPOSE up -d $SERVICES
+          docker compose $COMPOSE_FILES up -d $SERVICES
 
           echo "Waiting for Anvil..."
-          timeout 60 bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
+          timeout $ANVIL_TIMEOUT bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
             -H "Content-Type: application/json" \
             -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
             > /dev/null 2>&1; do sleep 2; done'
@@ -227,4 +247,10 @@ jobs:
 
       - name: Stop E2E stack
         if: always()
-        run: docker compose -f e2e/infra/docker-compose.yml down
+        run: |
+          if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
+            PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json" \
+              docker compose -f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml down
+          else
+            docker compose -f e2e/infra/docker-compose.yml down
+          fi
