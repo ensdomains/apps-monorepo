@@ -9,7 +9,6 @@ import {
 import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 import {
   getDurationFromPickerDate,
-  getStartOfToday,
   getYearsFromDuration,
   isDateWithinCalendarRange,
 } from '@/features/register/utils/registrationDuration'
@@ -20,6 +19,7 @@ import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
 type RegistrationExpiryDatePickerProps = {
   readonly date: Temporal.PlainDate
   readonly onDateChange: (date: Temporal.PlainDate) => void
+  readonly onYearsPresetSelect: (years: number) => void
   readonly minDate: Temporal.PlainDate
   readonly maxDate: Temporal.PlainDate
   readonly name?: string
@@ -28,6 +28,7 @@ type RegistrationExpiryDatePickerProps = {
 export const RegistrationExpiryDatePicker = ({
   date,
   onDateChange,
+  onYearsPresetSelect,
   minDate,
   maxDate,
   name,
@@ -48,11 +49,7 @@ export const RegistrationExpiryDatePicker = ({
   }
 
   const handlePresetSelect = (spanValue: number) => {
-    const startOfToday = getStartOfToday()
-    const expiryDate = startOfToday.add({ years: spanValue })
-    const cappedDate =
-      Temporal.PlainDate.compare(expiryDate, maxDate) > 0 ? maxDate : expiryDate
-    onDateChange(cappedDate)
+    onYearsPresetSelect(spanValue)
   }
 
   const disabled = (date: Date) => {

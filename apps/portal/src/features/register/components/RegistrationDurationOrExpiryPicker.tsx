@@ -98,6 +98,9 @@ export const RegistrationDurationOrExpiryPicker = ({
             onDateChange={(date) =>
               setDuration(getDurationFromPickerDate(date, anchor))
             }
+            onYearsPresetSelect={(years) =>
+              setDuration(getDurationInSecondsFromYears(years))
+            }
             minDate={getMinExpiryDateForPicker(anchor)}
             maxDate={getMaxExpiryDateForPicker(anchor)}
             name={name}
