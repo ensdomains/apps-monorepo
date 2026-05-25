@@ -37,21 +37,25 @@
   --sidebar-ring: #737373;
 
   --lapis-100: #dbf0f8;
+  --lapis-200: #daf1fb;
   --lapis-400: #80c4e0;
   --lapis-500: #0082bb;
   --lapis-900: #02293b;
 
   --citrine-100: #f8f7e2;
+  --citrine-200: #fee0c8;
   --citrine-400: #e1b77e;
   --citrine-500: #914b1c;
   --citrine-900: #441b03;
 
   --peridot-100: #d1eedf;
+  --peridot-200: #c9f7d7;
   --peridot-400: #65d388;
   --peridot-500: #007c20;
   --peridot-900: #033010;
 
   --garnet-100: #feeaf0;
+  --garnet-200: #ffd1e7;
   --garnet-400: #ffb0d0;
   --garnet-500: #ed2496;
   --garnet-900: #5a0024;
@@ -186,18 +190,22 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-lapis-100: var(--lapis-100);
+  --color-lapis-200: var(--lapis-200);
   --color-lapis-400: var(--lapis-400);
   --color-lapis-500: var(--lapis-500);
   --color-lapis-900: var(--lapis-900);
   --color-citrine-100: var(--citrine-100);
+  --color-citrine-200: var(--citrine-200);
   --color-citrine-400: var(--citrine-400);
   --color-citrine-500: var(--citrine-500);
   --color-citrine-900: var(--citrine-900);
   --color-peridot-100: var(--peridot-100);
+  --color-peridot-200: var(--peridot-200);
   --color-peridot-400: var(--peridot-400);
   --color-peridot-500: var(--peridot-500);
   --color-peridot-900: var(--peridot-900);
   --color-garnet-100: var(--garnet-100);
+  --color-garnet-200: var(--garnet-200);
   --color-garnet-400: var(--garnet-400);
   --color-garnet-500: var(--garnet-500);
   --color-garnet-900: var(--garnet-900);
@@ -280,7 +288,7 @@
 }
 
 .dark {
-  --background: #191919;
+  --background: #1e1e1e;
   --foreground: #e1e1e0;
   --card: #383838;
   --card-foreground: #e1e1e0;
@@ -288,20 +296,20 @@
   --popover-foreground: #e1e1e0;
   --primary: #e1e1e0;
   --primary-foreground: #191919;
-  --secondary: #4f4f4f;
+  --secondary: #2b2b2b;
   --secondary-foreground: #e1e1e0;
   --muted: #383838;
   --muted-foreground: #a1a1a1;
-  --accent: #242424;
+  --accent: #222222;
   --accent-foreground: #e1e1e0;
   --destructive: var(--garnet-400);
   --danger: var(--garnet-400);
   --success: var(--peridot-400);
   --warning: var(--citrine-400);
   --border: #4a4a4a;
-  --input: #242424;
+  --input: #222222;
   --ring: var(--lapis-400);
-  --sidebar: #242424;
+  --sidebar: #222222;
   --sidebar-foreground: #e1e1e0;
   --sidebar-primary: var(--lapis-400);
   --sidebar-primary-foreground: #191919;
@@ -309,18 +317,18 @@
   --sidebar-accent-foreground: #e1e1e0;
   --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: var(--lapis-400);
-  --entity-bg: #242424;
+  --entity-bg: #222222;
   --entity-border: #383838;
   /* Semantic fill colors — dark mode per-variant backgrounds */
-  --accent-fill: #1c292e;
-  --success-fill: #192a1e;
-  --danger-fill: #2f2127;
-  --warning-fill: rgba(231, 162, 89, 0.1);
-  /* Semantic text colors — dark mode values (bright for dark fill bg) */
-  --accent-text: #39b4ea;
-  --success-text: #1cbf46;
-  --danger-text: #f569ab;
-  --warning-text: #e7a259;
+  --accent-fill: #152d37;
+  --success-fill: #142f1c;
+  --danger-fill: #391925;
+  --warning-fill: #41250c;
+  /* Semantic text colors — dark mode values (light rock-name 200s) */
+  --accent-text: var(--lapis-200);
+  --success-text: var(--peridot-200);
+  --danger-text: var(--garnet-200);
+  --warning-text: var(--citrine-200);
   --icon-foreground: #595755;
 
   /* Button component tokens — dark */
@@ -340,8 +348,8 @@
   --message-warning-text: var(--signal-warning-300);
 
   /* 🪜 Neutral layers — dark */
-  --neutral-0: #191919;
-  --neutral-1: #242424;
+  --neutral-0: #1e1e1e;
+  --neutral-1: #222222;
   --neutral-2: #2b2b2b;
   --neutral-3: #383838;
   --neutral-4: #4b4b4b;
@@ -359,6 +367,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+  }
+
+  /* ABCMonumentGroteskMono design spec: 0.1 em, halved to 0.05 em (0.7 px at 14 px) */
+  .font-mono {
+    @apply tracking-wider;
   }
 }
 

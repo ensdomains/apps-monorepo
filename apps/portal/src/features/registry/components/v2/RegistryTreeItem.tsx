@@ -71,7 +71,7 @@ export const RegistryTreeItem = ({
           {!isRoot ? (
             <>
               <RegistryTreePathIcon />
-              <EntityBadge variant="name" name={levelName} showAvatar inline>
+              <EntityBadge variant="name" name={levelName} showAvatar>
                 {label}
               </EntityBadge>
             </>
@@ -94,9 +94,8 @@ export const RegistryTreeItem = ({
               className="font-normal"
               address={address}
               isRegistry
-              inline
             >
-              {truncateAddress(address, 6, 4, '...')}
+              {truncateAddress(address, 6, 4)}
             </EntityBadge>
             {isLastWithoutRegistryConfigured ? (
               <div className="flex flex-row items-center justify-start gap-2">
@@ -132,10 +131,8 @@ export const RegistryTreeItem = ({
                     label={formatTimestampDate(summary.createdAt) ?? '—'}
                     name={ownerEnsName ?? undefined}
                     address={ownerData.owner}
-                    inline
                   >
-                    {ownerEnsName ??
-                      truncateAddress(ownerData.owner, 6, 4, '...')}
+                    {ownerEnsName ?? truncateAddress(ownerData.owner, 6, 4)}
                   </EntityBadge>
                 ) : (
                   <span>—</span>

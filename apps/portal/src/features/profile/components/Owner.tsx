@@ -30,7 +30,7 @@ export const Owner = ({
   if (!owner) {
     if (asRow)
       return (
-        <div className={cn('flex items-center gap-4 py-3', className)}>
+        <div className={cn('flex items-center gap-4 min-h-13', className)}>
           <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
             {label}
           </span>
@@ -45,12 +45,12 @@ export const Owner = ({
     )
   }
 
-  const shortenedAddress = truncateAddress(owner, 6, 4, '...')
+  const shortenedAddress = truncateAddress(owner, 6, 4)
   const variant = ownerName ? 'name' : 'address'
 
   if (asRow) {
     return (
-      <div className={cn('flex items-center gap-4 w-full', className)}>
+      <div className={cn('flex items-center gap-4 w-full min-h-13', className)}>
         <ShieldPersonIcon className="size-4 shrink-0 text-neutral-7" />
         <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
           {label}
@@ -79,7 +79,6 @@ export const Owner = ({
           <span className="text-sm truncate">{label}</span>
         </div>
         <EntityBadge
-          inline
           variant={variant}
           name={ownerName ?? undefined}
           address={owner}
