@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
+import {
+  CONTRACT_SECONDS_PER_YEAR,
+  MAX_REGISTRATION_YEARS,
+} from '@/lib/constants/duration'
 import {
   calculateDurationFromDate,
   formatRegistrationDuration,
@@ -198,34 +201,36 @@ describe('registrationDuration', () => {
   })
 
   describe('getDurationInSecondsFromYears', () => {
-    it('should return exact seconds for 1 calendar year', () => {
+    // The function now returns `years × CONTRACT_SECONDS_PER_YEAR` (365.25
+    // days/year) so the duration sent to the contract aligns with the
+    // oracle's annualised list rate. See the JSDoc for the tradeoff.
+    it('should return exactly CONTRACT_SECONDS_PER_YEAR for 1 year', () => {
       expect(getDurationInSecondsFromYears(1, startOfFixedToday)).toBe(
-        31_536_000,
-      ) // 365 days
+        CONTRACT_SECONDS_PER_YEAR,
+      )
     })
 
-    it('should return exact seconds for 3 calendar years', () => {
-      const result = getDurationInSecondsFromYears(3, startOfFixedToday)
-      const expectedExpiry = startOfFixedToday.add({ years: 3 })
-      const expectedDays = startOfFixedToday.until(expectedExpiry, {
-        largestUnit: 'days',
-      }).days
-      expect(result).toBe(expectedDays * 86400)
+    it('should return N × CONTRACT_SECONDS_PER_YEAR for N years', () => {
+      expect(getDurationInSecondsFromYears(3, startOfFixedToday)).toBe(
+        3 * CONTRACT_SECONDS_PER_YEAR,
+      )
     })
 
     it('should return at least 1 year for values less than 1', () => {
       expect(getDurationInSecondsFromYears(0.5, startOfFixedToday)).toBe(
-        31_536_000,
+        CONTRACT_SECONDS_PER_YEAR,
       )
     })
 
-    it('should give Jan 1 2029 for 3 years from Jan 1 2026', () => {
+    it('expiry from 3-year duration shifts ±1 day across a leap year', () => {
+      // 3 × 31_557_600s = 94_672_800s. Floor to days = 1095. From Jan 1 2026
+      // + 1095 days lands on Dec 31 2028 (because 2028 is a leap year).
       const jan1_2026 = Temporal.PlainDate.from('2026-01-01')
       const duration = getDurationInSecondsFromYears(3, jan1_2026)
       const expiry = getRegistrationExpiryDateFromSeconds(jan1_2026, duration)
-      expect(expiry.year).toBe(2029)
-      expect(expiry.month).toBe(1)
-      expect(expiry.day).toBe(1)
+      expect(expiry.year).toBe(2028)
+      expect(expiry.month).toBe(12)
+      expect(expiry.day).toBe(31)
     })
 
     it('should cap at MAX_REGISTRATION_YEARS when years exceed max', () => {
