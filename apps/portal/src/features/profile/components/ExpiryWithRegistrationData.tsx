@@ -113,11 +113,13 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     getV2RegistrationDataQueryOptions({ name }),
   )
 
-  const { data: firstEvent } = useQuery(
-    getV2NameHistoryQueryOptions({ name, first: 1, orderDirection: 'asc' }),
+  const { data: earliestEvents } = useQuery(
+    getV2NameHistoryQueryOptions({ name, first: 10, orderDirection: 'asc' }),
   )
 
-  const registrationTxHash = firstEvent?.[0]?.transactionHash
+  const registrationTxHash = earliestEvents?.find(
+    (event) => event.type === 'NameRegistered',
+  )?.transactionHash
 
   if (error)
     return (
