@@ -1,6 +1,6 @@
 /**
  * makeName fixture — programmatically registers .eth names on the
- * Anvil Sepolia fork via the V2 FastTestETHRegistrar contract.
+ * Anvil Sepolia fork via the production V2 ETHRegistrar.
  *
  * Supports negative `duration` to create expired / grace-period /
  * temporary-premium names by registering with a padded duration and
@@ -9,8 +9,8 @@
  * Registration flow:
  *   1. Mint USDC to the owner account
  *   2. makeCommitment → commit
- *   3. Wait for MIN_COMMITMENT_AGE (may be 0 on FastTestETHRegistrar)
- *   4. rentPrice → approve USDC → register
+ *   3. Wait for MIN_COMMITMENT_AGE (60s on the production ETHRegistrar)
+ *   4. getRegisterPrice → approve USDC → register
  *   5. (If negative duration) increaseTime to push past expiry
  */
 import {
@@ -30,19 +30,12 @@ import {
 import { privateKeyToAccount } from 'viem/accounts'
 
 import {
-  ethRegistrarAvailableSnippet,
-  ethRegistrarCommitSnippet,
-  ethRegistrarCommitmentsSnippet,
-  ethRegistrarMakeCommitmentSnippet,
-  ethRegistrarRegisterSnippet,
-  ethRegistrarRentPriceSnippet,
   permissionedRegistryGetExpirySnippet,
   proxyDeployedEventSnippet,
   subregistryInitializeSnippet,
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
 import { setRecords } from '@ensdomains/ensjs/wallet'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 
 import {
   publicClient,
@@ -52,32 +45,34 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses (sourced from ensjs Sepolia chain config)
+// Contract addresses — must match what the app reads from
+// `@ens-apps/transaction-manager/contracts/ens-sepolia` (which sources
+// `ETHRegistrar` and `ETHRegistry` from ensjs's sepolia chain config).
 // ---------------------------------------------------------------------------
-const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-const FAST_TEST_ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
-const MOCK_USDC = ensjsSepolia.usdc.address
-// Shared dedicated resolver for names that don't need custom records
+const ETH_REGISTRAR = '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
+const ETH_REGISTRY = '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
+const MOCK_USDC = '0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9' as const
 const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
-const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
-const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
-const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
+const VERIFIABLE_FACTORY = '0xd2a632d8a8b67c2c4398c255cbd7af8dd7236198' as const
+const PERMISSIONED_RESOLVER_IMPL = '0xdce5205a553573ffd47629327dddf36186022ffa' as const
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
 // ABIs
 // ---------------------------------------------------------------------------
-// MIN_COMMITMENT_AGE is not yet exported by ensjs-abi; all other functions
-// are sourced from ethRegistrar snippets.
-const REGISTRAR_ABI = [
-  ...ethRegistrarMakeCommitmentSnippet,
-  ...ethRegistrarCommitSnippet,
-  ...ethRegistrarRegisterSnippet,
-  ...ethRegistrarRentPriceSnippet,
-  ...ethRegistrarCommitmentsSnippet,
-  ...ethRegistrarAvailableSnippet,
-  ...parseAbi(['function MIN_COMMITMENT_AGE() view returns (uint64)']),
-] as const
+const REGISTRAR_ABI = parseAbi([
+  'function makeCommitment(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, bytes32 referrer) pure returns (bytes32)',
+  'function commit(bytes32 commitment)',
+  'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer) returns (uint256 tokenId)',
+  'function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)',
+  'function MIN_COMMITMENT_AGE() view returns (uint64)',
+  'function commitmentAt(bytes32 commitment) view returns (uint64)',
+  'function isAvailable(string label) view returns (bool)',
+])
+
+const REGISTRY_ABI = parseAbi([
+  'function getExpiry(uint256 anyId) view returns (uint64)',
+])
 
 const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
@@ -215,7 +210,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
 
     // ── 2. Make commitment ────────────────────────────────────────
     const commitment = await publicClient.readContract({
-      address: FAST_TEST_ETH_REGISTRAR,
+      address: ETH_REGISTRAR,
       abi: REGISTRAR_ABI,
       functionName: 'makeCommitment',
       args: [
@@ -237,7 +232,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     const commitTx = await walletClient.sendTransaction({
       account: ownerAccount,
-      to: FAST_TEST_ETH_REGISTRAR,
+      to: ETH_REGISTRAR,
       data: commitData,
     })
     await waitForTx(commitTx)
@@ -246,7 +241,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     let minAge = 0n
     try {
       minAge = await publicClient.readContract({
-        address: FAST_TEST_ETH_REGISTRAR,
+        address: ETH_REGISTRAR,
         abi: REGISTRAR_ABI,
         functionName: 'MIN_COMMITMENT_AGE',
       })
@@ -261,17 +256,12 @@ export function createMakeName({ accounts, time }: Dependencies) {
       await testClient.mine({ blocks: 1 })
     }
 
-    // ── 5. Get rent price ─────────────────────────────────────────
+    // ── 5. Get register price ─────────────────────────────────────
     const [base, premium] = await publicClient.readContract({
-      address: FAST_TEST_ETH_REGISTRAR,
+      address: ETH_REGISTRAR,
       abi: REGISTRAR_ABI,
-      functionName: 'rentPrice',
-      args: [
-        uniqueLabel,
-        ownerAddress,
-        BigInt(registrationDuration),
-        MOCK_USDC,
-      ],
+      functionName: 'getRegisterPrice',
+      args: [uniqueLabel, BigInt(registrationDuration), MOCK_USDC],
     })
     const totalPrice = base + premium
 
@@ -279,7 +269,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     const approveData = encodeFunctionData({
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [FAST_TEST_ETH_REGISTRAR, totalPrice * 2n],
+      args: [ETH_REGISTRAR, totalPrice * 2n],
     })
     const approveTx = await walletClient.sendTransaction({
       account: ownerAccount,
@@ -305,7 +295,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     const registerTx = await walletClient.sendTransaction({
       account: ownerAccount,
-      to: FAST_TEST_ETH_REGISTRAR,
+      to: ETH_REGISTRAR,
       data: registerData,
     })
     await waitForTx(registerTx)

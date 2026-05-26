@@ -54,8 +54,11 @@ loadEnv({ path: path.resolve(__dirname, '..', '.env') })
 // ---------------------------------------------------------------------------
 const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
-const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
-const MOCK_DAI = '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as const
+// Must match `SUPPORTED_TOKENS` in
+// `@ens-apps/transaction-manager/contracts/ens-sepolia`, which is what the
+// portal's payment-token picker reads.
+const MOCK_USDC = '0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9' as const
+const MOCK_DAI = '0xe915cebbc1570a74177b6c589fed1e8f53117559' as const
 const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
 )
