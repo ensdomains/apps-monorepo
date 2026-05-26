@@ -22,7 +22,6 @@
  *    inclusion on the L2.
  */
 
-import { ens_normalize } from '@adraffy/ens-normalize'
 import {
   getChainIdForReverseRegistrarChainId,
   getRegistrarAddress,
@@ -32,6 +31,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { waitForTransactionReceipt } from '@wagmi/core'
 import type { Hex } from 'viem'
+import { normalize } from 'viem/ens'
 import { useSwitchChain, useWriteContract } from 'wagmi'
 import { type L2ChainId, l2WagmiConfig } from '@/lib/wagmiL2'
 import { useEnsureL2Connection } from './useEnsureL2Connection'
@@ -83,20 +83,11 @@ export function useSetL2ReverseName({
         )
       }
 
-      // Normalize and validate the input before writing. The L2 reverse
-      // registrar's `setName(string)` accepts any UTF-8 bytes verbatim, so
-      // mixed-case, unnormalized, or otherwise invalid ENS strings could
-      // be persisted as the reverse name and silently fail every later
-      // forward-verify check. `ens_normalize` mirrors ENSIP-15 and throws
-      // on invalid input.
-      let normalizedName: string
-      try {
-        normalizedName = ens_normalize(name)
-      } catch (e) {
-        throw new Error(
-          `"${name}" is not a valid ENS name: ${e instanceof Error ? e.message : 'invalid'}`,
-        )
-      }
+      // Normalize and validate before writing. The L2 reverse registrar's
+      // `setName(string)` accepts any UTF-8 bytes verbatim, so unnormalized
+      // / invalid input would persist as the reverse name and silently fail
+      // every later forward-verify check.
+      const normalizedName = normalize(name)
 
       await ensureL2Connection()
       await switchChainAsync({ chainId: targetChainId })
