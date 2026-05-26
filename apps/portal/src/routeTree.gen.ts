@@ -15,7 +15,6 @@ import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as NameIndexRouteImport } from './routes/$name/index'
 import { Route as TldTldRouteImport } from './routes/tld/$tld'
 import { Route as ResolverAddressRouteImport } from './routes/resolver/$address'
-import { Route as RegistryAddressRouteImport } from './routes/registry/$address'
 import { Route as AddrAddrRouteImport } from './routes/addr/$addr'
 import { Route as NameTokenRouteImport } from './routes/$name/token'
 import { Route as NameSubnamesRouteImport } from './routes/$name/subnames'
@@ -38,7 +37,6 @@ import { Route as ResolverAddressHistoryRouteImport } from './routes/resolver/$a
 import { Route as ResolverAddressCreateAliasRouteImport } from './routes/resolver/$address/create-alias'
 import { Route as ResolverAddressAliasesRouteImport } from './routes/resolver/$address/aliases'
 import { Route as RegistryAddressRolesRouteImport } from './routes/registry/$address/roles'
-import { Route as RegistryAddressLabelsRouteImport } from './routes/registry/$address/labels'
 import { Route as RegistryAddressHistoryRouteImport } from './routes/registry/$address/history'
 import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$addr/reverse-resolution'
 import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
@@ -77,11 +75,6 @@ const TldTldRoute = TldTldRouteImport.update({
 const ResolverAddressRoute = ResolverAddressRouteImport.update({
   id: '/resolver/$address',
   path: '/resolver/$address',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegistryAddressRoute = RegistryAddressRouteImport.update({
-  id: '/registry/$address',
-  path: '/registry/$address',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AddrAddrRoute = AddrAddrRouteImport.update({
@@ -195,11 +188,6 @@ const RegistryAddressRolesRoute = RegistryAddressRolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => RegistryAddressRoute,
 } as any)
-const RegistryAddressLabelsRoute = RegistryAddressLabelsRouteImport.update({
-  id: '/labels',
-  path: '/labels',
-  getParentRoute: () => RegistryAddressRoute,
-} as any)
 const RegistryAddressHistoryRoute = RegistryAddressHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -263,7 +251,6 @@ export interface FileRoutesByFullPath {
   '/$name/subnames': typeof NameSubnamesRoute
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
-  '/registry/$address': typeof RegistryAddressRouteWithChildren
   '/resolver/$address': typeof ResolverAddressRouteWithChildren
   '/tld/$tld': typeof TldTldRouteWithChildren
   '/$name/': typeof NameIndexRoute
@@ -275,7 +262,6 @@ export interface FileRoutesByFullPath {
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
   '/registry/$address/history': typeof RegistryAddressHistoryRoute
-  '/registry/$address/labels': typeof RegistryAddressLabelsRoute
   '/registry/$address/roles': typeof RegistryAddressRolesRoute
   '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
   '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
@@ -311,7 +297,6 @@ export interface FileRoutesByTo {
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
   '/registry/$address/history': typeof RegistryAddressHistoryRoute
-  '/registry/$address/labels': typeof RegistryAddressLabelsRoute
   '/registry/$address/roles': typeof RegistryAddressRolesRoute
   '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
   '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
@@ -341,7 +326,6 @@ export interface FileRoutesById {
   '/$name/subnames': typeof NameSubnamesRoute
   '/$name/token': typeof NameTokenRoute
   '/addr/$addr': typeof AddrAddrRouteWithChildren
-  '/registry/$address': typeof RegistryAddressRouteWithChildren
   '/resolver/$address': typeof ResolverAddressRouteWithChildren
   '/tld/$tld': typeof TldTldRouteWithChildren
   '/$name/': typeof NameIndexRoute
@@ -353,7 +337,6 @@ export interface FileRoutesById {
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
   '/addr/$addr/reverse-resolution': typeof AddrAddrReverseResolutionRoute
   '/registry/$address/history': typeof RegistryAddressHistoryRoute
-  '/registry/$address/labels': typeof RegistryAddressLabelsRoute
   '/registry/$address/roles': typeof RegistryAddressRolesRoute
   '/resolver/$address/aliases': typeof ResolverAddressAliasesRoute
   '/resolver/$address/create-alias': typeof ResolverAddressCreateAliasRoute
@@ -384,7 +367,6 @@ export interface FileRouteTypes {
     | '/$name/subnames'
     | '/$name/token'
     | '/addr/$addr'
-    | '/registry/$address'
     | '/resolver/$address'
     | '/tld/$tld'
     | '/$name/'
@@ -396,7 +378,6 @@ export interface FileRouteTypes {
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
     | '/registry/$address/history'
-    | '/registry/$address/labels'
     | '/registry/$address/roles'
     | '/resolver/$address/aliases'
     | '/resolver/$address/create-alias'
@@ -432,7 +413,6 @@ export interface FileRouteTypes {
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
     | '/registry/$address/history'
-    | '/registry/$address/labels'
     | '/registry/$address/roles'
     | '/resolver/$address/aliases'
     | '/resolver/$address/create-alias'
@@ -461,7 +441,6 @@ export interface FileRouteTypes {
     | '/$name/subnames'
     | '/$name/token'
     | '/addr/$addr'
-    | '/registry/$address'
     | '/resolver/$address'
     | '/tld/$tld'
     | '/$name/'
@@ -473,7 +452,6 @@ export interface FileRouteTypes {
     | '/addr/$addr/resolution'
     | '/addr/$addr/reverse-resolution'
     | '/registry/$address/history'
-    | '/registry/$address/labels'
     | '/registry/$address/roles'
     | '/resolver/$address/aliases'
     | '/resolver/$address/create-alias'
@@ -493,7 +471,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   NameRoute: typeof NameRouteWithChildren
   AddrAddrRoute: typeof AddrAddrRouteWithChildren
-  RegistryAddressRoute: typeof RegistryAddressRouteWithChildren
   ResolverAddressRoute: typeof ResolverAddressRouteWithChildren
   TldTldRoute: typeof TldTldRouteWithChildren
   RegisterIndexRoute: typeof RegisterIndexRoute
@@ -541,13 +518,6 @@ declare module '@tanstack/react-router' {
       path: '/resolver/$address'
       fullPath: '/resolver/$address'
       preLoaderRoute: typeof ResolverAddressRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/registry/$address': {
-      id: '/registry/$address'
-      path: '/registry/$address'
-      fullPath: '/registry/$address'
-      preLoaderRoute: typeof RegistryAddressRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/addr/$addr': {
@@ -704,13 +674,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistryAddressRolesRouteImport
       parentRoute: typeof RegistryAddressRoute
     }
-    '/registry/$address/labels': {
-      id: '/registry/$address/labels'
-      path: '/labels'
-      fullPath: '/registry/$address/labels'
-      preLoaderRoute: typeof RegistryAddressLabelsRouteImport
-      parentRoute: typeof RegistryAddressRoute
-    }
     '/registry/$address/history': {
       id: '/registry/$address/history'
       path: '/history'
@@ -835,24 +798,6 @@ const AddrAddrRouteWithChildren = AddrAddrRoute._addFileChildren(
   AddrAddrRouteChildren,
 )
 
-interface RegistryAddressRouteChildren {
-  RegistryAddressHistoryRoute: typeof RegistryAddressHistoryRoute
-  RegistryAddressLabelsRoute: typeof RegistryAddressLabelsRoute
-  RegistryAddressRolesRoute: typeof RegistryAddressRolesRoute
-  RegistryAddressIndexRoute: typeof RegistryAddressIndexRoute
-}
-
-const RegistryAddressRouteChildren: RegistryAddressRouteChildren = {
-  RegistryAddressHistoryRoute: RegistryAddressHistoryRoute,
-  RegistryAddressLabelsRoute: RegistryAddressLabelsRoute,
-  RegistryAddressRolesRoute: RegistryAddressRolesRoute,
-  RegistryAddressIndexRoute: RegistryAddressIndexRoute,
-}
-
-const RegistryAddressRouteWithChildren = RegistryAddressRoute._addFileChildren(
-  RegistryAddressRouteChildren,
-)
-
 interface ResolverAddressRouteChildren {
   ResolverAddressAliasesRoute: typeof ResolverAddressAliasesRoute
   ResolverAddressCreateAliasRoute: typeof ResolverAddressCreateAliasRoute
@@ -892,7 +837,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   NameRoute: NameRouteWithChildren,
   AddrAddrRoute: AddrAddrRouteWithChildren,
-  RegistryAddressRoute: RegistryAddressRouteWithChildren,
   ResolverAddressRoute: ResolverAddressRouteWithChildren,
   TldTldRoute: TldTldRouteWithChildren,
   RegisterIndexRoute: RegisterIndexRoute,
