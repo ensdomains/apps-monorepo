@@ -1,7 +1,12 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ChevronRight, ShieldIcon, TagIcon, TriangleAlert } from 'lucide-react'
+import {
+  ChevronRight,
+  GitBranch,
+  ShieldIcon,
+  TriangleAlert,
+} from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useChainId, useEnsName } from 'wagmi'
@@ -9,7 +14,6 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import {
@@ -191,7 +195,7 @@ function RouteComponent() {
 
         <div className="flex flex-col gap-3 w-full lg:w-72">
           <RegistryNavCard
-            icon={<TagIcon className="size-4" />}
+            icon={<GitBranch className="size-4" />}
             label="Labels"
             count={registry.labelCount}
             to="/registry/$address/labels"
@@ -223,17 +227,23 @@ const RegistryNavCard = ({
   to: '/registry/$address/labels' | '/registry/$address/roles'
   address: Address
 }) => (
-  <Link to={to} params={{ address }} className="no-underline">
-    <Card className="flex-row items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-accent">
+  <Link
+    to={to}
+    params={{ address }}
+    className="no-underline flex border border-muted rounded-sm w-full"
+  >
+    <div className="flex flex-row w-full items-center justify-between gap-4 p-4 transition-colors hover:bg-accent rounded-sm">
       <div className="flex items-center gap-2 text-muted-foreground">
         {icon}
-        <span className="text-sm text-foreground">{label}</span>
+        <span className="text-sm font-normal text-muted-foreground">
+          {label}
+        </span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">{count}</span>
+        <span className="text-lg font-normal font-semi-mono">{count}</span>
         <ChevronRight className="size-4 text-muted-foreground" />
       </div>
-    </Card>
+    </div>
   </Link>
 )
 

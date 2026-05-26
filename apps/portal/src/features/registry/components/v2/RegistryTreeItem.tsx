@@ -111,7 +111,7 @@ export const RegistryTreeItem = ({
         ) : null}
       </div>
       {isLastWithRegistryConfigured ? (
-        <dl className="grid grid-cols-2 max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
+        <dl className="grid grid-cols-2 items-center max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
           <dt>Chain ID:</dt>
           <dd>{chainId}</dd>
           <dt>Protocol Version:</dt>
