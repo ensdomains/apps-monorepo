@@ -5,15 +5,10 @@ import {
   l2EthRegistrarGetRegisterPriceSnippet,
   l2EthRegistrarIsAvailableSnippet,
 } from '@ensdomains/ensjs/contracts'
+import { ethRegistrarRentPriceOracleSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import { err, fromPromise, ok } from 'neverthrow'
-import {
-  type Address,
-  formatUnits,
-  parseAbi,
-  zeroAddress,
-  zeroHash,
-} from 'viem'
+import { type Address, formatUnits, zeroAddress, zeroHash } from 'viem'
 import { getChainId, readContract } from 'viem/actions'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
@@ -37,14 +32,7 @@ const ETH_REGISTRAR = getChainContractAddress({
 
 // The production `ETHRegistrar` does not expose `isPaymentToken` directly —
 // the function lives on its rent oracle. Resolve the oracle off the registrar
-// at runtime and call `isPaymentToken` there (snippet for the latter comes
-// from ensjs-abi).
-//
-// The `rentPriceOracle()` getter isn't (yet) exported as a snippet from
-// ensjs-abi; keep this inline until it lands upstream.
-const ETH_REGISTRAR_RENT_PRICE_ORACLE_ABI = parseAbi([
-  'function rentPriceOracle() view returns (address)',
-])
+// at runtime and call `isPaymentToken` there.
 
 export class NameChainContractError extends TaggedError(
   'NameChainContractError',
@@ -221,7 +209,7 @@ export const isPaymentTokenSupported = ResultFn(async function* (
     const oracle = yield* await fromPromise(
       readContract(publicClient, {
         address: ETH_REGISTRAR,
-        abi: ETH_REGISTRAR_RENT_PRICE_ORACLE_ABI,
+        abi: ethRegistrarRentPriceOracleSnippet,
         functionName: 'rentPriceOracle',
       }),
       (e) => new NameChainContractError({ cause: e }),

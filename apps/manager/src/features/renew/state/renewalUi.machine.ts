@@ -13,9 +13,10 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { ethRegistrarRentPriceOracleSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import type { Address } from 'viem'
-import { encodeFunctionData, parseAbi } from 'viem'
+import { encodeFunctionData } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
@@ -26,14 +27,6 @@ const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
-
-// The production `ETHRegistrar` does not expose `isPaymentToken` — resolve
-// the rent oracle off the registrar and call it there (snippet from
-// ensjs-abi). `rentPriceOracle()` getter isn't (yet) exported as a snippet
-// from ensjs-abi; keep this inline until it lands upstream.
-const ETH_REGISTRAR_RENT_PRICE_ORACLE_ABI = parseAbi([
-  'function rentPriceOracle() view returns (address)',
-])
 
 type SubmissionData = {
   label: string
@@ -71,7 +64,7 @@ const startRenewalTransaction = async ({
   // oracle — the registrar itself doesn't expose `isPaymentToken`).
   const oracle = await readContract(publicClient, {
     address: ETH_REGISTRAR,
-    abi: ETH_REGISTRAR_RENT_PRICE_ORACLE_ABI,
+    abi: ethRegistrarRentPriceOracleSnippet,
     functionName: 'rentPriceOracle',
   })
   const isSupported = await readContract(publicClient, {

@@ -9,6 +9,7 @@ import {
   ethRegistrarCommitSnippet,
   ethRegistrarMakeCommitmentSnippet,
   ethRegistrarRegisterSnippet,
+  ethRegistrarRentPriceOracleSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
@@ -205,12 +206,6 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     ? ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
-
-// `rentPriceOracle()` getter isn't (yet) exported as a snippet from
-// ensjs-abi; keep this inline until it lands upstream.
-const ethRegistrarRentPriceOracleSnippet = parseAbi([
-  'function rentPriceOracle() view returns (address)',
-])
 
 /**
  * Asserts that `token` is whitelisted on the registrar's rent price oracle.
