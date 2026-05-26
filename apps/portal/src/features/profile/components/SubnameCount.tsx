@@ -17,7 +17,7 @@ export const SubnameCount = ({ name }: { name: string }) => {
         message="Failed to load subnames"
       />
     )
-  if (fetching) return <LoadingSpinner title="Loading..." />
+  if (!data && fetching) return <LoadingSpinner title="Loading..." />
 
   return (
     <DataBlockCard
