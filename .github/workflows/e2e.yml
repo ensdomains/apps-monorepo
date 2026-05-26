@@ -98,6 +98,7 @@ jobs:
         # Dynamic — see the `changes` job for which projects this expands
         # to. cross-app can be added to the array once tests exist.
         project: ${{ fromJSON(needs.changes.outputs.projects) }}
+        shardIndex: [1, 2, 3]
 
     steps:
       # ── checkout & toolchain ──────────────────────────────────────
@@ -250,12 +251,24 @@ jobs:
           echo "Checking app RPC URL..."
           curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
 
-          pnpm e2e:${{ matrix.project }}
+          # Map project name to its playwright config path
+          if [[ "${{ matrix.project }}" == "manager-premium" ]]; then
+            PLAYWRIGHT_CONFIG="projects/manager/playwright.premium.config.ts"
+          elif [[ "${{ matrix.project }}" == "portal" ]]; then
+            PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
+          else
+            PLAYWRIGHT_CONFIG="projects/manager/playwright.config.ts"
+          fi
+
+          pnpm --filter @ens-apps/e2e exec playwright test \
+            --config=${PLAYWRIGHT_CONFIG} \
+            --shard=${{ matrix.shardIndex }}/3
           TEST_EXIT=$?
           kill $APP_PID 2>/dev/null || true
           exit $TEST_EXIT
         env:
           CI: "true"
+          MAILINATOR_API_KEY: ${{ secrets.MAILINATOR_API_KEY }}
           TZ: "UTC"
 
       # ── debug failed tests ─────────────────────────────────────────
@@ -291,7 +304,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-results-${{ matrix.project }}
+          name: e2e-results-${{ matrix.project }}-shard-${{ matrix.shardIndex }}
           path: |
             e2e/test-results/
             e2e/playwright-report/
@@ -307,7 +320,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-docker-logs-${{ matrix.project }}
+          name: e2e-docker-logs-${{ matrix.project }}-shard-${{ matrix.shardIndex }}
           path: /tmp/e2e-docker-logs/
           retention-days: 7
 
