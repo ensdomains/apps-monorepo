@@ -253,7 +253,7 @@ msgstr ""
 msgid "Almost there..."
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:145
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:139
 msgid "An error occurred"
 msgstr ""
 
@@ -848,7 +848,7 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/profile/components/view/ProfileView.tsx:200
+#: src/features/profile/components/view/ProfileView.tsx:197
 msgid "Edit Profile"
 msgstr ""
 
@@ -967,8 +967,8 @@ msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
-#: src/features/dashboard/components/PrimaryNameCard.tsx:184
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx:99
+#: src/features/dashboard/components/PrimaryNameCard.tsx:165
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx:91
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:127
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:107
@@ -1577,7 +1577,7 @@ msgid "Not set"
 msgstr ""
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx:156
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:169
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:163
 msgid "Not supported"
 msgstr ""
 
@@ -1617,7 +1617,7 @@ msgstr ""
 msgid "One of your names can't be upgraded right now."
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:41
+#: src/features/grace/components/GracePeriodBanner.tsx:35
 msgid "One of your names expired."
 msgstr ""
 
@@ -1649,7 +1649,7 @@ msgstr ""
 msgid "Owned"
 msgstr ""
 
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx:74
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx:67
 msgid "Owned by"
 msgstr ""
 
@@ -1775,7 +1775,7 @@ msgstr ""
 msgid "Previous card"
 msgstr ""
 
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx:73
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx:67
 msgid "Previous owner"
 msgstr ""
 
@@ -1846,8 +1846,8 @@ msgid "Register to date"
 msgstr ""
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
-#: src/components/molecules/DomainResultCard/DomainResultCard.tsx:84
-#: src/features/dashboard/components/PrimaryNameCard.tsx:170
+#: src/components/molecules/DomainResultCard/DomainResultCard.tsx:86
+#: src/features/dashboard/components/PrimaryNameCard.tsx:151
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
 #: src/features/navigation/Header/search/SuggestionItem.tsx:168
@@ -1981,8 +1981,8 @@ msgstr ""
 msgid "Removing telegram for {0}"
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:109
-#: src/features/grace/components/GracePeriodBanner.tsx:118
+#: src/features/grace/components/GracePeriodBanner.tsx:97
+#: src/features/grace/components/GracePeriodBanner.tsx:106
 msgid "Renew"
 msgstr ""
 
@@ -2224,7 +2224,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:102
+#: src/features/dashboard/pages/DashboardPage.tsx:105
 msgid "Set primary name"
 msgstr ""
 
@@ -2432,8 +2432,8 @@ msgstr "Sortera efter"
 msgid "Stables accepted"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx:67
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:286
+#: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx:66
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:284
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
@@ -2799,7 +2799,7 @@ msgid "Verifying..."
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx:266
-#: src/features/dashboard/components/PrimaryNameCard.tsx:203
+#: src/features/dashboard/components/PrimaryNameCard.tsx:184
 msgid "View profile"
 msgstr "Visa profil"
 
@@ -3001,7 +3001,7 @@ msgstr ""
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:90
+#: src/features/dashboard/pages/DashboardPage.tsx:93
 msgid "You haven't set a primary name yet."
 msgstr ""
 
@@ -3081,11 +3081,11 @@ msgstr ""
 msgid "Your ENS name works across web3"
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:73
+#: src/features/grace/components/GracePeriodBanner.tsx:58
 msgid "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:42
+#: src/features/grace/components/GracePeriodBanner.tsx:36
 msgid "Your name is in grace period"
 msgstr ""
 
@@ -3097,11 +3097,11 @@ msgstr ""
 msgid "Your names are ready to upgrade"
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:63
+#: src/features/grace/components/GracePeriodBanner.tsx:51
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
 msgstr ""
 
-#: src/features/grace/components/GracePeriodBanner.tsx:40
+#: src/features/grace/components/GracePeriodBanner.tsx:34
 msgid "Your primary name has expired."
 msgstr ""
 

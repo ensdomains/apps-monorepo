@@ -91,7 +91,7 @@ export const GracePeriodBanner = ({
             })}
           </p>
         </div>
-        <div className="w-full shrink-0 @md:w-[298px]">
+        <div className="@md:w-[298px] w-full shrink-0">
           {previewRenew ? (
             <span className={renewButtonClassName}>
               <Trans>Renew</Trans>

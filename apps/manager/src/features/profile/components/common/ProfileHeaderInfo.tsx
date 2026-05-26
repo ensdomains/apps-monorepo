@@ -25,10 +25,7 @@ interface ProfileHeaderInfoProps {
   owner?: Address
 }
 
-export const ProfileHeaderInfo = ({
-  name,
-  owner,
-}: ProfileHeaderInfoProps) => {
+export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
   const expiry = useSuspenseQuery({
     ...profileExpiryQuery(name),
   })
