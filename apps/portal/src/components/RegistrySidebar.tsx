@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
-import { GitBranch, ShieldIcon, TagIcon } from 'lucide-react'
+import { GitBranch, ShieldIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import { HistoryIcon, HubIcon } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
