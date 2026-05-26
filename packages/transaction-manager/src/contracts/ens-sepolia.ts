@@ -17,8 +17,6 @@ export const ENS_SEPOLIA_CONTRACTS = {
   VerifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
 
   // --- Not (yet) in ensjs chain definitions; canonical Sepolia V2 deployments ---
-  // Fast Test ETH Registrar (test deployments with MIN_COMMITMENT_AGE=0).
-  FastTestETHRegistrar: '0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39',
   // Default reverse registrar (sets primary/default ENS name per coin type)
   DefaultReverseRegistrar: '0xeb8269fb39290f31c4c29cec548807ca2133abb4',
   // Standard Rent Price Oracle used by the production ETHRegistrar. Resolved

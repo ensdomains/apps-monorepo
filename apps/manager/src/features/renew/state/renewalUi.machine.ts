@@ -304,8 +304,6 @@ export const renewalUiMachine = setup({
             selectedToken: context.submissionData.token,
             signer: context.submissionData.signer,
             publicClient,
-            // Use same registrar address as ensjs, which isn't the fast registrar
-            useFastRegistrar: false,
             sponsored: true,
           }
         },

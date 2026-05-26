@@ -236,12 +236,8 @@ export const usePricing = ({
     }
   }
 
-  const handleConfirmPayment = (
-    tokenPrice: bigint,
-    selectedToken: string,
-    options?: { fast?: boolean },
-  ) => {
-    onConfirmPayment(tokenPrice, selectedToken, options)
+  const handleConfirmPayment = (tokenPrice: bigint, selectedToken: string) => {
+    onConfirmPayment(tokenPrice, selectedToken)
   }
 
   const handleConnect = async () => {

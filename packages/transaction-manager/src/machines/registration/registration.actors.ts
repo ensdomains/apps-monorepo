@@ -201,27 +201,13 @@ function getPaymentTokenAddress(token: 'USDC' | 'DAI'): Address {
   return SUPPORTED_TOKENS[token]
 }
 
-function selectRegistrarAddress(useFastRegistrar: boolean): Address {
-  return useFastRegistrar
-    ? ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar
-    : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-}
-
 /**
  * Asserts that `token` is whitelisted on the registrar's rent price oracle.
  *
- * The standard `ETHRegistrar` does **not** expose `isPaymentToken` directly —
- * that function lives on the registrar's `rentPriceOracle()`. Earlier code
- * called `isPaymentToken` on the registrar itself, which reverted with no
- * matching function selector for every input and surfaced as a generic
- * "contract reverted" error in the registration machine, masking the real
- * problem (and on the FastTestETHRegistrar, which does expose
- * `isPaymentToken`, the function pointed at a *different* oracle than the one
- * the registrar actually queries during `register`, so the whitelist check
- * disagreed with reality anyway).
- *
- * Resolving the oracle off the registrar at runtime keeps the precheck
- * truthful for both registrar variants without hardcoding oracle addresses.
+ * The production `ETHRegistrar` does **not** expose `isPaymentToken` directly
+ * — that function lives on the registrar's `rentPriceOracle()`. Resolving the
+ * oracle off the registrar at runtime keeps the precheck truthful without
+ * hardcoding the oracle address (which has changed across V2 redeploys).
  */
 async function assertPaymentTokenSupported(
   publicClient: PublicClient,
@@ -411,10 +397,9 @@ export function generateCommitmentActor(input: {
   duration: bigint
   publicClient: PublicClient
   selectedToken: 'USDC' | 'DAI'
-  useFastRegistrar: boolean
   resolverAddress: Address
 }): ResultAsync<CommitmentData, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return generateCommitment(
     input.publicClient,
@@ -435,11 +420,10 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -501,14 +485,12 @@ export function submitCommitmentActor(input: {
 
 /**
  * Read MIN_COMMITMENT_AGE from the registrar contract so the cooldown timer
- * matches the deployment (e.g. 0 on FastTestETHRegistrar, 60s on the standard
- * v2 ETHRegistrar).
+ * matches the deployment (60s on the production v2 ETHRegistrar).
  */
 export function readMinCommitmentAgeActor(input: {
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<bigint, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   return fromPromise(
     readContract(input.publicClient, {
       address: registrarAddress,
@@ -534,9 +516,8 @@ export function readPaymentTokenAllowanceActor(input: {
   owner: Address
   selectedToken: 'USDC' | 'DAI'
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<bigint, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const tokenAddress = getPaymentTokenAddress(input.selectedToken)
   return fromPromise(
     readContract(input.publicClient, {
@@ -559,9 +540,8 @@ export function verifyRegistrationActor(input: {
   owner: Address
   resolverAddress: Address
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<{ verified: boolean }, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const cleanName = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -620,9 +600,8 @@ export function verifyRegistrationActor(input: {
 export function validateCommitmentActor(input: {
   commitment: CommitmentData
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<void, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -740,11 +719,10 @@ export function submitApprovalActor(input: {
   selectedToken: 'USDC' | 'DAI'
   signer: import('../..').Signer
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
@@ -810,12 +788,11 @@ export function submitRegistrationActor(input: {
   selectedToken: 'USDC' | 'DAI'
   owner: Address
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   resolverAddress: Address
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -897,11 +874,10 @@ export function submitApprovalAndRegistrationActor(input: {
   duration: bigint
   owner: Address
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   resolverAddress: Address
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {

@@ -18,11 +18,7 @@ type PricingPaymentSectionProps = {
   onConnect: () => void
   onPaymentSelect: (method: 'crypto' | 'credit-card') => void
   onCryptoSelect: (cryptoId: string) => void
-  onConfirmPayment: (
-    tokenPrice: bigint,
-    selectedToken: string,
-    options?: { fast?: boolean },
-  ) => void
+  onConfirmPayment: (tokenPrice: bigint, selectedToken: string) => void
 }
 
 export const PricingPaymentSection = ({
