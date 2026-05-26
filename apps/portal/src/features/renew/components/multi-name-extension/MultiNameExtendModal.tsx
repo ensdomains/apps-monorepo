@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { useConnection } from 'wagmi'
 import {
   Dialog,
   DialogContent,
@@ -41,7 +40,6 @@ export const MultiNameExtendModal = ({
   selectedNames,
   onExtend,
 }: MultiNameExtendModalProps) => {
-  const { address } = useConnection()
   const [step, setStep] = useState<MultiNameExtendModalStep>('disclaimer')
   const [spanType, setSpanType] = useState<ExtensionSpanType>('years')
   const [duration, setDuration] = useState<number>(1)
@@ -51,7 +49,6 @@ export const MultiNameExtendModal = ({
     selectedNames,
     spanType,
     duration,
-    address,
   )
   const renewals: readonly MultiRenewalEntry[] = pricingData.map((item) => ({
     selectedName: item.selectedName,
