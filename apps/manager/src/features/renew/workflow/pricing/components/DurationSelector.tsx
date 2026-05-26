@@ -3,7 +3,6 @@ import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
 import { useMemo } from 'react'
-import { zeroAddress } from 'viem'
 import {
   type GetPricingError,
   getPricingQueryOptions,
@@ -37,13 +36,7 @@ export const DurationSelector = () => {
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map(({ duration }) =>
-      getPricingQueryOptions(
-        label,
-        // Zero address used to ignore temporary premium since it's not applicable for renewal
-        zeroAddress,
-        duration,
-        TOKENS.USDC.symbol,
-      ),
+      getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {

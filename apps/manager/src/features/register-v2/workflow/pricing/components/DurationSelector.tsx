@@ -3,9 +3,7 @@ import { msg } from '@lingui/core/macro'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
-import { zeroAddress } from 'viem'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
-import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
   type GetPricingError,
@@ -51,17 +49,14 @@ type PresetPricingQuery = {
 
 export const DurationSelector = () => {
   const { uiActor, label } = useRegistrationV2Context()
-  const account = useSmartAccountContext()
   const selectedDuration = useSelector(
     uiActor,
     (state) => state.context.duration,
   )
 
-  const ownerAddress = account.ownerAddress ?? zeroAddress
-
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map(({ duration }) =>
-      getPricingQueryOptions(label, ownerAddress, duration, TOKENS.USDC.symbol),
+      getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {

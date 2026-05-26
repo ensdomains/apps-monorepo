@@ -14,10 +14,9 @@ import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import type { Address } from 'viem'
-import { encodeFunctionData } from 'viem'
+import { encodeFunctionData, parseAbi } from 'viem'
 import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
-import { IS_PAYMENT_TOKEN_SNIPPET } from '@/features/register/services/nameChainContractService'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -26,6 +25,13 @@ const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
+
+// The production `ETHRegistrar` does not expose `isPaymentToken` — resolve
+// the rent oracle off the registrar and call it there.
+const RENT_PRICE_ORACLE_ABI = parseAbi([
+  'function rentPriceOracle() view returns (address)',
+  'function isPaymentToken(address) view returns (bool)',
+])
 
 type SubmissionData = {
   label: string
@@ -59,10 +65,16 @@ const startRenewalTransaction = async ({
     `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
   )
 
-  // Check if the payment token is supported
-  const isSupported = await readContract(publicClient, {
+  // Check if the payment token is supported (query the registrar's rent
+  // oracle — the registrar itself doesn't expose `isPaymentToken`).
+  const oracle = await readContract(publicClient, {
     address: ETH_REGISTRAR,
-    abi: IS_PAYMENT_TOKEN_SNIPPET,
+    abi: RENT_PRICE_ORACLE_ABI,
+    functionName: 'rentPriceOracle',
+  })
+  const isSupported = await readContract(publicClient, {
+    address: oracle,
+    abi: RENT_PRICE_ORACLE_ABI,
     functionName: 'isPaymentToken',
     args: [normalizedPaymentToken],
   })

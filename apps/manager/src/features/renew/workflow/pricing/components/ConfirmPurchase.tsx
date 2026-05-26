@@ -2,7 +2,6 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { zeroAddress } from 'viem'
 import { getPricingQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { ConfirmPurchaseBase } from '@/features/register-v2/workflow/pricing/components/ConfirmPurchase'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
@@ -18,7 +17,7 @@ export const ConfirmPurchase = () => {
   )
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, zeroAddress, duration, selectedToken),
+    ...getPricingQueryOptions(label, duration, selectedToken),
     select: (data) => ({
       basePriceNumber: decimalBigintToNumber(
         data.basePrice,

@@ -2,11 +2,17 @@ import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-se
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
+  l2EthRegistrarGetRegisterPriceSnippet,
   l2EthRegistrarIsAvailableSnippet,
-  l2EthRegistrarRentPriceSnippet,
 } from '@ensdomains/ensjs/contracts'
 import { err, fromPromise, ok } from 'neverthrow'
-import { type Address, formatUnits, zeroAddress, zeroHash } from 'viem'
+import {
+  type Address,
+  formatUnits,
+  parseAbi,
+  zeroAddress,
+  zeroHash,
+} from 'viem'
 import { getChainId, readContract } from 'viem/actions'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
@@ -28,17 +34,13 @@ const ETH_REGISTRAR = getChainContractAddress({
   contract: 'ensEthRegistrar',
 })
 
-// ABI snippet for the registrar's `isPaymentToken` function. Not in
-// `ensjs/contracts`.
-export const IS_PAYMENT_TOKEN_SNIPPET = [
-  {
-    inputs: [{ name: 'token', type: 'address' }],
-    name: 'isPaymentToken',
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
+// The production `ETHRegistrar` does not expose `isPaymentToken` directly —
+// the function lives on its rent oracle. Resolve the oracle off the registrar
+// at runtime and call `isPaymentToken` there.
+const RENT_PRICE_ORACLE_ABI = parseAbi([
+  'function rentPriceOracle() view returns (address)',
+  'function isPaymentToken(address) view returns (bool)',
+])
 
 export class NameChainContractError extends TaggedError(
   'NameChainContractError',
@@ -98,12 +100,11 @@ export const checkRealNameAvailability = ResultFn(async function* (
   }
 })
 
-// Get ENS name info including pricing for different tokens
+// Get ENS name info including pricing for the chosen payment token
 export const getENSNameInfo = ResultFn(async function* (
   name: string,
   duration: number = 1, // in years
   paymentToken: Address = SUPPORTED_TOKENS.USDC,
-  ownerAddress: Address = EMPTY_ADDRESS,
 ) {
   const cleanName = name.replace('.eth', '')
   const durationInSeconds = durationYearsToSeconds(duration)
@@ -120,43 +121,23 @@ export const getENSNameInfo = ResultFn(async function* (
       (e) => new NameChainContractError({ cause: e }),
     )
 
-    // Get pricing for the specific payment token
-    let _priceResult: unknown
-    try {
-      _priceResult = yield* await fromPromise(
-        readContract(publicClient, {
-          address: ETH_REGISTRAR,
-          abi: l2EthRegistrarRentPriceSnippet,
-          functionName: 'rentPrice',
-          args: [cleanName, ownerAddress, durationInSeconds, paymentToken],
-        }),
-        (e) => new NameChainContractError({ cause: e }),
-      )
-    } catch (_error) {
-      // Fallback to ETH pricing
-      _priceResult = yield* await fromPromise(
-        readContract(publicClient, {
-          address: ETH_REGISTRAR,
-          abi: l2EthRegistrarRentPriceSnippet,
-          functionName: 'rentPrice',
-          args: [cleanName, ownerAddress, durationInSeconds, zeroAddress],
-        }),
-        (e) => new NameChainContractError({ cause: e }),
-      )
-    }
-
-    const priceArray = _priceResult as [bigint, bigint]
-    const basePrice = priceArray[0]
-    const premium = priceArray[1]
-    const total = basePrice + premium
+    const [basePrice, premium] = yield* await fromPromise(
+      readContract(publicClient, {
+        address: ETH_REGISTRAR,
+        abi: l2EthRegistrarGetRegisterPriceSnippet,
+        functionName: 'getRegisterPrice',
+        args: [cleanName, durationInSeconds, paymentToken],
+      }),
+      (e) => new NameChainContractError({ cause: e }),
+    )
 
     return ok({
       name: `${cleanName}.eth`,
       isAvailable: Boolean(availability),
       price: {
         base: basePrice,
-        premium: premium,
-        total: total,
+        premium,
+        total: basePrice + premium,
       },
       duration: durationInSeconds,
       paymentToken,
@@ -181,23 +162,17 @@ export const getTokenPrices = ResultFn(async function* (
     // Get prices for each supported token
     for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
       try {
-        const priceResult: unknown = yield* await fromPromise(
+        const [basePrice, premium] = yield* await fromPromise(
           readContract(publicClient, {
             address: ETH_REGISTRAR,
-            abi: l2EthRegistrarRentPriceSnippet,
-            functionName: 'rentPrice',
-            args: [cleanName, EMPTY_ADDRESS, durationInSeconds, tokenAddress],
+            abi: l2EthRegistrarGetRegisterPriceSnippet,
+            functionName: 'getRegisterPrice',
+            args: [cleanName, durationInSeconds, tokenAddress],
           }),
           (e) => new NameChainContractError({ cause: e }),
         )
 
-        // Contract returns an array [base, premium], not an object
-        const priceArray = priceResult as unknown as [bigint, bigint]
-        const basePrice = priceArray[0]
-        const premium = priceArray[1]
         const totalPrice = basePrice + premium
-
-        // Get token info for formatting
         const decimals = tokenName === 'USDC' ? 6 : 18 // USDC has 6 decimals, DAI has 18
 
         prices[tokenName.toLowerCase()] = {
@@ -207,7 +182,7 @@ export const getTokenPrices = ResultFn(async function* (
           symbol: tokenName,
           decimals,
           base: basePrice,
-          premium: premium,
+          premium,
           total: totalPrice,
         }
       } catch (_error) {
@@ -232,15 +207,25 @@ export const getUSDCPrice = ResultFn(async function* (
   return ok(tokenPrices.usdc)
 })
 
-// Check if a token is supported for payments
+// Check if a token is supported for payments. The standard `ETHRegistrar`
+// does not expose `isPaymentToken` directly — the function lives on its rent
+// oracle, which we resolve via `rentPriceOracle()` first.
 export const isPaymentTokenSupported = ResultFn(async function* (
   tokenAddress: Address,
 ) {
   try {
-    const isSupported = yield* await fromPromise(
+    const oracle = yield* await fromPromise(
       readContract(publicClient, {
         address: ETH_REGISTRAR,
-        abi: IS_PAYMENT_TOKEN_SNIPPET,
+        abi: RENT_PRICE_ORACLE_ABI,
+        functionName: 'rentPriceOracle',
+      }),
+      (e) => new NameChainContractError({ cause: e }),
+    )
+    const isSupported = yield* await fromPromise(
+      readContract(publicClient, {
+        address: oracle,
+        abi: RENT_PRICE_ORACLE_ABI,
         functionName: 'isPaymentToken',
         args: [tokenAddress],
       }),
