@@ -4,6 +4,12 @@
  * Pure functions for ENS registration operations.
  */
 
+import {
+  ethRegistrarCommitmentsSnippet,
+  ethRegistrarCommitSnippet,
+  ethRegistrarMakeCommitmentSnippet,
+  ethRegistrarRegisterSnippet,
+} from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
@@ -20,8 +26,14 @@ import {
 import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
-import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
+
+// `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
+// expose a dedicated snippet for it.
+const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
+  'function MIN_COMMITMENT_AGE() view returns (uint64)',
+])
+
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
@@ -105,7 +117,7 @@ function generateCommitment(
     (async () => {
       const commitment = await readContract(publicClient, {
         address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
+        abi: ethRegistrarMakeCommitmentSnippet,
         functionName: 'makeCommitment',
         args: [
           cleanName,
@@ -117,7 +129,7 @@ function generateCommitment(
           REFERER_ADDRESS,
         ],
       })
-      return { commitment: commitment as Hash, secret }
+      return { commitment, secret }
     })(),
     (error) => {
       console.error('❌ Failed to generate commitment:', error)
@@ -131,7 +143,7 @@ function generateCommitment(
  */
 function encodeCommitmentData(commitment: Hash): Hash {
   return encodeFunctionData({
-    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    abi: ethRegistrarCommitSnippet,
     functionName: 'commit',
     args: [commitment],
   })
@@ -165,7 +177,7 @@ function encodeRegistrationData(
   const cleanName = name.replace('.eth', '')
 
   return encodeFunctionData({
-    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    abi: ethRegistrarRegisterSnippet,
     functionName: 'register',
     args: [
       cleanName,
@@ -191,6 +203,50 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
   return useFastRegistrar
     ? ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+}
+
+const RENT_PRICE_ORACLE_ABI = parseAbi([
+  'function rentPriceOracle() view returns (address)',
+  'function isPaymentToken(address) view returns (bool)',
+])
+
+/**
+ * Asserts that `token` is whitelisted on the registrar's rent price oracle.
+ *
+ * The standard `ETHRegistrar` does **not** expose `isPaymentToken` directly —
+ * that function lives on the registrar's `rentPriceOracle()`. Earlier code
+ * called `isPaymentToken` on the registrar itself, which reverted with no
+ * matching function selector for every input and surfaced as a generic
+ * "contract reverted" error in the registration machine, masking the real
+ * problem (and on the FastTestETHRegistrar, which does expose
+ * `isPaymentToken`, the function pointed at a *different* oracle than the one
+ * the registrar actually queries during `register`, so the whitelist check
+ * disagreed with reality anyway).
+ *
+ * Resolving the oracle off the registrar at runtime keeps the precheck
+ * truthful for both registrar variants without hardcoding oracle addresses.
+ */
+async function assertPaymentTokenSupported(
+  publicClient: PublicClient,
+  registrarAddress: Address,
+  paymentToken: Address,
+): Promise<void> {
+  const oracle = await readContract(publicClient, {
+    address: registrarAddress,
+    abi: RENT_PRICE_ORACLE_ABI,
+    functionName: 'rentPriceOracle',
+  })
+  const supported = await readContract(publicClient, {
+    address: oracle,
+    abi: RENT_PRICE_ORACLE_ABI,
+    functionName: 'isPaymentToken',
+    args: [paymentToken],
+  })
+  if (!supported) {
+    throw new Error(
+      `Payment token ${paymentToken} is not supported by the ENS registrar (oracle ${oracle})`,
+    )
+  }
 }
 
 export function getSignerAddress(signer: Signer): Address {
@@ -459,9 +515,9 @@ export function readMinCommitmentAgeActor(input: {
   return fromPromise(
     readContract(input.publicClient, {
       address: registrarAddress,
-      abi: FAST_TEST_ETH_REGISTRAR_ABI,
+      abi: ethRegistrarMinCommitmentAgeSnippet,
       functionName: 'MIN_COMMITMENT_AGE',
-    }) as Promise<bigint>,
+    }),
     (error) => {
       console.warn(
         '⚠️ [REGISTRATION ACTOR] Failed to read MIN_COMMITMENT_AGE, defaulting to 60s:',
@@ -582,11 +638,11 @@ export function validateCommitmentActor(input: {
       // Check MIN_COMMITMENT_AGE from contract
       let minAge: bigint
       try {
-        minAge = (await readContract(input.publicClient, {
+        minAge = await readContract(input.publicClient, {
           address: registrarAddress,
-          abi: FAST_TEST_ETH_REGISTRAR_ABI,
+          abi: ethRegistrarMinCommitmentAgeSnippet,
           functionName: 'MIN_COMMITMENT_AGE',
-        })) as bigint
+        })
         console.log(
           `📋 [REGISTRATION ACTOR] MIN_COMMITMENT_AGE: ${minAge.toString()} seconds`,
         )
@@ -605,12 +661,12 @@ export function validateCommitmentActor(input: {
 
       while (committedAt === 0n && attempts < maxAttempts) {
         try {
-          committedAt = (await readContract(input.publicClient, {
+          committedAt = await readContract(input.publicClient, {
             address: registrarAddress,
-            abi: FAST_TEST_ETH_REGISTRAR_ABI,
+            abi: ethRegistrarCommitmentsSnippet,
             functionName: 'commitmentAt',
             args: [input.commitment.commitment],
-          })) as bigint
+          })
 
           if (committedAt === 0n) {
             attempts++
@@ -775,24 +831,14 @@ export function submitRegistrationActor(input: {
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
-      // Check if the payment token is supported
-      const isSupported = await readContract(input.publicClient, {
-        address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
-        functionName: 'isPaymentToken',
-        args: [normalizedPaymentToken],
-      })
-
-      console.log(
-        `🔍 Payment token ${normalizedPaymentToken} is supported:`,
-        isSupported,
+      // Validate the token against the registrar's *actual* rent price oracle
+      // (see `assertPaymentTokenSupported` for why the registrar itself can't
+      // be queried directly).
+      await assertPaymentTokenSupported(
+        input.publicClient,
+        registrarAddress,
+        normalizedPaymentToken,
       )
-
-      if (!isSupported) {
-        throw new Error(
-          `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
-        )
-      }
 
       const registrationData = encodeRegistrationData(
         input.name,
@@ -867,18 +913,11 @@ export function submitApprovalAndRegistrationActor(input: {
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
-      const isSupported = await readContract(input.publicClient, {
-        address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
-        functionName: 'isPaymentToken',
-        args: [normalizedPaymentToken],
-      })
-
-      if (!isSupported) {
-        throw new Error(
-          `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
-        )
-      }
+      await assertPaymentTokenSupported(
+        input.publicClient,
+        registrarAddress,
+        normalizedPaymentToken,
+      )
 
       const approvalData = encodeTokenApprovalData(
         input.tokenPrice,
