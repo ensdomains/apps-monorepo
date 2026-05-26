@@ -1,3 +1,4 @@
+import { ens_normalize } from '@adraffy/ens-normalize'
 import {
   createSetForwardResolutionRequest,
   createSetReverseNameRequest,
@@ -16,6 +17,20 @@ import { useConnection, useWalletClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
+
+// The ENSv1 ReverseRegistrar's `setName(string)` accepts any UTF-8 bytes
+// verbatim, so mixed-case / unnormalized / invalid input would persist as
+// the reverse name and silently fail every later forward-verify check.
+// Normalize per ENSIP-15 here; `ens_normalize` throws on invalid input.
+const normalizeReverseName = (name: string): string => {
+  try {
+    return ens_normalize(name)
+  } catch (e) {
+    throw new Error(
+      `"${name}" is not a valid ENS name: ${e instanceof Error ? e.message : 'invalid'}`,
+    )
+  }
+}
 
 type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
@@ -74,6 +89,8 @@ export function useReverseResolutionMutations({
   // protocol version at all.
   const getReverseResolutionRequest = useCallback(
     (name: string): ReverseResolutionWriteRequest => {
+      const normalizedName = normalizeReverseName(name)
+
       if (isL1) {
         if (!l1WalletClient)
           throw new Error('Sepolia wallet client not available')
@@ -86,7 +103,7 @@ export function useReverseResolutionMutations({
             address: getRegistrarAddress(60)!,
             abi: reverseRegistrarSetNameSnippet,
             functionName: 'setName',
-            args: [name] as const,
+            args: [normalizedName] as const,
           },
         }
       }
@@ -94,7 +111,7 @@ export function useReverseResolutionMutations({
       return {
         kind: 'l2',
         request: createSetReverseNameRequest({
-          name,
+          name: normalizedName,
           reverseRegistrarChainId,
           chain,
         }),

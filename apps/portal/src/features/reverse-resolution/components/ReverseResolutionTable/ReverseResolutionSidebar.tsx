@@ -276,20 +276,24 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     )
   }
 
-  const switchChainIfNeeded = () => {
-    if (!isWrongChain) return false
-    void (async () => {
-      try {
-        await switchChainAsync(getSwitchToRequiredNetworkRequest())
-      } catch (error) {
-        // User rejected, wallet refused to add chain, etc. Surface it.
-        const message =
-          error instanceof Error ? error.message : 'Failed to switch network'
-        toast.error(message)
-        console.error('Failed to switch network', error)
-      }
-    })()
-    return true
+  // Awaits the wallet's chain switch if the current chain doesn't match the
+  // row's required chain. Returns `true` when the switch completed and the
+  // caller should continue, `false` if the user rejected or the wallet
+  // refused — in which case the caller must NOT continue (a toast has
+  // already been surfaced).
+  const switchChainIfNeeded = async (): Promise<boolean> => {
+    if (!isWrongChain) return true
+    try {
+      await switchChainAsync(getSwitchToRequiredNetworkRequest())
+      return true
+    } catch (error) {
+      // User rejected, wallet refused to add chain, etc. Surface it.
+      const message =
+        error instanceof Error ? error.message : 'Failed to switch network'
+      toast.error(message)
+      console.error('Failed to switch network', error)
+      return false
+    }
   }
 
   const handleUpdateL2 = async () => {
@@ -324,17 +328,27 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     const form = e.currentTarget
     const input = form.querySelector<HTMLInputElement>('input[name="name"]')
     if (!input?.reportValidity()) return
-    if (switchChainIfNeeded()) return
     if (!nameInput) return
-    if (isL2Target) {
-      // L2 writes bypass the L1-only TransactionModal/transactionManager
-      // pipeline — they're a single wagmi `writeContract` call against the
-      // local `l2WagmiConfig`. Toast feedback only.
-      void handleUpdateL2()
-      return
-    }
-    setActiveFlow('reverse')
-    openTransactionModal()
+
+    // Switch first if the wallet is on the wrong chain; only continue with
+    // the actual write once the switch is complete. Doing this fire-and-
+    // forget previously meant the first click only switched chains and the
+    // user had to click Update again to submit.
+    //
+    // For L2 rows we delegate the switch to `useSetL2ReverseName`, which
+    // operates on the isolated `l2WagmiConfig` and handles
+    // `wallet_addEthereumChain` correctly — calling `switchChainAsync` here
+    // on the global config would target a chain it doesn't know about.
+    void (async () => {
+      if (isL2Target) {
+        await handleUpdateL2()
+        return
+      }
+      const switched = await switchChainIfNeeded()
+      if (!switched) return
+      setActiveFlow('reverse')
+      openTransactionModal()
+    })()
   }
 
   const handleUpdateReverseStart = () => {
@@ -361,9 +375,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   }
 
   const handleSetPrimaryName = () => {
-    if (switchChainIfNeeded()) return
-    setActiveFlow('primary')
-    openTransactionModal()
+    void (async () => {
+      const switched = await switchChainIfNeeded()
+      if (!switched) return
+      setActiveFlow('primary')
+      openTransactionModal()
+    })()
   }
 
   const handleSetPrimaryNameStart = () => {
