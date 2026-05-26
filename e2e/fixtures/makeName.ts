@@ -181,10 +181,11 @@ export function createMakeName({ accounts, time }: Dependencies) {
     }
 
     const secret = keccak256(toHex(`${uniqueLabel}:${Math.random()}`))
-    const hasRecords = config.records && config.records.length > 0
+    const records = config.records ?? []
+    const hasRecords = records.length > 0
 
     console.log(
-      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s${hasRecords ? `, records=${config.records?.length}` : ''})`,
+      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s${hasRecords ? `, records=${records.length}` : ''})`,
     )
 
     // ── 0. Clear any contract code at owner address ───────────────
@@ -316,7 +317,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     // ── 7a. Set text records (if any) ────────────────────────────
     if (hasRecords) {
       const node = namehash(ethName)
-      for (const { key, value } of config.records!) {
+      for (const { key, value } of records) {
         const setTextData = encodeFunctionData({
           abi: RESOLVER_ABI,
           functionName: 'setText',
@@ -330,7 +331,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
         await waitForTx(setTextTx)
       }
       console.log(
-        `[makeName] set ${config.records!.length} record(s) on ${ethName}`,
+        `[makeName] set ${records.length} record(s) on ${ethName}`,
       )
     }
 
