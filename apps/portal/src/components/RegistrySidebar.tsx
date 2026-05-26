@@ -8,6 +8,7 @@ import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { createDefineLinkItem } from '@/utils/tsr'
 import { SettingsMenu } from './SettingsMenu'
+import { SoonBadge } from './ui/badge'
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +39,7 @@ const getItems = (address: string) => [
   defineRegistrySidebarItem({
     title: 'Labels',
     icon: TagIcon,
+    upcoming: true,
     link: {
       to: '/registry/$address/labels',
       params: { address },
@@ -47,6 +49,7 @@ const getItems = (address: string) => [
   defineRegistrySidebarItem({
     title: 'Roles',
     icon: ShieldIcon,
+    upcoming: true,
     link: {
       to: '/registry/$address/roles',
       params: { address },
@@ -56,6 +59,7 @@ const getItems = (address: string) => [
   defineRegistrySidebarItem({
     title: 'History',
     icon: HistoryIcon,
+    upcoming: true,
     link: {
       to: '/registry/$address/history',
       params: { address },
@@ -135,17 +139,29 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
             <SidebarMenu className="gap-3">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <Link
-                      {...item.link}
-                      activeProps={{
-                        'data-active': 'true',
-                      }}
+                  {item.disabled || item.upcoming ? (
+                    <SidebarMenuButton
+                      disabled
+                      className="opacity-50 cursor-not-allowed"
+                      tooltip={item.title}
                     >
                       <item.icon className="size-4" />
                       <span className="text-sm">{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                      {item.upcoming && <SoonBadge />}
+                    </SidebarMenuButton>
+                  ) : (
+                    <SidebarMenuButton asChild tooltip={item.title}>
+                      <Link
+                        {...item.link}
+                        activeProps={{
+                          'data-active': 'true',
+                        }}
+                      >
+                        <item.icon className="size-4" />
+                        <span className="text-sm">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
