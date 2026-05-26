@@ -16,6 +16,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import {
   useParentRegistry,
   useRegistry,
@@ -93,12 +94,13 @@ function RouteComponent() {
     chain: sepoliaWithEns,
     contract: 'ensVerifiableFactory',
   })
+
   const deployedDate = registry.createdAt
     ? formatTimestampDate(registry.createdAt)
     : null
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-10 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8 p-4 sm:p-10 w-full max-w-360 mx-auto">
       <div className="flex flex-col gap-6">
         <h1 className="text-2xl md:text-heading font-normal leading-none">
           Registry Contract
@@ -210,6 +212,8 @@ function RouteComponent() {
           />
         </div>
       </div>
+
+      <RegistryHistoryByAddress address={address} name={registry.name} />
     </div>
   )
 }
