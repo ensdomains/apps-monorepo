@@ -3,6 +3,7 @@ import { TriangleAlert } from 'lucide-react'
 import { Fragment } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
+import { sepolia } from 'viem/chains'
 import { useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,6 +12,8 @@ import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
 import { ConfigureRegistryForm } from './ConfigureRegistryForm'
+
+const sepoliaUrl = sepolia.blockExplorers.default.url
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -32,8 +35,11 @@ export const RegistryTreeItem = ({
   name,
 }: RegistryTreeItemProps) => {
   const isRoot = index === 0
+  const isEthRegistry = index === 1
   const isLast = index === registriesCount - 1
   const isParent = !isRoot && !isLast
+
+  const isDeployedRegistry = !isRoot && !isEthRegistry
 
   // registries are ordered `[name, ...ancestors, root]`, so this reversed item's
   // full name is the suffix of labels starting at its position.
@@ -93,7 +99,12 @@ export const RegistryTreeItem = ({
               variant="contract"
               className="font-normal"
               address={address}
-              isRegistry
+              isRegistry={isDeployedRegistry}
+              etherscanHref={
+                isDeployedRegistry
+                  ? undefined
+                  : `${sepoliaUrl}/address/${address}`
+              }
             >
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
