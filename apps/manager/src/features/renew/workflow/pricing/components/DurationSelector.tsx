@@ -3,10 +3,9 @@ import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
 import { useMemo } from 'react'
-import { zeroAddress } from 'viem'
 import {
   type GetPricingError,
-  getPricingQueryOptions,
+  getRenewPriceQueryOptions,
   type MissingTokenError,
 } from '@/features/register-v2/data/queries/pricing.query'
 import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
@@ -18,10 +17,7 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 type PresetPricingQuery = {
   isPending: boolean
   error: GetPricingError | MissingTokenError | null
-  data?: {
-    totalPrice: number
-    basePrice: number
-  }
+  data?: number
 }
 
 export const DurationSelector = () => {
@@ -37,13 +33,7 @@ export const DurationSelector = () => {
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map(({ duration }) =>
-      getPricingQueryOptions(
-        label,
-        // Zero address used to ignore temporary premium since it's not applicable for renewal
-        zeroAddress,
-        duration,
-        TOKENS.USDC.symbol,
-      ),
+      getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {
@@ -56,16 +46,7 @@ export const DurationSelector = () => {
           isPending: result.isPending,
           error: result.error,
           data: result.data
-            ? {
-                totalPrice: decimalBigintToNumber(
-                  result.data.totalPrice,
-                  TOKENS.USDC.decimals,
-                ),
-                basePrice: decimalBigintToNumber(
-                  result.data.basePrice,
-                  TOKENS.USDC.decimals,
-                ),
-              }
+            ? decimalBigintToNumber(result.data, TOKENS.USDC.decimals)
             : undefined,
         }
       }),
@@ -95,7 +76,7 @@ export const DurationSelector = () => {
                 duration: data.duration,
               })
             }
-            price={query.data?.totalPrice}
+            price={query.data}
           />
         )
       })}

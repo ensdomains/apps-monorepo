@@ -2,8 +2,8 @@ import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-se
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
+  l2EthRegistrarGetRegisterPriceSnippet,
   l2EthRegistrarIsAvailableSnippet,
-  l2EthRegistrarRentPriceSnippet,
 } from '@ensdomains/ensjs/contracts'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, formatUnits, zeroAddress, zeroHash } from 'viem'
@@ -126,9 +126,9 @@ export const getENSNameInfo = ResultFn(async function* (
       _priceResult = yield* await fromPromise(
         readContract(publicClient, {
           address: ETH_REGISTRAR,
-          abi: l2EthRegistrarRentPriceSnippet,
-          functionName: 'rentPrice',
-          args: [cleanName, ownerAddress, durationInSeconds, paymentToken],
+          abi: l2EthRegistrarGetRegisterPriceSnippet,
+          functionName: 'getRegisterPrice',
+          args: [cleanName, durationInSeconds, paymentToken],
         }),
         (e) => new NameChainContractError({ cause: e }),
       )
@@ -137,9 +137,9 @@ export const getENSNameInfo = ResultFn(async function* (
       _priceResult = yield* await fromPromise(
         readContract(publicClient, {
           address: ETH_REGISTRAR,
-          abi: l2EthRegistrarRentPriceSnippet,
-          functionName: 'rentPrice',
-          args: [cleanName, ownerAddress, durationInSeconds, zeroAddress],
+          abi: l2EthRegistrarGetRegisterPriceSnippet,
+          functionName: 'getRegisterPrice',
+          args: [cleanName, durationInSeconds, zeroAddress],
         }),
         (e) => new NameChainContractError({ cause: e }),
       )
@@ -184,9 +184,9 @@ export const getTokenPrices = ResultFn(async function* (
         const priceResult: unknown = yield* await fromPromise(
           readContract(publicClient, {
             address: ETH_REGISTRAR,
-            abi: l2EthRegistrarRentPriceSnippet,
-            functionName: 'rentPrice',
-            args: [cleanName, EMPTY_ADDRESS, durationInSeconds, tokenAddress],
+            abi: l2EthRegistrarGetRegisterPriceSnippet,
+            functionName: 'getRegisterPrice',
+            args: [cleanName, durationInSeconds, tokenAddress],
           }),
           (e) => new NameChainContractError({ cause: e }),
         )

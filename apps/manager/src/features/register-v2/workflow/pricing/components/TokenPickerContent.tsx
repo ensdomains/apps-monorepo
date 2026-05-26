@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { match, P } from 'ts-pattern'
-import { zeroAddress } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
@@ -17,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
-import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { TokenListItem } from './TokenListItem'
@@ -42,12 +41,10 @@ export const TokenPickerContent = () => {
     uiActor,
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
-  const ownerAddress = account.ownerAddress ?? zeroAddress
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(
+    ...getRegisterPriceQueryOptions(
       label,
-      ownerAddress,
       duration,
       selectedToken ?? TOKENS.USDC.symbol,
     ),
@@ -62,10 +59,10 @@ export const TokenPickerContent = () => {
         selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
       ),
       totalPriceNumber: decimalBigintToNumber(
-        data.totalPrice,
+        data.basePrice + data.premium,
         selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
       ),
-      rawPrice: data.totalPrice,
+      rawPrice: data.basePrice + data.premium,
     }),
   })
 
