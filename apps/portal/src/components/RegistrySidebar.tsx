@@ -1,11 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
-import { ShieldIcon, TagIcon } from 'lucide-react'
+import { GitBranch, ShieldIcon, TagIcon } from 'lucide-react'
 import type { Address } from 'viem'
 import { HistoryIcon, HubIcon } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
+import { REGISTRY_INTERFACE_IDS } from '@/lib/constants/registryInterfaceIds'
 import { createDefineLinkItem } from '@/utils/tsr'
 import { SettingsMenu } from './SettingsMenu'
 import { SoonBadge } from './ui/badge'
@@ -38,7 +39,7 @@ const defineRegistrySidebarItem = createDefineLinkItem<SidebarItemData>()
 const getItems = (address: string) => [
   defineRegistrySidebarItem({
     title: 'Labels',
-    icon: TagIcon,
+    icon: GitBranch,
     upcoming: true,
     link: {
       to: '/registry/$address/labels',
@@ -75,6 +76,17 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
   const items = getItems(address)
   const { state, isMobile, setOpenMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
+
+  const { data: registryInterfaces } = useSupportsInterfaces({
+    address,
+    interfaces: Object.values(REGISTRY_INTERFACE_IDS),
+  })
+  const registryType =
+    registryInterfaces === undefined
+      ? null
+      : registryInterfaces[0]
+        ? 'PermissionedRegistry'
+        : 'Registry'
 
   return (
     <Sidebar collapsible="icon">
@@ -123,14 +135,19 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
             activeProps={{ 'data-active': 'true' }}
             activeOptions={{ exact: true }}
             onClick={() => setOpenMobile(false)}
-            className="group/title flex w-full items-center gap-2 rounded-md px-2 py-2 outline-hidden ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-1"
+            className="group/title flex w-full items-start gap-2 rounded-md px-2 py-2 outline-hidden ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:p-1"
           >
-            <div className="size-6 shrink-0 rounded bg-neutral-2 group-data-[active=true]/title:bg-neutral-3 flex items-center justify-center">
-              <HubIcon className="size-3.5 text-neutral-6" />
+            <HubIcon className="size-3.5 text-danger-text shrink-0" />
+            <div className="group-data-[collapsible=icon]:hidden flex flex-col gap-0.5 min-w-0">
+              <span className="text-sm font-mono font-medium text-foreground break-all leading-tight">
+                {address}
+              </span>
+              {registryType ? (
+                <span className="text-xs font-mono text-danger-text leading-tight">
+                  {registryType}
+                </span>
+              ) : null}
             </div>
-            <span className="group-data-[collapsible=icon]:hidden text-sm font-mono font-medium text-foreground break-all leading-tight">
-              {truncateAddress(address, 6, 4, '...')}
-            </span>
           </Link>
         </div>
 
