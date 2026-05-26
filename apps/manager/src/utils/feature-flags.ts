@@ -36,10 +36,6 @@ const FEATURE_FLAGS_INTERNAL = {
   SEARCH_RESULTS_BLUR_BACKDROP: {
     enabled: import.meta.env.VITE_FF_SEARCH_RESULTS_BLUR_BACKDROP === 'true',
   },
-  RHINESTONE_SESSIONS: {
-    enabled: import.meta.env.VITE_FF_RHINESTONE_SESSIONS === 'true',
-    allowedUsers: [...BASE_USER_LISTS.TEAM],
-  },
   USE_WARP_INFRA: {
     enabled: import.meta.env.VITE_FF_USE_WARP_INFRA === 'true',
     allowedUsers: [...BASE_USER_LISTS.TEAM],
@@ -55,16 +51,15 @@ const FEATURE_FLAGS_INTERNAL = {
   },
   /**
    * Force the transaction manager to use plain EOA signing only — bypasses
-   * the Rhinestone / Pimlico / ZeroDev smart-account flows entirely. Useful
-   * for environments (e.g. the Tenderly virtual sepolia fork) where
-   * ERC-4337 bundler infrastructure isn't available.
+   * the Rhinestone / Pimlico smart-account flows entirely. Useful for
+   * environments (e.g. the Tenderly virtual sepolia fork) where ERC-4337
+   * bundler infrastructure isn't available.
    */
   USE_EOA: {
     enabled: import.meta.env.VITE_FF_USE_EOA === 'true',
   },
 } as const satisfies Record<string, FeatureFlagConfig | boolean>
 
-export type SessionProvider = 'zerodev' | 'rhinestone'
 export type TransactionInfra = 'warp' | 'pimlico'
 export type FeatureFlag = keyof typeof FEATURE_FLAGS_INTERNAL
 
@@ -138,14 +133,6 @@ export function isFeatureEnabled(
   }
 
   return baseEnabled
-}
-
-export function getSessionProvider(
-  identifier?: UserIdentifier,
-): SessionProvider {
-  return isFeatureEnabled('RHINESTONE_SESSIONS', identifier)
-    ? 'rhinestone'
-    : 'zerodev'
 }
 
 export function getTransactionInfra(

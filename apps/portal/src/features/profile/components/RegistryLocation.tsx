@@ -35,7 +35,6 @@ export const RegistryLocation = ({
       variant="contract"
       address={data.registryAddress}
       label="permissioned registry"
-      isRegistry
     >
       {truncateAddress(data.registryAddress, 6, 4)}
     </EntityBadge>

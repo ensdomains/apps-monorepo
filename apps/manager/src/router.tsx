@@ -8,6 +8,10 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import { initializeIntercom } from './lib/intercom'
 import { getLocale, loadCatalog } from './lib/locale'
 import { routeTree } from './routeTree.gen'
+import {
+  deserializeBigInts,
+  serializeBigInts,
+} from './utils/ssr-bigint-transformer'
 
 declare module '@tanstack/react-query' {
   interface Register {
@@ -29,6 +33,13 @@ export async function getRouter() {
       queries: {
         staleTime: 0,
       },
+      // Round-trip bigints through the SSR boundary. Without this, the
+      // server's `JSON.stringify` on the dehydrated cache either throws
+      // ("Do not know how to serialize a BigInt") or, with a global
+      // `BigInt.prototype.toJSON` shim, silently corrupts values above
+      // `Number.MAX_SAFE_INTEGER`.
+      dehydrate: { serializeData: serializeBigInts },
+      hydrate: { deserializeData: deserializeBigInts },
     },
     mutationCache: new MutationCache({
       onSuccess: (_data, _variables, _context, mutation) => {

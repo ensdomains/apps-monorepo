@@ -7,12 +7,11 @@ import { type Address, erc20Abi, formatUnits } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { publicClient } from '@/lib/wagmi'
-import type { EthBalance, SmartAccountType, StablecoinBalance } from './types'
+import type { EthBalance, StablecoinBalance } from './types'
 
 interface UseSmartAccountBalancesParams {
   readonly accountAddress: Address | null
   readonly ownerAddress: Address | null
-  readonly accountType: SmartAccountType
 }
 
 interface UseSmartAccountBalancesResult {
@@ -25,7 +24,7 @@ interface UseSmartAccountBalancesResult {
 export function useSmartAccountBalances(
   params: UseSmartAccountBalancesParams,
 ): UseSmartAccountBalancesResult {
-  const { accountAddress, ownerAddress, accountType } = params
+  const { accountAddress, ownerAddress } = params
 
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
@@ -50,7 +49,10 @@ export function useSmartAccountBalances(
       refetchInterval: 30000,
     })
 
-  const balanceAddress = accountType === 'hca' ? ownerAddress : accountAddress
+  // HCA-only: stablecoin/ERC-20 balances belong to the EOA owner, not the
+  // smart account. ETH balance above is fetched against the SCA so the
+  // gas-funding flow sees it.
+  const balanceAddress = ownerAddress
 
   const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
     useQuery({
