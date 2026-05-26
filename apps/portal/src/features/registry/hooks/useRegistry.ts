@@ -82,24 +82,3 @@ export const useParentRegistry = (parentRegistry: Address | undefined) =>
     ...getRegistryQueryOptions({ address: parentRegistry ?? zeroAddress }),
     enabled: !!parentRegistry && !isAddressEqual(parentRegistry, zeroAddress),
   })
-
-export type ReferencingName = {
-  name: string
-}
-
-/**
- * Names whose current subregistry points at this registry contract.
- *
- * STUB: not resolvable from the indexer yet — there is no `subregistry` filter
- * on names, and the link only lives inside `SubregistryUpdated` event `data`
- * (a JSON blob, not server-filterable). Returns an empty list until the indexer
- * adds a `referencedBy` field to `RegistryInfo`.
- * See memory: project-registry-dashboard-data.
- */
-export const useRegistryReferencedBy = (_address: Address) => {
-  return {
-    data: [] as ReferencingName[],
-    isPending: false,
-    isStub: true as const,
-  }
-}

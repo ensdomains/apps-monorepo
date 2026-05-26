@@ -20,7 +20,6 @@ import { RegistryHistoryByAddress } from '@/features/registry/components/v2/Regi
 import {
   useParentRegistry,
   useRegistry,
-  useRegistryReferencedBy,
 } from '@/features/registry/hooks/useRegistry'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import { REGISTRY_INTERFACE_IDS } from '@/lib/constants/registryInterfaceIds'
@@ -42,7 +41,6 @@ function RouteComponent() {
 
   const { data: registry, isLoading, error } = useRegistry(address)
   const { data: parent } = useParentRegistry(registry?.parentRegistry)
-  const referencedBy = useRegistryReferencedBy(address)
 
   // Owner of this registry's ENS name — used for the Deployed badge so it
   // matches the Created badge on /$name/registry exactly.
@@ -105,7 +103,7 @@ function RouteComponent() {
         <h1 className="text-2xl md:text-heading font-normal leading-none">
           Registry Contract
         </h1>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground font-mono">
+        <div className="flex flex-col lg:flex-wrap lg:items-center gap-4 text-sm text-muted-foreground font-mono">
           {registryType ? (
             <EntityBadge variant="default" label="type" className="font-normal">
               {registryType}
@@ -113,13 +111,15 @@ function RouteComponent() {
           ) : (
             <Skeleton className="h-5 w-32" />
           )}
-          <span>Chain ID: {chainId}</span>
-          <span>Protocol: {PROTOCOL}</span>
+          <div className="flex flex-row gap-x-4 gap-y-2 text-sm text-muted-foreground font-mono">
+            <span>Chain ID: {chainId}</span>
+            <span>Protocol: {PROTOCOL}</span>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <dl className="flex-1 grid grid-cols-[auto_1fr] items-center gap-x-8 text-sm">
+      <div className="flex flex-col gap-10 lg:gap-6 lg:flex-row lg:items-start">
+        <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8 text-sm">
           <dt className="text-muted-foreground">Address</dt>
           <dd>
             <EntityBadge variant="contract" address={address}>
@@ -171,25 +171,6 @@ function RouteComponent() {
                 {parent.name}
               </EntityBadge>
             ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </dd>
-
-          <dt className="text-muted-foreground">Referenced by</dt>
-          <dd className="flex flex-wrap items-center gap-2">
-            {referencedBy.data.length > 0 ? (
-              referencedBy.data.map((ref) => (
-                <EntityBadge
-                  key={ref.name}
-                  variant="name"
-                  name={ref.name}
-                  showAvatar
-                >
-                  {ref.name}
-                </EntityBadge>
-              ))
-            ) : (
-              // STUB: pending an indexer `referencedBy` field — see useRegistry.
               <span className="text-muted-foreground">—</span>
             )}
           </dd>
