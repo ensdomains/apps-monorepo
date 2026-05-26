@@ -1,40 +1,44 @@
-import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { KernelAccountClient, KernelValidator } from '@zerodev/sdk'
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
-import type { Address, Chain, Hex } from 'viem'
-import type { SessionProvider } from '@/utils/feature-flags'
 import {
   createRhinestoneSession,
-  createZeroDevSession,
   restoreRhinestoneSession,
-  restoreZeroDevSession,
-} from '../sessions'
+  SessionError,
+} from '@ens-apps/smart-account'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
+import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
+import type { Address, Chain, Hex } from 'viem'
 import {
   getSkippedStatus,
   getValidSessionByOwner,
   saveSession,
 } from '../sessions/session-storage'
-import type { SessionConfig, StoredSession } from '../sessions/types'
-import { isRhinestoneSession, isZeroDevSession } from '../sessions/types'
-import { SessionError } from '../sessions/zerodev-session'
+import {
+  isRhinestoneSession,
+  type SessionConfig,
+  type StoredSession,
+} from '../sessions/types'
 
 /**
  * Session client returned by session actors.
- * - ZeroDev: a KernelAccountClient (session-derived)
- * - Rhinestone: session private key + enablement data — the full SDK-compatible
- *   SignerSet is constructed at signer creation time (SmartAccountContext).
+ *
+ * Rhinestone-only: session private key + enablement data. The full
+ * SDK-compatible SignerSet is constructed at signer creation time in
+ * SmartAccountContext.
  */
-export type SessionClient =
-  | KernelAccountClient
-  | {
-      readonly sessionPrivateKey: Hex
-      readonly enableSignature: Hex
-      readonly hashesAndChainIds: string
-    }
+export type SessionClient = {
+  readonly sessionPrivateKey: Hex
+  readonly enableSignature: Hex
+  readonly hashesAndChainIds: string
+  /**
+   * Session expiry (unix seconds). Required for signer construction —
+   * the `time-frame` policy baked into the actions array is derived from
+   * this value, and the rebuild in SmartAccountContext must reproduce the
+   * exact same actions to match the PermissionId.
+   */
+  readonly validUntil: number
+}
 
 export interface CheckSessionInput {
   readonly ownerAddress: Address
-  readonly provider: SessionProvider
 }
 
 export interface CheckSessionOutput {
@@ -48,11 +52,9 @@ export function checkExistingSessionActor(
   const session = getValidSessionByOwner(input.ownerAddress)
   const wasSkipped = getSkippedStatus(input.ownerAddress)
 
-  if (session) {
-    const sessionProvider = session.provider ?? 'zerodev'
-    if (sessionProvider !== input.provider) {
-      return okAsync({ session: null, wasSkipped: false })
-    }
+  // Only Rhinestone sessions are supported. Anything else is discarded.
+  if (session && !isRhinestoneSession(session)) {
+    return okAsync({ session: null, wasSkipped: false })
   }
 
   return okAsync({ session, wasSkipped })
@@ -61,13 +63,11 @@ export function checkExistingSessionActor(
 export interface CreateSessionInput {
   readonly ownerAddress: Address
   readonly accountAddress: Address
-  readonly provider: SessionProvider
   readonly chainId: number
-  readonly ecdsaValidator?: KernelValidator<'ECDSAValidator'>
   readonly config?: SessionConfig
-  /** Rhinestone-specific: needed for on-chain session enablement */
-  readonly rhinestoneAccount?: RhinestoneAccount
-  readonly chain?: Chain
+  /** Rhinestone account, needed for on-chain session enablement */
+  readonly rhinestoneAccount: RhinestoneAccount
+  readonly chain: Chain
 }
 
 export interface CreateSessionOutput {
@@ -78,60 +78,43 @@ export interface CreateSessionOutput {
 export function createSessionActor(
   input: CreateSessionInput,
 ): ResultAsync<CreateSessionOutput, SessionError> {
-  if (input.provider === 'rhinestone') {
-    if (!input.rhinestoneAccount || !input.chain) {
+  return createRhinestoneSession({
+    ownerAddress: input.ownerAddress,
+    smartAccountAddress: input.accountAddress,
+    chainId: input.chainId,
+    rhinestoneAccount: input.rhinestoneAccount,
+    chain: input.chain,
+    config: input.config,
+  }).andThen(({ session, sessionPrivateKey }) => {
+    // `validUntil` is always populated by `createRhinestoneSession`
+    // (default 30 days, or `config.validUntil` if provided). Guard
+    // anyway so a future regression surfaces here rather than as an
+    // `InvalidSignature()` revert at signer-construction time.
+    if (typeof session.validUntil !== 'number') {
       return errAsync(
         new SessionError(
           'Failed to create session',
-          'Missing rhinestoneAccount or chain for Rhinestone session enablement',
+          'Created Rhinestone session is missing validUntil',
         ),
       )
     }
 
-    return createRhinestoneSession({
-      ownerAddress: input.ownerAddress,
-      smartAccountAddress: input.accountAddress,
-      chainId: input.chainId,
-      rhinestoneAccount: input.rhinestoneAccount,
-      chain: input.chain,
-      config: input.config,
-    }).andThen(({ session, sessionPrivateKey }) => {
-      saveSession(session)
-
-      return okAsync({
-        session,
-        sessionClient: {
-          sessionPrivateKey,
-          enableSignature: session.enableSignature,
-          hashesAndChainIds: session.hashesAndChainIds,
-        },
-      })
-    })
-  }
-
-  if (!input.ecdsaValidator) {
-    return errAsync(
-      new SessionError(
-        'Failed to create session',
-        'Missing ECDSA validator for ZeroDev provider',
-      ),
-    )
-  }
-
-  return createZeroDevSession({
-    ownerAddress: input.ownerAddress,
-    smartAccountAddress: input.accountAddress,
-    ecdsaValidator: input.ecdsaValidator,
-    config: input.config,
-  }).andThen(({ session, client }) => {
     saveSession(session)
-    return okAsync({ session, sessionClient: client })
+
+    return okAsync({
+      session,
+      sessionClient: {
+        sessionPrivateKey,
+        enableSignature: session.enableSignature,
+        hashesAndChainIds: session.hashesAndChainIds,
+        validUntil: session.validUntil,
+      },
+    })
   })
 }
 
 export interface RestoreSessionInput {
   readonly session: StoredSession
-  readonly provider: SessionProvider
 }
 
 export interface RestoreSessionOutput {
@@ -141,9 +124,9 @@ export interface RestoreSessionOutput {
 export function restoreSessionActor(
   input: RestoreSessionInput,
 ): ResultAsync<RestoreSessionOutput, SessionError> {
-  const { session, provider } = input
+  const { session } = input
 
-  if (provider === 'rhinestone' && !isRhinestoneSession(session)) {
+  if (!isRhinestoneSession(session)) {
     return errAsync(
       new SessionError(
         'Failed to restore session',
@@ -152,26 +135,27 @@ export function restoreSessionActor(
     )
   }
 
-  if (provider === 'zerodev' && !isZeroDevSession(session)) {
+  // The on-chain `time-frame` policy is keyed off `validUntil` and is
+  // part of the PermissionId. A session persisted under an older code
+  // path (no time-frame policy) cannot be replayed correctly — refuse
+  // to restore it; the dApp will prompt for a fresh enable.
+  if (typeof session.validUntil !== 'number') {
     return errAsync(
       new SessionError(
         'Failed to restore session',
-        'Session type mismatch: expected ZeroDev session',
+        'Stored Rhinestone session is missing validUntil',
       ),
     )
   }
 
-  if (isRhinestoneSession(session)) {
-    return restoreRhinestoneSession({ session }).map(() => ({
-      sessionClient: {
-        sessionPrivateKey: session.sessionPrivateKey,
-        enableSignature: session.enableSignature,
-        hashesAndChainIds: session.hashesAndChainIds,
-      },
-    }))
-  }
+  const restoredValidUntil = session.validUntil
 
-  return restoreZeroDevSession({ session }).map((client) => ({
-    sessionClient: client,
+  return restoreRhinestoneSession({ session }).map(() => ({
+    sessionClient: {
+      sessionPrivateKey: session.sessionPrivateKey,
+      enableSignature: session.enableSignature,
+      hashesAndChainIds: session.hashesAndChainIds,
+      validUntil: restoredValidUntil,
+    },
   }))
 }

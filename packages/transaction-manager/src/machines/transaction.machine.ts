@@ -6,7 +6,6 @@ import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
-import { submitZeroDevTransaction } from '../actors/zerodev-transport.actor'
 import {
   EthCallFallbackError,
   TransactionRevertedError,
@@ -31,8 +30,6 @@ import type {
  * based on transaction type:
  * - EOA: Standard wallet transactions via submitEOATransaction
  * - Rhinestone: Smart account transactions via submitRhinestoneTransaction
- * - ZeroDev: ZeroDev Kernel with sessions via submitZeroDevTransaction
- * - ERC-4337: User operations (not yet implemented)
  *
  * This machine focuses solely on transaction lifecycle (submit → pending → confirm).
  * Account initialization and management is handled externally by AccountProvider.
@@ -123,7 +120,6 @@ export const transactionMachine = setup({
      * - eoa → submitEOATransaction
      * - rhinestone + warp → submitWarpTransaction
      * - rhinestone + pimlico → submitRhinestoneTransaction
-     * - zerodev → submitZeroDevTransaction (always Pimlico)
      */
     submitTransaction: fromResultAsync(
       ({
@@ -204,14 +200,8 @@ export const transactionMachine = setup({
               })
             }
 
-            case 'zerodev':
-              return submitZeroDevTransaction({
-                request,
-                signer,
-                publicClient,
-              })
-
             default:
+              signer satisfies never
               return errAsync(
                 new TransactionSubmissionError(
                   request,
@@ -342,12 +332,9 @@ export const transactionMachine = setup({
           )
         }
 
-        if (
-          request.type === 'erc4337' ||
-          request.type === 'rhinestone-intent' ||
-          request.type === 'zerodev'
-        ) {
-          // For 4337, Rhinestone, and ZeroDev, we'd need different simulation methods
+        if (request.type === 'rhinestone-intent') {
+          // Rhinestone intents simulate via the orchestrator; skip the
+          // eth_call fallback path entirely.
           return ResultAsync.fromSafePromise(
             Promise.resolve({ wouldSucceed: true }),
           )
@@ -638,11 +625,6 @@ export const transactionMachine = setup({
           actions: [
             assign({
               hash: ({ event }) => event.output,
-              userOpHash: ({ event, context }) =>
-                context.request?.type === 'erc4337' ||
-                context.request?.type === 'zerodev'
-                  ? event.output
-                  : undefined,
             }),
             'recordTransition',
             ({ event }) => {

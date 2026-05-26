@@ -38,6 +38,7 @@ export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
 export { TransactionSubmissionError } from './errors/transaction.errors'
 // Helpers
+export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
 export {
   type ENSRenewalParams,
@@ -152,19 +153,17 @@ export type {
   RhinestoneSigner,
   Signer,
   TransactionInfra,
-  ZeroDevSigner,
 } from './types/signer.types'
 export {
   isEOASigner,
   isRhinestoneSigner,
   isSessionSigner,
-  isZeroDevSigner,
 } from './types/signer.types'
 export type {
+  Call,
   CustomTransactionIntent,
   ENSRenewalTransactionIntent,
   EOATransactionRequest,
-  ERC4337UserOperation,
   ETHTransferTransactionIntent,
   PaymentMethod,
   PaymentOption,
@@ -178,6 +177,4 @@ export type {
   TransactionResult,
   TransactionStep,
   TransactionType,
-  ZeroDevCall,
-  ZeroDevTransactionRequest,
 } from './types/transaction.types'
