@@ -10,6 +10,7 @@ import {
   ethRegistrarMakeCommitmentSnippet,
   ethRegistrarRegisterSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
@@ -205,9 +206,10 @@ function selectRegistrarAddress(useFastRegistrar: boolean): Address {
     : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
-const RENT_PRICE_ORACLE_ABI = parseAbi([
+// `rentPriceOracle()` getter isn't (yet) exported as a snippet from
+// ensjs-abi; keep this inline until it lands upstream.
+const ethRegistrarRentPriceOracleSnippet = parseAbi([
   'function rentPriceOracle() view returns (address)',
-  'function isPaymentToken(address) view returns (bool)',
 ])
 
 /**
@@ -233,12 +235,12 @@ async function assertPaymentTokenSupported(
 ): Promise<void> {
   const oracle = await readContract(publicClient, {
     address: registrarAddress,
-    abi: RENT_PRICE_ORACLE_ABI,
+    abi: ethRegistrarRentPriceOracleSnippet,
     functionName: 'rentPriceOracle',
   })
   const supported = await readContract(publicClient, {
     address: oracle,
-    abi: RENT_PRICE_ORACLE_ABI,
+    abi: standardRentPriceOracleIsPaymentTokenSnippet,
     functionName: 'isPaymentToken',
     args: [paymentToken],
   })
