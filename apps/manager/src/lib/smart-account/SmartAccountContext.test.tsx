@@ -64,7 +64,7 @@ describe('SmartAccountContext', () => {
       })
 
       expect(result.current).toBeDefined()
-      expect(result.current.type).toBe('zerodev')
+      expect(result.current.type).toBe('rhinestone')
     })
   })
 
@@ -90,7 +90,7 @@ describe('SmartAccountContext', () => {
       })
 
       expect(result.current).not.toBeNull()
-      expect(result.current?.type).toBe('zerodev')
+      expect(result.current?.type).toBe('rhinestone')
     })
   })
 

@@ -1,24 +1,38 @@
 /**
  * Session Storage
  *
- * Handles localStorage persistence for ZeroDev smart sessions.
+ * Handles localStorage persistence for Rhinestone smart sessions.
  * Sessions are keyed by smart account address for easy lookup.
  */
 
 import type { Address } from 'viem'
 import type { StoredSession } from './types'
 
-// Provider-agnostic storage for smart-session credentials (ZeroDev and
-// Rhinestone). The legacy key name `ens-zerodev-sessions` dates from the
-// ZeroDev-only era; we renamed and bumped it in one step to also
-// invalidate any session stored under the previous rhinestone
-// smart-session policy that pinned `register.owner == SCA`. The current
-// policy pins `register.owner == EOA`, which changes the action-set hash
-// → PermissionId, so a stored session from the previous deployment can
-// no longer satisfy the on-chain validator. Old key contents are left
-// in localStorage (harmless cruft); a new session is re-enabled lazily
-// on the next registration with a single wallet prompt.
-const SESSION_STORAGE_KEY = 'ens-sessions-v2'
+// Storage for Rhinestone smart-session credentials.
+//
+// Key history:
+//   v1 → v2: pinned `register.owner == EOA` (was SCA), changing the
+//            action-set hash → PermissionId.
+//   v2 → v3: added a `time-frame` policy to every action so on-chain
+//            enforcement matches the client-side `validUntil`. Again
+//            changed the action-set hash → PermissionId.
+//   v3 → v4: removed the `time-frame` policy. Rhinestone SDK 1.5.1's
+//            `'time-frame'` encoder produces 12-byte initData but the
+//            deployed `TimeFramePolicy` on Sepolia expects 32 bytes
+//            (rhinestonewtf/smartsessions fork with struct-based
+//            config), so enable-mode simulation reverts on
+//            `initializeWithMultiplexer`'s second `bytes16` slice. The
+//            v3 action set is therefore on-chain-incompatible; bumping
+//            the key forces a fresh enable that uses the v4 (no
+//            time-frame) action set. See `build-registration-session.ts`
+//            for the full diagnosis and the conditions for re-enabling.
+//
+// Each bump invalidates sessions stored under prior policies — using a
+// stale `enableSignature` against a different PermissionId yields
+// `InvalidSignature()` at orchestrator simulation time. Old key
+// contents are harmless cruft; a new session is re-enabled lazily on
+// the next registration with a single wallet prompt.
+const SESSION_STORAGE_KEY = 'ens-sessions-v4'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**
@@ -191,7 +205,18 @@ export function setSkippedStatus(
 }
 
 /**
- * Check if a session is expired
+ * Client-side expiry check used to evict expired rows from localStorage
+ * and surface a "reconnect" prompt before the user spends a transaction.
+ *
+ * Today this is the **only** expiry bound — see
+ * `@ens-apps/smart-account` (providers/rhinestone/registration-policy.ts) for why the
+ * matching on-chain `time-frame` policy is disabled. A stolen session
+ * key submitted from outside this dApp is not bound by this check;
+ * only by `removeSession(permissionId)` revocation.
+ *
+ * Returns `false` for sessions with no `validUntil` set (treat as
+ * non-expiring at the client level). Newly issued sessions always set
+ * it, so this only matters for hand-tampered storage.
  */
 export function isSessionExpired(session: StoredSession): boolean {
   if (!session.validUntil) return false
@@ -199,7 +224,9 @@ export function isSessionExpired(session: StoredSession): boolean {
 }
 
 /**
- * Get a valid (non-expired) session for an account
+ * Get a non-stale session for an account, evicting it from localStorage
+ * if its `validUntil` has passed. See {@link isSessionExpired} for the
+ * caveat that this is currently the only expiry bound.
  */
 export function getValidSession(accountAddress: Address): StoredSession | null {
   const session = getSession(accountAddress)
@@ -212,7 +239,8 @@ export function getValidSession(accountAddress: Address): StoredSession | null {
 }
 
 /**
- * Get a valid session by owner address
+ * Get a non-stale session by owner EOA, evicting from localStorage on
+ * expiry. Same client-side-only semantics as {@link getValidSession}.
  */
 export function getValidSessionByOwner(
   ownerAddress: Address,

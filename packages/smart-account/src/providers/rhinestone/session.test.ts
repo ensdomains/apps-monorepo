@@ -7,8 +7,11 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessions'
 import type { Address, Chain, Hex } from 'viem'
-import { maxUint256 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SessionError } from '../../errors'
+import { buildRegistrationSessionActions } from './registration-policy'
+import { createRhinestoneSession, restoreRhinestoneSession } from './session'
+import type { RhinestoneStoredSession } from './types'
 
 vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
   experimental_enableSession: vi.fn(() => ({
@@ -19,15 +22,6 @@ vi.mock('@rhinestone/sdk/actions/smart-sessions', () => ({
     }),
   })),
 }))
-
-import { normalizeSessionDetailsForEip712Signing } from '../utils'
-import { buildRegistrationSessionActions } from './build-registration-session'
-import {
-  createRhinestoneSession,
-  restoreRhinestoneSession,
-} from './rhinestone-session'
-import type { RhinestoneStoredSession } from './types'
-import { SessionError } from './zerodev-session'
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
@@ -73,7 +67,7 @@ function createMockRhinestoneAccount(): RhinestoneAccount {
 
 // ── Tests ──────────────────────────────────────────────────────────────
 
-describe('rhinestone-session', () => {
+describe('session', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(MOCK_UUID)
@@ -102,7 +96,6 @@ describe('rhinestone-session', () => {
       expect(session.smartAccountAddress).toBe(ACCOUNT_ADDRESS)
       expect(session.ownerAddress).toBe(OWNER_ADDRESS)
       expect(session.chainId).toBe(11155111)
-      expect(session.serializedSessionAccount).toBe('')
       expect(session.enableSignature).toBe(MOCK_ENABLE_SIGNATURE)
       expect(session.hashesAndChainIds).toBeDefined()
     })
@@ -127,6 +120,10 @@ describe('rhinestone-session', () => {
 
     it('calls experimental_getSessionDetails with the registration-scoped action set', async () => {
       const mockAccount = createMockRhinestoneAccount()
+      // Pin `validUntil` so the actions array used internally is the same
+      // as the one we rebuild below for the equality check. Otherwise the
+      // default-30d path picks up `Date.now()` and races the rebuild.
+      const validUntil = 2_000_000_000
 
       await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
@@ -134,6 +131,7 @@ describe('rhinestone-session', () => {
         chainId: 11155111,
         rhinestoneAccount: mockAccount,
         chain: MOCK_CHAIN,
+        config: { validUntil },
       })
 
       // The session must be enabled with the same actions array the runtime
@@ -142,6 +140,7 @@ describe('rhinestone-session', () => {
       const expectedActions = buildRegistrationSessionActions({
         smartAccountAddress: ACCOUNT_ADDRESS,
         eoaAddress: OWNER_ADDRESS,
+        validUntil,
       })
 
       expect(mockAccount.experimental_getSessionDetails).toHaveBeenCalledWith([
@@ -291,7 +290,9 @@ describe('rhinestone-session', () => {
 
     it('respects config.validUntil when provided', async () => {
       const mockAccount = createMockRhinestoneAccount()
-      const validUntil = Date.now() + 3600_000
+      // unix seconds — matches the unit used by the default path and the
+      // expiry check in restoreRhinestoneSession (`validUntil * 1000`).
+      const validUntil = Math.floor(Date.now() / 1000) + 3600
 
       const result = await createRhinestoneSession({
         ownerAddress: OWNER_ADDRESS,
@@ -345,7 +346,6 @@ describe('rhinestone-session', () => {
         provider: 'rhinestone',
         chainId: 11155111,
       }),
-      serializedSessionAccount: '',
       enableSignature: MOCK_ENABLE_SIGNATURE,
       hashesAndChainIds: JSON.stringify([
         { chainId: '11155111', sessionDigest: '0xdigest123' },
@@ -394,42 +394,7 @@ describe('rhinestone-session', () => {
   })
 })
 
-describe('normalizeSessionDetailsForEip712Signing', () => {
-  it('replaces unsafe JS number expires with maxUint256 (Para / float corruption)', () => {
-    const details = {
-      nonces: [9n],
-      hashesAndChainIds: [
-        { chainId: 11155111n, sessionDigest: '0xdigest' as Hex },
-      ],
-      data: {
-        message: {
-          sessionsAndChainIds: [
-            {
-              chainId: 11155111,
-              session: {
-                expires: 1.157920892373162e77 as number,
-                nonce: 9,
-              },
-            },
-          ],
-        },
-      },
-    }
-
-    normalizeSessionDetailsForEip712Signing(details)
-
-    const [row] = (
-      details.data.message as unknown as {
-        sessionsAndChainIds: Array<{
-          session: { expires: bigint; nonce: bigint }
-        }>
-      }
-    ).sessionsAndChainIds
-
-    if (!row) throw new Error('sessionsAndChainIds row is missing')
-    const sess = row.session
-
-    expect(sess.expires).toBe(maxUint256)
-    expect(sess.nonce).toBe(9n)
-  })
-})
+// `normalizeSessionDetailsForEip712Signing` tests moved to
+// `../utils.test.ts` alongside the function under test, since the helper
+// itself stays in `apps/manager/src/lib/smart-account/utils.ts` and is not
+// part of the extracted Rhinestone package.

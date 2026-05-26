@@ -261,7 +261,7 @@ msgstr ""
 msgid "An error occurred during verification"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:156
+#: src/features/wallet/components/BackendAuthModal.tsx:174
 msgid "And more..."
 msgstr ""
 
@@ -302,7 +302,7 @@ msgstr ""
 msgid "Are you sure you want to remove your current header? This will revert to the default image."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:132
+#: src/features/wallet/components/BackendAuthModal.tsx:150
 msgid "Are you sure?"
 msgstr ""
 
@@ -792,7 +792,7 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:149
+#: src/lib/smart-account/rhinestone.ts:241
 msgid "Deploying on-chain…"
 msgstr ""
 
@@ -824,7 +824,7 @@ msgstr ""
 msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:150
+#: src/features/wallet/components/BackendAuthModal.tsx:168
 msgid "Domain transfer & expiry notifications"
 msgstr ""
 
@@ -1018,16 +1018,16 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:169
+#: src/lib/smart-account/rhinestone.ts:252
 msgid "Failed to deploy smart account"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:251
+#: src/lib/smart-account/SmartAccountContext.tsx:233
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:252
+#: src/lib/smart-account/SmartAccountContext.tsx:234
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -1062,7 +1062,7 @@ msgid "Failed to set primary name. Please try again."
 msgstr "Kunde inte ange primärt namn. Försök igen."
 
 #: src/features/notifications/RequireBackendAuth.tsx:143
-#: src/features/wallet/components/BackendAuthModal.tsx:107
+#: src/features/wallet/components/BackendAuthModal.tsx:125
 msgid "Failed to sign in. Please try again."
 msgstr ""
 
@@ -1108,11 +1108,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:222
+#: src/lib/smart-account/SmartAccountContext.tsx:204
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:223
+#: src/lib/smart-account/SmartAccountContext.tsx:205
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -1144,7 +1144,7 @@ msgstr ""
 msgid "Go back"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:172
+#: src/features/wallet/components/BackendAuthModal.tsx:190
 msgid "Go Back"
 msgstr ""
 
@@ -1781,7 +1781,7 @@ msgstr ""
 msgid "Registering"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:201
+#: src/lib/smart-account/rhinestone.ts:212
 msgid "Registering account ownership…"
 msgstr ""
 
@@ -2013,7 +2013,7 @@ msgstr ""
 msgid "Save Preferences"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:153
+#: src/features/wallet/components/BackendAuthModal.tsx:171
 msgid "Saved favorites & searches"
 msgstr ""
 
@@ -2171,8 +2171,7 @@ msgstr ""
 msgid "Setting up resolver"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:148
-#: src/lib/smart-account/rhinestone.ts:200
+#: src/lib/smart-account/rhinestone.ts:180
 msgid "Setting up your smart account"
 msgstr ""
 
@@ -2206,11 +2205,11 @@ msgid "Sign in to access notifications about your ENS domains, including transfe
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:136
-#: src/features/wallet/components/BackendAuthModal.tsx:100
+#: src/features/wallet/components/BackendAuthModal.tsx:118
 msgid "Sign in with Wallet"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:83
+#: src/features/wallet/components/BackendAuthModal.tsx:101
 msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 msgstr ""
 
@@ -2227,7 +2226,7 @@ msgid "Sign once to enable seamless transactions."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:134
-#: src/features/wallet/components/BackendAuthModal.tsx:98
+#: src/features/wallet/components/BackendAuthModal.tsx:116
 msgid "Signing in..."
 msgstr ""
 
@@ -2235,15 +2234,15 @@ msgstr ""
 msgid "Skip"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:175
+#: src/features/wallet/components/BackendAuthModal.tsx:193
 msgid "Skip Anyway"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:124
+#: src/features/wallet/components/BackendAuthModal.tsx:142
 msgid "Skip for now"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:135
+#: src/features/wallet/components/BackendAuthModal.tsx:153
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr ""
 
@@ -2256,11 +2255,11 @@ msgstr ""
 msgid "Smart Account"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:231
+#: src/lib/smart-account/rhinestone.ts:243
 msgid "Smart account ready"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:214
+#: src/lib/smart-account/rhinestone.ts:253
 msgid "Smart account setup failed"
 msgstr ""
 
@@ -2639,7 +2638,7 @@ msgstr ""
 msgid "Verify Your Email"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:80
+#: src/features/wallet/components/BackendAuthModal.tsx:98
 msgid "Verify your wallet"
 msgstr ""
 
@@ -2753,7 +2752,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:240
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2761,7 +2760,7 @@ msgstr ""
 msgid "Wallet Address:"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:114
+#: src/features/wallet/components/BackendAuthModal.tsx:132
 msgid "Wallet client missing, please reconnect your wallet and try again."
 msgstr ""
 
@@ -2769,7 +2768,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:239
+#: src/lib/smart-account/SmartAccountContext.tsx:221
 msgid "Wallet funded successfully"
 msgstr ""
 
@@ -2845,7 +2844,7 @@ msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda ol
 msgid "You can now receive notifications at this email address."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:163
+#: src/features/wallet/components/BackendAuthModal.tsx:181
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
@@ -2887,7 +2886,7 @@ msgstr ""
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx:146
+#: src/features/wallet/components/BackendAuthModal.tsx:164
 msgid "You'll miss:"
 msgstr ""
 
