@@ -12,11 +12,14 @@ export const PriceCooldownBanner = ({
   currentPremiumLabel,
   premiumEndsAtLabel,
   periodDays = 21,
-  chartStartLabel,
-  chartWindowProgress,
   timezoneLabel,
+  premiumStartDate,
+  nowPoint,
+  selectedPoint,
+  onSelectedPointChange,
   targetPriceInput,
   onTargetPriceInputChange,
+  onTargetPriceInputBlur,
   targetPriceReachLabel,
   favoriteCount,
   searchCount30d,
@@ -74,14 +77,16 @@ export const PriceCooldownBanner = ({
 
       {expanded && (
         <PriceCooldownExpandedContent
-          chartStartLabel={chartStartLabel}
-          chartWindowProgress={chartWindowProgress}
-          currentPremiumLabel={currentPremiumLabel}
           favoriteCount={favoriteCount}
+          nowPoint={nowPoint}
+          onSelectedPointChange={onSelectedPointChange}
+          onTargetPriceInputBlur={onTargetPriceInputBlur}
           onTargetPriceInputChange={onTargetPriceInputChange}
           periodDays={periodDays}
           premiumEndsAtLabel={premiumEndsAtLabel}
+          premiumStartDate={premiumStartDate}
           searchCount30d={searchCount30d}
+          selectedPoint={selectedPoint}
           targetPriceInput={targetPriceInput}
           targetPriceReachLabel={targetPriceReachLabel}
           timezoneLabel={timezoneLabel}

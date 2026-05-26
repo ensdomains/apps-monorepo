@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   getInstantMsForPremiumPrice,
+  getPremiumChartYRatio,
   getPremiumInstantRange,
+  getPremiumMaxChartPrice,
   getPremiumPeriodDays,
   getPremiumPriceAtInstant,
   getPremiumWindowProgress,
@@ -82,6 +84,36 @@ describe('premiumDecay', () => {
       const range = { startMs, endMs }
       expect(getPremiumWindowProgress(range, startMs)).toBe(0)
       expect(getPremiumWindowProgress(range, endMs)).toBe(1)
+    })
+  })
+
+  describe('getPremiumMaxChartPrice', () => {
+    it('returns start price minus offset at t=0', () => {
+      expect(getPremiumMaxChartPrice(TEST_CONFIG)).toBeCloseTo(
+        100_000_000 - 47.6837158203125,
+        5,
+      )
+    })
+  })
+
+  describe('getPremiumChartYRatio', () => {
+    it('returns 0 at zero price and 1 at max chart price', () => {
+      const maxPrice = getPremiumMaxChartPrice(TEST_CONFIG)
+      expect(getPremiumChartYRatio(0, TEST_CONFIG)).toBe(0)
+      expect(getPremiumChartYRatio(maxPrice, TEST_CONFIG)).toBe(1)
+    })
+
+    it('returns mid-curve ratio for halfway price', () => {
+      const premiumStartMs = Date.parse('2025-01-01T00:00:00Z')
+      const midMs = premiumStartMs + 10 * MS_PER_DAY
+      const midPrice = getPremiumPriceAtInstant(
+        premiumStartMs,
+        midMs,
+        TEST_CONFIG,
+      )
+      const ratio = getPremiumChartYRatio(midPrice, TEST_CONFIG)
+      expect(ratio).toBeGreaterThan(0)
+      expect(ratio).toBeLessThan(1)
     })
   })
 })

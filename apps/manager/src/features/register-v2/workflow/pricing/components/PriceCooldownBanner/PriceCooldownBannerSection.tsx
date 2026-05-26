@@ -1,7 +1,7 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { getOracleParamsQueryOptions } from '@/features/register-v2/data/queries/oracleParams.query'
@@ -9,12 +9,50 @@ import { getPricingQueryOptions } from '@/features/register-v2/data/queries/pric
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { buildPriceCooldownBannerProps } from '../../lib/buildPriceCooldownBannerProps'
-import { formatPremiumDateTimeLocal } from '../../lib/formatPremiumDateTime'
-import { formatPriceForInput } from '../../lib/formatPriceForInput'
-import { getInstantMsForPremiumPrice } from '../../lib/premiumDecay'
+import {
+  type BuildPriceCooldownBannerResult,
+  buildPriceCooldownBannerProps,
+} from '../../lib/buildPriceCooldownBannerProps'
+import type { PremiumInstantRange } from '../../lib/premiumDecay'
+import { pointAtDate } from '../temporary-premium/TemporaryPremiumChart'
 import { PriceCooldownBanner } from './PriceCooldownBanner'
+import { usePriceCooldownChartSelection } from './usePriceCooldownChartSelection'
+
+type PriceCooldownBannerLoadedProps = {
+  bannerData: BuildPriceCooldownBannerResult
+  premiumStartDate: Date
+  premiumRange: PremiumInstantRange
+  nowPoint: number
+}
+
+const PriceCooldownBannerLoaded = ({
+  bannerData,
+  premiumStartDate,
+  nowPoint,
+}: PriceCooldownBannerLoadedProps) => {
+  const {
+    selectedPoint,
+    targetPriceInput,
+    handleSelectedPointChange,
+    handleTargetPriceInputChange,
+    handleTargetPriceInputBlur,
+    targetPriceReachLabel,
+  } = usePriceCooldownChartSelection(premiumStartDate, nowPoint)
+
+  return (
+    <PriceCooldownBanner
+      {...bannerData.props}
+      nowPoint={nowPoint}
+      onSelectedPointChange={handleSelectedPointChange}
+      onTargetPriceInputBlur={handleTargetPriceInputBlur}
+      onTargetPriceInputChange={handleTargetPriceInputChange}
+      premiumStartDate={premiumStartDate}
+      selectedPoint={selectedPoint}
+      targetPriceInput={targetPriceInput}
+      targetPriceReachLabel={targetPriceReachLabel}
+    />
+  )
+}
 
 export const PriceCooldownBannerSection = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -49,52 +87,27 @@ export const PriceCooldownBannerSection = () => {
     })
   }, [oracleQuery.data?.premiumDecay, pricingQuery.data, baseRate])
 
-  const [targetPriceInput, setTargetPriceInput] = useState('')
+  const premiumRange = bannerData?.premiumRange
+  const premiumStartDate = useMemo(
+    () => (premiumRange ? new Date(premiumRange.startMs) : null),
+    [premiumRange],
+  )
 
-  const targetPriceReachLabel = useMemo(() => {
-    if (!bannerData?.premiumRange || !oracleQuery.data?.premiumDecay) {
-      return null
-    }
+  const nowPoint = useMemo(() => {
+    if (!premiumStartDate) return 0
+    return pointAtDate(new Date(), premiumStartDate)
+  }, [premiumStartDate])
 
-    const parsed = Number.parseFloat(targetPriceInput.replace(/,/g, ''))
-    if (!Number.isFinite(parsed) || parsed <= 0) return null
-
-    const reachMs = getInstantMsForPremiumPrice(
-      bannerData.premiumRange.startMs,
-      parsed,
-      oracleQuery.data.premiumDecay,
-    )
-
-    return (
-      <>
-        The fee will reach {formatUsd(parsed)} on{' '}
-        <span className="text-[#353535]">
-          {formatPremiumDateTimeLocal(reachMs)}.
-        </span>
-      </>
-    )
-  }, [
-    bannerData?.premiumRange,
-    oracleQuery.data?.premiumDecay,
-    targetPriceInput,
-  ])
-
-  useEffect(() => {
-    const current = pricingQuery.data?.premiumUsd
-    if (!bannerData?.show || !current || current <= 0) return
-    setTargetPriceInput((prev) => (prev ? prev : formatPriceForInput(current)))
-  }, [bannerData?.show, pricingQuery.data?.premiumUsd])
-
-  if (!bannerData?.show) {
+  if (!bannerData?.show || !premiumStartDate || !premiumRange) {
     return null
   }
 
   return (
-    <PriceCooldownBanner
-      {...bannerData.props}
-      onTargetPriceInputChange={setTargetPriceInput}
-      targetPriceInput={targetPriceInput}
-      targetPriceReachLabel={targetPriceReachLabel}
+    <PriceCooldownBannerLoaded
+      bannerData={bannerData}
+      nowPoint={nowPoint}
+      premiumRange={premiumRange}
+      premiumStartDate={premiumStartDate}
     />
   )
 }

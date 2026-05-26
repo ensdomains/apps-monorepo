@@ -2,15 +2,11 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { SECONDS_IN_YEAR } from '../../../utils/time'
 import type { PriceCooldownBannerProps } from '../components/PriceCooldownBanner/types'
-import {
-  formatPremiumAxisLabel,
-  formatPremiumDateTimeLocal,
-} from './formatPremiumDateTime'
+import { formatPremiumDateTimeLocal } from './formatPremiumDateTime'
 import { ORACLE_PRICE_DECIMALS } from './oracle'
 import {
   getPremiumInstantRange,
   getPremiumPeriodDays,
-  getPremiumWindowProgress,
   type PremiumDecayConfig,
   type PremiumInstantRange,
 } from './premiumDecay'
@@ -23,7 +19,17 @@ export type BuildPriceCooldownBannerInput = {
 
 export type BuildPriceCooldownBannerResult = {
   show: boolean
-  props: PriceCooldownBannerProps
+  props: Omit<
+    PriceCooldownBannerProps,
+    | 'premiumStartDate'
+    | 'nowPoint'
+    | 'selectedPoint'
+    | 'onSelectedPointChange'
+    | 'targetPriceInput'
+    | 'onTargetPriceInputChange'
+    | 'onTargetPriceInputBlur'
+    | 'targetPriceReachLabel'
+  >
   premiumRange: PremiumInstantRange | null
   premiumDecay: PremiumDecayConfig
 }
@@ -48,10 +54,6 @@ export function buildPriceCooldownBannerProps({
   )
 
   const periodDays = getPremiumPeriodDays(premiumDecay)
-  const windowProgress = getPremiumWindowProgress(premiumRange)
-  const maxAxisLabel = formatPremiumAxisLabel(
-    premiumDecay.startPriceUsd - computeDisplayOffset(premiumDecay),
-  )
 
   return {
     show: true,
@@ -62,15 +64,9 @@ export function buildPriceCooldownBannerProps({
       currentPremiumLabel: formatUsd(premiumUsd),
       premiumEndsAtLabel: formatPremiumDateTimeLocal(premiumRange.endMs),
       periodDays,
-      chartStartLabel: maxAxisLabel,
-      chartWindowProgress: windowProgress,
       timezoneLabel: getLocalTimezoneLabel(),
     },
   }
-}
-
-function computeDisplayOffset(config: PremiumDecayConfig): number {
-  return config.startPriceUsd * 2 ** (-config.periodMs / config.halvingPeriodMs)
 }
 
 function getLocalTimezoneLabel(): string {

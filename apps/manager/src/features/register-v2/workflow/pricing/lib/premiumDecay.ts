@@ -92,3 +92,18 @@ export function getPremiumWindowProgress(
   const elapsed = nowMs - range.startMs
   return Math.max(0, Math.min(1, elapsed / span))
 }
+
+/** Maximum price shown on the decay chart Y-axis (price at t=0). */
+export function getPremiumMaxChartPrice(config: PremiumDecayConfig): number {
+  return config.startPriceUsd - computeOffset(config)
+}
+
+/** Normalized Y position for chart rendering: 0 = bottom ($0), 1 = top (max). */
+export function getPremiumChartYRatio(
+  price: number,
+  config: PremiumDecayConfig,
+): number {
+  const maxPrice = getPremiumMaxChartPrice(config)
+  if (maxPrice <= 0) return 0
+  return Math.max(0, Math.min(1, price / maxPrice))
+}

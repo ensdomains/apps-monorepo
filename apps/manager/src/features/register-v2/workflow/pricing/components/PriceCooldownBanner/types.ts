@@ -5,11 +5,14 @@ export type PriceCooldownBannerProps = {
   currentPremiumLabel: string
   premiumEndsAtLabel: string
   periodDays?: number
-  chartStartLabel: string
-  chartWindowProgress: number
   timezoneLabel: string
+  premiumStartDate: Date
+  nowPoint: number
+  selectedPoint: number
+  onSelectedPointChange: (point: number) => void
   targetPriceInput?: string
   onTargetPriceInputChange?: (value: string) => void
+  onTargetPriceInputBlur?: () => void
   targetPriceReachLabel?: ReactNode | null
   favoriteCount?: number
   searchCount30d?: number

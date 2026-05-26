@@ -12,14 +12,16 @@ import type { PriceCooldownBannerProps } from './types'
 
 type PriceCooldownExpandedContentProps = Pick<
   PriceCooldownBannerProps,
-  | 'currentPremiumLabel'
   | 'premiumEndsAtLabel'
   | 'periodDays'
-  | 'chartStartLabel'
-  | 'chartWindowProgress'
   | 'timezoneLabel'
+  | 'premiumStartDate'
+  | 'nowPoint'
+  | 'selectedPoint'
+  | 'onSelectedPointChange'
   | 'targetPriceInput'
   | 'onTargetPriceInputChange'
+  | 'onTargetPriceInputBlur'
   | 'targetPriceReachLabel'
   | 'favoriteCount'
   | 'searchCount30d'
@@ -63,10 +65,14 @@ const DemandStats = ({
 const TargetPriceField = ({
   targetPriceInput,
   onTargetPriceInputChange,
+  onTargetPriceInputBlur,
   targetPriceReachLabel,
 }: Pick<
   PriceCooldownExpandedContentProps,
-  'targetPriceInput' | 'onTargetPriceInputChange' | 'targetPriceReachLabel'
+  | 'targetPriceInput'
+  | 'onTargetPriceInputChange'
+  | 'onTargetPriceInputBlur'
+  | 'targetPriceReachLabel'
 >) => {
   if (!onTargetPriceInputChange) return null
 
@@ -92,6 +98,7 @@ const TargetPriceField = ({
         <InputGroupInput
           className="text-[#191919] text-sm"
           inputMode="decimal"
+          onBlur={onTargetPriceInputBlur}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^0-9.,]/g, '')
             onTargetPriceInputChange(raw)
@@ -110,14 +117,16 @@ const TargetPriceField = ({
 }
 
 export const PriceCooldownExpandedContent = ({
-  currentPremiumLabel,
   premiumEndsAtLabel,
   periodDays = 21,
-  chartStartLabel,
-  chartWindowProgress,
   timezoneLabel,
+  premiumStartDate,
+  nowPoint,
+  selectedPoint,
+  onSelectedPointChange,
   targetPriceInput,
   onTargetPriceInputChange,
+  onTargetPriceInputBlur,
   targetPriceReachLabel,
   favoriteCount,
   searchCount30d,
@@ -125,9 +134,16 @@ export const PriceCooldownExpandedContent = ({
   const showDemandSection =
     favoriteCount !== undefined || searchCount30d !== undefined
 
+  const chartProps = {
+    nowPoint,
+    onSelectedPointChange,
+    premiumStartDate,
+    selectedPoint,
+    timezoneLabel,
+  }
+
   return (
     <div className="flex w-full flex-col gap-5 md:gap-10">
-      {/* Mobile-only intro */}
       <div className="flex flex-col gap-3 px-5 md:hidden">
         <p className="font-normal text-[#353535] text-sm">
           <Trans>How it works</Trans>
@@ -141,17 +157,12 @@ export const PriceCooldownExpandedContent = ({
           </Trans>
         </p>
         <p className="text-[#737373] text-sm">
-          <Trans>Fee hits $0 on</Trans>{' '}
+          <Trans>The fee hits $0 on</Trans>{' '}
           <span className="text-ens-lapis-900">{premiumEndsAtLabel}</span>
         </p>
-        <PriceCooldownDecayChart
-          compact
-          currentPremiumLabel={currentPremiumLabel}
-          startLabel={chartStartLabel}
-          timezoneLabel={timezoneLabel}
-          windowProgress={chartWindowProgress}
-        />
+        <PriceCooldownDecayChart compact {...chartProps} />
         <TargetPriceField
+          onTargetPriceInputBlur={onTargetPriceInputBlur}
           onTargetPriceInputChange={onTargetPriceInputChange}
           targetPriceInput={targetPriceInput}
           targetPriceReachLabel={targetPriceReachLabel}
@@ -185,11 +196,10 @@ export const PriceCooldownExpandedContent = ({
         </div>
       )}
 
-      {/* Desktop two-column layout */}
-      <div className="hidden gap-10 md:flex">
-        <div className="flex flex-1 flex-col gap-6">
+      <div className="hidden md:grid md:grid-cols-2 md:items-start md:gap-x-10 md:gap-y-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <p className="text-[#353535] text-base">
+            <p className="text-[#353535] text-base leading-normal">
               <Trans>Should I buy now or wait?</Trans>
             </p>
             <p className="text-[#3f3f3e] text-sm leading-normal">
@@ -205,22 +215,18 @@ export const PriceCooldownExpandedContent = ({
             />
           </div>
           <TargetPriceField
+            onTargetPriceInputBlur={onTargetPriceInputBlur}
             onTargetPriceInputChange={onTargetPriceInputChange}
             targetPriceInput={targetPriceInput}
             targetPriceReachLabel={targetPriceReachLabel}
           />
         </div>
-        <div className="flex flex-1 flex-col gap-3">
-          <p className="text-[#737373] text-sm">
-            <Trans>Fee hits $0 on</Trans>{' '}
+        <div className="flex min-w-0 flex-col gap-3 self-start">
+          <p className="text-[#737373] text-sm leading-normal">
+            <Trans>The fee hits $0 on</Trans>{' '}
             <span className="text-ens-lapis-900">{premiumEndsAtLabel}</span>
           </p>
-          <PriceCooldownDecayChart
-            currentPremiumLabel={currentPremiumLabel}
-            startLabel={chartStartLabel}
-            timezoneLabel={timezoneLabel}
-            windowProgress={chartWindowProgress}
-          />
+          <PriceCooldownDecayChart {...chartProps} />
         </div>
       </div>
     </div>
