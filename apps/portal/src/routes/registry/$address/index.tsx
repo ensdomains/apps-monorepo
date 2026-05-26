@@ -103,7 +103,7 @@ function RouteComponent() {
         <h1 className="text-2xl md:text-heading font-normal leading-none">
           Registry Contract
         </h1>
-        <div className="flex flex-col lg:flex-wrap lg:items-center gap-4 text-sm text-muted-foreground font-mono">
+        <div className="flex flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
           {registryType ? (
             <EntityBadge variant="default" label="type" className="font-normal">
               {registryType}
@@ -111,7 +111,7 @@ function RouteComponent() {
           ) : (
             <Skeleton className="h-5 w-32" />
           )}
-          <div className="flex flex-row gap-x-4 gap-y-2 text-sm text-muted-foreground font-mono">
+          <div className="flex flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
             <span>Chain ID: {chainId}</span>
             <span>Protocol: {PROTOCOL}</span>
           </div>
@@ -173,6 +173,12 @@ function RouteComponent() {
             ) : (
               <span className="text-muted-foreground">—</span>
             )}
+          </dd>
+
+          {/* TODO: needs indexer `referencedBy` field on RegistryInfo */}
+          <dt className="text-muted-foreground">Referenced by</dt>
+          <dd className="py-4">
+            <span className="text-muted-foreground">—</span>
           </dd>
         </dl>
 
