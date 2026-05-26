@@ -542,11 +542,11 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       enskit:
-        specifier: 1.13.1
-        version: 1.13.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(react@19.2.5)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        specifier: 1.15.1
+        version: 1.15.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(react@19.2.5)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       enssdk:
-        specifier: 1.13.1
-        version: 1.13.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        specifier: 1.15.1
+        version: 1.15.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       gql.tada:
         specifier: ^1.8.10
         version: 1.9.2(graphql@16.12.0)(typescript@6.0.3)
@@ -6448,16 +6448,16 @@ packages:
     resolution: {integrity: sha512-otxSQPw4lkOZWkHpB3zaEQs6gWYEsmX4xQF68ElXC/TWvGxGMSGOvoNbaLXm6/cS/fSfHtsEdw90y20PCd+sCA==}
     engines: {node: '>=10.13.0'}
 
-  enskit@1.13.1:
-    resolution: {integrity: sha512-f0POAYoLXY9JVJEaUhh7b4VfeyCiDnhWnHJ4MC32Opr3gaAb3ox5FJziABmmOVWWLj/45y5AKz3b9M2G44UHWA==}
+  enskit@1.15.1:
+    resolution: {integrity: sha512-TqNKIhD1WwWenEOM7bwBunL0QDIEIiiIJ8K9ukyyC+OIWhDf0rGmDIlpAdYtHjG3edevgRw6jPyZ/wuIX3q/AQ==}
     peerDependencies:
       gql.tada: ^1.8.10
       graphql: ^16
       react: ^18.0.0 || ^19.0.0
       viem: ^2
 
-  enssdk@1.13.1:
-    resolution: {integrity: sha512-xE5LAXDLmfEgLqfVJ7BNN9XT5b8J8bwMVhYsowfy0riiWBH7syex3vPt3kAq5XuOfzoIc3qUhUrqBw4JtVy2+Q==}
+  enssdk@1.15.1:
+    resolution: {integrity: sha512-YTuG63PmXuLMr3lYqFRhqfAw8dO2YPklovsMrbVh3PSfkkwiq7tJj6BUneRSew4U5PDBCeO7BpqYsF3ETLKvnA==}
     peerDependencies:
       gql.tada: ^1.8.10
       graphql: ^16
@@ -16298,18 +16298,18 @@ snapshots:
       graceful-fs: 4.2.11
       tapable: 2.3.3
 
-  enskit@1.13.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(react@19.2.5)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)):
+  enskit@1.15.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(react@19.2.5)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)):
     dependencies:
       '@urql/core': 6.0.1(graphql@16.12.0)
       '@urql/exchange-graphcache': 9.0.0(graphql@16.12.0)
-      enssdk: 1.13.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      enssdk: 1.15.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       gql.tada: 1.9.2(graphql@16.12.0)(typescript@6.0.3)
       graphql: 16.12.0
       react: 19.2.5
       urql: 5.0.2(graphql@16.12.0)(react@19.2.5)
       viem: 2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
 
-  enssdk@1.13.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)):
+  enssdk@1.15.1(gql.tada@1.9.2(graphql@16.12.0)(typescript@6.0.3))(graphql@16.12.0)(viem@2.41.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@ensdomains/address-encoder': 1.1.4
