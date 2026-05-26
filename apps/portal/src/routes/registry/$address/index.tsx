@@ -20,6 +20,7 @@ import { RegistryHistoryByAddress } from '@/features/registry/components/v2/Regi
 import {
   useParentRegistry,
   useRegistry,
+  useRegistryReferencedBy,
 } from '@/features/registry/hooks/useRegistry'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import { REGISTRY_INTERFACE_IDS } from '@/lib/constants/registryInterfaceIds'
@@ -41,6 +42,11 @@ function RouteComponent() {
 
   const { data: registry, isLoading, error } = useRegistry(address)
   const { data: parent } = useParentRegistry(registry?.parentRegistry)
+  const {
+    data: referencedBy,
+    isLoading: isLoadingReferencedBy,
+    error: referencedByError,
+  } = useRegistryReferencedBy(address)
 
   // Owner of this registry's ENS name — used for the Deployed badge so it
   // matches the Created badge on /$name/registry exactly.
@@ -54,12 +60,11 @@ function RouteComponent() {
   })
   const { data: ownerEnsName } = useEnsName({ address: ownerData?.owner })
 
-  // Detect the registry type on-chain via ERC-165 (UserRegistry extends
-  // PermissionedRegistry, so it reports this interface too).
   const { data: registryInterfaces } = useSupportsInterfaces({
     address,
     interfaces: Object.values(REGISTRY_INTERFACE_IDS),
   })
+
   const registryType =
     registryInterfaces === undefined
       ? null
@@ -175,10 +180,31 @@ function RouteComponent() {
             )}
           </dd>
 
-          {/* TODO: needs indexer `referencedBy` field on RegistryInfo */}
           <dt className="text-muted-foreground">Referenced by</dt>
-          <dd className="py-4">
-            <span className="text-muted-foreground">—</span>
+          <dd className="flex flex-wrap items-center gap-2">
+            {match({ isLoadingReferencedBy, referencedByError })
+              .with({ isLoadingReferencedBy: true }, () => (
+                <Skeleton className="h-5 w-32" />
+              ))
+              .with({ referencedByError: P.not(null) }, () => (
+                <ReferencedByLoadError />
+              ))
+              .otherwise(() =>
+                referencedBy && referencedBy.length > 0 ? (
+                  referencedBy.map((ref) => (
+                    <EntityBadge
+                      key={`${ref.emitter}-${ref.name}`}
+                      variant="name"
+                      name={ref.name}
+                      showAvatar
+                    >
+                      {ref.name}
+                    </EntityBadge>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                ),
+              )}
           </dd>
         </dl>
 
@@ -239,6 +265,13 @@ const RegistryNavCard = ({
 )
 
 const DeployedLoadError = () => (
+  <span className="inline-flex items-center gap-1 text-destructive">
+    <TriangleAlert className="size-3.5" />
+    Failed to load
+  </span>
+)
+
+const ReferencedByLoadError = () => (
   <span className="inline-flex items-center gap-1 text-destructive">
     <TriangleAlert className="size-3.5" />
     Failed to load
