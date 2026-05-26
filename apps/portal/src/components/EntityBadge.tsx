@@ -221,7 +221,7 @@ export const EntityBadge = ({
   // the primary affordance; no link, no animated bg.
   if (variant === 'default') {
     return (
-      <div className="relative group/entity flex w-full min-w-0">
+      <div className="relative group/entity inline-flex min-w-0">
         {derivedCopyValue && (
           <div
             className={cn(chipOverlayBase, chipOverlayAlwaysOnTouch, 'left-0')}
