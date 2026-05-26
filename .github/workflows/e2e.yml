@@ -30,8 +30,8 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      projects: ${{ steps.build-matrix.outputs.projects }}
-      has-projects: ${{ steps.build-matrix.outputs.has-projects }}
+      configs: ${{ steps.build-matrix.outputs.configs }}
+      has-configs: ${{ steps.build-matrix.outputs.has-configs }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
@@ -69,36 +69,45 @@ jobs:
           MANAGER_CHANGED: ${{ steps.filter.outputs.manager }}
           PORTAL_CHANGED: ${{ steps.filter.outputs.portal }}
         run: |
-          projects=()
+          # Emit a flat array of {project, shardIndex, shardTotal} objects so
+          # each project gets the right number of shards:
+          #   manager        — 5 active test files → 3 shards
+          #   manager-premium — 1 test file (temporaryPremium only) → 1 shard
+          #   portal          — 3 test files → 2 shards
+          configs=()
           if [[ "$MANAGER_CHANGED" == "true" ]]; then
-            projects+=("manager" "manager-premium")
+            for i in 1 2 3; do
+              configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":3}")
+            done
+            configs+=("{\"project\":\"manager-premium\",\"shardIndex\":1,\"shardTotal\":1}")
           fi
           if [[ "$PORTAL_CHANGED" == "true" ]]; then
-            projects+=("portal")
+            for i in 1 2; do
+              configs+=("{\"project\":\"portal\",\"shardIndex\":$i,\"shardTotal\":2}")
+            done
           fi
-          # Build a JSON array
-          if [[ ${#projects[@]} -eq 0 ]]; then
-            echo "projects=[]" >> "$GITHUB_OUTPUT"
-            echo "has-projects=false" >> "$GITHUB_OUTPUT"
+          if [[ ${#configs[@]} -eq 0 ]]; then
+            echo "configs=[]" >> "$GITHUB_OUTPUT"
+            echo "has-configs=false" >> "$GITHUB_OUTPUT"
           else
-            json=$(printf '"%s",' "${projects[@]}")
-            echo "projects=[${json%,}]" >> "$GITHUB_OUTPUT"
-            echo "has-projects=true" >> "$GITHUB_OUTPUT"
+            json=$(printf '%s,' "${configs[@]}")
+            echo "configs=[${json%,}]" >> "$GITHUB_OUTPUT"
+            echo "has-configs=true" >> "$GITHUB_OUTPUT"
           fi
 
   e2e:
     needs: changes
-    if: needs.changes.outputs.has-projects == 'true'
+    if: needs.changes.outputs.has-configs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
-        # Dynamic — see the `changes` job for which projects this expands
-        # to. cross-app can be added to the array once tests exist.
-        project: ${{ fromJSON(needs.changes.outputs.projects) }}
-        shardIndex: [1, 2, 3]
+        # Each entry is {project, shardIndex, shardTotal} — emitted by the
+        # `changes` job with per-project shard counts. cross-app can be added
+        # once tests exist.
+        config: ${{ fromJSON(needs.changes.outputs.configs) }}
 
     steps:
       # ── checkout & toolchain ──────────────────────────────────────
@@ -176,7 +185,7 @@ jobs:
           SERVICES="anvil alto paymaster"
 
           # Manager jobs use Rhinestone and need the mockestrator
-          if [[ "${{ matrix.project }}" != "portal" ]]; then
+          if [[ "${{ matrix.config.project }}" != "portal" ]]; then
             SERVICES="$SERVICES mockestrator"
           fi
 
@@ -213,20 +222,20 @@ jobs:
 
       # ── fund test accounts ──────────────────────────────────────
       - name: Fund portal test accounts
-        if: matrix.project == 'portal'
+        if: matrix.config.project == 'portal'
         run: |
           bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       - name: Fund Rhinestone smart accounts
-        if: matrix.project == 'manager' || matrix.project == 'manager-premium'
+        if: matrix.config.project == 'manager' || matrix.config.project == 'manager-premium'
         run: |
           bash e2e/infra/scripts/fund-rhinestone-account.sh
 
       # ── run e2e tests ─────────────────────────────────────────────
-      - name: Run E2E tests (${{ matrix.project }})
+      - name: Run E2E tests (${{ matrix.config.project }})
         run: |
           # Resolve the app filter and port (manager-premium reuses the manager app)
-          if [[ "${{ matrix.project }}" == "portal" ]]; then
+          if [[ "${{ matrix.config.project }}" == "portal" ]]; then
             APP_FILTER=portal
             APP_PORT=3001
           else
@@ -252,9 +261,9 @@ jobs:
           curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
 
           # Map project name to its playwright config path
-          if [[ "${{ matrix.project }}" == "manager-premium" ]]; then
+          if [[ "${{ matrix.config.project }}" == "manager-premium" ]]; then
             PLAYWRIGHT_CONFIG="projects/manager/playwright.premium.config.ts"
-          elif [[ "${{ matrix.project }}" == "portal" ]]; then
+          elif [[ "${{ matrix.config.project }}" == "portal" ]]; then
             PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
           else
             PLAYWRIGHT_CONFIG="projects/manager/playwright.config.ts"
@@ -262,7 +271,7 @@ jobs:
 
           pnpm --filter @ens-apps/e2e exec playwright test \
             --config=${PLAYWRIGHT_CONFIG} \
-            --shard=${{ matrix.shardIndex }}/3
+            --shard=${{ matrix.config.shardIndex }}/${{ matrix.config.shardTotal }}
           TEST_EXIT=$?
           kill $APP_PID 2>/dev/null || true
           exit $TEST_EXIT
@@ -304,7 +313,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-results-${{ matrix.project }}-shard-${{ matrix.shardIndex }}
+          name: e2e-results-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
           path: |
             e2e/test-results/
             e2e/playwright-report/
@@ -320,7 +329,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-docker-logs-${{ matrix.project }}-shard-${{ matrix.shardIndex }}
+          name: e2e-docker-logs-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
           path: /tmp/e2e-docker-logs/
           retention-days: 7
 
