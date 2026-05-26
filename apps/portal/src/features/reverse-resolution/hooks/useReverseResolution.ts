@@ -137,7 +137,14 @@ async function getL2ReverseRecord(
 
   let forwardMatch = true
   try {
-    const addrRecord = await getAddressRecord(l1Client, { name })
+    // Per ENSIP-19, an L2 reverse record's forward verification reads the
+    // chain-specific address record on the name's resolver, not the default
+    // ETH (coin 60) record. The `reverseRegistrarChainId` is exactly the
+    // ENSIP-11 coin type the L2 reverse registrar is keyed on.
+    const addrRecord = await getAddressRecord(l1Client, {
+      name,
+      coin: network.reverseRegistrarChainId,
+    })
     forwardMatch =
       !!addrRecord?.value &&
       addrRecord.value.toLowerCase() === address.toLowerCase()
