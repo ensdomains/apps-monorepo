@@ -77,7 +77,7 @@ msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:323
-#: src/features/dashboard/components/NameRow.tsx:233
+#: src/features/dashboard/components/NameRow.tsx:229
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
@@ -180,7 +180,7 @@ msgstr "Add credit card"
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
 
-#: src/features/dashboard/components/NameRow.tsx:172
+#: src/features/dashboard/components/NameRow.tsx:171
 msgid "Add favorite"
 msgstr "Add favorite"
 
@@ -962,7 +962,7 @@ msgid "Error loading names"
 msgstr "Error loading names"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
-#: src/features/dashboard/components/PrimaryNameCard.tsx:165
+#: src/features/dashboard/components/PrimaryNameCard.tsx:175
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx:91
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:127
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
@@ -987,7 +987,7 @@ msgstr "Expires in {days} days"
 #~ msgid "Expires in {daysUntilExpiry} days"
 #~ msgstr "Expires in {daysUntilExpiry} days"
 
-#: src/features/dashboard/components/NameRow.tsx:297
+#: src/features/dashboard/components/NameRow.tsx:293
 msgid "Expires on"
 msgstr "Expires on"
 
@@ -1329,15 +1329,15 @@ msgid "Loading your stablecoin balances..."
 msgstr "Loading your stablecoin balances..."
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:215
-#: src/features/dashboard/components/PrimaryNameCard.tsx:55
-#: src/features/dashboard/components/PrimaryNameCard.tsx:58
+#: src/features/dashboard/components/PrimaryNameCard.tsx:87
+#: src/features/dashboard/components/PrimaryNameCard.tsx:90
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:97
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Loading..."
 msgstr "Loading..."
 
-#: src/features/dashboard/components/NameRow.tsx:226
+#: src/features/dashboard/components/NameRow.tsx:222
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Login to favorite"
@@ -1366,8 +1366,8 @@ msgstr "Makes crypto addresses human-readable"
 msgid "Manage notification settings"
 msgstr "Manage notification settings"
 
-#: src/features/dashboard/components/NameRow.tsx:132
-#: src/features/dashboard/components/NameRow.tsx:283
+#: src/features/dashboard/components/NameRow.tsx:131
+#: src/features/dashboard/components/NameRow.tsx:279
 msgid "Manage on explorer"
 msgstr "Manage on explorer"
 
@@ -1408,7 +1408,7 @@ msgstr "MM/YY"
 msgid "Modified"
 msgstr "Modified"
 
-#: src/features/dashboard/components/NameRow.tsx:256
+#: src/features/dashboard/components/NameRow.tsx:252
 msgid "More options for {label}"
 msgstr "More options for {label}"
 
@@ -1842,7 +1842,7 @@ msgstr "Register to date"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/components/molecules/DomainResultCard/DomainResultCard.tsx:86
-#: src/features/dashboard/components/PrimaryNameCard.tsx:151
+#: src/features/dashboard/components/PrimaryNameCard.tsx:161
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
 #: src/features/navigation/Header/search/SuggestionItem.tsx:168
@@ -1933,7 +1933,7 @@ msgstr "Remove Avatar"
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
 
-#: src/features/dashboard/components/NameRow.tsx:172
+#: src/features/dashboard/components/NameRow.tsx:171
 msgid "Remove favorite"
 msgstr "Remove favorite"
 
@@ -1981,8 +1981,8 @@ msgstr "Removing telegram for {0}"
 msgid "Renew"
 msgstr "Renew"
 
-#: src/features/dashboard/components/NameRow.tsx:144
-#: src/features/dashboard/components/NameRow.tsx:272
+#: src/features/dashboard/components/NameRow.tsx:143
+#: src/features/dashboard/components/NameRow.tsx:268
 msgid "Renew name"
 msgstr "Renew name"
 
@@ -2793,8 +2793,8 @@ msgstr "Verifying registration on-chain"
 msgid "Verifying..."
 msgstr "Verifying..."
 
-#: src/features/dashboard/components/NameRow.tsx:266
-#: src/features/dashboard/components/PrimaryNameCard.tsx:184
+#: src/features/dashboard/components/NameRow.tsx:262
+#: src/features/dashboard/components/PrimaryNameCard.tsx:194
 msgid "View profile"
 msgstr "View profile"
 
@@ -3060,7 +3060,7 @@ msgstr "Your ENS domain has been successfully registered and is now active."
 msgid "Your ENS domain is now active"
 msgstr "Your ENS domain is now active"
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:53
+#: src/features/dashboard/components/PrimaryNameCard.tsx:85
 msgid "Your ENS name"
 msgstr "Your ENS name"
 

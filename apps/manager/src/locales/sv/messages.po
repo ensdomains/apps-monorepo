@@ -82,7 +82,7 @@ msgid "{durationYears} years"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:323
-#: src/features/dashboard/components/NameRow.tsx:233
+#: src/features/dashboard/components/NameRow.tsx:229
 msgid "{label} avatar"
 msgstr ""
 
@@ -185,7 +185,7 @@ msgstr ""
 msgid "Add Crypto Address"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:172
+#: src/features/dashboard/components/NameRow.tsx:171
 msgid "Add favorite"
 msgstr ""
 
@@ -967,7 +967,7 @@ msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
-#: src/features/dashboard/components/PrimaryNameCard.tsx:165
+#: src/features/dashboard/components/PrimaryNameCard.tsx:175
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx:91
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:127
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
@@ -992,7 +992,7 @@ msgstr ""
 #~ msgid "Expires in {daysUntilExpiry} days"
 #~ msgstr "Går ut om {daysUntilExpiry} dagar"
 
-#: src/features/dashboard/components/NameRow.tsx:297
+#: src/features/dashboard/components/NameRow.tsx:293
 msgid "Expires on"
 msgstr ""
 
@@ -1334,15 +1334,15 @@ msgid "Loading your stablecoin balances..."
 msgstr ""
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:215
-#: src/features/dashboard/components/PrimaryNameCard.tsx:55
-#: src/features/dashboard/components/PrimaryNameCard.tsx:58
+#: src/features/dashboard/components/PrimaryNameCard.tsx:87
+#: src/features/dashboard/components/PrimaryNameCard.tsx:90
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:97
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Loading..."
 msgstr "Laddar..."
 
-#: src/features/dashboard/components/NameRow.tsx:226
+#: src/features/dashboard/components/NameRow.tsx:222
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
@@ -1371,8 +1371,8 @@ msgstr ""
 msgid "Manage notification settings"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:132
-#: src/features/dashboard/components/NameRow.tsx:283
+#: src/features/dashboard/components/NameRow.tsx:131
+#: src/features/dashboard/components/NameRow.tsx:279
 msgid "Manage on explorer"
 msgstr ""
 
@@ -1413,7 +1413,7 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:256
+#: src/features/dashboard/components/NameRow.tsx:252
 msgid "More options for {label}"
 msgstr ""
 
@@ -1847,7 +1847,7 @@ msgstr ""
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
 #: src/components/molecules/DomainResultCard/DomainResultCard.tsx:86
-#: src/features/dashboard/components/PrimaryNameCard.tsx:151
+#: src/features/dashboard/components/PrimaryNameCard.tsx:161
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
 #: src/features/navigation/Header/search/SuggestionItem.tsx:168
@@ -1938,7 +1938,7 @@ msgstr ""
 msgid "Remove Email Contact Method?"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:172
+#: src/features/dashboard/components/NameRow.tsx:171
 msgid "Remove favorite"
 msgstr ""
 
@@ -1986,8 +1986,8 @@ msgstr ""
 msgid "Renew"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:144
-#: src/features/dashboard/components/NameRow.tsx:272
+#: src/features/dashboard/components/NameRow.tsx:143
+#: src/features/dashboard/components/NameRow.tsx:268
 msgid "Renew name"
 msgstr ""
 
@@ -2798,8 +2798,8 @@ msgstr ""
 msgid "Verifying..."
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:266
-#: src/features/dashboard/components/PrimaryNameCard.tsx:184
+#: src/features/dashboard/components/NameRow.tsx:262
+#: src/features/dashboard/components/PrimaryNameCard.tsx:194
 msgid "View profile"
 msgstr "Visa profil"
 
@@ -3065,7 +3065,7 @@ msgstr ""
 msgid "Your ENS domain is now active"
 msgstr ""
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:53
+#: src/features/dashboard/components/PrimaryNameCard.tsx:85
 msgid "Your ENS name"
 msgstr "Ditt ENS-namn"
 

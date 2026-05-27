@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
 import { ArrowRight, Check, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
-import { match } from 'ts-pattern'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import {
@@ -193,10 +192,7 @@ export const NameRow = ({
 
   const hasTopRow = Boolean(isInGrace || status || nameRole || expiringInDays)
 
-  const namePillVariant = match(useWireframeNameplate)
-    .with(true, () => 'wireframe' as const)
-    .with(false, () => nameVariant)
-    .exhaustive()
+  const namePillVariant = useWireframeNameplate ? 'wireframe' : nameVariant
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">

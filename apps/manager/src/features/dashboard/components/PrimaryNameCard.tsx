@@ -23,6 +23,38 @@ type PrimaryNameCardProps = {
   readonly themeColor?: string | null
 }
 
+const PrimaryNameNameplate = ({
+  isInGrace,
+  displayName,
+}: {
+  readonly isInGrace: boolean
+  readonly displayName: string
+}) => {
+  const isLongName = displayName.length > 10
+
+  return (
+    <div
+      className={
+        isInGrace
+          ? 'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+          : 'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+      }
+    >
+      <span
+        className={
+          isInGrace
+            ? 'font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl'
+            : isLongName
+              ? 'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight'
+              : 'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]'
+        }
+      >
+        {displayName}
+      </span>
+    </div>
+  )
+}
+
 export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
@@ -60,29 +92,6 @@ export const PrimaryNameCard = ({
   const canViewProfile = Boolean(primaryName)
 
   const themeVars = getThemeVars(themeColor) as React.CSSProperties
-  const nameplateClassName = isInGrace
-    ? 'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
-    : 'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
-  const displayNameClassName = match({
-    isInGrace,
-    isLongName: displayName.length > 10,
-  })
-    .with(
-      { isInGrace: true },
-      () =>
-        'font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl',
-    )
-    .with(
-      { isInGrace: false, isLongName: true },
-      () =>
-        'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight',
-    )
-    .with(
-      { isInGrace: false, isLongName: false },
-      () =>
-        'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]',
-    )
-    .exhaustive()
 
   return (
     <Card
@@ -131,9 +140,10 @@ export const PrimaryNameCard = ({
                 className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
                 type="button"
               >
-                <div className={nameplateClassName}>
-                  <span className={displayNameClassName}>{displayName}</span>
-                </div>
+                <PrimaryNameNameplate
+                  displayName={displayName}
+                  isInGrace={isInGrace}
+                />
                 <ChevronDown
                   className="size-6 shrink-0 text-ens-quartz-400"
                   strokeWidth={2}
