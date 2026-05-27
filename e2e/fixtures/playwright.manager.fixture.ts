@@ -223,8 +223,8 @@ export const test = base.extend<ManagerFixtures>({
     await use(createMakeName({ accounts, time }))
   },
 
-  makeV2Name: async ({}, use) => {
-    const inner = createMakeV2Name()
+  makeV2Name: async ({ time }, use) => {
+    const inner = createMakeV2Name({ time })
     await use(async (config: V2NameConfig) => {
       const name = await inner(config)
       // Feed the registered name into the indexer mock so subsequent

@@ -16,14 +16,33 @@
 import {
   type Address,
   type Hash,
+  createWalletClient,
+  decodeEventLog,
   encodeFunctionData,
+  http,
   keccak256,
   parseAbi,
+  stringToBytes,
   toHex,
   zeroAddress,
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+
+import {
+  ethRegistrarAvailableSnippet,
+  ethRegistrarCommitSnippet,
+  ethRegistrarCommitmentsSnippet,
+  ethRegistrarMakeCommitmentSnippet,
+  ethRegistrarRegisterSnippet,
+  ethRegistrarRentPriceSnippet,
+  permissionedRegistryGetExpirySnippet,
+  proxyDeployedEventSnippet,
+  subregistryInitializeSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2'
+import { setRecords } from '@ensdomains/ensjs/wallet'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 
 import {
   publicClient,
@@ -33,41 +52,42 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses (same as packages/transaction-manager/src/contracts/ens-sepolia.ts)
+// Contract addresses (sourced from ensjs Sepolia chain config)
 // ---------------------------------------------------------------------------
-const FAST_TEST_ETH_REGISTRAR =
-  '0x68586418353b771cf2425ed14a07512aa880c532' as const
-const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
-const DEDICATED_RESOLVER =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const FAST_TEST_ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
+const MOCK_USDC = ensjsSepolia.usdc.address
+// Shared dedicated resolver for names that don't need custom records
+const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
+const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
+const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
+const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
-// ABIs (minimal, only the functions we call)
+// ABIs
 // ---------------------------------------------------------------------------
-const REGISTRAR_ABI = parseAbi([
-  'function makeCommitment(string name, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, bytes32 referrer) pure returns (bytes32)',
-  'function commit(bytes32 commitment)',
-  'function register(string name, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer) returns (uint256 tokenId)',
-  'function rentPrice(string name, address owner, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)',
-  'function MIN_COMMITMENT_AGE() view returns (uint64)',
-  'function commitmentAt(bytes32 commitment) view returns (uint64)',
-  'function isAvailable(string name) view returns (bool)',
-])
-
-// V2 permissioned registry ABI — getExpiry takes uint256 tokenId (labelhash as BigInt)
-const REGISTRY_ABI = parseAbi([
-  'function getExpiry(uint256 anyId) view returns (uint64)',
-])
-
-// V2 ENS Registry (root + ETH registry)
-const ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as const
+// MIN_COMMITMENT_AGE is not yet exported by ensjs-abi; all other functions
+// are sourced from ethRegistrar snippets.
+const REGISTRAR_ABI = [
+  ...ethRegistrarMakeCommitmentSnippet,
+  ...ethRegistrarCommitSnippet,
+  ...ethRegistrarRegisterSnippet,
+  ...ethRegistrarRentPriceSnippet,
+  ...ethRegistrarCommitmentsSnippet,
+  ...ethRegistrarAvailableSnippet,
+  ...parseAbi(['function MIN_COMMITMENT_AGE() view returns (uint64)']),
+] as const
 
 const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
   'function approve(address spender, uint256 amount) returns (bool)',
   'function balanceOf(address owner) view returns (uint256)',
 ])
+
+const FULL_ROLE_BITMAP = BigInt(
+  '0x1111111111111111111111111111111111111111111111111111111111111111',
+)
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -94,6 +114,13 @@ export type NameConfig = {
    *     -7890000 = ~3 months ago → temporary premium window).
    */
   duration?: number
+  /**
+   * Optional text records to set on the resolver after registration.
+   * When provided, a dedicated PermissionedResolver proxy is deployed
+   * (instead of using the shared DEDICATED_RESOLVER) so the owner
+   * has permission to call setText.
+   */
+  records?: { key: string; value: string }[]
 }
 
 type Dependencies = {
@@ -152,9 +179,11 @@ export function createMakeName({ accounts, time }: Dependencies) {
     }
 
     const secret = keccak256(toHex(`${uniqueLabel}:${Math.random()}`))
+    const records = config.records ?? []
+    const hasRecords = records.length > 0
 
     console.log(
-      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s)`,
+      `[makeName] registering ${uniqueLabel}.eth (duration=${registrationDuration}s, desiredGapPastExpiry=${desiredGapPastExpiry}s${hasRecords ? `, records=${records.length}` : ''})`,
     )
 
     // ── 0. Clear any contract code at owner address ───────────────
@@ -177,6 +206,13 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     await waitForTx(mintTx)
 
+    // ── 1a. Deploy dedicated resolver proxy if records are needed ───
+    let resolverAddress: Address = DEDICATED_RESOLVER
+    if (hasRecords) {
+      resolverAddress = await deployResolverProxy(uniqueLabel, ownerAddress)
+      console.log(`[makeName] resolver proxy: ${resolverAddress}`)
+    }
+
     // ── 2. Make commitment ────────────────────────────────────────
     const commitment = await publicClient.readContract({
       address: FAST_TEST_ETH_REGISTRAR,
@@ -187,7 +223,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
         ownerAddress,
         secret,
         zeroAddress,
-        DEDICATED_RESOLVER,
+        resolverAddress,
         BigInt(registrationDuration),
         REFERRER,
       ],
@@ -252,7 +288,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     await waitForTx(approveTx)
 
-    // ── 7. Register ───────────────────────────────────────────────
+    // ── 7. Register ───────────────────────────────────────────
     const registerData = encodeFunctionData({
       abi: REGISTRAR_ABI,
       functionName: 'register',
@@ -261,7 +297,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
         ownerAddress,
         secret,
         zeroAddress,
-        DEDICATED_RESOLVER,
+        resolverAddress,
         BigInt(registrationDuration),
         MOCK_USDC,
         REFERRER,
@@ -274,7 +310,26 @@ export function createMakeName({ accounts, time }: Dependencies) {
     })
     await waitForTx(registerTx)
 
-    console.log(`[makeName] ✅ registered ${uniqueLabel}.eth`)
+    const ethName = `${uniqueLabel}.eth`
+
+    // ── 7a. Set text records via PermissionedResolver multicall ──
+    if (hasRecords) {
+      const ownerClient = createWalletClient({
+        account: ownerAccount,
+        chain: walletClient.chain!,
+        transport: http(process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'),
+      })
+      await waitForTx(
+        await setRecords(ownerClient, {
+          name: ethName,
+          resolverAddress,
+          texts: records,
+        }),
+      )
+      console.log(`[makeName] set ${records.length} record(s) on ${ethName}`)
+    }
+
+    console.log(`[makeName] ✅ registered ${ethName}`)
 
     // ── 8. Fast-forward to exact target timestamp if needed ───────
     // We read the on-chain expiry and set block.timestamp to exactly
@@ -284,7 +339,7 @@ export function createMakeName({ accounts, time }: Dependencies) {
       const labelHash = BigInt(keccak256(toHex(uniqueLabel)))
       const expiry = await publicClient.readContract({
         address: ETH_REGISTRY,
-        abi: REGISTRY_ABI,
+        abi: permissionedRegistryGetExpirySnippet,
         functionName: 'getExpiry',
         args: [labelHash],
       })
@@ -302,8 +357,54 @@ export function createMakeName({ accounts, time }: Dependencies) {
     const timeOffset = options.timeOffset ?? 0
     await time.sync(timeOffset)
 
-    const ethName = `${uniqueLabel}.eth`
     console.log(`[makeName] ready: ${ethName}`)
     return ethName
   }
+}
+
+// ---------------------------------------------------------------------------
+// Resolver deployment helper
+// ---------------------------------------------------------------------------
+async function deployResolverProxy(
+  nameLabel: string,
+  owner: Address,
+): Promise<Address> {
+  const salt = BigInt(
+    keccak256(stringToBytes(`${nameLabel}:${new Date().toISOString()}`)),
+  )
+  const initCalldata = encodeFunctionData({
+    abi: subregistryInitializeSnippet,
+    functionName: 'initialize',
+    args: [owner, FULL_ROLE_BITMAP],
+  })
+  const deployData = encodeFunctionData({
+    abi: verifiableFactoryDeployProxySnippet,
+    functionName: 'deployProxy',
+    args: [PERMISSIONED_RESOLVER_IMPL, salt, initCalldata],
+  })
+  const deployTx = await walletClient.sendTransaction({
+    account: ANVIL_FUNDER,
+    to: VERIFIABLE_FACTORY,
+    data: deployData,
+  })
+  const receipt = await waitForTx(deployTx)
+
+  for (const log of receipt.logs) {
+    try {
+      const decoded = decodeEventLog({
+        abi: proxyDeployedEventSnippet,
+        data: log.data,
+        topics: log.topics,
+      })
+      if (decoded.eventName === 'ProxyDeployed') {
+        return (decoded.args as { proxyAddress: Address }).proxyAddress
+      }
+    } catch {
+      // Ignore non-matching logs
+    }
+  }
+
+  throw new Error(
+    `[makeName] ProxyDeployed event not found in resolver deployment receipt`,
+  )
 }
