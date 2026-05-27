@@ -9,9 +9,7 @@ import {
   ethRegistrarCommitSnippet,
   ethRegistrarMakeCommitmentSnippet,
   ethRegistrarRegisterSnippet,
-  ethRegistrarRentPriceOracleSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
-import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
@@ -41,6 +39,7 @@ import {
   REFERER_ADDRESS,
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
+import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
@@ -199,37 +198,6 @@ function encodeRegistrationData(
  */
 function getPaymentTokenAddress(token: 'USDC' | 'DAI'): Address {
   return SUPPORTED_TOKENS[token]
-}
-
-/**
- * Asserts that `token` is whitelisted on the registrar's rent price oracle.
- *
- * The production `ETHRegistrar` does **not** expose `isPaymentToken` directly
- * — that function lives on the registrar's `rentPriceOracle()`. Resolving the
- * oracle off the registrar at runtime keeps the precheck truthful without
- * hardcoding the oracle address (which has changed across V2 redeploys).
- */
-async function assertPaymentTokenSupported(
-  publicClient: PublicClient,
-  registrarAddress: Address,
-  paymentToken: Address,
-): Promise<void> {
-  const oracle = await readContract(publicClient, {
-    address: registrarAddress,
-    abi: ethRegistrarRentPriceOracleSnippet,
-    functionName: 'rentPriceOracle',
-  })
-  const supported = await readContract(publicClient, {
-    address: oracle,
-    abi: standardRentPriceOracleIsPaymentTokenSnippet,
-    functionName: 'isPaymentToken',
-    args: [paymentToken],
-  })
-  if (!supported) {
-    throw new Error(
-      `Payment token ${paymentToken} is not supported by the ENS registrar (oracle ${oracle})`,
-    )
-  }
 }
 
 export function getSignerAddress(signer: Signer): Address {

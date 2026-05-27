@@ -1,10 +1,9 @@
 import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { isPaymentTokenSupported as readIsPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
 import { getRegisterPrice } from '@ensdomains/ensjs/public/v2'
-import { ethRegistrarRentPriceOracleSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
-import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, formatUnits, zeroAddress, zeroHash } from 'viem'
 import { getChainId, readContract } from 'viem/actions'
@@ -27,10 +26,6 @@ const ETH_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensEthRegistrar',
 })
-
-// The production `ETHRegistrar` does not expose `isPaymentToken` directly —
-// the function lives on its rent oracle. Resolve the oracle off the registrar
-// at runtime and call `isPaymentToken` there.
 
 export class NameChainContractError extends TaggedError(
   'NameChainContractError',
@@ -197,34 +192,12 @@ export const getUSDCPrice = ResultFn(async function* (
   return ok(tokenPrices.usdc)
 })
 
-// Check if a token is supported for payments. The standard `ETHRegistrar`
-// does not expose `isPaymentToken` directly — the function lives on its rent
-// oracle, which we resolve via `rentPriceOracle()` first.
 export const isPaymentTokenSupported = ResultFn(async function* (
   tokenAddress: Address,
 ) {
-  try {
-    const oracle = yield* await fromPromise(
-      readContract(publicClient, {
-        address: ETH_REGISTRAR,
-        abi: ethRegistrarRentPriceOracleSnippet,
-        functionName: 'rentPriceOracle',
-      }),
-      (e) => new NameChainContractError({ cause: e }),
-    )
-    const isSupported = yield* await fromPromise(
-      readContract(publicClient, {
-        address: oracle,
-        abi: standardRentPriceOracleIsPaymentTokenSnippet,
-        functionName: 'isPaymentToken',
-        args: [tokenAddress],
-      }),
-      (e) => new NameChainContractError({ cause: e }),
-    )
-
-    return ok(Boolean(isSupported))
-  } catch (error) {
-    console.error('❌ Unexpected error in isPaymentTokenSupported:', error)
-    throw new NameChainContractError({ cause: error })
-  }
+  const isSupported = yield* await fromPromise(
+    readIsPaymentTokenSupported(publicClient, ETH_REGISTRAR, tokenAddress),
+    (e) => new NameChainContractError({ cause: e }),
+  )
+  return ok(isSupported)
 })

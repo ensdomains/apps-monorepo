@@ -3,6 +3,7 @@ import {
   type SUPPORTED_TOKEN,
   SUPPORTED_TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import {
   createTransactionRequest,
   getSignerAddress,
@@ -13,11 +14,8 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { ethRegistrarRentPriceOracleSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
-import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import type { Address } from 'viem'
 import { encodeFunctionData } from 'viem'
-import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
@@ -60,30 +58,15 @@ const startRenewalTransaction = async ({
     `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
   )
 
-  // Check if the payment token is supported (query the registrar's rent
-  // oracle — the registrar itself doesn't expose `isPaymentToken`).
-  const oracle = await readContract(publicClient, {
-    address: ETH_REGISTRAR,
-    abi: ethRegistrarRentPriceOracleSnippet,
-    functionName: 'rentPriceOracle',
-  })
-  const isSupported = await readContract(publicClient, {
-    address: oracle,
-    abi: standardRentPriceOracleIsPaymentTokenSnippet,
-    functionName: 'isPaymentToken',
-    args: [normalizedPaymentToken],
-  })
-
-  console.log(
-    `🔍 Payment token ${normalizedPaymentToken} is supported:`,
-    isSupported,
+  // Check if the payment token is supported. The standard `ETHRegistrar`
+  // doesn't expose `isPaymentToken` directly — the helper resolves the
+  // registrar's `rentPriceOracle()` and queries it there. Throws if not
+  // supported.
+  await assertPaymentTokenSupported(
+    publicClient,
+    ETH_REGISTRAR,
+    normalizedPaymentToken,
   )
-
-  if (!isSupported) {
-    throw new Error(
-      `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
-    )
-  }
 
   const writeParams = renewNameWriteParameters(
     publicClient as unknown as Parameters<typeof renewNameWriteParameters>[0],
