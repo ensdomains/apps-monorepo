@@ -1,14 +1,12 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   getBaseRates as ensGetBaseRates,
   type GetBaseRatesErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 
@@ -30,12 +28,7 @@ export const getBaseRates = ResultFn(async function* () {
   const client = yield* safeGetClient()
 
   const rates = yield* fromPromise(
-    ensGetBaseRates(client, {
-      oracleAddress: getChainContractAddress({
-        chain: sepoliaWithEns,
-        contract: 'ensStandardRentPriceOracle',
-      }),
-    }),
+    ensGetBaseRates(client),
     (e) => new GetBaseRatesError({ cause: e as GetBaseRatesErrorType }),
   )
 

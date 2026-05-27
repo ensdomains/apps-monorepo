@@ -97,7 +97,6 @@ const getNamePrice = (mode: PriceMode) =>
 
     const { base, premium } = yield* fromPromise(
       getRegisterPrice(client, {
-        registrarAddress: ethRegistrar,
         label,
         duration: durationBigint,
         paymentToken: resolvedToken,

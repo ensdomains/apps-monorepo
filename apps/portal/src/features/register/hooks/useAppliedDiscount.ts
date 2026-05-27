@@ -1,7 +1,7 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { applyDiscount } from '@ensdomains/ensjs/public/v2'
 import { queryOptions, useQueries } from '@tanstack/react-query'
-import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
+import type { Client, Transport } from 'viem'
+import { type sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 
 export type DiscountInput = {
   /** Undiscounted value (e.g. baseRate × duration), in oracle units. */
@@ -24,14 +24,10 @@ export const getAppliedDiscountQueryOptions = ({
     queryKey: ['applied-discount', `${value}:${duration}`] as const,
     staleTime: Number.POSITIVE_INFINITY,
     queryFn: () =>
-      applyDiscount(wagmiConfig.getClient(), {
-        oracleAddress: getChainContractAddress({
-          chain: sepoliaWithEns,
-          contract: 'ensStandardRentPriceOracle',
-        }),
-        value,
-        duration,
-      }),
+      applyDiscount(
+        wagmiConfig.getClient() as Client<Transport, typeof sepoliaWithEns>,
+        { value, duration: BigInt(duration) },
+      ),
   })
 
 /**
