@@ -20,10 +20,10 @@ export const ConfirmPurchase = () => {
     ...getRenewPriceQueryOptions(label, duration, selectedToken),
     select: (data) => ({
       basePriceNumber: decimalBigintToNumber(
-        data,
+        data.amount,
         selectedToken ? TOKENS[selectedToken].decimals : 0,
       ),
-      rawPrice: data,
+      rawPrice: data.amount,
     }),
   })
 

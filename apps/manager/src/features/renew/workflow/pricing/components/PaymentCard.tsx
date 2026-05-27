@@ -20,7 +20,7 @@ export const PaymentCard = () => {
 
   const pricingQuery = useQuery({
     ...getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
-    select: (data) => decimalBigintToNumber(data, TOKENS.USDC.decimals),
+    select: (data) => decimalBigintToNumber(data.amount, TOKENS.USDC.decimals),
     placeholderData: keepPreviousData,
   })
 

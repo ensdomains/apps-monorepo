@@ -7,9 +7,9 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
-  type GetPriceErrorType as EnsGetPriceErrorType,
+  type GetRegisterPriceErrorType as EnsGetRegisterPriceErrorType,
   type GetRenewPriceErrorType as EnsGetRenewPriceErrorType,
-  getPrice as ensGetRegisterPrice,
+  getRegisterPrice as ensGetRegisterPrice,
   getRenewPrice as ensGetRenewPrice,
 } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
@@ -23,7 +23,7 @@ const ETH_REGISTRAR = getChainContractAddress({
 export class GetRegisterPriceError extends TaggedError(
   'GetRegisterPriceError',
 )<{
-  readonly cause: EnsGetPriceErrorType
+  readonly cause: EnsGetRegisterPriceErrorType
 }> {}
 
 export class MissingTokenError extends TaggedError('MissingTokenError')<
@@ -41,12 +41,12 @@ export const getRegisterPrice = ResultFn(async function* (
   const tokenInfo = TOKENS[token]
   const { base, premium } = yield* fromPromise(
     ensGetRegisterPrice(publicClient, {
-      registrarAddress: ETH_REGISTRAR,
-      nameOrNames: label,
+      label,
       duration: BigInt(Math.ceil(durationInSeconds)),
       paymentToken: tokenInfo.address,
     }),
-    (e) => new GetRegisterPriceError({ cause: e as EnsGetPriceErrorType }),
+    (e) =>
+      new GetRegisterPriceError({ cause: e as EnsGetRegisterPriceErrorType }),
   )
 
   return ok({
@@ -87,8 +87,8 @@ export const getRenewPrice = ResultFn(async function* (
   const tokenInfo = TOKENS[token]
   const price = yield* fromPromise(
     ensGetRenewPrice(publicClient, {
-      registrarAddress: ETH_REGISTRAR,
-      name: label,
+      renewerAddress: ETH_REGISTRAR,
+      label,
       duration: BigInt(Math.ceil(durationInSeconds)),
       paymentToken: tokenInfo.address,
     }),

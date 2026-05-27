@@ -1,20 +1,14 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   getBaseRates as ensGetBaseRates,
   type GetBaseRatesErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise } from 'neverthrow'
-import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import { getLabelLength } from '../../utils/name-parser'
-
-const STANDARD_RENT_PRICE_ORACLE = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensStandardRentPriceOracle',
-})
 
 export class GetBaseRatesError extends TaggedError('GetBaseRatesError')<{
   readonly cause: GetBaseRatesErrorType
@@ -22,9 +16,7 @@ export class GetBaseRatesError extends TaggedError('GetBaseRatesError')<{
 
 export const getBaseRates = () =>
   fromPromise(
-    ensGetBaseRates(publicClient, {
-      oracleAddress: STANDARD_RENT_PRICE_ORACLE,
-    }),
+    ensGetBaseRates(publicClient),
     (e) => new GetBaseRatesError({ cause: e as GetBaseRatesErrorType }),
   )
 

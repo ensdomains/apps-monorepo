@@ -103,7 +103,6 @@ export const getENSNameInfo = ResultFn(async function* (
   name: string,
   duration: number = 1, // in years
   paymentToken: Address = SUPPORTED_TOKENS.USDC,
-  ownerAddress: Address = EMPTY_ADDRESS,
 ) {
   const cleanName = name.replace('.eth', '')
   const durationInSeconds = durationYearsToSeconds(duration)

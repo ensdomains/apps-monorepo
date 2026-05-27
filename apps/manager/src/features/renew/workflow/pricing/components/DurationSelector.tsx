@@ -4,7 +4,7 @@ import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
 import { useMemo } from 'react'
 import {
-  type GetPricingError,
+  type GetRenewPriceError,
   getRenewPriceQueryOptions,
   type MissingTokenError,
 } from '@/features/register-v2/data/queries/pricing.query'
@@ -16,7 +16,7 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 type PresetPricingQuery = {
   isPending: boolean
-  error: GetPricingError | MissingTokenError | null
+  error: GetRenewPriceError | MissingTokenError | null
   data?: number
 }
 
@@ -46,7 +46,7 @@ export const DurationSelector = () => {
           isPending: result.isPending,
           error: result.error,
           data: result.data
-            ? decimalBigintToNumber(result.data, TOKENS.USDC.decimals)
+            ? decimalBigintToNumber(result.data.amount, TOKENS.USDC.decimals)
             : undefined,
         }
       }),
