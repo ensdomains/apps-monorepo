@@ -200,6 +200,12 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
       `[makeV2Name] registering ${uniqueLabel}.eth → ${ownerAddress} (EOA) (duration=${registrationDuration}s, gap=${desiredGapPastExpiry}s)`,
     )
 
+    // ── 0. Clear any contract code at owner address ───────────────────
+    // Well-known Anvil accounts (e.g. 0xf39F…2266) have EOF contracts
+    // deployed on Sepolia, which breaks ERC1155 _safeMint. Setting the
+    // code to 0x makes the address an EOA on the fork.
+    await testClient.setCode({ address: ownerAddress, bytecode: '0x' })
+
     // ── 1. Deploy dedicated resolver proxy ──────────────────────────
     // Initialized with the EOA as owner — matches the app's flow where
     // the resolver checks HCA ownership (smart account → EOA).
