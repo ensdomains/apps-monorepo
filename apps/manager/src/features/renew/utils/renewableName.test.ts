@@ -20,6 +20,12 @@ describe('canRenewV2Name', () => {
     expect(canRenewV2Name('alice.eth', base)).toBe(true)
   })
 
+  it('allows mixed-case names during grace', () => {
+    vi.setSystemTime(base.getTime() + MS_PER_DAY)
+    expect(canRenewV2Name('Alice.eth', base)).toBe(true)
+    expect(canRenewV2Name('Alice.ETH', base)).toBe(true)
+  })
+
   it('blocks renew after grace', () => {
     vi.setSystemTime(base.getTime() + V2_GRACE_PERIOD_DAYS * MS_PER_DAY)
     expect(canRenewV2Name('alice.eth', base)).toBe(false)
