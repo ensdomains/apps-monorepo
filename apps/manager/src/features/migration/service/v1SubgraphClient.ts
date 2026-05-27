@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 
 const V1_SUBGRAPH_URL =
-  'https://ensnode-api-sepolia-migration-v1.up.railway.app/subgraph'
+  'https://gateway-arbitrum.network.thegraph.com/api/9ad5cff64d93ed2c33d1a57b3ec03ea9/subgraphs/id/G1SxZs317YUb9nQX3CC98hDyvxfMJNZH5pPRGpNrtvwN'
 
 export type V1Domain = {
   id: string
