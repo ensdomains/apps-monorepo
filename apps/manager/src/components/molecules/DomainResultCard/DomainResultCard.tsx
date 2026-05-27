@@ -8,7 +8,7 @@ import { DomainAttributePill } from './DomainAttributePill'
 import {
   type DomainResultStatus,
   isRegisteredDomainResultStatus,
-} from './types'
+} from './domainResultStatus'
 
 export type DomainResultCardProps = {
   domainName: string

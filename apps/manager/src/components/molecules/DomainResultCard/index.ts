@@ -17,4 +17,4 @@ export {
   type DomainResultStatus,
   domainResultStatusFromGrace,
   isRegisteredDomainResultStatus,
-} from './types'
+} from './domainResultStatus'

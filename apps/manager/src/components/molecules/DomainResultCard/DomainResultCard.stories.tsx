@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { getByteLength } from '@/utils/domain'
 import { DomainResultCard } from './DomainResultCard'
-import { DOMAIN_RESULT_STATUSES } from './types'
+import { DOMAIN_RESULT_STATUSES } from './domainResultStatus'
 
 const meta = {
   title: 'Molecules/DomainResultCard',
