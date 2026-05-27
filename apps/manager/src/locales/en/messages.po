@@ -616,13 +616,13 @@ msgstr "Connect a wallet to continue to notification settings and activity."
 msgid "Connect or sign in"
 msgstr "Connect or sign in"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:164
-msgid "Connect or sign in to register"
-msgstr "Connect or sign in to register"
-
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:166
-msgid "Connect or sign in to renew"
-msgstr "Connect or sign in to renew"
+msgid "Connect to register"
+msgstr "Connect to register"
+
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:168
+msgid "Connect to renew"
+msgstr "Connect to renew"
 
 #: src/features/notifications/RequireBackendAuth.tsx:93
 msgid "Connect Wallet"
@@ -1594,7 +1594,7 @@ msgstr "Pay with Google"
 msgid "Pay with PayPal"
 msgstr "Pay with PayPal"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:153
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:155
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:235
 msgid "Pay with stablecoins"
 msgstr "Pay with stablecoins"
@@ -1986,7 +1986,7 @@ msgid "Save"
 msgstr "Save"
 
 #. placeholder {0}: discountAmount ?? 0
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:115
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:117
 msgid "Save <0>{0}</0>"
 msgstr "Save <0>{0}</0>"
 
@@ -2278,7 +2278,7 @@ msgstr "Something went wrong. Please refresh and try again."
 msgid "Sort by"
 msgstr "Sort by"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:135
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:137
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:276
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:250
 msgid "Stables accepted"
@@ -2452,7 +2452,7 @@ msgstr "Too short"
 msgid "total"
 msgstr "total"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:82
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:84
 msgid "Total"
 msgstr "Total"
 
@@ -2559,7 +2559,7 @@ msgstr "Upload or drag & drop"
 msgid "Uploading…"
 msgstr "Uploading…"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:104
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:106
 msgid "USD"
 msgstr "USD"
 

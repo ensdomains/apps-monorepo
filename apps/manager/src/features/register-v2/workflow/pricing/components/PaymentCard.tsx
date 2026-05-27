@@ -163,9 +163,9 @@ export const PaymentCardBase = ({
             size="lg"
           >
             {type === 'register' ? (
-              <Trans>Connect or sign in to register</Trans>
+              <Trans>Connect to register</Trans>
             ) : (
-              <Trans>Connect or sign in to renew</Trans>
+              <Trans>Connect to renew</Trans>
             )}
           </Button>
         )}
