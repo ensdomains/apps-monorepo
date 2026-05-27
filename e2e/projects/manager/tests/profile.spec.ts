@@ -304,8 +304,9 @@ test.describe('ENS profile', () => {
 
     test('extend unowned name by 28 days', async ({
         authenticatedPage: page,
+        makeV2Name,
     }) => {
-        const name = 'tester-other.eth'
+        const name = await makeV2Name({ label: 'extendunowned', owner: 'other' })
         console.log(`[profile] name for extend-unowned test: ${name}`)
 
         await page.goto(`${MANAGER_APP_URL}/p/${name}`)

@@ -82,14 +82,6 @@ echo "=== Funding accounts ==="
 bash "$SCRIPT_DIR/fund-account.sh" "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 bash "$SCRIPT_DIR/fund-rhinestone-account.sh"
 
-# Register pre-seeded test names.
-# These names are used by E2E tests that don't call makeV2Name themselves.
-# All names are owned by Anvil account 0 (not the Para test wallet) so tests
-# can exercise the "unowned name" path.
-echo ""
-echo "=== Registering pre-seeded test names ==="
-FOUNDRY_DISABLE_NIGHTLY_WARNING=1 python3 "$SCRIPT_DIR/register-test-names.py" "$RPC_URL"
-
 # Dump state via anvil_dumpState RPC — returns gzip-compressed JSON as a hex string.
 # Pipe directly through Python to avoid shell variable size limits.
 echo ""

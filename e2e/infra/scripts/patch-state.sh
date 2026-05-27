@@ -54,10 +54,6 @@ done
 echo "Anvil ready"
 
 echo ""
-echo "=== Registering pre-seeded test names ==="
-FOUNDRY_DISABLE_NIGHTLY_WARNING=1 python3 "$SCRIPT_DIR/register-test-names.py" "$RPC_URL"
-
-echo ""
 echo "=== Dumping patched state ==="
 curl -sf -X POST "$RPC_URL" \
   -H "Content-Type: application/json" \
