@@ -22,8 +22,6 @@ import {
   useRegistry,
   useRegistryReferencedBy,
 } from '@/features/registry/hooks/useRegistry'
-import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
-import { REGISTRY_INTERFACE_IDS } from '@/lib/constants/registryInterfaceIds'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -59,18 +57,6 @@ function RouteComponent() {
     enabled: !!registry?.name,
   })
   const { data: ownerEnsName } = useEnsName({ address: ownerData?.owner })
-
-  const { data: registryInterfaces } = useSupportsInterfaces({
-    address,
-    interfaces: Object.values(REGISTRY_INTERFACE_IDS),
-  })
-
-  const registryType =
-    registryInterfaces === undefined
-      ? null
-      : registryInterfaces[0]
-        ? 'PermissionedRegistry'
-        : 'Registry'
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
@@ -109,13 +95,9 @@ function RouteComponent() {
           Registry Contract
         </h1>
         <div className="flex flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
-          {registryType ? (
-            <EntityBadge variant="default" label="type" className="font-normal">
-              {registryType}
-            </EntityBadge>
-          ) : (
-            <Skeleton className="h-5 w-32" />
-          )}
+          <EntityBadge variant="default" label="type" className="font-normal">
+            PermissionedRegistry
+          </EntityBadge>
           <div className="flex flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
             <span>Chain ID: {chainId}</span>
             <span>Protocol: {PROTOCOL}</span>

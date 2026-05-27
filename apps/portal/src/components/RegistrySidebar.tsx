@@ -5,8 +5,6 @@ import type { Address } from 'viem'
 import { HistoryIcon, HubIcon } from '@/assets/icons'
 import { LogoSVG, LogoWithTextSVG } from '@/assets/logo'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
-import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
-import { REGISTRY_INTERFACE_IDS } from '@/lib/constants/registryInterfaceIds'
 import { createDefineLinkItem } from '@/utils/tsr'
 import { SettingsMenu } from './SettingsMenu'
 import { SoonBadge } from './ui/badge'
@@ -77,17 +75,6 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
   const { state, isMobile, setOpenMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
 
-  const { data: registryInterfaces } = useSupportsInterfaces({
-    address,
-    interfaces: Object.values(REGISTRY_INTERFACE_IDS),
-  })
-  const registryType =
-    registryInterfaces === undefined
-      ? null
-      : registryInterfaces[0]
-        ? 'PermissionedRegistry'
-        : 'Registry'
-
   return (
     <Sidebar collapsible="icon">
       <SidebarRail />
@@ -142,11 +129,9 @@ export const RegistrySidebar = ({ address }: RegistrySidebarProps) => {
               <span className="text-sm font-mono font-medium text-foreground break-all leading-tight">
                 {address}
               </span>
-              {registryType ? (
-                <span className="text-xs font-mono text-danger-text leading-tight">
-                  {registryType}
-                </span>
-              ) : null}
+              <span className="text-xs font-mono text-danger-text leading-tight">
+                PermissionedRegistry
+              </span>
             </div>
           </Link>
         </div>

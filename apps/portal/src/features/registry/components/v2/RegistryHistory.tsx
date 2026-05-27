@@ -68,6 +68,7 @@ export const RegistryHistory = ({ name }: { name: string }) => {
   if (isLoadingRegistries) {
     return <LoadingSpinner title="Loading registry history..." />
   }
+
   if (registriesError) {
     const message = (registriesError as { cause?: { message?: string } }).cause
       ?.message
