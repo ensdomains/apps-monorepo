@@ -20,8 +20,16 @@ export const TokenPickerContent = () => {
   )
 
   const pricingQuery = useQuery({
-    ...getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
-    select: (data) => decimalBigintToNumber(data.amount, TOKENS.USDC.decimals),
+    ...getRenewPriceQueryOptions(
+      label,
+      duration,
+      selectedToken ?? TOKENS.USDC.symbol,
+    ),
+    select: (data) =>
+      decimalBigintToNumber(
+        data.amount,
+        selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
+      ),
   })
 
   const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
