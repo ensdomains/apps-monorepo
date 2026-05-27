@@ -1,10 +1,8 @@
 import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import {
-  l2EthRegistrarGetRegisterPriceSnippet,
-  l2EthRegistrarIsAvailableSnippet,
-} from '@ensdomains/ensjs/contracts'
+import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
+import { getRegisterPrice } from '@ensdomains/ensjs/public/v2'
 import { ethRegistrarRentPriceOracleSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { standardRentPriceOracleIsPaymentTokenSnippet } from '@ensdomains/ensjs-abi/v2/standardRentPriceOracle'
 import { err, fromPromise, ok } from 'neverthrow'
@@ -113,12 +111,12 @@ export const getENSNameInfo = ResultFn(async function* (
       (e) => new NameChainContractError({ cause: e }),
     )
 
-    const [basePrice, premium] = yield* await fromPromise(
-      readContract(publicClient, {
-        address: ETH_REGISTRAR,
-        abi: l2EthRegistrarGetRegisterPriceSnippet,
-        functionName: 'getRegisterPrice',
-        args: [cleanName, durationInSeconds, paymentToken],
+    const { base, premium } = yield* await fromPromise(
+      getRegisterPrice(publicClient, {
+        registrarAddress: ETH_REGISTRAR,
+        label: cleanName,
+        duration: BigInt(durationInSeconds),
+        paymentToken,
       }),
       (e) => new NameChainContractError({ cause: e }),
     )
@@ -127,9 +125,9 @@ export const getENSNameInfo = ResultFn(async function* (
       name: `${cleanName}.eth`,
       isAvailable: Boolean(availability),
       price: {
-        base: basePrice,
+        base,
         premium,
-        total: basePrice + premium,
+        total: base + premium,
       },
       duration: durationInSeconds,
       paymentToken,
@@ -154,17 +152,17 @@ export const getTokenPrices = ResultFn(async function* (
     // Get prices for each supported token
     for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
       try {
-        const [basePrice, premium] = yield* await fromPromise(
-          readContract(publicClient, {
-            address: ETH_REGISTRAR,
-            abi: l2EthRegistrarGetRegisterPriceSnippet,
-            functionName: 'getRegisterPrice',
-            args: [cleanName, durationInSeconds, tokenAddress],
+        const { base, premium } = yield* await fromPromise(
+          getRegisterPrice(publicClient, {
+            registrarAddress: ETH_REGISTRAR,
+            label: cleanName,
+            duration: BigInt(durationInSeconds),
+            paymentToken: tokenAddress,
           }),
           (e) => new NameChainContractError({ cause: e }),
         )
 
-        const totalPrice = basePrice + premium
+        const totalPrice = base + premium
         const decimals = tokenName === 'USDC' ? 6 : 18 // USDC has 6 decimals, DAI has 18
 
         prices[tokenName.toLowerCase()] = {
@@ -173,7 +171,7 @@ export const getTokenPrices = ResultFn(async function* (
           address: tokenAddress,
           symbol: tokenName,
           decimals,
-          base: basePrice,
+          base,
           premium,
           total: totalPrice,
         }
