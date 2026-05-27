@@ -14,5 +14,5 @@ export const V2_CONTRACTS = {
   UnlockedMigrationController: '0x056138ef5660f7113a3b0adc08ac3683310e7fbc',
   LockedMigrationController: '0xf91c34ed840889ed96f806f882fd50506a336edb',
   MigrationHelper: '0x11cfa7e034dafb7439cc1cc8b6e547f5c82ad021',
-  ENSV2Resolver: '0x6a923e0b9d722510b268280a381878818841629c',
+  UniversalResolver: '0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe',
 } as const

@@ -98,7 +98,7 @@ const assemblePlanParts = (params: {
   const { calls: migrateCalls, batches } = buildBatchedMigrateCalls({
     classified,
     migrationOwner,
-    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
+    defaultResolver: V2_CONTRACTS.UniversalResolver,
     ownedPermRes,
   })
 

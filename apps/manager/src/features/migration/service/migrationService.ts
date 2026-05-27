@@ -263,7 +263,7 @@ export const executeMigration = async (params: {
     signer,
     accountAddress,
     migrationOwner: plan.migrationOwner,
-    defaultResolver: V2_CONTRACTS.ENSV2Resolver,
+    defaultResolver: V2_CONTRACTS.UniversalResolver,
     tracker: createTracker(onProgress, stepDescriptors.length),
   }
 
