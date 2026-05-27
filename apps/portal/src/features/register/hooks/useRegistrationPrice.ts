@@ -4,9 +4,9 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
-  type GetPriceErrorType,
+  type GetRegisterPriceErrorType,
   type GetRenewPriceErrorType,
-  getPrice,
+  getRegisterPrice,
   getRenewPrice,
 } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
@@ -26,7 +26,7 @@ const ethRegistrar = getChainContractAddress({
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  readonly cause: GetPriceErrorType | GetRenewPriceErrorType
+  readonly cause: GetRegisterPriceErrorType | GetRenewPriceErrorType
 }> {}
 
 type PriceMode = 'register' | 'renew'
@@ -71,16 +71,15 @@ const getNamePrice = (mode: PriceMode) =>
       )
     }
 
-    // ensjs requires a full eth-2ld name; reconstruct from the normalized label.
-    const ethName = `${label}.eth`
     const decimals = getTokenMetadataWithAddress(resolvedToken).decimals
+    const durationBigint = BigInt(duration)
 
     if (mode === 'renew') {
-      const base = yield* fromPromise(
+      const { amount } = yield* fromPromise(
         getRenewPrice(client, {
-          registrarAddress: ethRegistrar,
-          name: ethName,
-          duration,
+          renewerAddress: ethRegistrar,
+          label,
+          duration: durationBigint,
           paymentToken: resolvedToken,
         }),
         (e) =>
@@ -88,24 +87,23 @@ const getNamePrice = (mode: PriceMode) =>
       )
 
       return ok<RegistrationPriceResult>({
-        base,
+        base: amount,
         premium: 0n,
-        total: base,
+        total: amount,
         decimals,
         hasPremium: false,
       })
     }
 
     const { base, premium } = yield* fromPromise(
-      getPrice(client, {
-        registrarAddress: ethRegistrar,
-        nameOrNames: ethName,
-        duration,
+      getRegisterPrice(client, {
+        label,
+        duration: durationBigint,
         paymentToken: resolvedToken,
       }),
       (e) =>
         new GetRegistrationPriceError({
-          cause: e as GetPriceErrorType,
+          cause: e as GetRegisterPriceErrorType,
         }),
     )
 

@@ -23,6 +23,9 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   ensUserRegistryImpl: 'UserRegistry',
   ensStandardRentPriceOracle: 'StandardRentPriceOracle',
   ensHcaFactory: 'HCAFactory',
+  ensLockedMigrationController: 'LockedMigrationController',
+  ensUnlockedMigrationController: 'UnlockedMigrationController',
+  ensMigrationHelper: 'MigrationHelper',
   usdc: 'USDC',
   dai: 'DAI',
 }

@@ -30,8 +30,8 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      projects: ${{ steps.build-matrix.outputs.projects }}
-      has-projects: ${{ steps.build-matrix.outputs.has-projects }}
+      configs: ${{ steps.build-matrix.outputs.configs }}
+      has-configs: ${{ steps.build-matrix.outputs.has-configs }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
@@ -69,35 +69,45 @@ jobs:
           MANAGER_CHANGED: ${{ steps.filter.outputs.manager }}
           PORTAL_CHANGED: ${{ steps.filter.outputs.portal }}
         run: |
-          projects=()
+          # Emit a flat array of {project, shardIndex, shardTotal} objects so
+          # each project gets the right number of shards:
+          #   manager        — 5 active test files → 3 shards
+          #   manager-premium — 1 test file (temporaryPremium only) → 1 shard
+          #   portal          — 3 test files → 2 shards
+          configs=()
           if [[ "$MANAGER_CHANGED" == "true" ]]; then
-            projects+=("manager" "manager-premium")
+            for i in 1 2 3; do
+              configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":3}")
+            done
+            configs+=("{\"project\":\"manager-premium\",\"shardIndex\":1,\"shardTotal\":1}")
           fi
           if [[ "$PORTAL_CHANGED" == "true" ]]; then
-            projects+=("portal")
+            for i in 1 2; do
+              configs+=("{\"project\":\"portal\",\"shardIndex\":$i,\"shardTotal\":2}")
+            done
           fi
-          # Build a JSON array
-          if [[ ${#projects[@]} -eq 0 ]]; then
-            echo "projects=[]" >> "$GITHUB_OUTPUT"
-            echo "has-projects=false" >> "$GITHUB_OUTPUT"
+          if [[ ${#configs[@]} -eq 0 ]]; then
+            echo "configs=[]" >> "$GITHUB_OUTPUT"
+            echo "has-configs=false" >> "$GITHUB_OUTPUT"
           else
-            json=$(printf '"%s",' "${projects[@]}")
-            echo "projects=[${json%,}]" >> "$GITHUB_OUTPUT"
-            echo "has-projects=true" >> "$GITHUB_OUTPUT"
+            json=$(printf '%s,' "${configs[@]}")
+            echo "configs=[${json%,}]" >> "$GITHUB_OUTPUT"
+            echo "has-configs=true" >> "$GITHUB_OUTPUT"
           fi
 
   e2e:
     needs: changes
-    if: needs.changes.outputs.has-projects == 'true'
+    if: needs.changes.outputs.has-configs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
-        # Dynamic — see the `changes` job for which projects this expands
-        # to. cross-app can be added to the array once tests exist.
-        project: ${{ fromJSON(needs.changes.outputs.projects) }}
+        # Each entry is {project, shardIndex, shardTotal} — emitted by the
+        # `changes` job with per-project shard counts. cross-app can be added
+        # once tests exist.
+        config: ${{ fromJSON(needs.changes.outputs.configs) }}
 
     steps:
       # ── checkout & toolchain ──────────────────────────────────────
@@ -140,27 +150,50 @@ jobs:
         with:
           cache: true
 
+      - name: Pull ENS V2 snapshot image
+        id: box
+        continue-on-error: true
+        run: |
+          if docker pull ghcr.io/ensdomains/ens-v2-snapshot:latest; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::ens-v2-snapshot not available — falling back to live Sepolia fork"
+          fi
+
       # ── local blockchain stack ────────────────────────────────────
       # Only start the services each job needs to reduce memory pressure.
       # Anvil on a GitHub Actions runner (7 GB RAM) can OOM (exit 139)
       # when too many containers run alongside Node + Chromium.
       - name: Start E2E stack
         run: |
-          COMPOSE="docker compose -f e2e/infra/docker-compose.yml"
+          if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
+            echo "Using ENS V2 snapshot (no live Sepolia fork)"
+            COMPOSE_FILES="-f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml"
+            export PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json"
+            ANVIL_TIMEOUT=30
+          else
+            echo "Live Sepolia fork (box not available)"
+            COMPOSE_FILES="-f e2e/infra/docker-compose.yml"
+            ANVIL_TIMEOUT=60
+          fi
 
-          # Core services — no Panoptes (saves ~1 GB RAM, prevents Anvil OOM)
+          # Core services — Panoptes (indexer + API) is intentionally omitted.
+          # All indexer GraphQL queries are intercepted by Playwright's route mock
+          # (E2E_MOCK_INDEXER=true in e2e/.env.ci), so no live indexer is needed.
+          # This saves ~1 GB RAM and prevents Anvil OOM in CI.
           SERVICES="anvil alto paymaster"
 
           # Manager jobs use Rhinestone and need the mockestrator
-          if [[ "${{ matrix.project }}" != "portal" ]]; then
+          if [[ "${{ matrix.config.project }}" != "portal" ]]; then
             SERVICES="$SERVICES mockestrator"
           fi
 
           echo "Starting: $SERVICES"
-          $COMPOSE up -d $SERVICES
+          docker compose $COMPOSE_FILES up -d $SERVICES
 
           echo "Waiting for Anvil..."
-          timeout 60 bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
+          timeout $ANVIL_TIMEOUT bash -c 'until curl -sf -X POST http://127.0.0.1:8545 \
             -H "Content-Type: application/json" \
             -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
             > /dev/null 2>&1; do sleep 2; done'
@@ -189,20 +222,20 @@ jobs:
 
       # ── fund test accounts ──────────────────────────────────────
       - name: Fund portal test accounts
-        if: matrix.project == 'portal'
+        if: matrix.config.project == 'portal'
         run: |
           bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       - name: Fund Rhinestone smart accounts
-        if: matrix.project == 'manager' || matrix.project == 'manager-premium'
+        if: matrix.config.project == 'manager' || matrix.config.project == 'manager-premium'
         run: |
           bash e2e/infra/scripts/fund-rhinestone-account.sh
 
       # ── run e2e tests ─────────────────────────────────────────────
-      - name: Run E2E tests (${{ matrix.project }})
+      - name: Run E2E tests (${{ matrix.config.project }})
         run: |
           # Resolve the app filter and port (manager-premium reuses the manager app)
-          if [[ "${{ matrix.project }}" == "portal" ]]; then
+          if [[ "${{ matrix.config.project }}" == "portal" ]]; then
             APP_FILTER=portal
             APP_PORT=3001
           else
@@ -227,12 +260,24 @@ jobs:
           echo "Checking app RPC URL..."
           curl -s http://localhost:${APP_PORT}/ | grep -oE 'http://[^"]+:8545[^"]*' | head -3 || echo "(RPC URL not found in HTML — may be in JS chunks)"
 
-          pnpm e2e:${{ matrix.project }}
+          # Map project name to its playwright config path
+          if [[ "${{ matrix.config.project }}" == "manager-premium" ]]; then
+            PLAYWRIGHT_CONFIG="projects/manager/playwright.premium.config.ts"
+          elif [[ "${{ matrix.config.project }}" == "portal" ]]; then
+            PLAYWRIGHT_CONFIG="projects/portal/playwright.config.ts"
+          else
+            PLAYWRIGHT_CONFIG="projects/manager/playwright.config.ts"
+          fi
+
+          pnpm --filter @ens-apps/e2e exec playwright test \
+            --config=${PLAYWRIGHT_CONFIG} \
+            --shard=${{ matrix.config.shardIndex }}/${{ matrix.config.shardTotal }}
           TEST_EXIT=$?
           kill $APP_PID 2>/dev/null || true
           exit $TEST_EXIT
         env:
           CI: "true"
+          MAILINATOR_API_KEY: ${{ secrets.MAILINATOR_API_KEY }}
           TZ: "UTC"
 
       # ── debug failed tests ─────────────────────────────────────────
@@ -268,7 +313,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-results-${{ matrix.project }}
+          name: e2e-results-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
           path: |
             e2e/test-results/
             e2e/playwright-report/
@@ -284,10 +329,16 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-docker-logs-${{ matrix.project }}
+          name: e2e-docker-logs-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
           path: /tmp/e2e-docker-logs/
           retention-days: 7
 
       - name: Stop E2E stack
         if: always()
-        run: docker compose -f e2e/infra/docker-compose.yml down
+        run: |
+          if [[ "${{ steps.box.outputs.available }}" == "true" ]]; then
+            PANOPTES_CONTRACTS_FILE="./panoptes/contracts.snapshot.json" \
+              docker compose -f e2e/infra/docker-compose.yml -f e2e/infra/docker-compose.snapshot.yml down
+          else
+            docker compose -f e2e/infra/docker-compose.yml down
+          fi
