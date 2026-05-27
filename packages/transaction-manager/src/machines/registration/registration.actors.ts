@@ -4,9 +4,17 @@
  * Pure functions for ENS registration operations.
  */
 
+import type { ChainWithContracts } from '@ensdomains/ensjs/chain'
 import { isPaymentToken as ensIsPaymentToken } from '@ensdomains/ensjs/public/v2'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
+import type {
+  Address,
+  Hash,
+  Hex,
+  PublicClient,
+  TransactionReceipt,
+  Transport,
+} from 'viem'
 import {
   decodeEventLog,
   encodeFunctionData,
@@ -776,10 +784,13 @@ export function submitRegistrationActor(input: {
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
-      const isSupported = await ensIsPaymentToken(input.publicClient, {
-        oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        paymentToken: normalizedPaymentToken,
-      })
+      const isSupported = await ensIsPaymentToken(
+        input.publicClient as PublicClient<
+          Transport,
+          ChainWithContracts<'ensStandardRentPriceOracle'>
+        >,
+        { paymentToken: normalizedPaymentToken },
+      )
 
       console.log(
         `🔍 Payment token ${normalizedPaymentToken} is supported:`,
@@ -865,10 +876,13 @@ export function submitApprovalAndRegistrationActor(input: {
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
-      const isSupported = await ensIsPaymentToken(input.publicClient, {
-        oracleAddress: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-        paymentToken: normalizedPaymentToken,
-      })
+      const isSupported = await ensIsPaymentToken(
+        input.publicClient as PublicClient<
+          Transport,
+          ChainWithContracts<'ensStandardRentPriceOracle'>
+        >,
+        { paymentToken: normalizedPaymentToken },
+      )
 
       if (!isSupported) {
         throw new Error(
