@@ -661,6 +661,12 @@ importers:
 
   e2e:
     dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@fed0a1c(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@ensdomains/ensjs-abi':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@fed0a1c
       '@ensdomains/headless-web3-provider':
         specifier: ^1.0.8
         version: 1.0.8(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
