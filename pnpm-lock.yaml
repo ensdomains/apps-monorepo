@@ -1441,7 +1441,7 @@ packages:
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@a82fafd4169707802dca0f7726df1b1cb079578d':
-    resolution: {integrity: sha512-ct8g8vFCWZ8vRsbZoXEcx2p9LWRHkypLaBMRArl2Mev/xHL2ib3F9Sex5bD7JC/Vo9JwJcGUoG8/XcI2VnFylA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@a82fafd4169707802dca0f7726df1b1cb079578d}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@a82fafd4169707802dca0f7726df1b1cb079578d}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
