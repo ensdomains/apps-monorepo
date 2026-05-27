@@ -8,7 +8,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useChainId, useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -39,12 +39,16 @@ function RouteComponent() {
   const chainId = useChainId()
 
   const { data: registry, isLoading, error } = useRegistry(address)
-  const { data: parent } = useParentRegistry(registry?.parentRegistry)
+  const {
+    data: parent,
+    isLoading: isLoadingParent,
+    error: parentError,
+  } = useParentRegistry(registry?.parentRegistry)
   const {
     data: referencedBy,
     isLoading: isLoadingReferencedBy,
     error: referencedByError,
-  } = useRegistryReferencedBy(address)
+  } = useRegistryReferencedBy(registry ?? undefined)
 
   // Owner of this registry's ENS name — used for the Deployed badge so it
   // matches the Created badge on /$name/registry exactly.
@@ -116,7 +120,15 @@ function RouteComponent() {
 
           <dt className="text-muted-foreground">Deployed</dt>
           <dd>
-            {match({ isOwnerLoading, ownerError })
+            {match({
+              hasName: !!registry.name,
+              isOwnerLoading,
+              ownerError,
+              deployedDate,
+            })
+              .with({ hasName: false }, (m) =>
+                m.deployedDate ? <span>{m.deployedDate}</span> : <span>—</span>,
+              )
               .with({ isOwnerLoading: true }, () => (
                 <Skeleton className="h-5 w-32" />
               ))
@@ -153,13 +165,32 @@ function RouteComponent() {
 
           <dt className="text-muted-foreground">Parent</dt>
           <dd>
-            {parent?.name ? (
-              <EntityBadge variant="name" name={parent.name} showAvatar>
-                {parent.name}
-              </EntityBadge>
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
+            {match({
+              isRoot: isAddressEqual(registry.parentRegistry, zeroAddress),
+              isLoadingParent,
+              parentError,
+              parent,
+            })
+              .with({ isRoot: true }, () => (
+                <span className="text-muted-foreground">—</span>
+              ))
+              .with({ isLoadingParent: true }, () => (
+                <Skeleton className="h-5 w-32" />
+              ))
+              .with({ parentError: P.not(null) }, () => (
+                <span className="inline-flex items-center gap-1 text-destructive">
+                  <TriangleAlert className="size-3.5" />
+                  Failed to load
+                </span>
+              ))
+              .with({ parent: { name: P.string.minLength(1) } }, (m) => (
+                <EntityBadge variant="name" name={m.parent.name} showAvatar>
+                  {m.parent.name}
+                </EntityBadge>
+              ))
+              .otherwise(() => (
+                <span className="text-muted-foreground">—</span>
+              ))}
           </dd>
 
           <dt className="text-muted-foreground">Referenced by</dt>

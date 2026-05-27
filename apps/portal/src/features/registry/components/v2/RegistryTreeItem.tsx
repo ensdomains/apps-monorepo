@@ -3,17 +3,15 @@ import { TriangleAlert } from 'lucide-react'
 import { Fragment } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
-import { sepolia } from 'viem/chains'
 import { useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
 import { ConfigureRegistryForm } from './ConfigureRegistryForm'
-
-const sepoliaUrl = sepolia.blockExplorers.default.url
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -65,6 +63,8 @@ export const RegistryTreeItem = ({
   // Reverse-resolve the owner so the Created badge can link to their profile.
   const { data: ownerEnsName } = useEnsName({ address: ownerData.owner })
 
+  const explorerHref = useBlockExplorerAddressUrl(address, chainId)
+
   return (
     <div
       className="flex flex-col gap-2"
@@ -100,11 +100,7 @@ export const RegistryTreeItem = ({
               className="font-normal"
               address={address}
               isRegistry={isDeployedRegistry}
-              etherscanHref={
-                isDeployedRegistry
-                  ? undefined
-                  : `${sepoliaUrl}/address/${address}`
-              }
+              etherscanHref={isDeployedRegistry ? undefined : explorerHref}
             >
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
