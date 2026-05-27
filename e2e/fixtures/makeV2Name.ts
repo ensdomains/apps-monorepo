@@ -21,10 +21,11 @@
 import {
   type Address,
   type Hash,
+  createWalletClient,
   decodeEventLog,
   encodeFunctionData,
+  http,
   keccak256,
-  namehash,
   parseAbi,
   stringToBytes,
   toHex,
@@ -34,6 +35,19 @@ import {
 import { privateKeyToAccount } from 'viem/accounts'
 
 import {
+  ethRegistrarCommitSnippet,
+  ethRegistrarMakeCommitmentSnippet,
+  ethRegistrarRegisterSnippet,
+  ethRegistrarRentPriceSnippet,
+  permissionedRegistryGetExpirySnippet,
+  proxyDeployedEventSnippet,
+  subregistryInitializeSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2'
+import { setRecords } from '@ensdomains/ensjs/wallet'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+
+import {
   publicClient,
   testClient,
   walletClient,
@@ -41,37 +55,36 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses — match the app (ens-sepolia.ts / ensjs)
+// Contract addresses
 // ---------------------------------------------------------------------------
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
-/** FastTestETHRegistrar (MIN_COMMITMENT_AGE=0) */
+/**
+ * FastTestETHRegistrar (MIN_COMMITMENT_AGE=0) — not in ensjs chain config,
+ * kept hardcoded as it's a test-only contract distinct from ensEthRegistrar.
+ */
 const FAST_TEST_ETH_REGISTRAR =
   '0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39' as const
 
-/** Mock USDC on the Sepolia fork (6 decimals) */
-const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
-
-/** PermissionedResolver implementation — proxies are deployed per name */
-const PERMISSIONED_RESOLVER_IMPL =
-  '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as const
-
-/** VerifiableFactory for deploying resolver proxies */
-const VERIFIABLE_FACTORY =
-  '0x9240c5f31d747d60b3d9aed2f57995094342b1ed' as const
+const MOCK_USDC = ensjsSepolia.usdc.address
+const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
+const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
+const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
 // ABIs
 // ---------------------------------------------------------------------------
-
-const REGISTRAR_ABI = parseAbi([
-  'function makeCommitment(string name, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, bytes32 referrer) pure returns (bytes32)',
-  'function commit(bytes32 commitment)',
-  'function register(string name, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer) returns (uint256 tokenId)',
-  'function rentPrice(string name, address owner, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)',
-  'function MIN_COMMITMENT_AGE() view returns (uint64)',
-])
+// MIN_COMMITMENT_AGE is not yet exported by ensjs-abi; other functions
+// are sourced from ethRegistrar snippets.
+const REGISTRAR_ABI = [
+  ...ethRegistrarMakeCommitmentSnippet,
+  ...ethRegistrarCommitSnippet,
+  ...ethRegistrarRegisterSnippet,
+  ...ethRegistrarRentPriceSnippet,
+  ...parseAbi(['function MIN_COMMITMENT_AGE() view returns (uint64)']),
+] as const
 
 const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
@@ -79,30 +92,9 @@ const ERC20_ABI = parseAbi([
   'function balanceOf(address owner) view returns (uint256)',
 ])
 
-const VERIFIABLE_FACTORY_ABI = parseAbi([
-  'function deployProxy(address implementation, uint256 salt, bytes data)',
-  'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
-])
-
-const RESOLVER_INIT_ABI = parseAbi([
-  'function initialize(address owner, uint256 bitmap)',
-])
-
-const RESOLVER_ABI = parseAbi([
-  'function setText(bytes32 node, string key, string value)',
-])
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-// V2 permissioned registry ABI — getExpiry takes uint256 tokenId (labelhash as BigInt)
-const REGISTRY_ABI = parseAbi([
-  'function getExpiry(uint256 anyId) view returns (uint64)',
-])
-
-// V2 ENS Registry (root + ETH registry)
-const ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as const
 
 /** Minimum registration duration the contract accepts (28 days). */
 const MIN_REGISTRATION_DURATION = 28 * 24 * 60 * 60
@@ -342,25 +334,22 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
 
     const ethName = `${uniqueLabel}.eth`
 
-    // ── 9. Set text records (if any) ──────────────────────────────────
-    if (config.records?.length) {
-      const node = namehash(ethName)
-      for (const { key, value } of config.records) {
-        const setTextData = encodeFunctionData({
-          abi: RESOLVER_ABI,
-          functionName: 'setText',
-          args: [node, key, value],
-        })
-        const setTextTx = await walletClient.sendTransaction({
-          account: ownerAccount,
-          to: resolverAddress,
-          data: setTextData,
-        })
-        await waitForTx(setTextTx)
-      }
-      console.log(
-        `[makeV2Name] set ${config.records.length} record(s) on ${ethName}`,
+    // ── 9. Set text records via PermissionedResolver multicall ───────
+    const records = config.records ?? []
+    if (records.length > 0) {
+      const ownerClient = createWalletClient({
+        account: ownerAccount,
+        chain: walletClient.chain!,
+        transport: http(process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'),
+      })
+      await waitForTx(
+        await setRecords(ownerClient, {
+          name: ethName,
+          resolverAddress,
+          texts: records,
+        }),
       )
+      console.log(`[makeV2Name] set ${records.length} record(s) on ${ethName}`)
     }
 
     console.log(`[makeV2Name] ✅ registered ${ethName}`)
@@ -370,7 +359,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
       const labelHash = BigInt(keccak256(toHex(uniqueLabel)))
       const expiry = await publicClient.readContract({
         address: ETH_REGISTRY,
-        abi: REGISTRY_ABI,
+        abi: permissionedRegistryGetExpirySnippet,
         functionName: 'getExpiry',
         args: [labelHash],
       })
@@ -408,13 +397,13 @@ async function deployResolverProxy(
 ): Promise<Address> {
   const salt = generateResolverSalt(nameLabel)
   const initCalldata = encodeFunctionData({
-    abi: RESOLVER_INIT_ABI,
+    abi: subregistryInitializeSnippet,
     functionName: 'initialize',
     args: [owner, FULL_ROLE_BITMAP],
   })
 
   const deployData = encodeFunctionData({
-    abi: VERIFIABLE_FACTORY_ABI,
+    abi: verifiableFactoryDeployProxySnippet,
     functionName: 'deployProxy',
     args: [PERMISSIONED_RESOLVER_IMPL, salt, initCalldata],
   })
@@ -430,7 +419,7 @@ async function deployResolverProxy(
   for (const log of receipt.logs) {
     try {
       const decoded = decodeEventLog({
-        abi: VERIFIABLE_FACTORY_ABI,
+        abi: proxyDeployedEventSnippet,
         data: log.data,
         topics: log.topics,
       })
