@@ -1,8 +1,7 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { applyDiscount } from '@ensdomains/ensjs/public/v2'
-import { useQuery } from '@tanstack/react-query'
-import { usePublicClient } from 'wagmi'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { queryOptions, useQueries } from '@tanstack/react-query'
+import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 
 export type DiscountInput = {
   /** Undiscounted value (e.g. baseRate × duration), in oracle units. */
@@ -12,37 +11,40 @@ export type DiscountInput = {
 }
 
 /**
- * Applies the oracle's duration-tiered discount to each input via ensjs
- * `applyDiscount`, returning the discounted values (indexes match the input
- * array). The oracle uses a step-function keyed on duration (replaces the
- * pre-audit `integratedDiscount`); doing it on-chain keeps us agnostic to the
- * contract's `DISCOUNT_DENOMINATOR`. Calls are JSON-RPC batched by the wagmi
- * transport; the discount curve is static config — cache forever.
+ * Query options for a single `applyDiscount` call. Defined per-input so callers
+ * can `useQueries` over many lookups — when one input changes, only that query
+ * refetches. Calls are still JSON-RPC batched by the wagmi transport; the
+ * discount curve is static config — cache forever.
  */
-export const useAppliedDiscounts = (inputs: readonly DiscountInput[]) => {
-  const publicClient = usePublicClient()
-
-  return useQuery({
-    queryKey: [
-      'applied-discounts',
-      inputs.map(({ value, duration }) => `${value}:${duration}`),
-    ],
-    enabled: !!publicClient,
+export const getAppliedDiscountQueryOptions = ({
+  value,
+  duration,
+}: DiscountInput) =>
+  queryOptions({
+    queryKey: ['applied-discount', `${value}:${duration}`] as const,
     staleTime: Number.POSITIVE_INFINITY,
-    queryFn: async () => {
-      if (!publicClient) throw new Error('No public client')
-      return Promise.all(
-        inputs.map(({ value, duration }) =>
-          applyDiscount(publicClient, {
-            oracleAddress: getChainContractAddress({
-              chain: sepoliaWithEns,
-              contract: 'ensStandardRentPriceOracle',
-            }),
-            value,
-            duration,
-          }),
-        ),
-      )
-    },
+    queryFn: () =>
+      applyDiscount(wagmiConfig.getClient(), {
+        oracleAddress: getChainContractAddress({
+          chain: sepoliaWithEns,
+          contract: 'ensStandardRentPriceOracle',
+        }),
+        value,
+        duration,
+      }),
   })
-}
+
+/**
+ * Applies the oracle's duration-tiered discount to each input via ensjs
+ * `applyDiscount`. Returns one bigint per input (aligned by index); each entry
+ * is `undefined` until its query resolves.
+ */
+export const useAppliedDiscounts = (inputs: readonly DiscountInput[]) =>
+  useQueries({
+    queries: inputs.map(getAppliedDiscountQueryOptions),
+    combine: (results) => ({
+      data: results.map((r) => r.data),
+      isPending: results.some((r) => r.isPending),
+      isError: results.some((r) => r.isError),
+    }),
+  })
