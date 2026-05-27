@@ -6,6 +6,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
   type Config as WagmiConfig,
   waitForTransactionReceipt,
@@ -13,8 +14,19 @@ import {
 } from '@wagmi/core'
 import type { Address, Hex, PublicClient } from 'viem'
 
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
-import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
+import { V2_CONTRACTS } from '../contracts/addresses'
+
+const BASE_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensBaseRegistrarImplementation',
+})
+const NAME_WRAPPER = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensNameWrapper',
+})
+
 import { verifyOrSplit } from './batchMigrate'
 import { TARGET_GAS } from './batchMigrate.constants'
 import type { MigrationPlan } from './buildMigrationPlan'
@@ -114,7 +126,7 @@ const ensureApprovals = async (
   if (needs.hasUnwrapped && !approvals.baseRegistrarApproved) {
     ctx.tracker.emit('Approve in your wallet', PENDING_TX_HASH)
     const hash = await writeContract(ctx.wagmiConfig, {
-      address: V1_CONTRACTS.BaseRegistrar,
+      address: BASE_REGISTRAR,
       abi: BASE_REGISTRAR_ABI,
       functionName: 'setApprovalForAll',
       args: [V2_CONTRACTS.MigrationHelper, true],
@@ -139,7 +151,7 @@ const ensureApprovals = async (
   if (needs.hasWrapped && !approvals.nameWrapperApproved) {
     ctx.tracker.emit('Approve in your wallet', PENDING_TX_HASH)
     const hash = await writeContract(ctx.wagmiConfig, {
-      address: V1_CONTRACTS.NameWrapper,
+      address: NAME_WRAPPER,
       abi: NAME_WRAPPER_ABI,
       functionName: 'setApprovalForAll',
       args: [V2_CONTRACTS.MigrationHelper, true],

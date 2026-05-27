@@ -2,14 +2,6 @@ import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
-// V1 contracts — all sourced from ensjs.
-export const V1_CONTRACTS = {
-  BaseRegistrar: ensjsSepolia.ensBaseRegistrarImplementation.address,
-  NameWrapper: ensjsSepolia.ensNameWrapper.address,
-  ENSRegistry: ensjsSepolia.ensLegacyRegistry.address,
-  PublicResolver: ensjsSepolia.ensPublicResolver.address,
-} as const
-
 export const V2_DEPLOY_BLOCK = 10462885n
 
 // V2 contracts — sourced from ensjs's sepolia chain config where available
