@@ -2,11 +2,10 @@ import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-se
 import { isPaymentTokenSupported as readIsPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { l2EthRegistrarIsAvailableSnippet } from '@ensdomains/ensjs/contracts'
-import { getRegisterPrice } from '@ensdomains/ensjs/public/v2'
+import { getAvailable, getRegisterPrice } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, formatUnits, zeroAddress, zeroHash } from 'viem'
-import { getChainId, readContract } from 'viem/actions'
+import { getChainId } from 'viem/actions'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
 import { validateENSName } from '../utils'
@@ -60,23 +59,20 @@ export const checkRealNameAvailability = ResultFn(async function* (
       })
     })
 
-    // Check availability using the registrar's isAvailable function
+    // Check availability via the v2 registrar's `isAvailable`. The ensjs
+    // action reads `client.chain.contracts.ensEthRegistrar` and is
+    // eth-2ld-only, which matches what `validateENSName` already guarantees
+    // here.
     const availability = yield* await fromPromise(
-      readContract(publicClient, {
-        address: ETH_REGISTRAR,
-        abi: l2EthRegistrarIsAvailableSnippet,
-        functionName: 'isAvailable',
-        args: [cleanName],
-      }),
-      (e) => {
-        return new NameChainContractError({
+      getAvailable(publicClient, { name: `${cleanName}.eth` }),
+      (e) =>
+        new NameChainContractError({
           cause: `Contract call failed: ${e}`,
-        })
-      },
+        }),
     )
 
     return ok({
-      isAvailable: Boolean(availability),
+      isAvailable: availability,
       name: `${cleanName}.eth`,
     })
   } catch (error) {
@@ -95,14 +91,9 @@ export const getENSNameInfo = ResultFn(async function* (
   const durationInSeconds = durationYearsToSeconds(duration)
 
   try {
-    // Check availability
+    // Check availability via the v2 registrar's `isAvailable` action.
     const availability = yield* await fromPromise(
-      readContract(publicClient, {
-        address: ETH_REGISTRAR,
-        abi: l2EthRegistrarIsAvailableSnippet,
-        functionName: 'isAvailable',
-        args: [cleanName],
-      }),
+      getAvailable(publicClient, { name: `${cleanName}.eth` }),
       (e) => new NameChainContractError({ cause: e }),
     )
 
@@ -118,7 +109,7 @@ export const getENSNameInfo = ResultFn(async function* (
 
     return ok({
       name: `${cleanName}.eth`,
-      isAvailable: Boolean(availability),
+      isAvailable: availability,
       price: {
         base,
         premium,
