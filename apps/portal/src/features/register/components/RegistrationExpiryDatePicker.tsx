@@ -6,30 +6,32 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 import {
-  // getDurationFromPickerDate,
-  // getStartOfToday,
-  // getYearsFromDuration,
+  getDurationFromPickerDate,
+  getYearsFromDuration,
   isDateWithinCalendarRange,
 } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
 
-// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
-
 type RegistrationExpiryDatePickerProps = {
   readonly date: Temporal.PlainDate
   readonly onDateChange: (date: Temporal.PlainDate) => void
+  readonly onYearsPresetSelect: (years: number) => void
   readonly minDate: Temporal.PlainDate
   readonly maxDate: Temporal.PlainDate
+  readonly name?: string
 }
 
 export const RegistrationExpiryDatePicker = ({
   date,
   onDateChange,
+  onYearsPresetSelect,
   minDate,
   maxDate,
+  name,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -46,13 +48,9 @@ export const RegistrationExpiryDatePicker = ({
     }
   }
 
-  // const handlePresetSelect = (spanValue: number) => {
-  //   const startOfToday = getStartOfToday()
-  //   const expiryDate = startOfToday.add({ years: spanValue })
-  //   const cappedDate =
-  //     Temporal.PlainDate.compare(expiryDate, maxDate) > 0 ? maxDate : expiryDate
-  //   onDateChange(cappedDate)
-  // }
+  const handlePresetSelect = (spanValue: number) => {
+    onYearsPresetSelect(spanValue)
+  }
 
   const disabled = (date: Date) => {
     return !isDateWithinCalendarRange(dateToPlainDate(date), minDate, maxDate)
@@ -99,13 +97,15 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      {/* Discounts disabled on contracts - uncomment once re-enabled */}
-      {/* <RegistrationDurationPresets
-        value={Math.round(
-          getYearsFromDuration(getDurationFromPickerDate(date)),
-        )}
-        onSelect={handlePresetSelect}
-      /> */}
+      {name ? (
+        <RegistrationDurationPresets
+          value={Math.round(
+            getYearsFromDuration(getDurationFromPickerDate(date)),
+          )}
+          onSelect={handlePresetSelect}
+          name={name}
+        />
+      ) : null}
     </div>
   )
 }

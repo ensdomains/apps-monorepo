@@ -11,7 +11,7 @@ import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
-import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
 export const PaymentCard = () => {
@@ -24,9 +24,12 @@ export const PaymentCard = () => {
   const baseRate = useBaseRate(label)
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+    ...getRegisterPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     select: (data) => ({
-      totalPrice: decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
+      totalPrice: decimalBigintToNumber(
+        data.basePrice + data.premium,
+        TOKENS.USDC.decimals,
+      ),
       basePrice: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),
     }),
     placeholderData: keepPreviousData,
@@ -159,9 +162,9 @@ export const PaymentCardBase = ({
             size="lg"
           >
             {type === 'register' ? (
-              <Trans>Connect or sign in to register</Trans>
+              <Trans>Connect to register</Trans>
             ) : (
-              <Trans>Connect or sign in to renew</Trans>
+              <Trans>Connect to renew</Trans>
             )}
           </Button>
         )}

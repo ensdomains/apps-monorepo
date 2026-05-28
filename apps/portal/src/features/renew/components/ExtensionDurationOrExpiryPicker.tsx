@@ -7,7 +7,10 @@ import {
   getMinExpiryDateForPicker,
   plainDateToDate,
 } from '@/features/register/utils/registrationDuration'
-import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
+import {
+  CONTRACT_SECONDS_PER_YEAR,
+  MAX_REGISTRATION_YEARS,
+} from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
 import {
   getExtensionBaseDate,
@@ -101,8 +104,15 @@ export const ExtensionDurationOrExpiryPicker = ({
             onDateChange={(date) =>
               setDuration(plainDateToDate(date).getTime())
             }
+            onYearsPresetSelect={(years) =>
+              setDuration(
+                plainDateToDate(baseDate).getTime() +
+                  years * CONTRACT_SECONDS_PER_YEAR * 1000,
+              )
+            }
             minDate={getMinExpiryDateForPicker(baseDate)}
             maxDate={getMaxExpiryDateForPicker(baseDate)}
+            name={name}
           />
         )}
       </div>

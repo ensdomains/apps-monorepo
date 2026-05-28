@@ -1,14 +1,17 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { getAvailable } from '@ensdomains/ensjs/public/v2'
+import {
+  type GetAvailableErrorType,
+  getAvailable,
+} from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 export class CheckNameAvailabilityError extends TaggedError(
   'CheckNameAvailabilityError',
 )<{
-  cause: unknown
+  cause: GetAvailableErrorType
 }> {}
 
 type CheckNameAvailabilityParameters = {
@@ -35,7 +38,8 @@ export const checkNameAvailability = ResultFn(async function* ({
 
   const isAvailable = yield* fromPromise(
     getAvailable(client, { name: fullName }),
-    (e) => new CheckNameAvailabilityError({ cause: e }),
+    (e) =>
+      new CheckNameAvailabilityError({ cause: e as GetAvailableErrorType }),
   )
 
   return ok<CheckNameAvailabilityReturnType>({

@@ -3,24 +3,21 @@ import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
 import { useMemo } from 'react'
+import {
+  type GetRenewPriceError,
+  getRenewPriceQueryOptions,
+  type MissingTokenError,
+} from '@/features/register-v2/data/queries/pricing.query'
 import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
 import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
 import { PRESET_DURATIONS } from '@/features/register-v2/workflow/pricing/components/DurationSelector'
-import {
-  type GetRenewPricingError,
-  getRenewPricingQueryOptions,
-  type MissingTokenError,
-} from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 type PresetPricingQuery = {
   isPending: boolean
-  error: GetRenewPricingError | MissingTokenError | null
-  data?: {
-    totalPrice: number
-    basePrice: number
-  }
+  error: GetRenewPriceError | MissingTokenError | null
+  data?: number
 }
 
 export const DurationSelector = () => {
@@ -36,7 +33,7 @@ export const DurationSelector = () => {
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map(({ duration }) =>
-      getRenewPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+      getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {
@@ -49,16 +46,7 @@ export const DurationSelector = () => {
           isPending: result.isPending,
           error: result.error,
           data: result.data
-            ? {
-                totalPrice: decimalBigintToNumber(
-                  result.data.totalPrice,
-                  TOKENS.USDC.decimals,
-                ),
-                basePrice: decimalBigintToNumber(
-                  result.data.basePrice,
-                  TOKENS.USDC.decimals,
-                ),
-              }
+            ? decimalBigintToNumber(result.data.amount, TOKENS.USDC.decimals)
             : undefined,
         }
       }),
@@ -88,7 +76,7 @@ export const DurationSelector = () => {
                 duration: data.duration,
               })
             }
-            price={query.data?.totalPrice}
+            price={query.data}
           />
         )
       })}
