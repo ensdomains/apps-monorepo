@@ -43,7 +43,11 @@ function RouteComponent() {
       <h1 className="text-2xl md:text-heading font-medium leading-none">
         History
       </h1>
-      <RegistryHistoryByAddress address={address} name={registry.name} />
+      <RegistryHistoryByAddress
+        address={address}
+        name={registry.name}
+        enableHeader={false}
+      />
     </div>
   )
 }
