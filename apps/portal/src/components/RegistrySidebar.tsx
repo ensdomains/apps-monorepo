@@ -58,7 +58,6 @@ const getItems = (address: string) => [
   defineRegistrySidebarItem({
     title: 'History',
     icon: HistoryIcon,
-    upcoming: true,
     link: {
       to: '/registry/$address/history',
       params: { address },
