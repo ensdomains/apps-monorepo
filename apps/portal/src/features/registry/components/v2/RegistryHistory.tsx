@@ -16,9 +16,11 @@ import { getRegistryEventsQueryOptions } from '../../hooks/useRegistryEvents'
 export const RegistryHistoryByAddress = ({
   address,
   name,
+  enableHeader,
 }: {
   address: Address
   name: string
+  enableHeader?: boolean
 }) => {
   const {
     data: page,
@@ -47,7 +49,13 @@ export const RegistryHistoryByAddress = ({
     timestamp: BigInt(event.timestamp),
   }))
 
-  return <NameSubgraphHistory name={name} v2Events={v2Events} />
+  return (
+    <NameSubgraphHistory
+      name={name}
+      v2Events={v2Events}
+      enableHeader={enableHeader}
+    />
+  )
 }
 
 /**
