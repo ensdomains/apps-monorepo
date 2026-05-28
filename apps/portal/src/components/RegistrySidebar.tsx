@@ -38,7 +38,6 @@ const getItems = (address: string) => [
   defineRegistrySidebarItem({
     title: 'Labels',
     icon: GitBranch,
-    upcoming: true,
     link: {
       to: '/registry/$address/labels',
       params: { address },
