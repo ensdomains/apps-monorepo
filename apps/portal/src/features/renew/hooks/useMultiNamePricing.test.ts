@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import {
   getLatestRenewalExpiry,
   getRenewalDurationSeconds,
@@ -49,14 +50,14 @@ describe('useMultiNamePricing pure helpers', () => {
   })
 
   describe('getRenewalDurationSeconds', () => {
-    it('converts years mode using the provided base date', () => {
+    it('converts years mode using CONTRACT_SECONDS_PER_YEAR', () => {
       const result = getRenewalDurationSeconds({
         spanType: 'years',
         duration: 2,
         baseDate: plainDate('2026-01-01'),
       })
 
-      expect(result).toBe(730 * 86400)
+      expect(result).toBe(2 * CONTRACT_SECONDS_PER_YEAR)
     })
 
     it('converts date mode using the provided target timestamp and base date', () => {

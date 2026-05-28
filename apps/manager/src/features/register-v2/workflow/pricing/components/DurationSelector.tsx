@@ -6,8 +6,8 @@ import { secondsInDay } from 'date-fns/constants'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
-  type GetPricingError,
-  getPricingQueryOptions,
+  type GetRegisterPriceError,
+  getRegisterPriceQueryOptions,
   type MissingTokenError,
 } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
@@ -40,7 +40,7 @@ export const PRESET_DURATIONS: DurationPresetData[] = [
 
 type PresetPricingQuery = {
   isPending: boolean
-  error: GetPricingError | MissingTokenError | null
+  error: GetRegisterPriceError | MissingTokenError | null
   data?: {
     totalPrice: number
     basePrice: number
@@ -56,7 +56,7 @@ export const DurationSelector = () => {
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map(({ duration }) =>
-      getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+      getRegisterPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {
@@ -71,7 +71,7 @@ export const DurationSelector = () => {
           data: result.data
             ? {
                 totalPrice: decimalBigintToNumber(
-                  result.data.totalPrice,
+                  result.data.basePrice + result.data.premium,
                   TOKENS.USDC.decimals,
                 ),
                 basePrice: decimalBigintToNumber(

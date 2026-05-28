@@ -22,7 +22,9 @@ export const getPremiumLabel = (
     return undefined
   }
 
-  const length = label.length
+  // Codepoint count to match the contract's StringUtils.strlen (UTF-8
+  // codepoints), not UTF-16 code units — see getBaseRateForName.
+  const length = [...label].length
 
   if (length < 3 || length > 4) {
     return undefined

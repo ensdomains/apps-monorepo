@@ -1,17 +1,17 @@
-import { STANDARD_RENT_PRICE_ORACLE_ABI } from '@ens-apps/transaction-manager/contracts/abis/StandardRentPriceOracle.abi'
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  getBaseRates as ensGetBaseRates,
+  type GetBaseRatesErrorType,
+} from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import type { ReadContractErrorType } from 'viem'
-import { readContract } from 'viem/actions'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
 
 export class GetBaseRatesError extends TaggedError('GetBaseRatesError')<{
-  readonly cause: ReadContractErrorType
+  readonly cause: GetBaseRatesErrorType
 }> {}
 
 const getBaseRatesQueryKey = createQueryKey<'get-base-rates', object>(
@@ -28,12 +28,8 @@ export const getBaseRates = ResultFn(async function* () {
   const client = yield* safeGetClient()
 
   const rates = yield* fromPromise(
-    readContract(client, {
-      address: ENS_SEPOLIA_CONTRACTS.StandardRentPriceOracle,
-      abi: STANDARD_RENT_PRICE_ORACLE_ABI,
-      functionName: 'getBaseRates',
-    }),
-    (e) => new GetBaseRatesError({ cause: e as ReadContractErrorType }),
+    ensGetBaseRates(client),
+    (e) => new GetBaseRatesError({ cause: e as GetBaseRatesErrorType }),
   )
 
   return ok(rates)
@@ -43,6 +39,11 @@ export const getBaseRates = ResultFn(async function* () {
  * Looks up the per-second oracle base rate for a name's label length.
  * Mirrors StandardRentPriceOracle.baseRate(): clamps to last entry for
  * names longer than the rate table. Returns 0n if rates are missing.
+ *
+ * Length is counted in Unicode codepoints to match the contract's
+ * `StringUtils.strlen` (which counts UTF-8 codepoints). Spreading the string
+ * iterates by codepoint — collapsing surrogate pairs — unlike `.length`, which
+ * counts UTF-16 code units and would over-count emoji / multi-byte labels.
  */
 export const getBaseRateForName = (
   rates: readonly bigint[] | undefined,
@@ -52,7 +53,7 @@ export const getBaseRateForName = (
 
   let labelLength: number
   try {
-    labelLength = getLabel(name).length
+    labelLength = [...getLabel(name)].length
   } catch {
     return 0n
   }
