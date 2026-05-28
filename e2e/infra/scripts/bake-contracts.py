@@ -39,22 +39,23 @@ ERC4337_CONTRACTS = [
 ]
 
 # ── ENS contracts (code + storage) ────────────────────────────────────────
-# Addresses from contracts.snapshot.json / contracts.json
-ETH_REGISTRY    = "0x796fff2e907449be8d5921bcc215b1b76d89d080"
-ETH_REGISTRAR   = "0x68586418353b771cf2425ed14a07512aa880c532"
-FAST_TEST_REGISTRAR = "0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39"
-REG_DATASTORE   = "0x5a9236e72a66d3e08b83dcf489b4d850792b6009"
-PUBLIC_RESOLVER = "0x640294a2b2d87e7f522db3e3e3e876764bce170d"
-REV_REGISTRAR   = "0xa35e6c5dc06e820cc6716ca33dfcd203503fb1d3"
-ENS_REGISTRY    = "0x7e89b563f936c68c31a360840eb7f9a4aacaf014"
-NAME_WRAPPER    = "0xc7e033b8836e4bd55d069d113f018b98478cb091"
-HCA_FACTORY              = "0x12919bd18e9eb9f004e2faf78709d0319747d761"
-VERIFIABLE_FACTORY       = "0x9240c5f31d747d60b3d9aed2f57995094342b1ed"
-DEDICATED_RESOLVER_IMPL  = "0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c"
-UNIVERSAL_RESOLVER       = "0x4dc74fef4fc6b5a810a1554d431f06c8d8b7451c"
-BATCH_GATEWAY_PROVIDER   = "0xdd618e84bfdbe3f8c4bf70ad000493977d824ab9"
-ROOT_REGISTRY            = "0x3a3e15a5d27ff6f05c844313312f2e72096d3ed3"
-USER_REGISTRY_IMPL       = "0xea93aff7375e8176053ab6ab36b57cab53cbf702"
+# V2 addresses sourced from ensjs chain config (ensL1Contracts[sepolia]).
+# ROOT_REGISTRY and BATCH_GATEWAY_PROVIDER are discovered at runtime via
+# cast calls against the live fork (see get_root_registry_address /
+# get_batch_gateway_address below).
+ETH_REGISTRY    = "0xdedb92913a25abe1f7bcdd85d8a344a43b398b67"  # ensRegistry
+ETH_REGISTRAR   = "0x8c2e866b439358c41ae05de9cbe8a00bfefaffca"  # ensEthRegistrar
+REG_DATASTORE   = "0x5a9236e72a66d3e08b83dcf489b4d850792b6009"  # unchanged
+PUBLIC_RESOLVER = "0x640294a2b2d87e7f522db3e3e3e876764bce170d"  # shared dedicated resolver proxy
+REV_REGISTRAR   = "0xA0a1AbcDAe1a2a4A2EF8e9113Ff0e02DD81DC0C6"  # ensReverseRegistrar
+ENS_REGISTRY    = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"  # ensLegacyRegistry
+NAME_WRAPPER    = "0x0635513f179D50A207757E05759CbD106d7dFcE8"  # ensNameWrapper
+HCA_FACTORY              = "0x358680728dedb552adaa9f5eb5d4395b291cf943"  # from ens-sepolia.ts
+VERIFIABLE_FACTORY       = "0xd2a632d8a8b67c2c4398c255cbd7af8dd7236198"  # ensVerifiableFactory
+DEDICATED_RESOLVER_IMPL  = "0xdce5205a553573ffd47629327dddf36186022ffa"  # ensPermissionedResolverImpl
+UNIVERSAL_RESOLVER       = "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe"  # ensUniversalResolver
+USER_REGISTRY_IMPL       = "0x0f99e7ea74903afcb7224d0354fd7428a6f92917"  # ensUserRegistryImpl
+# ROOT_REGISTRY and BATCH_GATEWAY_PROVIDER are resolved at runtime below.
 
 # Storage slots for Root Registry's "eth" subregistry entry.
 # These hash-addressed slots hold the (ETH Registry address, flags) struct for
@@ -135,10 +136,11 @@ ENS_CONTRACTS = [
     (HCA_FACTORY,     "HCA Factory"),
 ]
 
-# Payment tokens whose _paymentRatios slots we need to copy (for the oracle)
+# Payment tokens whose _paymentRatios slots we need to copy (for the oracle).
+# USDC from ensjs chain config; DAI from ens-sepolia.ts (not yet in ensjs).
 PAYMENT_TOKENS = [
-    ("0x302edecc2b8d1f3f4625b8a825a42f9adc102e65", "MockUSDC"),
-    ("0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4", "MockDAI"),
+    ("0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9", "MockUSDC"),
+    ("0xe915cebbc1570a74177b6c589fed1e8f53117559", "MockDAI"),
 ]
 # _paymentRatios mapping is at storage slot 5 in StandardRentPriceOracle
 # (sequential slots 3 and 4 are dynamic arrays whose elements live at
@@ -296,6 +298,34 @@ def get_oracle_address() -> Optional[str]:
     return None
 
 
+def get_root_registry_address() -> Optional[str]:
+    """Call root() on Universal Resolver to discover the root UserRegistry address."""
+    env = {**os.environ, "FOUNDRY_DISABLE_NIGHTLY_WARNING": "1"}
+    result = subprocess.run(
+        ["cast", "call", UNIVERSAL_RESOLVER, "root()(address)", "--rpc-url", RPC_URL],
+        capture_output=True, text=True, env=env,
+    )
+    addr = result.stdout.strip()
+    if addr and addr != "0x0000000000000000000000000000000000000000":
+        return addr
+    return None
+
+
+def get_batch_gateway_address() -> Optional[str]:
+    """Discover BatchGatewayProvider from the Universal Resolver."""
+    env = {**os.environ, "FOUNDRY_DISABLE_NIGHTLY_WARNING": "1"}
+    for sig in ["batchGateway()(address)", "gateway()(address)"]:
+        result = subprocess.run(
+            ["cast", "call", UNIVERSAL_RESOLVER, sig, "--rpc-url", RPC_URL],
+            capture_output=True, text=True, env=env,
+        )
+        if result.returncode == 0:
+            addr = result.stdout.strip()
+            if addr and addr != "0x0000000000000000000000000000000000000000":
+                return addr
+    return None
+
+
 def bake_ens_contracts():
     # ETH Registrar — discover the price oracle via call (it's an immutable)
     bake_with_storage(ETH_REGISTRAR, "ETH Registrar")
@@ -306,16 +336,12 @@ def bake_ens_contracts():
     else:
         print("  ⚠  could not determine oracle address from rentPriceOracle()")
 
-    # FastTestETHRegistrar — MIN_COMMITMENT_AGE=0 variant used by makeV2Name fixture
-    bake_with_storage(FAST_TEST_REGISTRAR, "FastTest ETH Registrar")
-
     # ETH Registry — nested _roles mapping at slot 2.
     # Storage layout: ERC1155Singleton (_owners@0, _operatorApprovals@1) comes before
     # EnhancedAccessControl (_roles@2, _roleCount@3, __gap@4-259) in the C3 MRO.
     # ROOT_RESOURCE=0 is the resource used for root-level role grants (e.g. ROLE_REGISTRAR).
-    # Both ETH_REGISTRAR and FAST_TEST_REGISTRAR need ROLE_REGISTRAR here.
     role_slots = []
-    for account in [ETH_REGISTRAR, FAST_TEST_REGISTRAR, PUBLIC_RESOLVER, REV_REGISTRAR]:
+    for account in [ETH_REGISTRAR, PUBLIC_RESOLVER, REV_REGISTRAR]:
         role_slots.append(nested_mapping_slot(
             outer_key=hex(0),      # resource = ROOT_RESOURCE = 0
             inner_key=account,
@@ -343,12 +369,22 @@ def bake_ens_contracts():
     # Universal Resolver V2 — code only (root registry + batch gateway are immutables)
     bake_code_only(UNIVERSAL_RESOLVER, "Universal Resolver V2")
 
-    # BatchGatewayProvider — code + sequential storage (gateway URL list)
-    bake_with_storage(BATCH_GATEWAY_PROVIDER, "Batch Gateway Provider")
+    # Root Registry (UserRegistry) — discovered dynamically from Universal Resolver.
+    # Baked with code + sequential storage + "eth" entry mapping slots (hash-addressed).
+    root_registry = get_root_registry_address()
+    if root_registry:
+        print(f"  ℹ  root registry discovered: {root_registry}")
+        bake_with_storage(root_registry, "Root Registry", extra_slots=ROOT_REGISTRY_ETH_SLOTS)
+    else:
+        print("  ⚠  could not discover root registry from Universal Resolver root()")
 
-    # Root Registry (UserRegistry) — code + sequential storage + "eth" entry mapping slots.
-    # ROOT_REGISTRY_ETH_SLOTS are hash-addressed and not reachable by sequential scan.
-    bake_with_storage(ROOT_REGISTRY, "Root Registry", extra_slots=ROOT_REGISTRY_ETH_SLOTS)
+    # BatchGatewayProvider — stores gateway URL list, discovered dynamically.
+    batch_gateway = get_batch_gateway_address()
+    if batch_gateway:
+        print(f"  ℹ  batch gateway discovered: {batch_gateway}")
+        bake_with_storage(batch_gateway, "Batch Gateway Provider")
+    else:
+        print("  ⚠  could not discover batch gateway from Universal Resolver")
 
     # UserRegistry implementation contract — code only (logic for UserRegistry proxies)
     bake_code_only(USER_REGISTRY_IMPL, "UserRegistry Impl")
