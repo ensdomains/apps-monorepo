@@ -30,7 +30,9 @@ const formatRole = (role: Role) =>
 
 const roleLabels = (roles: Role[]) => Array.from(new Set(roles.map(formatRole)))
 
-const GreenCheck = () => <Check className="size-4 text-green-600" />
+const GreenCheck = () => (
+  <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
+)
 
 const UserCell = ({ account }: { account: Address }) => {
   const { data: primaryName } = useQuery(getPrimaryNameQueryOptions(account))
@@ -93,5 +95,9 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
     return <div>Error loading roles{message ? `: ${message}` : ''}</div>
   }
 
-  return <DataTable columns={columns} data={data ?? []} />
+  return (
+    <div className="[&_td]:align-top">
+      <DataTable columns={columns} data={data ?? []} />
+    </div>
+  )
 }
