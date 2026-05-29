@@ -5,7 +5,7 @@ import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { SortButton } from '@/components/table/SortButton'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
-import { dateToPlainDate } from '@/utils/temporal'
+import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import {
   getRegistryLabelsQueryOptions,
   type RegistryLabelRow,
@@ -50,7 +50,7 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
       }
       return (
         <span className="text-muted-foreground">
-          {formatExpiryDuration(dateToPlainDate(new Date(expiryDate * 1000)))}
+          {formatExpiryDuration(unixSecondsToPlainDateUtc(expiryDate))}
         </span>
       )
     },
