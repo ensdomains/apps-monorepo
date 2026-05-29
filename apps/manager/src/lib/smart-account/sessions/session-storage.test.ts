@@ -5,7 +5,7 @@
  * Mocks localStorage and window to test browser-specific behavior.
  */
 
-import type { Address, Hex } from 'viem'
+import { type Address, type Hex, zeroHash } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearAllSessions,
@@ -40,8 +40,7 @@ const createMockSession = (
   enableSignature: '0xenable' as Hex,
   hashesAndChainIds: '[]',
   // Storage tests don't exercise the drift check — any stable hex works.
-  actionsHash:
-    '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex,
+  actionsHash: zeroHash,
   ...overrides,
 })
 

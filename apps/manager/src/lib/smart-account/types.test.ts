@@ -3,6 +3,7 @@
  */
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
+import { zeroHash } from 'viem'
 import { describe, expect, it } from 'vitest'
 
 import { isRhinestoneAccount, type RhinestoneAccountState } from './types'
@@ -72,8 +73,7 @@ describe('isRhinestoneAccount', () => {
       sessionConfig: '{}',
       enableSignature: '0xenable' as const,
       hashesAndChainIds: '[]',
-      actionsHash:
-        '0x0000000000000000000000000000000000000000000000000000000000000000' as const,
+      actionsHash: zeroHash,
     }
 
     const rhinestoneState = createRhinestoneState({
