@@ -11,6 +11,7 @@ import {
 } from 'react'
 
 import { cn } from '@/lib/utils'
+import { ChartValuePill } from './ChartValuePill'
 
 // ---------------------------------------------------------------------------
 // Premium decay math
@@ -408,6 +409,8 @@ export function useTweenedValue(
   const startTimeRef = useRef<number>(0)
   const targetRef = useRef<number>(target)
   const rafRef = useRef<number | null>(null)
+  const displayRef = useRef<number>(target)
+  displayRef.current = display
 
   useEffect(() => {
     if (disabled) {
@@ -420,7 +423,7 @@ export function useTweenedValue(
 
     if (target === targetRef.current) return
 
-    startValueRef.current = display
+    startValueRef.current = displayRef.current
     startTimeRef.current = performance.now()
     targetRef.current = target
 
@@ -448,7 +451,7 @@ export function useTweenedValue(
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
     }
-  }, [target, duration, easing, disabled, display])
+  }, [target, duration, easing, disabled])
 
   return disabled ? target : display
 }
@@ -662,7 +665,11 @@ export const TemporaryPremiumChart = forwardRef<
       })
     }, sim.intervalMs)
     return () => clearInterval(id)
-  }, [debugProps?.simulatePolling, nowPoint])
+  }, [
+    debugProps?.simulatePolling?.intervalMs,
+    debugProps?.simulatePolling?.decayPerTick,
+    nowPoint,
+  ])
 
   const effectiveNowPoint = simulatedNowPoint ?? nowPoint
 
@@ -705,6 +712,9 @@ export const TemporaryPremiumChart = forwardRef<
     }
   }, [tweenedNowPrice, geo, cfg, width])
 
+  const nowViewRef = useRef(nowView)
+  nowViewRef.current = nowView
+
   const computeLabelView = useCallback(
     (point: number, avoidNow = true): LabelView | null => {
       if (width === 0 || point < 0) return null
@@ -716,10 +726,11 @@ export const TemporaryPremiumChart = forwardRef<
       let leader = computeLeaderGeometry(pos, placement, cfg)
       let didCollideWithNow = false
 
-      if (avoidNow && nowView) {
+      const currentNowView = nowViewRef.current
+      if (avoidNow && currentNowView) {
         const obstacleBox = labelBox(
-          nowView.leader.labelAnchor,
-          nowView.leader.labelTransform,
+          currentNowView.leader.labelAnchor,
+          currentNowView.leader.labelTransform,
           cfg.labelWidth,
           cfg.labelHeight,
         )
@@ -784,7 +795,7 @@ export const TemporaryPremiumChart = forwardRef<
         bottomLine: formatMoney(pos.price),
       }
     },
-    [width, geo, cfg, effectiveNowPoint, startDate, nowView],
+    [width, geo, cfg, effectiveNowPoint, startDate],
   )
 
   const selectedView = useMemo(() => {
@@ -807,9 +818,16 @@ export const TemporaryPremiumChart = forwardRef<
   }, [hoverPoint, effectiveNowPoint, selectedPoint, computeLabelView])
 
   const onPlacementChange = debugProps?.onPlacementChange
+  const lastReportedPlacementKeyRef = useRef<string | null>(null)
   useEffect(() => {
     if (!onPlacementChange) return
-    onPlacementChange(selectedView?.placement ?? null)
+    const placement = selectedView?.placement ?? null
+    const key = placement
+      ? `${placement.axis}:${placement.dir}:${placement.slope}:${placement.isSteep}`
+      : 'none'
+    if (key === lastReportedPlacementKeyRef.current) return
+    lastReportedPlacementKeyRef.current = key
+    onPlacementChange(placement)
   }, [onPlacementChange, selectedView])
 
   const steepZonePath = useMemo(() => {
@@ -985,29 +1003,18 @@ export const TemporaryPremiumChart = forwardRef<
             }}
           />
           <div
-            className="pointer-events-none absolute z-[2] leading-tight opacity-75"
+            className="pointer-events-none absolute z-[2]"
             style={{
               left: hoverView.leader.labelAnchor.x,
               top: hoverView.leader.labelAnchor.y,
               transform: hoverView.leader.labelTransform,
-              textAlign: hoverView.leader.labelTextAlign,
             }}
           >
-            <div
-              className="text-[13px]"
-              style={{ color: 'var(--premium-chart-muted-text, #64748B)' }}
-            >
-              {hoverView.topLine}
-            </div>
-            <div
-              className="mt-0.5 font-medium font-mono text-[16px] tabular-nums"
-              style={{
-                color: 'var(--premium-chart-muted-text, #64748B)',
-                letterSpacing: '-0.176px',
-              }}
-            >
-              {hoverView.bottomLine}
-            </div>
+            <ChartValuePill
+              label={hoverView.topLine}
+              value={hoverView.bottomLine}
+              variant="hover"
+            />
           </div>
         </>
       )}
@@ -1025,29 +1032,18 @@ export const TemporaryPremiumChart = forwardRef<
             }}
           />
           <div
-            className="pointer-events-none absolute z-[4] leading-tight"
+            className="pointer-events-none absolute z-[4]"
             style={{
               left: nowView.leader.labelAnchor.x,
               top: nowView.leader.labelAnchor.y,
               transform: nowView.leader.labelTransform,
-              textAlign: nowView.leader.labelTextAlign,
             }}
           >
-            <div
-              className="text-[13px]"
-              style={{ color: 'var(--premium-chart-muted-text, #64748B)' }}
-            >
-              now
-            </div>
-            <div
-              className="mt-0.5 font-medium font-mono text-[16px] tabular-nums"
-              style={{
-                color: 'var(--premium-chart-now, #0082BB)',
-                letterSpacing: '-0.176px',
-              }}
-            >
-              {formatMoney(nowView.displayPrice)}
-            </div>
+            <ChartValuePill
+              label="Now"
+              value={formatMoney(nowView.displayPrice)}
+              variant="now"
+            />
           </div>
         </>
       )}
@@ -1071,37 +1067,23 @@ export const TemporaryPremiumChart = forwardRef<
             }}
           />
           <div
-            className="pointer-events-none absolute z-[6] leading-tight"
+            className="pointer-events-none absolute z-[6]"
             style={{
               left: selectedView.leader.labelAnchor.x,
               top: selectedView.leader.labelAnchor.y,
               transform: selectedView.leader.labelTransform,
-              textAlign: selectedView.leader.labelTextAlign,
             }}
           >
-            <div
-              className={cn('text-[13px]', selectedView.isPast && 'italic')}
-              style={{
-                color: selectedView.isPast
-                  ? 'var(--premium-chart-past, #94A3B8)'
-                  : 'var(--premium-chart-muted-text, #64748B)',
-              }}
-            >
-              {selectedView.isPast
-                ? `was — ${selectedView.topLine}`
-                : selectedView.topLine}
-            </div>
-            <div
-              className="mt-0.5 font-medium font-mono text-[16px] tabular-nums"
-              style={{
-                color: selectedView.isPast
-                  ? 'var(--premium-chart-muted-text, #64748B)'
-                  : 'var(--premium-chart-selected, #0F1E33)',
-                letterSpacing: '-0.176px',
-              }}
-            >
-              {selectedView.bottomLine}
-            </div>
+            <ChartValuePill
+              label={
+                selectedView.isPast
+                  ? `was — ${selectedView.topLine}`
+                  : selectedView.topLine
+              }
+              value={selectedView.bottomLine}
+              variant="selected"
+              isPast={selectedView.isPast}
+            />
           </div>
         </>
       )}

@@ -1,10 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from '@/components/ui/input-group'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { tw } from '@/utils/tailwind'
 import { PriceCooldownDecayChart } from './PriceCooldownDecayChart'
@@ -12,6 +6,7 @@ import type { PriceCooldownBannerProps } from './types'
 
 type PriceCooldownExpandedContentProps = Pick<
   PriceCooldownBannerProps,
+  | 'basePricePerYearLabel'
   | 'premiumEndsAtLabel'
   | 'periodDays'
   | 'timezoneLabel'
@@ -63,12 +58,14 @@ const DemandStats = ({
 }
 
 const TargetPriceField = ({
+  basePricePerYearLabel,
   targetPriceInput,
   onTargetPriceInputChange,
   onTargetPriceInputBlur,
   targetPriceReachLabel,
 }: Pick<
   PriceCooldownExpandedContentProps,
+  | 'basePricePerYearLabel'
   | 'targetPriceInput'
   | 'onTargetPriceInputChange'
   | 'onTargetPriceInputBlur'
@@ -78,7 +75,7 @@ const TargetPriceField = ({
 
   return (
     <div className="flex w-full flex-col gap-2">
-      <p className="font-normal text-[#353535] text-sm tracking-tight md:text-base">
+      <p className="font-normal text-ens-quartz-700 text-sm tracking-tight md:text-base">
         <span className="md:hidden">
           <Trans>
             Enter a price you&apos;d be willing to pay. We&apos;ll calculate
@@ -86,29 +83,59 @@ const TargetPriceField = ({
           </Trans>
         </span>
         <span className="hidden md:inline">
-          <Trans>What price are you willing to pay?</Trans>
+          <Trans>What additional fee would you pay?</Trans>
         </span>
       </p>
-      <InputGroup className="h-12 rounded border-[#e5e5e5]">
-        <InputGroupAddon className="bg-[#f6f6f6] px-4">
-          <InputGroupText className="text-[#9b9ba7] text-base">
-            $
-          </InputGroupText>
-        </InputGroupAddon>
-        <InputGroupInput
-          className="text-[#191919] text-sm"
+      {/*
+        Flat label wrapping a flush "$", an auto-sized input, and the suffix.
+        We dropped the shadcn InputGroup primitive here because its
+        inline-start addon has its own padding (and adds a sibling pl-1.5
+        rule to the input), which produced a visible gap between "$" and
+        the typed value — we want them tight ("$5,000" not "$ 5,000").
+
+        Clicking anywhere on the <label> focuses the input natively.
+        `field-sizing: content` shrinks the input to its value width so
+        the suffix sits immediately after the digits instead of floating
+        at the far right edge of the box.
+      */}
+      <label
+        className={tw(
+          'flex h-12 w-full cursor-text items-center gap-2 overflow-hidden',
+          'rounded border border-ens-quartz-200 bg-white px-4',
+          'focus-within:border-ens-lapis-400',
+        )}
+      >
+        <span className="text-sm text-ens-quartz-900">$</span>
+        <input
+          className={tw(
+            'flex-initial [field-sizing:content] min-w-[2ch]',
+            'border-0 bg-transparent p-0 text-sm text-ens-quartz-900 outline-none',
+            'placeholder:text-ens-quartz-360',
+          )}
           inputMode="decimal"
           onBlur={onTargetPriceInputBlur}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^0-9.,]/g, '')
             onTargetPriceInputChange(raw)
           }}
-          placeholder="0.00"
+          placeholder="0"
+          type="text"
           value={targetPriceInput ?? ''}
         />
-      </InputGroup>
+        {/*
+          Suffix reminder: the cooldown fee is *additional* to the recurring
+          yearly base price. Showing it inside the field keeps that framing
+          inline with the typed number. Hidden until the oracle base rate
+          has loaded so we never flash "+ undefined base price".
+        */}
+        {basePricePerYearLabel && (
+          <span className="select-none text-sm text-ens-quartz-400">
+            + {basePricePerYearLabel} base price
+          </span>
+        )}
+      </label>
       {targetPriceReachLabel && (
-        <p className="text-[#737373] text-xs leading-normal md:text-sm">
+        <p className="text-ens-quartz-400 text-xs leading-normal md:text-sm">
           {targetPriceReachLabel}
         </p>
       )}
@@ -117,6 +144,7 @@ const TargetPriceField = ({
 }
 
 export const PriceCooldownExpandedContent = ({
+  basePricePerYearLabel,
   premiumEndsAtLabel,
   periodDays = 21,
   timezoneLabel,
@@ -162,6 +190,7 @@ export const PriceCooldownExpandedContent = ({
         </p>
         <PriceCooldownDecayChart compact {...chartProps} />
         <TargetPriceField
+          basePricePerYearLabel={basePricePerYearLabel}
           onTargetPriceInputBlur={onTargetPriceInputBlur}
           onTargetPriceInputChange={onTargetPriceInputChange}
           targetPriceInput={targetPriceInput}
@@ -215,6 +244,7 @@ export const PriceCooldownExpandedContent = ({
             />
           </div>
           <TargetPriceField
+            basePricePerYearLabel={basePricePerYearLabel}
             onTargetPriceInputBlur={onTargetPriceInputBlur}
             onTargetPriceInputChange={onTargetPriceInputChange}
             targetPriceInput={targetPriceInput}

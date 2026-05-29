@@ -25,19 +25,49 @@ export const DurationPresetRow = ({
   data,
   isSelected,
   price,
+  basePrice,
   onSelect,
 }: {
   data: DurationPresetData
   isLoading: boolean
+  /**
+   * Fallback amount used when `basePrice` isn't provided (renew flow and
+   * non-cooldown registrations, where `basePrice === totalPrice` anyway).
+   * Not displayed when `basePrice` is set — see `basePrice` for why.
+   */
   price: number | undefined
+  /**
+   * Base registration cost (no cooldown premium). When provided, this is what
+   * the card displays as its "total" and what the `/year` badge derives from.
+   * For names in temporary premium, the cooldown is paid once at the cart
+   * level (right-hand PaymentCard); folding it into every preset card too
+   * would make 1y / 3y / 6y totals look identical (all ≈ $48M) and hide
+   * the per-duration cost the user is actually choosing between.
+   */
+  basePrice?: number | undefined
   isSelected: boolean
   onSelect: () => void
 }) => {
   const { _ } = useLingui()
 
-  const yearlyPrice = price
-    ? price / (data.duration / SECONDS_IN_YEAR)
-    : undefined
+  // Prefer basePrice for the /year display so the cooldown premium (paid
+  // once on registration) doesn't get amortized into the per-year rate.
+  // Fall back to the legacy total/duration behaviour if basePrice isn't
+  // available — preserves the existing UX for non-cooldown names where
+  // basePrice === price.
+  const yearlyPriceSource = basePrice ?? price
+  const yearlyPrice =
+    yearlyPriceSource !== undefined
+      ? yearlyPriceSource / (data.duration / SECONDS_IN_YEAR)
+      : undefined
+
+  // Displayed amount: registration cost for this duration only (no cooldown).
+  // For names in cooldown, showing the full total here would make every preset
+  // look like ~$48M, hiding the per-duration cost. The cooldown is added
+  // once in the right-hand price widget, so it shouldn't be folded into
+  // every preset card too. For names without cooldown, basePrice === price
+  // so behaviour is unchanged.
+  const displayedAmount = basePrice ?? price
 
   return (
     <button
@@ -74,8 +104,8 @@ export const DurationPresetRow = ({
 
         <div className="ml-auto flex items-baseline gap-1 md:gap-1.5">
           <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
-            {price ? (
-              formatUsd(price)
+            {displayedAmount !== undefined ? (
+              formatUsd(displayedAmount)
             ) : (
               <span className="animate-pulse">$...</span>
             )}

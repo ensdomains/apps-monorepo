@@ -103,6 +103,7 @@ export const DurationSelector = () => {
 
         return (
           <DurationPresetRow
+            basePrice={query.data?.basePrice}
             data={data}
             isLoading={query.isPending}
             isSelected={idx === selectedPresetIdx}

@@ -14,7 +14,10 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
-import { PaymentCardPremiumLine } from './PaymentCardPremiumLine'
+import {
+  PaymentCardBaseLine,
+  PaymentCardPremiumLine,
+} from './PaymentCardLineItems'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -51,6 +54,7 @@ export const PaymentCard = () => {
   return (
     <PaymentCardBase
       amount={pricingQuery.data?.totalPrice}
+      basePrice={pricingQuery.data?.basePrice}
       canNext={canNext}
       discountAmount={discountAmount}
       isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
@@ -68,13 +72,24 @@ export const PaymentCardBase = ({
   isLoading,
   discountAmount,
   premiumAmount,
+  basePrice,
   type,
 }: {
   canNext: boolean
   onNext: () => void
+  /** The grand total (basePrice + premium). Shown big at the bottom. */
   amount: number | undefined
   discountAmount?: number
   premiumAmount?: number
+  /**
+   * Base registration cost (excludes the one-time cooldown premium). When
+   * provided alongside a non-zero `premiumAmount`, the card splits the
+   * breakdown into a "Registration" line and a "Cooldown fee" line so the
+   * user can see both components — not just the cooldown — feeding into the
+   * grand total. Without it, only the cooldown line shows (original
+   * behaviour), preserving the renew flow which doesn't pass basePrice.
+   */
+  basePrice?: number
   isLoading: boolean
   type: 'register' | 'renew'
 }) => {
@@ -89,11 +104,25 @@ export const PaymentCardBase = ({
       )}
     >
       <div className="w-full max-w-55 space-y-3 text-center">
+        {/*
+          Break down `total = base + premium` when the name is in cooldown so
+          the user sees both contributions. The base-only / renew flow keeps
+          the old shape (TOTAL only). See PaymentCardPremiumLine for the
+          row layout.
+        */}
         {premiumAmount !== undefined && premiumAmount > 0 && (
-          <PaymentCardPremiumLine
-            isLoading={isLoading}
-            premiumAmount={premiumAmount}
-          />
+          <div className="space-y-2">
+            {basePrice !== undefined && (
+              <PaymentCardBaseLine
+                basePrice={basePrice}
+                isLoading={isLoading}
+              />
+            )}
+            <PaymentCardPremiumLine
+              isLoading={isLoading}
+              premiumAmount={premiumAmount}
+            />
+          </div>
         )}
 
         <p className="text-ens-lapis-surface text-xs uppercase">

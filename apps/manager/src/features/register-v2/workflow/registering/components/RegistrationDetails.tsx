@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { useMemo } from 'react'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -93,11 +94,17 @@ export const RegistrationDetails = () => {
 
               {details.premiumPriceNumber > 0 && (
                 <div className="flex items-center justify-between">
-                  <p className="text-base text-ens-gray">
-                    <Trans>Premium Fee</Trans>
-                  </p>
-                  <p className="text-base text-ens-blue-dark">
-                    {formatUsd(details.premiumPriceNumber)}
+                  <div className="flex items-center gap-2 text-ens-lapis-500">
+                    <MSymbol
+                      className="ms-opsz-16 ms-wght-400"
+                      symbol="hourglass"
+                    />
+                    <p className="text-base">
+                      <Trans>Price cooldown fee</Trans>
+                    </p>
+                  </div>
+                  <p className="text-base text-ens-lapis-500 tabular-nums">
+                    +{formatUsd(details.premiumPriceNumber)}
                   </p>
                 </div>
               )}

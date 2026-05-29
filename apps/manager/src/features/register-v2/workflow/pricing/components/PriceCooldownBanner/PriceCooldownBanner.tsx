@@ -10,6 +10,7 @@ import type { PriceCooldownBannerProps } from './types'
 export const PriceCooldownBanner = ({
   basePricePerYearLabel,
   currentPremiumLabel,
+  currentPremiumValue,
   premiumEndsAtLabel,
   periodDays = 21,
   timezoneLabel,
@@ -42,6 +43,7 @@ export const PriceCooldownBanner = ({
             <PriceCooldownFeePills
               basePricePerYearLabel={basePricePerYearLabel}
               currentPremiumLabel={currentPremiumLabel}
+              currentPremiumValue={currentPremiumValue}
               layout="desktop"
             />
           </div>
@@ -52,6 +54,7 @@ export const PriceCooldownBanner = ({
         <PriceCooldownFeePills
           basePricePerYearLabel={basePricePerYearLabel}
           currentPremiumLabel={currentPremiumLabel}
+          currentPremiumValue={currentPremiumValue}
           layout="mobile"
         />
       </div>
@@ -77,6 +80,7 @@ export const PriceCooldownBanner = ({
 
       {expanded && (
         <PriceCooldownExpandedContent
+          basePricePerYearLabel={basePricePerYearLabel}
           favoriteCount={favoriteCount}
           nowPoint={nowPoint}
           onSelectedPointChange={onSelectedPointChange}

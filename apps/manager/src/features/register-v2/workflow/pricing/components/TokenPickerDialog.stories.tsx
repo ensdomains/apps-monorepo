@@ -67,6 +67,7 @@ interface TokenPickerDialogShellProps {
   defaultOpen?: boolean
   pricingData?: number
   pricingLoading?: boolean
+  isInPriceCooldown?: boolean
   isConnected?: boolean
   isLoadingBalances?: boolean
   stablecoinBalances?: StablecoinBalance[]
@@ -79,6 +80,7 @@ const TokenPickerDialogShell = ({
   defaultOpen = true,
   pricingData = 352,
   pricingLoading = false,
+  isInPriceCooldown = false,
   isConnected = true,
   isLoadingBalances = false,
   stablecoinBalances = MOCK_BALANCES,
@@ -105,6 +107,7 @@ const TokenPickerDialogShell = ({
           console.log('Buy Name clicked', { label, selectedToken, pricingData })
         }}
         onSelectCoin={setSelectedToken}
+        isInPriceCooldown={isInPriceCooldown}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}
@@ -168,6 +171,47 @@ export const PremiumDomain: Story = {
   args: {
     label: 'erni', // 4 chars → 4-char premium pill
     pricingData: 640,
+    initialSelectedToken: 'USDC',
+  },
+}
+
+/**
+ * 4-char premium + price cooldown — both pills side-by-side on desktop.
+ */
+export const PremiumDomainWithCooldown: Story = {
+  args: {
+    label: 'erni',
+    pricingData: 48_292.56,
+    isInPriceCooldown: true,
+    initialSelectedToken: 'USDC',
+  },
+}
+
+/**
+ * Same as PremiumDomainWithCooldown on mobile — pills stack in a column.
+ */
+export const PremiumDomainWithCooldownMobile: Story = {
+  args: {
+    label: 'erni',
+    pricingData: 48_292.56,
+    isInPriceCooldown: true,
+    initialSelectedToken: 'USDC',
+  },
+  parameters: {
+    viewport: {
+      defaultViewport: 'mobile1',
+    },
+  },
+}
+
+/**
+ * Price cooldown only (no 3/4-char premium pill).
+ */
+export const PriceCooldownOnly: Story = {
+  args: {
+    label: 'expiredname',
+    pricingData: 47_800,
+    isInPriceCooldown: true,
     initialSelectedToken: 'USDC',
   },
 }
