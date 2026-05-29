@@ -4,8 +4,8 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Check } from 'lucide-react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
@@ -36,18 +36,23 @@ const GreenCheck = () => (
 const UserCell = ({ account }: { account: Address }) => {
   const { data: primaryName } = useQuery(getPrimaryNameQueryOptions(account))
 
-  if (primaryName)
-    return (
-      <span className="font-medium" title={account}>
-        {primaryName}
-      </span>
-    )
-
   return (
-    <AddressDisplay
-      address={truncateAddress(account, 6, 4) as Address}
-      short={false}
-    />
+    <div className="w-32">
+      {primaryName ? (
+        <EntityBadge
+          variant="name"
+          name={primaryName}
+          address={account}
+          showAvatar
+        >
+          {primaryName}
+        </EntityBadge>
+      ) : (
+        <EntityBadge variant="address" address={account}>
+          {truncateAddress(account, 6, 4, '...')}
+        </EntityBadge>
+      )}
+    </div>
   )
 }
 
