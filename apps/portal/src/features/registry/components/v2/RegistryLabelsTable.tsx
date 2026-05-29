@@ -13,7 +13,8 @@ import {
 
 const columns: ColumnDef<RegistryLabelRow>[] = [
   {
-    accessorKey: 'labelName',
+    id: 'label',
+    accessorFn: (row) => row.labelName ?? row.name ?? row.labelhash,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
