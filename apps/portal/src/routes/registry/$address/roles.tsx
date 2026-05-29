@@ -1,9 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import type { Address } from 'viem'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
+import { useRegistry } from '@/features/registry/hooks/useRegistry'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/roles')({
   component: RouteComponent,
@@ -11,7 +15,33 @@ export const Route = createFileRoute('/registry/$address/roles')({
 })
 
 function RouteComponent() {
-  const { address } = Route.useParams()
+  const { address: addressParam } = Route.useParams()
+  const address = addressParam as Address
+
+  const { data: registry, isLoading, error } = useRegistry(address)
+
+  if (isLoading) return <LoadingSpinner title="Loading rolegistry" />
+
+  if (error)
+    return (
+      <ErrorMessage
+        title="Error loading registry"
+        description={error.message}
+      />
+    )
+
+  if (!registry)
+    return (
+      <NotFoundMessage
+        title="Registry not found"
+        description={
+          <>
+            <strong>{truncateAddress(address, 6, 4, '...')}</strong> is not a
+            known registry contract.
+          </>
+        }
+      />
+    )
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
@@ -25,7 +55,7 @@ function RouteComponent() {
           Add User
         </Button>
       </div>
-      <RegistryRolesTable address={address as Address} />
+      <RegistryRolesTable address={address} />
     </div>
   )
 }
