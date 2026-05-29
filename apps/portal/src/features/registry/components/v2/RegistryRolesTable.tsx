@@ -6,12 +6,14 @@ import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import { getPrimaryNamesQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
 } from '../../hooks/useRegistryRoles'
+
+type RoleTableRow = RegistryRoleRow & { primaryName: string | null }
 
 const isAdminRole = (role: Role) => role.endsWith('_ADMIN')
 
@@ -33,35 +35,42 @@ const GreenCheck = () => (
   <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
 )
 
-const UserCell = ({ account }: { account: Address }) => {
-  const { data: primaryName } = useQuery(getPrimaryNameQueryOptions(account))
+const UserCell = ({
+  account,
+  primaryName,
+}: {
+  account: Address
+  primaryName: string | null
+}) => (
+  <div className="w-32">
+    {primaryName ? (
+      <EntityBadge
+        variant="name"
+        name={primaryName}
+        address={account}
+        showAvatar
+      >
+        {primaryName}
+      </EntityBadge>
+    ) : (
+      <EntityBadge variant="address" address={account}>
+        {truncateAddress(account, 6, 4, '...')}
+      </EntityBadge>
+    )}
+  </div>
+)
 
-  return (
-    <div className="w-32">
-      {primaryName ? (
-        <EntityBadge
-          variant="name"
-          name={primaryName}
-          address={account}
-          showAvatar
-        >
-          {primaryName}
-        </EntityBadge>
-      ) : (
-        <EntityBadge variant="address" address={account}>
-          {truncateAddress(account, 6, 4, '...')}
-        </EntityBadge>
-      )}
-    </div>
-  )
-}
-
-const columns: ColumnDef<RegistryRoleRow>[] = [
+const columns: ColumnDef<RoleTableRow>[] = [
   {
     id: 'user',
     accessorKey: 'account',
     header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => <UserCell account={row.original.account as Address} />,
+    cell: ({ row }) => (
+      <UserCell
+        account={row.original.account}
+        primaryName={row.original.primaryName}
+      />
+    ),
   },
   {
     id: 'role',
@@ -89,9 +98,24 @@ const columns: ColumnDef<RegistryRoleRow>[] = [
 ]
 
 export const RegistryRolesTable = ({ address }: { address: Address }) => {
-  const { data, isLoading, error } = useQuery(
-    getRegistryRolesQueryOptions({ address }),
+  const {
+    data: roles,
+    isLoading,
+    error,
+  } = useQuery(getRegistryRolesQueryOptions({ address }))
+
+  const accounts = Array.from(
+    new Set((roles ?? []).map((role) => role.account.toLowerCase())),
+  ).sort() as Address[]
+
+  const { data: namesByAccount } = useQuery(
+    getPrimaryNamesQueryOptions(accounts),
   )
+
+  const rows: RoleTableRow[] = (roles ?? []).map((role) => ({
+    ...role,
+    primaryName: namesByAccount?.[role.account.toLowerCase()] ?? null,
+  }))
 
   if (isLoading) return <LoadingSpinner title="Loading roles..." />
 
@@ -102,7 +126,7 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
 
   return (
     <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible">
-      <DataTable columns={columns} data={data ?? []} />
+      <DataTable columns={columns} data={rows} />
     </div>
   )
 }
