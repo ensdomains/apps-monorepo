@@ -33,11 +33,11 @@
  * back when HCA registration was a separate sponsored Rhinestone Intent
  * the SCA submitted to itself. The real `HCAFactory` writes ownership
  * atomically inside `createAccount(initData)` — there is no
- * `setAccountOwner` anymore — and bootstrap is now an EOA-driven
- * `writeContract` (see `apps/manager/src/lib/smart-account/hca-bootstrap.ts`).
- * The smart-session no longer needs (or should have) authority over the
- * factory, so the action was dropped. That tightens the stolen-session-key
- * blast radius by one (target, selector) pair.
+ * `setAccountOwner` anymore — and bootstrap is now an EOA-signed,
+ * sponsored Intent (see `./bootstrap.ts`). The smart-session no longer
+ * needs (or should have) authority over the factory, so the action was
+ * dropped. That tightens the stolen-session-key blast radius by one
+ * (target, selector) pair.
  *
  * Calldata offset semantics (verified against on-chain
  * UniversalActionPolicy + Biconomy abstractjs `calldataArgument` helper):
@@ -57,8 +57,15 @@ import {
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Session } from '@rhinestone/sdk'
-import type { Address } from 'viem'
-import { erc20Abi, getAbiItem, toFunctionSelector } from 'viem'
+import type { Address, Hex } from 'viem'
+import {
+  erc20Abi,
+  getAbiItem,
+  getAddress,
+  keccak256,
+  stringToBytes,
+  toFunctionSelector,
+} from 'viem'
 
 /** Default session lifetime: 30 days. */
 export const REGISTRATION_SESSION_VALIDITY_SECONDS = 30 * 24 * 60 * 60
@@ -160,7 +167,19 @@ export function buildRegistrationSessionActions(
   // Pulled into a void to keep linters happy without changing the API
   // shape that the actor + signer construction both rely on.
   void params.validUntil
-  const { eoaAddress } = params
+  // Normalize to EIP-55 checksum so `referenceValue` is byte-identical
+  // regardless of input casing. Without this, a session signed against
+  // a checksummed EOA but rebuilt at signer-construction time against
+  // a lowercase EOA (or vice versa) produces a different `PermissionId`
+  // and the on-chain smart-sessions validator returns
+  // `InvalidSignature()` — surfacing as the orchestrator's opaque
+  // "Bundle simulation failed" 400. Sources of case drift we've seen
+  // in the wild: wagmi normalizes some chains to lowercase, viem
+  // returns EIP-55 in `walletClient.account.address`, JSON
+  // round-trips preserve whatever was written, and Para wraps the
+  // address through its own helper. Normalizing here fixes all of
+  // them in one place.
+  const eoaAddress = getAddress(params.eoaAddress)
 
   const ETHRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const VerifiableFactory = ENS_SEPOLIA_CONTRACTS.VerifiableFactory
@@ -282,4 +301,39 @@ export function buildRegistrationSessionActions(
     // is intentionally absent. See the file header for why: bootstrap
     // is wallet-driven now, the session never touches the factory.
   ]
+}
+
+/**
+ * Deterministic keccak256 over the action set produced by
+ * `buildRegistrationSessionActions(params)`.
+ *
+ * Used to detect drift between session-create time (where the actions
+ * are signed into a `PermissionId` via `experimental_signEnableSession`)
+ * and signer-construction time (where the actions are rebuilt for the
+ * SDK's session-mode signer config). Any divergence breaks the
+ * `PermissionId` and yields `InvalidSignature()` at orchestrator
+ * simulation time — the worst kind of silent failure, since the user
+ * sees a generic "transaction failed" without any indication the
+ * stored session is the cause.
+ *
+ * Persist the hash on the stored session at create time; recompute it
+ * with the same `params` at load time and refuse to restore on
+ * mismatch. The user pays one fresh wallet prompt; the alternative is
+ * an opaque failure deep inside a registration tx.
+ *
+ * Serialization shape: the standard `JSON.stringify` doesn't handle
+ * the `bigint` values in `calldataOffset`, so we normalize via a
+ * replacer. The serialization is **not** intended to be canonical
+ * across versions — when the action set changes shape (added rules,
+ * new policy type, etc.) the hash naturally changes, which is exactly
+ * the signal we want.
+ */
+export function buildRegistrationSessionActionsHash(
+  params: BuildRegistrationSessionActionsParams,
+): Hex {
+  const actions = buildRegistrationSessionActions(params)
+  const serialized = JSON.stringify(actions, (_key, value) =>
+    typeof value === 'bigint' ? `${value.toString()}n` : value,
+  )
+  return keccak256(stringToBytes(serialized))
 }

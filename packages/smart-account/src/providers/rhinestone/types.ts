@@ -25,6 +25,15 @@ export interface RhinestoneStoredSession extends BaseStoredSession {
    * chainId is stored as string because bigint is not JSON-serializable.
    */
   readonly hashesAndChainIds: string
+  /**
+   * keccak256 of the action set the `enableSignature` was produced over,
+   * computed by `buildRegistrationSessionActionsHash` at session-create
+   * time. `restoreRhinestoneSession` recomputes the hash from current
+   * code and refuses to restore on mismatch — the resulting fresh
+   * wallet prompt is a far better UX than a silent `InvalidSignature()`
+   * deep inside a registration transaction.
+   */
+  readonly actionsHash: Hex
 }
 
 /**

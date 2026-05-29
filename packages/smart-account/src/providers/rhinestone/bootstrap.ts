@@ -16,27 +16,28 @@
  * The bootstrap is therefore:
  *
  *   - one read (`accountHCAOf(eoa)`) for idempotency,
- *   - one sponsored Rhinestone Intent that calls
+ *   - one EOA-signed, sponsored Rhinestone Intent that calls
  *     `HCAFactory.createAccount(initData)` with the **EOA** as the
- *     Intent sender,
+ *     Intent origin (the relayer pays gas — no Sepolia ETH on the EOA,
+ *     no `eth_sendTransaction` prompt; the only UX cost is one EIP-712
+ *     signature),
  *   - one orchestrator fill-poll to confirm execution before downstream
  *     code (`RhinestoneAccount` construction with `initData: { address }`)
  *     tries to use the new proxy.
  *
  * Why an EOA-mode Intent rather than a plain `walletClient.writeContract`:
  * with `account: { type: 'eoa' }` the SDK signs the Intent's origin
- * payload via `eoa.signTypedData(...)` and lets a Warp relayer pay gas
- * for the actual `createAccount` call. From the user's perspective this
- * is a single EIP-712 signature prompt and no native ETH spent — the
- * same UX as the previous (broken) `setAccountOwner` flow had. Plain
- * `writeContract` would produce a visible `eth_sendTransaction` prompt
- * and require Sepolia ETH on the EOA, which we don't guarantee.
+ * payload via `eoa.signTypedData(...)` and lets a Warp relayer execute
+ * the actual `createAccount` call. Plain `writeContract` would produce
+ * a visible `eth_sendTransaction` prompt and require Sepolia ETH on the
+ * EOA, which we don't guarantee.
  *
  * Para embedded MPC users have no wagmi connector and would hit
  * `ConnectorNotConnectedError` if we routed through `@wagmi/core`;
  * routing through the SDK's EOA-mode path sidesteps that entirely
- * because the SDK takes a viem `Account` directly (the same one we
- * already built via `createParaAccount` + `wrapParaAccount`).
+ * because the SDK takes a viem `Account` directly (the same one the
+ * caller already built via `createParaAccount` + `wrapParaAccount` at
+ * the app layer).
  *
  * `initData` shape: the deployed `IHCAInitDataParser` at
  * `factory.initDataParser()` is the **ENSValidator** module from
@@ -48,18 +49,22 @@
  *
  * The parser also rejects `expiration == 0` with a custom revert
  * (`0x30116425`). For v0 we use `uint48.max` as a sentinel
- * "no practical expiry" — that's roughly the year 8 924 162 AD; we'll
- * tighten it when the product story for time-bound ownership lands.
+ * "no practical expiry" — roughly the year 8 924 162 AD; we'll tighten
+ * it when the product story for time-bound ownership lands.
  *
- * @see ../hca-factory.abi.ts — `HCA_FACTORY_ABI`
+ * Chain wiring: the factory address and ABI are taken as parameters
+ * rather than imported here, so this module stays chain-agnostic. The
+ * app layer (manager) injects `ENS_SEPOLIA_CONTRACTS.HCAFactory` and
+ * `HCA_FACTORY_ABI` at call time.
+ *
  * @see https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/hca/HCAFactory.sol
  */
 
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { RhinestoneSDK } from '@rhinestone/sdk'
 import { errAsync, fromPromise, okAsync, type ResultAsync } from 'neverthrow'
 import {
+  type Abi,
   type Account,
   type Address,
   type Chain,
@@ -70,7 +75,6 @@ import {
   zeroAddress,
 } from 'viem'
 import { readContract } from 'viem/actions'
-import { HCA_FACTORY_ABI } from '../hca-factory.abi'
 
 /**
  * `uint48` max — sentinel for "owner never expires" in the ENSValidator
@@ -119,20 +123,25 @@ export interface HCABootstrapResult {
 /**
  * Caller-supplied inputs.
  *
+ *   - `eoaAddress` — the underlying EOA. Used as the `args[0]` of the
+ *     ENSValidator `initData` tuple and as the address bootstrap reads
+ *     `accountHCAOf` against.
  *   - `ownerAccount` — the viem `Account` (e.g. produced by
  *     `walletClientToAccount` for wagmi wallets, or
  *     `wrapParaAccount(createParaAccount(...))` for Para) that signs
  *     the Intent's EIP-712 origin payload. Same account the caller
  *     hands to `sdk.createAccount` for the SCA itself.
- *   - `eoaAddress` — the underlying EOA. Used as the `args[0]` of the
- *     ENSValidator `initData` tuple and as the address bootstrap reads
- *     `accountHCAOf` against.
  *   - `chain` — the chain the Intent targets. Must match the chain the
- *     SCA will run on (`customSepolia` in the manager).
+ *     SCA will run on.
  *   - `publicClient` — read-only RPC client. Used for the idempotency
  *     precheck (`accountHCAOf`), the address prediction
  *     (`computeAccountAddress`), and the post-fill ownership check
  *     (`getAccountOwner`).
+ *   - `factoryAddress` — the deployed `HCAFactory` address on `chain`.
+ *   - `factoryAbi` — the `HCAFactory` ABI. Take the manager's
+ *     `HCA_FACTORY_ABI` constant or any superset that covers
+ *     `accountHCAOf`, `computeAccountAddress`, `getAccountOwner`, and
+ *     `createAccount`.
  *   - `sdk` — SDK config knobs we pass through to a fresh
  *     `RhinestoneSDK` instance configured in EOA mode. We construct
  *     our own SDK rather than reusing the SCA-mode one because the
@@ -144,6 +153,8 @@ export interface BootstrapHCAParams {
   readonly ownerAccount: Account
   readonly chain: Chain
   readonly publicClient: PublicClient
+  readonly factoryAddress: Address
+  readonly factoryAbi: Abi
   readonly sdk: {
     readonly rhinestoneApiKey: string
     readonly pimlicoApiKey?: string
@@ -155,9 +166,9 @@ export interface BootstrapHCAParams {
 /**
  * Encode the ENSValidator-flavored `initData` for `createAccount`.
  *
- * Exported so the SDK-side init blob extraction (see
- * `initialize-account.ts`'s `onPrepareDeploy` hook) can encode the
- * same bytes, and so tests can pin the encoding.
+ * Exported so the SDK-side init blob extraction (see the `account.ts`
+ * `onPrepareDeploy` hook) can encode the same bytes, and so tests can
+ * pin the encoding.
  */
 export function encodeHCAInitData(eoaAddress: Address): Hex {
   return encodeAbiParameters(
@@ -192,8 +203,15 @@ export function encodeHCAInitData(eoaAddress: Address): Hex {
 export function bootstrapHCA(
   params: BootstrapHCAParams,
 ): ResultAsync<HCABootstrapResult, HCABootstrapError> {
-  const { eoaAddress, ownerAccount, chain, publicClient, sdk: sdkOpts } = params
-  const factory = ENS_SEPOLIA_CONTRACTS.HCAFactory
+  const {
+    eoaAddress,
+    ownerAccount,
+    chain,
+    publicClient,
+    factoryAddress,
+    factoryAbi,
+    sdk: sdkOpts,
+  } = params
 
   // Idempotency precheck. `accountHCAOf(eoa)` is the on-chain answer
   // to "does this EOA already have an HCA?". The getter applies the
@@ -202,11 +220,11 @@ export function bootstrapHCA(
   // we have a real, factory-blessed HCA — no need to redeploy.
   return fromPromise(
     readContract(publicClient, {
-      address: factory,
-      abi: HCA_FACTORY_ABI,
+      address: factoryAddress,
+      abi: factoryAbi,
       functionName: 'accountHCAOf',
       args: [eoaAddress],
-    }),
+    }) as Promise<Address>,
     (cause) => new HCABootstrapError({ reason: 'precheck-read-failed', cause }),
   ).andThen((existingHCA) => {
     if (existingHCA !== zeroAddress) {
@@ -226,18 +244,18 @@ export function bootstrapHCA(
     // signatures) in parallel with the fill poll.
     const predictedHCA = fromPromise(
       readContract(publicClient, {
-        address: factory,
-        abi: HCA_FACTORY_ABI,
+        address: factoryAddress,
+        abi: factoryAbi,
         functionName: 'computeAccountAddress',
         args: [eoaAddress],
-      }),
+      }) as Promise<Address>,
       (cause) =>
         new HCABootstrapError({ reason: 'precheck-read-failed', cause }),
     )
 
     const initData = encodeHCAInitData(eoaAddress)
     const createAccountCalldata = encodeFunctionData({
-      abi: HCA_FACTORY_ABI,
+      abi: factoryAbi,
       functionName: 'createAccount',
       args: [initData],
     })
@@ -248,7 +266,7 @@ export function bootstrapHCA(
           ownerAccount,
           chain,
           sdkOpts,
-          target: factory,
+          target: factoryAddress,
           data: createAccountCalldata,
         }),
         (cause) =>
@@ -267,11 +285,11 @@ export function bootstrapHCA(
         //     path inside `createAccount` without writing the mapping.
         return fromPromise(
           readContract(publicClient, {
-            address: factory,
-            abi: HCA_FACTORY_ABI,
+            address: factoryAddress,
+            abi: factoryAbi,
             functionName: 'getAccountOwner',
             args: [hcaAddress],
-          }),
+          }) as Promise<Address>,
           (cause) =>
             new HCABootstrapError({
               reason: 'post-deploy-state-mismatch',

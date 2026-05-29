@@ -12,21 +12,26 @@
  *   - Reading manager-specific env vars (`VITE_RHINESTONE_API_KEY`,
  *     `VITE_PIMLICO_API_KEY`, `VITE_RHINESTONE_ENDPOINT_URL`,
  *     `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
- *   - Injecting the manager's chain (`customSepolia`).
+ *   - Injecting the manager's chain (`customSepolia`) and the on-chain
+ *     `HCAFactory` address + ABI.
  *   - Driving the setup-progress toast UX via sonner + lingui.
- *   - Bootstrapping the HCA proxy via `bootstrapHCA` (an EOA-driven,
- *     single-tx `HCAFactory.createAccount(initData)` call) and binding
- *     the SDK to its address via the package's `onPrepareDeploy` hook.
- *     Replaces the old `registerHCAOwnership` flow that called the
- *     no-longer-deployed `setAccountOwner` against `MockHCAFactoryBasic`.
+ *   - Bootstrapping the HCA proxy via the package's `bootstrapHCA`
+ *     (an EOA-signed, sponsored `HCAFactory.createAccount(initData)`
+ *     Intent) and binding the SDK to its address via the package's
+ *     `onPrepareDeploy` hook. The manager only constructs HCA-mode
+ *     accounts — there is no opt-out.
  */
 
 import {
+  bootstrapHCA,
   type RhinestoneInitResult as CoreRhinestoneInitResult,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
-import type { TransactionInfra } from '@ens-apps/transaction-manager'
+import {
+  ENS_SEPOLIA_CONTRACTS,
+  type TransactionInfra,
+} from '@ens-apps/transaction-manager'
 import { createParaAccount } from '@getpara/viem-v2-integration'
 import { i18n } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
@@ -37,8 +42,8 @@ import {
 } from '@rhinestone/sdk'
 import { toast } from 'sonner'
 import type { Account, Address, WalletClient } from 'viem'
+import { HCA_FACTORY_ABI } from '@/lib/hca-factory.abi'
 import { customSepolia, publicClient } from '@/lib/wagmi'
-import { bootstrapHCA } from './hca-bootstrap'
 import type { ParaClient } from './types'
 
 export interface RhinestoneConfig {
@@ -49,12 +54,6 @@ export interface RhinestoneConfig {
 export interface InitializeRhinestoneParams {
   walletClient?: WalletClient
   paraClient?: ParaClient
-  /**
-   * Whether to register HCA ownership in the HCAFactory after the smart
-   * account is deployed. Defaults to `true` because manager only uses
-   * HCA-mode accounts in production.
-   */
-  registerHCA?: boolean
   infrastructure?: TransactionInfra
 }
 
@@ -170,12 +169,7 @@ function resolveSdkEnv(): {
 export async function initializeRhinestoneAccount(
   params: InitializeRhinestoneParams,
 ): Promise<RhinestoneInitResult> {
-  const {
-    walletClient,
-    paraClient,
-    registerHCA = true,
-    infrastructure = 'warp',
-  } = params
+  const { walletClient, paraClient, infrastructure = 'warp' } = params
 
   const { ownerAccount, eoaAddress } = resolveOwnerAccount({
     walletClient,
@@ -200,51 +194,45 @@ export async function initializeRhinestoneAccount(
 
   // `onPrepareDeploy` runs before `sdk.createAccount` and is fully
   // responsible for putting the SCA on chain. Under the HCA flow this
-  // is a single EOA tx (`HCAFactory.createAccount(initData)`) that
-  // also writes `_hcaOwners[hca] = eoa` atomically. The returned
-  // address is then bound to the SDK via `initData: { address }`.
-  //
-  // When `registerHCA === false` we skip the hook entirely, which
-  // falls the package back to its legacy Warp-deploy path (used by
-  // tests and by any non-HCA caller). The legacy path produces a
-  // Nexus-derived SCA address that is *not* HCA-equivalent — only
-  // useful for the small set of consumers that don't care about HCA
-  // resolution.
+  // is a single EOA-signed, sponsored Intent
+  // (`HCAFactory.createAccount(initData)`) that also writes
+  // `_hcaOwners[hca] = eoa` atomically. The returned address is then
+  // bound to the SDK via `initData: { address }`.
   const onPrepareDeploy: InitializeRhinestoneAccountParams['onPrepareDeploy'] =
-    registerHCA
-      ? async () => {
-          showSetupToast(i18n._(msg`Deploying on-chain…`))
-          const result = await bootstrapHCA({
-            eoaAddress,
-            ownerAccount,
-            chain: customSepolia,
-            publicClient,
-            sdk: {
-              rhinestoneApiKey: env.rhinestoneApiKey,
-              pimlicoApiKey: env.pimlicoApiKey,
-              rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
-              rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
-            },
-          })
-          if (result.isErr()) {
-            // Surface the tagged-error reason in the thrown message
-            // so the package's `onError('deploying', …)` produces a
-            // useful toast. The inner cause is preserved on the
-            // `cause` property for devtools inspection. `TaggedError`
-            // (`@ens-apps/utils/neverthrow`) puts fields directly on
-            // the instance via `Object.assign(this, args)`, so we
-            // read `.reason` / `.cause` off the error directly.
-            const err = result.error
-            throw new Error(`HCA bootstrap failed: ${err.reason}`, {
-              cause: err.cause,
-            })
-          }
-          return {
-            hcaAddress: result.value.hcaAddress,
-            wasDeployedInThisCall: result.value.wasDeployedInThisCall,
-          }
-        }
-      : undefined
+    async () => {
+      showSetupToast(i18n._(msg`Deploying on-chain…`))
+      const result = await bootstrapHCA({
+        eoaAddress,
+        ownerAccount,
+        chain: customSepolia,
+        publicClient,
+        factoryAddress: ENS_SEPOLIA_CONTRACTS.HCAFactory,
+        factoryAbi: HCA_FACTORY_ABI,
+        sdk: {
+          rhinestoneApiKey: env.rhinestoneApiKey,
+          pimlicoApiKey: env.pimlicoApiKey,
+          rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
+          rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
+        },
+      })
+      if (result.isErr()) {
+        // Surface the tagged-error reason in the thrown message so
+        // the package's `onError('deploying', …)` produces a useful
+        // toast. The inner cause is preserved on the `cause` property
+        // for devtools inspection. `TaggedError`
+        // (`@ens-apps/utils/neverthrow`) puts fields directly on the
+        // instance via `Object.assign(this, args)`, so we read
+        // `.reason` / `.cause` off the error directly.
+        const err = result.error
+        throw new Error(`HCA bootstrap failed: ${err.reason}`, {
+          cause: err.cause,
+        })
+      }
+      return {
+        hcaAddress: result.value.hcaAddress,
+        wasDeployedInThisCall: result.value.wasDeployedInThisCall,
+      }
+    }
 
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
@@ -256,10 +244,6 @@ export async function initializeRhinestoneAccount(
     rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
     infrastructure,
     onPrepareDeploy,
-    // No `onAccountReady`: under the HCA flow the factory wrote
-    // ownership atomically inside `createAccount`, so there is no
-    // post-deploy work for the manager to do. The legacy hook is
-    // still available on the package but we don't need it here.
     onProgress: (stage) => {
       if (stage === 'deploying') {
         showSetupToast(i18n._(msg`Deploying on-chain…`))

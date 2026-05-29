@@ -7,7 +7,10 @@
  * - restoreSessionActor
  */
 
-import { SessionError } from '@ens-apps/smart-account'
+import {
+  buildRegistrationSessionActionsHash,
+  SessionError,
+} from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -56,8 +59,11 @@ const mockedRestoreRhinestoneSession = vi.mocked(restoreRhinestoneSession)
 
 // ── Fixtures ───────────────────────────────────────────────────────────
 
-const OWNER_ADDRESS = '0xOwner12345678901234567890123456789012345678' as Address
-const ACCOUNT_ADDRESS = '0xAccount1234567890123456789012345678901234' as Address
+// Real-shaped hex addresses (not placeholder strings) — the package's
+// `buildRegistrationSessionActions` now runs `viem.getAddress(...)` on
+// the EOA, which rejects non-hex input.
+const OWNER_ADDRESS = '0x1111111111111111111111111111111111111111' as Address
+const ACCOUNT_ADDRESS = '0x2222222222222222222222222222222222222222' as Address
 const SESSION_KEY_ADDRESS =
   '0xSessionKey1234567890123456789012345678901234' as Address
 const SESSION_PRIVATE_KEY = '0xdeadbeef1234567890abcdef' as Hex
@@ -66,6 +72,17 @@ const MOCK_ENABLE_SIGNATURE = '0xenablesig123' as Hex
 const MOCK_HASHES_JSON = JSON.stringify([
   { chainId: '11155111', sessionDigest: '0xdigest123' },
 ])
+
+/**
+ * Hash of the action set for `OWNER_ADDRESS` + the test's fixed
+ * `validUntil`. `restoreRhinestoneSession` recomputes this from the
+ * stored `ownerAddress` + `validUntil` and rejects on mismatch, so the
+ * fixture must carry the real hash.
+ */
+const VALID_ACTIONS_HASH = buildRegistrationSessionActionsHash({
+  eoaAddress: OWNER_ADDRESS,
+  validUntil: 2_000_000_000,
+})
 
 const createMockRhinestoneSession = (
   overrides: Partial<RhinestoneStoredSession> = {},
@@ -84,6 +101,7 @@ const createMockRhinestoneSession = (
   // Future unix timestamp (2033-05-18) — keep tests deterministic and
   // well clear of any expiry checks.
   validUntil: 2_000_000_000,
+  actionsHash: VALID_ACTIONS_HASH,
   ...overrides,
 })
 
@@ -197,6 +215,7 @@ describe('session.actors', () => {
         sessionPrivateKey: SESSION_PRIVATE_KEY,
         enableSignature: MOCK_ENABLE_SIGNATURE,
         hashesAndChainIds: MOCK_HASHES_JSON,
+        ownerAddress: OWNER_ADDRESS,
         validUntil: 2_000_000_000,
       })
     })
@@ -234,6 +253,7 @@ describe('session.actors', () => {
           sessionPrivateKey: SESSION_PRIVATE_KEY,
           enableSignature: MOCK_ENABLE_SIGNATURE,
           hashesAndChainIds: MOCK_HASHES_JSON,
+          ownerAddress: OWNER_ADDRESS,
           validUntil: 2_000_000_000,
         },
       })

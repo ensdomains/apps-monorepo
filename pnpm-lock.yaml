@@ -775,6 +775,9 @@ importers:
       '@ens-apps/transaction-manager':
         specifier: workspace:*
         version: link:../transaction-manager
+      '@ens-apps/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@040b8a3

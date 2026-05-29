@@ -309,6 +309,7 @@ export const SmartAccountContextProvider = ({
       sessionPrivateKey: Hex
       enableSignature: Hex
       hashesAndChainIds: string
+      ownerAddress: Address
       validUntil: number
     } | null
 
@@ -347,14 +348,23 @@ export const SmartAccountContextProvider = ({
                 // Must match the actions baked into the EIP-712 enable
                 // signature produced in @ens-apps/smart-account at session
                 // creation time. Any divergence breaks the PermissionId
-                // and yields `InvalidSignature()`. `validUntil` is
-                // currently not part of the action set on-chain (the
-                // `time-frame` policy is disabled — see
+                // and yields `InvalidSignature()`.
+                //
+                // Take `eoaAddress` from `sessionClient.ownerAddress`
+                // (recorded at session-create time), NOT from React-
+                // context `ownerAddress` — the latter can differ in
+                // EIP-55 casing across page loads / wallet providers,
+                // and `buildRegistrationSessionActions` writes the
+                // address as-is into `referenceValue`, so any case
+                // drift here desyncs the on-chain PermissionId.
+                //
+                // `validUntil` is currently not part of the action set
+                // on-chain (the `time-frame` policy is disabled — see
                 // @ens-apps/smart-account providers/rhinestone/registration-policy.ts),
                 // but we still thread the same value through so the
                 // rebuild stays correct once upstream is fixed.
                 actions: buildRegistrationSessionActions({
-                  eoaAddress: ownerAddress,
+                  eoaAddress: rhinestoneSessionClient.ownerAddress,
                   validUntil: rhinestoneSessionClient.validUntil,
                 }),
               },

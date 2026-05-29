@@ -21,7 +21,7 @@ import {
 } from './session-storage'
 import type { RhinestoneStoredSession, StoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v5'
+const SESSION_STORAGE_KEY = 'ens-sessions-v6'
 
 const createMockSession = (
   overrides: Partial<RhinestoneStoredSession> = {},
@@ -39,6 +39,9 @@ const createMockSession = (
   sessionConfig: '{}',
   enableSignature: '0xenable' as Hex,
   hashesAndChainIds: '[]',
+  // Storage tests don't exercise the drift check — any stable hex works.
+  actionsHash:
+    '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex,
   ...overrides,
 })
 

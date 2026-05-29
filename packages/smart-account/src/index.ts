@@ -27,14 +27,22 @@
 
 // Shared / cross-provider surface.
 export { SessionError } from './errors'
-// Current provider (Rhinestone). Explicit, vendor-named re-exports —
-// we'll introduce a generic provider contract once a second provider
-// exists and proves what the abstraction needs to look like.
+// Current provider (Rhinestone). Vendor-named re-exports stay for
+// callers (notably the manager) that talk to Rhinestone directly.
+// `rhinestoneProvider()` plus the generic `SmartAccountProvider`
+// contract are also exported for callers that want to stay
+// vendor-agnostic.
 export {
+  type BootstrapHCAParams,
   type BuildRegistrationSessionActionsParams,
+  bootstrapHCA,
   buildRegistrationSessionActions,
+  buildRegistrationSessionActionsHash,
   type CreateRhinestoneSessionParams,
   createRhinestoneSession,
+  encodeHCAInitData,
+  HCABootstrapError,
+  type HCABootstrapResult,
   type InitializeRhinestoneAccountParams,
   type InitProgressStage,
   initializeRhinestoneAccount,
@@ -45,6 +53,10 @@ export {
   type RhinestoneInitResult,
   type RhinestoneStoredSession,
   restoreRhinestoneSession,
+  rhinestoneProvider,
   type SmartAccountInfrastructure,
 } from './providers/rhinestone'
-export type { BaseStoredSession } from './types'
+export type {
+  BaseStoredSession,
+  SmartAccountProvider,
+} from './types'

@@ -52,13 +52,36 @@ import type { StoredSession } from './types'
 //            Bumping to v5 forces a single fresh wallet prompt for any
 //            user with an old session, after which everything matches
 //            the new factory + SDK + action-set.
+//   v5 → v6: two changes invalidated every stored session:
+//              (a) `RhinestoneStoredSession` grew a required
+//                  `actionsHash` field — a keccak256 over the action
+//                  set the session was signed against.
+//                  `restoreRhinestoneSession` recomputes the hash with
+//                  current code at load time and refuses to restore on
+//                  mismatch, surfacing the equivalent of a future
+//                  storage bump as a single fresh wallet prompt rather
+//                  than an opaque `InvalidSignature()` deep inside a
+//                  registration tx. v5 sessions don't carry the field
+//                  so the version bump itself invalidates them; v6+
+//                  sessions invalidate themselves on action-set drift
+//                  without needing another storage bump.
+//              (b) `buildRegistrationSessionActions` now normalizes the
+//                  EOA to EIP-55 before writing it into UAP
+//                  `referenceValue`. Old sessions whose enable
+//                  signatures were computed against the un-normalized
+//                  bytes hash to a different `PermissionId` than the
+//                  on-chain validator reconstructs from the same
+//                  config today, so they cannot be used and must be
+//                  re-enabled. This was the root cause of orchestrator
+//                  "Bundle simulation failed" 400s reported during the
+//                  v5 cut.
 //
 // Each bump invalidates sessions stored under prior policies — using a
 // stale `enableSignature` against a different PermissionId yields
 // `InvalidSignature()` at orchestrator simulation time. Old key
 // contents are harmless cruft; a new session is re-enabled lazily on
 // the next registration with a single wallet prompt.
-const SESSION_STORAGE_KEY = 'ens-sessions-v5'
+const SESSION_STORAGE_KEY = 'ens-sessions-v6'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**

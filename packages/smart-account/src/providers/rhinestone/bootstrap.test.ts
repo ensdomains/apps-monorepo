@@ -6,6 +6,10 @@
  * Intent submission failure, post-fill mismatch). All blockchain
  * access — both viem reads and Rhinestone SDK Intent submission — is
  * mocked.
+ *
+ * The factory address and ABI are injected as test fixtures rather
+ * than imported from `@ens-apps/transaction-manager` so the package
+ * stays chain-agnostic (it doesn't even know what Sepolia is).
  */
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
@@ -18,12 +22,6 @@ const { MOCK_FACTORY, MOCK_FILL_HASH } = vi.hoisted(() => ({
 }))
 
 // Mocks must be set up before the module-under-test imports.
-
-vi.mock('@ens-apps/transaction-manager', () => ({
-  ENS_SEPOLIA_CONTRACTS: {
-    HCAFactory: MOCK_FACTORY,
-  },
-}))
 
 const mockSendTransaction = vi.fn()
 const mockWaitForExecution = vi.fn()
@@ -47,13 +45,49 @@ vi.mock('viem/actions', async (importOriginal) => {
 })
 
 import { RhinestoneSDK } from '@rhinestone/sdk'
-import type { Account, Address, Chain } from 'viem'
+import type { Abi, Account, Address, Chain } from 'viem'
 import { zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
-import { bootstrapHCA, encodeHCAInitData } from './hca-bootstrap'
+import { bootstrapHCA, encodeHCAInitData } from './bootstrap'
 
 const EOA: Address = '0x000000000000000000000000000000000000eaa1'
 const HCA: Address = '0x0000000000000000000000000000000000003ca1'
+
+/**
+ * Minimal HCAFactory ABI surface this test exercises. Real callers
+ * pass the full `HCA_FACTORY_ABI` from the manager; the bootstrap
+ * only invokes the four entries listed here.
+ */
+const FACTORY_ABI: Abi = [
+  {
+    type: 'function',
+    name: 'accountHCAOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: 'hca', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'computeAccountAddress',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'getAccountOwner',
+    stateMutability: 'view',
+    inputs: [{ name: 'hca', type: 'address' }],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'createAccount',
+    stateMutability: 'payable',
+    inputs: [{ name: 'initData', type: 'bytes' }],
+    outputs: [{ name: 'hca', type: 'address' }],
+  },
+]
 
 const readContractMock = vi.mocked(readContract)
 
@@ -66,6 +100,16 @@ const chain = { id: 11155111, name: 'Sepolia' } as Chain
 const publicClient = { chain: { id: 11155111 } } as any
 const sdkOpts = {
   rhinestoneApiKey: 'test-api-key',
+}
+
+const baseParams = {
+  eoaAddress: EOA,
+  ownerAccount,
+  chain,
+  publicClient,
+  factoryAddress: MOCK_FACTORY as Address,
+  factoryAbi: FACTORY_ABI,
+  sdk: sdkOpts,
 }
 
 /**
@@ -133,13 +177,7 @@ describe('bootstrapHCA', () => {
   it('short-circuits when the HCA proxy is already deployed for this EOA', async () => {
     configureReads({ accountHCAOf: HCA })
 
-    const result = await bootstrapHCA({
-      eoaAddress: EOA,
-      ownerAccount,
-      chain,
-      publicClient,
-      sdk: sdkOpts,
-    })
+    const result = await bootstrapHCA(baseParams)
 
     expect(result.isOk()).toBe(true)
     if (result.isErr()) throw new Error('unreachable')
@@ -162,13 +200,7 @@ describe('bootstrapHCA', () => {
       fill: { hash: MOCK_FILL_HASH },
     })
 
-    const result = await bootstrapHCA({
-      eoaAddress: EOA,
-      ownerAccount,
-      chain,
-      publicClient,
-      sdk: sdkOpts,
-    })
+    const result = await bootstrapHCA(baseParams)
 
     expect(result.isOk()).toBe(true)
     if (result.isErr()) throw new Error('unreachable')
@@ -210,13 +242,7 @@ describe('bootstrapHCA', () => {
   it('surfaces a tagged error when the precheck read fails', async () => {
     readContractMock.mockRejectedValueOnce(new Error('rpc timeout'))
 
-    const result = await bootstrapHCA({
-      eoaAddress: EOA,
-      ownerAccount,
-      chain,
-      publicClient,
-      sdk: sdkOpts,
-    })
+    const result = await bootstrapHCA(baseParams)
 
     expect(result.isErr()).toBe(true)
     if (result.isOk()) throw new Error('unreachable')
@@ -230,13 +256,7 @@ describe('bootstrapHCA', () => {
       new Error('orchestrator simulation failed'),
     )
 
-    const result = await bootstrapHCA({
-      eoaAddress: EOA,
-      ownerAccount,
-      chain,
-      publicClient,
-      sdk: sdkOpts,
-    })
+    const result = await bootstrapHCA(baseParams)
 
     expect(result.isErr()).toBe(true)
     if (result.isOk()) throw new Error('unreachable')
@@ -255,13 +275,7 @@ describe('bootstrapHCA', () => {
       fill: { hash: MOCK_FILL_HASH },
     })
 
-    const result = await bootstrapHCA({
-      eoaAddress: EOA,
-      ownerAccount,
-      chain,
-      publicClient,
-      sdk: sdkOpts,
-    })
+    const result = await bootstrapHCA(baseParams)
 
     expect(result.isErr()).toBe(true)
     if (result.isOk()) throw new Error('unreachable')

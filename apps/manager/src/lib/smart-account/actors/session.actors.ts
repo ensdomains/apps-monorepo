@@ -29,6 +29,14 @@ export type SessionClient = {
   readonly enableSignature: Hex
   readonly hashesAndChainIds: string
   /**
+   * EOA the session was signed against. Carried explicitly (rather
+   * than re-read from React context) so the action-set rebuild at
+   * `SmartAccountContext` reproduces the exact bytes the enable
+   * signature was computed over. Pulling from React context risks
+   * picking up a different casing / different wallet across reloads.
+   */
+  readonly ownerAddress: Address
+  /**
    * Session expiry (unix seconds). Required for signer construction —
    * the `time-frame` policy baked into the actions array is derived from
    * this value, and the rebuild in SmartAccountContext must reproduce the
@@ -107,6 +115,7 @@ export function createSessionActor(
         sessionPrivateKey,
         enableSignature: session.enableSignature,
         hashesAndChainIds: session.hashesAndChainIds,
+        ownerAddress: session.ownerAddress,
         validUntil: session.validUntil,
       },
     })
@@ -155,6 +164,7 @@ export function restoreSessionActor(
       sessionPrivateKey: session.sessionPrivateKey,
       enableSignature: session.enableSignature,
       hashesAndChainIds: session.hashesAndChainIds,
+      ownerAddress: session.ownerAddress,
       validUntil: restoredValidUntil,
     },
   }))

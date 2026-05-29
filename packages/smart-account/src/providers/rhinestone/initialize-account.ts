@@ -1,8 +1,8 @@
 /**
  * Rhinestone smart-account initialization.
  *
- * Pure async function that creates a `RhinestoneAccount` via the SDK,
- * ensures it is deployed on-chain, and returns the live account + config.
+ * Pure async function that creates a `RhinestoneAccount` via the SDK
+ * and binds it to a caller-chosen on-chain address.
  *
  * The caller is responsible for:
  *   - Producing a viem `Account` from whatever wallet provider it uses
@@ -11,22 +11,33 @@
  *     concern — wrap before passing in.
  *   - Reading env vars / wagmi config and threading them in as named
  *     parameters.
+ *   - Putting the SCA on chain at a known address via
+ *     `onPrepareDeploy`. The manager uses `bootstrapHCA` from this
+ *     package to deploy the HCA proxy at
+ *     `HCAFactory.computeAccountAddress(eoa)` and return that address.
  *   - Surfacing progress and errors to the user. We invoke optional
  *     `onProgress` / `onError` callbacks at well-defined points; the
  *     caller decides whether that becomes a toast, a banner, or
  *     nothing at all.
- *   - Any post-deploy on-chain work (HCA ownership registration,
- *     module installs, etc.) via the `onAccountReady` hook.
  *
  * The `infrastructure` parameter is only used to validate that
  * `pimlicoApiKey` is provided when the caller intends to use the
  * ERC-4337 bundler path. The Rhinestone Warp orchestrator (default,
  * intent-based gas sponsorship) does not need Pimlico.
+ *
+ * No legacy / fallback deploy path: every caller MUST supply
+ * `onPrepareDeploy`. The previous "SDK-driven Warp no-op deploy" branch
+ * existed only for callers that didn't need HCA-equivalent addressing;
+ * no such caller remains. Skipping bootstrap would produce a
+ * Rhinestone-derived Nexus CREATE2 address that the ENS protocol
+ * cannot resolve as HCA-equivalent to the EOA — see
+ * `apps/manager/src/lib/smart-account/hca-bootstrap.ts` (now
+ * `./bootstrap.ts`) for the full diagnosis.
  */
 
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { RhinestoneSDK } from '@rhinestone/sdk'
-import { type Account, type Address, type Chain, zeroAddress } from 'viem'
+import type { Account, Address, Chain } from 'viem'
 
 /**
  * Infrastructure for routing smart-account transactions. Mirrors the
@@ -51,32 +62,14 @@ export interface RhinestoneInitResult {
  * Stage labels emitted via `onProgress` / `onError`. Stable contract —
  * callers can switch over these to drive UI copy.
  *
- *   - `deploying` — the SCA is not yet on-chain; we're putting it
- *     there. The *mechanism* depends on whether the caller wired up an
- *     `onPrepareDeploy` hook:
- *       - With `onPrepareDeploy` (the HCA path): the hook runs *before*
- *         the SDK is constructed and is responsible for deploying the
- *         SCA at a precomputed address via whatever transport the
- *         caller wants (e.g. an EOA `writeContract` against
- *         `HCAFactory.createAccount`). The SDK is then bound to that
- *         address via `initData: { address }` and its own Warp deploy
- *         path is skipped because `isDeployed(...)` already returns
- *         true. We still emit `'deploying'` so existing toast UX
- *         doesn't need to know which path is active.
- *       - Without `onPrepareDeploy` (the legacy path): we ask the SDK
- *         to send a no-op Warp Intent that deploys the SDK-derived SCA
- *         address. Retained for callers that don't need HCA-equivalent
- *         addressing.
- *   - `registering` — handing control to the caller's `onAccountReady`
- *     hook for post-deploy work (legacy). With the HCA factory this
- *     stage is effectively unused because the factory writes
- *     `_hcaOwners[hca] = eoa` atomically inside `createAccount`, so no
- *     follow-up registration tx is needed. Emitted only when
- *     `onAccountReady` is provided.
+ *   - `deploying` — the SCA is not yet on-chain; the caller's
+ *     `onPrepareDeploy` is putting it there. The hook owns the actual
+ *     deploy transport (typically an EOA-signed, sponsored Rhinestone
+ *     Intent against `HCAFactory.createAccount`).
  *   - `ready` — setup complete (only emitted via `onProgress`, never
  *     `onError`). Useful for closing out a "deploying…" toast.
  */
-export type InitProgressStage = 'deploying' | 'registering' | 'ready'
+export type InitProgressStage = 'deploying' | 'ready'
 
 export interface InitializeRhinestoneAccountParams {
   /**
@@ -120,57 +113,25 @@ export interface InitializeRhinestoneAccountParams {
    * returns that address so the SDK can be bound to it via
    * `initData: { address }`.
    *
-   * When this hook is provided:
-   *   - The SDK's own Warp no-op deploy is skipped (the hook is the
-   *     authoritative deploy path).
-   *   - `accountAddress` in the result is whatever address the hook
-   *     returned, *not* the SDK's CREATE2-derived Nexus address.
-   *   - `onAccountReady` still fires for any post-deploy work the
-   *     caller wants, but `wasDeployedInThisCall` reflects whether
-   *     the hook reported a fresh deploy.
+   * Required. Without a bound address, the SDK would derive its own
+   * Nexus CREATE2 address that the ENS protocol cannot resolve as
+   * HCA-equivalent to the EOA.
    *
    * Errors thrown from `onPrepareDeploy` propagate out of
    * `initializeRhinestoneAccount` and cause `onError('deploying', ...)`
    * to be emitted.
    */
-  readonly onPrepareDeploy?: (input: { eoaAddress: Address }) => Promise<{
+  readonly onPrepareDeploy: (input: { eoaAddress: Address }) => Promise<{
     /** The address the SDK should bind to (must be deployed by hook return). */
     hcaAddress: Address
     /**
      * Whether the hook actually deployed the SCA in this call (true)
      * or whether it was already on chain from a previous bootstrap
-     * (false). Threaded into `onAccountReady`'s `wasDeployedInThisCall`.
+     * (false). Not currently used here but threaded back to the
+     * caller's progress callbacks at the manager layer.
      */
     wasDeployedInThisCall: boolean
   }>
-
-  /**
-   * Hook called after `sdk.createAccount` returns, before we register
-   * HCA ownership or hand control back. The callback receives the
-   * built RhinestoneAccount + its address + the SCA-on-chain status
-   * so the caller can do its own HCA registration (or anything else
-   * that needs the live account).
-   *
-   * Errors thrown from `onAccountReady` propagate out of
-   * `initializeRhinestoneAccount` and cause `onError('registering', ...)`
-   * to be emitted.
-   *
-   * @deprecated Under the HCA flow this hook is no-op: `HCAFactory`
-   * writes ownership atomically inside `createAccount`, so the manager
-   * has nothing to do after `sdk.createAccount` returns. Retained for
-   * backwards compatibility with the legacy `MockHCAFactoryBasic`
-   * registration path; will be removed once no caller depends on it.
-   */
-  readonly onAccountReady?: (input: {
-    rhinestoneAccount: RhinestoneAccount
-    accountAddress: Address
-    /**
-     * Whether the SCA was deployed in this call (true) or was already
-     * deployed before we started (false). Useful for the caller to
-     * decide whether to skip a no-op HCA registration.
-     */
-    wasDeployedInThisCall: boolean
-  }) => Promise<void>
 
   /**
    * Caller-declared infrastructure preference. Only used to validate
@@ -193,8 +154,7 @@ export interface InitializeRhinestoneAccountParams {
 /**
  * Initialize a Rhinestone smart account.
  *
- * @throws when the SDK fails, the bootstrap deploy fails, or
- * `onAccountReady` throws.
+ * @throws when the SDK fails or `onPrepareDeploy` throws.
  */
 export async function initializeRhinestoneAccount(
   params: InitializeRhinestoneAccountParams,
@@ -208,7 +168,6 @@ export async function initializeRhinestoneAccount(
     rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls,
     onPrepareDeploy,
-    onAccountReady,
     infrastructure = 'warp',
     onProgress,
     onError,
@@ -236,42 +195,31 @@ export async function initializeRhinestoneAccount(
 
   const sdk = new RhinestoneSDK(sdkOptions)
 
-  // Phase 1 — Prepare the deploy.
+  // Phase 1 — Put the SCA on chain.
   //
-  // If the caller provided `onPrepareDeploy`, the SCA must exist on
-  // chain at a *caller-chosen* address by the time the hook returns.
-  // This is the path the manager uses to put the HCA proxy on chain at
-  // `HCAFactory.computeAccountAddress(eoa)` via a plain EOA tx, which
-  // also writes `_hcaOwners[hca] = eoa` atomically.
-  //
-  // If the caller did not provide the hook, we fall back to the legacy
-  // path: let the SDK derive its own Nexus address, then deploy it via
-  // a sponsored Warp Intent below. The legacy path is the only viable
-  // option for non-HCA consumers of this package, of which there are
-  // currently none — kept as a fallback so this change is strictly
-  // additive.
-  let precomputedAddress: Address | undefined
-  let wasDeployedInThisCall = false
-  if (onPrepareDeploy) {
-    onProgress?.('deploying')
-    try {
-      const result = await onPrepareDeploy({ eoaAddress })
-      precomputedAddress = result.hcaAddress
-      wasDeployedInThisCall = result.wasDeployedInThisCall
-    } catch (error) {
-      const wrapped = error instanceof Error ? error : new Error(String(error))
-      onError?.('deploying', wrapped)
-      throw wrapped
-    }
+  // `onPrepareDeploy` is the authoritative deploy path. The hook
+  // typically calls `bootstrapHCA` from this package to put the HCA
+  // proxy on chain at `HCAFactory.computeAccountAddress(eoa)`, which
+  // also writes `_hcaOwners[hca] = eoa` atomically. The address it
+  // returns is what the SDK will bind to in phase 2.
+  onProgress?.('deploying')
+  let precomputedAddress: Address
+  try {
+    const result = await onPrepareDeploy({ eoaAddress })
+    precomputedAddress = result.hcaAddress
+  } catch (error) {
+    const wrapped = error instanceof Error ? error : new Error(String(error))
+    onError?.('deploying', wrapped)
+    throw wrapped
   }
 
-  // Phase 2 — Build the `RhinestoneAccount`.
+  // Phase 2 — Build the `RhinestoneAccount` bound to the precomputed
+  // address.
   //
-  // When `precomputedAddress` is set, `initData: { address }` tells
-  // the SDK to skip its CREATE2-over-Nexus address derivation entirely
-  // and bind to the address we picked. See
-  // `@rhinestone/sdk@1.6.5/src/accounts/nexus.ts:getAddress` — the
-  // `if (config.initData?.address) return config.initData.address`
+  // `initData: { address }` tells the SDK to skip its
+  // CREATE2-over-Nexus address derivation entirely and bind to the
+  // address we picked. See `@rhinestone/sdk@1.6.5/src/accounts/nexus.ts:getAddress`
+  // — the `if (config.initData?.address) return config.initData.address`
   // branch is what makes this work. Same applies to `getInitCode`.
   const rhinestoneAccount = await sdk.createAccount({
     owners: {
@@ -279,72 +227,10 @@ export async function initializeRhinestoneAccount(
       accounts: [ownerAccount],
     },
     experimental_sessions: { enabled: true },
-    ...(precomputedAddress && {
-      initData: { address: precomputedAddress },
-    }),
+    initData: { address: precomputedAddress },
   })
 
   const accountAddress = rhinestoneAccount.getAddress() as Address
-
-  // Phase 3 — Legacy SDK-driven deploy.
-  //
-  // Skipped when `onPrepareDeploy` ran (the hook is the authoritative
-  // deploy path; the SCA is already on chain). For legacy callers
-  // without the hook, send a Warp no-op so the SDK can deploy its own
-  // Nexus SCA. A bare `.deploy()` 422s the intents path with
-  // ZERO_BALANCE because the tokenRequests array is empty; deploying
-  // via a noop call works (confirmed with Rhinestone). Per call: keep
-  // this in sync with their guidance.
-  if (!onPrepareDeploy) {
-    const deployed = await rhinestoneAccount.isDeployed(chain)
-    if (!deployed) {
-      onProgress?.('deploying')
-      try {
-        // `sendTransaction` only submits — it does not wait for the fill
-        // to land. Without an explicit `waitForExecution` here, callers'
-        // `onAccountReady` hooks can race the bootstrap deploy and
-        // intermittently fail on fresh wallets. Mirror the Rhinestone
-        // SDK examples and wait for execution before declaring the
-        // account deployed.
-        const deployTx = await rhinestoneAccount.sendTransaction({
-          chain,
-          calls: [
-            {
-              to: zeroAddress,
-              value: 0n,
-              data: '0x',
-            },
-          ],
-          sponsored: true,
-        })
-        await rhinestoneAccount.waitForExecution(deployTx)
-        wasDeployedInThisCall = true
-      } catch (error) {
-        const wrapped =
-          error instanceof Error ? error : new Error(String(error))
-        onError?.('deploying', wrapped)
-        throw wrapped
-      }
-    }
-  }
-
-  // Hand off to the caller for any post-deploy work (HCA registration,
-  // etc.). The caller decides whether to skip when the SCA was already
-  // deployed.
-  if (onAccountReady) {
-    onProgress?.('registering')
-    try {
-      await onAccountReady({
-        rhinestoneAccount,
-        accountAddress,
-        wasDeployedInThisCall,
-      })
-    } catch (error) {
-      const wrapped = error instanceof Error ? error : new Error(String(error))
-      onError?.('registering', wrapped)
-      throw wrapped
-    }
-  }
 
   onProgress?.('ready')
 

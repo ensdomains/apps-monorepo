@@ -6,7 +6,9 @@
  * `providers/<provider>/types.ts` and extend `BaseStoredSession`.
  */
 
+import type { ResultAsync } from 'neverthrow'
 import type { Address, Hex } from 'viem'
+import type { SessionError } from './errors'
 
 /**
  * Common fields for any provider-tagged stored session.
@@ -43,4 +45,55 @@ export interface BaseStoredSession {
   readonly validUntil?: number
   /** Session private key (hex) for signing */
   readonly sessionPrivateKey: Hex
+}
+
+/**
+ * Contract every smart-account provider implements.
+ *
+ * Today only `rhinestone` implements it; the contract exists so a
+ * future second provider lands by adding a second implementation
+ * rather than reshuffling the package. Consumers (the manager app)
+ * can either depend on a concrete provider directly (current shape)
+ * or on this contract once multi-provider support is needed.
+ *
+ * Type parameters:
+ *   - `InitParams` — provider-specific account-init input shape
+ *     (e.g. `InitializeRhinestoneAccountParams`).
+ *   - `InitResult` — what `initializeAccount` resolves with
+ *     (e.g. `RhinestoneInitResult`).
+ *   - `CreateSessionParams` — provider-specific session-create input.
+ *   - `Session` — provider's stored-session shape; must extend
+ *     `BaseStoredSession`.
+ *   - `RestoreSessionParams` — provider-specific session-restore input.
+ *
+ * The provider exposes both the methods AND a type guard so callers
+ * can narrow a stored session loaded from localStorage to the right
+ * provider's shape before passing it back in.
+ */
+export interface SmartAccountProvider<
+  InitParams,
+  InitResult,
+  CreateSessionParams,
+  Session extends BaseStoredSession,
+  RestoreSessionParams,
+> {
+  /** Provider identifier — mirrors the `provider` discriminator on `Session`. */
+  readonly name: string
+
+  /** Bring the smart account online (deploy + bind SDK). */
+  initialize(params: InitParams): Promise<InitResult>
+
+  /** Mint and enable a new session for the live account. */
+  createSession(
+    params: CreateSessionParams,
+  ): ResultAsync<{ session: Session; sessionPrivateKey: Hex }, SessionError>
+
+  /** Validate a stored session is still usable client-side. */
+  restoreSession(params: RestoreSessionParams): ResultAsync<void, SessionError>
+
+  /**
+   * Type guard to narrow a stored-session union (e.g. read from
+   * `localStorage`) to this provider's shape.
+   */
+  isSession<T extends { provider?: string }>(session: T): session is T & Session
 }

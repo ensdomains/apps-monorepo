@@ -24,6 +24,7 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { SessionError } from '../../errors'
 import {
   buildRegistrationSessionActions,
+  buildRegistrationSessionActionsHash,
   REGISTRATION_SESSION_VALIDITY_SECONDS,
 } from './registration-policy'
 import type { RhinestoneStoredSession } from './types'
@@ -90,20 +91,27 @@ export function createRhinestoneSession(
 
       // 3. Define session scoped to the registration / renewal flows.
       //    See ./registration-policy.ts for the action set + threat
-      //    model. The same actions array MUST be reproduced byte-for-byte at
-      //    signer-construction time (SmartAccountContext.tsx) — the
-      //    PermissionId is derived from this config; mismatch yields
-      //    `InvalidSignature()` at runtime.
+      //    model. The same actions array MUST be reproduced
+      //    byte-for-byte at signer-construction time
+      //    (SmartAccountContext.tsx) — the PermissionId is derived
+      //    from this config; mismatch yields `InvalidSignature()` at
+      //    runtime. We persist a hash over the action set on the
+      //    stored session so `restoreRhinestoneSession` can detect
+      //    drift at load time and force a fresh enable rather than
+      //    failing opaquely inside a tx.
+      const actionsParams = {
+        eoaAddress: ownerAddress,
+        validUntil,
+      }
+      const actions = buildRegistrationSessionActions(actionsParams)
+      const actionsHash = buildRegistrationSessionActionsHash(actionsParams)
       const sdkSession: Session = {
         owners: {
           type: 'ecdsa' as const,
           accounts: [sessionAccount],
         },
         chain,
-        actions: buildRegistrationSessionActions({
-          eoaAddress: ownerAddress,
-          validUntil,
-        }),
+        actions,
       }
 
       // 4. Get session details (on-chain validation data)
@@ -146,6 +154,7 @@ export function createRhinestoneSession(
         sessionConfig: JSON.stringify({ provider: 'rhinestone', chainId }),
         enableSignature,
         hashesAndChainIds: serializedHashes,
+        actionsHash,
       }
 
       return { session, sessionPrivateKey }
@@ -165,12 +174,20 @@ export interface RestoreRhinestoneSessionParams {
 /**
  * Restore a Rhinestone session from stored data.
  *
- * Refuses to restore once `session.validUntil` has passed. Today this is
- * the **only** expiry check — see `registration-policy.ts` for why
- * the matching on-chain `time-frame` policy is currently disabled. A
- * stolen session key submitted from an attacker's bundler is therefore
- * not bound by this check; the bound is just the dApp's own refusal to
- * use a stale key plus the user revoking the session.
+ * Two refuse conditions:
+ *
+ *   1. Expiry — refuses once `session.validUntil` has passed. This is
+ *      currently the **only** expiry check; see `registration-policy.ts`
+ *      for why the matching on-chain `time-frame` policy is disabled. A
+ *      stolen session key submitted from an attacker's bundler is not
+ *      bound by this check.
+ *   2. Action-set drift — refuses if the action set produced by the
+ *      current `buildRegistrationSessionActions(params)` no longer
+ *      hashes to `session.actionsHash`. Any drift (added rule, swapped
+ *      constant, renamed selector) invalidates the PermissionId baked
+ *      into `enableSignature`, so reusing the session would fail with
+ *      `InvalidSignature()` at orchestrator simulation time. Refusing
+ *      up-front forces a single fresh wallet prompt instead.
  *
  * The `enableSignature` and `hashesAndChainIds` from storage are used at
  * signer construction time to build the full SessionSignerSet with
@@ -185,6 +202,18 @@ export function restoreRhinestoneSession(
     (async () => {
       if (session.validUntil && Date.now() > session.validUntil * 1000) {
         throw new Error('Session has expired')
+      }
+      const currentHash = buildRegistrationSessionActionsHash({
+        eoaAddress: session.ownerAddress,
+        validUntil:
+          session.validUntil ??
+          Math.floor(session.createdAt / 1000) +
+            REGISTRATION_SESSION_VALIDITY_SECONDS,
+      })
+      if (currentHash !== session.actionsHash) {
+        throw new Error(
+          'Stored session was enabled against a different action set; please re-enable',
+        )
       }
     })(),
     (error: unknown) =>

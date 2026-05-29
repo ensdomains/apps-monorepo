@@ -72,6 +72,8 @@ describe('isRhinestoneAccount', () => {
       sessionConfig: '{}',
       enableSignature: '0xenable' as const,
       hashesAndChainIds: '[]',
+      actionsHash:
+        '0x0000000000000000000000000000000000000000000000000000000000000000' as const,
     }
 
     const rhinestoneState = createRhinestoneState({

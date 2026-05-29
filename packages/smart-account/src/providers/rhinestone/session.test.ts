@@ -9,7 +9,10 @@ import { experimental_enableSession } from '@rhinestone/sdk/actions/smart-sessio
 import type { Address, Chain, Hex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionError } from '../../errors'
-import { buildRegistrationSessionActions } from './registration-policy'
+import {
+  buildRegistrationSessionActions,
+  buildRegistrationSessionActionsHash,
+} from './registration-policy'
 import { createRhinestoneSession, restoreRhinestoneSession } from './session'
 import type { RhinestoneStoredSession } from './types'
 
@@ -44,8 +47,10 @@ const MOCK_HASHES_AND_CHAIN_IDS = [
 
 // ── Fixtures ───────────────────────────────────────────────────────────
 
-const OWNER_ADDRESS = '0xOwner12345678901234567890123456789012345678' as Address
-const ACCOUNT_ADDRESS = '0xAccount1234567890123456789012345678901234' as Address
+// Real-shaped hex addresses (not placeholder strings) — `buildRegistrationSessionActions`
+// now runs `viem.getAddress(...)` on the EOA, which rejects non-hex input.
+const OWNER_ADDRESS = '0x1111111111111111111111111111111111111111' as Address
+const ACCOUNT_ADDRESS = '0x2222222222222222222222222222222222222222' as Address
 
 const MOCK_CHAIN = { id: 11155111, name: 'Sepolia' } as Chain
 
@@ -330,6 +335,16 @@ describe('session', () => {
   // ─── restoreRhinestoneSession ────────────────────────────────────
 
   describe('restoreRhinestoneSession', () => {
+    /**
+     * Default `actionsHash` matches what `buildRegistrationSessionActions`
+     * produces for `OWNER_ADDRESS` today. Tests that exercise the
+     * drift path override this with a foreign value.
+     */
+    const VALID_ACTIONS_HASH = buildRegistrationSessionActionsHash({
+      eoaAddress: OWNER_ADDRESS,
+      validUntil: 2_000_000_000,
+    })
+
     const createSession = (
       overrides: Partial<RhinestoneStoredSession> = {},
     ): RhinestoneStoredSession => ({
@@ -349,6 +364,7 @@ describe('session', () => {
       hashesAndChainIds: JSON.stringify([
         { chainId: '11155111', sessionDigest: '0xdigest123' },
       ]),
+      actionsHash: VALID_ACTIONS_HASH,
       ...overrides,
     })
 
@@ -389,6 +405,45 @@ describe('session', () => {
 
       expect(result.isOk()).toBe(true)
       expect(result._unsafeUnwrap()).toBeUndefined()
+    })
+
+    it('returns SessionError when actionsHash drifts from current code', async () => {
+      // Simulate a session enabled before a registration-policy edit:
+      // the stored hash doesn't match what the current builder
+      // produces for the same params. Restore must refuse so the
+      // user gets a fresh enable prompt rather than an opaque
+      // `InvalidSignature()` deep inside a registration tx.
+      const session = createSession({
+        actionsHash:
+          '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      })
+
+      const result = await restoreRhinestoneSession({ session })
+
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SessionError)
+      expect(result._unsafeUnwrapErr().message).toContain(
+        'different action set',
+      )
+    })
+
+    it('matches a freshly-created session round-trip', async () => {
+      // `createRhinestoneSession` writes `actionsHash` derived from the
+      // exact `ownerAddress` + `validUntil` pair, and
+      // `restoreRhinestoneSession` re-derives it from the same fields
+      // on the stored session. The round-trip must succeed.
+      const mockAccount = createMockRhinestoneAccount()
+      const created = await createRhinestoneSession({
+        ownerAddress: OWNER_ADDRESS,
+        smartAccountAddress: ACCOUNT_ADDRESS,
+        chainId: 11155111,
+        rhinestoneAccount: mockAccount,
+        chain: MOCK_CHAIN,
+      })
+      const { session } = created._unsafeUnwrap()
+
+      const restored = await restoreRhinestoneSession({ session })
+      expect(restored.isOk()).toBe(true)
     })
   })
 })

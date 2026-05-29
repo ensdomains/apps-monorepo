@@ -69,20 +69,27 @@ vi.mock('@/lib/wagmi', () => ({
   },
 }))
 
-// Mock the HCA bootstrap. Replaces the old `./hca-registry`
-// `registerHCAOwnership` mock — the bootstrap is the new (and only)
-// entry-point for putting the SCA on chain in HCA mode.
-vi.mock('./hca-bootstrap', () => ({
-  bootstrapHCA: vi.fn().mockResolvedValue({
-    isOk: () => true,
-    isErr: () => false,
-    value: {
-      hcaAddress: MOCK_HCA_ADDRESS,
-      wasDeployedInThisCall: true,
-      hash: '0xdeadbeef',
-    },
-  }),
-}))
+// Mock the HCA bootstrap from `@ens-apps/smart-account`. The manager
+// wrapper imports `bootstrapHCA` from the package, not from a local
+// file. We mock only the bootstrap symbol; the package's
+// `initializeRhinestoneAccount` is exercised through the SDK mock
+// further up.
+vi.mock('@ens-apps/smart-account', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@ens-apps/smart-account')>()
+  return {
+    ...actual,
+    bootstrapHCA: vi.fn().mockResolvedValue({
+      isOk: () => true,
+      isErr: () => false,
+      value: {
+        hcaAddress: MOCK_HCA_ADDRESS,
+        wasDeployedInThisCall: true,
+        hash: '0xdeadbeef',
+      },
+    }),
+  }
+})
 
 // Mock Para viem integration
 vi.mock('@getpara/viem-v2-integration', () => ({
@@ -93,12 +100,12 @@ vi.mock('@getpara/viem-v2-integration', () => ({
   }),
 }))
 
+import { bootstrapHCA } from '@ens-apps/smart-account'
 import {
   RhinestoneSDK,
   walletClientToAccount,
   wrapParaAccount,
 } from '@rhinestone/sdk'
-import { bootstrapHCA } from './hca-bootstrap'
 import {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
@@ -153,6 +160,10 @@ describe('initializeRhinestoneAccount', () => {
         ownerAccount: expect.any(Object),
         chain: expect.objectContaining({ id: 11155111 }),
         publicClient: expect.objectContaining({ chain: { id: 11155111 } }),
+        // Manager now injects the factory address + ABI rather than
+        // letting the package import them.
+        factoryAddress: '0x3333333333333333333333333333333333333333',
+        factoryAbi: expect.any(Array),
         sdk: expect.objectContaining({
           rhinestoneApiKey: 'test-rhinestone-key',
         }),
@@ -205,21 +216,6 @@ describe('initializeRhinestoneAccount', () => {
     })
   })
 
-  it('skips bootstrap entirely when registerHCA=false (legacy path)', async () => {
-    await initializeRhinestoneAccount({
-      walletClient: mockWalletClient,
-      registerHCA: false,
-    })
-
-    expect(bootstrapHCA).not.toHaveBeenCalled()
-
-    // Without bootstrap, the SDK should NOT receive `initData: { address }`
-    // — it derives its own Nexus address as usual.
-    const mockSdk = vi.mocked(RhinestoneSDK).mock.results[0]?.value
-    const createAccountArgs = mockSdk?.createAccount.mock.calls[0]?.[0]
-    expect(createAccountArgs).not.toHaveProperty('initData')
-  })
-
   it('throws error when neither walletClient nor paraClient provided', async () => {
     await expect(initializeRhinestoneAccount({})).rejects.toThrow(
       'Either walletClient or paraClient must be provided',
@@ -241,7 +237,6 @@ describe('initializeRhinestoneAccount', () => {
   it('returns correct config shape', async () => {
     const result = await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
-      registerHCA: false,
     })
 
     const config: RhinestoneConfig = result.config
@@ -279,7 +274,6 @@ describe('initializeRhinestoneAccount', () => {
     const result = await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
       infrastructure: 'warp',
-      registerHCA: false,
     })
 
     expect(result.client).toBeDefined()

@@ -7,7 +7,10 @@
 
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { buildRegistrationSessionActions } from './registration-policy'
+import {
+  buildRegistrationSessionActions,
+  buildRegistrationSessionActionsHash,
+} from './registration-policy'
 
 const EOA = '0x2222222222222222222222222222222222222222' as Address
 /** Fixed unix-seconds value for deterministic snapshot/equality checks. */
@@ -139,5 +142,104 @@ describe('buildRegistrationSessionActions', () => {
         validUntil: Number.MAX_SAFE_INTEGER,
       }),
     ).not.toThrow()
+  })
+})
+
+describe('buildRegistrationSessionActionsHash', () => {
+  it('returns a 0x-prefixed 32-byte keccak digest', () => {
+    const hash = buildRegistrationSessionActionsHash({
+      eoaAddress: EOA,
+      validUntil: VALID_UNTIL_SEC,
+    })
+    expect(hash).toMatch(/^0x[0-9a-f]{64}$/)
+  })
+
+  it('is deterministic — same params produce the same hash', () => {
+    const params = { eoaAddress: EOA, validUntil: VALID_UNTIL_SEC }
+    expect(buildRegistrationSessionActionsHash(params)).toBe(
+      buildRegistrationSessionActionsHash(params),
+    )
+  })
+
+  it('produces a different hash for a different eoaAddress', () => {
+    // The `register` action pins `owner == eoaAddress`, so changing
+    // the EOA must change the digest. If it doesn't, the drift check
+    // is silently broken and a session enabled against one EOA could
+    // be replayed against another at signer-construction time.
+    const otherEOA: Address = '0x3333333333333333333333333333333333333333'
+    expect(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: EOA,
+        validUntil: VALID_UNTIL_SEC,
+      }),
+    ).not.toBe(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: otherEOA,
+        validUntil: VALID_UNTIL_SEC,
+      }),
+    )
+  })
+
+  it('is invariant in EOA casing (EIP-55 normalization)', () => {
+    // The address ends up inside UAP `referenceValue` and the on-chain
+    // smart-sessions validator reconstructs `PermissionId` from the
+    // exact bytes of that field. If casing weren't normalized, a
+    // session signed against a checksummed EOA but rebuilt at
+    // signer-construction time against a lowercase EOA would produce
+    // a different PermissionId — the orchestrator returns "Bundle
+    // simulation failed" with no inner reason. `buildRegistrationSessionActions`
+    // applies `viem.getAddress(...)` at the top to normalize. Both
+    // hashes must agree regardless of input case.
+    const checksummed: Address =
+      '0x205d2686Da3Bf33f64C17f21462c51B5eaD462CF' as Address
+    const lowercase: Address =
+      '0x205d2686da3bf33f64c17f21462c51b5ead462cf' as Address
+    const uppercase: Address =
+      '0x205D2686DA3BF33F64C17F21462C51B5EAD462CF' as Address
+
+    expect(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: checksummed,
+        validUntil: VALID_UNTIL_SEC,
+      }),
+    ).toBe(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: lowercase,
+        validUntil: VALID_UNTIL_SEC,
+      }),
+    )
+    expect(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: lowercase,
+        validUntil: VALID_UNTIL_SEC,
+      }),
+    ).toBe(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: uppercase,
+        validUntil: VALID_UNTIL_SEC,
+      }),
+    )
+  })
+
+  it('is invariant in validUntil today (intentional — not in the action set)', () => {
+    // `validUntil` currently does not flow into the action set (the
+    // `time-frame` policy is disabled — see file header). Two
+    // different `validUntil` values must therefore hash to the same
+    // digest. Once upstream fixes `time-frame`, this test should
+    // flip to "produces a different hash" and `restoreRhinestoneSession`
+    // will start refusing sessions whose stored expiry no longer
+    // matches the current code. Bake that future change into the
+    // failure mode here so we don't forget.
+    expect(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: EOA,
+        validUntil: 1,
+      }),
+    ).toBe(
+      buildRegistrationSessionActionsHash({
+        eoaAddress: EOA,
+        validUntil: VALID_UNTIL_SEC,
+      }),
+    )
   })
 })
