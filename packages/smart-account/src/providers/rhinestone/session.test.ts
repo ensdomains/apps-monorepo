@@ -138,7 +138,6 @@ describe('session', () => {
       // signer reproduces in SmartAccountContext — derive it from the same
       // builder so the test tracks any policy changes automatically.
       const expectedActions = buildRegistrationSessionActions({
-        smartAccountAddress: ACCOUNT_ADDRESS,
         eoaAddress: OWNER_ADDRESS,
         validUntil,
       })

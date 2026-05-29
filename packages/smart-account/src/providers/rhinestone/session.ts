@@ -101,7 +101,6 @@ export function createRhinestoneSession(
         },
         chain,
         actions: buildRegistrationSessionActions({
-          smartAccountAddress,
           eoaAddress: ownerAddress,
           validUntil,
         }),

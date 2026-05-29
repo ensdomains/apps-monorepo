@@ -15,7 +15,7 @@
   "dependencies": {
     "@ens-apps/transaction-manager": "workspace:*",
     "@ensdomains/ensjs-abi": "catalog:",
-    "@rhinestone/sdk": "1.6.4",
+    "@rhinestone/sdk": "1.6.5",
     "neverthrow": "^8.1.1",
     "viem": "^2.21.58"
   },

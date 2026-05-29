@@ -19,6 +19,7 @@ const MOCK_SMART_ACCOUNT_ADDRESS =
 // so vi.mocked() can later read .mock.results.
 let mockIsDeployed = vi.fn().mockResolvedValue(true)
 let mockSendTransaction = vi.fn().mockResolvedValue('mock-tx')
+let mockWaitForExecution = vi.fn().mockResolvedValue({ fill: { hash: '0x01' } })
 
 vi.mock('@rhinestone/sdk', () => ({
   RhinestoneSDK: vi.fn(function (this: any) {
@@ -26,6 +27,10 @@ vi.mock('@rhinestone/sdk', () => ({
       getAddress: () => MOCK_SMART_ACCOUNT_ADDRESS,
       isDeployed: mockIsDeployed,
       sendTransaction: mockSendTransaction,
+      // `waitForExecution` is invoked unconditionally after the SDK
+      // deploys an account in the legacy path; the mock has to provide
+      // it or the deploy-path tests fail with "is not a function".
+      waitForExecution: mockWaitForExecution,
     })
     return this
   }),
@@ -53,6 +58,7 @@ describe('initializeRhinestoneAccount', () => {
     vi.clearAllMocks()
     mockIsDeployed = vi.fn().mockResolvedValue(true)
     mockSendTransaction = vi.fn().mockResolvedValue('mock-tx')
+    mockWaitForExecution = vi.fn().mockResolvedValue({ fill: { hash: '0x01' } })
   })
 
   describe('SDK options', () => {

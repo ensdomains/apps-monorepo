@@ -9,7 +9,6 @@ import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { buildRegistrationSessionActions } from './registration-policy'
 
-const SCA = '0x1111111111111111111111111111111111111111' as Address
 const EOA = '0x2222222222222222222222222222222222222222' as Address
 /** Fixed unix-seconds value for deterministic snapshot/equality checks. */
 const VALID_UNTIL_SEC = 2_000_000_000 // 2033-05-18
@@ -20,18 +19,28 @@ const KNOWN_SELECTORS = {
   renew: '0x89d779c3',
   approve: '0x095ea7b3',
   deployProxy: '0x5d84121a',
-  setAccountOwner: '0x2dbe1821',
 } as const
+
+/**
+ * The 7th action (`HCAFactory.setAccountOwner(SCA, EOA)`, selector
+ * `0x2dbe1821`) used to be in this set. It is permanently absent now —
+ * the real `HCAFactory` writes ownership atomically inside
+ * `createAccount`, so the session never has authority over the factory
+ * and never needs to call it. Pinning the absence here so a future
+ * re-add doesn't silently regress the threat model.
+ */
+const REMOVED_SETACCOUNTOWNER_SELECTOR = '0x2dbe1821' as const
 
 describe('buildRegistrationSessionActions', () => {
   const actions = buildRegistrationSessionActions({
-    smartAccountAddress: SCA,
     eoaAddress: EOA,
     validUntil: VALID_UNTIL_SEC,
   })
 
   it('emits exactly the expected number of scoped actions', () => {
-    expect(actions).toHaveLength(7)
+    // 6 actions remain after dropping the legacy HCAFactory entry:
+    // commit, register, renew, USDC.approve, DAI.approve, deployProxy.
+    expect(actions).toHaveLength(6)
   })
 
   it('every action has a target + selector (no FallbackAction in the set)', () => {
@@ -42,9 +51,6 @@ describe('buildRegistrationSessionActions', () => {
   })
 
   it('selectors derived from canonical ABIs match the cast-sig values', () => {
-    // Build a {target,selector} → selector-name reverse index for assertion
-    // clarity. Each (target, selector) pair must correspond to a known
-    // function from KNOWN_SELECTORS.
     const observedSelectors = actions.map((a) =>
       'selector' in a ? a.selector : null,
     )
@@ -54,7 +60,13 @@ describe('buildRegistrationSessionActions', () => {
     expect(observedSelectors).toContain(KNOWN_SELECTORS.renew)
     expect(observedSelectors).toContain(KNOWN_SELECTORS.approve)
     expect(observedSelectors).toContain(KNOWN_SELECTORS.deployProxy)
-    expect(observedSelectors).toContain(KNOWN_SELECTORS.setAccountOwner)
+  })
+
+  it('no HCAFactory.setAccountOwner action is present', () => {
+    const observedSelectors = actions.map((a) =>
+      'selector' in a ? a.selector : null,
+    )
+    expect(observedSelectors).not.toContain(REMOVED_SETACCOUNTOWNER_SELECTOR)
   })
 
   it('register action pins owner to EOA at calldata offset 32', () => {
@@ -95,25 +107,6 @@ describe('buildRegistrationSessionActions', () => {
     }
   })
 
-  it('setAccountOwner action pins both args to (SCA, EOA)', () => {
-    const action = actions.find(
-      (a) => 'selector' in a && a.selector === KNOWN_SELECTORS.setAccountOwner,
-    )
-    expect(action).toBeDefined()
-    const policy = (action?.policies ?? [])[0]
-    expect(policy?.type).toBe('universal-action')
-    if (policy?.type !== 'universal-action') throw new Error('unreachable')
-    expect(policy.rules).toHaveLength(2)
-    expect(policy.rules[0]).toMatchObject({
-      calldataOffset: 0n,
-      referenceValue: SCA,
-    })
-    expect(policy.rules[1]).toMatchObject({
-      calldataOffset: 32n,
-      referenceValue: EOA,
-    })
-  })
-
   it('no `time-frame` policy is attached on any action (SDK/contract mismatch)', () => {
     // The Rhinestone SDK 1.5.1 `'time-frame'` encoder produces 12-byte
     // initData but the deployed Sepolia TimeFramePolicy expects 32 bytes
@@ -136,14 +129,12 @@ describe('buildRegistrationSessionActions', () => {
     // throwing regardless of value, since today it is unused.
     expect(() =>
       buildRegistrationSessionActions({
-        smartAccountAddress: SCA,
         eoaAddress: EOA,
         validUntil: 0,
       }),
     ).not.toThrow()
     expect(() =>
       buildRegistrationSessionActions({
-        smartAccountAddress: SCA,
         eoaAddress: EOA,
         validUntil: Number.MAX_SAFE_INTEGER,
       }),

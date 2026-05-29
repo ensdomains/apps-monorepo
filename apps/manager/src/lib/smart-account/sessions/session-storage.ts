@@ -26,13 +26,39 @@ import type { StoredSession } from './types'
 //            the key forces a fresh enable that uses the v4 (no
 //            time-frame) action set. See `build-registration-session.ts`
 //            for the full diagnosis and the conditions for re-enabling.
+//   v4 → v5: two simultaneous breaking changes invalidated every
+//            stored session:
+//              (a) the HCAFactory action was dropped from
+//                  `registration-policy.ts` (the new `HCAFactory.sol`
+//                  has no `setAccountOwner` selector — ownership is
+//                  written atomically inside `createAccount`). The
+//                  action set went from 7 actions to 6, changing the
+//                  PermissionId.
+//              (b) the canonical SCA address moved from the Rhinestone
+//                  Nexus-derived CREATE2 address to the HCAFactory
+//                  CREATE3 proxy at `computeAccountAddress(eoa)`. Old
+//                  sessions are keyed by an account address that the
+//                  new bootstrap will never produce again, so they
+//                  could never be matched to a fresh user anyway.
+//              (c) `@rhinestone/sdk@1.6.4 → 1.6.5` fixed
+//                  `signEnableSession` to derive the EIP-712 signing
+//                  chain from `hashesAndChainIds[0].chainId` instead
+//                  of hardcoding mainnet. v4 sessions were signed
+//                  against chainId=1; the on-chain emissary on Sepolia
+//                  expects chainId=11155111. Replaying a v4
+//                  enableSignature would fail wallet-side
+//                  network-match checks and ultimately fail the on-chain
+//                  signature check.
+//            Bumping to v5 forces a single fresh wallet prompt for any
+//            user with an old session, after which everything matches
+//            the new factory + SDK + action-set.
 //
 // Each bump invalidates sessions stored under prior policies — using a
 // stale `enableSignature` against a different PermissionId yields
 // `InvalidSignature()` at orchestrator simulation time. Old key
 // contents are harmless cruft; a new session is re-enabled lazily on
 // the next registration with a single wallet prompt.
-const SESSION_STORAGE_KEY = 'ens-sessions-v4'
+const SESSION_STORAGE_KEY = 'ens-sessions-v5'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**

@@ -354,7 +354,6 @@ export const SmartAccountContextProvider = ({
                 // but we still thread the same value through so the
                 // rebuild stays correct once upstream is fixed.
                 actions: buildRegistrationSessionActions({
-                  smartAccountAddress: accountAddress,
                   eoaAddress: ownerAddress,
                   validUntil: rhinestoneSessionClient.validUntil,
                 }),

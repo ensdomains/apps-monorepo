@@ -1,8 +1,9 @@
 /**
  * Rhinestone Account Initialization Tests
  *
- * Tests for the initializeRhinestoneAccount function.
- * Uses mocked SDK dependencies to avoid actual blockchain calls.
+ * Tests for the manager-side `initializeRhinestoneAccount` wrapper.
+ * Uses mocked SDK + bootstrap dependencies to avoid actual blockchain
+ * calls.
  */
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
@@ -13,10 +14,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
 vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
 
-const { MOCK_OWNER_ADDRESS, MOCK_SMART_ACCOUNT_ADDRESS } = vi.hoisted(() => ({
+const { MOCK_OWNER_ADDRESS, MOCK_HCA_ADDRESS } = vi.hoisted(() => ({
   MOCK_OWNER_ADDRESS: '0x2222222222222222222222222222222222222222' as const,
-  MOCK_SMART_ACCOUNT_ADDRESS:
-    '0x1111111111111111111111111111111111111111' as const,
+  // The HCA proxy address that `bootstrapHCA` would have returned
+  // (`HCAFactory.computeAccountAddress(eoa)` in real flow). The SDK mock's
+  // `getAddress()` returns this same value because the SDK is told via
+  // `initData: { address }` to bind to it.
+  MOCK_HCA_ADDRESS: '0x1111111111111111111111111111111111111111' as const,
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
@@ -29,14 +33,11 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 // `RhinestoneSDK` class (used by the package's
 // `initializeRhinestoneAccount`), and the `walletClientToAccount` /
 // `wrapParaAccount` helpers (used by the manager-side wrapper to build
-// the owner account before handing off to the package). After the
-// utils.ts cleanup the manager imports both helpers directly from the
-// SDK, so they live in the SDK mock instead of a separate `./utils`
-// mock.
+// the owner account before handing off to the package).
 vi.mock(import('@rhinestone/sdk'), () => ({
   RhinestoneSDK: vi.fn(function (this: RhinestoneSDK) {
     this.createAccount = vi.fn().mockResolvedValue({
-      getAddress: () => '0x1111111111111111111111111111111111111111' as const,
+      getAddress: () => MOCK_HCA_ADDRESS,
       isDeployed: vi.fn().mockResolvedValue(true),
       deploy: vi.fn().mockResolvedValue(true),
       sendTransaction: vi.fn().mockResolvedValue('mock-hca-tx'),
@@ -68,11 +69,18 @@ vi.mock('@/lib/wagmi', () => ({
   },
 }))
 
-vi.mock('./hca-registry', () => ({
-  registerHCAOwnership: vi.fn().mockResolvedValue({
+// Mock the HCA bootstrap. Replaces the old `./hca-registry`
+// `registerHCAOwnership` mock — the bootstrap is the new (and only)
+// entry-point for putting the SCA on chain in HCA mode.
+vi.mock('./hca-bootstrap', () => ({
+  bootstrapHCA: vi.fn().mockResolvedValue({
     isOk: () => true,
     isErr: () => false,
-    value: { status: 'already-registered' },
+    value: {
+      hcaAddress: MOCK_HCA_ADDRESS,
+      wasDeployedInThisCall: true,
+      hash: '0xdeadbeef',
+    },
   }),
 }))
 
@@ -90,7 +98,7 @@ import {
   walletClientToAccount,
   wrapParaAccount,
 } from '@rhinestone/sdk'
-import { registerHCAOwnership } from './hca-registry'
+import { bootstrapHCA } from './hca-bootstrap'
 import {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
@@ -114,10 +122,14 @@ describe('initializeRhinestoneAccount', () => {
     i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
     vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
-    vi.mocked(registerHCAOwnership).mockResolvedValue({
+    vi.mocked(bootstrapHCA).mockResolvedValue({
       isOk: () => true,
       isErr: () => false,
-      value: { status: 'already-registered' },
+      value: {
+        hcaAddress: MOCK_HCA_ADDRESS,
+        wasDeployedInThisCall: true,
+        hash: '0xdeadbeef',
+      },
     } as any)
   })
 
@@ -125,38 +137,37 @@ describe('initializeRhinestoneAccount', () => {
     vi.unstubAllEnvs()
   })
 
-  it('creates a Rhinestone HCA account and registers ownership by default', async () => {
+  it('runs the HCA bootstrap and binds the SDK to the HCA address by default', async () => {
     const result = await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
     })
 
     expect(result.client).toBeDefined()
-    expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
+    expect(result.address).toBe(MOCK_HCA_ADDRESS)
     expect(result.ownerAddress).toBe(MOCK_OWNER_ADDRESS)
     expect(result.config.rhinestoneApiKey).toBe('test-rhinestone-key')
-    expect(registerHCAOwnership).toHaveBeenCalledWith(
+    expect(bootstrapHCA).toHaveBeenCalledWith(
       expect.objectContaining({
-        smartAccountAddress: MOCK_SMART_ACCOUNT_ADDRESS,
         eoaAddress: MOCK_OWNER_ADDRESS,
-        signer: expect.objectContaining({
-          type: 'rhinestone',
+        // ownerAccount is the viem Account from walletClientToAccount.
+        ownerAccount: expect.any(Object),
+        chain: expect.objectContaining({ id: 11155111 }),
+        publicClient: expect.objectContaining({ chain: { id: 11155111 } }),
+        sdk: expect.objectContaining({
+          rhinestoneApiKey: 'test-rhinestone-key',
         }),
       }),
     )
   })
 
-  it('calls SDK without bundler for default warp infrastructure', async () => {
+  it('binds the SDK to the bootstrap-returned address via initData: { address }', async () => {
     await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
     })
 
-    // Verify walletClientToAccount was called
     expect(walletClientToAccount).toHaveBeenCalledWith(mockWalletClient)
-
-    // External wallets should NOT be wrapped with wrapParaAccount (Para v-byte adjustment)
     expect(wrapParaAccount).not.toHaveBeenCalled()
 
-    // SDK always includes bundler when Pimlico key is available (needed for session UserOps)
     expect(RhinestoneSDK).toHaveBeenCalledWith({
       apiKey: 'test-rhinestone-key',
       bundler: {
@@ -165,7 +176,9 @@ describe('initializeRhinestoneAccount', () => {
       },
     })
 
-    // Verify createAccount was called with ECDSA owner and sessions enabled
+    // The SDK's `createAccount` must be told `initData: { address }`
+    // so it skips its own Nexus-derived address derivation and binds
+    // to the bootstrap-returned HCA proxy address.
     const mockSdk = vi.mocked(RhinestoneSDK).mock.results[0]?.value
     expect(mockSdk?.createAccount).toHaveBeenCalledWith({
       owners: {
@@ -173,6 +186,7 @@ describe('initializeRhinestoneAccount', () => {
         accounts: expect.any(Array),
       },
       experimental_sessions: { enabled: true },
+      initData: { address: MOCK_HCA_ADDRESS },
     })
   })
 
@@ -191,13 +205,19 @@ describe('initializeRhinestoneAccount', () => {
     })
   })
 
-  it('respects explicit registerHCA=false', async () => {
+  it('skips bootstrap entirely when registerHCA=false (legacy path)', async () => {
     await initializeRhinestoneAccount({
       walletClient: mockWalletClient,
       registerHCA: false,
     })
 
-    expect(registerHCAOwnership).not.toHaveBeenCalled()
+    expect(bootstrapHCA).not.toHaveBeenCalled()
+
+    // Without bootstrap, the SDK should NOT receive `initData: { address }`
+    // — it derives its own Nexus address as usual.
+    const mockSdk = vi.mocked(RhinestoneSDK).mock.results[0]?.value
+    const createAccountArgs = mockSdk?.createAccount.mock.calls[0]?.[0]
+    expect(createAccountArgs).not.toHaveProperty('initData')
   })
 
   it('throws error when neither walletClient nor paraClient provided', async () => {
@@ -263,16 +283,17 @@ describe('initializeRhinestoneAccount', () => {
     })
 
     expect(result.client).toBeDefined()
-    expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
+    expect(result.address).toBe(MOCK_HCA_ADDRESS)
   })
 
-  it('throws error when HCA registration fails', async () => {
-    vi.mocked(registerHCAOwnership).mockResolvedValueOnce({
+  it('throws when HCA bootstrap fails', async () => {
+    vi.mocked(bootstrapHCA).mockResolvedValueOnce({
       isOk: () => false,
       isErr: () => true,
       error: {
-        reason: 'tx-failed',
-        details: 'Transaction reverted',
+        _tag: 'HCABootstrapError',
+        reason: 'create-account-failed',
+        cause: new Error('Transaction reverted'),
       },
     } as any)
 
@@ -280,6 +301,6 @@ describe('initializeRhinestoneAccount', () => {
       initializeRhinestoneAccount({
         walletClient: mockWalletClient,
       }),
-    ).rejects.toThrow('HCA registration failed')
+    ).rejects.toThrow('HCA bootstrap failed: create-account-failed')
   })
 })

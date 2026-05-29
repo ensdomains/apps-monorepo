@@ -14,8 +14,11 @@
  *     `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
  *   - Injecting the manager's chain (`customSepolia`).
  *   - Driving the setup-progress toast UX via sonner + lingui.
- *   - Calling `registerHCAOwnership` after the SCA deploys, via the
- *     package's `onAccountReady` hook.
+ *   - Bootstrapping the HCA proxy via `bootstrapHCA` (an EOA-driven,
+ *     single-tx `HCAFactory.createAccount(initData)` call) and binding
+ *     the SDK to its address via the package's `onPrepareDeploy` hook.
+ *     Replaces the old `registerHCAOwnership` flow that called the
+ *     no-longer-deployed `setAccountOwner` against `MockHCAFactoryBasic`.
  */
 
 import {
@@ -23,10 +26,7 @@ import {
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
-import type {
-  RhinestoneSigner,
-  TransactionInfra,
-} from '@ens-apps/transaction-manager'
+import type { TransactionInfra } from '@ens-apps/transaction-manager'
 import { createParaAccount } from '@getpara/viem-v2-integration'
 import { i18n } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
@@ -38,7 +38,7 @@ import {
 import { toast } from 'sonner'
 import type { Account, Address, WalletClient } from 'viem'
 import { customSepolia, publicClient } from '@/lib/wagmi'
-import { registerHCAOwnership } from './hca-registry'
+import { bootstrapHCA } from './hca-bootstrap'
 import type { ParaClient } from './types'
 
 export interface RhinestoneConfig {
@@ -67,13 +67,28 @@ export interface RhinestoneInitResult {
 
 /**
  * Resolve a viem `Account` + EOA address from whichever wallet
- * provider the user is connected through. Throws if neither is
- * available.
+ * provider the user is connected through. The same account is used
+ * for:
+ *
+ *   - signing the Intent's EIP-712 payload during HCA bootstrap
+ *     (the EOA-mode Rhinestone SDK reads `eoa.signTypedData`),
+ *   - signing the SCA's session-enable signature,
+ *   - signing any subsequent Rhinestone Intents that route through
+ *     the SCA after bootstrap.
+ *
+ * For Para, `wrapParaAccount` adjusts MPC signatures from 0/1 v-byte
+ * to 27/28 — Rhinestone / ERC-4337 modules' on-chain `ecrecover`
+ * expects the latter.
+ *
+ * Throws if neither source is available.
  */
 function resolveOwnerAccount(params: {
   walletClient?: WalletClient
   paraClient?: ParaClient
-}): { ownerAccount: Account; eoaAddress: Address } {
+}): {
+  ownerAccount: Account
+  eoaAddress: Address
+} {
   const { walletClient, paraClient } = params
 
   if (walletClient?.account?.address) {
@@ -183,48 +198,53 @@ export async function initializeRhinestoneAccount(
     })
   }
 
-  const onAccountReady: InitializeRhinestoneAccountParams['onAccountReady'] =
-    async ({ rhinestoneAccount, accountAddress, wasDeployedInThisCall }) => {
-      if (!registerHCA) return
-
-      const signer: RhinestoneSigner = {
-        type: 'rhinestone',
-        // Rhinestone account types can come from different package
-        // instances across workspace boundaries. We intentionally
-        // adapt via `unknown` to the transaction-manager signer
-        // contract while keeping runtime shape.
-        account: rhinestoneAccount as unknown as RhinestoneSigner['account'],
-        config: {
-          chain: customSepolia,
-          accountAddress,
-          rhinestoneApiKey: env.rhinestoneApiKey,
-          defaultInfra: infrastructure,
-        },
-      }
-
-      // Only show the registering toast if we just deployed. If the
-      // SCA was already deployed, `registerHCAOwnership` is most
-      // often a no-op (returns 'already-registered' after a read)
-      // and we don't want to flash a toast for nothing. Errors below
-      // still surface via the package's `onError` even without a
-      // prior toast.
-      if (wasDeployedInThisCall) {
-        showSetupToast(i18n._(msg`Registering account ownership…`))
-      }
-
-      const result = await registerHCAOwnership({
-        smartAccountAddress: accountAddress,
-        eoaAddress,
-        signer,
-        publicClient,
-      })
-
-      if (result.isErr()) {
-        throw new Error(
-          `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
-        )
-      }
-    }
+  // `onPrepareDeploy` runs before `sdk.createAccount` and is fully
+  // responsible for putting the SCA on chain. Under the HCA flow this
+  // is a single EOA tx (`HCAFactory.createAccount(initData)`) that
+  // also writes `_hcaOwners[hca] = eoa` atomically. The returned
+  // address is then bound to the SDK via `initData: { address }`.
+  //
+  // When `registerHCA === false` we skip the hook entirely, which
+  // falls the package back to its legacy Warp-deploy path (used by
+  // tests and by any non-HCA caller). The legacy path produces a
+  // Nexus-derived SCA address that is *not* HCA-equivalent — only
+  // useful for the small set of consumers that don't care about HCA
+  // resolution.
+  const onPrepareDeploy: InitializeRhinestoneAccountParams['onPrepareDeploy'] =
+    registerHCA
+      ? async () => {
+          showSetupToast(i18n._(msg`Deploying on-chain…`))
+          const result = await bootstrapHCA({
+            eoaAddress,
+            ownerAccount,
+            chain: customSepolia,
+            publicClient,
+            sdk: {
+              rhinestoneApiKey: env.rhinestoneApiKey,
+              pimlicoApiKey: env.pimlicoApiKey,
+              rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
+              rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
+            },
+          })
+          if (result.isErr()) {
+            // Surface the tagged-error reason in the thrown message
+            // so the package's `onError('deploying', …)` produces a
+            // useful toast. The inner cause is preserved on the
+            // `cause` property for devtools inspection. `TaggedError`
+            // (`@ens-apps/utils/neverthrow`) puts fields directly on
+            // the instance via `Object.assign(this, args)`, so we
+            // read `.reason` / `.cause` off the error directly.
+            const err = result.error
+            throw new Error(`HCA bootstrap failed: ${err.reason}`, {
+              cause: err.cause,
+            })
+          }
+          return {
+            hcaAddress: result.value.hcaAddress,
+            wasDeployedInThisCall: result.value.wasDeployedInThisCall,
+          }
+        }
+      : undefined
 
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
@@ -235,7 +255,11 @@ export async function initializeRhinestoneAccount(
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
     infrastructure,
-    onAccountReady,
+    onPrepareDeploy,
+    // No `onAccountReady`: under the HCA flow the factory wrote
+    // ownership atomically inside `createAccount`, so there is no
+    // post-deploy work for the manager to do. The legacy hook is
+    // still available on the package but we don't need it here.
     onProgress: (stage) => {
       if (stage === 'deploying') {
         showSetupToast(i18n._(msg`Deploying on-chain…`))

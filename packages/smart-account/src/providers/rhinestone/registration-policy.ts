@@ -10,8 +10,9 @@
  *    exfiltratable (XSS, supply chain, extension, etc.).
  *  - Every action below pins (target, selector) and, where relevant,
  *    constrains static-offset args via UniversalActionPolicy so a stolen
- *    session key cannot redirect funds to an attacker, register names to an
- *    attacker, or hijack HCA ownership.
+ *    session key cannot redirect funds to an attacker or register names to
+ *    an attacker. HCA ownership is no longer reachable from the session
+ *    at all — see below.
  *  - On-chain time-bound enforcement (a per-action `time-frame` policy
  *    keyed off `validUntil`) is currently DISABLED — see the JSDoc on
  *    `buildRegistrationSessionActions` below for the SDK ↔ deployed
@@ -26,6 +27,17 @@
  *    only by token allowance. Tighten before mainnet via
  *    `SpendingLimitsPolicy` on the USDC/DAI approves (independent of
  *    the time-frame work above).
+ *
+ * History note — the action set used to include
+ * `HCAFactory.setAccountOwner(SCA, EOA)` pinned to (own SCA, own EOA),
+ * back when HCA registration was a separate sponsored Rhinestone Intent
+ * the SCA submitted to itself. The real `HCAFactory` writes ownership
+ * atomically inside `createAccount(initData)` — there is no
+ * `setAccountOwner` anymore — and bootstrap is now an EOA-driven
+ * `writeContract` (see `apps/manager/src/lib/smart-account/hca-bootstrap.ts`).
+ * The smart-session no longer needs (or should have) authority over the
+ * factory, so the action was dropped. That tightens the stolen-session-key
+ * blast radius by one (target, selector) pair.
  *
  * Calldata offset semantics (verified against on-chain
  * UniversalActionPolicy + Biconomy abstractjs `calldataArgument` helper):
@@ -47,26 +59,6 @@ import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/ve
 import type { Session } from '@rhinestone/sdk'
 import type { Address } from 'viem'
 import { erc20Abi, getAbiItem, toFunctionSelector } from 'viem'
-
-/**
- * HCA Factory `setAccountOwner` ABI fragment.
- *
- * Inlined here so this package does not need to reach back into
- * `apps/manager/src/lib/hca-factory.abi.ts`. Keep this in sync with the
- * canonical ABI in the manager app if the factory interface ever changes.
- */
-const HCA_FACTORY_SET_ACCOUNT_OWNER_ABI = [
-  {
-    inputs: [
-      { internalType: 'address', name: 'hca', type: 'address' },
-      { internalType: 'address', name: 'owner', type: 'address' },
-    ],
-    name: 'setAccountOwner',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const
 
 /** Default session lifetime: 30 days. */
 export const REGISTRATION_SESSION_VALIDITY_SECONDS = 30 * 24 * 60 * 60
@@ -100,18 +92,10 @@ const SELECTORS = {
       name: 'deployProxy',
     }),
   ),
-  setAccountOwner: toFunctionSelector(
-    getAbiItem({
-      abi: HCA_FACTORY_SET_ACCOUNT_OWNER_ABI,
-      name: 'setAccountOwner',
-    }),
-  ),
 } as const
 
 export interface BuildRegistrationSessionActionsParams {
-  /** Smart-account (Nexus) address. Pinned as `HCAFactory.setAccountOwner.smartAccount`. */
-  readonly smartAccountAddress: Address
-  /** EOA owning the smart account. Pinned as `register.owner` and `HCAFactory.setAccountOwner.eoa`. */
+  /** EOA owning the smart account. Pinned as `register.owner`. */
   readonly eoaAddress: Address
   /**
    * Session expiry as a unix timestamp in **seconds**.
@@ -176,12 +160,11 @@ export function buildRegistrationSessionActions(
   // Pulled into a void to keep linters happy without changing the API
   // shape that the actor + signer construction both rely on.
   void params.validUntil
-  const { smartAccountAddress, eoaAddress } = params
+  const { eoaAddress } = params
 
   const ETHRegistrar = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const VerifiableFactory = ENS_SEPOLIA_CONTRACTS.VerifiableFactory
   const PermissionedResolverImpl = ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl
-  const HCAFactory = ENS_SEPOLIA_CONTRACTS.HCAFactory
   const USDC = SUPPORTED_TOKENS.USDC
   const DAI = SUPPORTED_TOKENS.DAI
 
@@ -295,29 +278,8 @@ export function buildRegistrationSessionActions(
       ],
     },
 
-    // 7. HCAFactory.setAccountOwner(address smartAccount, address eoa)
-    //    Pin both args — the session can only register HCA ownership for
-    //    its own SCA → known EOA, never rewrite to an attacker EOA.
-    {
-      target: HCAFactory,
-      selector: SELECTORS.setAccountOwner,
-      policies: [
-        {
-          type: 'universal-action' as const,
-          rules: [
-            {
-              condition: 'equal' as const,
-              calldataOffset: 0n, // arg #1 (smartAccount)
-              referenceValue: smartAccountAddress,
-            },
-            {
-              condition: 'equal' as const,
-              calldataOffset: 32n, // arg #2 (eoa)
-              referenceValue: eoaAddress,
-            },
-          ],
-        },
-      ],
-    },
+    // The legacy 7th action — `HCAFactory.setAccountOwner(SCA, EOA)` —
+    // is intentionally absent. See the file header for why: bootstrap
+    // is wallet-driven now, the session never touches the factory.
   ]
 }
