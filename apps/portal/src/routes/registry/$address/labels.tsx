@@ -18,6 +18,7 @@ function RouteComponent() {
   const { data: registry, isLoading, error } = useRegistry(address)
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
+
   if (error)
     return (
       <ErrorMessage
@@ -25,6 +26,7 @@ function RouteComponent() {
         description={error.message}
       />
     )
+
   if (!registry)
     return (
       <NotFoundMessage
@@ -39,7 +41,7 @@ function RouteComponent() {
     )
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-8 w-full max-w-360 mx-auto">
       <h1 className="text-2xl md:text-heading font-medium leading-none">
         Labels
       </h1>

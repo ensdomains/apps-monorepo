@@ -2,12 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
-import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { SortButton } from '@/components/table/SortButton'
-import { Badge } from '@/components/ui/badge'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { dateToPlainDate } from '@/utils/temporal'
 import {
   getRegistryLabelsQueryOptions,
@@ -21,24 +18,17 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
+        className="text-muted-foreground"
       >
         Label
       </SortButton>
     ),
     cell: ({ row }) => {
-      const { name, labelName, labelhash } = row.original
-      if (name) {
-        return (
-          <EntityBadge variant="name" name={name} showAvatar>
-            {labelName ?? name}
-          </EntityBadge>
-        )
-      }
-      if (labelName) return <span className="font-medium">{labelName}</span>
+      const { name, labelName } = row.original
       return (
-        <EntityBadge variant="default" copyValue={labelhash}>
-          {truncateAddress(labelhash, 10, 8)}
-        </EntityBadge>
+        <span className="bg-foreground font-medium text-background p-1 rounded-sm">
+          {labelName ?? name}
+        </span>
       )
     },
   },
@@ -46,6 +36,7 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     accessorKey: 'expiryDate',
     header: ({ column }) => (
       <SortButton
+        className="text-muted-foreground"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
       >
@@ -55,14 +46,10 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     cell: ({ row }) => {
       const { expiryDate } = row.original
       if (!expiryDate) {
-        return (
-          <Badge variant="secondary" className="text-xs">
-            Does not expire
-          </Badge>
-        )
+        return <span className="text-muted-foreground">Does not expire</span>
       }
       return (
-        <span>
+        <span className="text-muted-foreground">
           {formatExpiryDuration(dateToPlainDate(new Date(expiryDate * 1000)))}
         </span>
       )
@@ -74,18 +61,14 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
+        className="text-muted-foreground"
       >
         Role holders
       </SortButton>
     ),
     cell: ({ row }) => {
       const count = row.original.roleHoldersCount
-      if (count === 0) return <span className="text-muted-foreground">0</span>
-      return (
-        <Badge variant="secondary" className="text-xs">
-          {count}
-        </Badge>
-      )
+      return <span className="text-muted-foreground">{count}</span>
     },
   },
   {
@@ -93,9 +76,9 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     enableSorting: false,
     header: () => <span className="text-muted-foreground">Label hash</span>,
     cell: ({ row }) => (
-      <EntityBadge variant="default" copyValue={row.original.labelhash}>
-        {truncateAddress(row.original.labelhash, 10, 8)}
-      </EntityBadge>
+      <span className="font-mono text-muted-foreground">
+        {row.original.labelhash}
+      </span>
     ),
   },
 ]
@@ -108,6 +91,7 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   } = useQuery(getRegistryLabelsQueryOptions({ address }))
 
   if (isLoading) return <LoadingSpinner title="Loading labels..." />
+
   if (error) {
     const message = (error as { cause?: { message?: string } }).cause?.message
     return <div>Error loading labels{message ? `: ${message}` : ''}</div>
