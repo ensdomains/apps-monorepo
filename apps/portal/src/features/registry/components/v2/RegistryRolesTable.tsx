@@ -101,7 +101,7 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   }
 
   return (
-    <div className="[&_td]:align-top">
+    <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible">
       <DataTable columns={columns} data={data ?? []} />
     </div>
   )
