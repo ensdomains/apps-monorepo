@@ -6,6 +6,8 @@ import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
+import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
@@ -26,27 +28,45 @@ const formatRole = (role: Role) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 
-const roleLabels = (roles: Role[]) =>
-  Array.from(new Set(roles.map(formatRole))).join(', ')
+const roleLabels = (roles: Role[]) => Array.from(new Set(roles.map(formatRole)))
 
 const GreenCheck = () => <Check className="size-4 text-green-600" />
+
+const UserCell = ({ account }: { account: Address }) => {
+  const { data: primaryName } = useQuery(getPrimaryNameQueryOptions(account))
+
+  if (primaryName)
+    return (
+      <span className="font-medium" title={account}>
+        {primaryName}
+      </span>
+    )
+  return (
+    <AddressDisplay
+      address={truncateAddress(account, 6, 4) as Address}
+      short={false}
+    />
+  )
+}
 
 const columns: ColumnDef<RegistryRoleRow>[] = [
   {
     id: 'user',
     accessorKey: 'account',
     header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => (
-      <AddressDisplay address={row.original.account} short={false} />
-    ),
+    cell: ({ row }) => <UserCell account={row.original.account as Address} />,
   },
   {
     id: 'role',
     header: () => <span className="text-muted-foreground">Role</span>,
     cell: ({ row }) => (
-      <span className="text-muted-foreground">
-        {roleLabels(row.original.roles)}
-      </span>
+      <div className="flex flex-col gap-0.5 text-muted-foreground">
+        {roleLabels(row.original.roles).map((label) => (
+          <span className="font-mono pb-2" key={label}>
+            {label}
+          </span>
+        ))}
+      </div>
     ),
   },
   {

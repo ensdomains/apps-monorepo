@@ -48,7 +48,6 @@ const getItems = (address: string) => [
   defineRegistrySidebarItem({
     title: 'Roles',
     icon: ShieldIcon,
-    upcoming: true,
     link: {
       to: '/registry/$address/roles',
       params: { address },
