@@ -18,7 +18,6 @@ const isAdminRole = (role: Role) => role.endsWith('_ADMIN')
 const hasAdmin = (roles: Role[]) => roles.some(isAdminRole)
 const hasUser = (roles: Role[]) => roles.some((role) => !isAdminRole(role))
 
-// "ROLE_SET_RESOLVER" -> "Set Resolver"; admin variants collapse onto their base.
 const formatRole = (role: Role) =>
   role
     .replace(/^ROLE_/, '')
@@ -43,6 +42,7 @@ const UserCell = ({ account }: { account: Address }) => {
         {primaryName}
       </span>
     )
+
   return (
     <AddressDisplay
       address={truncateAddress(account, 6, 4) as Address}
