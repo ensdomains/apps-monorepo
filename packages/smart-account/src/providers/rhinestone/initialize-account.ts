@@ -17,11 +17,6 @@
  *     nothing at all.
  *   - Any post-deploy on-chain work (HCA ownership registration,
  *     module installs, etc.) via the `onAccountReady` hook.
- *
- * The `infrastructure` parameter is only used to validate that
- * `pimlicoApiKey` is provided when the caller intends to use the
- * ERC-4337 bundler path. The Rhinestone Warp orchestrator (default,
- * intent-based gas sponsorship) does not need Pimlico.
  */
 
 import type { RhinestoneAccount } from '@rhinestone/sdk'
@@ -33,7 +28,7 @@ import { type Account, type Address, type Chain, zeroAddress } from 'viem'
  * type exported by `@ens-apps/transaction-manager` — kept local here so
  * the package doesn't have to take a workspace dep just for one union.
  */
-export type SmartAccountInfrastructure = 'warp' | 'pimlico'
+export type SmartAccountInfrastructure = 'warp'
 
 export interface RhinestoneInitConfig {
   readonly chain: Chain
@@ -83,13 +78,6 @@ export interface InitializeRhinestoneAccountParams {
   /** Rhinestone API key. Required. */
   readonly rhinestoneApiKey: string
 
-  /**
-   * Pimlico API key for the ERC-4337 bundler path. Required when
-   * `infrastructure === 'pimlico'`; optional otherwise (the SDK still
-   * accepts it as a fallback for session-based user-ops).
-   */
-  readonly pimlicoApiKey?: string
-
   /** Override the Rhinestone orchestrator endpoint (e.g. for local dev). */
   readonly rhinestoneEndpointUrl?: string
 
@@ -118,14 +106,6 @@ export interface InitializeRhinestoneAccountParams {
     wasDeployedInThisCall: boolean
   }) => Promise<void>
 
-  /**
-   * Caller-declared infrastructure preference. Only used to validate
-   * that `pimlicoApiKey` is present when set to `'pimlico'`; the
-   * actual transport selection happens later, at signer construction
-   * time (see `@ens-apps/transaction-manager`).
-   */
-  readonly infrastructure?: SmartAccountInfrastructure
-
   /** Progress callback for UX wiring. See `InitProgressStage`. */
   readonly onProgress?: (stage: InitProgressStage) => void
 
@@ -150,11 +130,9 @@ export async function initializeRhinestoneAccount(
     eoaAddress,
     chain,
     rhinestoneApiKey,
-    pimlicoApiKey,
     rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls,
     onAccountReady,
-    infrastructure = 'warp',
     onProgress,
     onError,
   } = params
@@ -162,21 +140,11 @@ export async function initializeRhinestoneAccount(
   if (!rhinestoneApiKey) {
     throw new Error('rhinestoneApiKey is required')
   }
-  if (infrastructure === 'pimlico' && !pimlicoApiKey) {
-    throw new Error(
-      'pimlicoApiKey is required when infrastructure === "pimlico"',
-    )
-  }
 
   const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
     apiKey: rhinestoneApiKey,
     ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
     ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
-    // Always include Pimlico when available. Warp (intents) doesn't need
-    // it, but session-based user-ops do — see session.ts.
-    ...(pimlicoApiKey && {
-      bundler: { type: 'pimlico' as const, apiKey: pimlicoApiKey },
-    }),
   }
 
   const sdk = new RhinestoneSDK(sdkOptions)

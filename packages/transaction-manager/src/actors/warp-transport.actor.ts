@@ -5,7 +5,7 @@
  *
  * Flow: User → Orchestrator → Relayer Market → Intent Router → Account
  *
- * Key differences from the Pimlico (ERC-4337) path:
+ * Key characteristics (vs a generic ERC-4337 bundler path):
  * - No bundler/paymaster needed — relayers handle this
  * - Intent-based execution rather than UserOps
  * - Built-in cross-chain support

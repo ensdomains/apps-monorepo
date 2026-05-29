@@ -4,7 +4,6 @@ import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
-import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
   EthCallFallbackError,
@@ -29,7 +28,7 @@ import type {
  * Generic transaction lifecycle machine that routes to different transport actors
  * based on transaction type:
  * - EOA: Standard wallet transactions via submitEOATransaction
- * - Rhinestone: Smart account transactions via submitRhinestoneTransaction
+ * - Rhinestone: Smart account transactions via submitWarpTransaction
  *
  * This machine focuses solely on transaction lifecycle (submit → pending → confirm).
  * Account initialization and management is handled externally by AccountProvider.
@@ -115,18 +114,15 @@ export const transactionMachine = setup({
     /**
      * Submit Transaction Actor
      *
-     * Routes to the appropriate transport actor based on signer type
-     * and resolved infrastructure:
+     * Routes to the appropriate transport actor based on signer type:
      * - eoa → submitEOATransaction
-     * - rhinestone + warp → submitWarpTransaction
-     * - rhinestone + pimlico → submitRhinestoneTransaction
+     * - rhinestone → submitWarpTransaction (Rhinestone Warp intents)
      */
     submitTransaction: fromResultAsync(
       ({
         request,
         signer,
         options,
-        publicClient,
       }: {
         request?: TransactionRequest
         signer?: Signer
@@ -162,9 +158,7 @@ export const transactionMachine = setup({
 
         const resolvedInfrastructure =
           signer.type === 'rhinestone'
-            ? (options?.infrastructure ??
-              signer.config.defaultInfra ??
-              'pimlico')
+            ? (options?.infrastructure ?? signer.config.defaultInfra ?? 'warp')
             : undefined
 
         const submitStart = nowMs()
@@ -179,26 +173,15 @@ export const transactionMachine = setup({
             infrastructure: resolvedInfrastructure ?? options?.infrastructure,
           })
 
-          // Route to transport actor based on signer type + infrastructure
+          // Route to transport actor based on signer type. Rhinestone
+          // accounts always submit via Warp (intent-based, Rhinestone
+          // paymaster); the ERC-4337 Pimlico bundler path was removed.
           switch (signer.type) {
             case 'eoa':
               return submitEOATransaction({ request, signer })
 
-            case 'rhinestone': {
-              const infra =
-                resolvedInfrastructure ??
-                signer.config.defaultInfra ??
-                'pimlico'
-
-              if (infra === 'warp') {
-                return submitWarpTransaction({ request, signer })
-              }
-              return submitRhinestoneTransaction({
-                request,
-                signer,
-                publicClient,
-              })
-            }
+            case 'rhinestone':
+              return submitWarpTransaction({ request, signer })
 
             default:
               signer satisfies never

@@ -6,7 +6,7 @@
  * initializeRhinestoneAccount → mockestrator orchestrator).
  *
  * Prerequisites:
- *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Alto + Paymaster + Mockestrator)
+ *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Mockestrator + Panoptes)
  *   - Manager app started with Rhinestone env vars:
  *       VITE_FF_RHINESTONE_SESSIONS=true
  *       VITE_RHINESTONE_ENDPOINT_URL=/orchestrator

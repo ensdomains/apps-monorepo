@@ -10,8 +10,7 @@
  *     signatures use 0/1 v-byte and need `wrapParaAccount` to be
  *     usable by the Rhinestone SDK.
  *   - Reading manager-specific env vars (`VITE_RHINESTONE_API_KEY`,
- *     `VITE_PIMLICO_API_KEY`, `VITE_RHINESTONE_ENDPOINT_URL`,
- *     `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
+ *     `VITE_RHINESTONE_ENDPOINT_URL`, `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
  *   - Injecting the manager's chain (`customSepolia`).
  *   - Driving the setup-progress toast UX via sonner + lingui.
  *   - Calling `registerHCAOwnership` after the SCA deploys, via the
@@ -110,7 +109,6 @@ function resolveOwnerAccount(params: {
  */
 function resolveSdkEnv(): {
   rhinestoneApiKey: string
-  pimlicoApiKey?: string
   rhinestoneEndpointUrl?: string
   rhinestoneCustomRpcUrls?: Record<number, string>
 } {
@@ -127,8 +125,6 @@ function resolveSdkEnv(): {
     )
   }
 
-  const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY || undefined
-
   const customRpcUrlsRaw = import.meta.env.VITE_RHINESTONE_CUSTOM_RPC_URLS
   const customRpcUrls = customRpcUrlsRaw
     ? (JSON.parse(customRpcUrlsRaw) as Record<number, string>)
@@ -136,7 +132,6 @@ function resolveSdkEnv(): {
 
   return {
     rhinestoneApiKey: apiKey,
-    pimlicoApiKey,
     rhinestoneEndpointUrl: endpointUrl,
     rhinestoneCustomRpcUrls: customRpcUrls,
   }
@@ -231,10 +226,8 @@ export async function initializeRhinestoneAccount(
     eoaAddress,
     chain: customSepolia,
     rhinestoneApiKey: env.rhinestoneApiKey,
-    pimlicoApiKey: env.pimlicoApiKey,
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
-    infrastructure,
     onAccountReady,
     onProgress: (stage) => {
       if (stage === 'deploying') {

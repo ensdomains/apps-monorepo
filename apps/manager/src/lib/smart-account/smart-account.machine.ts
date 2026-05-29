@@ -66,7 +66,7 @@ const INITIAL_CONTEXT: SmartAccountContext = {
   walletSource: null,
   walletClient: null,
   paraClient: null,
-  infrastructure: 'pimlico',
+  infrastructure: 'warp',
   session: null,
   sessionClient: null,
   error: null,

@@ -50,7 +50,7 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly enableSession: () => Promise<void>
   readonly dismissSession: () => void
   readonly promptSession: () => void
-  readonly infrastructure: 'pimlico' | 'warp'
+  readonly infrastructure: 'warp'
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -276,7 +276,7 @@ export const SmartAccountContextProvider = ({
   const signer: Signer | null = useMemo(() => {
     // EOA-only mode: skip smart account machinery entirely and sign with the
     // wagmi wallet client directly. This is the only viable signer on the
-    // tenderly fork where Pimlico/Rhinestone bundlers are unavailable.
+    // tenderly fork where the Rhinestone smart-account flow is unavailable.
     if (isFeatureEnabled('USE_EOA')) {
       if (!wagmiWalletClient || !wagmiWalletClient.account) return null
       return {
@@ -462,7 +462,7 @@ export const SmartAccountContextProvider = ({
         enableSession: async () => {},
         dismissSession: () => {},
         promptSession: () => {},
-        infrastructure: 'pimlico',
+        infrastructure: 'warp',
       }
     : {
         type: 'rhinestone',

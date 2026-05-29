@@ -257,30 +257,12 @@ describe('feature-flags', () => {
   })
 
   describe('provider and infra helpers', () => {
-    it('getTransactionInfra returns pimlico when flag is disabled', () => {
-      const original = FEATURE_FLAGS.USE_WARP_INFRA
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.USE_WARP_INFRA = { enabled: false }
-
-      expect(getTransactionInfra()).toBe('pimlico')
-
-      mutableFlags.USE_WARP_INFRA =
-        original as unknown as MutableFeatureFlags[string]
-    })
-
-    it('getTransactionInfra returns warp when flag is enabled', () => {
-      const original = FEATURE_FLAGS.USE_WARP_INFRA
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.USE_WARP_INFRA = { enabled: true }
-
+    it('getTransactionInfra always returns warp', () => {
       expect(getTransactionInfra()).toBe('warp')
-
-      mutableFlags.USE_WARP_INFRA =
-        original as unknown as MutableFeatureFlags[string]
     })
 
     it('resolveInfrastructure prioritizes explicit override', () => {
-      expect(resolveInfrastructure({ infrastructure: 'warp' }, 'pimlico')).toBe(
+      expect(resolveInfrastructure({ infrastructure: 'warp' }, 'warp')).toBe(
         'warp',
       )
     })
@@ -290,14 +272,7 @@ describe('feature-flags', () => {
     })
 
     it('resolveInfrastructure falls back to feature flag default', () => {
-      const original = FEATURE_FLAGS.USE_WARP_INFRA
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.USE_WARP_INFRA = { enabled: false }
-
-      expect(resolveInfrastructure()).toBe('pimlico')
-
-      mutableFlags.USE_WARP_INFRA =
-        original as unknown as MutableFeatureFlags[string]
+      expect(resolveInfrastructure()).toBe('warp')
     })
   })
 })

@@ -69,34 +69,6 @@ describe('initializeRhinestoneAccount', () => {
       )
     })
 
-    it('includes the Pimlico bundler when pimlicoApiKey is provided', async () => {
-      await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-        pimlicoApiKey: 'test-pim-key',
-      })
-
-      expect(RhinestoneSDK).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bundler: { type: 'pimlico', apiKey: 'test-pim-key' },
-        }),
-      )
-    })
-
-    it('omits the bundler when pimlicoApiKey is not provided', async () => {
-      await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-      })
-
-      const opts = vi.mocked(RhinestoneSDK).mock.calls[0]?.[0] as any
-      expect(opts).not.toHaveProperty('bundler')
-    })
-
     it('forwards endpointUrl and customRpcUrls when provided', async () => {
       await initializeRhinestoneAccount({
         ownerAccount: makeOwnerAccount(),
@@ -142,29 +114,6 @@ describe('initializeRhinestoneAccount', () => {
           rhinestoneApiKey: '',
         }),
       ).rejects.toThrow('rhinestoneApiKey is required')
-    })
-
-    it('throws when infrastructure === "pimlico" but pimlicoApiKey is missing', async () => {
-      await expect(
-        initializeRhinestoneAccount({
-          ownerAccount: makeOwnerAccount(),
-          eoaAddress: MOCK_OWNER_ADDRESS,
-          chain: MOCK_CHAIN,
-          rhinestoneApiKey: 'test-api-key',
-          infrastructure: 'pimlico',
-        }),
-      ).rejects.toThrow(/pimlicoApiKey is required/)
-    })
-
-    it('does not require pimlicoApiKey for the default (warp) infrastructure', async () => {
-      const result = await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-      })
-
-      expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
     })
   })
 

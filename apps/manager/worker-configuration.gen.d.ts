@@ -5,7 +5,6 @@ declare namespace Cloudflare {
 	interface Env {
 		VITE_PARA_API_KEY: string;
 		VITE_RHINESTONE_API_KEY: string;
-		VITE_PIMLICO_API_KEY: string;
 		VITE_API_URL: string;
 		VITE_TELEGRAM_BOT_ID: string;
 		VITE_FF_DISCOUNTS_APPLIED: string;
@@ -23,7 +22,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "VITE_PARA_API_KEY" | "VITE_RHINESTONE_API_KEY" | "VITE_PIMLICO_API_KEY" | "VITE_API_URL" | "VITE_TELEGRAM_BOT_ID" | "VITE_FF_DISCOUNTS_APPLIED" | "VITE_FF_SKIP_NOTIFICATION_SETTINGS" | "VITE_FF_LANGUAGE_SELECTOR" | "VITE_PUBLIC_POSTHOG_KEY" | "VITE_PUBLIC_POSTHOG_HOST" | "VITE_FF_RHINESTONE_SESSIONS" | "VITE_FF_USE_WARP_INFRA" | "CROWDIN_PERSONAL_TOKEN">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "VITE_PARA_API_KEY" | "VITE_RHINESTONE_API_KEY" | "VITE_API_URL" | "VITE_TELEGRAM_BOT_ID" | "VITE_FF_DISCOUNTS_APPLIED" | "VITE_FF_SKIP_NOTIFICATION_SETTINGS" | "VITE_FF_LANGUAGE_SELECTOR" | "VITE_PUBLIC_POSTHOG_KEY" | "VITE_PUBLIC_POSTHOG_HOST" | "VITE_FF_RHINESTONE_SESSIONS" | "VITE_FF_USE_WARP_INFRA" | "CROWDIN_PERSONAL_TOKEN">> {}
 }
 
 // Begin runtime types

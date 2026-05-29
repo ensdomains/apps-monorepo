@@ -11,7 +11,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Set up environment before any imports
 vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
-vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
 
 const { MOCK_OWNER_ADDRESS, MOCK_SMART_ACCOUNT_ADDRESS } = vi.hoisted(() => ({
   MOCK_OWNER_ADDRESS: '0x2222222222222222222222222222222222222222' as const,
@@ -113,7 +112,6 @@ describe('initializeRhinestoneAccount', () => {
     vi.clearAllMocks()
     i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
-    vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
     vi.mocked(registerHCAOwnership).mockResolvedValue({
       isOk: () => true,
       isErr: () => false,
@@ -156,13 +154,10 @@ describe('initializeRhinestoneAccount', () => {
     // External wallets should NOT be wrapped with wrapParaAccount (Para v-byte adjustment)
     expect(wrapParaAccount).not.toHaveBeenCalled()
 
-    // SDK always includes bundler when Pimlico key is available (needed for session UserOps)
+    // SDK is constructed with only the Rhinestone API key; the Warp
+    // orchestrator does not need an ERC-4337 bundler.
     expect(RhinestoneSDK).toHaveBeenCalledWith({
       apiKey: 'test-rhinestone-key',
-      bundler: {
-        type: 'pimlico',
-        apiKey: 'test-pimlico-key',
-      },
     })
 
     // Verify createAccount was called with ECDSA owner and sessions enabled
@@ -173,21 +168,6 @@ describe('initializeRhinestoneAccount', () => {
         accounts: expect.any(Array),
       },
       experimental_sessions: { enabled: true },
-    })
-  })
-
-  it('calls SDK with Pimlico bundler for pimlico infrastructure', async () => {
-    await initializeRhinestoneAccount({
-      walletClient: mockWalletClient,
-      infrastructure: 'pimlico',
-    })
-
-    expect(RhinestoneSDK).toHaveBeenCalledWith({
-      apiKey: 'test-rhinestone-key',
-      bundler: {
-        type: 'pimlico',
-        apiKey: 'test-pimlico-key',
-      },
     })
   })
 
@@ -240,30 +220,6 @@ describe('initializeRhinestoneAccount', () => {
         walletClient: mockWalletClient,
       }),
     ).rejects.toThrow('Rhinestone API key not configured')
-  })
-
-  it('throws error when Pimlico API key is missing for pimlico infrastructure', async () => {
-    vi.stubEnv('VITE_PIMLICO_API_KEY', '')
-
-    await expect(
-      initializeRhinestoneAccount({
-        walletClient: mockWalletClient,
-        infrastructure: 'pimlico',
-      }),
-    ).rejects.toThrow(/pimlicoApiKey is required/)
-  })
-
-  it('does not require Pimlico API key for warp infrastructure', async () => {
-    vi.stubEnv('VITE_PIMLICO_API_KEY', '')
-
-    const result = await initializeRhinestoneAccount({
-      walletClient: mockWalletClient,
-      infrastructure: 'warp',
-      registerHCA: false,
-    })
-
-    expect(result.client).toBeDefined()
-    expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
   })
 
   it('throws error when HCA registration fails', async () => {
