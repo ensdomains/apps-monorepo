@@ -88,39 +88,3 @@ export const getPrimaryNameQueryOptions = (address: Address | undefined) =>
     queryFn: () => getPrimaryName(address),
     enabled: !!address,
   })
-
-const getPrimaryNames = ResultFn(async function* (addresses: Address[]) {
-  if (addresses.length === 0) return ok<Record<string, string>>({})
-
-  const client = yield* safeGetClient()
-
-  const names = yield* await fromPromise(
-    readContract(client, {
-      address: REVERSE_RESOLVER_ADDRESS,
-      abi: REVERSE_RESOLVER_ABI,
-      functionName: 'resolveNames',
-      args: [addresses],
-    }),
-    (e) => new PrimaryNameError({ cause: e }),
-  )
-
-  const byAddress: Record<string, string> = {}
-  addresses.forEach((address, index) => {
-    const name = names[index]
-    if (name) byAddress[address.toLowerCase()] = name
-  })
-
-  return ok(byAddress)
-})
-
-const getPrimaryNamesQueryKey = createQueryKey<
-  'get-primary-names',
-  { addresses: Address[] }
->('get-primary-names')
-
-export const getPrimaryNamesQueryOptions = (addresses: Address[]) =>
-  resultQueryOptions({
-    queryKey: getPrimaryNamesQueryKey({ addresses }),
-    queryFn: () => getPrimaryNames(addresses),
-    enabled: addresses.length > 0,
-  })

@@ -6,14 +6,11 @@ import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { getPrimaryNamesQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
 } from '../../hooks/useRegistryRoles'
-
-type RoleTableRow = RegistryRoleRow & { primaryName: string | null }
 
 const isAdminRole = (role: Role) => role.endsWith('_ADMIN')
 
@@ -35,42 +32,20 @@ const GreenCheck = () => (
   <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
 )
 
-const UserCell = ({
-  account,
-  primaryName,
-}: {
-  account: Address
-  primaryName: string | null
-}) => (
+const UserCell = ({ account }: { account: Address }) => (
   <div className="w-32">
-    {primaryName ? (
-      <EntityBadge
-        variant="name"
-        name={primaryName}
-        address={account}
-        showAvatar
-      >
-        {primaryName}
-      </EntityBadge>
-    ) : (
-      <EntityBadge variant="address" address={account}>
-        {truncateAddress(account, 6, 4, '...')}
-      </EntityBadge>
-    )}
+    <EntityBadge variant="address" address={account}>
+      {truncateAddress(account, 6, 4, '...')}
+    </EntityBadge>
   </div>
 )
 
-const columns: ColumnDef<RoleTableRow>[] = [
+const columns: ColumnDef<RegistryRoleRow>[] = [
   {
     id: 'user',
     accessorKey: 'account',
     header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => (
-      <UserCell
-        account={row.original.account}
-        primaryName={row.original.primaryName}
-      />
-    ),
+    cell: ({ row }) => <UserCell account={row.original.account} />,
   },
   {
     id: 'role',
@@ -104,18 +79,7 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
     error,
   } = useQuery(getRegistryRolesQueryOptions({ address }))
 
-  const accounts = Array.from(
-    new Set((roles ?? []).map((role) => role.account.toLowerCase())),
-  ).sort() as Address[]
-
-  const { data: namesByAccount } = useQuery(
-    getPrimaryNamesQueryOptions(accounts),
-  )
-
-  const rows: RoleTableRow[] = (roles ?? []).map((role) => ({
-    ...role,
-    primaryName: namesByAccount?.[role.account.toLowerCase()] ?? null,
-  }))
+  const rows = roles ?? []
 
   if (isLoading) return <LoadingSpinner title="Loading roles..." />
 
