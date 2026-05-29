@@ -43,9 +43,17 @@ const MAX_ROLE_PAGES = 50
 // Cursors are opaque base64 tokens; refuse anything else.
 const isCursorToken = (value: string) => /^[A-Za-z0-9+/=]+$/.test(value)
 
+const safeBigInt = (value: string): bigint | null => {
+  try {
+    return BigInt(value)
+  } catch {
+    return null
+  }
+}
+
 // ROOT_RESOURCE (0x0) = registry-wide scope. A role here applies to the whole
 // registry rather than a single name — i.e. the registry's admins/users.
-const isRootResource = (resource: string) => BigInt(resource) === 0n
+const isRootResource = (resource: string) => safeBigInt(resource) === 0n
 
 const buildRolesQuery = (afterCursor: string | null) => gql`
   query getRegistryRoles($address: String!) {
@@ -120,13 +128,13 @@ const getRegistryRoles = ResultFn(async function* ({
   }
 
   // One bitmap per (resource, account); OR defensively against duplicates.
+  // Skip any row whose bitmap can't be parsed rather than failing the query.
   const bitmapByAccount = new Map<string, bigint>()
   for (const role of rootRoles) {
+    const bitmap = safeBigInt(role.roleBitmap)
+    if (bitmap === null) continue
     const key = role.account.toLowerCase()
-    bitmapByAccount.set(
-      key,
-      (bitmapByAccount.get(key) ?? 0n) | BigInt(role.roleBitmap),
-    )
+    bitmapByAccount.set(key, (bitmapByAccount.get(key) ?? 0n) | bitmap)
   }
 
   const rows: RegistryRoleRow[] = Array.from(
