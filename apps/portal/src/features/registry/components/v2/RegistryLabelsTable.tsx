@@ -24,10 +24,10 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
       </SortButton>
     ),
     cell: ({ row }) => {
-      const { name, labelName } = row.original
+      const { name, labelName, labelhash } = row.original
       return (
         <span className="bg-foreground font-medium text-background p-1 rounded-sm">
-          {labelName ?? name}
+          {labelName ?? name ?? labelhash}
         </span>
       )
     },
