@@ -19,7 +19,7 @@ import { useGrantRegistryRoles } from '@/features/registry/hooks/useGrantRegistr
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
+import { registryRootPermissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
@@ -62,6 +62,9 @@ export const RegistryAddUserSheet = ({
   )
 
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
+  // Controlled selection so the Save button can disable until at least one
+  // checkbox is checked (matches the design's gray/disabled Save state).
+  const [selectedRoles, setSelectedRoles] = useState<Set<Role>>(new Set())
   const [pendingGrant, setPendingGrant] = useState<{
     account: Address
     roles: Role[]
@@ -84,27 +87,36 @@ export const RegistryAddUserSheet = ({
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRegistryRoles, isPending, isSuccess } = useGrantRegistryRoles()
 
-  // Reset form-only state when the sheet closes so re-opening starts fresh.
+  // Reset form state when the sheet closes so re-opening starts fresh.
   useEffect(() => {
     if (open) return
     setNameOrAddressInput('')
+    setSelectedRoles(new Set())
     setPendingGrant(null)
     setSubmitFeedback(null)
     setInvalidField(null)
   }, [open])
 
+  const toggleRole = (role: Role, checked: boolean) => {
+    setSelectedRoles((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(role)
+      else next.delete(role)
+      return next
+    })
+    setSubmitFeedback(null)
+    setInvalidField(null)
+  }
+
+  const canSave =
+    !!address && selectedRoles.size > 0 && !isPending && !isSuccess
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setSubmitFeedback(null)
     setInvalidField(null)
-    if (!e.currentTarget.reportValidity()) return
 
-    const fd = new FormData(e.currentTarget)
-    const roles: Role[] = []
-    for (const [k, v] of fd.entries()) {
-      if (v === 'on') roles.push(k as Role)
-    }
-
+    const roles = Array.from(selectedRoles)
     if (roles.length === 0) {
       setSubmitFeedback('Please select at least one role')
       setInvalidField('roles')
@@ -159,25 +171,20 @@ export const RegistryAddUserSheet = ({
             </SheetTitle>
           </SheetHeader>
 
-          <form
-            onSubmit={handleSubmit}
-            onChange={() => {
-              setSubmitFeedback(null)
-              setInvalidField(null)
-            }}
-            className="flex flex-col gap-6"
-          >
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
             <Field data-invalid={invalidField === 'address'}>
               <FieldLabel htmlFor="user">User</FieldLabel>
               <Input
                 id="user"
                 name="user"
-                placeholder="ens.eth or 0x address"
+                placeholder="User name or address"
                 required
                 disabled={isPending || isSuccess}
                 aria-invalid={invalidField === 'address'}
                 onChange={(e) => {
                   setNameOrAddressInput(e.currentTarget.value.trim())
+                  setSubmitFeedback(null)
+                  setInvalidField(null)
                 }}
               />
               {nameOrAddressInput.length > 0 && (
@@ -194,32 +201,32 @@ export const RegistryAddUserSheet = ({
             </Field>
 
             <Field data-invalid={invalidField === 'roles'}>
-              <FieldLabel>Roles</FieldLabel>
               <div
                 className={cn('border rounded-sm divide-y transition-colors', {
                   'opacity-50 pointer-events-none': isPending || isSuccess,
                 })}
                 aria-invalid={invalidField === 'roles'}
               >
-                {permissions.map((permission) => {
-                  const adminKey = `${permission.key}_ADMIN` as Role
-                  const callerLacksAdmin = !callerAdminRoles.has(adminKey)
-                  // Root-resource grants aren't subject to the 2LD restriction;
-                  // gating is purely on the global manager-settable check + the
-                  // caller actually holding the matching _ADMIN role.
-                  const isManagerRoleDisabled =
-                    !isManagerRoleSettable(permission.key) || callerLacksAdmin
+                {registryRootPermissions.map((permission) => {
+                  // Both Admin (`*_ADMIN`) and User (base role) grants require
+                  // the caller to hold the matching `*_ADMIN` role on the
+                  // registry root resource.
+                  const callerLacksAdmin = !callerAdminRoles.has(
+                    permission.adminKey,
+                  )
+                  const userKey = permission.key
+                  const adminKey = permission.adminKey
 
                   return (
                     <div
-                      key={permission.key}
+                      key={permission.adminKey}
                       className={cn(
                         'flex items-center justify-between p-4 gap-4',
-                        isManagerRoleDisabled && 'text-muted-foreground',
+                        callerLacksAdmin && 'text-muted-foreground',
                       )}
                       title={
                         callerLacksAdmin
-                          ? `Your account does not hold ${adminKey} on this registry and cannot grant this role.`
+                          ? `Your account does not hold ${permission.adminKey} on this registry and cannot grant this role.`
                           : undefined
                       }
                     >
@@ -230,27 +237,47 @@ export const RegistryAddUserSheet = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-2">
+                        {/* Admin column (left) */}
+                        <div className="flex items-center gap-2 w-24">
                           <Checkbox
-                            name={permission.key}
-                            id={permission.key}
-                            disabled={isManagerRoleDisabled}
+                            id={adminKey}
+                            checked={selectedRoles.has(adminKey)}
+                            onCheckedChange={(c) =>
+                              toggleRole(adminKey, c === true)
+                            }
+                            disabled={callerLacksAdmin}
                           />
                           <Label
-                            htmlFor={permission.key}
-                            className="font-normal cursor-pointer text-muted-foreground"
-                          >
-                            Manager
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox id={`${permission.key}_ADMIN`} disabled />
-                          <Label
-                            htmlFor={`${permission.key}_ADMIN`}
+                            htmlFor={adminKey}
                             className="font-normal cursor-pointer text-muted-foreground"
                           >
                             Admin
                           </Label>
+                        </div>
+                        {/* User column (right) — admin-only rows render a dash. */}
+                        <div className="flex items-center gap-2 w-24">
+                          {userKey ? (
+                            <>
+                              <Checkbox
+                                id={userKey}
+                                checked={selectedRoles.has(userKey as Role)}
+                                onCheckedChange={(c) =>
+                                  toggleRole(userKey as Role, c === true)
+                                }
+                                disabled={callerLacksAdmin}
+                              />
+                              <Label
+                                htmlFor={userKey}
+                                className="font-normal cursor-pointer text-muted-foreground"
+                              >
+                                User
+                              </Label>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">
+                              —
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -262,12 +289,14 @@ export const RegistryAddUserSheet = ({
               )}
             </Field>
 
-            <Button type="submit" variant="default" className="w-fit">
-              {match({ isPending, isSuccess })
-                .with({ isSuccess: true }, () => 'Transaction Complete')
-                .with({ isPending: true }, () => 'Saving...')
-                .otherwise(() => 'Save roles')}
-            </Button>
+            <div className="mt-auto flex justify-end">
+              <Button type="submit" variant="default" disabled={!canSave}>
+                {match({ isPending, isSuccess })
+                  .with({ isSuccess: true }, () => 'Transaction Complete')
+                  .with({ isPending: true }, () => 'Saving...')
+                  .otherwise(() => 'Save')}
+              </Button>
+            </div>
           </form>
 
           <TransactionModal
