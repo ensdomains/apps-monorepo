@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
+import { RegistryAddUserSheet } from '@/features/registry/components/v2/RegistryAddUserSheet'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { useRegistry } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -17,6 +19,7 @@ export const Route = createFileRoute('/registry/$address/roles')({
 function RouteComponent() {
   const { address: addressParam } = Route.useParams()
   const address = addressParam as Address
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false)
 
   const { data: registry, isLoading, error } = useRegistry(address)
 
@@ -49,13 +52,21 @@ function RouteComponent() {
         <h1 className="text-2xl md:text-heading font-medium leading-none">
           Roles
         </h1>
-        {/* TODO: wire up the add-user flow */}
-        <Button variant="default" className="flex items-center gap-2">
+        <Button
+          variant="default"
+          className="flex items-center gap-2"
+          onClick={() => setIsAddUserOpen(true)}
+        >
           <Plus className="size-4" />
           Add User
         </Button>
       </div>
       <RegistryRolesTable address={address} />
+      <RegistryAddUserSheet
+        open={isAddUserOpen}
+        onOpenChange={setIsAddUserOpen}
+        registryAddress={address}
+      />
     </div>
   )
 }
