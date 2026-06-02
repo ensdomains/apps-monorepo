@@ -8,7 +8,9 @@ import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { useIsRegistryAdmin } from '../../hooks/useIsRegistryAdmin'
 import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
@@ -68,6 +70,9 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   } = useQuery(getRegistryRolesQueryOptions({ address }))
 
   const [editingRow, setEditingRow] = useState<RegistryRoleRow | null>(null)
+  // Admin-only actions column (per-row Edit icon) — non-admin viewers see a
+  // read-only table.
+  const isAdmin = useIsRegistryAdmin(address)
 
   const columns = useMemo<ColumnDef<RegistryRoleRow>[]>(
     () => [
@@ -125,22 +130,26 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
           </div>
         ),
       },
-      {
-        id: 'actions',
-        header: () => null,
-        cell: ({ row }) => (
-          <Button
-            onClick={() => setEditingRow(row.original)}
-            aria-label="Edit user roles"
-            variant="secondary"
-            className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
-          >
-            <PanelRight className="size-4 text-muted-foreground" />
-          </Button>
-        ),
-      },
+      ...(isAdmin
+        ? [
+            {
+              id: 'actions',
+              header: () => null,
+              cell: ({ row }) => (
+                <Button
+                  onClick={() => setEditingRow(row.original)}
+                  aria-label="Edit user roles"
+                  variant="secondary"
+                  className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
+                >
+                  <PanelRight className="size-4 text-muted-foreground" />
+                </Button>
+              ),
+            } satisfies ColumnDef<RegistryRoleRow>,
+          ]
+        : []),
     ],
-    [],
+    [isAdmin],
   )
 
   const rows = roles ?? []
@@ -153,17 +162,28 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   }
 
   return (
-    <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative [&_tbody_tr:hover]:bg-transparent">
+    <div
+      className={cn(
+        '[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent',
+        // Last-cell overrides target the Edit-icon column — only present for
+        // admins. Skipping these for non-admins prevents the table's
+        // last visible column (User-level check) from getting squished.
+        isAdmin &&
+          '[&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative',
+      )}
+    >
       <DataTable columns={columns} data={rows} />
-      <RegistryEditUserSheet
-        open={!!editingRow}
-        onOpenChange={(open) => {
-          if (!open) setEditingRow(null)
-        }}
-        registryAddress={address}
-        account={editingRow?.account ?? null}
-        currentRoles={editingRow?.roles ?? []}
-      />
+      {isAdmin && (
+        <RegistryEditUserSheet
+          open={!!editingRow}
+          onOpenChange={(open) => {
+            if (!open) setEditingRow(null)
+          }}
+          registryAddress={address}
+          account={editingRow?.account ?? null}
+          currentRoles={editingRow?.roles ?? []}
+        />
+      )}
     </div>
   )
 }

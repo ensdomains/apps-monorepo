@@ -176,9 +176,18 @@ export const RegistryEditUserSheet = ({
     runEdit(diff.toGrant, diff.toRevoke)
   }
 
+  // Limit Remove to roles the caller actually has authority over — mirrors
+  // the per-checkbox gating in the form. Without this filter the button
+  // builds a transaction that includes roles the caller can't revoke, which
+  // sends the user through a wallet flow that reverts.
+  const removableRoles = currentRoles.filter((role) => {
+    const adminRole = role.endsWith('_ADMIN') ? role : (`${role}_ADMIN` as Role)
+    return callerAdminRoles.has(adminRole)
+  })
+
   const handleRemove = () => {
-    if (currentRoles.length === 0) return
-    runEdit([], Array.from(currentRoles))
+    if (removableRoles.length === 0) return
+    runEdit([], removableRoles)
   }
 
   const handleDone = () => {
@@ -254,7 +263,7 @@ export const RegistryEditUserSheet = ({
               type="button"
               variant="outline"
               onClick={handleRemove}
-              disabled={currentRoles.length === 0 || isPending}
+              disabled={removableRoles.length === 0 || isPending}
             >
               <Trash2 className="size-4" />
               Remove user

@@ -8,6 +8,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { RegistryAddUserSheet } from '@/features/registry/components/v2/RegistryAddUserSheet'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
+import { useIsRegistryAdmin } from '@/features/registry/hooks/useIsRegistryAdmin'
 import { useRegistry } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -22,6 +23,8 @@ function RouteComponent() {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
 
   const { data: registry, isLoading, error } = useRegistry(address)
+
+  const isAdmin = useIsRegistryAdmin(address)
 
   if (isLoading) return <LoadingSpinner title="Loading rolegistry" />
 
@@ -52,21 +55,25 @@ function RouteComponent() {
         <h1 className="text-2xl md:text-heading font-medium leading-none">
           Roles
         </h1>
-        <Button
-          variant="default"
-          className="flex items-center gap-2"
-          onClick={() => setIsAddUserOpen(true)}
-        >
-          <Plus className="size-4" />
-          Add User
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="default"
+            className="flex items-center gap-2"
+            onClick={() => setIsAddUserOpen(true)}
+          >
+            <Plus className="size-4" />
+            Add User
+          </Button>
+        )}
       </div>
       <RegistryRolesTable address={address} />
-      <RegistryAddUserSheet
-        open={isAddUserOpen}
-        onOpenChange={setIsAddUserOpen}
-        registryAddress={address}
-      />
+      {isAdmin && (
+        <RegistryAddUserSheet
+          open={isAddUserOpen}
+          onOpenChange={setIsAddUserOpen}
+          registryAddress={address}
+        />
+      )}
     </div>
   )
 }
