@@ -20,6 +20,7 @@ import { useGrantRegistryRoles } from '@/features/registry/hooks/useGrantRegistr
 import { useRevokeRegistryRoles } from '@/features/registry/hooks/useRevokeRegistryRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import type { Transaction } from '@/features/transaction-manager/types'
 import { registryRootPermissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -180,43 +181,63 @@ export const RegistryEditUserSheet = ({
     runEdit([], Array.from(currentRoles))
   }
 
-  const handleStartTransaction = () => {
-    if (!pendingTx || !account || !walletClient?.account) return
-    if (pendingTx.kind === 'grant') {
-      grantRegistryRoles({
-        registryAddress,
-        account,
-        roles: pendingTx.roles,
-        id: GRANT_TX_ID,
-      })
-    } else {
-      revokeRegistryRoles({
-        registryAddress,
-        account,
-        roles: pendingTx.roles,
-        id: REVOKE_TX_ID,
-      })
-    }
-  }
-
   const handleDone = () => {
-    if (queuedRevoke && queuedRevoke.length > 0) {
-      const next = queuedRevoke
-      setQueuedRevoke(null)
-      setPendingTx({ kind: 'revoke', roles: next })
-      clearTransaction()
-      return
-    }
     closeModal()
     clearTransaction()
     setPendingTx(null)
+    setQueuedRevoke(null)
     onOpenChange(false)
   }
 
-  const modalTransactionId =
-    pendingTx?.kind === 'revoke' ? REVOKE_TX_ID : GRANT_TX_ID
-  const modalTitle =
-    pendingTx?.kind === 'revoke' ? 'Revoke roles' : 'Grant roles'
+  const handleStepDone = () => {
+    clearTransaction()
+  }
+
+  const buildModalTransactions = (): Transaction[] => {
+    if (!pendingTx || !account) return []
+
+    const revokeRoles =
+      pendingTx.kind === 'revoke' ? pendingTx.roles : queuedRevoke
+    const hasRevokeStep = !!revokeRoles && revokeRoles.length > 0
+
+    const steps: Transaction[] = []
+
+    if (pendingTx.kind === 'grant') {
+      steps.push({
+        id: GRANT_TX_ID,
+        title: 'Grant roles',
+        transactionName: 'Grant registry roles',
+        estimatedGasCost: 0.0001,
+        onStart: () =>
+          grantRegistryRoles({
+            registryAddress,
+            account,
+            roles: pendingTx.roles,
+            id: GRANT_TX_ID,
+          }),
+        onDone: hasRevokeStep ? handleStepDone : handleDone,
+      })
+    }
+
+    if (hasRevokeStep) {
+      steps.push({
+        id: REVOKE_TX_ID,
+        title: 'Revoke roles',
+        transactionName: 'Revoke registry roles',
+        estimatedGasCost: 0.0001,
+        onStart: () =>
+          revokeRegistryRoles({
+            registryAddress,
+            account,
+            roles: revokeRoles,
+            id: REVOKE_TX_ID,
+          }),
+        onDone: handleDone,
+      })
+    }
+
+    return steps
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -351,21 +372,7 @@ export const RegistryEditUserSheet = ({
             account={account}
           />
 
-          <TransactionModal
-            transactions={[
-              {
-                id: modalTransactionId,
-                title: modalTitle,
-                transactionName:
-                  pendingTx?.kind === 'revoke'
-                    ? 'Revoke registry roles'
-                    : 'Grant registry roles',
-                estimatedGasCost: 0.0001,
-                onStart: handleStartTransaction,
-                onDone: handleDone,
-              },
-            ]}
-          />
+          <TransactionModal transactions={buildModalTransactions()} />
         </div>
       </SheetContent>
     </Sheet>
