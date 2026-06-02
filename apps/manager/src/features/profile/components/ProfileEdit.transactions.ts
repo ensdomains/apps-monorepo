@@ -217,14 +217,6 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
-        // Resolver record writes (setText / setAddr / multicall) are NOT
-        // in the registration-scoped smart-session allowlist (see
-        // apps/manager/src/lib/smart-account/sessions/build-registration-session.ts),
-        // so signing this UserOp with the session key would fail the
-        // on-chain SmartSession validator → "Bundle simulation failed".
-        // Force the SDK to use the SCA's default validator instead, which
-        // prompts an EOA-owner signature.
-        useSession: false,
       },
     } as RhinestoneTransactionRequest
   }
