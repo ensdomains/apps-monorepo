@@ -2,6 +2,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Check } from 'lucide-react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -11,6 +12,7 @@ import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
 } from '../../hooks/useRegistryRoles'
+import { RegistryEditUserSheet } from './RegistryEditUserSheet'
 
 const isAdminRole = (role: Role) => role.endsWith('_ADMIN')
 
@@ -79,6 +81,8 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
     error,
   } = useQuery(getRegistryRolesQueryOptions({ address }))
 
+  const [editingRow, setEditingRow] = useState<RegistryRoleRow | null>(null)
+
   const rows = roles ?? []
 
   if (isLoading) return <LoadingSpinner title="Loading roles..." />
@@ -90,7 +94,16 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
 
   return (
     <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible">
-      <DataTable columns={columns} data={rows} />
+      <DataTable columns={columns} data={rows} onRowClick={setEditingRow} />
+      <RegistryEditUserSheet
+        open={!!editingRow}
+        onOpenChange={(open) => {
+          if (!open) setEditingRow(null)
+        }}
+        registryAddress={address}
+        account={editingRow?.account ?? null}
+        currentRoles={editingRow?.roles ?? []}
+      />
     </div>
   )
 }
