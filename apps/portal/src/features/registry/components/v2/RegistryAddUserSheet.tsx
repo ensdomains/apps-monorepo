@@ -6,7 +6,7 @@ import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -108,8 +108,7 @@ export const RegistryAddUserSheet = ({
     setInvalidField(null)
   }
 
-  const canSave =
-    !!address && selectedRoles.size > 0 && !isPending && !isSuccess
+  const canSave = !!address && selectedRoles.size > 0 && !isSuccess
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -173,7 +172,6 @@ export const RegistryAddUserSheet = ({
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
             <Field data-invalid={invalidField === 'address'}>
-              <FieldLabel htmlFor="user">User</FieldLabel>
               <Input
                 id="user"
                 name="user"
@@ -186,6 +184,7 @@ export const RegistryAddUserSheet = ({
                   setSubmitFeedback(null)
                   setInvalidField(null)
                 }}
+                className="h-12 bg-background border"
               />
               {nameOrAddressInput.length > 0 && (
                 <p className="text-sm mt-1.5 text-muted-foreground">
@@ -202,7 +201,7 @@ export const RegistryAddUserSheet = ({
 
             <Field data-invalid={invalidField === 'roles'}>
               <div
-                className={cn('border rounded-sm divide-y transition-colors', {
+                className={cn('border-t divide-y transition-colors', {
                   'opacity-50 pointer-events-none': isPending || isSuccess,
                 })}
                 aria-invalid={invalidField === 'roles'}
@@ -289,7 +288,7 @@ export const RegistryAddUserSheet = ({
               )}
             </Field>
 
-            <div className="mt-auto flex justify-end">
+            <div className="flex justify-end">
               <Button type="submit" variant="default" disabled={!canSave}>
                 {match({ isPending, isSuccess })
                   .with({ isSuccess: true }, () => 'Transaction Complete')
