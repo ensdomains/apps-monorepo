@@ -85,9 +85,12 @@ export const RegistryAddUserSheet = ({
   })
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
-  const { grantRegistryRoles, isPending, isSuccess } = useGrantRegistryRoles()
+  const { grantRegistryRoles, isPending, isSuccess, reset } =
+    useGrantRegistryRoles()
 
-  // Reset form state when the sheet closes so re-opening starts fresh.
+  // Reset form state AND the underlying mutation when the sheet closes —
+  // otherwise `isSuccess` sticks across re-opens, leaving the input disabled
+  // and Save permanently gated.
   useEffect(() => {
     if (open) return
     setNameOrAddressInput('')
@@ -95,7 +98,8 @@ export const RegistryAddUserSheet = ({
     setPendingGrant(null)
     setSubmitFeedback(null)
     setInvalidField(null)
-  }, [open])
+    reset()
+  }, [open, reset])
 
   const toggleRole = (role: Role, checked: boolean) => {
     setSelectedRoles((prev) => {
