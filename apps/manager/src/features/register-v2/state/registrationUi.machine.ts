@@ -1,6 +1,7 @@
 import {
   type RegistrationEvent,
   registrationMachine,
+  type Signer,
 } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -194,6 +195,16 @@ const startRegistrationAction = machineSetup.createAction(
     const resolverOwnerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
+    // The ENS registrar pulls the payment token from the name owner (the EOA),
+    // so the ERC-20 approve must be signed by the EOA — the HCA can't approve
+    // on its behalf and the mock tokens have no permit. Hand the registration
+    // machine a dedicated EOA signer (the connected wallet client) for the
+    // approve step; commit/deploy/register stay on the sponsored rhinestone
+    // signer. For pure-EOA flows this is the same wallet, so it's a no-op.
+    const approvalSigner: Signer | undefined = event.account.walletClient
+      ? { type: 'eoa', walletClient: event.account.walletClient }
+      : undefined
+
     enqueue.assign({
       confirmedData: {
         label: event.label,
@@ -214,6 +225,7 @@ const startRegistrationAction = machineSetup.createAction(
         token: event.token,
         price: event.totalPrice,
         signer: event.account.signer,
+        approvalSigner,
         accountAddress: event.account.accountAddress,
         ownerAddress,
         resolverOwnerAddress,

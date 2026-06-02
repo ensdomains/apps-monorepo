@@ -58,6 +58,16 @@ export const REGISTRATION_TX_IDS = {
 export type RegistrationContext = {
   // Account & client
   signer?: Signer
+  /**
+   * EOA signer used ONLY for the ERC-20 token `approve`. The ENS registrar
+   * pulls the payment token from the name owner (the EOA), so the allowance
+   * must be set by the EOA — the HCA can't approve on the EOA's behalf, and
+   * these mock tokens have no EIP-2612 permit. When this is set (HCA flows),
+   * the approve goes out as a direct EOA tx while everything else stays on the
+   * sponsored rhinestone `signer`. When absent, rhinestone flows fall back to
+   * the legacy batched approve+register intent.
+   */
+  approvalSigner?: Signer
   accountAddress?: Address
   ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA` (see @ens-apps/smart-account providers/rhinestone/registration-policy.ts), so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
   resolverOwnerAddress?: Address // Address to grant EACL roles to on the dedicated resolver. Must be the EOA that the resolver will see at write time after SCA→EOA unwrap; defaults to ownerAddress.
@@ -101,6 +111,12 @@ export type RegistrationEvent =
       token: 'USDC' | 'DAI'
       price: bigint
       signer: Signer
+      /**
+       * Optional EOA signer for the token approve (HCA flows). See
+       * `RegistrationContext.approvalSigner`. Omit for pure-EOA or legacy
+       * bundled-rhinestone flows.
+       */
+      approvalSigner?: Signer
       accountAddress: Address
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
@@ -262,6 +278,16 @@ export const registrationMachine = setup({
 
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    /**
+     * Use the legacy single-intent approve+register bundle: only for
+     * rhinestone signers that did NOT supply a separate EOA `approvalSigner`.
+     * When an `approvalSigner` is present, the approve is split out into a
+     * direct EOA tx and register runs as a sponsored rhinestone intent, so we
+     * take the standard `checkingAllowance → approvingToken → registeringDomain`
+     * path instead.
+     */
+    useBundledApproveRegister: ({ context }) =>
+      context.signer?.type === 'rhinestone' && !context.approvalSigner,
   },
 
   actions: {
@@ -392,6 +418,7 @@ export const registrationMachine = setup({
             selectedToken: ({ event }) => event.token,
             tokenPrice: ({ event }) => event.price,
             signer: ({ event }) => event.signer,
+            approvalSigner: ({ event }) => event.approvalSigner,
             accountAddress: ({ event }) => event.accountAddress,
             registrationStartedAt: ({ event }) =>
               event.signer.type === 'rhinestone' ? Date.now() : undefined,
@@ -646,7 +673,7 @@ export const registrationMachine = setup({
         }),
         onDone: [
           {
-            guard: 'isRhinestoneSigner',
+            guard: 'useBundledApproveRegister',
             target: 'commitmentCooldown',
             actions: assign({
               registerReadyTimestamp: ({ event }) => {
@@ -669,7 +696,7 @@ export const registrationMachine = setup({
           {
             // Bundled approve+register cannot approve early, so it still waits
             // before submitting the combined transaction.
-            guard: 'isRhinestoneSigner',
+            guard: 'useBundledApproveRegister',
             target: 'commitmentCooldown',
             actions: 'setFallbackRegisterReadyTimestamp',
           },
@@ -698,7 +725,7 @@ export const registrationMachine = setup({
         }),
         onDone: [
           {
-            guard: 'isRhinestoneSigner',
+            guard: 'useBundledApproveRegister',
             target: 'submittingRhinestoneBundle',
           },
           { target: 'checkingAllowance' },
@@ -738,7 +765,7 @@ export const registrationMachine = setup({
         },
         onDone: [
           {
-            guard: 'isRhinestoneSigner',
+            guard: 'useBundledApproveRegister',
             target: 'submittingRhinestoneBundle',
           },
           { target: 'registeringDomain' },
@@ -875,11 +902,16 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           tokenPrice: context.tokenPrice,
           selectedToken: context.selectedToken,
+          // The registrar pulls the payment token from the name owner (the
+          // EOA), so the approve must be signed by the EOA. Use the dedicated
+          // EOA `approvalSigner` when provided (HCA flows); otherwise fall back
+          // to the main signer (pure-EOA flows already sign with the EOA).
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          signer: context.signer!,
+          signer: context.approvalSigner ?? context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          sponsored: context.sponsored,
+          // EOA approve is a normal (non-sponsored) tx — the EOA pays gas.
+          sponsored: false,
           id: REGISTRATION_TX_IDS.approve,
         }),
         onDone: {
