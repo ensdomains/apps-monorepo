@@ -96,7 +96,7 @@ export const RegistryUserActivity = ({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-muted-foreground">History</h2>
+      <h2 className="text-sm font-medium uppercase">History</h2>
       {isLoading && (
         <p className="text-sm text-muted-foreground">Loading history…</p>
       )}
