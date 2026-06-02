@@ -1,6 +1,5 @@
 'use client'
 
-import { buildRegistrationSessionActions } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -14,25 +13,21 @@ import { useActor, useSelector } from '@xstate/react'
 import {
   createContext,
   type ReactNode,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
 } from 'react'
 import { toast } from 'sonner'
-import type { Address, Hex, WalletClient } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import {
-  selectIsCreatingSession,
   selectIsLoading,
   selectIsReady,
-  selectShowSessionModal,
   smartAccountMachine,
 } from './smart-account.machine'
 import type {
@@ -44,12 +39,7 @@ import { useSmartAccountBalances } from './useSmartAccountBalances'
 export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly hasInitialized: boolean
   readonly isReady: boolean
-  readonly isCreatingSession: boolean
-  readonly showSessionModal: boolean
   readonly walletClient: WalletClient | null
-  readonly enableSession: () => Promise<void>
-  readonly dismissSession: () => void
-  readonly promptSession: () => void
   readonly infrastructure: 'pimlico' | 'warp'
 }
 
@@ -161,12 +151,10 @@ export const SmartAccountContextProvider = ({
 
   const isLoading = useSelector(actorRef, selectIsLoading)
   const isReady = useSelector(actorRef, selectIsReady)
-  const showSessionModal = useSelector(actorRef, selectShowSessionModal)
-  const isCreatingSession = useSelector(actorRef, selectIsCreatingSession)
 
   // In EOA-only mode the smart-account state machine never runs — skip the
   // wallet sync hook so we don't kick off Rhinestone initialization
-  // (which would trigger HCA registration via Warp etc.).
+  // (which would deploy the HCA via Warp etc.).
   const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
     useEoa ? undefined : paraWallet,
@@ -268,9 +256,6 @@ export const SmartAccountContextProvider = ({
   ])
 
   const baseClient = snapshot.context.client
-  const sessionClient = snapshot.context.sessionClient
-  const isSessionClient = !!sessionClient
-
   const infrastructure = snapshot.context.infrastructure
 
   const signer: Signer | null = useMemo(() => {
@@ -295,32 +280,12 @@ export const SmartAccountContextProvider = ({
       logger.error('Rhinestone API key not configured - cannot create signer')
       return null
     }
-    // The session policy pins both `register.owner == SCA` and
-    // `HCAFactory.setAccountOwner.eoa == EOA`. Without a known EOA we
-    // cannot reproduce the actions baked into the enable signature, so
-    // refuse to construct the signer rather than risk an
-    // `InvalidSignature()` revert at orchestrator time.
-    if (!ownerAddress) {
-      logger.error('Rhinestone signer: missing EOA owner address')
-      return null
-    }
 
-    const rhinestoneSessionClient = sessionClient as {
-      sessionPrivateKey: Hex
-      enableSignature: Hex
-      hashesAndChainIds: string
-      validUntil: number
-    } | null
-
-    // Deserialize hashesAndChainIds from localStorage format (string chainId → bigint)
-    const deserializeHashes = (json: string) =>
-      (JSON.parse(json) as { chainId: string; sessionDigest: Hex }[]).map(
-        (h) => ({
-          chainId: BigInt(h.chainId),
-          sessionDigest: h.sessionDigest,
-        }),
-      )
-
+    // HCA signer: every Intent is signed by the account's ENS owner (the
+    // connected wallet, held inside `baseClient`) and gas-sponsored through
+    // the Rhinestone Warp orchestrator. There is no smart session — the HCA
+    // permanently locks its module set, so a session validator can never be
+    // installed.
     return {
       type: 'rhinestone' as const,
       account: baseClient as unknown as RhinestoneSigner['account'],
@@ -328,102 +293,14 @@ export const SmartAccountContextProvider = ({
         chain: customSepolia,
         accountAddress,
         rhinestoneApiKey,
-        isSessionClient,
-        ...(rhinestoneSessionClient && {
-          sessionPrivateKey: rhinestoneSessionClient.sessionPrivateKey,
-          sessionConfig: {
-            signers: {
-              type: 'experimental_session' as const,
-              session: {
-                owners: {
-                  type: 'ecdsa' as const,
-                  accounts: [
-                    privateKeyToAccount(
-                      rhinestoneSessionClient.sessionPrivateKey,
-                    ),
-                  ],
-                },
-                chain: customSepolia,
-                // Must match the actions baked into the EIP-712 enable
-                // signature produced in @ens-apps/smart-account at session
-                // creation time. Any divergence breaks the PermissionId
-                // and yields `InvalidSignature()`. `validUntil` is
-                // currently not part of the action set on-chain (the
-                // `time-frame` policy is disabled — see
-                // @ens-apps/smart-account providers/rhinestone/registration-policy.ts),
-                // but we still thread the same value through so the
-                // rebuild stays correct once upstream is fixed.
-                actions: buildRegistrationSessionActions({
-                  smartAccountAddress: accountAddress,
-                  eoaAddress: ownerAddress,
-                  validUntil: rhinestoneSessionClient.validUntil,
-                }),
-              },
-              enableData: {
-                userSignature: rhinestoneSessionClient.enableSignature,
-                hashesAndChainIds: deserializeHashes(
-                  rhinestoneSessionClient.hashesAndChainIds,
-                ),
-                sessionToEnableIndex: 0,
-              },
-            },
-          } as unknown as RhinestoneSigner['config']['sessionConfig'],
-        }),
-        defaultInfra: infrastructure,
+        defaultInfra: 'warp',
       },
     }
-  }, [
-    baseClient,
-    sessionClient,
-    accountAddress,
-    ownerAddress,
-    isSessionClient,
-    infrastructure,
-    wagmiWalletClient,
-  ])
-
-  const promptSession = useCallback(() => {
-    send({ type: 'PROMPT_SESSION' })
-  }, [send])
-
-  const dismissSession = useCallback(() => {
-    send({ type: 'DISMISS_SESSION' })
-  }, [send])
-
-  const enableSession = useCallback(async () => {
-    const current = actorRef.getSnapshot()
-    if (current.value !== 'promptingSession') {
-      throw new Error('Session can only be enabled from prompting state')
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      let sawCreating = false
-      const subscription = actorRef.subscribe((nextSnapshot) => {
-        if (nextSnapshot.value === 'creatingSession') {
-          sawCreating = true
-          return
-        }
-
-        if (!sawCreating) return
-
-        subscription.unsubscribe()
-        if (nextSnapshot.context.sessionClient) {
-          resolve()
-          return
-        }
-        reject(
-          new Error(nextSnapshot.context.error ?? 'Failed to create session'),
-        )
-      })
-
-      send({ type: 'ENABLE_SESSION' })
-    })
-  }, [actorRef, send])
+  }, [baseClient, accountAddress, wagmiWalletClient])
 
   const isConnected = isFeatureEnabled('USE_EOA')
     ? !!wagmiWalletClient && !!eoaAddress
-    : !!snapshot.context.walletSource &&
-      !!(snapshot.context.sessionClient ?? snapshot.context.client)
+    : !!snapshot.context.walletSource && !!snapshot.context.client
   const hasInitialized = isFeatureEnabled('USE_EOA')
     ? !isParaWalletPending
     : !isParaWalletPending && snapshot.value !== 'initializing'
@@ -435,7 +312,7 @@ export const SmartAccountContextProvider = ({
     ? {
         // In EOA-only mode the wagmi wallet client is both the EOA and the
         // "smart account" address. All smart-account-specific fields are
-        // zeroed out; the session prompt is suppressed.
+        // zeroed out.
         type: 'rhinestone',
         client: null,
         config: null,
@@ -451,18 +328,11 @@ export const SmartAccountContextProvider = ({
         isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
         autoFundingMutation,
         signer,
-        session: null,
-        isSessionClient: false,
         isAccountReady,
         hasInitialized,
-        showSessionModal: false,
         isReady: isAccountReady,
-        isCreatingSession: false,
         walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
-        enableSession: async () => {},
-        dismissSession: () => {},
-        promptSession: () => {},
-        infrastructure: 'pimlico',
+        infrastructure: 'warp',
       }
     : {
         type: 'rhinestone',
@@ -482,18 +352,11 @@ export const SmartAccountContextProvider = ({
         isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
         autoFundingMutation,
         signer,
-        session: snapshot.context.session,
-        isSessionClient,
         isAccountReady,
         hasInitialized,
-        showSessionModal,
         isReady,
-        isCreatingSession,
         walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
-        enableSession,
-        dismissSession,
-        promptSession,
-        infrastructure: snapshot.context.infrastructure,
+        infrastructure,
       }
 
   return (

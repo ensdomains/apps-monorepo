@@ -1,8 +1,9 @@
 /**
- * Tests for initializeRhinestoneAccount.
+ * Tests for initializeRhinestoneAccount (HCA).
  *
- * Covers the package-level concerns: SDK option construction, deploy
- * vs. already-deployed paths, onAccountReady invocation, and the
+ * Covers the package-level concerns: SDK option construction (Warp-only,
+ * no Pimlico bundler), the HCA + ENS-owner createAccount call, the
+ * deploy-via-Intent path (prepare → sign → submit → wait), and the
  * onProgress/onError sequencing. App-side concerns (Para wrapping,
  * env-var resolution, toast wiring) are tested separately in
  * apps/manager/src/lib/smart-account/rhinestone.test.ts.
@@ -10,22 +11,36 @@
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
 
+import { maxUint48 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const MOCK_SMART_ACCOUNT_ADDRESS =
   '0x1111111111111111111111111111111111111111' as const
+const MOCK_FACTORY = '0x3586807280000000000000000000000000000000' as const
+const MOCK_FACTORY_DATA = '0xdeadbeef' as const
 
 // Mock the Rhinestone SDK module. The factory needs to be a function
 // so vi.mocked() can later read .mock.results.
 let mockIsDeployed = vi.fn().mockResolvedValue(true)
-let mockSendTransaction = vi.fn().mockResolvedValue('mock-tx')
+let mockGetInitData = vi.fn(() => ({
+  factory: MOCK_FACTORY,
+  factoryData: MOCK_FACTORY_DATA,
+}))
+let mockPrepareTransaction = vi.fn().mockResolvedValue({ prepared: true })
+let mockSignTransaction = vi.fn().mockResolvedValue({ signed: true })
+let mockSubmitTransaction = vi.fn().mockResolvedValue({ submitted: true })
+let mockWaitForExecution = vi.fn().mockResolvedValue({ status: 'COMPLETED' })
 
 vi.mock('@rhinestone/sdk', () => ({
   RhinestoneSDK: vi.fn(function (this: any) {
     this.createAccount = vi.fn().mockResolvedValue({
       getAddress: () => MOCK_SMART_ACCOUNT_ADDRESS,
       isDeployed: mockIsDeployed,
-      sendTransaction: mockSendTransaction,
+      getInitData: mockGetInitData,
+      prepareTransaction: mockPrepareTransaction,
+      signTransaction: mockSignTransaction,
+      submitTransaction: mockSubmitTransaction,
+      waitForExecution: mockWaitForExecution,
     })
     return this
   }),
@@ -52,7 +67,14 @@ describe('initializeRhinestoneAccount', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsDeployed = vi.fn().mockResolvedValue(true)
-    mockSendTransaction = vi.fn().mockResolvedValue('mock-tx')
+    mockGetInitData = vi.fn(() => ({
+      factory: MOCK_FACTORY,
+      factoryData: MOCK_FACTORY_DATA,
+    }))
+    mockPrepareTransaction = vi.fn().mockResolvedValue({ prepared: true })
+    mockSignTransaction = vi.fn().mockResolvedValue({ signed: true })
+    mockSubmitTransaction = vi.fn().mockResolvedValue({ submitted: true })
+    mockWaitForExecution = vi.fn().mockResolvedValue({ status: 'COMPLETED' })
   })
 
   describe('SDK options', () => {
@@ -69,23 +91,7 @@ describe('initializeRhinestoneAccount', () => {
       )
     })
 
-    it('includes the Pimlico bundler when pimlicoApiKey is provided', async () => {
-      await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-        pimlicoApiKey: 'test-pim-key',
-      })
-
-      expect(RhinestoneSDK).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bundler: { type: 'pimlico', apiKey: 'test-pim-key' },
-        }),
-      )
-    })
-
-    it('omits the bundler when pimlicoApiKey is not provided', async () => {
+    it('never configures an ERC-4337 (Pimlico) bundler — Warp only', async () => {
       await initializeRhinestoneAccount({
         ownerAccount: makeOwnerAccount(),
         eoaAddress: MOCK_OWNER_ADDRESS,
@@ -115,7 +121,7 @@ describe('initializeRhinestoneAccount', () => {
       )
     })
 
-    it('passes the owner account into createAccount with sessions enabled', async () => {
+    it('creates an HCA account with an ENS owner (never-expiring) and no sessions', async () => {
       const account = makeOwnerAccount()
       await initializeRhinestoneAccount({
         ownerAccount: account,
@@ -126,9 +132,17 @@ describe('initializeRhinestoneAccount', () => {
 
       const sdk = vi.mocked(RhinestoneSDK).mock.results[0]?.value
       expect(sdk.createAccount).toHaveBeenCalledWith({
-        owners: { type: 'ecdsa', accounts: [account] },
-        experimental_sessions: { enabled: true },
+        account: { type: 'hca' },
+        owners: {
+          type: 'ens',
+          accounts: [account],
+          ownerExpirations: [Number(maxUint48)],
+        },
       })
+      // Must not request smart sessions — the SDK rejects them for HCA.
+      expect(sdk.createAccount).not.toHaveBeenCalledWith(
+        expect.objectContaining({ experimental_sessions: expect.anything() }),
+      )
     })
   })
 
@@ -143,33 +157,10 @@ describe('initializeRhinestoneAccount', () => {
         }),
       ).rejects.toThrow('rhinestoneApiKey is required')
     })
-
-    it('throws when infrastructure === "pimlico" but pimlicoApiKey is missing', async () => {
-      await expect(
-        initializeRhinestoneAccount({
-          ownerAccount: makeOwnerAccount(),
-          eoaAddress: MOCK_OWNER_ADDRESS,
-          chain: MOCK_CHAIN,
-          rhinestoneApiKey: 'test-api-key',
-          infrastructure: 'pimlico',
-        }),
-      ).rejects.toThrow(/pimlicoApiKey is required/)
-    })
-
-    it('does not require pimlicoApiKey for the default (warp) infrastructure', async () => {
-      const result = await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-      })
-
-      expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
-    })
   })
 
   describe('deploy path', () => {
-    it('skips the bootstrap tx when SCA is already deployed', async () => {
+    it('skips the bootstrap Intent when the HCA is already deployed', async () => {
       mockIsDeployed.mockResolvedValueOnce(true)
 
       await initializeRhinestoneAccount({
@@ -179,10 +170,11 @@ describe('initializeRhinestoneAccount', () => {
         rhinestoneApiKey: 'test-api-key',
       })
 
-      expect(mockSendTransaction).not.toHaveBeenCalled()
+      expect(mockPrepareTransaction).not.toHaveBeenCalled()
+      expect(mockSubmitTransaction).not.toHaveBeenCalled()
     })
 
-    it('sends a noop bootstrap tx when SCA is not yet deployed', async () => {
+    it('deploys via a sponsored factory Intent (prepare → sign → submit → wait) when not deployed', async () => {
       mockIsDeployed.mockResolvedValueOnce(false)
 
       await initializeRhinestoneAccount({
@@ -192,17 +184,21 @@ describe('initializeRhinestoneAccount', () => {
         rhinestoneApiKey: 'test-api-key',
       })
 
-      expect(mockSendTransaction).toHaveBeenCalledWith({
+      // The deploy payload is the factory createAccount call from getInitData().
+      expect(mockPrepareTransaction).toHaveBeenCalledWith({
         chain: MOCK_CHAIN,
+        sponsored: true,
         calls: [
           {
-            to: '0x0000000000000000000000000000000000000000',
+            to: MOCK_FACTORY,
             value: 0n,
-            data: '0x',
+            data: MOCK_FACTORY_DATA,
           },
         ],
-        sponsored: true,
       })
+      expect(mockSignTransaction).toHaveBeenCalledWith({ prepared: true })
+      expect(mockSubmitTransaction).toHaveBeenCalledWith({ signed: true })
+      expect(mockWaitForExecution).toHaveBeenCalledWith({ submitted: true })
     })
 
     it('emits onProgress("deploying") then onProgress("ready") on a fresh deploy', async () => {
@@ -221,7 +217,7 @@ describe('initializeRhinestoneAccount', () => {
       expect(onProgress).toHaveBeenLastCalledWith('ready')
     })
 
-    it('does not emit onProgress("deploying") when the SCA is already on-chain', async () => {
+    it('does not emit onProgress("deploying") when the HCA is already on-chain', async () => {
       mockIsDeployed.mockResolvedValueOnce(true)
       const onProgress = vi.fn()
 
@@ -237,9 +233,9 @@ describe('initializeRhinestoneAccount', () => {
       expect(onProgress).toHaveBeenCalledWith('ready')
     })
 
-    it('invokes onError("deploying", err) and rethrows when the bootstrap tx fails', async () => {
+    it('invokes onError("deploying", err) and rethrows when the deploy Intent fails', async () => {
       mockIsDeployed.mockResolvedValueOnce(false)
-      mockSendTransaction.mockRejectedValueOnce(new Error('boom'))
+      mockSubmitTransaction.mockRejectedValueOnce(new Error('boom'))
       const onError = vi.fn()
 
       await expect(
@@ -256,94 +252,8 @@ describe('initializeRhinestoneAccount', () => {
     })
   })
 
-  describe('onAccountReady hook', () => {
-    it('invokes onAccountReady after deploy with wasDeployedInThisCall=true', async () => {
-      mockIsDeployed.mockResolvedValueOnce(false)
-      const onAccountReady = vi.fn().mockResolvedValue(undefined)
-
-      await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-        onAccountReady,
-      })
-
-      expect(onAccountReady).toHaveBeenCalledWith({
-        rhinestoneAccount: expect.any(Object),
-        accountAddress: MOCK_SMART_ACCOUNT_ADDRESS,
-        wasDeployedInThisCall: true,
-      })
-    })
-
-    it('invokes onAccountReady when SCA was already deployed with wasDeployedInThisCall=false', async () => {
-      mockIsDeployed.mockResolvedValueOnce(true)
-      const onAccountReady = vi.fn().mockResolvedValue(undefined)
-
-      await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-        onAccountReady,
-      })
-
-      expect(onAccountReady).toHaveBeenCalledWith(
-        expect.objectContaining({ wasDeployedInThisCall: false }),
-      )
-    })
-
-    it('emits onProgress("registering") around onAccountReady', async () => {
-      const onProgress = vi.fn()
-      const onAccountReady = vi.fn().mockResolvedValue(undefined)
-
-      await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-        onAccountReady,
-        onProgress,
-      })
-
-      expect(onProgress).toHaveBeenCalledWith('registering')
-    })
-
-    it('does not emit onProgress("registering") when onAccountReady is not provided', async () => {
-      const onProgress = vi.fn()
-
-      await initializeRhinestoneAccount({
-        ownerAccount: makeOwnerAccount(),
-        eoaAddress: MOCK_OWNER_ADDRESS,
-        chain: MOCK_CHAIN,
-        rhinestoneApiKey: 'test-api-key',
-        onProgress,
-      })
-
-      expect(onProgress).not.toHaveBeenCalledWith('registering')
-    })
-
-    it('invokes onError("registering", err) and rethrows when onAccountReady throws', async () => {
-      const onError = vi.fn()
-      const onAccountReady = vi.fn().mockRejectedValue(new Error('hca-failed'))
-
-      await expect(
-        initializeRhinestoneAccount({
-          ownerAccount: makeOwnerAccount(),
-          eoaAddress: MOCK_OWNER_ADDRESS,
-          chain: MOCK_CHAIN,
-          rhinestoneApiKey: 'test-api-key',
-          onAccountReady,
-          onError,
-        }),
-      ).rejects.toThrow('hca-failed')
-
-      expect(onError).toHaveBeenCalledWith('registering', expect.any(Error))
-    })
-  })
-
   describe('result shape', () => {
-    it('returns the SCA address, EOA, and config', async () => {
+    it('returns the HCA address, EOA, and config', async () => {
       const result = await initializeRhinestoneAccount({
         ownerAccount: makeOwnerAccount(),
         eoaAddress: MOCK_OWNER_ADDRESS,

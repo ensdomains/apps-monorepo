@@ -4,7 +4,6 @@ import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { UseMutationResult } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import type { RhinestoneConfig } from './rhinestone'
-import type { RhinestoneStoredSession } from './sessions/types'
 
 /**
  * Shared types for smart account hooks
@@ -65,17 +64,14 @@ export interface BaseAccountState {
  * Rhinestone account result
  *
  * Rhinestone is the only smart-account provider used by the manager app
- * and the account is always deployed in HCA (Hybrid Custodial Account)
- * mode — there is no longer a `'simple'` mode in production.
+ * and the account is always a Hidden Contract Account (HCA). The HCA is
+ * session-less — the owning wallet signs every Intent — so there is no
+ * session state here.
  */
 export interface RhinestoneAccountState extends BaseAccountState {
   type: 'rhinestone'
   client: RhinestoneAccount | null
   config: RhinestoneConfig | null
-  /** Active session if any */
-  session: RhinestoneStoredSession | null
-  /** Whether the client is operating as a session client */
-  isSessionClient: boolean
   /** Whether the Rhinestone account is initialized and ready */
   isAccountReady: boolean
 }

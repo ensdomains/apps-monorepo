@@ -10,12 +10,15 @@
  *     signatures use 0/1 v-byte and need `wrapParaAccount` to be
  *     usable by the Rhinestone SDK.
  *   - Reading manager-specific env vars (`VITE_RHINESTONE_API_KEY`,
- *     `VITE_PIMLICO_API_KEY`, `VITE_RHINESTONE_ENDPOINT_URL`,
- *     `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
+ *     `VITE_RHINESTONE_ENDPOINT_URL`, `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
  *   - Injecting the manager's chain (`customSepolia`).
  *   - Driving the setup-progress toast UX via sonner + lingui.
- *   - Calling `registerHCAOwnership` after the SCA deploys, via the
- *     package's `onAccountReady` hook.
+ *
+ * The account is a Rhinestone HCA (Hidden Contract Account): the ENS
+ * ownership validator is installed atomically by the factory at
+ * construction, so there is **no** post-deploy ownership-registration
+ * step. Gas is sponsored through the Rhinestone Warp orchestrator; the
+ * owning wallet signs each Intent (there is no smart session).
  */
 
 import {
@@ -23,10 +26,6 @@ import {
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
-import type {
-  RhinestoneSigner,
-  TransactionInfra,
-} from '@ens-apps/transaction-manager'
 import { createParaAccount } from '@getpara/viem-v2-integration'
 import { i18n } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
@@ -37,8 +36,7 @@ import {
 } from '@rhinestone/sdk'
 import { toast } from 'sonner'
 import type { Account, Address, WalletClient } from 'viem'
-import { customSepolia, publicClient } from '@/lib/wagmi'
-import { registerHCAOwnership } from './hca-registry'
+import { customSepolia } from '@/lib/wagmi'
 import type { ParaClient } from './types'
 
 export interface RhinestoneConfig {
@@ -49,13 +47,6 @@ export interface RhinestoneConfig {
 export interface InitializeRhinestoneParams {
   walletClient?: WalletClient
   paraClient?: ParaClient
-  /**
-   * Whether to register HCA ownership in the HCAFactory after the smart
-   * account is deployed. Defaults to `true` because manager only uses
-   * HCA-mode accounts in production.
-   */
-  registerHCA?: boolean
-  infrastructure?: TransactionInfra
 }
 
 export interface RhinestoneInitResult {
@@ -101,16 +92,15 @@ function resolveOwnerAccount(params: {
 /**
  * Resolve env-derived SDK options.
  *
- * Two oddities preserved from the previous implementation:
- *   - A local orchestrator (`VITE_RHINESTONE_ENDPOINT_URL` set) is
- *     considered API-key-eligible even without `VITE_RHINESTONE_API_KEY`,
- *     using the placeholder `'local-dev'`. Lets us run against the
- *     mockestrator in e2e without a production key.
- *   - `VITE_RHINESTONE_CUSTOM_RPC_URLS` is JSON-encoded in the env.
+ * A local orchestrator (`VITE_RHINESTONE_ENDPOINT_URL` set) is
+ * considered API-key-eligible even without `VITE_RHINESTONE_API_KEY`,
+ * using the placeholder `'local-dev'`. Lets us run against the
+ * mockestrator in e2e without a production key.
+ *
+ * `VITE_RHINESTONE_CUSTOM_RPC_URLS` is JSON-encoded in the env.
  */
 function resolveSdkEnv(): {
   rhinestoneApiKey: string
-  pimlicoApiKey?: string
   rhinestoneEndpointUrl?: string
   rhinestoneCustomRpcUrls?: Record<number, string>
 } {
@@ -127,8 +117,6 @@ function resolveSdkEnv(): {
     )
   }
 
-  const pimlicoApiKey = import.meta.env.VITE_PIMLICO_API_KEY || undefined
-
   const customRpcUrlsRaw = import.meta.env.VITE_RHINESTONE_CUSTOM_RPC_URLS
   const customRpcUrls = customRpcUrlsRaw
     ? (JSON.parse(customRpcUrlsRaw) as Record<number, string>)
@@ -136,17 +124,16 @@ function resolveSdkEnv(): {
 
   return {
     rhinestoneApiKey: apiKey,
-    pimlicoApiKey,
     rhinestoneEndpointUrl: endpointUrl,
     rhinestoneCustomRpcUrls: customRpcUrls,
   }
 }
 
 /**
- * Initialize a Rhinestone smart account for the manager app.
+ * Initialize a Rhinestone HCA smart account for the manager app.
  *
- * Thin wrapper that injects manager-side concerns (chain, env, toaster,
- * HCA registration) into the pure `initializeRhinestoneAccount` from
+ * Thin wrapper that injects manager-side concerns (chain, env, toaster)
+ * into the pure `initializeRhinestoneAccount` from
  * `@ens-apps/smart-account`.
  *
  * @throws Error if initialization fails. Toasts are surfaced as a
@@ -155,12 +142,7 @@ function resolveSdkEnv(): {
 export async function initializeRhinestoneAccount(
   params: InitializeRhinestoneParams,
 ): Promise<RhinestoneInitResult> {
-  const {
-    walletClient,
-    paraClient,
-    registerHCA = true,
-    infrastructure = 'warp',
-  } = params
+  const { walletClient, paraClient } = params
 
   const { ownerAccount, eoaAddress } = resolveOwnerAccount({
     walletClient,
@@ -168,10 +150,9 @@ export async function initializeRhinestoneAccount(
   })
   const env = resolveSdkEnv()
 
-  // One loading toast id covers the whole setup so we don't flash
-  // a success state between deploy and HCA registration. We only
-  // surface it if we actually do work (deploy or register); a fully
-  // cached path stays silent.
+  // One loading toast id covers the whole setup. We only surface it if
+  // we actually deploy; a fully cached (already-deployed) path stays
+  // silent.
   let setupToastShown = false
   const setupToastId = `setup-sca-${eoaAddress}`
 
@@ -183,59 +164,13 @@ export async function initializeRhinestoneAccount(
     })
   }
 
-  const onAccountReady: InitializeRhinestoneAccountParams['onAccountReady'] =
-    async ({ rhinestoneAccount, accountAddress, wasDeployedInThisCall }) => {
-      if (!registerHCA) return
-
-      const signer: RhinestoneSigner = {
-        type: 'rhinestone',
-        // Rhinestone account types can come from different package
-        // instances across workspace boundaries. We intentionally
-        // adapt via `unknown` to the transaction-manager signer
-        // contract while keeping runtime shape.
-        account: rhinestoneAccount as unknown as RhinestoneSigner['account'],
-        config: {
-          chain: customSepolia,
-          accountAddress,
-          rhinestoneApiKey: env.rhinestoneApiKey,
-          defaultInfra: infrastructure,
-        },
-      }
-
-      // Only show the registering toast if we just deployed. If the
-      // SCA was already deployed, `registerHCAOwnership` is most
-      // often a no-op (returns 'already-registered' after a read)
-      // and we don't want to flash a toast for nothing. Errors below
-      // still surface via the package's `onError` even without a
-      // prior toast.
-      if (wasDeployedInThisCall) {
-        showSetupToast(i18n._(msg`Registering account ownership…`))
-      }
-
-      const result = await registerHCAOwnership({
-        smartAccountAddress: accountAddress,
-        eoaAddress,
-        signer,
-        publicClient,
-      })
-
-      if (result.isErr()) {
-        throw new Error(
-          `HCA registration failed: ${result.error.reason} - ${result.error.details}`,
-        )
-      }
-    }
-
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
     eoaAddress,
     chain: customSepolia,
     rhinestoneApiKey: env.rhinestoneApiKey,
-    pimlicoApiKey: env.pimlicoApiKey,
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
-    infrastructure,
-    onAccountReady,
     onProgress: (stage) => {
       if (stage === 'deploying') {
         showSetupToast(i18n._(msg`Deploying on-chain…`))
@@ -246,12 +181,8 @@ export async function initializeRhinestoneAccount(
         })
       }
     },
-    onError: (stage, error) => {
-      const title =
-        stage === 'deploying'
-          ? i18n._(msg`Failed to deploy smart account`)
-          : i18n._(msg`Smart account setup failed`)
-      toast.error(title, {
+    onError: (_stage, error) => {
+      toast.error(i18n._(msg`Failed to deploy smart account`), {
         id: setupToastId,
         description: error.message,
         duration: 5000,

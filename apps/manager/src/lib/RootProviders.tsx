@@ -1,11 +1,7 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { ParaProvider } from '@getpara/react-sdk-lite'
 import { useRouteContext } from '@tanstack/react-router'
-import { EnableSessionModal } from '@/features/wallet/components/EnableSessionModal'
-import {
-  SmartAccountContextProvider,
-  useSmartAccountContext,
-} from '@/lib/smart-account'
+import { SmartAccountContextProvider } from '@/lib/smart-account'
 import '@getpara/react-sdk-lite/styles.css'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
@@ -14,7 +10,6 @@ import posthog from 'posthog-js'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
 import { getParaClient, setParaConnectionCookie } from './para'
@@ -133,39 +128,10 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           <PHProvider>
             <SmartAccountContextProvider>
               {children}
-              {!isFeatureEnabled('USE_EOA') && <SmartAccountSessionModal />}
             </SmartAccountContextProvider>
           </PHProvider>
         </ParaProvider>
       </QueryClientProvider>
     </I18nProvider>
-  )
-}
-
-const SmartAccountSessionModal = () => {
-  const {
-    showSessionModal,
-    enableSession,
-    dismissSession,
-    accountAddress,
-    ownerAddress,
-    isCreatingSession,
-    error,
-  } = useSmartAccountContext()
-
-  return (
-    <EnableSessionModal
-      hasError={!!error}
-      isEnabling={isCreatingSession}
-      onEnableSession={enableSession}
-      onOpenChange={(open) => {
-        if (!open) {
-          dismissSession()
-        }
-      }}
-      open={showSessionModal}
-      smartAccountAddress={accountAddress ?? undefined}
-      walletAddress={ownerAddress ?? undefined}
-    />
   )
 }
