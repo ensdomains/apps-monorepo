@@ -23,6 +23,7 @@ import { registryRootPermissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
+import { RegistryUserActivity } from './RegistryUserActivity'
 
 const GRANT_TX_ID = 'tx-edit-registry-roles-grant'
 const REVOKE_TX_ID = 'tx-edit-registry-roles-revoke'
@@ -209,7 +210,7 @@ export const RegistryEditUserSheet = ({
             </Button>
           </SheetHeader>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <Field>
               <div
                 className={cn(
@@ -296,7 +297,7 @@ export const RegistryEditUserSheet = ({
               )}
             </Field>
 
-            <div className="mt-auto flex justify-end">
+            <div className="flex justify-end">
               <Button
                 type="submit"
                 variant="default"
@@ -308,6 +309,11 @@ export const RegistryEditUserSheet = ({
               </Button>
             </div>
           </form>
+
+          <RegistryUserActivity
+            registryAddress={registryAddress}
+            account={account}
+          />
 
           <TransactionModal
             transactions={[
