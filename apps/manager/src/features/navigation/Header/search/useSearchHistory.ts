@@ -2,7 +2,7 @@ import { createStore } from '@xstate/store-react'
 import type { Address } from 'viem'
 import { persist } from '@/utils/xstate-store'
 
-const SEARCH_HISTORY_STORAGE_KEY = '@manager-v4/search_history'
+export const SEARCH_HISTORY_STORAGE_KEY = '@manager-v4/search_history'
 const MAX_HISTORY_ITEMS = 15
 
 export type SearchHistoryItem =

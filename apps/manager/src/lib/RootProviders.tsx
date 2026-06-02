@@ -16,6 +16,7 @@ import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
+import { performLogoutCleanup } from './logout-cleanup'
 import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
 import { getParaClient, setParaConnectionCookie } from './para'
 import { sepoliaWithEns } from './wagmi'
@@ -75,8 +76,11 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
               // Clear the backend auth store
               backendAuthStore.trigger.signOut()
 
-              // Clear all local storage for the app
-              localStorage.clear()
+              // Remove manager-owned localStorage entries. Do NOT
+              // call `localStorage.clear()` — that wipes PostHog,
+              // audit-trail data, and any future shared-origin
+              // app state.
+              performLogoutCleanup()
 
               // Clear the posthog session
               track('wallet:disconnect')

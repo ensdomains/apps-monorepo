@@ -4,7 +4,7 @@ import { hc } from 'hono/client'
 import posthog from 'posthog-js'
 import { persist } from './xstate-store'
 
-const BACKEND_AUTH_STORAGE_KEY = '@manager-v4/backend_auth'
+export const BACKEND_AUTH_STORAGE_KEY = '@manager-v4/backend_auth'
 
 type BackendAuthContext = {
   authKey: string | undefined

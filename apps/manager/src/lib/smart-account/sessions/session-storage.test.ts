@@ -9,6 +9,7 @@ import type { Address, Hex } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearAllSessions,
+  clearAllSessionVersions,
   getAllSessions,
   getSession,
   getSessionByOwner,
@@ -445,6 +446,101 @@ describe('session-storage', () => {
       clearAllSessions()
 
       expect(console.log).toHaveBeenCalledWith('🗑️ All sessions cleared')
+    })
+  })
+
+  describe('clearAllSessionVersions', () => {
+    // The outer beforeEach stubs `localStorage` with an object that
+    // does not expose user keys as own enumerable properties, so
+    // `Object.keys(localStorage)` cannot enumerate the test data. We
+    // re-stub it here with a Proxy that reflects user keys the way
+    // a real Storage would.
+    let stubKeys: Record<string, string>
+
+    beforeEach(() => {
+      stubKeys = {}
+      const stub = new Proxy(stubKeys, {
+        get(_target, prop) {
+          if (prop === 'getItem') {
+            return (key: string) => stubKeys[key] ?? null
+          }
+          if (prop === 'setItem') {
+            return (key: string, value: string) => {
+              stubKeys[key] = value
+            }
+          }
+          if (prop === 'removeItem') {
+            return (key: string) => {
+              delete stubKeys[key]
+            }
+          }
+          return undefined
+        },
+        has(_target, prop) {
+          return typeof prop === 'string' && prop in stubKeys
+        },
+        ownKeys() {
+          return Object.keys(stubKeys)
+        },
+        getOwnPropertyDescriptor(_target, prop) {
+          if (typeof prop === 'string' && prop in stubKeys) {
+            return {
+              enumerable: true,
+              configurable: true,
+              value: stubKeys[prop],
+            }
+          }
+          return undefined
+        },
+      })
+      vi.stubGlobal('localStorage', stub)
+    })
+
+    it('removes every ens-sessions-v* key', () => {
+      stubKeys['ens-sessions-v2'] = '[]'
+      stubKeys['ens-sessions-v3'] = '[]'
+      stubKeys['ens-sessions-v4'] = '[]'
+      stubKeys['ens-sessions-v99'] = '[]'
+
+      clearAllSessionVersions()
+
+      expect(stubKeys['ens-sessions-v2']).toBeUndefined()
+      expect(stubKeys['ens-sessions-v3']).toBeUndefined()
+      expect(stubKeys['ens-sessions-v4']).toBeUndefined()
+      expect(stubKeys['ens-sessions-v99']).toBeUndefined()
+    })
+
+    it('preserves keys that do not start with ens-sessions-v', () => {
+      stubKeys['ens-sessions-v4'] = '[]'
+      stubKeys['ens-session-skipped-0xabc'] = 'true'
+      stubKeys['unrelated-ens-sessions-v4'] = '[]'
+      stubKeys['@manager-v4/backend_auth'] = '{}'
+      stubKeys['some-other-key'] = 'value'
+
+      clearAllSessionVersions()
+
+      expect(stubKeys['ens-session-skipped-0xabc']).toBe('true')
+      expect(stubKeys['unrelated-ens-sessions-v4']).toBe('[]')
+      expect(stubKeys['@manager-v4/backend_auth']).toBe('{}')
+      expect(stubKeys['some-other-key']).toBe('value')
+    })
+
+    it('does nothing when no session keys exist', () => {
+      stubKeys['@manager-v4/backend_auth'] = '{}'
+      stubKeys['some-other-key'] = 'value'
+
+      expect(() => clearAllSessionVersions()).not.toThrow()
+      expect(stubKeys['@manager-v4/backend_auth']).toBe('{}')
+      expect(stubKeys['some-other-key']).toBe('value')
+    })
+
+    it('does nothing when window is undefined', () => {
+      vi.stubGlobal('window', undefined)
+      stubKeys['ens-sessions-v4'] = '[]'
+
+      clearAllSessionVersions()
+
+      expect(stubKeys['ens-sessions-v4']).toBe('[]')
     })
   })
 

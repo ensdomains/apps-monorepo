@@ -32,8 +32,9 @@ import type { StoredSession } from './types'
 // `InvalidSignature()` at orchestrator simulation time. Old key
 // contents are harmless cruft; a new session is re-enabled lazily on
 // the next registration with a single wallet prompt.
-const SESSION_STORAGE_KEY = 'ens-sessions-v4'
-const SKIPPED_SESSION_KEY = 'ens-session-skipped'
+export const SESSION_STORAGE_KEY_PREFIX = 'ens-sessions-v'
+export const SESSION_STORAGE_KEY = `${SESSION_STORAGE_KEY_PREFIX}4`
+export const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 /**
  * Get all stored sessions from localStorage
@@ -153,7 +154,7 @@ export function removeSessionsByOwner(ownerAddress: Address): void {
 }
 
 /**
- * Clear all stored sessions
+ * Clear all stored sessions for the current key version
  */
 export function clearAllSessions(): void {
   if (typeof window === 'undefined') return
@@ -163,6 +164,27 @@ export function clearAllSessions(): void {
     console.log('🗑️ All sessions cleared')
   } catch (error) {
     console.error('Failed to clear sessions:', error)
+  }
+}
+
+/**
+ * Clear every `ens-sessions-v*` key in localStorage. Use on logout /
+ * wallet change so the next connect creates a fresh session under
+ * whatever the current key version is. Safe to call on a fresh
+ * install: it removes zero or more keys.
+ */
+export function clearAllSessionVersions(): void {
+  if (typeof window === 'undefined') return
+
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(SESSION_STORAGE_KEY_PREFIX)) {
+        localStorage.removeItem(key)
+      }
+    }
+    console.log('🗑️ All session versions cleared')
+  } catch (error) {
+    console.error('Failed to clear all session versions:', error)
   }
 }
 
