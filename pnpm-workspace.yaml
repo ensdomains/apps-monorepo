@@ -9,6 +9,7 @@ autoInstallPeers: false
 catalog:
   "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@040b8a3"
   "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@040b8a3"
+  "@rhinestone/sdk": 0.0.0-hca-20260601120145
   xstate: ^5.24.0
   "@typescript/native-preview": 7.0.0-dev.20260421.2
   vite: ^8.0.10
@@ -27,6 +28,7 @@ minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
  - "@ensdomains/ensjs"
  - "@ensdomains/ensjs-abi"
+ - "@rhinestone/sdk"
 
 # Only add entries here if absolutely necessary. To bypass the minimum release age for a specific package, you can temporarily include it below, run install, and then remove it.
 # Note: `minimumReleaseAgeExclude` is used solely for checking new package versions.
@@ -42,3 +44,4 @@ trustPolicyIgnoreAfter: 10080 # 1 week
 trustPolicyExclude:
   - "@ensdomains/ensjs"
   - "@ensdomains/ensjs-abi"
+  - "@rhinestone/sdk"
