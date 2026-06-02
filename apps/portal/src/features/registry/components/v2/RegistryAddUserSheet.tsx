@@ -161,7 +161,7 @@ export const RegistryAddUserSheet = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="sm:max-w-[640px] bg-background overflow-y-auto p-0"
+        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
       >
         <div className="p-6 flex flex-col gap-6 h-full">
           <SheetHeader className="p-0">

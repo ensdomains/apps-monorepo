@@ -1,13 +1,13 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
+import { Trash2 } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
-import { useWalletClient } from 'wagmi'
-import { EntityBadge } from '@/components/EntityBadge'
+import { useEnsName, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
@@ -37,13 +37,6 @@ type RegistryEditUserSheetProps = {
   currentRoles: readonly Role[]
 }
 
-/**
- * Sheet for editing the role assignments of an existing registry-root role
- * holder. Renders the same Admin/User column layout as the Add User flow but
- * with the account fixed and the checkboxes pre-populated from the row's
- * current roles. On submit the diff is split into grant + revoke
- * transactions, dispatched sequentially via TransactionModal.
- */
 export const RegistryEditUserSheet = ({
   open,
   onOpenChange,
@@ -53,6 +46,13 @@ export const RegistryEditUserSheet = ({
 }: RegistryEditUserSheetProps) => {
   const { data: walletClient } = useWalletClient()
   const callerAddress = walletClient?.account?.address
+
+  const { data: primaryName } = useEnsName({
+    address: account ?? undefined,
+  })
+  const titleLabel = account
+    ? (primaryName ?? truncateAddress(account, 6, 4, '...'))
+    : 'Edit user'
 
   const { data: rolesData } = useQuery({
     ...getRegistryRolesQueryOptions({ address: registryAddress }),
@@ -89,7 +89,6 @@ export const RegistryEditUserSheet = ({
 
   const isPending = isGrantPending || isRevokePending
 
-  // Re-seed local selection whenever the sheet opens for a new row.
   useEffect(() => {
     if (!open) return
     setSelectedRoles(new Set(currentRoles))
@@ -108,9 +107,6 @@ export const RegistryEditUserSheet = ({
     setSubmitFeedback(null)
   }
 
-  // Diff against the row's original roles — what needs to be granted vs revoked
-  // to land at the user's new selection. Used both for the save flow and to
-  // gate the Save button (no diff → nothing to do).
   const diff = useMemo(() => {
     const toGrant: Role[] = []
     const toRevoke: Role[] = []
@@ -173,8 +169,6 @@ export const RegistryEditUserSheet = ({
   }
 
   const handleDone = () => {
-    // If a revoke is queued after a successful grant, switch to it without
-    // closing the sheet so the modal advances to the second step.
     if (queuedRevoke && queuedRevoke.length > 0) {
       const next = queuedRevoke
       setQueuedRevoke(null)
@@ -188,8 +182,6 @@ export const RegistryEditUserSheet = ({
     onOpenChange(false)
   }
 
-  // TransactionModal expects a stable id per step. When a revoke follows a
-  // grant we re-mount the modal entry by id so the new step renders fresh.
   const modalTransactionId =
     pendingTx?.kind === 'revoke' ? REVOKE_TX_ID : GRANT_TX_ID
   const modalTitle =
@@ -199,32 +191,33 @@ export const RegistryEditUserSheet = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="sm:max-w-[640px] bg-background overflow-y-auto p-0"
+        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
       >
         <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0">
+          <SheetHeader className="p-0 pt-4 flex flex-row items-center justify-between gap-4">
             <SheetTitle className="font-sans text-heading font-medium">
-              Edit user
+              {titleLabel}
             </SheetTitle>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRemove}
+              disabled={currentRoles.length === 0 || isPending}
+            >
+              <Trash2 className="size-4" />
+              Remove user
+            </Button>
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
             <Field>
-              <FieldLabel>User</FieldLabel>
-              {account ? (
-                <EntityBadge variant="address" address={account}>
-                  {truncateAddress(account, 6, 4, '...')}
-                </EntityBadge>
-              ) : (
-                <span className="text-sm text-muted-foreground">—</span>
-              )}
-            </Field>
-
-            <Field>
               <div
-                className={cn('border rounded-sm divide-y transition-colors', {
-                  'opacity-50 pointer-events-none': isPending,
-                })}
+                className={cn(
+                  'border-t rounded-sm divide-y transition-colors',
+                  {
+                    'opacity-50 pointer-events-none': isPending,
+                  },
+                )}
               >
                 {registryRootPermissions.map((permission) => {
                   const callerLacksAdmin = !callerAdminRoles.has(
@@ -303,15 +296,7 @@ export const RegistryEditUserSheet = ({
               )}
             </Field>
 
-            <div className="mt-auto flex justify-between items-center">
-              <Button
-                type="button"
-                variant="danger"
-                onClick={handleRemove}
-                disabled={currentRoles.length === 0 || isPending}
-              >
-                Remove user
-              </Button>
+            <div className="mt-auto flex justify-end">
               <Button
                 type="submit"
                 variant="default"
