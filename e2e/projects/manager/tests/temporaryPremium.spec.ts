@@ -77,7 +77,7 @@ async function dismissSiweModal(page: Page) {
     .catch(() => { })
 }
 
-test.describe('Temporary Premium Names', () => {
+test.describe.skip('Temporary Premium Names', () => {
   /**
    * Register a name, expire it by ~4 days (within the 21-day premium window),
    * navigate to /register/<name>.eth, and verify the pricing step reflects

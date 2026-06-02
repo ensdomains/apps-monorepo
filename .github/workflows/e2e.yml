@@ -71,15 +71,14 @@ jobs:
         run: |
           # Emit a flat array of {project, shardIndex, shardTotal} objects so
           # each project gets the right number of shards:
-          #   manager        — 5 active test files → 3 shards
-          #   manager-premium — 1 test file (temporaryPremium only) → 1 shard
-          #   portal          — 3 test files → 2 shards
+          #   manager — 5 active test files → 3 shards
+          #   portal  — 2 active test files → 2 shards
+          #   (temporaryPremium skipped until snapshot is rebuilt)
           configs=()
           if [[ "$MANAGER_CHANGED" == "true" ]]; then
             for i in 1 2 3; do
               configs+=("{\"project\":\"manager\",\"shardIndex\":$i,\"shardTotal\":3}")
             done
-            configs+=("{\"project\":\"manager-premium\",\"shardIndex\":1,\"shardTotal\":1}")
           fi
           if [[ "$PORTAL_CHANGED" == "true" ]]; then
             for i in 1 2; do
@@ -165,6 +164,7 @@ jobs:
       - name: Pull ENS V2 snapshot image
         id: box
         continue-on-error: true
+        if: false # snapshot has stale contracts — always use live Sepolia fork until snapshot is rebuilt
         run: |
           if docker pull ghcr.io/ensdomains/ens-v2-snapshot:latest; then
             echo "available=true" >> $GITHUB_OUTPUT

@@ -1,7 +1,6 @@
 /**
  * makeV2Name fixture — registers .eth names on the Anvil Sepolia fork
- * directly via the V2 FastTestETHRegistrar, owned by the Para test
- * account's EOA.
+ * directly via the V2 ETHRegistrar, owned by the Para test account's EOA.
  *
  * Unlike `makeName` (which registers to `user2` for portal tests),
  * this fixture registers to the **Para EOA** so the manager app's
@@ -16,7 +15,7 @@
  *   1. Deploy resolver proxy (VerifiableFactory.deployProxy)
  *   2. Fund the Para EOA with ETH + USDC
  *   3. makeCommitment → commit (signed by EOA)
- *   4. rentPrice → approve USDC → register (signed by EOA)
+ *   4. getRegisterPrice → approve USDC → register (signed by EOA)
  */
 import {
   type Address,
@@ -41,6 +40,7 @@ import {
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
 import { setRecords } from '@ensdomains/ensjs/wallet'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 
 import {
   publicClient,
@@ -50,23 +50,21 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses — must match what the app reads from
-// `@ens-apps/transaction-manager/contracts/ens-sepolia` (which sources
-// `ETHRegistrar` and `ETHRegistry` from ensjs's sepolia chain config).
+// Contract addresses (sourced from ensjs Sepolia chain config)
 // ---------------------------------------------------------------------------
-const ETH_REGISTRAR = '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
-const ETH_REGISTRY = '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
-const MOCK_USDC = '0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9' as const
-const PERMISSIONED_RESOLVER_IMPL =
-  '0xe566a1fbaf30ff7c39828fe99f955fc55544cb9c' as const
-const VERIFIABLE_FACTORY =
-  '0x9240c5f31d747d60b3d9aed2f57995094342b1ed' as const
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
+const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
+const MOCK_USDC = ensjsSepolia.usdc.address
+const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
+const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
 
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
 // ABIs
 // ---------------------------------------------------------------------------
+// getRegisterPrice and MIN_COMMITMENT_AGE are not yet exported by ensjs-abi.
 const REGISTRAR_ABI = parseAbi([
   'function makeCommitment(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, bytes32 referrer) pure returns (bytes32)',
   'function commit(bytes32 commitment)',
@@ -257,7 +255,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     })
     await waitForTx(commitTx)
 
-    // ── 5. Wait for MIN_COMMITMENT_AGE ──────────────────────────────
+    // ── 5. Wait for MIN_COMMITMENT_AGE (60s on production ETHRegistrar) ──
     let minAge = 0n
     try {
       minAge = await publicClient.readContract({
