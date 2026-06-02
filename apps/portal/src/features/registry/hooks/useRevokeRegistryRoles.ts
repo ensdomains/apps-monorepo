@@ -9,6 +9,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
+import { invalidateRegistryQueries } from '@/features/registry/utils/invalidateRegistryQueries'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
@@ -21,19 +22,13 @@ type UseRevokeRegistryRolesParameters = {
   readonly id: string
 }
 
-const REGISTRY_ROLES_QUERY_KEY = 'get-registry-roles'
-
 export function useRevokeRegistryRoles() {
   const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
 
-  const invalidateRegistryRoles = () =>
-    queryClient.invalidateQueries({
-      predicate: (query) => query.queryKey[0] === REGISTRY_ROLES_QUERY_KEY,
-      refetchType: 'all',
-    })
+  const invalidate = () => invalidateRegistryQueries(queryClient)
 
   const mutation = useMutation({
     mutationFn: async (params: UseRevokeRegistryRolesParameters) => {
@@ -49,8 +44,8 @@ export function useRevokeRegistryRoles() {
       })
     },
     onSuccess: () => {
-      invalidateRegistryRoles()
-      pollForIndexerSync({ invalidateQueries: invalidateRegistryRoles })
+      invalidate()
+      pollForIndexerSync({ invalidateQueries: invalidate })
     },
   })
 

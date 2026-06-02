@@ -338,11 +338,7 @@ export const RegistryEditUserSheet = ({
             )}
 
             <div className="flex justify-end">
-              <Button
-                type="submit"
-                variant="default"
-                disabled={!hasChanges || isPending}
-              >
+              <Button type="submit" variant="default" disabled={!hasChanges}>
                 {match({ isPending })
                   .with({ isPending: true }, () => 'Saving...')
                   .otherwise(() => 'Save')}
