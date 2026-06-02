@@ -17,9 +17,6 @@ import { RegistryEditUserSheet } from './RegistryEditUserSheet'
 
 const isAdminRole = (role: Role) => role.endsWith('_ADMIN')
 
-const hasAdmin = (roles: Role[]) => roles.some(isAdminRole)
-const hasUser = (roles: Role[]) => roles.some((role) => !isAdminRole(role))
-
 const formatRole = (role: Role) =>
   role
     .replace(/^ROLE_/, '')
@@ -29,7 +26,27 @@ const formatRole = (role: Role) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 
-const roleLabels = (roles: Role[]) => Array.from(new Set(roles.map(formatRole)))
+type RoleRowEntry = {
+  label: string
+  hasAdmin: boolean
+  hasUser: boolean
+}
+
+const toRoleEntries = (roles: Role[]): RoleRowEntry[] => {
+  const map = new Map<string, RoleRowEntry>()
+  for (const role of roles) {
+    const label = formatRole(role)
+    const existing = map.get(label) ?? {
+      label,
+      hasAdmin: false,
+      hasUser: false,
+    }
+    if (isAdminRole(role)) existing.hasAdmin = true
+    else existing.hasUser = true
+    map.set(label, existing)
+  }
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
+}
 
 const GreenCheck = () => (
   <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
@@ -65,9 +82,12 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
         header: () => <span className="text-muted-foreground">Role</span>,
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 text-muted-foreground">
-            {roleLabels(row.original.roles).map((label) => (
-              <span className="font-mono pb-2" key={label}>
-                {label}
+            {toRoleEntries(row.original.roles).map((entry) => (
+              <span
+                className="font-mono pb-2 leading-5 h-5 box-content"
+                key={entry.label}
+              >
+                {entry.label}
               </span>
             ))}
           </div>
@@ -76,14 +96,34 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
       {
         id: 'admin',
         header: () => <span className="text-muted-foreground">Admin</span>,
-        cell: ({ row }) =>
-          hasAdmin(row.original.roles) ? <GreenCheck /> : null,
+        cell: ({ row }) => (
+          <div className="flex flex-col gap-0.5">
+            {toRoleEntries(row.original.roles).map((entry) => (
+              <div
+                className="h-5 pb-2 box-content flex items-center"
+                key={entry.label}
+              >
+                {entry.hasAdmin ? <GreenCheck /> : null}
+              </div>
+            ))}
+          </div>
+        ),
       },
       {
         id: 'user-level',
         header: () => <span className="text-muted-foreground">User</span>,
-        cell: ({ row }) =>
-          hasUser(row.original.roles) ? <GreenCheck /> : null,
+        cell: ({ row }) => (
+          <div className="flex flex-col gap-0.5">
+            {toRoleEntries(row.original.roles).map((entry) => (
+              <div
+                className="h-5 pb-2 box-content flex items-center"
+                key={entry.label}
+              >
+                {entry.hasUser ? <GreenCheck /> : null}
+              </div>
+            ))}
+          </div>
+        ),
       },
       {
         id: 'actions',
