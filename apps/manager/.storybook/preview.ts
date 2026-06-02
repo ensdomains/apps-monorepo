@@ -1,6 +1,6 @@
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import type { Preview } from '@storybook/react-vite'
+import type { Preview } from '@storybook/tanstack-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import '../src/styles/index.css'
