@@ -1,12 +1,13 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { Check, PanelRight } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { Button } from '@/components/ui/button'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   getRegistryRolesQueryOptions,
@@ -42,38 +43,6 @@ const UserCell = ({ account }: { account: Address }) => (
   </div>
 )
 
-const columns: ColumnDef<RegistryRoleRow>[] = [
-  {
-    id: 'user',
-    accessorKey: 'account',
-    header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => <UserCell account={row.original.account} />,
-  },
-  {
-    id: 'role',
-    header: () => <span className="text-muted-foreground">Role</span>,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5 text-muted-foreground">
-        {roleLabels(row.original.roles).map((label) => (
-          <span className="font-mono pb-2" key={label}>
-            {label}
-          </span>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'admin',
-    header: () => <span className="text-muted-foreground">Admin</span>,
-    cell: ({ row }) => (hasAdmin(row.original.roles) ? <GreenCheck /> : null),
-  },
-  {
-    id: 'user-level',
-    header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => (hasUser(row.original.roles) ? <GreenCheck /> : null),
-  },
-]
-
 export const RegistryRolesTable = ({ address }: { address: Address }) => {
   const {
     data: roles,
@@ -82,6 +51,57 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   } = useQuery(getRegistryRolesQueryOptions({ address }))
 
   const [editingRow, setEditingRow] = useState<RegistryRoleRow | null>(null)
+
+  const columns = useMemo<ColumnDef<RegistryRoleRow>[]>(
+    () => [
+      {
+        id: 'user',
+        accessorKey: 'account',
+        header: () => <span className="text-muted-foreground">User</span>,
+        cell: ({ row }) => <UserCell account={row.original.account} />,
+      },
+      {
+        id: 'role',
+        header: () => <span className="text-muted-foreground">Role</span>,
+        cell: ({ row }) => (
+          <div className="flex flex-col gap-0.5 text-muted-foreground">
+            {roleLabels(row.original.roles).map((label) => (
+              <span className="font-mono pb-2" key={label}>
+                {label}
+              </span>
+            ))}
+          </div>
+        ),
+      },
+      {
+        id: 'admin',
+        header: () => <span className="text-muted-foreground">Admin</span>,
+        cell: ({ row }) =>
+          hasAdmin(row.original.roles) ? <GreenCheck /> : null,
+      },
+      {
+        id: 'user-level',
+        header: () => <span className="text-muted-foreground">User</span>,
+        cell: ({ row }) =>
+          hasUser(row.original.roles) ? <GreenCheck /> : null,
+      },
+      {
+        id: 'actions',
+        header: () => null,
+        cell: ({ row }) => (
+          <Button
+            onClick={() => setEditingRow(row.original)}
+            aria-label="Edit user roles"
+            variant="secondary"
+            className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
+          >
+            <PanelRight className="size-4 text-muted-foreground" />
+          </Button>
+        ),
+      },
+    ],
+    [],
+  )
 
   const rows = roles ?? []
 
@@ -93,8 +113,8 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   }
 
   return (
-    <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible">
-      <DataTable columns={columns} data={rows} onRowClick={setEditingRow} />
+    <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative [&_tbody_tr:hover]:bg-transparent">
+      <DataTable columns={columns} data={rows} />
       <RegistryEditUserSheet
         open={!!editingRow}
         onOpenChange={(open) => {

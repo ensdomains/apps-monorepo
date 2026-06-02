@@ -22,17 +22,11 @@ import { cn } from '@/lib/utils'
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-  /**
-   * Optional click handler invoked when a body row is clicked. When provided,
-   * rows render with a pointer cursor and become keyboard-activatable.
-   */
-  onRowClick?: (row: TData) => void
 }
 
 export const DataTable = <TData, TValue>({
   columns,
   data,
-  onRowClick,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [tableView] = useTableViewSettings()
@@ -73,11 +67,9 @@ export const DataTable = <TData, TValue>({
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
-              onClick={onRowClick ? () => onRowClick(row.original) : undefined}
               className={cn(
                 'hover:bg-muted',
                 tableView.strippedRows && 'odd:bg-muted',
-                onRowClick && 'cursor-pointer',
               )}
             >
               {row.getVisibleCells().map((cell) => (
