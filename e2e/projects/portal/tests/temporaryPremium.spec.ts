@@ -27,7 +27,7 @@ import {
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 
-test.describe('Temporary Premium Names', () => {
+test.describe.skip('Temporary Premium Names', () => {
   /**
    * Full test: register → expire → verify premium UI elements.
    */

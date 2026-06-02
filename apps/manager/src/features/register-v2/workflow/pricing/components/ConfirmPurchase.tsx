@@ -8,7 +8,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { zeroAddress } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -35,10 +34,8 @@ export const ConfirmPurchase = () => {
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
 
-  const ownerAddress = account.ownerAddress ?? zeroAddress
-
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, ownerAddress, duration, selectedToken),
+    ...getPricingQueryOptions(label, duration, selectedToken),
     select: (data) => ({
       basePriceNumber: decimalBigintToNumber(
         data.basePrice,

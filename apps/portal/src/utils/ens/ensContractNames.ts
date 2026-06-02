@@ -21,6 +21,9 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   ensVerifiableFactory: 'VerifiableFactory',
   ensEthRegistrar: 'ETHRegistrar',
   ensUserRegistryImpl: 'UserRegistry',
+  ensLockedMigrationController: 'LockedMigrationController',
+  ensMigrationHelper: 'MigrationHelper',
+  ensUnlockedMigrationController: 'UnlockedMigrationController',
   usdc: 'USDC',
 }
 
