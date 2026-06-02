@@ -207,9 +207,6 @@ export const RegistryAddUserSheet = ({
                 aria-invalid={invalidField === 'roles'}
               >
                 {registryRootPermissions.map((permission) => {
-                  // Both Admin (`*_ADMIN`) and User (base role) grants require
-                  // the caller to hold the matching `*_ADMIN` role on the
-                  // registry root resource.
                   const callerLacksAdmin = !callerAdminRoles.has(
                     permission.adminKey,
                   )

@@ -5,7 +5,6 @@ import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
-import { Badge } from '@/components/ui/badge'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import {
@@ -13,9 +12,6 @@ import {
   type RegistryEvent,
 } from '../../hooks/useRegistryEventsForAccount'
 
-// Strip the indexer's `EAC` prefix so the chip reads "RolesChanged" rather
-// than the more technical "EACRolesChanged". Other event types pass through
-// unchanged.
 const formatEventType = (type: string) => type.replace(/^EAC/, '')
 
 type EnrichedEvent = RegistryEvent & {
