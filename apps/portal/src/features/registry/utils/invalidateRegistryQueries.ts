@@ -22,8 +22,8 @@ const REGISTRY_ROLE_INVALIDATION_KEYS = new Set<string>([
   'get-registry-roles',
   // Full per-registry event feed used by /registry/$address/history.
   'get-registry-events',
-  // Per-user activity log embedded in the edit sheet.
-  'get-registry-events-for-account',
+  // Per-user role-change history embedded in the edit sheet.
+  'get-registry-role-history-for-account',
   // Labels table — its `roleHoldersCount` column reads `registry.roles`.
   'get-registry-labels',
 ])

@@ -5,31 +5,38 @@ import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
+import { Badge } from '@/components/ui/badge'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
+import type { RoleHistoryEntry } from '@/lib/roles/filterEventsByResource'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import {
-  getRegistryEventsForAccountQueryOptions,
-  type RegistryEvent,
-} from '../../hooks/useRegistryEventsForAccount'
+import { getRegistryRoleHistoryForAccountQueryOptions } from '../../hooks/useRegistryRoleHistoryForAccount'
 
-const formatEventType = (type: string) => type.replace(/^EAC/, '')
-
-type EnrichedEvent = RegistryEvent & {
+type EnrichedEntry = RoleHistoryEntry & {
   sender: Address | null
 }
 
-type RegistryUserActivityProps = {
+type RegistryUserRoleHistoryProps = {
   registryAddress: Address
   /** The user being inspected. When null, the panel renders nothing. */
   account: Address | null
 }
 
-export const RegistryUserActivity = ({
+/**
+ * Per-user role-change history embedded in the Edit User sheet. Lists every
+ * `EACRolesChanged` event on this registry's ROOT_RESOURCE for the given
+ * account — the audit trail for the role grants and revokes the sheet
+ * actually manages. Non-role events on the registry are out of scope here.
+ *
+ * Uses the shared `DataTable` for styling parity with `RegistryRolesTable`
+ * and `EntityBadge`-backed display components (`BlockExplorerTxLink`,
+ * `AddressDisplay`) so chips look identical to the rest of the app.
+ */
+export const RegistryUserRoleHistory = ({
   registryAddress,
   account,
-}: RegistryUserActivityProps) => {
+}: RegistryUserRoleHistoryProps) => {
   const { data, isLoading, error } = useQuery({
-    ...getRegistryEventsForAccountQueryOptions({
+    ...getRegistryRoleHistoryForAccountQueryOptions({
       registryAddress,
       account: account ?? (`0x${'0'.repeat(40)}` as Address),
     }),
@@ -42,24 +49,24 @@ export const RegistryUserActivity = ({
   )
   const { data: sendersMap } = useTransactionSenders({ transactionHashes })
 
-  const rows = useMemo<EnrichedEvent[]>(
+  const rows = useMemo<EnrichedEntry[]>(
     () =>
-      (data ?? []).map((event) => ({
-        ...event,
-        sender: sendersMap?.get(event.transactionHash) ?? null,
+      (data ?? []).map((entry) => ({
+        ...entry,
+        sender: sendersMap?.get(entry.transactionHash) ?? null,
       })),
     [data, sendersMap],
   )
 
-  const columns = useMemo<ColumnDef<EnrichedEvent>[]>(
+  const columns = useMemo<ColumnDef<EnrichedEntry>[]>(
     () => [
       {
         id: 'date',
         header: () => <span className="text-muted-foreground">Date</span>,
         cell: ({ row }) => (
-          <div className="text-sm text-muted-foreground whitespace-nowrap py-4">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
             {formatTimestamp(BigInt(row.original.timestamp))}
-          </div>
+          </span>
         ),
       },
       {
@@ -68,9 +75,11 @@ export const RegistryUserActivity = ({
           <span className="text-muted-foreground">Transaction</span>
         ),
         cell: ({ row }) => (
-          <div className="flex flex-col items-start justify-start flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="secondary" className="text-xs">
+              RolesChanged
+            </Badge>
             <BlockExplorerTxLink txHash={row.original.transactionHash} inline />
-            <span>{formatEventType(row.original.type)}</span>
           </div>
         ),
       },
@@ -92,7 +101,7 @@ export const RegistryUserActivity = ({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium uppercase">History</h2>
+      <h2 className="text-sm font-medium text-muted-foreground">History</h2>
       {isLoading && (
         <p className="text-sm text-muted-foreground">Loading history…</p>
       )}
@@ -106,7 +115,7 @@ export const RegistryUserActivity = ({
       )}
       {!isLoading && !error && rows.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No activity recorded for this user yet.
+          No role changes recorded for this user yet.
         </p>
       )}
       {!isLoading && !error && rows.length > 0 && (

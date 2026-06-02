@@ -25,7 +25,7 @@ import { registryRootPermissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
-import { RegistryUserActivity } from './RegistryUserActivity'
+import { RegistryUserRoleHistory } from './RegistryUserRoleHistory'
 
 const GRANT_TX_ID = 'tx-edit-registry-roles-grant'
 const REVOKE_TX_ID = 'tx-edit-registry-roles-revoke'
@@ -173,17 +173,27 @@ export const RegistryEditUserSheet = ({
       setSubmitFeedback('No changes to save')
       return
     }
+    // Note: we deliberately do NOT block when `willLockOutAdmin`. The
+    // destructive Alert above is the consent contract — the user is told
+    // exactly what will happen and gets to decide.
     runEdit(diff.toGrant, diff.toRevoke)
   }
 
-  // Limit Remove to roles the caller actually has authority over — mirrors
-  // the per-checkbox gating in the form. Without this filter the button
-  // builds a transaction that includes roles the caller can't revoke, which
-  // sends the user through a wallet flow that reverts.
   const removableRoles = currentRoles.filter((role) => {
     const adminRole = role.endsWith('_ADMIN') ? role : (`${role}_ADMIN` as Role)
     return callerAdminRoles.has(adminRole)
   })
+
+  const removeAdminLockoutRoles = removableRoles.filter((role) =>
+    selfSoleAdminRoles.has(role),
+  )
+  const removeWillLockOutAdmin = removeAdminLockoutRoles.length > 0
+
+  const showLockoutAlert = willLockOutAdmin || removeWillLockOutAdmin
+  const lockoutCount = new Set([
+    ...adminLockoutRoles,
+    ...removeAdminLockoutRoles,
+  ]).size
 
   const handleRemove = () => {
     if (removableRoles.length === 0) return
@@ -357,12 +367,13 @@ export const RegistryEditUserSheet = ({
               )}
             </Field>
 
-            {willLockOutAdmin && (
+            {showLockoutAlert && (
               <Alert variant="warning">
                 <AlertDescription>
                   You're the only Admin for{' '}
-                  {adminLockoutRoles.length === 1 ? 'this role' : 'these roles'}
-                  . Removing it will permanently lock out admin control.
+                  {lockoutCount === 1 ? 'this role' : 'these roles'}. Removing{' '}
+                  {lockoutCount === 1 ? 'it' : 'them'} will permanently lock out
+                  admin control.
                 </AlertDescription>
               </Alert>
             )}
@@ -376,7 +387,7 @@ export const RegistryEditUserSheet = ({
             </div>
           </form>
 
-          <RegistryUserActivity
+          <RegistryUserRoleHistory
             registryAddress={registryAddress}
             account={account}
           />
