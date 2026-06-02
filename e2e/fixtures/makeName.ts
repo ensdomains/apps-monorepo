@@ -1,6 +1,6 @@
 /**
  * makeName fixture — programmatically registers .eth names on the
- * Anvil Sepolia fork via the production V2 ETHRegistrar.
+ * Anvil Sepolia fork via the V2 ETHRegistrar contract.
  *
  * Supports negative `duration` to create expired / grace-period /
  * temporary-premium names by registering with a padded duration and
@@ -36,6 +36,7 @@ import {
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
 import { setRecords } from '@ensdomains/ensjs/wallet'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 
 import {
   publicClient,
@@ -45,21 +46,22 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses — must match what the app reads from
-// `@ens-apps/transaction-manager/contracts/ens-sepolia` (which sources
-// `ETHRegistrar` and `ETHRegistry` from ensjs's sepolia chain config).
+// Contract addresses (sourced from ensjs Sepolia chain config)
 // ---------------------------------------------------------------------------
-const ETH_REGISTRAR = '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
-const ETH_REGISTRY = '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
-const MOCK_USDC = '0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9' as const
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
+const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
+const MOCK_USDC = ensjsSepolia.usdc.address
+// Shared dedicated resolver for names that don't need custom records
 const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
-const VERIFIABLE_FACTORY = '0xd2a632d8a8b67c2c4398c255cbd7af8dd7236198' as const
-const PERMISSIONED_RESOLVER_IMPL = '0xdce5205a553573ffd47629327dddf36186022ffa' as const
+const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
+const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
 // ABIs
 // ---------------------------------------------------------------------------
+// getRegisterPrice and MIN_COMMITMENT_AGE are not yet exported by ensjs-abi.
 const REGISTRAR_ABI = parseAbi([
   'function makeCommitment(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, bytes32 referrer) pure returns (bytes32)',
   'function commit(bytes32 commitment)',
@@ -68,10 +70,6 @@ const REGISTRAR_ABI = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
   'function commitmentAt(bytes32 commitment) view returns (uint64)',
   'function isAvailable(string label) view returns (bool)',
-])
-
-const REGISTRY_ABI = parseAbi([
-  'function getExpiry(uint256 anyId) view returns (uint64)',
 ])
 
 const ERC20_ABI = parseAbi([
