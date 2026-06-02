@@ -5,7 +5,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import '../src/styles/index.css'
 
-i18n.loadAndActivate({ locale: 'en', messages: {} })
+const messages = await import('../src/locales/en/messages.js')
+  .then((m) => m.default.messages)
+  .catch(() => {
+    console.error('Failed to load messages for en locale')
+    return {}
+  })
+
+i18n.loadAndActivate({ locale: 'en', messages })
 
 const createStoryQueryClient = () =>
   new QueryClient({
