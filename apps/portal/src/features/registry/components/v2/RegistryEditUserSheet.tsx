@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useEnsName, useWalletClient } from 'wagmi'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError } from '@/components/ui/field'
@@ -121,6 +122,35 @@ export const RegistryEditUserSheet = ({
   }, [selectedRoles, initialRoles])
 
   const hasChanges = diff.toGrant.length > 0 || diff.toRevoke.length > 0
+
+  const isSelfEdit =
+    !!account &&
+    !!callerAddress &&
+    account.toLowerCase() === callerAddress.toLowerCase()
+
+  const selfSoleAdminRoles = useMemo<Set<Role>>(() => {
+    if (!isSelfEdit || !rolesData || !account) return new Set()
+    const accountLower = account.toLowerCase()
+    const userRoles =
+      rolesData.find((r) => r.account.toLowerCase() === accountLower)?.roles ??
+      []
+    const result = new Set<Role>()
+    for (const role of userRoles) {
+      if (!role.endsWith('_ADMIN')) continue
+      const hasOtherHolder = rolesData.some(
+        (r) =>
+          r.account.toLowerCase() !== accountLower && r.roles.includes(role),
+      )
+      if (!hasOtherHolder) result.add(role as Role)
+    }
+    return result
+  }, [isSelfEdit, rolesData, account])
+
+  const adminLockoutRoles = useMemo<Role[]>(
+    () => diff.toRevoke.filter((role) => selfSoleAdminRoles.has(role)),
+    [diff.toRevoke, selfSoleAdminRoles],
+  )
+  const willLockOutAdmin = adminLockoutRoles.length > 0
 
   const runEdit = (toGrant: Role[], toRevoke: Role[]) => {
     if (!account || !walletClient?.account) return
@@ -296,6 +326,16 @@ export const RegistryEditUserSheet = ({
                 <FieldError className="mt-1.5">{submitFeedback}</FieldError>
               )}
             </Field>
+
+            {willLockOutAdmin && (
+              <Alert variant="warning">
+                <AlertDescription>
+                  You're the only Admin for{' '}
+                  {adminLockoutRoles.length === 1 ? 'this role' : 'these roles'}
+                  . Removing it will permanently lock out admin control.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="flex justify-end">
               <Button
