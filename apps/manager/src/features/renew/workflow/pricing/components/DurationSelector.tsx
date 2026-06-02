@@ -3,20 +3,20 @@ import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { secondsInDay } from 'date-fns/constants'
 import { useMemo } from 'react'
-import {
-  type GetPricingError,
-  getPricingQueryOptions,
-  type MissingTokenError,
-} from '@/features/register-v2/data/queries/pricing.query'
 import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
 import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
 import { PRESET_DURATIONS } from '@/features/register-v2/workflow/pricing/components/DurationSelector'
+import {
+  type GetRenewPricingError,
+  getRenewPricingQueryOptions,
+  type MissingTokenError,
+} from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 type PresetPricingQuery = {
   isPending: boolean
-  error: GetPricingError | MissingTokenError | null
+  error: GetRenewPricingError | MissingTokenError | null
   data?: {
     totalPrice: number
     basePrice: number
@@ -36,7 +36,7 @@ export const DurationSelector = () => {
 
   const presetPricingQueries = useQueries({
     queries: PRESET_DURATIONS.map(({ duration }) =>
-      getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+      getRenewPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {

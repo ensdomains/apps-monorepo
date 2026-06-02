@@ -4,8 +4,8 @@ import {
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { getPricingQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
+import { getRenewPricingQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -20,7 +20,7 @@ export const TokenPickerContent = () => {
   )
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+    ...getRenewPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
     select: (data) =>
       decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
   })
