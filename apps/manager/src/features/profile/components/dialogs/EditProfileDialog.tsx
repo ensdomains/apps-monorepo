@@ -1,4 +1,5 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { Trans } from '@lingui/react/macro'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Clock,
@@ -218,7 +219,7 @@ export const EditProfileDialog = ({
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button className="w-full" type="button">
-          Edit Profile (New)
+          <Trans>Edit Profile (New)</Trans>
         </Button>
       </DialogTrigger>
       <DialogContent
