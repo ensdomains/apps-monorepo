@@ -4,6 +4,7 @@ import { HTTPException } from 'hono/http-exception'
 import * as v from 'valibot'
 import {
   createClient,
+  erc20Abi,
   type Hex,
   http,
   maxUint256,
@@ -11,7 +12,7 @@ import {
   publicActions,
   walletActions,
 } from 'viem'
-import { type Address, privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { encodeFunctionData, parseEther, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
@@ -55,42 +56,19 @@ const APPROVAL_GAS_ETH_TARGET = parseEther('0.005')
 // that as "already approved" so the drip fires at most once per address.
 const APPROVED_ALLOWANCE_THRESHOLD = maxUint256 / 2n
 
-const ERC20_ABI = [
+// Standard ERC-20 reads (balanceOf/allowance) use viem's `erc20Abi`. Only
+// `mint` is non-standard (MockERC20 faucet helper, not part of `erc20Abi`),
+// so it stays a local fragment.
+const MINT_ABI = [
   {
-    inputs: [
-      { name: 'to', type: 'address' as const },
-      { name: 'amount', type: 'uint256' as const },
-    ],
+    type: 'function',
     name: 'mint',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
     outputs: [],
-    stateMutability: 'nonpayable' as const,
-    type: 'function' as const,
-  },
-  {
-    type: 'function',
-    name: 'balanceOf',
-    stateMutability: 'view',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-      },
-    ],
-    outputs: [
-      {
-        type: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'allowance',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'owner', type: 'address' },
-      { name: 'spender', type: 'address' },
-    ],
-    outputs: [{ type: 'uint256' }],
   },
 ] as const
 
@@ -115,36 +93,6 @@ const createWalletClient = (privateKey: string | undefined) => {
     .extend(walletActions)
 }
 
-type WalletClient = ReturnType<typeof createWalletClient>
-
-const getErc20Balance = async (
-  walletClient: WalletClient,
-  address: Address,
-  tokenAddress: Address,
-) => {
-  const balance = await walletClient.readContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: [address],
-  })
-  return balance
-}
-
-const getErc20Allowance = async (
-  walletClient: WalletClient,
-  owner: Address,
-  tokenAddress: Address,
-  spender: Address,
-) => {
-  return walletClient.readContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'allowance',
-    args: [owner, spender],
-  })
-}
-
 export default createApp()
   .basePath('/wallet')
   .post(
@@ -162,18 +110,40 @@ export default createApp()
       // Setup wallet
       const walletClient = createWalletClient(c.env.ETH_PRIVATE_KEY)
 
+      // Batch all reads into a single multicall: both token balances, the
+      // registrar allowance, and the native ETH balance (via
+      // Multicall3.getEthBalance, which lets a native-balance read ride along
+      // in the same aggregate3).
       const [usdcBalance, daiBalance, usdcAllowance, ethBalance] =
-        await Promise.all([
-          getErc20Balance(walletClient, address, TOKENS.USDC.address),
-          getErc20Balance(walletClient, address, TOKENS.DAI.address),
-          getErc20Allowance(
-            walletClient,
-            address,
-            TOKENS.USDC.address,
-            ETH_REGISTRAR,
-          ),
-          walletClient.getBalance({ address }),
-        ])
+        await walletClient.multicall({
+          allowFailure: false,
+          contracts: [
+            {
+              address: TOKENS.USDC.address,
+              abi: erc20Abi,
+              functionName: 'balanceOf',
+              args: [address],
+            },
+            {
+              address: TOKENS.DAI.address,
+              abi: erc20Abi,
+              functionName: 'balanceOf',
+              args: [address],
+            },
+            {
+              address: TOKENS.USDC.address,
+              abi: erc20Abi,
+              functionName: 'allowance',
+              args: [address, ETH_REGISTRAR],
+            },
+            {
+              address: sepolia.contracts.multicall3.address,
+              abi: multicall3Abi,
+              functionName: 'getEthBalance',
+              args: [address],
+            },
+          ],
+        })
 
       logger.debug('Checked faucet state', {
         usdcBalance,
@@ -205,7 +175,7 @@ export default createApp()
                 target: TOKENS.USDC.address,
                 allowFailure: false,
                 callData: encodeFunctionData({
-                  abi: ERC20_ABI,
+                  abi: MINT_ABI,
                   functionName: 'mint',
                   args: [address, TOKENS.USDC.mintAmount],
                 }),
@@ -214,7 +184,7 @@ export default createApp()
                 target: TOKENS.DAI.address,
                 allowFailure: false,
                 callData: encodeFunctionData({
-                  abi: ERC20_ABI,
+                  abi: MINT_ABI,
                   functionName: 'mint',
                   args: [address, TOKENS.DAI.mintAmount],
                 }),
