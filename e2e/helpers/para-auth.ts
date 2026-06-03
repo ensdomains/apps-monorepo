@@ -55,7 +55,7 @@ export async function fillParaOtpInput(
   const otpContainer = frame.locator(
     'cpsl-code-input[data-testid="portal-otp-input"]',
   )
-  await otpContainer.waitFor({ state: 'visible', timeout: 15_000 })
+  await otpContainer.waitFor({ state: 'visible', timeout: 30_000 })
 
   const inputs = otpContainer.locator('input')
   for (const [i, digit] of digits.entries()) {

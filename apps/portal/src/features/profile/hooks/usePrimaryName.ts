@@ -1,80 +1,105 @@
-// TEMPORARY: this hook hits a custom batch reverse resolver to cover L2 /
-// ENSIP-19 default-reverse paths that the standard Universal Resolver
-// `reverse(addr, 60n)` does not yet resolve on Sepolia. Once UR catches up,
-// replace this file with `usePrimaryName.canonical.ts` (single `getName` call).
-
+import {
+  getChainIdForReverseRegistrarChainId,
+  getRegistrarAddress,
+  l2ReverseRegistrarNameForAddrSnippet,
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { publicResolverSingleAddrSnippet } from '@ensdomains/ensjs/contracts'
-import { getResolver } from '@ensdomains/ensjs/public'
+import { getAddressRecord, getName } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, namehash } from 'viem'
+import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
+import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-
-// Batch reverse resolver — not in ensjs chain config or ENS_SEPOLIA_CONTRACTS
-const REVERSE_RESOLVER_ADDRESS =
-  '0x7cd0016f722f34394110738eec10265b00c6c7d9' as const
-
-const REVERSE_RESOLVER_ABI = [
-  {
-    inputs: [{ internalType: 'address[]', name: 'addrs', type: 'address[]' }],
-    name: 'resolveNames',
-    outputs: [{ internalType: 'string[]', name: 'names', type: 'string[]' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
+import { l2WagmiConfig } from '@/lib/wagmiL2'
 
 class PrimaryNameError extends TaggedError('PrimaryNameError')<{
   cause: unknown
 }> {}
+
+// ENSIP-19 fallback order: when the L1 default reverse (coin 60) doesn't
+// forward-verify, walk the supported L2 chains and use the first one whose
+// reverse record forward-verifies against its own chain-specific coin type.
+//
+// Sepolia only — the L2 reverse registrars we read are on the matching
+// sepolia testnets via the local `l2WagmiConfig`.
+const L2_FALLBACK_COIN_TYPES = [10, 42161, 8453, 59144, 534352] as const
+const L2_REVERSE_NETWORK = 'sepolia' as const
 
 const getPrimaryName = ResultFn(async function* (address: Address | undefined) {
   if (!address) return ok(null)
 
   const client = yield* safeGetClient()
 
-  const result = yield* await fromPromise(
-    readContract(client, {
-      address: REVERSE_RESOLVER_ADDRESS,
-      abi: REVERSE_RESOLVER_ABI,
-      functionName: 'resolveNames',
-      args: [[address]],
-    }),
+  // Step 1: L1 default reverse (coin 60). ensjs `getName` calls
+  // `UniversalResolver.reverse(addr, 60n)` and returns `{ name, match }`
+  // where `match` is the ENSIP-3 forward-verified check.
+  const defaultResult = yield* await fromPromise(
+    getName(client, { address }),
     (e) => new PrimaryNameError({ cause: e }),
   )
+  if (defaultResult?.match) return ok(defaultResult.name)
 
-  const [name] = result ?? []
+  // Step 2: ENSIP-19 fallback through L2 reverse registrars. We read each
+  // L2 reverse registrar via the local `l2WagmiConfig` (the global explorer
+  // config is L1-only by design — see `@/lib/wagmiL2`).
+  for (const coinType of L2_FALLBACK_COIN_TYPES) {
+    const registrarAddress = getRegistrarAddress(
+      coinType as ReverseRegistrarChainId,
+      L2_REVERSE_NETWORK,
+    )
+    if (!registrarAddress) continue
 
-  if (!name) return ok(null)
+    const chainId = getChainIdForReverseRegistrarChainId(
+      coinType as ReverseRegistrarChainId,
+      L2_REVERSE_NETWORK,
+    )
 
-  // Forward-confirmed reverse resolution (ENSIP-3):
-  // Verify the name's ETH record resolves back to this address.
-  const nameWithEth = name.endsWith('.eth') ? name : `${name}.eth`
+    let l2Client: ReturnType<typeof l2WagmiConfig.getClient>
+    try {
+      l2Client = l2WagmiConfig.getClient({
+        chainId: chainId as (typeof l2WagmiConfig)['chains'][number]['id'],
+      })
+    } catch {
+      continue
+    }
+    if (!l2Client) continue
 
-  const resolverAddress = yield* await fromPromise(
-    getResolver(client, { name: nameWithEth }),
-    (e) => new PrimaryNameError({ cause: e }),
-  )
+    const readL2 = getAction(l2Client, readContract, 'readContract')
+    let name: string
+    try {
+      name = await readL2({
+        address: registrarAddress,
+        abi: l2ReverseRegistrarNameForAddrSnippet,
+        functionName: 'nameForAddr',
+        args: [address],
+      })
+    } catch {
+      continue
+    }
+    if (!name) continue
 
-  if (!resolverAddress) return ok(null)
+    // Per ENSIP-19, the forward verify reads the chain-specific address
+    // record on the name's resolver, not the default ETH (coin 60) record.
+    try {
+      const addrRecord = await getAddressRecord(client, {
+        name,
+        coin: coinType,
+      })
+      if (
+        addrRecord?.value &&
+        addrRecord.value.toLowerCase() === address.toLowerCase()
+      ) {
+        return ok(name)
+      }
+    } catch {
+      // resolver call failed — skip this chain
+    }
+  }
 
-  const forwardAddress = yield* await fromPromise(
-    readContract(client, {
-      address: resolverAddress,
-      abi: publicResolverSingleAddrSnippet,
-      functionName: 'addr',
-      args: [namehash(nameWithEth)],
-    }),
-    (e) => new PrimaryNameError({ cause: e }),
-  )
-
-  if (!forwardAddress || forwardAddress.toLowerCase() !== address.toLowerCase())
-    return ok(null)
-
-  return ok(name)
+  return ok(null)
 })
 
 const getPrimaryNameQueryKey = createQueryKey<

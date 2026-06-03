@@ -4,6 +4,12 @@
  * Pure functions for ENS registration operations.
  */
 
+import {
+  ethRegistrarCommitmentsSnippet,
+  ethRegistrarCommitSnippet,
+  ethRegistrarMakeCommitmentSnippet,
+  ethRegistrarRegisterSnippet,
+} from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
@@ -20,13 +26,20 @@ import {
 import { getBlock, multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
-import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
+
+// `MIN_COMMITMENT_AGE` is an immutable on ETHRegistrar; ensjs-abi does not (yet)
+// expose a dedicated snippet for it.
+const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
+  'function MIN_COMMITMENT_AGE() view returns (uint64)',
+])
+
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
+import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
@@ -105,7 +118,7 @@ function generateCommitment(
     (async () => {
       const commitment = await readContract(publicClient, {
         address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
+        abi: ethRegistrarMakeCommitmentSnippet,
         functionName: 'makeCommitment',
         args: [
           cleanName,
@@ -117,7 +130,7 @@ function generateCommitment(
           REFERER_ADDRESS,
         ],
       })
-      return { commitment: commitment as Hash, secret }
+      return { commitment, secret }
     })(),
     (error) => {
       console.error('❌ Failed to generate commitment:', error)
@@ -131,7 +144,7 @@ function generateCommitment(
  */
 function encodeCommitmentData(commitment: Hash): Hash {
   return encodeFunctionData({
-    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    abi: ethRegistrarCommitSnippet,
     functionName: 'commit',
     args: [commitment],
   })
@@ -165,7 +178,7 @@ function encodeRegistrationData(
   const cleanName = name.replace('.eth', '')
 
   return encodeFunctionData({
-    abi: FAST_TEST_ETH_REGISTRAR_ABI,
+    abi: ethRegistrarRegisterSnippet,
     functionName: 'register',
     args: [
       cleanName,
@@ -185,12 +198,6 @@ function encodeRegistrationData(
  */
 function getPaymentTokenAddress(token: 'USDC' | 'DAI'): Address {
   return SUPPORTED_TOKENS[token]
-}
-
-function selectRegistrarAddress(useFastRegistrar: boolean): Address {
-  return useFastRegistrar
-    ? ENS_SEPOLIA_CONTRACTS.FastTestETHRegistrar
-    : ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 }
 
 export function getSignerAddress(signer: Signer): Address {
@@ -358,10 +365,9 @@ export function generateCommitmentActor(input: {
   duration: bigint
   publicClient: PublicClient
   selectedToken: 'USDC' | 'DAI'
-  useFastRegistrar: boolean
   resolverAddress: Address
 }): ResultAsync<CommitmentData, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return generateCommitment(
     input.publicClient,
@@ -382,11 +388,10 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -448,20 +453,18 @@ export function submitCommitmentActor(input: {
 
 /**
  * Read MIN_COMMITMENT_AGE from the registrar contract so the cooldown timer
- * matches the deployment (e.g. 0 on FastTestETHRegistrar, 60s on the standard
- * v2 ETHRegistrar).
+ * matches the deployment (60s on the production v2 ETHRegistrar).
  */
 export function readMinCommitmentAgeActor(input: {
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<bigint, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   return fromPromise(
     readContract(input.publicClient, {
       address: registrarAddress,
-      abi: FAST_TEST_ETH_REGISTRAR_ABI,
+      abi: ethRegistrarMinCommitmentAgeSnippet,
       functionName: 'MIN_COMMITMENT_AGE',
-    }) as Promise<bigint>,
+    }),
     (error) => {
       console.warn(
         '⚠️ [REGISTRATION ACTOR] Failed to read MIN_COMMITMENT_AGE, defaulting to 60s:',
@@ -481,9 +484,8 @@ export function readPaymentTokenAllowanceActor(input: {
   owner: Address
   selectedToken: 'USDC' | 'DAI'
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<bigint, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const tokenAddress = getPaymentTokenAddress(input.selectedToken)
   return fromPromise(
     readContract(input.publicClient, {
@@ -506,9 +508,8 @@ export function verifyRegistrationActor(input: {
   owner: Address
   resolverAddress: Address
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<{ verified: boolean }, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const cleanName = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
@@ -567,9 +568,8 @@ export function verifyRegistrationActor(input: {
 export function validateCommitmentActor(input: {
   commitment: CommitmentData
   publicClient: PublicClient
-  useFastRegistrar: boolean
 }): ResultAsync<void, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -582,11 +582,11 @@ export function validateCommitmentActor(input: {
       // Check MIN_COMMITMENT_AGE from contract
       let minAge: bigint
       try {
-        minAge = (await readContract(input.publicClient, {
+        minAge = await readContract(input.publicClient, {
           address: registrarAddress,
-          abi: FAST_TEST_ETH_REGISTRAR_ABI,
+          abi: ethRegistrarMinCommitmentAgeSnippet,
           functionName: 'MIN_COMMITMENT_AGE',
-        })) as bigint
+        })
         console.log(
           `📋 [REGISTRATION ACTOR] MIN_COMMITMENT_AGE: ${minAge.toString()} seconds`,
         )
@@ -605,12 +605,12 @@ export function validateCommitmentActor(input: {
 
       while (committedAt === 0n && attempts < maxAttempts) {
         try {
-          committedAt = (await readContract(input.publicClient, {
+          committedAt = await readContract(input.publicClient, {
             address: registrarAddress,
-            abi: FAST_TEST_ETH_REGISTRAR_ABI,
+            abi: ethRegistrarCommitmentsSnippet,
             functionName: 'commitmentAt',
             args: [input.commitment.commitment],
-          })) as bigint
+          })
 
           if (committedAt === 0n) {
             attempts++
@@ -687,11 +687,10 @@ export function submitApprovalActor(input: {
   selectedToken: 'USDC' | 'DAI'
   signer: import('../..').Signer
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
@@ -757,12 +756,11 @@ export function submitRegistrationActor(input: {
   selectedToken: 'USDC' | 'DAI'
   owner: Address
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   resolverAddress: Address
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -775,24 +773,14 @@ export function submitRegistrationActor(input: {
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
-      // Check if the payment token is supported
-      const isSupported = await readContract(input.publicClient, {
-        address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
-        functionName: 'isPaymentToken',
-        args: [normalizedPaymentToken],
-      })
-
-      console.log(
-        `🔍 Payment token ${normalizedPaymentToken} is supported:`,
-        isSupported,
+      // Validate the token against the registrar's *actual* rent price oracle
+      // (see `assertPaymentTokenSupported` for why the registrar itself can't
+      // be queried directly).
+      await assertPaymentTokenSupported(
+        input.publicClient,
+        registrarAddress,
+        normalizedPaymentToken,
       )
-
-      if (!isSupported) {
-        throw new Error(
-          `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
-        )
-      }
 
       const registrationData = encodeRegistrationData(
         input.name,
@@ -854,11 +842,10 @@ export function submitApprovalAndRegistrationActor(input: {
   duration: bigint
   owner: Address
   publicClient: PublicClient
-  useFastRegistrar: boolean
   sponsored?: boolean
   resolverAddress: Address
 }): ResultAsync<string, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
@@ -867,18 +854,11 @@ export function submitApprovalAndRegistrationActor(input: {
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
-      const isSupported = await readContract(input.publicClient, {
-        address: registrarAddress,
-        abi: FAST_TEST_ETH_REGISTRAR_ABI,
-        functionName: 'isPaymentToken',
-        args: [normalizedPaymentToken],
-      })
-
-      if (!isSupported) {
-        throw new Error(
-          `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
-        )
-      }
+      await assertPaymentTokenSupported(
+        input.publicClient,
+        registrarAddress,
+        normalizedPaymentToken,
+      )
 
       const approvalData = encodeTokenApprovalData(
         input.tokenPrice,

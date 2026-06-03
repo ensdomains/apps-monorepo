@@ -142,7 +142,6 @@ export const useRegistrationTransactions = ({
       signer,
       accountAddress: connection.address,
       publicClient,
-      useFastRegistrar: false,
       sponsored: false,
     })
   }, [actor, name, duration, publicClient, connection, config, savedParams])

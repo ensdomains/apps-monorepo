@@ -366,8 +366,7 @@ export const registrationMachine = setup({
         {
           target: 'registerInProgress',
           guard: ({ context }) => {
-            // With FastTestETHRegistrar, we can always proceed to registration
-            // as long as we have the required commitment data
+            // Proceed to registration once we have all the commitment data.
             return !!(
               context.commitment &&
               context.secret &&

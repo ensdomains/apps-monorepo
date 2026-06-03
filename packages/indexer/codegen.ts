@@ -29,7 +29,7 @@ const config: CodegenConfig = {
   },
   hooks: { afterAllFileWrite: ['biome format --write .'] },
   overwrite: true,
-  schema: 'https://tenderly-ensv2.pff.sh/',
+  schema: 'https://graphql.ens.dev',
 }
 
 export default config

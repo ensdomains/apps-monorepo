@@ -44,11 +44,7 @@ interface PaymentDrawerProps {
   disabled?: boolean
   onPaymentSelect?: (method: PaymentMethod) => void
   onCryptoSelect?: (cryptoId: string) => void
-  onConfirmPayment?: (
-    tokenPrice: bigint,
-    selectedToken: string,
-    options?: { fast?: boolean },
-  ) => void
+  onConfirmPayment?: (tokenPrice: bigint, selectedToken: string) => void
   isUsingAA?: boolean
 }
 
@@ -198,13 +194,13 @@ export const CryptoPaymentDrawer = ({
     !hasBalances ||
     hasInsufficientBalanceCheck
 
-  const handleCryptoContinue = (options?: { fast?: boolean }) => {
+  const handleCryptoContinue = () => {
     if (actionDisabled || !selectedCoinBalance) return
     onPaymentSelect?.('crypto')
     onCryptoSelect?.(selectedCoinBalance.address)
     if (onConfirmPayment) {
       const tokenPrice = BigInt(selectedCoinBalance.balance)
-      onConfirmPayment(tokenPrice, selectedCoinBalance.address, options)
+      onConfirmPayment(tokenPrice, selectedCoinBalance.address)
     }
     setOpen(false)
     // Reset state when closing

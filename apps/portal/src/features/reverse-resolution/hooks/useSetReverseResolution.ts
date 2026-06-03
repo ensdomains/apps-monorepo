@@ -49,7 +49,13 @@ export const useSetReverseResolution = ({
       })
     },
     onSuccess: () => {
+      // Reverse-resolution table reads from ['get-reverse-resolution'];
+      // the explorer-wide primary name displayed in WalletMenu and elsewhere
+      // is a separate query (see `usePrimaryName`) keyed under
+      // ['get-primary-name'] that hits a batch reverse resolver. Both must
+      // be invalidated to keep the UI in sync after a setName.
       queryClient.invalidateQueries({ queryKey: ['get-reverse-resolution'] })
+      queryClient.invalidateQueries({ queryKey: ['get-primary-name'] })
     },
   })
 

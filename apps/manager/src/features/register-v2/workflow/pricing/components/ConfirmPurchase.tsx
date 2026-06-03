@@ -8,7 +8,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { zeroAddress } from 'viem'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -19,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
-import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { truncateName } from '../../../utils/truncate-name'
 import { getPremiumLabel } from '../lib/premiumLabel'
@@ -35,10 +34,8 @@ export const ConfirmPurchase = () => {
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
 
-  const ownerAddress = account.ownerAddress ?? zeroAddress
-
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, ownerAddress, duration, selectedToken),
+    ...getRegisterPriceQueryOptions(label, duration, selectedToken),
     select: (data) => ({
       basePriceNumber: decimalBigintToNumber(
         data.basePrice,
@@ -49,10 +46,10 @@ export const ConfirmPurchase = () => {
         selectedToken ? TOKENS[selectedToken].decimals : 0,
       ),
       totalPriceNumber: decimalBigintToNumber(
-        data.totalPrice,
+        data.basePrice + data.premium,
         selectedToken ? TOKENS[selectedToken].decimals : 0,
       ),
-      rawPrice: data.totalPrice,
+      rawPrice: data.basePrice + data.premium,
     }),
   })
 

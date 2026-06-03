@@ -1,9 +1,19 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type { Address, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
-import { V1_CONTRACTS } from '../contracts/addresses'
 import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+
+const BASE_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensBaseRegistrarImplementation',
+})
+const NAME_WRAPPER = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensNameWrapper',
+})
 
 export type EligibilityResult = {
   eligible: ClassifiedName[]
@@ -23,13 +33,13 @@ export const checkOwnership = async (
   const contracts: Contract[] = names.map((name) =>
     name.tokenType === 'unwrapped'
       ? {
-          address: V1_CONTRACTS.BaseRegistrar,
+          address: BASE_REGISTRAR,
           abi: BASE_REGISTRAR_ABI,
           functionName: 'ownerOf' as const,
           args: [BigInt(name.domain.labelhash)] as const,
         }
       : {
-          address: V1_CONTRACTS.NameWrapper,
+          address: NAME_WRAPPER,
           abi: NAME_WRAPPER_ABI,
           functionName: 'getData' as const,
           args: [BigInt(name.domain.id)] as const,
@@ -67,7 +77,7 @@ export const checkFrozenApproval = async (
   const results = await batchedMulticall<Address>(
     publicClient,
     candidates.map((name) => ({
-      address: V1_CONTRACTS.NameWrapper,
+      address: NAME_WRAPPER,
       abi: NAME_WRAPPER_ABI,
       functionName: 'getApproved' as const,
       args: [BigInt(name.domain.id)] as const,

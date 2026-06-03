@@ -1,8 +1,18 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { readContract, type Config as WagmiConfig } from '@wagmi/core'
 import { type Address, erc721Abi } from 'viem'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { NAME_WRAPPER_ABI } from '../contracts/abis'
-import { V1_CONTRACTS } from '../contracts/addresses'
 import type { GroupedNames } from './classifyNames'
+
+const BASE_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensBaseRegistrarImplementation',
+})
+const NAME_WRAPPER = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensNameWrapper',
+})
 
 type ApprovalNeeds = {
   readonly hasUnwrapped: boolean
@@ -33,7 +43,7 @@ export const checkHelperApprovals = async (params: {
   const [baseRegistrarApproved, nameWrapperApproved] = await Promise.all([
     needs.hasUnwrapped
       ? (readContract(wagmiConfig, {
-          address: V1_CONTRACTS.BaseRegistrar,
+          address: BASE_REGISTRAR,
           abi: erc721Abi,
           functionName: 'isApprovedForAll',
           args: [eoa, helperAddress],
@@ -41,7 +51,7 @@ export const checkHelperApprovals = async (params: {
       : Promise.resolve(true),
     needs.hasWrapped
       ? (readContract(wagmiConfig, {
-          address: V1_CONTRACTS.NameWrapper,
+          address: NAME_WRAPPER,
           abi: NAME_WRAPPER_ABI,
           functionName: 'isApprovedForAll',
           args: [eoa, helperAddress],
