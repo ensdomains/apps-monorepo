@@ -29,12 +29,7 @@ export const BlockExplorerTxLink = ({
         className,
       )}
     >
-      <EntityBadge
-        variant="tx"
-        copyValue={txHash}
-        etherscanHref={href}
-        inline={inline}
-      >
+      <EntityBadge variant="tx" copyValue={txHash} etherscanHref={href}>
         {truncateAddress(txHash)}
       </EntityBadge>
     </div>
