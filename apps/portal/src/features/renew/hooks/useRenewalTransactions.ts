@@ -1,7 +1,7 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { type Address, encodeFunctionData, erc20Abi } from 'viem'
@@ -11,6 +11,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { getLabel } from '@/utils/token/getLabel'
 
 export type SelectedName = {
   readonly name: string
@@ -137,19 +138,16 @@ function buildRenewTransaction(
   params: RenewParams,
   signer: ReturnType<typeof createEOASigner>,
 ) {
-  const client = {
-    ...signer.walletClient,
-    chain: sepoliaWithEns,
-  } as unknown as Parameters<typeof renewNameWriteParameters>[0]
-
-  const writeParams = renewNameWriteParameters(client, {
-    name: params.name,
-    duration: params.duration,
-    paymentToken: params.tokenAddress,
-    referrer: REFERER_ADDRESS,
-  })
+  const label = getLabel(params.name)
   const renewData = encodeFunctionData({
-    ...writeParams,
+    abi: l2EthRegistrarRenewSnippet,
+    functionName: 'renew',
+    args: [
+      label,
+      BigInt(params.duration),
+      params.tokenAddress,
+      REFERER_ADDRESS,
+    ],
   })
 
   transactionManager.startTransaction(

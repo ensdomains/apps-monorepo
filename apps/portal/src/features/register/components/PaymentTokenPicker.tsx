@@ -72,15 +72,13 @@ export const PaymentTokenPicker = ({
   })
 
   const priceQueries = useQueries({
-    queries: PAYMENT_TOKENS.map((token) => ({
-      ...getRegistrationPriceQueryOptions({
+    queries: PAYMENT_TOKENS.map((token) =>
+      getRegistrationPriceQueryOptions({
         name,
         duration,
         token: token.address,
-        owner: address,
       }),
-      enabled: Boolean(address),
-    })),
+    ),
   })
 
   if (

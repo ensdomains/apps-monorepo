@@ -4,8 +4,7 @@ import {
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { zeroAddress } from 'viem'
-import { getPricingQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
+import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -21,15 +20,16 @@ export const TokenPickerContent = () => {
   )
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(
+    ...getRenewPriceQueryOptions(
       label,
-      // Zero address used to ignore temporary premium since it's not applicable for renewal
-      zeroAddress,
       duration,
-      TOKENS.USDC.symbol,
+      selectedToken ?? TOKENS.USDC.symbol,
     ),
     select: (data) =>
-      decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
+      decimalBigintToNumber(
+        data.amount,
+        selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
+      ),
   })
 
   const onSelectCoin = (coin: SUPPORTED_TOKEN) => {

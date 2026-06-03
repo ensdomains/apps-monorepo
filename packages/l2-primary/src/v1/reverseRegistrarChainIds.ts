@@ -46,33 +46,41 @@ export const L2_REVERSE_REGISTRARS: Record<
   ReverseRegistrarChainId,
   { mainnet?: Address; sepolia?: Address }
 > = {
-  // ENSv1 ReverseRegistrar on L1
+  // ENSv1 ReverseRegistrar on L1. Addresses sourced from
+  // `ens-contracts/deployments/{mainnet,sepolia}/ReverseRegistrar.json`.
   1: {
-    sepolia: '0x075703fd8f8ef6b1e8e593dacab2dd702fc28196',
+    mainnet: '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb',
+    sepolia: '0xA0a1AbcDAe1a2a4A2EF8e9113Ff0e02DD81DC0C6',
   },
   60: {
-    sepolia: '0x075703fd8f8ef6b1e8e593dacab2dd702fc28196',
+    mainnet: '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb',
+    sepolia: '0xA0a1AbcDAe1a2a4A2EF8e9113Ff0e02DD81DC0C6',
   },
-  // ENSv1 L2ReverseRegistrar on L2 chains
+  // ENSv1 L2ReverseRegistrar on L2 chains. The contract is deployed at the
+  // same address on every supported L2 within a given environment (via
+  // CREATE2 / deterministic deployment). Addresses sourced from
+  // `ens-contracts/deployments/{optimism,arbitrum,base,linea,scroll}{,Sepolia}/L2ReverseRegistrar.json`
+  // and verified on-chain by reading `coinType()` against the ENSIP-19
+  // chain coin type.
   10: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
+    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
   },
   42161: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
+    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
   },
   8453: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
+    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
   },
   59144: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
+    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
   },
   534352: {
     mainnet: '0x0000000000D8e504002cC26E3Ec46D81971C1664',
-    sepolia: '0x6aa2f3011c428d06417e0abae5eb3841c011195d',
+    sepolia: '0x00000BeEF055f7934784D6d81b6BC86665630dbA',
   },
 } as const satisfies Record<
   ReverseRegistrarChainId,

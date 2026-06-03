@@ -18,8 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import {
-  useParentRegistry,
-  useRegistry,
+  getRegistryQueryOptions,
   useRegistryReferencedBy,
 } from '@/features/registry/hooks/useRegistry'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -38,12 +37,23 @@ function RouteComponent() {
   const address = addressParam as Address
   const chainId = useChainId()
 
-  const { data: registry, isLoading, error } = useRegistry(address)
+  const {
+    data: registry,
+    isLoading,
+    error,
+  } = useQuery(getRegistryQueryOptions({ address }))
   const {
     data: parent,
     isLoading: isLoadingParent,
     error: parentError,
-  } = useParentRegistry(registry?.parentRegistry)
+  } = useQuery({
+    ...getRegistryQueryOptions({
+      address: registry?.parentRegistry ?? zeroAddress,
+    }),
+    enabled:
+      !!registry?.parentRegistry &&
+      !isAddressEqual(registry.parentRegistry, zeroAddress),
+  })
   const {
     data: referencedBy,
     isLoading: isLoadingReferencedBy,

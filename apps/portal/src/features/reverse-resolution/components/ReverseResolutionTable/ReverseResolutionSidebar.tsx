@@ -34,10 +34,12 @@ import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecord
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useSetForwardResolution } from '../../hooks/useSetForwardResolution'
+import { useSetL2ReverseName } from '../../hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '../../hooks/useSetReverseResolution'
 import { useReverseResolutionMutations } from './hooks/useReverseResolutionMutations'
 import { useSwitchToRequiredNetwork } from './hooks/useSwitchToRequiredNetwork'
@@ -209,7 +211,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     isWrongChain,
     isSwitchingChain,
     requiredChainId,
-    switchChain,
+    switchChainAsync,
     getSwitchToRequiredNetworkRequest,
   } = useSwitchToRequiredNetwork({
     reverseRegistrarChainId,
@@ -219,11 +221,9 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     isEnsOwnerLoading,
-    isReverseInputOwnerLoading,
   } = useReverseResolutionMutations({
     reverseRegistrarChainId,
     displayName,
-    reverseNameInput: nameInput || undefined,
   })
 
   const {
@@ -250,6 +250,14 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     id: SET_PRIMARY_NAME_TX_ID,
   })
 
+  // L2 reverse-registrar `setName` runs through a hook scoped to the local
+  // `l2WagmiConfig` (see `@/lib/wagmiL2`). The global wagmi config is
+  // intentionally not aware of L2 chains — this hook is the only place
+  // L2 writes happen.
+  const isL2Target = !isL1ReverseRegistrarChainId(reverseRegistrarChainId)
+  const { setL2ReverseNameAsync, isPending: isL2ReverseNamePending } =
+    useSetL2ReverseName()
+
   if (!row) {
     return (
       <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
@@ -268,14 +276,51 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     )
   }
 
-  const switchChainIfNeeded = () => {
-    if (!isWrongChain) return false
+  // Awaits the wallet's chain switch if the current chain doesn't match the
+  // row's required chain. Returns `true` when the switch completed and the
+  // caller should continue, `false` if the user rejected or the wallet
+  // refused — in which case the caller must NOT continue (a toast has
+  // already been surfaced).
+  const switchChainIfNeeded = async (): Promise<boolean> => {
+    if (!isWrongChain) return true
     try {
-      switchChain(getSwitchToRequiredNetworkRequest())
+      await switchChainAsync(getSwitchToRequiredNetworkRequest())
+      return true
     } catch (error) {
+      // User rejected, wallet refused to add chain, etc. Surface it.
+      const message =
+        error instanceof Error ? error.message : 'Failed to switch network'
+      toast.error(message)
       console.error('Failed to switch network', error)
+      return false
     }
-    return true
+  }
+
+  const handleUpdateL2 = async () => {
+    if (!nameInput) return
+    if (isL1ReverseRegistrarChainId(reverseRegistrarChainId)) return
+    const toastId = toast.loading(`Setting reverse name on ${label}…`)
+    try {
+      await setL2ReverseNameAsync({
+        name: nameInput,
+        // safe: branch above narrows out L1 chain ids
+        reverseRegistrarChainId: reverseRegistrarChainId as Exclude<
+          typeof reverseRegistrarChainId,
+          1 | 60
+        >,
+      })
+      toast.success(`Reverse name set to ${nameInput} on ${label}`, {
+        id: toastId,
+      })
+      setNameInput('')
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to set reverse name on L2',
+        { id: toastId },
+      )
+    }
   }
 
   const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
@@ -283,20 +328,33 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     const form = e.currentTarget
     const input = form.querySelector<HTMLInputElement>('input[name="name"]')
     if (!input?.reportValidity()) return
-    if (switchChainIfNeeded()) return
     if (!nameInput) return
-    setActiveFlow('reverse')
-    openTransactionModal()
+
+    // Switch first if the wallet is on the wrong chain; only continue with
+    // the actual write once the switch is complete. Doing this fire-and-
+    // forget previously meant the first click only switched chains and the
+    // user had to click Update again to submit.
+    //
+    // For L2 rows we delegate the switch to `useSetL2ReverseName`, which
+    // operates on the isolated `l2WagmiConfig` and handles
+    // `wallet_addEthereumChain` correctly — calling `switchChainAsync` here
+    // on the global config would target a chain it doesn't know about.
+    void (async () => {
+      if (isL2Target) {
+        await handleUpdateL2()
+        return
+      }
+      const switched = await switchChainIfNeeded()
+      if (!switched) return
+      setActiveFlow('reverse')
+      openTransactionModal()
+    })()
   }
 
   const handleUpdateReverseStart = () => {
     if (!nameInput) return
     try {
       const reverseRequest = getReverseResolutionRequest(nameInput)
-      if (reverseRequest.kind === 'unsupported') {
-        toast.error(reverseRequest.reason)
-        return
-      }
       submitReverseResolution({
         name: nameInput,
         request: reverseRequest.request,
@@ -317,9 +375,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   }
 
   const handleSetPrimaryName = () => {
-    if (switchChainIfNeeded()) return
-    setActiveFlow('primary')
-    openTransactionModal()
+    void (async () => {
+      const switched = await switchChainIfNeeded()
+      if (!switched) return
+      setActiveFlow('primary')
+      openTransactionModal()
+    })()
   }
 
   const handleSetPrimaryNameStart = () => {
@@ -429,13 +490,22 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       isReverseResolutionPending ||
+                      isL2ReverseNamePending ||
                       isSwitchingChain
                     }
                     placeholder={match(isConnected)
                       .with(false, () => 'Connect wallet to update')
                       .otherwise(() => undefined)}
-                    pattern=".*\.eth$"
-                    title="Name must end with .eth"
+                    // L1 (Default/Ethereum) requires a real ENS `.eth` name
+                    // because we look up its protocol version to decide on
+                    // the right setReverseName flow. L2 registrars accept any
+                    // string, so we don't gate the input there.
+                    {...(isL2Target
+                      ? {}
+                      : {
+                          pattern: '.*\\.eth$',
+                          title: 'Name must end with .eth',
+                        })}
                     required
                   />
                   <Button
@@ -444,8 +514,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     disabled={
                       !isConnected ||
                       !nameInput ||
-                      isReverseInputOwnerLoading ||
                       isReverseResolutionPending ||
+                      isL2ReverseNamePending ||
                       isSwitchingChain
                     }
                     className="h-9"
@@ -454,10 +524,12 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                       isConnected,
                       isSwitchingChain,
                       isWrongChain,
+                      isL2ReverseNamePending,
                     })
                       .with({ isConnected: false }, () => 'Connect Wallet')
                       .with({ isSwitchingChain: true }, () => 'Switching...')
                       .with({ isWrongChain: true }, () => 'Switch Network')
+                      .with({ isL2ReverseNamePending: true }, () => 'Sending…')
                       .otherwise(() => 'Update')}
                   </Button>
                 </form>

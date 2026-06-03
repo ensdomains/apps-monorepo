@@ -1,12 +1,10 @@
+import { useQueries } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
 import { Badge } from '@/components/ui/badge'
+import { getAppliedDiscountQueryOptions } from '@/features/register/hooks/useAppliedDiscount'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
-import { useIntegratedDiscounts } from '@/features/register/hooks/useIntegratedDiscount'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
-import {
-  ORACLE_DISCOUNT_SCALE,
-  ORACLE_PRICE_DECIMALS,
-} from '@/lib/constants/oracle'
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
@@ -17,24 +15,15 @@ const PRESET_DURATIONS_SECONDS = PRESET_YEARS.map(
 )
 
 /**
- * Contract-equivalent effective $/year for a given duration:
- *   discountedBase = baseRate × duration × (ORACLE_DISCOUNT_SCALE × duration − integratedDiscount)
- *                                          / (ORACLE_DISCOUNT_SCALE × duration)
- *   perYear        = discountedBase / years
+ * Contract-equivalent effective $/year for a given duration. `discountedBase`
+ * is `applyDiscount(baseRate × duration, duration)` straight from the oracle
+ * (the full discounted base for the term); per-year is just `/ years`.
  */
 const computeEffectivePerYear = (
-  baseRate: bigint,
-  durationSeconds: number,
-  integratedDiscount: bigint,
+  discountedBase: bigint,
   years: number,
 ): number => {
-  if (baseRate <= 0n || durationSeconds <= 0 || years <= 0) return 0
-  const duration = BigInt(durationSeconds)
-  const denominator = ORACLE_DISCOUNT_SCALE * duration
-  if (denominator === 0n) return 0
-  const discountFactorNumer = denominator - integratedDiscount
-  const discountedBase =
-    (baseRate * duration * discountFactorNumer) / denominator
+  if (discountedBase <= 0n || years <= 0) return 0
   const perYearUnits = discountedBase / BigInt(years)
   return Number(formatUnits(perYearUnits, ORACLE_PRICE_DECIMALS))
 }
@@ -58,25 +47,21 @@ export const RegistrationDurationPresets = ({
     : undefined
 
   const baseRate = useBaseRate(name ?? '')
-  const { data: integratedDiscounts } = useIntegratedDiscounts(
-    PRESET_DURATIONS_SECONDS,
-  )
+  const discountQueries = useQueries({
+    queries: PRESET_DURATIONS_SECONDS.map((duration) =>
+      getAppliedDiscountQueryOptions({
+        value: baseRate * BigInt(duration),
+        duration,
+      }),
+    ),
+  })
 
   return (
     <div className="flex gap-2 items-center flex-wrap">
       {PRESET_YEARS.map((years, idx) => {
         const isSelected = selectedYears === years
-        const durationSeconds = PRESET_DURATIONS_SECONDS[idx]
-        const integral = integratedDiscounts?.[idx] ?? 0n
-        const effective =
-          durationSeconds !== undefined
-            ? computeEffectivePerYear(
-                baseRate,
-                durationSeconds,
-                integral,
-                years,
-              )
-            : 0
+        const discountedBase = discountQueries[idx]?.data ?? 0n
+        const effective = computeEffectivePerYear(discountedBase, years)
 
         return (
           <Badge
