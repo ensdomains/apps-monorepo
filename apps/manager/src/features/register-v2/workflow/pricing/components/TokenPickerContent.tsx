@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
-import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { TokenListItem } from './TokenListItem'
@@ -42,7 +42,7 @@ export const TokenPickerContent = () => {
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(
+    ...getRegisterPriceQueryOptions(
       label,
       duration,
       selectedToken ?? TOKENS.USDC.symbol,
@@ -58,10 +58,10 @@ export const TokenPickerContent = () => {
         selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
       ),
       totalPriceNumber: decimalBigintToNumber(
-        data.totalPrice,
+        data.basePrice + data.premium,
         selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
       ),
-      rawPrice: data.totalPrice,
+      rawPrice: data.basePrice + data.premium,
     }),
   })
 

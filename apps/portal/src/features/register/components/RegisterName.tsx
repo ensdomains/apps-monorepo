@@ -35,7 +35,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     getDurationInSecondsFromYears(1),
   )
 
-  const { isConnected, address } = useConnection()
+  const { isConnected } = useConnection()
   const { openConnectModal } = useConnectModal()
   const { openModal } = useTransactionModal()
 
@@ -70,7 +70,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
       duration,
       token: selectedToken ? SUPPORTED_TOKENS[selectedToken] : undefined,
     }),
-    enabled: isSuccess && Boolean(name) && duration > 0 && Boolean(address),
+    enabled: isSuccess && Boolean(name) && duration > 0,
   })
 
   const isNameTaken =

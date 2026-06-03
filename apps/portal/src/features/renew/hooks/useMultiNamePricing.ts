@@ -4,7 +4,7 @@ import {
   getBaseRateForName,
   getBaseRatesQueryOptions,
 } from '@/features/register/hooks/useBaseRate'
-import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
@@ -116,7 +116,7 @@ export function useMultiNamePricing(
 
   const priceQueries = useQueries({
     queries: renewalInputs.map((renewal) =>
-      getRegistrationPriceQueryOptions({
+      getRenewalPriceQueryOptions({
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.USDC,

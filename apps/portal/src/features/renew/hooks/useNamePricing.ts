@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import {
-  getRegistrationPriceQueryOptions,
+  getRenewalPriceQueryOptions,
   type RegistrationPriceResult,
 } from '@/features/register/hooks/useRegistrationPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
@@ -36,7 +36,7 @@ export function useNamePricing(
   })
 
   const { data, isLoading, isError, error } = useQuery({
-    ...getRegistrationPriceQueryOptions({
+    ...getRenewalPriceQueryOptions({
       name: selectedName.name,
       duration: durationSeconds,
     }),

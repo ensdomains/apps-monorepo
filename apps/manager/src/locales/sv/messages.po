@@ -625,12 +625,12 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:162
-msgid "Connect or sign in to register"
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:165
+msgid "Connect to register"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:164
-msgid "Connect or sign in to renew"
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:167
+msgid "Connect to renew"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:93
@@ -1677,7 +1677,7 @@ msgstr ""
 msgid "Pay with PayPal"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:151
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:154
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:231
 msgid "Pay with stablecoins"
 msgstr ""
@@ -2079,7 +2079,7 @@ msgid "Save"
 msgstr ""
 
 #. placeholder {0}: discountAmount ?? 0
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:113
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:116
 msgid "Save <0>{0}</0>"
 msgstr ""
 
@@ -2391,7 +2391,7 @@ msgstr ""
 msgid "Sort by"
 msgstr "Sortera efter"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:133
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:136
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:275
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:246
 msgid "Stables accepted"
@@ -2566,7 +2566,7 @@ msgstr ""
 msgid "total"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:80
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:83
 msgid "Total"
 msgstr ""
 
@@ -2673,7 +2673,7 @@ msgstr ""
 msgid "Uploading…"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:102
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:105
 msgid "USD"
 msgstr ""
 
