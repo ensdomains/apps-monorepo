@@ -25,6 +25,7 @@ import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { createParaOwnerWalletClient } from './rhinestone'
 import {
   selectIsLoading,
   selectIsReady,
@@ -298,6 +299,23 @@ export const SmartAccountContextProvider = ({
     }
   }, [baseClient, accountAddress, wagmiWalletClient])
 
+  // EOA wallet client for the *owner* of the account, used for actions the
+  // registrar attributes to the owner — notably the ERC-20 `approve`, which
+  // the ENS registrar pulls from the owner EOA (the HCA can't approve on its
+  // behalf). External wallets expose this through wagmi; embedded Para wallets
+  // do not (Para is not a wagmi connector), so derive one from the Para client
+  // — otherwise HCA registration silently falls back to the bundled
+  // approve+register intent, which approves from the HCA and reverts.
+  const ownerWalletClient = useMemo<WalletClient | null>(() => {
+    if (wagmiWalletClient?.account?.address) {
+      return wagmiWalletClient as WalletClient
+    }
+    if (snapshot.context.walletSource === 'para-embedded' && paraClient) {
+      return createParaOwnerWalletClient(paraClient)
+    }
+    return null
+  }, [wagmiWalletClient, paraClient, snapshot.context.walletSource])
+
   const isConnected = isFeatureEnabled('USE_EOA')
     ? !!wagmiWalletClient && !!eoaAddress
     : !!snapshot.context.walletSource && !!snapshot.context.client
@@ -355,7 +373,7 @@ export const SmartAccountContextProvider = ({
         isAccountReady,
         hasInitialized,
         isReady,
-        walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
+        walletClient: ownerWalletClient,
         infrastructure,
       }
 

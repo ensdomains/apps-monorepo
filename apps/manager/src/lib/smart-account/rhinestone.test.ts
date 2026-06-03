@@ -63,6 +63,7 @@ vi.mock('@/lib/wagmi', () => ({
     id: 11155111,
     name: 'Sepolia',
   },
+  SEPOLIA_RPC_URL: 'https://sepolia.example.com',
 }))
 
 // Mock Para viem integration

@@ -54,6 +54,11 @@ vi.mock('@/utils/backend-client', () => ({
 }))
 
 vi.mock('./rhinestone', () => ({
+  createParaOwnerWalletClient: vi.fn().mockReturnValue({
+    account: {
+      address: '0xParaOwnerWallet00000000000000000000000000' as const,
+    },
+  }),
   initializeRhinestoneAccount: vi.fn().mockResolvedValue({
     client: {
       getAddress: vi
