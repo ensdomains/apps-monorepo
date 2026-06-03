@@ -462,10 +462,6 @@ msgstr ""
 msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:70
-msgid "Checking commitment cooldown"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:82
 msgid "Checking token allowance"
 msgstr ""
@@ -1718,6 +1714,10 @@ msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx:88
 msgid "Protect your name with autorenewal"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:70
+msgid "Reading commitment window"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:71
