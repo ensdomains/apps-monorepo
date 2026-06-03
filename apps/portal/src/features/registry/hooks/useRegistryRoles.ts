@@ -29,19 +29,7 @@ type IndexerRole = {
   roleBitmap: string
 }
 
-type RolePage = {
-  pageInfo: { hasNextPage: boolean; endCursor: string | null }
-  edges: { node: IndexerRole }[]
-}
-
-const ROLES_PAGE_SIZE = 1000
-// Safety bound so a misbehaving indexer can't loop forever (mirrors useRoleHistory).
-const MAX_ROLE_PAGES = 50
-
-// This indexer ignores GraphQL variables on connection args (roleConnection
-// first/after) and only honors inline literals, so the cursor is inlined.
-// Cursors are opaque base64 tokens; refuse anything else.
-const isCursorToken = (value: string) => /^[A-Za-z0-9+/=]+$/.test(value)
+const ROLES_LIMIT = 1000
 
 const safeBigInt = (value: string): bigint | null => {
   try {
@@ -55,16 +43,12 @@ const safeBigInt = (value: string): bigint | null => {
 // registry rather than a single name — i.e. the registry's admins/users.
 const isRootResource = (resource: string) => safeBigInt(resource) === 0n
 
-const buildRolesQuery = (afterCursor: string | null) => gql`
+// Single page is enough for now — registries don't have more than ROLES_LIMIT
+// role assignments in practice.
+const rolesQuery = gql`
   query getRegistryRoles($address: String!) {
     registry(address: $address) {
-      roleConnection(first: ${ROLES_PAGE_SIZE}${
-        afterCursor ? `, after: "${afterCursor}"` : ''
-      }) {
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
+      roleConnection(first: ${ROLES_LIMIT}) {
         edges {
           node {
             account
@@ -80,22 +64,10 @@ const buildRolesQuery = (afterCursor: string | null) => gql`
 const getRegistryRoles = ResultFn(async function* ({
   address,
 }: GetRegistryRolesParameters) {
-  const registryAddress = address.toLowerCase()
-
-  // The role relation can't be filtered by resource server-side, so page through
-  // every assignment (cursor inlined — variables are ignored) and keep only the
-  // registry-wide root ones.
-  const rootRoles: IndexerRole[] = []
-  const collectRoots = (connection: RolePage) => {
-    for (const { node } of connection.edges) {
-      if (isRootResource(node.resource)) rootRoles.push(node)
-    }
-  }
-
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
-      registry: { roleConnection: RolePage } | null
-    }>(buildRolesQuery(null), { address: registryAddress }),
+      registry: { roleConnection: { edges: { node: IndexerRole }[] } } | null
+    }>(rolesQuery, { address: address.toLowerCase() }),
     (e) => new GetRegistryRolesError({ cause: e as ClientError }),
   )
 
@@ -103,37 +75,14 @@ const getRegistryRoles = ResultFn(async function* ({
   // indexed). An empty list is the right shape here.
   if (!registry) return ok([])
 
-  collectRoots(registry.roleConnection)
-  let { hasNextPage, endCursor } = registry.roleConnection.pageInfo
-
-  for (
-    let page = 1;
-    hasNextPage &&
-    endCursor &&
-    isCursorToken(endCursor) &&
-    page < MAX_ROLE_PAGES;
-    page++
-  ) {
-    const { registry: rolePage } = yield* fromPromise(
-      graphqlIndexerClient.request<{
-        registry: { roleConnection: RolePage } | null
-      }>(buildRolesQuery(endCursor), { address: registryAddress }),
-      (e) => new GetRegistryRolesError({ cause: e as ClientError }),
-    )
-
-    if (!rolePage) break
-    collectRoots(rolePage.roleConnection)
-    hasNextPage = rolePage.roleConnection.pageInfo.hasNextPage
-    endCursor = rolePage.roleConnection.pageInfo.endCursor
-  }
-
   // One bitmap per (resource, account); OR defensively against duplicates.
   // Skip any row whose bitmap can't be parsed rather than failing the query.
   const bitmapByAccount = new Map<string, bigint>()
-  for (const role of rootRoles) {
-    const bitmap = safeBigInt(role.roleBitmap)
+  for (const { node } of registry.roleConnection.edges) {
+    if (!isRootResource(node.resource)) continue
+    const bitmap = safeBigInt(node.roleBitmap)
     if (bitmap === null) continue
-    const key = role.account.toLowerCase()
+    const key = node.account.toLowerCase()
     bitmapByAccount.set(key, (bitmapByAccount.get(key) ?? 0n) | bitmap)
   }
 
