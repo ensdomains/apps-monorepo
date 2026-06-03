@@ -189,26 +189,24 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           <ViewResolverSection resolverAddress={records.resolverAddress} /> */}
           <ViewLinksSection records={records} />
 
-          {/* Edit Button */}
-          {isOwner && (
+          {isOwner && !expiry.isInGrace && (
             <div className="space-y-2">
-              {profileEditNewEnabled && (
+              {profileEditNewEnabled ? (
                 <EditProfileDialog
                   name={name}
                   onUpdated={refetchRecords}
                   owner={owner}
                   records={records}
                 />
+              ) : (
+                <LinkButton
+                  className="w-full"
+                  params={{ name }}
+                  to="/p/$name/edit"
+                >
+                  <Trans>Edit Profile</Trans>
+                </LinkButton>
               )}
-          {isOwner && !expiry.isInGrace && (
-            <div>
-              <LinkButton
-                className="w-full"
-                params={{ name }}
-                to="/p/$name/edit"
-              >
-                <Trans>Edit Profile</Trans>
-              </LinkButton>
             </div>
           )}
         </div>
