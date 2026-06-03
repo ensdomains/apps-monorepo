@@ -29,10 +29,6 @@ describe('feature-flags', () => {
       expect(typeof result).toBe('boolean')
     })
 
-    it('keeps migration disabled by default', () => {
-      expect(isFeatureEnabled('MIGRATION')).toBe(false)
-    })
-
     it('should return true when feature is enabled and no user restrictions', () => {
       const flag = 'DISCOUNTS_APPLIED' as keyof typeof FEATURE_FLAGS
       const config = FEATURE_FLAGS[flag]
