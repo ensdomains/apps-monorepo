@@ -5,6 +5,7 @@ import { Check } from 'lucide-react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
@@ -84,8 +85,12 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   if (isLoading) return <LoadingSpinner title="Loading roles..." />
 
   if (error) {
-    const message = (error as { cause?: { message?: string } }).cause?.message
-    return <div>Error loading roles{message ? `: ${message}` : ''}</div>
+    return (
+      <ErrorMessage
+        title="Failed to load roles"
+        description={error.cause?.message}
+      />
+    )
   }
 
   return (
