@@ -1,8 +1,8 @@
 import { Trans } from '@lingui/react/macro'
-import { AnimateNumber } from 'motion-plus/react'
 import type { ReactNode } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { tw } from '@/utils/tailwind'
+import { AnimatedPrice } from '../AnimatedPrice'
 
 const pillShadow =
   'shadow-[inset_0px_0px_4px_0px_rgba(198,223,233,0.3)]' as const
@@ -10,12 +10,6 @@ const pillShadow =
 type FeePillProps = {
   label: ReactNode
   value: string
-  /**
-   * When set, the pill renders the value via `AnimateNumber` (slot-machine
-   * animation) instead of the static `value` string. Used for the cooldown
-   * banner's "Additional fee" pill so the cooling-down dollars animate
-   * smoothly each tick. Mirrors the cart total's animation in PaymentCard.
-   */
   animatedValue?: number
   variant: 'base' | 'premium'
   showDecayIcon?: boolean
@@ -45,23 +39,14 @@ const FeePill = ({
     <div className="flex items-center gap-0.5">
       <span
         className={tw(
-          'font-medium font-mono text-base leading-normal tracking-tight tabular-nums',
+          'font-medium font-mono text-base tabular-nums leading-normal tracking-tight',
           variant === 'premium' ? 'text-ens-lapis-500' : 'text-[#1d293d]',
         )}
       >
-        {animatedValue !== undefined ? (
-          <AnimateNumber
-            format={{
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 2,
-            }}
-          >
-            {animatedValue}
-          </AnimateNumber>
-        ) : (
+        {animatedValue === undefined ? (
           value
+        ) : (
+          <AnimatedPrice emphasis="active" value={animatedValue} />
         )}
       </span>
       {showDecayIcon && (

@@ -184,6 +184,13 @@ export const useCheckAvailability = ({
     [availabilityQuery.data?.name],
   )
 
+  // `pricingQuery` already runs for available names, so we can read the
+  // on-chain premium for free to drive the cooldown pill.
+  const isInCooldown = useMemo(() => {
+    const premium = pricingQuery.data?.usdc?.premium
+    return typeof premium === 'bigint' && premium > 0n
+  }, [pricingQuery.data])
+
   // Error message extraction
   const errorMessage = useMemo(() => {
     const err = availabilityQuery.error
@@ -206,6 +213,7 @@ export const useCheckAvailability = ({
     pricing,
     displayState,
     premiumLabel,
+    isInCooldown,
     primaryName: primaryNameQuery.data ?? null,
     isPrimaryNameLoading: primaryNameQuery.isLoading,
     selectedName: availabilityQuery.data?.name ?? null,

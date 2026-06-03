@@ -117,11 +117,11 @@ export const TokenPickerContent = () => {
           : null
       }
       isConnected={isConnected}
+      isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       label={label}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
-      isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
       selectedToken={selectedToken}

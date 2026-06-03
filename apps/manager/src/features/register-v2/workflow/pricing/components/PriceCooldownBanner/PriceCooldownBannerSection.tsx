@@ -24,7 +24,6 @@ import {
 } from '../temporary-premium/TemporaryPremiumChart'
 import { PriceCooldownBanner } from './PriceCooldownBanner'
 import { usePriceCooldownChartSelection } from './usePriceCooldownChartSelection'
-import { mockNow } from '../../../../data/mocks/mockClock'
 import { useTickingNowMs } from './useTickingNowMs'
 
 type PriceCooldownBannerLoadedProps = {
@@ -32,7 +31,6 @@ type PriceCooldownBannerLoadedProps = {
   premiumStartDate: Date
   premiumRange: PremiumInstantRange
   nowPoint: number
-  /** Live USD value of the current premium, recomputed every second. */
   currentPremiumValue?: number
 }
 
@@ -100,15 +98,10 @@ export const PriceCooldownBannerSection = () => {
     })
   }, [oracleQuery.data?.premiumDecay, pricingQuery.data, baseRate])
 
-  // Anchor the premium start date to the FIRST non-null derivation.
-  //
-  // `getPremiumInstantRange` back-solves startMs from (currentPremium, Date.now()).
-  // Without anchoring, every 60s pricing refetch would shift startMs by the
-  // network latency between fetches, making the chart's x-axis crawl. We want
-  // the chart anchored once and the dot to do the moving.
-  //
-  // The anchor is implicitly keyed by name+duration: changing either makes
-  // pricingQuery key change → component unmounts/remounts → ref resets. Good.
+  // Anchor on first non-null derivation. `getPremiumInstantRange` back-solves
+  // startMs from (currentPremium, Date.now()), so without a ref every 60s
+  // refetch would shift the start date by the latency since the previous
+  // fetch and slowly crawl the chart's x-axis.
   const premiumStartDateRef = useRef<Date | null>(null)
   const premiumRange = bannerData?.premiumRange
   if (premiumRange && !premiumStartDateRef.current) {
@@ -116,54 +109,32 @@ export const PriceCooldownBannerSection = () => {
   }
   const premiumStartDate = premiumStartDateRef.current
 
-  // Tick locally every second so the chart's "now" dot crawls smoothly between
-  // on-chain refetches. Disabled when the banner isn't showing to avoid a
-  // background interval. Each refetch corrects any drift (the contract is the
-  // source of truth for the cart total — see pricing.query.ts).
-  //
-  // We pass `mockNow` (shared with buildMockedPricing). In production it's
-  // identical to Date.now(); under VITE_FF_MOCK_TEMP_PREMIUM_TIME_SCALE the
-  // banner pill, chart dot, AND mocked cart total all advance in lockstep
-  // on the same virtual clock — otherwise the pill would race ahead of the
-  // cart, which is the symptom we just hit.
   const tickEnabled = !!premiumStartDate
-  const nowMs = useTickingNowMs(1_000, tickEnabled, mockNow)
+  const nowMs = useTickingNowMs(1_000, tickEnabled)
 
-  // NOTE: we compute the float version of `pointAtDate` here. The exported
-  // pointAtDate rounds to an integer, which over a 1-second tick means
-  // nowPoint flips by 1 only every ~28s (1s / 21 days × 65536 ≈ 0.036/s).
-  // That made the chart's `now` dot appear frozen — same integer in,
-  // same memoized value out, no chart re-render. The chart's downstream
-  // math (`priceAtDay`, `posAtPoint`) is fully continuous, so passing a
-  // fractional point is fine and gives smooth per-second motion.
+  // Inline float version of `pointAtDate`. The exported helper rounds to an
+  // integer point — over a 1-second tick that's a no-op for ~28 seconds and
+  // the chart appears frozen. The chart's downstream math is continuous so
+  // the fractional point is safe.
   const nowPoint = useMemo(() => {
     if (!premiumStartDate) return 0
     const elapsedMs = nowMs - premiumStartDate.getTime()
     return (elapsedMs / PREMIUM_DURATION_MS) * PREMIUM_RESOLUTION
   }, [premiumStartDate, nowMs])
 
-  // Live, per-second premium USD value for the "Additional fee" / "Fee at
-  // this moment" pill. Derived from the anchored start date, the local 1s
-  // tick, and the on-chain decay config. The pill renders this via
-  // AnimateNumber (slot-machine digit animation). The contract refetch every
-  // 60s remains authoritative for the cart total in PaymentCard.
+  // Live per-second premium for the banner pill. The cart total still uses
+  // the 60s refetch snapshot (authoritative for submission); this is the
+  // animation layer between refetches.
   const liveCurrentPremiumUsd = useMemo(() => {
     const decay = oracleQuery.data?.premiumDecay
     if (!premiumStartDate || !decay) return undefined
-    return getPremiumPriceAtInstant(
-      premiumStartDate.getTime(),
-      nowMs,
-      decay,
-    )
+    return getPremiumPriceAtInstant(premiumStartDate.getTime(), nowMs, decay)
   }, [premiumStartDate, nowMs, oracleQuery.data?.premiumDecay])
 
-  // Also override the static fallback label so it matches the animated value
-  // on first paint (before AnimateNumber settles) and during SSR / when the
-  // animated path is unavailable for any reason.
   const liveCurrentPremiumLabel =
-    liveCurrentPremiumUsd !== undefined
-      ? formatUsd(liveCurrentPremiumUsd)
-      : null
+    liveCurrentPremiumUsd === undefined
+      ? null
+      : formatUsd(liveCurrentPremiumUsd)
 
   if (!bannerData?.show || !premiumStartDate || !premiumRange) {
     return null

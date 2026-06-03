@@ -54,7 +54,7 @@ export const ChartValuePill = ({
   >
     <span
       className={cn(
-        'text-center font-sans font-normal text-[12px] leading-[1.5] tracking-[-0.132px]',
+        'text-center font-normal font-sans text-[12px] leading-[1.5] tracking-[-0.132px]',
         isPast && 'italic',
         LABEL_COLOR_BY_VARIANT[variant],
       )}
@@ -63,7 +63,7 @@ export const ChartValuePill = ({
     </span>
     <span
       className={cn(
-        'font-mono font-medium text-[16px] leading-none tracking-[-0.176px] tabular-nums',
+        'font-medium font-mono text-[16px] tabular-nums leading-none tracking-[-0.176px]',
         // Past selections are muted regardless of variant.
         isPast ? 'text-ens-lapis-surface' : VALUE_COLOR_BY_VARIANT[variant],
       )}

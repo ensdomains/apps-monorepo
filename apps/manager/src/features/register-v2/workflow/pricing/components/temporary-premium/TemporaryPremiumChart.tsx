@@ -2,6 +2,7 @@ import {
   type ChangeEvent,
   forwardRef,
   type MouseEvent,
+  type PointerEvent,
   type RefObject,
   useCallback,
   useEffect,
@@ -325,9 +326,17 @@ export function dateToInputValue(date: Date): string {
 }
 
 export function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1_000) return `$${Math.round(n).toLocaleString()}`
-  if (n >= 1) return `$${n.toFixed(2)}`
+  // Millions are abbreviated with at most one decimal and no trailing ".0"
+  // ($100M, $26.5M, $26M) — matching the clean axis labels rather than the
+  // noisy "$26.01M".
+  if (n >= 1_000_000) {
+    const millions = (n / 1_000_000).toFixed(1).replace(/\.0$/, '')
+    return `$${millions}M`
+  }
+  // Pricing page rounds to whole dollars — cents are noise on the big cooldown
+  // numbers. Only show cents once the value drops below $1 (the additional fee
+  // near the end of its decay).
+  if (n >= 1) return `$${Math.round(n).toLocaleString()}`
   return `$${n.toFixed(2)}`
 }
 
@@ -605,6 +614,13 @@ export type TemporaryPremiumChartProps = {
   tweenNowPrice?: boolean
   tweenDurationMs?: number
   allowPastSelection?: boolean
+  /**
+   * When true, the selected-point pill renders below the chart (with a
+   * vertical dashed leader) instead of as a floating pill on the chart
+   * surface. Used on mobile/compact layouts where horizontal leader lines
+   * collide with the chart edges. Hover pills are suppressed in this mode.
+   */
+  selectedLabelBelow?: boolean
 }
 
 type LabelView = {
@@ -615,6 +631,68 @@ type LabelView = {
   didCollideWithNow: boolean
   topLine: string
   bottomLine: string
+}
+
+/**
+ * A single value label rendered below the chart (mobile/compact layout),
+ * centered under its dot. It measures its own rendered width and clamps its
+ * horizontal position so it never spills past the left or right edge of the
+ * chart — important for wide "millions" values near the ends of the curve.
+ */
+function BelowLabel({
+  view,
+  chartWidth,
+  ghost = false,
+}: {
+  view: LabelView
+  chartWidth: number
+  ghost?: boolean
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [labelWidth, setLabelWidth] = useState(0)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure when the displayed text changes
+  useEffect(() => {
+    if (ref.current) setLabelWidth(ref.current.offsetWidth)
+  }, [view.topLine, view.bottomLine])
+
+  const half = labelWidth / 2
+  const margin = 4
+  const left =
+    labelWidth > 0
+      ? Math.min(
+          Math.max(view.pos.x, half + margin),
+          chartWidth - half - margin,
+        )
+      : view.pos.x
+
+  return (
+    <div
+      className={cn(
+        'absolute top-0 -translate-x-1/2 whitespace-nowrap',
+        ghost && 'opacity-60',
+      )}
+      ref={ref}
+      style={{ left }}
+    >
+      <div
+        className={cn(
+          'whitespace-nowrap text-center font-normal font-sans text-[12px] leading-[1.4] tracking-[-0.132px]',
+          view.isPast ? 'text-ens-lapis-surface italic' : 'text-[#737373]',
+        )}
+      >
+        {view.isPast ? `was — ${view.topLine}` : view.topLine}
+      </div>
+      <div
+        className={cn(
+          'whitespace-nowrap text-center font-medium font-mono text-[16px] tabular-nums leading-none tracking-[-0.176px]',
+          view.isPast ? 'text-ens-lapis-surface' : 'text-ens-lapis-900',
+        )}
+      >
+        {view.bottomLine}
+      </div>
+    </div>
+  )
 }
 
 export const TemporaryPremiumChart = forwardRef<
@@ -632,7 +710,8 @@ export const TemporaryPremiumChart = forwardRef<
     debug,
     tweenNowPrice = true,
     tweenDurationMs = 800,
-    allowPastSelection = true,
+    allowPastSelection = false,
+    selectedLabelBelow = false,
   },
   ref,
 ) {
@@ -665,11 +744,7 @@ export const TemporaryPremiumChart = forwardRef<
       })
     }, sim.intervalMs)
     return () => clearInterval(id)
-  }, [
-    debugProps?.simulatePolling?.intervalMs,
-    debugProps?.simulatePolling?.decayPerTick,
-    nowPoint,
-  ])
+  }, [debugProps?.simulatePolling, nowPoint])
 
   const effectiveNowPoint = simulatedNowPoint ?? nowPoint
 
@@ -757,9 +832,7 @@ export const TemporaryPremiumChart = forwardRef<
               obstacleBox,
               geo,
             )
-            if (newLen != null) {
-              leader = computeLeaderGeometry(pos, placement, cfg, newLen)
-            } else {
+            if (newLen == null) {
               const flipped: LeaderPlacement = {
                 ...placement,
                 dir: placement.dir === 'right' ? 'left' : 'right',
@@ -771,12 +844,14 @@ export const TemporaryPremiumChart = forwardRef<
                 obstacleBox,
                 geo,
               )
-              if (flippedLen != null) {
+              if (flippedLen == null) {
+                leader = computeLeaderGeometry(pos, flipped, cfg)
+              } else {
                 placement = flipped
                 leader = computeLeaderGeometry(pos, flipped, cfg, flippedLen)
-              } else {
-                leader = computeLeaderGeometry(pos, flipped, cfg)
               }
+            } else {
+              leader = computeLeaderGeometry(pos, placement, cfg, newLen)
             }
           } else {
             const longerLeader = cfg.leaderLength + cfg.labelHeight + 14
@@ -835,8 +910,12 @@ export const TemporaryPremiumChart = forwardRef<
     return buildSteepZonePath(geo, cfg.steepThreshold)
   }, [debugEnabled, debugProps?.showOverlay, geo, cfg.steepThreshold, width])
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent<HTMLButtonElement>) => {
+  // Pointer events unify mouse and touch handling. On touch devices the
+  // browser only fires pointermove while a finger is in contact, so dragging
+  // updates the hover point and lifting the finger fires the synthetic click
+  // for selection.
+  const handlePointerMove = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
       if (width === 0) return
       const rect = e.currentTarget.getBoundingClientRect()
       const x = e.clientX - rect.left - PADDING
@@ -851,11 +930,20 @@ export const TemporaryPremiumChart = forwardRef<
     [geo, width],
   )
 
-  const handleMouseLeave = useCallback(() => {
+  const handlePointerLeave = useCallback(() => {
     if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current)
     hoverRafRef.current = null
     setHoverPoint(null)
   }, [])
+
+  // Touch end: clear the hover point so a tapped finger doesn't leave a stale
+  // hover dot lingering on the chart.
+  const handlePointerUp = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
+      if (e.pointerType === 'touch') handlePointerLeave()
+    },
+    [handlePointerLeave],
+  )
 
   const handleClick = useCallback(
     (e: MouseEvent<HTMLButtonElement>) => {
@@ -863,10 +951,18 @@ export const TemporaryPremiumChart = forwardRef<
       const rect = e.currentTarget.getBoundingClientRect()
       const x = e.clientX - rect.left - PADDING
       const pt = pointAtX(x, geo)
-      onSelect(allowPastSelection ? pt : Math.max(effectiveNowPoint, pt))
+      // Clicks in the past area are ignored (hover-only). Past selection only
+      // applies in debug/story contexts that opt in via allowPastSelection.
+      if (!allowPastSelection && pt < effectiveNowPoint) return
+      onSelect(pt)
     },
     [geo, effectiveNowPoint, onSelect, width, allowPastSelection],
   )
+
+  // When the cursor is hovering the past area and selection isn't allowed
+  // there, drop the crosshair cursor so the area reads as hover-only.
+  const isHoverInPastAndLocked =
+    !allowPastSelection && hoverPoint !== null && hoverPoint < effectiveNowPoint
 
   let selectedLeaderStroke = 'var(--premium-chart-selected, #0F1E33)'
   if (selectedView?.isPast)
@@ -874,17 +970,19 @@ export const TemporaryPremiumChart = forwardRef<
   if (selectedView?.didCollideWithNow)
     selectedLeaderStroke = 'var(--premium-chart-muted, #CBD5E1)'
 
-  return (
+  const chart = (
     <button
       aria-label="Temporary premium decay chart"
       className={cn(
-        'premium-chart relative block w-full cursor-crosshair select-none overflow-visible rounded-xl border-0 bg-transparent p-0 text-left',
+        'premium-chart relative block w-full select-none overflow-visible rounded-xl border-0 bg-transparent p-0 text-left',
+        isHoverInPastAndLocked ? 'cursor-default' : 'cursor-crosshair',
         className,
       )}
       data-debug={debugEnabled ? 'true' : undefined}
       onClick={handleClick}
-      onMouseLeave={handleMouseLeave}
-      onMouseMove={handleMouseMove}
+      onPointerLeave={handlePointerLeave}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
       ref={(node) => {
         containerRef.current = node
         if (typeof ref === 'function') ref(node)
@@ -928,7 +1026,7 @@ export const TemporaryPremiumChart = forwardRef<
             vectorEffect="non-scaling-stroke"
           />
         )}
-        {hoverView && (
+        {hoverView && !selectedLabelBelow && (
           <line
             opacity={0.7}
             stroke="var(--premium-chart-hover, #94A3B8)"
@@ -954,7 +1052,7 @@ export const TemporaryPremiumChart = forwardRef<
             y2={nowView.leader.leaderEnd.y}
           />
         )}
-        {selectedView && (
+        {selectedView && !selectedLabelBelow && (
           <line
             stroke={selectedLeaderStroke}
             strokeDasharray="4 3"
@@ -964,6 +1062,32 @@ export const TemporaryPremiumChart = forwardRef<
             x2={selectedView.leader.leaderEnd.x}
             y1={selectedView.leader.leaderStart.y}
             y2={selectedView.leader.leaderEnd.y}
+          />
+        )}
+        {selectedView && selectedLabelBelow && (
+          <line
+            stroke={selectedLeaderStroke}
+            strokeDasharray="4 3"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+            x1={selectedView.pos.x}
+            x2={selectedView.pos.x}
+            y1={selectedView.pos.y}
+            y2={height - 4}
+          />
+        )}
+        {hoverView && selectedLabelBelow && (
+          // Same, ghosted, for the hover preview (its horizontal leader is hidden here).
+          <line
+            opacity={0.6}
+            stroke="var(--premium-chart-hover, #94A3B8)"
+            strokeDasharray="4 3"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+            x1={hoverView.pos.x}
+            x2={hoverView.pos.x}
+            y1={hoverView.pos.y}
+            y2={height - 4}
           />
         )}
       </svg>
@@ -994,7 +1118,7 @@ export const TemporaryPremiumChart = forwardRef<
       {hoverView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[1] h-2.5 w-2.5 rounded-full"
+            className="pointer-events-none absolute z-[1] h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               left: hoverView.pos.x,
               top: hoverView.pos.y,
@@ -1002,27 +1126,29 @@ export const TemporaryPremiumChart = forwardRef<
               opacity: 0.85,
             }}
           />
-          <div
-            className="pointer-events-none absolute z-[2]"
-            style={{
-              left: hoverView.leader.labelAnchor.x,
-              top: hoverView.leader.labelAnchor.y,
-              transform: hoverView.leader.labelTransform,
-            }}
-          >
-            <ChartValuePill
-              label={hoverView.topLine}
-              value={hoverView.bottomLine}
-              variant="hover"
-            />
-          </div>
+          {!selectedLabelBelow && (
+            <div
+              className="pointer-events-none absolute z-[2]"
+              style={{
+                left: hoverView.leader.labelAnchor.x,
+                top: hoverView.leader.labelAnchor.y,
+                transform: hoverView.leader.labelTransform,
+              }}
+            >
+              <ChartValuePill
+                label={hoverView.topLine}
+                value={hoverView.bottomLine}
+                variant="hover"
+              />
+            </div>
+          )}
         </>
       )}
 
       {nowView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[3] h-3 w-3 rounded-full"
+            className="pointer-events-none absolute z-[3] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               left: nowView.pos.x,
               top: nowView.pos.y,
@@ -1052,7 +1178,7 @@ export const TemporaryPremiumChart = forwardRef<
         <>
           <div
             className={cn(
-              '-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[5] h-3 w-3 rounded-full',
+              'pointer-events-none absolute z-[5] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full',
               selectedView.isPast && 'border-2 bg-transparent',
             )}
             style={{
@@ -1066,27 +1192,49 @@ export const TemporaryPremiumChart = forwardRef<
                 : undefined,
             }}
           />
-          <div
-            className="pointer-events-none absolute z-[6]"
-            style={{
-              left: selectedView.leader.labelAnchor.x,
-              top: selectedView.leader.labelAnchor.y,
-              transform: selectedView.leader.labelTransform,
-            }}
-          >
-            <ChartValuePill
-              label={
-                selectedView.isPast
-                  ? `was — ${selectedView.topLine}`
-                  : selectedView.topLine
-              }
-              value={selectedView.bottomLine}
-              variant="selected"
-              isPast={selectedView.isPast}
-            />
-          </div>
+          {!selectedLabelBelow && (
+            <div
+              className="pointer-events-none absolute z-[6]"
+              style={{
+                left: selectedView.leader.labelAnchor.x,
+                top: selectedView.leader.labelAnchor.y,
+                transform: selectedView.leader.labelTransform,
+              }}
+            >
+              <ChartValuePill
+                isPast={selectedView.isPast}
+                label={
+                  selectedView.isPast
+                    ? `was — ${selectedView.topLine}`
+                    : selectedView.topLine
+                }
+                value={selectedView.bottomLine}
+                variant="selected"
+              />
+            </div>
+          )}
         </>
       )}
     </button>
+  )
+
+  // Below-chart labels (selected + ghosted hover), rendered as a sibling of the
+  // chart button so they sit outside its click area and don't perturb the
+  // pointer math (which is relative to the button). "Now" stays on the chart.
+  const belowLabel =
+    selectedLabelBelow && width > 0 && (selectedView || hoverView) ? (
+      <div className="relative mt-1 h-10 w-full">
+        {selectedView && <BelowLabel chartWidth={width} view={selectedView} />}
+        {hoverView && <BelowLabel chartWidth={width} ghost view={hoverView} />}
+      </div>
+    ) : null
+
+  if (!selectedLabelBelow) return chart
+
+  return (
+    <div className="flex w-full flex-col">
+      {chart}
+      {belowLabel}
+    </div>
   )
 })

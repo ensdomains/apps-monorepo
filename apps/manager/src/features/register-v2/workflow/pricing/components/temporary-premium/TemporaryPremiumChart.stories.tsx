@@ -44,6 +44,10 @@ function TemporaryPremiumDebugPlayground() {
 
   const [selectedPoint, setSelectedPoint] = useState(initialSelectedPoint)
   const [priceInput, setPriceInput] = useState('')
+  // Toggle the mobile "labels below the chart" layout. Off = desktop on-chart
+  // pills (the default / production desktop behaviour); on = mobile/compact
+  // path with the dashed leader + label rendered below the chart.
+  const [labelBelow, setLabelBelow] = useState(false)
   const [simulation, setSimulation] =
     useState<SimulationSettings>(DEFAULT_SIMULATION)
   const [simulationKey, setSimulationKey] = useState(0)
@@ -142,6 +146,15 @@ function TemporaryPremiumDebugPlayground() {
             />
             Cooldown polling
           </label>
+          <label className="flex cursor-pointer items-center gap-2 text-[#353535] text-sm">
+            <input
+              checked={labelBelow}
+              className="accent-[#0082BB]"
+              onChange={(e) => setLabelBelow(e.target.checked)}
+              type="checkbox"
+            />
+            Labels below chart (mobile)
+          </label>
           <label className="flex flex-col gap-1 text-[#353535] text-xs">
             Interval ({simulation.intervalMs}ms)
             <input
@@ -200,6 +213,7 @@ function TemporaryPremiumDebugPlayground() {
         leaderConfig={{ steepThreshold: debugState.steepThreshold }}
         nowPoint={mockNowPoint}
         onSelect={handleSelect}
+        selectedLabelBelow={labelBelow}
         selectedPoint={selectedPoint}
         startDate={mockStartDate}
         tweenDurationMs={1_500}
@@ -223,3 +237,37 @@ type Story = StoryObj<typeof meta>
 
 /** Interactive demo matching ens_premium_chart_final.html */
 export const DebugPlayground: Story = {}
+
+/**
+ * High premium range in the labels-below layout: ~$90M "now" near the top of
+ * the $100M curve, with the user-selected value at ~$20M. Use this to verify
+ * the downward dashed leaders and that the wide "millions" under-chart labels
+ * stay clamped within the chart edges (don't spill off left/right).
+ */
+function HighNowLabelsBelowDemo() {
+  // ~$90M "now" near the top; selected/user value at ~$20M (a wide millions
+  // label, good for testing the edge clamping below the chart).
+  const nowPoint = useMemo(() => pointAtPrice(90_000_000), [])
+  const [selectedPoint, setSelectedPoint] = useState(() =>
+    pointAtPrice(20_000_000),
+  )
+  const startDate = useMemo(() => new Date(), [])
+
+  return (
+    <div className="mx-auto w-full max-w-md p-6">
+      <TemporaryPremiumChart
+        height={240}
+        nowPoint={nowPoint}
+        onSelect={setSelectedPoint}
+        selectedLabelBelow
+        selectedPoint={selectedPoint}
+        startDate={startDate}
+        tweenNowPrice={false}
+      />
+    </div>
+  )
+}
+
+export const HighNowLabelsBelow: Story = {
+  render: () => <HighNowLabelsBelowDemo />,
+}

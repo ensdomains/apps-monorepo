@@ -3,7 +3,6 @@ import { useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { AnimateNumber } from 'motion-plus/react'
 import { zeroAddress } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
@@ -14,6 +13,7 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { AnimatedPrice } from './AnimatedPrice'
 import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
@@ -77,18 +77,10 @@ export const PaymentCardBase = ({
 }: {
   canNext: boolean
   onNext: () => void
-  /** The grand total (basePrice + premium). Shown big at the bottom. */
   amount: number | undefined
   discountAmount?: number
   premiumAmount?: number
-  /**
-   * Base registration cost (excludes the one-time cooldown premium). When
-   * provided alongside a non-zero `premiumAmount`, the card splits the
-   * breakdown into a "Registration" line and a "Cooldown fee" line so the
-   * user can see both components — not just the cooldown — feeding into the
-   * grand total. Without it, only the cooldown line shows (original
-   * behaviour), preserving the renew flow which doesn't pass basePrice.
-   */
+  /** Base registration cost (excludes the one-time cooldown premium). */
   basePrice?: number
   isLoading: boolean
   type: 'register' | 'renew'
@@ -104,12 +96,6 @@ export const PaymentCardBase = ({
       )}
     >
       <div className="w-full max-w-55 space-y-3 text-center">
-        {/*
-          Break down `total = base + premium` when the name is in cooldown so
-          the user sees both contributions. The base-only / renew flow keeps
-          the old shape (TOTAL only). See PaymentCardPremiumLine for the
-          row layout.
-        */}
         {premiumAmount !== undefined && premiumAmount > 0 && (
           <div className="space-y-2">
             {basePrice !== undefined && (
@@ -136,16 +122,7 @@ export const PaymentCardBase = ({
               isLoading && 'animate-pulse',
             )}
           >
-            <AnimateNumber
-              format={{
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2,
-              }}
-            >
-              {amount ?? 0}
-            </AnimateNumber>
+            <AnimatedPrice emphasis="soft" value={amount ?? 0} />
           </span>
           <span className="font-normal text-base text-ens-blue-midnight leading-7">
             <Trans>USD</Trans>
@@ -160,17 +137,7 @@ export const PaymentCardBase = ({
         >
           <span className="font-normal text-2xl text-ens-peridot-core leading-ens-none">
             <Trans>
-              Save{' '}
-              <AnimateNumber
-                format={{
-                  style: 'currency',
-                  currency: 'USD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 2,
-                }}
-              >
-                {discountAmount ?? 0}
-              </AnimateNumber>
+              Save <AnimatedPrice value={discountAmount ?? 0} />
             </Trans>
           </span>
         </div>

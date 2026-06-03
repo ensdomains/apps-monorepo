@@ -13,6 +13,8 @@ interface DomainResultCardProps {
   className?: string
   isLoading?: boolean
   clickable?: boolean
+  /** Renders the "Price Cooldown" pill when the name is in temp premium. */
+  isInCooldown?: boolean
 }
 
 const statusIconMap = {
@@ -29,6 +31,7 @@ export const DomainResultCard = ({
   className,
   isLoading = false,
   clickable = false,
+  isInCooldown = false,
 }: DomainResultCardProps) => {
   const baseClasses = cn(
     'domain-result-card',
@@ -112,6 +115,9 @@ export const DomainResultCard = ({
                 label={premiumLabel.label}
                 variant={premiumLabel.variant}
               />
+            )}
+            {isInCooldown && (
+              <DomainAttributePill label="Price Cooldown" variant="cooldown" />
             )}
           </div>
         </>

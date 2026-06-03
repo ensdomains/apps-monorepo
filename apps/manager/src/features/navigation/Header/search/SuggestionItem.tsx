@@ -7,8 +7,12 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
-import { getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
+import {
+  getNamePricingQueryOptions,
+  getSearchNameQueryOptions,
+} from '@/features/register/services/checkNameAvailabilityService'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
@@ -97,6 +101,17 @@ export const NameSuggestionItem = ({
   const isAvailable = isSupported && !isSubname && isRegistered === false
   const isDisabled = !isSupported || (isSubname && isRegistered === false)
 
+  // Only fetch pricing for rows that are actually available — registered
+  // names and subnames can't be in cooldown.
+  const pricingQuery = useQuery({
+    ...getNamePricingQueryOptions(isAvailable ? name : undefined),
+    enabled: isAvailable && !isSubname,
+  })
+  const isInCooldown =
+    isAvailable &&
+    typeof pricingQuery.data?.usdc?.premium === 'bigint' &&
+    pricingQuery.data.usdc.premium > 0n
+
   return (
     <Link
       className={tw(
@@ -129,6 +144,12 @@ export const NameSuggestionItem = ({
         <span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
           {name}
         </span>
+        {isInCooldown && (
+          <div className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ens-lapis-100 px-1.5 py-1 font-normal text-ens-lapis-500 text-xs">
+            <Trans>Price Cooldown</Trans>
+            <MSymbol className="ms-opsz-14 ms-wght-400" symbol="hourglass" />
+          </div>
+        )}
         {match({ isSupported, isSubname, isLoading, isError, isRegistered })
           .with({ isSupported: false }, () => (
             <div className="shrink-0 rounded-full bg-red-50 px-1.5 py-1 font-normal text-red-500 text-xs">

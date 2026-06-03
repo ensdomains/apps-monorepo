@@ -86,18 +86,9 @@ const TargetPriceField = ({
           <Trans>What additional fee would you pay?</Trans>
         </span>
       </p>
-      {/*
-        Flat label wrapping a flush "$", an auto-sized input, and the suffix.
-        We dropped the shadcn InputGroup primitive here because its
-        inline-start addon has its own padding (and adds a sibling pl-1.5
-        rule to the input), which produced a visible gap between "$" and
-        the typed value — we want them tight ("$5,000" not "$ 5,000").
-
-        Clicking anywhere on the <label> focuses the input natively.
-        `field-sizing: content` shrinks the input to its value width so
-        the suffix sits immediately after the digits instead of floating
-        at the far right edge of the box.
-      */}
+      {/* field-sizing: content shrinks the input to its value width so the
+          suffix sits right after the digits. Clicking the label focuses
+          the input natively. */}
       <label
         className={tw(
           'flex h-12 w-full cursor-text items-center gap-2 overflow-hidden',
@@ -105,11 +96,11 @@ const TargetPriceField = ({
           'focus-within:border-ens-lapis-400',
         )}
       >
-        <span className="text-sm text-ens-quartz-900">$</span>
+        <span className="text-ens-quartz-900 text-sm">$</span>
         <input
           className={tw(
-            'flex-initial [field-sizing:content] min-w-[2ch]',
-            'border-0 bg-transparent p-0 text-sm text-ens-quartz-900 outline-none',
+            'min-w-[2ch] flex-initial [field-sizing:content]',
+            'border-0 bg-transparent p-0 text-ens-quartz-900 text-sm outline-none',
             'placeholder:text-ens-quartz-360',
           )}
           inputMode="decimal"
@@ -122,14 +113,8 @@ const TargetPriceField = ({
           type="text"
           value={targetPriceInput ?? ''}
         />
-        {/*
-          Suffix reminder: the cooldown fee is *additional* to the recurring
-          yearly base price. Showing it inside the field keeps that framing
-          inline with the typed number. Hidden until the oracle base rate
-          has loaded so we never flash "+ undefined base price".
-        */}
         {basePricePerYearLabel && (
-          <span className="select-none text-sm text-ens-quartz-400">
+          <span className="select-none text-ens-quartz-400 text-sm">
             + {basePricePerYearLabel} base price
           </span>
         )}

@@ -101,13 +101,13 @@ const TokenPickerDialogShell = ({
       <TokenPickerContentBase
         errorMessage={errorMessage}
         isConnected={isConnected}
+        isInPriceCooldown={isInPriceCooldown}
         isLoadingBalances={isLoadingBalances}
         label={label}
         onNext={() => {
           console.log('Buy Name clicked', { label, selectedToken, pricingData })
         }}
         onSelectCoin={setSelectedToken}
-        isInPriceCooldown={isInPriceCooldown}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
         selectedToken={selectedToken}

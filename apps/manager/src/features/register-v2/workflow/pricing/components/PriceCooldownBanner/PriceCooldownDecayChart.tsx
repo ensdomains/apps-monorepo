@@ -21,10 +21,10 @@ export const PriceCooldownDecayChart = ({
 }: PriceCooldownDecayChartProps) => (
   <div className="flex w-full flex-col gap-2">
     <TemporaryPremiumChart
-      allowPastSelection
       height={compact ? 180 : 240}
       nowPoint={nowPoint}
       onSelect={onSelectedPointChange}
+      selectedLabelBelow={compact}
       selectedPoint={selectedPoint}
       startDate={premiumStartDate}
     />
