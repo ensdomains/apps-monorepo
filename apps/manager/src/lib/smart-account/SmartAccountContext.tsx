@@ -232,6 +232,7 @@ export const SmartAccountContextProvider = ({
       !addressToFund ||
       isLoading ||
       balances.isLoadingBalances ||
+      balances.isLoadingApprovalGasState ||
       !isFundingIdle
     ) {
       return
@@ -243,14 +244,21 @@ export const SmartAccountContextProvider = ({
       0n,
     )
 
-    if (totalBalance >= 500n) return
+    // Fund when the owner is low on stablecoins OR can't afford the one-time
+    // registrar approve (low ETH + not yet approved — see
+    // useSmartAccountBalances). The api-worker faucet mints tokens and/or drips
+    // approve-gas ETH as needed; both sides are gated so this stays idempotent.
+    const needsStablecoins = totalBalance < 500n
+    if (!needsStablecoins && !balances.needsApprovalGasTopUp) return
 
     fundWallet(addressToFund)
   }, [
     addressToFund,
     isLoading,
     balances.isLoadingBalances,
+    balances.isLoadingApprovalGasState,
     balances.stablecoinBalances,
+    balances.needsApprovalGasTopUp,
     isFundingIdle,
     fundWallet,
   ])
