@@ -27,9 +27,9 @@ import {
 
 interface EditProfileDialogProps {
   readonly name: string
-  records: ProfileRecords
-  owner?: Address
-  onUpdated?: () => undefined | Promise<unknown>
+  readonly records: ProfileRecords
+  readonly owner?: Address
+  readonly onUpdated?: () => undefined | Promise<unknown>
 }
 
 export const EditProfileDialog = ({

@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   Clock,
   Image as ImageIcon,
   Languages,
@@ -9,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
 import type { ProfileRecords, TextRecordValue } from '../../types'
 import { ImageSelectionDialog } from './ImageSelectionDialog'
@@ -32,6 +34,22 @@ type BaseGeneralField =
   | 'description'
   | 'language'
 
+const timezoneOptions = Array.from({ length: 27 }, (_, index) => {
+  const offset = index - 12
+  return `UTC${offset >= 0 ? `+${offset}` : offset}`
+})
+
+const timezoneSelectOptions = timezoneOptions.map((value) => ({
+  label: value,
+  value,
+}))
+
+const languageOptions = Object.entries(LOCALES)
+  .map(([value, label]) => ({ label, value }))
+  .sort((languageA, languageB) =>
+    languageA.label.localeCompare(languageB.label),
+  )
+
 const getTextRecordValue = (records: readonly TextRecordValue[], key: string) =>
   records.find((record) => record.key === key)?.value ?? ''
 
@@ -42,6 +60,56 @@ const setTextRecordValue = (
 ): TextRecordValue[] => {
   const nextRecords = records.filter((record) => record.key !== key)
   return value.trim() === '' ? nextRecords : [...nextRecords, { key, value }]
+}
+
+interface SelectFieldProps {
+  readonly ariaLabel: string
+  readonly disabled?: boolean
+  readonly onChange: (value: string) => void
+  readonly options: readonly {
+    readonly label: string
+    readonly value: string
+  }[]
+  readonly placeholder: string
+  readonly value: string
+}
+
+const SelectField = ({
+  ariaLabel,
+  disabled,
+  onChange,
+  options,
+  placeholder,
+  value,
+}: SelectFieldProps) => {
+  const hasCustomValue =
+    value.trim() !== '' && !options.some((option) => option.value === value)
+
+  return (
+    <div className="relative">
+      <select
+        aria-label={ariaLabel}
+        className={cn(
+          'h-16 w-full appearance-none rounded-md border border-input bg-transparent px-6 pr-12 text-lg shadow-xs outline-none transition-[color,box-shadow]',
+          'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+          'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+          value ? 'text-foreground' : 'text-muted-foreground',
+        )}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        <option value="">{placeholder}</option>
+        {hasCustomValue && <option value={value}>{value}</option>}
+        {options.map(({ label, value: optionValue }) => (
+          <option key={optionValue} value={optionValue}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-5 size-5 text-muted-foreground" />
+    </div>
+  )
 }
 
 export const getDefaultVisibleFields = (
@@ -196,12 +264,37 @@ export const EditProfileGeneralTab = ({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          {isVisible('timezone') && (
+            <SelectField
+              ariaLabel="Timezone"
+              disabled={isSaving}
+              onChange={(value) =>
+                onContactChange(
+                  setTextRecordValue(values.contact, 'timezone', value),
+                )
+              }
+              options={timezoneSelectOptions}
+              placeholder="Timezone"
+              value={getTextRecordValue(values.contact, 'timezone')}
+            />
+          )}
+          {isVisible('language') && (
+            <SelectField
+              ariaLabel="Language"
+              disabled={isSaving}
+              onChange={(value) => setBaseValue('language', value)}
+              options={languageOptions}
+              placeholder="Language"
+              value={values.base.language ?? ''}
+            />
+          )}
+        </div>
         {isVisible('location') && (
           <Input
-            className="rounded-md"
+            className="h-16 rounded-md px-6 text-lg"
             disabled={isSaving}
-            label="Location"
             onChange={(event) =>
               onContactChange(
                 setTextRecordValue(
@@ -212,38 +305,7 @@ export const EditProfileGeneralTab = ({
               )
             }
             placeholder="Location"
-            size="lg"
             value={getTextRecordValue(values.contact, 'location')}
-          />
-        )}
-        {isVisible('timezone') && (
-          <Input
-            className="rounded-md"
-            disabled={isSaving}
-            label="Timezone"
-            onChange={(event) =>
-              onContactChange(
-                setTextRecordValue(
-                  values.contact,
-                  'timezone',
-                  event.target.value,
-                ),
-              )
-            }
-            placeholder="Timezone"
-            size="lg"
-            value={getTextRecordValue(values.contact, 'timezone')}
-          />
-        )}
-        {isVisible('language') && (
-          <Input
-            className="rounded-md"
-            disabled={isSaving}
-            label="Language"
-            onChange={(event) => setBaseValue('language', event.target.value)}
-            placeholder="en"
-            size="lg"
-            value={values.base.language ?? ''}
           />
         )}
       </div>
