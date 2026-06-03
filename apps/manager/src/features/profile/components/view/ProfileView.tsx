@@ -15,6 +15,7 @@ import {
 } from '../../service/profileRecords'
 import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
+import { EditProfileDialog } from '../dialogs/EditProfileDialog'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
@@ -70,6 +71,7 @@ const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
+  const profileEditNewEnabled = useFeatureFlag('PROFILE_EDIT_NEW')
   const { data: profileRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -112,7 +114,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
           {/* Edit Button */}
           {isOwner && (
-            <div>
+            <div className="space-y-2">
+              {profileEditNewEnabled && <EditProfileDialog name={name} />}
               <LinkButton
                 className="w-full"
                 params={{ name }}
