@@ -32,16 +32,19 @@ describe('feature-flags', () => {
     it('gates the new profile editor flag', () => {
       const original = FEATURE_FLAGS.PROFILE_EDIT_NEW
       const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.PROFILE_EDIT_NEW = { enabled: false }
 
-      expect(isFeatureEnabled('PROFILE_EDIT_NEW')).toBe(false)
+      try {
+        mutableFlags.PROFILE_EDIT_NEW = { enabled: false }
 
-      mutableFlags.PROFILE_EDIT_NEW = { enabled: true }
+        expect(isFeatureEnabled('PROFILE_EDIT_NEW')).toBe(false)
 
-      expect(isFeatureEnabled('PROFILE_EDIT_NEW')).toBe(true)
+        mutableFlags.PROFILE_EDIT_NEW = { enabled: true }
 
-      mutableFlags.PROFILE_EDIT_NEW =
-        original as unknown as MutableFeatureFlags[string]
+        expect(isFeatureEnabled('PROFILE_EDIT_NEW')).toBe(true)
+      } finally {
+        mutableFlags.PROFILE_EDIT_NEW =
+          original as unknown as MutableFeatureFlags[string]
+      }
     })
 
     it('should return true when feature is enabled and no user restrictions', () => {
