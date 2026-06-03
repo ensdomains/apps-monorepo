@@ -110,7 +110,123 @@ export interface InitializeRhinestoneAccountParams {
 }
 
 /**
+ * Create a Rhinestone HCA smart account in-memory (no on-chain deploy).
+ *
+ * Returns the live SDK account object, deterministic address, and
+ * config. The HCA is **not** deployed on-chain — call
+ * `deployRhinestoneAccountCore` later to deploy when first needed.
+ *
+ * This split lets callers defer the on-chain deploy to the point of
+ * first use (e.g. the registration commit step), avoiding wasted gas
+ * if the user never registers.
+ */
+export async function initializeRhinestoneAccountCore(
+  params: InitializeRhinestoneAccountParams,
+): Promise<RhinestoneInitResult> {
+  const {
+    ownerAccount,
+    eoaAddress,
+    chain,
+    rhinestoneApiKey,
+    rhinestoneEndpointUrl,
+    rhinestoneCustomRpcUrls,
+  } = params
+
+  if (!rhinestoneApiKey) {
+    throw new Error('rhinestoneApiKey is required')
+  }
+
+  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
+    apiKey: rhinestoneApiKey,
+    ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
+    ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
+  }
+
+  const sdk = new RhinestoneSDK(sdkOptions)
+
+  const rhinestoneAccount = await sdk.createAccount({
+    account: { type: 'hca' },
+    owners: {
+      type: 'ens',
+      accounts: [ownerAccount],
+      ownerExpirations: [HCA_OWNER_NEVER_EXPIRES],
+    },
+  })
+
+  const accountAddress = rhinestoneAccount.getAddress() as Address
+
+  return {
+    client: rhinestoneAccount,
+    address: accountAddress,
+    ownerAddress: eoaAddress,
+    config: {
+      chain,
+      rhinestoneApiKey,
+    },
+  }
+}
+
+/**
+ * Deploy a Rhinestone HCA on-chain if it is not already deployed.
+ *
+ * Pure async function that takes an already-created `RhinestoneAccount`
+ * (in-memory) and ensures the deterministic CREATE3 proxy is deployed
+ * on-chain via a sponsored Intent. The account itself holds no funds —
+ * gas is paid by the Rhinestone Warp relayer; only the owner signs.
+ *
+ * This is separated from `initializeRhinestoneAccount` so callers can
+ * defer deployment to the point of first use (e.g. the registration
+ * commit step), avoiding wasted gas if the user never registers.
+ */
+export async function deployRhinestoneAccountCore(
+  rhinestoneAccount: RhinestoneAccount,
+  chain: Chain,
+  onProgress?: (stage: 'deploying' | 'ready') => void,
+  onError?: (stage: 'deploying', error: Error) => void,
+): Promise<void> {
+  if (await rhinestoneAccount.isDeployed(chain)) {
+    onProgress?.('ready')
+    return
+  }
+
+  onProgress?.('deploying')
+  try {
+    const { factory, factoryData } = rhinestoneAccount.getInitData()
+
+    const prepared = await rhinestoneAccount.prepareTransaction({
+      chain,
+      sponsored: true,
+      calls: [
+        {
+          to: factory,
+          value: 0n,
+          data: factoryData,
+        },
+      ],
+    })
+    const signed = await rhinestoneAccount.signTransaction(prepared)
+    const result = await rhinestoneAccount.submitTransaction(signed)
+
+    // `submitTransaction` only submits — it does not wait for the fill
+    // to land. Wait for execution so callers can treat a resolved
+    // promise as "the HCA is on-chain".
+    await rhinestoneAccount.waitForExecution(result)
+  } catch (error) {
+    const wrapped = error instanceof Error ? error : new Error(String(error))
+    onError?.('deploying', wrapped)
+    throw wrapped
+  }
+
+  onProgress?.('ready')
+}
+
+/**
  * Initialize a Rhinestone HCA smart account.
+ *
+ * Creates the in-memory SDK account and deploys it on-chain in a single
+ * call. For lazy deployment (skip deploy at init, deploy later on first
+ * use), call `initializeRhinestoneAccountCore` + `deployRhinestoneAccountCore`
+ * separately.
  *
  * @throws when the SDK fails or the bootstrap deploy Intent fails.
  */
@@ -158,51 +274,13 @@ export async function initializeRhinestoneAccount(
 
   const accountAddress = rhinestoneAccount.getAddress() as Address
 
-  // Deploy the HCA before routing real txs through it.
-  //
-  // `rhinestoneAccount.deploy()` is currently bugged (it routes an Intent
-  // with empty `calls`, which the orchestrator rejects with a
-  // ZERO_BALANCE 422). Instead we drive the deploy through the explicit
-  // prepare → sign → submit Intent flow, encoding the factory deploy
-  // payload directly into the call.
-  //
-  // `getInitData()` returns `{ factory, factoryData }` where `factoryData`
-  // is the ABI-encoded `HCAFactory.createAccount(initData)` call (the same
-  // bytes viem's `encodeFunctionData`/`encodeDeployData` would produce).
-  // Executing it deploys the deterministic CREATE3 proxy at
-  // `accountAddress`. This is a real, sponsored on-chain transaction — the
-  // relayer pays gas, the owner signs the Intent mandate once.
-  if (!(await rhinestoneAccount.isDeployed(chain))) {
-    onProgress?.('deploying')
-    try {
-      const { factory, factoryData } = rhinestoneAccount.getInitData()
-
-      const prepared = await rhinestoneAccount.prepareTransaction({
-        chain,
-        sponsored: true,
-        calls: [
-          {
-            to: factory,
-            value: 0n,
-            data: factoryData,
-          },
-        ],
-      })
-      const signed = await rhinestoneAccount.signTransaction(prepared)
-      const result = await rhinestoneAccount.submitTransaction(signed)
-
-      // `submitTransaction` only submits — it does not wait for the fill
-      // to land. Wait for execution so callers can treat a resolved
-      // promise as "the HCA is on-chain".
-      await rhinestoneAccount.waitForExecution(result)
-    } catch (error) {
-      const wrapped = error instanceof Error ? error : new Error(String(error))
-      onError?.('deploying', wrapped)
-      throw wrapped
-    }
-  }
-
-  onProgress?.('ready')
+  // Deploy the HCA on-chain.
+  await deployRhinestoneAccountCore(
+    rhinestoneAccount,
+    chain,
+    onProgress,
+    onError,
+  )
 
   return {
     client: rhinestoneAccount,

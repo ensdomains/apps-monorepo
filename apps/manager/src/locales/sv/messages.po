@@ -776,7 +776,7 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:176
+#: src/lib/smart-account/rhinestone.ts:200
 msgid "Deploying on-chain…"
 msgstr ""
 
@@ -995,7 +995,7 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:185
+#: src/lib/smart-account/rhinestone.ts:211
 msgid "Failed to deploy smart account"
 msgstr ""
 
@@ -2150,7 +2150,7 @@ msgstr ""
 msgid "Setting up resolver"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:161
+#: src/lib/smart-account/rhinestone.ts:199
 msgid "Setting up your smart account"
 msgstr ""
 
@@ -2222,7 +2222,7 @@ msgstr ""
 msgid "Slide {0}"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:178
+#: src/lib/smart-account/rhinestone.ts:204
 msgid "Smart account ready"
 msgstr ""
 

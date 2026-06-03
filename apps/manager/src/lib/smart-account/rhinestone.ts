@@ -23,8 +23,9 @@
 
 import {
   type RhinestoneInitResult as CoreRhinestoneInitResult,
+  deployRhinestoneAccountCore,
   type InitializeRhinestoneAccountParams,
-  initializeRhinestoneAccount as initializeRhinestoneAccountCore,
+  initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
 import { createParaAccount } from '@getpara/viem-v2-integration'
 import { i18n } from '@lingui/core'
@@ -130,14 +131,15 @@ function resolveSdkEnv(): {
 }
 
 /**
- * Initialize a Rhinestone HCA smart account for the manager app.
+ * Initialize a Rhinestone HCA smart account (in-memory only, no on-chain deploy).
  *
- * Thin wrapper that injects manager-side concerns (chain, env, toaster)
- * into the pure `initializeRhinestoneAccount` from
- * `@ens-apps/smart-account`.
+ * Thin wrapper that injects manager-side concerns (chain, env) into the
+ * pure `initializeRhinestoneAccountCore` from `@ens-apps/smart-account`.
+ * The HCA is created in-memory with a deterministic address but is **not**
+ * deployed on-chain. Call `deployRhinestoneAccount` later to deploy when
+ * first needed (e.g. during registration or renewal).
  *
- * @throws Error if initialization fails. Toasts are surfaced as a
- * side-effect via sonner.
+ * @throws Error if initialization fails.
  */
 export async function initializeRhinestoneAccount(
   params: InitializeRhinestoneParams,
@@ -150,20 +152,6 @@ export async function initializeRhinestoneAccount(
   })
   const env = resolveSdkEnv()
 
-  // One loading toast id covers the whole setup. We only surface it if
-  // we actually deploy; a fully cached (already-deployed) path stays
-  // silent.
-  let setupToastShown = false
-  const setupToastId = `setup-sca-${eoaAddress}`
-
-  const showSetupToast = (description: string) => {
-    setupToastShown = true
-    toast.loading(i18n._(msg`Setting up your smart account`), {
-      description,
-      id: setupToastId,
-    })
-  }
-
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
     eoaAddress,
@@ -171,23 +159,6 @@ export async function initializeRhinestoneAccount(
     rhinestoneApiKey: env.rhinestoneApiKey,
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
-    onProgress: (stage) => {
-      if (stage === 'deploying') {
-        showSetupToast(i18n._(msg`Deploying on-chain…`))
-      } else if (stage === 'ready' && setupToastShown) {
-        toast.success(i18n._(msg`Smart account ready`), {
-          id: setupToastId,
-          duration: 3000,
-        })
-      }
-    },
-    onError: (_stage, error) => {
-      toast.error(i18n._(msg`Failed to deploy smart account`), {
-        id: setupToastId,
-        description: error.message,
-        duration: 5000,
-      })
-    },
   }
 
   const result: CoreRhinestoneInitResult =
@@ -202,4 +173,46 @@ export async function initializeRhinestoneAccount(
       rhinestoneApiKey: result.config.rhinestoneApiKey,
     },
   }
+}
+
+/**
+ * Deploy a Rhinestone HCA on-chain if it is not already deployed.
+ *
+ * Wraps `deployRhinestoneAccountCore` with manager-side toasts for
+ * progress/error feedback. The HCA is deployed via a sponsored Intent
+ * (Rhinestone Warp) — the relayer pays gas, the owner signs once.
+ *
+ * Safe to call multiple times — if the HCA is already on-chain, this
+ * is a no-op (resolves immediately).
+ */
+export async function deployRhinestoneAccount(
+  client: RhinestoneAccount,
+  chain: typeof customSepolia,
+): Promise<void> {
+  const setupToastId = `setup-sca-deploy-${(client.getAddress() as string).slice(0, 10)}`
+
+  await deployRhinestoneAccountCore(
+    client,
+    chain,
+    (stage) => {
+      if (stage === 'deploying') {
+        toast.loading(i18n._(msg`Setting up your smart account`), {
+          description: i18n._(msg`Deploying on-chain…`),
+          id: setupToastId,
+        })
+      } else if (stage === 'ready') {
+        toast.success(i18n._(msg`Smart account ready`), {
+          id: setupToastId,
+          duration: 3000,
+        })
+      }
+    },
+    (_stage, error) => {
+      toast.error(i18n._(msg`Failed to deploy smart account`), {
+        id: setupToastId,
+        description: error.message,
+        duration: 5000,
+      })
+    },
+  )
 }

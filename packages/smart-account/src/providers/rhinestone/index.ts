@@ -14,9 +14,11 @@
  */
 
 export {
+  deployRhinestoneAccountCore,
   type InitializeRhinestoneAccountParams,
   type InitProgressStage,
   initializeRhinestoneAccount,
+  initializeRhinestoneAccountCore,
   type RhinestoneInitConfig,
   type RhinestoneInitResult,
 } from './initialize-account'

@@ -4,6 +4,7 @@ import { assign, fromPromise, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
+  ensureHcaDeployedActor,
   generateCommitmentActor,
   pollTransactionStatusActor,
   readMinCommitmentAgeActor,
@@ -97,6 +98,7 @@ export type RegistrationContext = {
   /** The state to return to on RETRY — set when entering error state */
   retryTarget?:
     | 'deployingResolver'
+    | 'ensuringHcaDeployed'
     | 'committingTransaction'
     | 'approvingToken'
     | 'registeringDomain'
@@ -138,6 +140,9 @@ export const registrationMachine = setup({
   },
 
   actors: {
+    ensureHcaDeployed: fromResultAsync((input: { signer: Signer }) => {
+      return ensureHcaDeployedActor(input)
+    }),
     deployResolver: fromResultAsync(
       (input: {
         name: string
@@ -564,7 +569,7 @@ export const registrationMachine = setup({
           }
         },
         onDone: {
-          target: 'committingTransaction',
+          target: 'ensuringHcaDeployed',
           actions: assign({
             commitment: ({ event }) => event.output,
           }),
@@ -579,6 +584,38 @@ export const registrationMachine = setup({
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Commitment preparation failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    ensuringHcaDeployed: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'ensureHcaDeployed',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+        }),
+        onDone: {
+          target: 'committingTransaction',
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'ensuringHcaDeployed' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] HCA deployment failed:',
                 event.error,
               )
             },
@@ -1162,6 +1199,16 @@ export const registrationMachine = setup({
               approvalTxId: undefined,
               registrationTxId: undefined,
               registerReadyTimestamp: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'ensuringHcaDeployed',
+            target: 'ensuringHcaDeployed',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
             })),
           },
           {

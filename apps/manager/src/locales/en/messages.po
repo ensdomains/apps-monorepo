@@ -771,7 +771,7 @@ msgstr "Default"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/lib/smart-account/rhinestone.ts:176
+#: src/lib/smart-account/rhinestone.ts:200
 msgid "Deploying on-chain…"
 msgstr "Deploying on-chain…"
 
@@ -990,7 +990,7 @@ msgstr "Failed to add telegram: "
 msgid "Failed to authenticate with Telegram"
 msgstr "Failed to authenticate with Telegram"
 
-#: src/lib/smart-account/rhinestone.ts:185
+#: src/lib/smart-account/rhinestone.ts:211
 msgid "Failed to deploy smart account"
 msgstr "Failed to deploy smart account"
 
@@ -2145,7 +2145,7 @@ msgstr "Setting up registration"
 msgid "Setting up resolver"
 msgstr "Setting up resolver"
 
-#: src/lib/smart-account/rhinestone.ts:161
+#: src/lib/smart-account/rhinestone.ts:199
 msgid "Setting up your smart account"
 msgstr "Setting up your smart account"
 
@@ -2217,7 +2217,7 @@ msgstr "Skipping SIWE verification means you won't get notifications about your 
 msgid "Slide {0}"
 msgstr "Slide {0}"
 
-#: src/lib/smart-account/rhinestone.ts:178
+#: src/lib/smart-account/rhinestone.ts:204
 msgid "Smart account ready"
 msgstr "Smart account ready"
 

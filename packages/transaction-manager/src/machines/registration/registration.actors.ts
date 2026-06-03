@@ -947,3 +947,64 @@ export function pollTransactionStatusActor(input: {
     (error) => error as Error,
   )
 }
+
+/**
+ * Ensure the HCA is deployed on-chain before routing transactions through it.
+ *
+ * For Rhinestone signers: checks `account.isDeployed(chain)` and, if the
+ * HCA is not yet on-chain, submits a sponsored Intent that runs the factory
+ * `createAccount(initData)` deploy. For EOA signers or already-deployed
+ * HCAs this is a no-op.
+ *
+ * The HCA holds no funds — gas is paid by the Warp relayer; only the owner
+ * signs the Intent mandate once. Safe to call multiple times.
+ */
+export function ensureHcaDeployedActor(input: {
+  signer: Signer
+}): ResultAsync<void, Error> {
+  if (input.signer.type !== 'rhinestone') {
+    return ResultAsync.fromSafePromise(Promise.resolve())
+  }
+
+  const { account, config } = input.signer
+  const chain = config.chain
+
+  if (!chain) {
+    return errAsync(new Error('Rhinestone signer missing chain config'))
+  }
+
+  return fromPromise(
+    (async () => {
+      if (await account.isDeployed(chain)) {
+        return
+      }
+
+      console.log(
+        '🔧 [ENSURE HCA] HCA not deployed, deploying via sponsored Intent...',
+      )
+
+      const { factory, factoryData } = account.getInitData()
+
+      const prepared = await account.prepareTransaction({
+        chain,
+        sponsored: true,
+        calls: [
+          {
+            to: factory,
+            value: 0n,
+            data: factoryData,
+          },
+        ],
+      })
+      const signed = await account.signTransaction(prepared)
+      const result = await account.submitTransaction(signed)
+      await account.waitForExecution(result)
+
+      console.log('✅ [ENSURE HCA] HCA deployed successfully')
+    })(),
+    (error) => {
+      console.error('❌ [ENSURE HCA] HCA deployment failed:', error)
+      return error instanceof Error ? error : new Error(String(error))
+    },
+  )
+}

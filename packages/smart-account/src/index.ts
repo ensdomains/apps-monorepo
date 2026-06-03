@@ -26,9 +26,11 @@
 // we'll introduce a generic provider contract once a second provider
 // exists and proves what the abstraction needs to look like.
 export {
+  deployRhinestoneAccountCore,
   type InitializeRhinestoneAccountParams,
   type InitProgressStage,
   initializeRhinestoneAccount,
+  initializeRhinestoneAccountCore,
   type RhinestoneInitConfig,
   type RhinestoneInitResult,
 } from './providers/rhinestone'
