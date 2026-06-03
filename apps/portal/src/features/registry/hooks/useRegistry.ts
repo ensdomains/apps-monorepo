@@ -71,19 +71,6 @@ export const getRegistryQueryOptions = (params: GetRegistryParameters) =>
     queryFn: ({ queryKey: [, params] }) => getRegistry(params),
   })
 
-export const useRegistry = (address: Address, enabled = true) =>
-  useQuery({ ...getRegistryQueryOptions({ address }), enabled })
-
-/**
- * Resolve the parent registry's name. `parentRegistry` only gives the parent's
- * address, so this is a dependent lookup. Disabled for the root (zero address).
- */
-export const useParentRegistry = (parentRegistry: Address | undefined) =>
-  useQuery({
-    ...getRegistryQueryOptions({ address: parentRegistry ?? zeroAddress }),
-    enabled: !!parentRegistry && !isAddressEqual(parentRegistry, zeroAddress),
-  })
-
 // `subregistry` is an indexed event topic in IRegistryEvents.sol, so RPCs can
 // filter logs on it — that's how we do the reverse lookup despite the
 // indexer's `EventFilter` not exposing inner event fields.

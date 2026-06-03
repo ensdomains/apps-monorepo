@@ -1,10 +1,11 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
-import { useRegistry } from '@/features/registry/hooks/useRegistry'
+import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/history')({
@@ -15,7 +16,11 @@ export const Route = createFileRoute('/registry/$address/history')({
 function RouteComponent() {
   const { address: addressParam } = Route.useParams()
   const address = addressParam as Address
-  const { data: registry, isLoading, error } = useRegistry(address)
+  const {
+    data: registry,
+    isLoading,
+    error,
+  } = useQuery(getRegistryQueryOptions({ address }))
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
