@@ -24,6 +24,10 @@ import {
   type Hex,
   type PublicClient,
 } from 'viem'
+import {
+  createSafeUrlSchema,
+  isSafeHttpUrl,
+} from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 
 // --- Types ---
@@ -155,7 +159,46 @@ const computeRecordChanges = (
   return changes
 }
 
-const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
+const bioUrlSchema = createSafeUrlSchema('Invalid Bio URL')
+
+const linksSchema = v.array(
+  v.object({
+    name: v.string(),
+    url: v.string(),
+  }),
+)
+
+const recordIssue = (
+  sectionKey: string,
+  fieldKey: string,
+  message: string,
+): RecordIssue => ({
+  sectionKey,
+  fieldKey,
+  message,
+})
+
+const validateLinksRecord = (value: string): RecordIssue[] => {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  const result = v.safeParse(linksSchema, parsed)
+
+  if (!result.success) {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  return result.output.flatMap((link, index) =>
+    isSafeHttpUrl(link.url)
+      ? []
+      : [recordIssue('links', `links[${index}].url`, 'Invalid Link URL')],
+  )
+}
 
 const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
   const issues: RecordIssue[] = []
@@ -175,6 +218,10 @@ const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
           })),
         )
       }
+    }
+
+    if (key === 'links') {
+      issues.push(...validateLinksRecord(trimmed))
     }
   }
 
