@@ -217,7 +217,9 @@ export const EditProfileDialog = ({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
-        <Button className="w-full">Edit Profile (New)</Button>
+        <Button className="w-full" type="button">
+          Edit Profile (New)
+        </Button>
       </DialogTrigger>
       <DialogContent
         className="h-[min(86dvh,900px)] max-h-[calc(100dvh-4rem)] w-[min(84vw,1280px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-xl border border-border bg-white p-0 shadow-lg sm:max-w-[calc(100vw-8rem)]"

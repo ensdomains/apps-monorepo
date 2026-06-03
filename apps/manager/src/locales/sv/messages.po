@@ -524,7 +524,7 @@ msgstr ""
 msgid "Click to copy"
 msgstr ""
 
-#: src/components/ui/dialog.tsx:95
+#: src/components/ui/dialog.tsx:97
 #: src/features/migration/components/MigrationModal.tsx:89
 msgid "Close"
 msgstr ""

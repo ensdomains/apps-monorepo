@@ -519,7 +519,7 @@ msgstr "Click the button below to verify your email address and start receiving 
 msgid "Click to copy"
 msgstr "Click to copy"
 
-#: src/components/ui/dialog.tsx:95
+#: src/components/ui/dialog.tsx:97
 #: src/features/migration/components/MigrationModal.tsx:89
 msgid "Close"
 msgstr "Close"
