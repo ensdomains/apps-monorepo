@@ -144,7 +144,7 @@ msgstr ""
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:174
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:175
 msgid "Add"
 msgstr ""
 
@@ -185,8 +185,8 @@ msgstr ""
 msgid "Add favorite"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:76
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:77
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:78
 msgid "Add Link"
 msgstr ""
 
@@ -521,7 +521,7 @@ msgstr ""
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr ""
 
-#: src/features/profile/components/view/ViewBioSection.tsx:55
+#: src/features/profile/components/view/ViewBioSection.tsx:56
 msgid "Click to copy"
 msgstr ""
 
@@ -1252,7 +1252,7 @@ msgstr "Språk"
 msgid "Learn more"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:160
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:161
 msgid "Link"
 msgstr ""
 
@@ -1267,7 +1267,7 @@ msgid "links"
 msgstr ""
 
 #: src/features/profile/components/sections/LinksSection.tsx:21
-#: src/features/profile/components/view/ViewLinksSection.tsx:20
+#: src/features/profile/components/view/ViewLinksSection.tsx:26
 msgid "Links"
 msgstr ""
 
@@ -1389,7 +1389,7 @@ msgstr "Mina namn"
 #: src/features/dashboard/components/NamesTable.tsx:70
 #: src/features/dashboard/components/NamesTable.tsx:84
 #: src/features/dashboard/components/NamesTable.tsx:85
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:149
 msgid "Name"
 msgstr "Namn"
 
@@ -1526,7 +1526,7 @@ msgstr ""
 msgid "Not a valid name format"
 msgstr ""
 
-#: src/features/profile/components/view/ViewBioSection.tsx:33
+#: src/features/profile/components/view/ViewBioSection.tsx:34
 msgid "Not set"
 msgstr ""
 
@@ -1655,7 +1655,7 @@ msgstr ""
 msgid "Permission missing. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:150
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:151
 msgid "Personal Site"
 msgstr ""
 
