@@ -110,11 +110,11 @@ export default createApp()
       // Setup wallet
       const walletClient = createWalletClient(c.env.ETH_PRIVATE_KEY)
 
-      // Batch all reads into a single multicall: both token balances, the
-      // registrar allowance, and the native ETH balance (via
-      // Multicall3.getEthBalance, which lets a native-balance read ride along
-      // in the same aggregate3).
-      const [usdcBalance, daiBalance, usdcAllowance, ethBalance] =
+      // Batch all reads into a single multicall: both token balances, both
+      // registrar allowances (USDC and DAI — approvals are per-token), and the
+      // native ETH balance (via Multicall3.getEthBalance, which lets a
+      // native-balance read ride along in the same aggregate3).
+      const [usdcBalance, daiBalance, usdcAllowance, daiAllowance, ethBalance] =
         await walletClient.multicall({
           allowFailure: false,
           contracts: [
@@ -137,6 +137,12 @@ export default createApp()
               args: [address, ETH_REGISTRAR],
             },
             {
+              address: TOKENS.DAI.address,
+              abi: erc20Abi,
+              functionName: 'allowance',
+              args: [address, ETH_REGISTRAR],
+            },
+            {
               address: sepolia.contracts.multicall3.address,
               abi: multicall3Abi,
               functionName: 'getEthBalance',
@@ -149,6 +155,7 @@ export default createApp()
         usdcBalance,
         daiBalance,
         usdcAllowance,
+        daiAllowance,
         ethBalance,
         address,
       })
@@ -209,13 +216,26 @@ export default createApp()
       // 2) Drip a little ETH for the one-time registrar approve — ONLY when the
       // owner hasn't approved the registrar yet AND is low on ETH. The approve
       // is a non-sponsorable EOA tx (mock tokens have no permit); the manager
-      // issues a max approve, so this is needed at most once per address.
-      const hasApprovedRegistrar = usdcAllowance >= APPROVED_ALLOWANCE_THRESHOLD
+      // issues a max approve, so this is needed at most once per token.
+      //
+      // Gate on BOTH payment tokens: auto-fund runs before the user picks a
+      // token and approvals are per-token (USDC vs DAI), so we keep topping up
+      // approve-gas until the registrar is approved for every token the user
+      // could pay with — otherwise a DAI registration could still run dry while
+      // only USDC is approved. Each drip covers ~one approve; the manager
+      // re-funds on low balance, so a user paying with both tokens is covered.
+      const hasApprovedRegistrar =
+        usdcAllowance >= APPROVED_ALLOWANCE_THRESHOLD &&
+        daiAllowance >= APPROVED_ALLOWANCE_THRESHOLD
       if (hasApprovedRegistrar) {
-        logger.debug('Registrar already approved, skipping ETH drip', {
-          usdcAllowance,
-          address,
-        })
+        logger.debug(
+          'Registrar approved for all payment tokens, skipping drip',
+          {
+            usdcAllowance,
+            daiAllowance,
+            address,
+          },
+        )
       } else if (ethBalance >= APPROVAL_GAS_ETH_TARGET) {
         logger.debug('Address has enough ETH for the approve, skipping drip', {
           ethBalance,
