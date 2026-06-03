@@ -1,13 +1,21 @@
 import { useWallet } from '@getpara/react-sdk-lite'
+import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
+import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
 import {
   type ProfileRecordsResult,
@@ -39,32 +47,43 @@ const hasConfiguredProfileRecords = ({
   Boolean(contentHash?.trim()) ||
   Boolean(abi?.trim())
 
-const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
-  const navigate = useNavigate()
-  const { data: ownerData, isPending: isOwnerPending } = useQuery({
-    ...profileOwnerQuery(name),
-  })
+type UseOwnerRedirectParams = {
+  readonly name: string
+  readonly isProfileEmpty: boolean
+  readonly isInGrace: boolean
+  readonly owner: Address | undefined
+  readonly isOwnerPending: boolean
+}
 
+const useOwnerRedirect = ({
+  name,
+  isProfileEmpty,
+  isInGrace,
+  owner,
+  isOwnerPending,
+}: UseOwnerRedirectParams) => {
+  const navigate = useNavigate()
   const { data: wallet } = useWallet()
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
-  const normalizedOwner = ownerData?.owner?.toLowerCase()
+  const normalizedOwner = owner?.toLowerCase()
   const isOwner =
     !!normalizedOwner &&
     [wallet?.address, smartAccountAddress]
       .filter((addr): addr is string => !!addr)
       .some((addr) => addr.toLowerCase() === normalizedOwner)
 
+  const shouldRedirectToEdit = isOwner && isProfileEmpty && !isInGrace
+
   useEffect(() => {
-    if (isOwner && isProfileEmpty) {
+    if (shouldRedirectToEdit) {
       navigate({ to: '/p/$name/edit', params: { name }, replace: true })
     }
-  }, [isOwner, isProfileEmpty, navigate, name])
+  }, [shouldRedirectToEdit, navigate, name])
 
   return {
     isOwner,
-    owner: ownerData?.owner as Address | undefined,
-    shouldHide: (isOwner || isOwnerPending) && isProfileEmpty,
+    shouldHide: (isOwner || isOwnerPending) && isProfileEmpty && !isInGrace,
   }
 }
 
@@ -77,7 +96,48 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
   const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
 
-  const { isOwner, owner, shouldHide } = useOwnerRedirect(name, isProfileEmpty)
+  const { data: ownerData, isPending: isOwnerPending } = useQuery({
+    ...profileOwnerQuery(name),
+  })
+  const {
+    data: expiryData,
+    isPending: isExpiryPending,
+    isError: isExpiryError,
+    error: expiryError,
+  } = useQuery({
+    ...profileExpiryQuery(name),
+  })
+  const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+
+  const owner = ownerData?.owner as Address | undefined
+
+  const { isOwner, shouldHide } = useOwnerRedirect({
+    name,
+    isProfileEmpty,
+    isInGrace: expiry.isInGrace,
+    owner,
+    isOwnerPending,
+  })
+
+  // Registry ownerOf is zero when expired; expiry distinguishes v2 grace from missing.
+  const ownerMissing = !isOwnerPending && !ownerData?.owner
+
+  if (ownerMissing && isExpiryPending) {
+    return <ProfileLoading />
+  }
+
+  if (ownerMissing && isExpiryError) {
+    return (
+      <div className="mx-auto max-w-md space-y-4 px-4 py-8">
+        <p className="text-foreground text-sm">
+          <Trans>Failed to load registration data for this name.</Trans>
+        </p>
+        {expiryError?.message ? (
+          <p className="text-muted-foreground text-xs">{expiryError.message}</p>
+        ) : null}
+      </div>
+    )
+  }
 
   if (shouldHide) {
     return null
@@ -86,10 +146,27 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   return (
     <div
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
-      style={themeVars}
+      style={expiry.isInGrace ? undefined : themeVars}
     >
       {migrationEnabled && isOwner && <UpgradeBanner />}
-      <ViewHeaderSection name={name} owner={owner} records={records} />
+      {match(expiry)
+        .with(
+          { isInGrace: true, graceEndDate: P.not(P.nullish) },
+          ({ graceEndDate }) => (
+            <GracePeriodBanner
+              graceEndDate={graceEndDate}
+              renewName={name}
+              variant="profileOwnName"
+            />
+          ),
+        )
+        .otherwise(() => null)}
+      <ViewHeaderSection
+        isInGrace={expiry.isInGrace}
+        name={name}
+        owner={owner}
+        records={records}
+      />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
@@ -110,15 +187,14 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           <ViewResolverSection resolverAddress={records.resolverAddress} /> */}
           <ViewLinksSection records={records} />
 
-          {/* Edit Button */}
-          {isOwner && (
+          {isOwner && !expiry.isInGrace && (
             <div>
               <LinkButton
                 className="w-full"
                 params={{ name }}
                 to="/p/$name/edit"
               >
-                Edit Profile
+                <Trans>Edit Profile</Trans>
               </LinkButton>
             </div>
           )}

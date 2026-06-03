@@ -63,6 +63,10 @@ msgstr "{0}% off"
 msgid "{count} names migrated"
 msgstr "{count} names migrated"
 
+#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
+#~ msgid "{discountPercentage}% off"
+#~ msgstr "{discountPercentage}% off"
+
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr "{duration, plural, one {# year} other {# years}}"
@@ -73,7 +77,7 @@ msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:323
-#: src/features/dashboard/components/NameRow.tsx:220
+#: src/features/dashboard/components/NameRow.tsx:229
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
@@ -135,7 +139,7 @@ msgstr "A simpler way to<0/><1>get paid.</1>"
 msgid "Account address:"
 msgstr "Account address:"
 
-#: src/features/profile/components/ProfileEdit.tsx:95
+#: src/features/profile/components/ProfileEdit.tsx:106
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr "Account not ready. Please wait for wallet to connect."
 
@@ -176,7 +180,7 @@ msgstr "Add credit card"
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
 
-#: src/features/dashboard/components/NameRow.tsx:165
+#: src/features/dashboard/components/NameRow.tsx:171
 msgid "Add favorite"
 msgstr "Add favorite"
 
@@ -244,7 +248,7 @@ msgstr "Almost ready"
 msgid "Almost there..."
 msgstr "Almost there..."
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:135
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:139
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -322,7 +326,7 @@ msgstr "Autorenews on"
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:152
+#: src/features/navigation/Header/search/SuggestionItem.tsx:176
 msgid "Available"
 msgstr "Available"
 
@@ -436,11 +440,11 @@ msgstr "Can you share your order number?"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/features/profile/components/ProfileEdit.tsx:88
+#: src/features/profile/components/ProfileEdit.tsx:99
 msgid "Cannot save profile - ENS owner is not available."
 msgstr "Cannot save profile - ENS owner is not available."
 
-#: src/features/profile/components/ProfileEdit.tsx:106
+#: src/features/profile/components/ProfileEdit.tsx:117
 msgid "Cannot save profile - resolver address is not available."
 msgstr "Cannot save profile - resolver address is not available."
 
@@ -778,6 +782,14 @@ msgstr "Dashboard"
 msgid "Date added"
 msgstr "Date added"
 
+#: src/features/dashboard/components/FavoritesList.tsx:173
+#~ msgid "Date added (Newest)"
+#~ msgstr "Date added (Newest)"
+
+#: src/features/dashboard/components/FavoritesList.tsx:170
+#~ msgid "Date added (Oldest)"
+#~ msgstr "Date added (Oldest)"
+
 #: src/features/payment/components/index.tsx:42
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:316
 msgid "Default"
@@ -830,6 +842,10 @@ msgstr "Done"
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:242
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
+
+#: src/features/profile/components/view/ProfileView.tsx:197
+msgid "Edit Profile"
+msgstr "Edit Profile"
 
 #: src/features/dashboard/components/DashboardPills.tsx:28
 msgid "Eligible for upgrade"
@@ -946,7 +962,8 @@ msgid "Error loading names"
 msgstr "Error loading names"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
-#: src/features/dashboard/components/PrimaryNameCard.tsx:143
+#: src/features/dashboard/components/PrimaryNameCard.tsx:175
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx:91
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:127
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx:121
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx:107
@@ -966,7 +983,11 @@ msgstr "expires {expiryDateString}"
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 
-#: src/features/dashboard/components/NameRow.tsx:284
+#: src/features/dashboard/components/MyNamesList.tsx:439
+#~ msgid "Expires in {daysUntilExpiry} days"
+#~ msgstr "Expires in {daysUntilExpiry} days"
+
+#: src/features/dashboard/components/NameRow.tsx:293
 msgid "Expires on"
 msgstr "Expires on"
 
@@ -993,7 +1014,15 @@ msgstr "Expiry (Latest)"
 msgid "Expiry (Soonest)"
 msgstr "Expiry (Soonest)"
 
-#: src/features/renew/components/RenewNameButton.tsx:17
+#: src/features/dashboard/components/MyNamesList.tsx:274
+#~ msgid "Expiry date (Earliest)"
+#~ msgstr "Expiry date (Earliest)"
+
+#: src/features/dashboard/components/MyNamesList.tsx:277
+#~ msgid "Expiry date (Latest)"
+#~ msgstr "Expiry date (Latest)"
+
+#: src/features/renew/components/RenewNameButton.tsx:27
 msgid "Extend Name"
 msgstr "Extend Name"
 
@@ -1030,6 +1059,10 @@ msgstr "Failed to fund wallet: {0}"
 #: src/features/notifications/inbox/list.tsx:98
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
+
+#: src/features/profile/components/view/ProfileView.tsx:133
+msgid "Failed to load registration data for this name."
+msgstr "Failed to load registration data for this name."
 
 #: src/features/notifications/settings/contact-methods/email.tsx:169
 msgid "Failed to remove email channel"
@@ -1081,6 +1114,12 @@ msgstr "Failed to verify email"
 msgid "Favorites"
 msgstr "Favorites"
 
+#: src/features/notifications/settings/preferences.tsx:149
+#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:112
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:133
+#~ msgid "Favourited Name Expiry"
+#~ msgstr "Favourited Name Expiry"
+
 #: src/features/notifications/settings/preferences.tsx:136
 msgid "Favourites"
 msgstr "Favourites"
@@ -1119,6 +1158,12 @@ msgstr "Get instant push notifications in your browser"
 msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
+#: src/features/notifications/settings/preferences.tsx:140
+#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:103
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:124
+#~ msgid "Get notified when names in your favourites expire"
+#~ msgstr "Get notified when names in your favourites expire"
+
 #: src/features/notifications/settings/preferences.tsx:131
 msgid "Get notified when names you favorited expire."
 msgstr "Get notified when names you favorited expire."
@@ -1126,6 +1171,12 @@ msgstr "Get notified when names you favorited expire."
 #: src/features/dashboard/components/FaqSection.tsx:92
 msgid "Get support"
 msgstr "Get support"
+
+#: src/features/notifications/settings/preferences.tsx:122
+#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:85
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:106
+#~ msgid "Get updated on the latest releases and features"
+#~ msgstr "Get updated on the latest releases and features"
 
 #: src/features/notifications/settings/preferences.tsx:116
 msgid "Get updated on the latest releases and features."
@@ -1163,6 +1214,14 @@ msgstr "Go to Profile"
 #: src/features/landing/FeaturesCarousel.tsx:301
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
+
+#: src/features/grace/components/GracePeriodBadge.tsx:6
+msgid "Grace period"
+msgstr "Grace period"
+
+#: src/features/dashboard/pages/DashboardPage.tsx:85
+#~ msgid "Hello"
+#~ msgstr "Hello"
 
 #: src/features/dashboard/components/FaqSection.tsx:68
 msgid "How can I secure my ENS name?"
@@ -1270,15 +1329,15 @@ msgid "Loading your stablecoin balances..."
 msgstr "Loading your stablecoin balances..."
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx:215
-#: src/features/dashboard/components/PrimaryNameCard.tsx:52
-#: src/features/dashboard/components/PrimaryNameCard.tsx:55
+#: src/features/dashboard/components/PrimaryNameCard.tsx:87
+#: src/features/dashboard/components/PrimaryNameCard.tsx:90
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:97
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Loading..."
 msgstr "Loading..."
 
-#: src/features/dashboard/components/NameRow.tsx:213
+#: src/features/dashboard/components/NameRow.tsx:222
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Login to favorite"
@@ -1307,8 +1366,8 @@ msgstr "Makes crypto addresses human-readable"
 msgid "Manage notification settings"
 msgstr "Manage notification settings"
 
-#: src/features/dashboard/components/NameRow.tsx:127
-#: src/features/dashboard/components/NameRow.tsx:270
+#: src/features/dashboard/components/NameRow.tsx:131
+#: src/features/dashboard/components/NameRow.tsx:279
 msgid "Manage on explorer"
 msgstr "Manage on explorer"
 
@@ -1319,6 +1378,11 @@ msgstr "Manage Para Wallet"
 #: src/routes/auto-renewal/index.tsx:21
 msgid "Manage Renewals"
 msgstr "Manage Renewals"
+
+#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:25
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
+#~ msgid "Manage your notification preferences for your name(s) and ENS-related updates."
+#~ msgstr "Manage your notification preferences for your name(s) and ENS-related updates."
 
 #: src/features/dashboard/components/DashboardPills.tsx:43
 msgid "Manager"
@@ -1344,7 +1408,7 @@ msgstr "MM/YY"
 msgid "Modified"
 msgstr "Modified"
 
-#: src/features/dashboard/components/NameRow.tsx:243
+#: src/features/dashboard/components/NameRow.tsx:252
 msgid "More options for {label}"
 msgstr "More options for {label}"
 
@@ -1507,8 +1571,8 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:135
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:159
+#: src/features/navigation/Header/search/SuggestionItem.tsx:156
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:163
 msgid "Not supported"
 msgstr "Not supported"
 
@@ -1520,6 +1584,12 @@ msgstr "Nothing here yet!"
 #: src/components/SepoliaNoticeBanner.tsx:11
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
+
+#: src/features/notifications/settings/preferences.tsx:97
+#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
+#~ msgid "Notification Preferences"
+#~ msgstr "Notification Preferences"
 
 #: src/routes/notifications/_authenticated/index.tsx:82
 msgid "Notification Settings"
@@ -1541,6 +1611,10 @@ msgstr "Oldest first"
 #: src/features/migration/pages/MigrationPage.tsx:91
 msgid "One of your names can't be upgraded right now."
 msgstr "One of your names can't be upgraded right now."
+
+#: src/features/grace/components/GracePeriodBanner.tsx:35
+msgid "One of your names expired."
+msgstr "One of your names expired."
 
 #: src/features/landing/FeaturesCarousel.tsx:27
 msgid "One username <0/><1>everywhere</1>"
@@ -1569,6 +1643,10 @@ msgstr "Over 2 million ENS names registered"
 #: src/features/dashboard/components/NamesTable.tsx:99
 msgid "Owned"
 msgstr "Owned"
+
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx:67
+msgid "Owned by"
+msgstr "Owned by"
 
 #: src/features/dashboard/components/DashboardPills.tsx:43
 msgid "Owner"
@@ -1692,6 +1770,10 @@ msgstr "Preview of your image"
 msgid "Previous card"
 msgstr "Previous card"
 
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx:67
+msgid "Previous owner"
+msgstr "Previous owner"
+
 #: src/features/dashboard/components/DashboardPagination.tsx:32
 #: src/features/profile/components/view/AddressProfileView.tsx:265
 msgid "Previous page"
@@ -1759,10 +1841,11 @@ msgid "Register to date"
 msgstr "Register to date"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:84
-#: src/features/dashboard/components/PrimaryNameCard.tsx:129
+#: src/components/molecules/DomainResultCard/DomainResultCard.tsx:86
+#: src/features/dashboard/components/PrimaryNameCard.tsx:161
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/search/SuggestionItem.tsx:146
+#: src/features/navigation/Header/search/SuggestionItem.tsx:168
 msgid "Registered"
 msgstr "Registered"
 
@@ -1850,7 +1933,7 @@ msgstr "Remove Avatar"
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
 
-#: src/features/dashboard/components/NameRow.tsx:165
+#: src/features/dashboard/components/NameRow.tsx:171
 msgid "Remove favorite"
 msgstr "Remove favorite"
 
@@ -1893,8 +1976,13 @@ msgstr "Removing telegram channel"
 msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
-#: src/features/dashboard/components/NameRow.tsx:139
-#: src/features/dashboard/components/NameRow.tsx:259
+#: src/features/grace/components/GracePeriodBanner.tsx:97
+#: src/features/grace/components/GracePeriodBanner.tsx:106
+msgid "Renew"
+msgstr "Renew"
+
+#: src/features/dashboard/components/NameRow.tsx:143
+#: src/features/dashboard/components/NameRow.tsx:268
 msgid "Renew name"
 msgstr "Renew name"
 
@@ -1947,7 +2035,7 @@ msgstr "Resending email verification"
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
 
-#: src/features/profile/components/ProfileEdit.tsx:182
+#: src/features/profile/components/ProfileEdit.tsx:197
 msgid "Reset Changes"
 msgstr "Reset Changes"
 
@@ -2044,6 +2132,10 @@ msgstr "Search coins"
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
+#: src/features/dashboard/components/NamesTable.tsx:163
+#~ msgid "Search my name..."
+#~ msgstr "Search my name..."
+
 #: src/features/dashboard/components/NamesTable.tsx:119
 msgid "Search my names"
 msgstr "Search my names"
@@ -2051,6 +2143,10 @@ msgstr "Search my names"
 #: src/features/navigation/Header/search/SearchInput.tsx:53
 msgid "Search name, address..."
 msgstr "Search name, address..."
+
+#: src/features/dashboard/components/NamesTable.tsx:163
+#~ msgid "Search name..."
+#~ msgstr "Search name..."
 
 #: src/features/migration/components/SelectNamesStep.tsx:58
 #: src/features/migration/components/SelectNamesStep.tsx:62
@@ -2123,7 +2219,7 @@ msgstr "Set it as your primary name. You can do this from your profile page in t
 msgid "Set multiple records: ETH, BTC, email"
 msgstr "Set multiple records: ETH, BTC, email"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:98
+#: src/features/dashboard/pages/DashboardPage.tsx:105
 msgid "Set primary name"
 msgstr "Set primary name"
 
@@ -2195,9 +2291,21 @@ msgstr "Short Description"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
+#: src/features/dashboard/components/FavoritesList.tsx:300
+#~ msgid "Showing {startIndex}-{endIndex} of {totalCount}"
+#~ msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
+
+#: src/features/dashboard/components/MyNamesList.tsx:484
+#~ msgid "Showing your names"
+#~ msgstr "Showing your names"
+
 #: src/features/notifications/RequireBackendAuth.tsx:120
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+
+#: src/features/dashboard/components/NamesTable.tsx:128
+#~ msgid "Sign in to view favorites"
+#~ msgstr "Sign in to view favorites"
 
 #: src/features/notifications/RequireBackendAuth.tsx:136
 #: src/features/wallet/components/BackendAuthModal.tsx:118
@@ -2284,7 +2392,8 @@ msgstr "Sort by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:288
+#: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx:66
+#: src/features/register/components/CheckAvailability/CheckAvailability.tsx:284
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
@@ -2649,8 +2758,8 @@ msgstr "Verifying registration on-chain"
 msgid "Verifying..."
 msgstr "Verifying..."
 
-#: src/features/dashboard/components/NameRow.tsx:253
-#: src/features/dashboard/components/PrimaryNameCard.tsx:162
+#: src/features/dashboard/components/NameRow.tsx:262
+#: src/features/dashboard/components/PrimaryNameCard.tsx:194
 msgid "View profile"
 msgstr "View profile"
 
@@ -2852,7 +2961,7 @@ msgstr "You have <0>{0}</0> names that are eligible for upgrade"
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr "You have unsaved changes. Are you sure you want to leave?"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:86
+#: src/features/dashboard/pages/DashboardPage.tsx:93
 msgid "You haven't set a primary name yet."
 msgstr "You haven't set a primary name yet."
 
@@ -2876,6 +2985,12 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:37
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
+
+#: src/features/notifications/settings/preferences.tsx:104
+#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:67
+#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:88
+#~ msgid "You'll be notified 30, 7, and 1 day before expiry"
+#~ msgstr "You'll be notified 30, 7, and 1 day before expiry"
 
 #: src/features/notifications/settings/preferences.tsx:98
 msgid "You'll be notified 30, 7, and 1 day before expiry."
@@ -2910,7 +3025,7 @@ msgstr "Your ENS domain has been successfully registered and is now active."
 msgid "Your ENS domain is now active"
 msgstr "Your ENS domain is now active"
 
-#: src/features/dashboard/components/PrimaryNameCard.tsx:50
+#: src/features/dashboard/components/PrimaryNameCard.tsx:85
 msgid "Your ENS name"
 msgstr "Your ENS name"
 
@@ -2926,6 +3041,14 @@ msgstr "Your ENS name replaces your wallet addresses so friends and clients can 
 msgid "Your ENS name works across web3"
 msgstr "Your ENS name works across web3"
 
+#: src/features/grace/components/GracePeriodBanner.tsx:58
+msgid "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+
+#: src/features/grace/components/GracePeriodBanner.tsx:36
+msgid "Your name is in grace period"
+msgstr "Your name is in grace period"
+
 #: src/features/landing/FeaturesCarousel.tsx:33
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
@@ -2933,6 +3056,14 @@ msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 ap
 #: src/features/migration/components/SelectNamesStep.tsx:51
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
+
+#: src/features/grace/components/GracePeriodBanner.tsx:51
+msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+msgstr "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+
+#: src/features/grace/components/GracePeriodBanner.tsx:34
+msgid "Your primary name has expired."
+msgstr "Your primary name has expired."
 
 #: src/features/dashboard/components/FaqSection.tsx:40
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."

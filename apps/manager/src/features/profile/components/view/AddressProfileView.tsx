@@ -143,7 +143,7 @@ export const AddressProfileView = ({
       </div>
     ))
     .with({ isError: true }, () => (
-      <div className="rounded-lg bg-[#fff8f0] px-4 py-3 text-[#c68a1b] text-sm">
+      <div className="rounded-lg bg-ens-citrine-50 px-4 py-3 text-ens-citrine-450 text-sm">
         Unable to load names for this address. Please try again.
       </div>
     ))

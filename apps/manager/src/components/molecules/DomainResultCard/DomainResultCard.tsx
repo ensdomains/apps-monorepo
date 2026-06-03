@@ -1,12 +1,18 @@
+import { Trans } from '@lingui/react/macro'
 import { AvailabilityCheckIcon } from '@/components/atoms/AvailabilityCheckIcon'
+import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import type { PremiumLabel } from '@/features/register/utils'
 import { cn } from '@/lib/utils'
 import { getByteLength, getDomainCardSizeClasses } from '@/utils/domain'
 import { DomainAttributePill } from './DomainAttributePill'
+import {
+  type DomainResultStatus,
+  isRegisteredDomainResultStatus,
+} from './domainResultStatus'
 
-interface DomainResultCardProps {
+export type DomainResultCardProps = {
   domainName: string
-  status: 'available' | 'premium'
+  status: DomainResultStatus
   premiumLabel?: PremiumLabel
   price?: number
   priceLabel?: string
@@ -61,6 +67,25 @@ export const DomainResultCard = ({
           <div className="flex flex-wrap items-center gap-2 px-[34px]">
             <span className="inline-block h-6 w-20 animate-pulse rounded-full bg-slate-200" />
             <span className="inline-block h-6 w-32 animate-pulse rounded-full bg-slate-200" />
+          </div>
+        </>
+      ) : isRegisteredDomainResultStatus(status) ? (
+        <>
+          <span
+            className={cn(
+              'inline-block w-fit max-w-full break-words rounded-sm border border-ens-blue bg-white px-2 py-1',
+              'font-medium text-ens-blue leading-tight tracking-[-0.48px]',
+              getDomainCardSizeClasses(getByteLength(domainName)),
+            )}
+            title={domainName}
+          >
+            {domainName}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-5 shrink-0 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
+              <Trans>Registered</Trans>
+            </span>
+            {status === 'grace' && <GracePeriodBadge />}
           </div>
         </>
       ) : (
