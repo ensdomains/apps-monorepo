@@ -4,7 +4,6 @@ import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { AnimateNumber } from 'motion-plus/react'
-import { zeroAddress } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
@@ -17,8 +16,6 @@ import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
-  const { ownerAddress } = useSmartAccountContext()
-
   const [duration, canNext] = useSelector(uiActor, (state) => [
     state.context.duration,
     state.can({ type: 'pricing.step.next' }),
@@ -27,12 +24,7 @@ export const PaymentCard = () => {
   const baseRate = useBaseRate(label)
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(
-      label,
-      ownerAddress ?? zeroAddress,
-      duration,
-      TOKENS.USDC.symbol,
-    ),
+    ...getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
     select: (data) => ({
       totalPrice: decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
       basePrice: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),

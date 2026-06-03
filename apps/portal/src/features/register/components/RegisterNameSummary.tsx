@@ -3,7 +3,6 @@ import { SirenIcon } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
-import { useConnection } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -46,7 +45,6 @@ export const RegisterNameCheckoutSummary = ({
 }: RegisterNameCheckoutSummaryProps) => {
   const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
-  const { address } = useConnection()
 
   const {
     data: price,
@@ -57,7 +55,6 @@ export const RegisterNameCheckoutSummary = ({
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
-      owner: address,
     }),
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })

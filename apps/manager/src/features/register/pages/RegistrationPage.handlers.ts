@@ -19,7 +19,6 @@ export interface StartRegistrationParams {
 }
 
 export interface HandleRegistrationOptions {
-  fast?: boolean
   publicClient: PublicClient
 }
 
@@ -31,7 +30,7 @@ export interface HandleRegistrationOptions {
  *
  * @example
  * const account = useSmartAccountContext()
- * handleStartRegistration(params, account, actor, { publicClient, fast: true })
+ * handleStartRegistration(params, account, actor, { publicClient })
  */
 export function handleStartRegistration(
   params: StartRegistrationParams,
@@ -40,7 +39,7 @@ export function handleStartRegistration(
   options: HandleRegistrationOptions,
 ): void {
   const { name, duration, selectedToken, tokenPrice } = params
-  const { publicClient, fast = true } = options
+  const { publicClient } = options
 
   // Validate account is ready - signer is pre-computed by the hook
   if (!account.signer || !account.accountAddress) {
@@ -55,7 +54,6 @@ export function handleStartRegistration(
 
   const token = selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
   const durationInSeconds = durationYearsToSeconds(duration)
-  const useFastRegistrar = Boolean(fast)
 
   const enableSponsorship =
     import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
@@ -83,7 +81,6 @@ export function handleStartRegistration(
     price: tokenPrice,
     hasSigner: !!account.signer,
     hasPublicClient: !!publicClient,
-    useFastRegistrar,
     sponsored: enableSponsorship,
     ownerAddress,
     smartAccountAddress: account.accountAddress,
@@ -101,7 +98,6 @@ export function handleStartRegistration(
     ownerAddress, // HCA-only: register the ENS name to the EOA
     resolverOwnerAddress, // Always the EOA — resolver EACL grantee
     publicClient,
-    useFastRegistrar,
     sponsored: enableSponsorship,
   })
 }

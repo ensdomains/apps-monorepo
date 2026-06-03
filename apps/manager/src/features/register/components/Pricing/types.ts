@@ -32,11 +32,7 @@ export type PricingProps = {
   onSetDuration: (duration: number) => void
   onSelectPayment: (method: 'crypto' | 'credit-card') => void
   onSelectCrypto: (cryptoId: string) => void
-  onConfirmPayment: (
-    tokenPrice: bigint,
-    selectedToken: string,
-    options?: { fast?: boolean },
-  ) => void
+  onConfirmPayment: (tokenPrice: bigint, selectedToken: string) => void
   onPricingDataChange?: (finalPrice: number, discountAmount: number) => void
 }
 

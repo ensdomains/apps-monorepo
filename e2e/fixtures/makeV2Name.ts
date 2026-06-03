@@ -1,7 +1,6 @@
 /**
  * makeV2Name fixture — registers .eth names on the Anvil Sepolia fork
- * directly via the V2 FastTestETHRegistrar, owned by the Para test
- * account's EOA.
+ * directly via the V2 ETHRegistrar, owned by the Para test account's EOA.
  *
  * Unlike `makeName` (which registers to `user2` for portal tests),
  * this fixture registers to the **Para EOA** so the manager app's
@@ -16,7 +15,7 @@
  *   1. Deploy resolver proxy (VerifiableFactory.deployProxy)
  *   2. Fund the Para EOA with ETH + USDC
  *   3. makeCommitment → commit (signed by EOA)
- *   4. rentPrice → approve USDC → register (signed by EOA)
+ *   4. getRegisterPrice → approve USDC → register (signed by EOA)
  */
 import {
   type Address,
@@ -35,10 +34,6 @@ import {
 import { privateKeyToAccount } from 'viem/accounts'
 
 import {
-  ethRegistrarCommitSnippet,
-  ethRegistrarMakeCommitmentSnippet,
-  ethRegistrarRegisterSnippet,
-  ethRegistrarRentPriceSnippet,
   permissionedRegistryGetExpirySnippet,
   proxyDeployedEventSnippet,
   subregistryInitializeSnippet,
@@ -55,36 +50,28 @@ import {
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
-// Contract addresses
+// Contract addresses (sourced from ensjs Sepolia chain config)
 // ---------------------------------------------------------------------------
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-
-/**
- * FastTestETHRegistrar (MIN_COMMITMENT_AGE=0) — not in ensjs chain config,
- * kept hardcoded as it's a test-only contract distinct from ensEthRegistrar.
- */
-const FAST_TEST_ETH_REGISTRAR =
-  '0xbbf892aea9bb883b36bab2adc7831a6c63ef1e39' as const
-
+const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
+const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const MOCK_USDC = ensjsSepolia.usdc.address
 const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
 const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
-const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 
 const REFERRER = zeroHash
 
 // ---------------------------------------------------------------------------
 // ABIs
 // ---------------------------------------------------------------------------
-// MIN_COMMITMENT_AGE is not yet exported by ensjs-abi; other functions
-// are sourced from ethRegistrar snippets.
-const REGISTRAR_ABI = [
-  ...ethRegistrarMakeCommitmentSnippet,
-  ...ethRegistrarCommitSnippet,
-  ...ethRegistrarRegisterSnippet,
-  ...ethRegistrarRentPriceSnippet,
-  ...parseAbi(['function MIN_COMMITMENT_AGE() view returns (uint64)']),
-] as const
+// getRegisterPrice and MIN_COMMITMENT_AGE are not yet exported by ensjs-abi.
+const REGISTRAR_ABI = parseAbi([
+  'function makeCommitment(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, bytes32 referrer) pure returns (bytes32)',
+  'function commit(bytes32 commitment)',
+  'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer) returns (uint256 tokenId)',
+  'function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)',
+  'function MIN_COMMITMENT_AGE() view returns (uint64)',
+])
 
 const ERC20_ABI = parseAbi([
   'function mint(address to, uint256 amount)',
@@ -241,7 +228,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
 
     // ── 3. Make commitment ──────────────────────────────────────────
     const commitment = await publicClient.readContract({
-      address: FAST_TEST_ETH_REGISTRAR,
+      address: ETH_REGISTRAR,
       abi: REGISTRAR_ABI,
       functionName: 'makeCommitment',
       args: [
@@ -263,16 +250,16 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     })
     const commitTx = await walletClient.sendTransaction({
       account: ownerAccount,
-      to: FAST_TEST_ETH_REGISTRAR,
+      to: ETH_REGISTRAR,
       data: commitData,
     })
     await waitForTx(commitTx)
 
-    // ── 5. Wait for MIN_COMMITMENT_AGE (should be 0) ────────────────
+    // ── 5. Wait for MIN_COMMITMENT_AGE (60s on production ETHRegistrar) ──
     let minAge = 0n
     try {
       minAge = await publicClient.readContract({
-        address: FAST_TEST_ETH_REGISTRAR,
+        address: ETH_REGISTRAR,
         abi: REGISTRAR_ABI,
         functionName: 'MIN_COMMITMENT_AGE',
       })
@@ -289,17 +276,12 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
       await testClient.mine({ blocks: 1 })
     }
 
-    // ── 6. Get rent price ────────────────────────────────────────────
+    // ── 6. Get register price ────────────────────────────────────────
     const [base, premium] = await publicClient.readContract({
-      address: FAST_TEST_ETH_REGISTRAR,
+      address: ETH_REGISTRAR,
       abi: REGISTRAR_ABI,
-      functionName: 'rentPrice',
-      args: [
-        uniqueLabel,
-        ownerAddress,
-        BigInt(registrationDuration),
-        MOCK_USDC,
-      ],
+      functionName: 'getRegisterPrice',
+      args: [uniqueLabel, BigInt(registrationDuration), MOCK_USDC],
     })
     const totalPrice = base + premium
 
@@ -307,7 +289,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     const approveData = encodeFunctionData({
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [FAST_TEST_ETH_REGISTRAR, totalPrice * 2n],
+      args: [ETH_REGISTRAR, totalPrice * 2n],
     })
     const approveTx = await walletClient.sendTransaction({
       account: ownerAccount,
@@ -333,7 +315,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     })
     const registerTx = await walletClient.sendTransaction({
       account: ownerAccount,
-      to: FAST_TEST_ETH_REGISTRAR,
+      to: ETH_REGISTRAR,
       data: registerData,
     })
     await waitForTx(registerTx)
