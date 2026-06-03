@@ -26,9 +26,6 @@ const TOKENS = {
     mintAmount: parseUnits('1000', 6),
   },
   DAI: {
-    // MockDAI on Sepolia (not yet exported by ensjs). Must match
-    // `SUPPORTED_TOKENS.DAI` in
-    // `@ens-apps/transaction-manager/contracts/ens-sepolia`.
     address: ensL1Contracts[supportedL1Chains.sepolia].dai.address,
     decimals: 18,
     mintAmount: parseUnits('1000', 18),
