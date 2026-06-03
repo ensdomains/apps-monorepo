@@ -101,7 +101,7 @@ services:
     command: ["/app/ensv2-indexer-v2"]
     volumes:
       - panoptes-data:/app/data
-      - ./panoptes/contracts.json:/app/config/contracts.json:ro
+      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
     environment:
       - DATABASE_PATH=/app/data/ens_v2.db
       - RAINBOW_PATH=/app/data/ens_rainbow.db
@@ -135,7 +135,7 @@ services:
       - "5655:5655"
     volumes:
       - panoptes-data:/app/data:ro
-      - ./panoptes/contracts.json:/app/config/contracts.json:ro
+      - ${PANOPTES_CONTRACTS_FILE:-./panoptes/contracts.json}:/app/config/contracts.json:ro
     environment:
       - DATABASE_PATH=/app/data/ens_v2.db
       - RAINBOW_PATH=/app/data/ens_rainbow.db
@@ -176,7 +176,10 @@ services:
       - ./mockestrator/chains.json:/app/chains.json
     restart: on-failure
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      # nc is available in the Bun-based image; curl is not. We send a real
+      # HTTP request so the check only passes once the HTTP server responds,
+      # not just when the TCP port is open.
+      test: ["CMD-SHELL", "printf 'GET / HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' | nc -w 2 localhost 3000 | grep -q 'HTTP'"]
       interval: 5s
       timeout: 5s
       retries: 12

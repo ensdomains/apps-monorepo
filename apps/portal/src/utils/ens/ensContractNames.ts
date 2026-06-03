@@ -21,7 +21,13 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   ensVerifiableFactory: 'VerifiableFactory',
   ensEthRegistrar: 'ETHRegistrar',
   ensUserRegistryImpl: 'UserRegistry',
+  ensStandardRentPriceOracle: 'StandardRentPriceOracle',
+  ensHcaFactory: 'HCAFactory',
+  ensLockedMigrationController: 'LockedMigrationController',
+  ensMigrationHelper: 'MigrationHelper',
+  ensUnlockedMigrationController: 'UnlockedMigrationController',
   usdc: 'USDC',
+  dai: 'DAI',
 }
 
 type ContractLookup = Map<string, string>

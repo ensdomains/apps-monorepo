@@ -26,8 +26,7 @@ const TOKENS = {
     mintAmount: parseUnits('1000', 6),
   },
   DAI: {
-    // MockDAI on Sepolia (not yet exported by ensjs)
-    address: '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4',
+    address: ensL1Contracts[supportedL1Chains.sepolia].dai.address,
     decimals: 18,
     mintAmount: parseUnits('1000', 18),
   },

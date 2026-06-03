@@ -39,8 +39,9 @@ type CommitmentData = {
   secret: Hex
 }
 
-// V2 contracts don't require commitment wait time when using FastTestETHRegistrar
-// This is only used as fallback for non-fast registrar
+// Fallback wait used when the machine can't read MIN_COMMITMENT_AGE from the
+// registrar (e.g. RPC error). The production v2 ETHRegistrar is configured
+// with MIN_COMMITMENT_AGE = 60s.
 const COMMITMENT_WAIT_DURATION_MS = 60_000
 
 /**
@@ -68,7 +69,6 @@ export type RegistrationContext = {
   duration: bigint
   selectedToken: 'USDC' | 'DAI'
   tokenPrice: bigint
-  useFastRegistrar: boolean
   sponsored?: boolean
 
   // Flow state
@@ -105,7 +105,6 @@ export type RegistrationEvent =
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
-      useFastRegistrar?: boolean
       sponsored?: boolean
     }
   | { type: 'RETRY' }
@@ -145,7 +144,6 @@ export const registrationMachine = setup({
         duration,
         publicClient,
         selectedToken,
-        useFastRegistrar,
         resolverAddress,
       }: {
         name: string
@@ -153,7 +151,6 @@ export const registrationMachine = setup({
         duration: bigint
         publicClient: PublicClient
         selectedToken: 'USDC' | 'DAI'
-        useFastRegistrar: boolean
         resolverAddress: Address
       }) => {
         return generateCommitmentActor({
@@ -162,7 +159,6 @@ export const registrationMachine = setup({
           duration,
           publicClient,
           selectedToken,
-          useFastRegistrar,
           resolverAddress,
         })
       },
@@ -174,7 +170,6 @@ export const registrationMachine = setup({
         name: string
         duration: bigint
         publicClient: PublicClient
-        useFastRegistrar: boolean
         sponsored?: boolean
         id?: string
       }) => {
@@ -187,7 +182,6 @@ export const registrationMachine = setup({
         selectedToken: 'USDC' | 'DAI'
         signer: Signer
         publicClient: PublicClient
-        useFastRegistrar: boolean
         sponsored?: boolean
         id?: string
       }) => {
@@ -203,7 +197,6 @@ export const registrationMachine = setup({
         selectedToken: 'USDC' | 'DAI'
         owner: Address
         publicClient: PublicClient
-        useFastRegistrar: boolean
         sponsored?: boolean
         resolverAddress: Address
         id?: string
@@ -221,7 +214,6 @@ export const registrationMachine = setup({
         duration: bigint
         owner: Address
         publicClient: PublicClient
-        useFastRegistrar: boolean
         sponsored?: boolean
         resolverAddress: Address
       }) => {
@@ -238,16 +230,12 @@ export const registrationMachine = setup({
       },
     ),
     validateCommitment: fromResultAsync(
-      (input: {
-        commitment: CommitmentData
-        publicClient: PublicClient
-        useFastRegistrar: boolean
-      }) => {
+      (input: { commitment: CommitmentData; publicClient: PublicClient }) => {
         return validateCommitmentActor(input)
       },
     ),
     readMinCommitmentAge: fromResultAsync(
-      (input: { publicClient: PublicClient; useFastRegistrar: boolean }) => {
+      (input: { publicClient: PublicClient }) => {
         return readMinCommitmentAgeActor(input)
       },
     ),
@@ -256,7 +244,6 @@ export const registrationMachine = setup({
         owner: Address
         selectedToken: 'USDC' | 'DAI'
         publicClient: PublicClient
-        useFastRegistrar: boolean
       }) => {
         return readPaymentTokenAllowanceActor(input)
       },
@@ -267,7 +254,6 @@ export const registrationMachine = setup({
         owner: Address
         resolverAddress: Address
         publicClient: PublicClient
-        useFastRegistrar: boolean
       }) => {
         return verifyRegistrationActor(input)
       },
@@ -390,7 +376,6 @@ export const registrationMachine = setup({
     tokenPrice: 0n,
     registrationStartedAt: undefined,
     registerReadyTimestamp: undefined,
-    useFastRegistrar: false,
     resolverAddress: undefined,
     resolverTxId: undefined,
     resolverSalt: undefined,
@@ -418,7 +403,6 @@ export const registrationMachine = setup({
               event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
-            useFastRegistrar: ({ event }) => Boolean(event.useFastRegistrar),
             sponsored: ({ event }) => event.sponsored ?? true,
             resolverAddress: () => undefined,
             resolverTxId: () => undefined,
@@ -548,7 +532,6 @@ export const registrationMachine = setup({
             // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             publicClient: context.publicClient!,
             selectedToken: context.selectedToken,
-            useFastRegistrar: context.useFastRegistrar,
             // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             resolverAddress: context.resolverAddress!,
           }
@@ -593,7 +576,6 @@ export const registrationMachine = setup({
           duration: context.duration,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
           id: REGISTRATION_TX_IDS.commit,
         }),
@@ -661,7 +643,6 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
         }),
         onDone: [
           {
@@ -714,7 +695,6 @@ export const registrationMachine = setup({
           commitment: context.commitment!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
         }),
         onDone: [
           {
@@ -797,7 +777,6 @@ export const registrationMachine = setup({
           owner: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
@@ -865,7 +844,6 @@ export const registrationMachine = setup({
           selectedToken: context.selectedToken,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
         }),
         onDone: [
           {
@@ -901,7 +879,6 @@ export const registrationMachine = setup({
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
           id: REGISTRATION_TX_IDS.approve,
         }),
@@ -976,7 +953,6 @@ export const registrationMachine = setup({
           owner: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
           sponsored: context.sponsored,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
@@ -1043,7 +1019,6 @@ export const registrationMachine = setup({
           resolverAddress: context.resolverAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
         }),
         onDone: [
           {

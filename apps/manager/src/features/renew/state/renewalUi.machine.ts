@@ -3,6 +3,7 @@ import {
   type SUPPORTED_TOKEN,
   SUPPORTED_TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import {
   createTransactionRequest,
   getSignerAddress,
@@ -15,9 +16,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import type { Address } from 'viem'
 import { encodeFunctionData } from 'viem'
-import { readContract } from 'viem/actions'
 import { assign, fromPromise, setup } from 'xstate'
-import { IS_PAYMENT_TOKEN_SNIPPET } from '@/features/register/services/nameChainContractService'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -59,24 +58,15 @@ const startRenewalTransaction = async ({
     `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
   )
 
-  // Check if the payment token is supported
-  const isSupported = await readContract(publicClient, {
-    address: ETH_REGISTRAR,
-    abi: IS_PAYMENT_TOKEN_SNIPPET,
-    functionName: 'isPaymentToken',
-    args: [normalizedPaymentToken],
-  })
-
-  console.log(
-    `🔍 Payment token ${normalizedPaymentToken} is supported:`,
-    isSupported,
+  // Check if the payment token is supported. The standard `ETHRegistrar`
+  // doesn't expose `isPaymentToken` directly — the helper resolves the
+  // registrar's `rentPriceOracle()` and queries it there. Throws if not
+  // supported.
+  await assertPaymentTokenSupported(
+    publicClient,
+    ETH_REGISTRAR,
+    normalizedPaymentToken,
   )
-
-  if (!isSupported) {
-    throw new Error(
-      `Payment token ${normalizedPaymentToken} is not supported by the ENS registrar`,
-    )
-  }
 
   const writeParams = renewNameWriteParameters(
     publicClient as unknown as Parameters<typeof renewNameWriteParameters>[0],
@@ -297,8 +287,6 @@ export const renewalUiMachine = setup({
             selectedToken: context.submissionData.token,
             signer: context.submissionData.signer,
             publicClient,
-            // Use same registrar address as ensjs, which isn't the fast registrar
-            useFastRegistrar: false,
             sponsored: true,
           }
         },

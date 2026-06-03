@@ -299,7 +299,7 @@ export const Registration = ({
               isLoading={
                 isCommitPending || isApprovePending || isRegisterPending
               }
-              onConfirmPayment={(tokenPrice, selectedToken, options) => {
+              onConfirmPayment={(tokenPrice, selectedToken) => {
                 handleStartRegistration(
                   {
                     name: ui.name,
@@ -311,7 +311,6 @@ export const Registration = ({
                   actor,
                   {
                     publicClient: publicClient as PublicClient,
-                    fast: options?.fast ?? true,
                   },
                 )
               }}

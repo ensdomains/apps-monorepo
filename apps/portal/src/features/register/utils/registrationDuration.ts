@@ -85,35 +85,30 @@ export const getRegistrationDurationInSeconds = (
 }
 
 /**
- * Converts duration in years to seconds using calendar-year addition (same
- * month/day, adjusted for leap years).
- * 3 years from Jan 1 2026 = Jan 1 2029 exactly, including leap years.
+ * Converts a year count to seconds as `years × CONTRACT_SECONDS_PER_YEAR`
+ * (365.25 days/year), matching the oracle's annualised rate. `years` is
+ * floored to an integer and clamped to `[1, MAX_REGISTRATION_YEARS]`.
  */
 export const getDurationInSecondsFromYears = (
   years: number,
-  startOfToday: Temporal.PlainDate = getStartOfToday(),
+  _startOfToday: Temporal.PlainDate = getStartOfToday(),
 ): number => {
   const cappedYears = Math.min(
     Math.max(1, Math.floor(years)),
     MAX_REGISTRATION_YEARS,
   )
-  const expiry = startOfToday.add({ years: cappedYears })
-  return startOfToday.until(expiry, { largestUnit: 'days' }).days * 86400
+  return cappedYears * CONTRACT_SECONDS_PER_YEAR
 }
 
 /**
- * Returns the calendar years for a duration (for years picker display).
+ * Returns the year count for a duration, rounded to the nearest integer.
+ * Inverse of `getDurationInSecondsFromYears` — round-trips cleanly so the
+ * years picker keeps the user's selection regardless of start date.
  */
 export const getYearsFromDuration = (
   durationInSeconds: number,
-  startOfToday: Temporal.PlainDate = getStartOfToday(),
-): number => {
-  const expiry = getRegistrationExpiryDateFromSeconds(
-    startOfToday,
-    durationInSeconds,
-  )
-  return startOfToday.until(expiry, { largestUnit: 'years' }).years
-}
+  _startOfToday: Temporal.PlainDate = getStartOfToday(),
+): number => Math.round(durationInSeconds / CONTRACT_SECONDS_PER_YEAR)
 
 /**
  * Converts duration in seconds to an expiry PlainDate for display.

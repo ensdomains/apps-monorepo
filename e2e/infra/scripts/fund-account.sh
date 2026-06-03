@@ -22,9 +22,14 @@ RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 # Anvil's first default account private key (has 10 000 ETH on any fork)
 ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-# Contract addresses (MockUSDC & MockDAI deployed on Sepolia — present on fork)
-MOCK_USDC="0x302edecc2b8d1f3f4625b8a825a42f9adc102e65"
-MOCK_DAI="0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4"
+# Contract addresses (MockUSDC & MockDAI deployed on Sepolia — present on fork).
+# These must match the payment tokens whitelisted on the current sepolia
+# `StandardRentPriceOracle` and exposed to the app via
+# `@ens-apps/transaction-manager/contracts/ens-sepolia` (USDC sourced from
+# ensjs chain config, DAI hardcoded there). When the V2 deployment rotates
+# tokens, update both this script and `SUPPORTED_TOKENS.DAI` in that file.
+MOCK_USDC="0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9"
+MOCK_DAI="0xe915cebbc1570a74177b6c589fed1e8f53117559"
 
 echo "=== Funding $ADDRESS on fork at $RPC_URL ==="
 

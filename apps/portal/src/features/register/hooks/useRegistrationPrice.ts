@@ -3,9 +3,13 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
+import {
+  type GetRegisterPriceErrorType,
+  type GetRenewPriceErrorType,
+  getRegisterPrice,
+  getRenewPrice,
+} from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -21,14 +25,18 @@ const ethRegistrar = getChainContractAddress({
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  readonly cause: GetPriceErrorType | UnsupportedNameTypeError
+  readonly cause:
+    | GetRegisterPriceErrorType
+    | GetRenewPriceErrorType
+    | UnsupportedNameTypeError
 }> {}
+
+type PriceMode = 'register' | 'renew'
 
 export type RegistrationPriceParameters = {
   readonly name: string
   readonly duration: number
   readonly token?: SupportedTokenAddresses
-  readonly owner?: Address
 }
 
 export type RegistrationPriceResult = {
@@ -39,55 +47,92 @@ export type RegistrationPriceResult = {
   readonly hasPremium: boolean
 }
 
-export const getRegistrationPrice = ResultFn(async function* ({
-  name,
-  duration,
-  token,
-  owner,
-}: RegistrationPriceParameters) {
-  const client = yield* safeGetClient()
-  const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
+// Pricing is delegated to ensjs (`@ensdomains/ensjs/public/v2`):
+// `getRegisterPrice` returns (base, premium) and pays both; `getRenewPrice`
+// returns a single amount (renewals are premium-exempt). Both are state-aware
+// and revert if the name isn't registerable/renewable. The registrar address is
+// passed in (caller-provided) since it's a per-deployment value.
+const getNamePrice = (mode: PriceMode) =>
+  ResultFn(async function* ({
+    name,
+    duration,
+    token,
+  }: RegistrationPriceParameters) {
+    const client = yield* safeGetClient()
+    const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
 
-  let label: string
+    let label: string
+    try {
+      label = getLabel(name)
+    } catch (e) {
+      return err(
+        new GetRegistrationPriceError({
+          cause: e as UnsupportedNameTypeError,
+        }),
+      )
+    }
 
-  try {
-    label = getLabel(name)
-  } catch (e) {
-    return err(
-      new GetRegistrationPriceError({ cause: e as UnsupportedNameTypeError }),
+    const decimals = getTokenMetadataWithAddress(resolvedToken).decimals
+    const durationBigint = BigInt(duration)
+
+    if (mode === 'renew') {
+      const { amount } = yield* fromPromise(
+        getRenewPrice(client, {
+          renewerAddress: ethRegistrar,
+          label,
+          duration: durationBigint,
+          paymentToken: resolvedToken,
+        }),
+        (e) =>
+          new GetRegistrationPriceError({ cause: e as GetRenewPriceErrorType }),
+      )
+
+      return ok<RegistrationPriceResult>({
+        base: amount,
+        premium: 0n,
+        total: amount,
+        decimals,
+        hasPremium: false,
+      })
+    }
+
+    // ENSv2 `ETHRegistrar.getRegisterPrice` derives the temporary premium from
+    // on-chain state (time since `expiry + GRACE_PERIOD`) and returns it
+    // unconditionally — no caller-supplied owner is needed to opt into premium
+    // pricing, unlike the v1 oracle.
+    const { base, premium } = yield* fromPromise(
+      getRegisterPrice(client, {
+        label,
+        duration: durationBigint,
+        paymentToken: resolvedToken,
+      }),
+      (e) =>
+        new GetRegistrationPriceError({
+          cause: e as GetRegisterPriceErrorType,
+        }),
     )
-  }
 
-  // The StandardRentPriceOracle skips the temporary premium when owner is
-  // address(0) (the ensjs default). Passing the user's address ensures the
-  // returned price includes any active premium for recently expired names.
-  const { base, premium } = yield* fromPromise(
-    getPrice(client, {
-      nameOrNames: label,
-      duration: BigInt(duration),
-      paymentToken: resolvedToken,
-      registrarAddress: ethRegistrar,
-      owner,
-    }),
-    (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
-  )
-
-  const total = base + premium
-  const decimals = getTokenMetadataWithAddress(resolvedToken).decimals
-
-  return ok<RegistrationPriceResult>({
-    base,
-    premium,
-    total,
-    decimals,
-    hasPremium: premium > 0n,
+    return ok<RegistrationPriceResult>({
+      base,
+      premium,
+      total: base + premium,
+      decimals,
+      hasPremium: premium > 0n,
+    })
   })
-})
+
+export const getRegistrationPrice = getNamePrice('register')
+export const getRenewalPrice = getNamePrice('renew')
 
 const getRegistrationPriceQueryKey = createQueryKey<
   'get-registration-price',
   RegistrationPriceParameters
 >('get-registration-price')
+
+const getRenewalPriceQueryKey = createQueryKey<
+  'get-renewal-price',
+  RegistrationPriceParameters
+>('get-renewal-price')
 
 export const getRegistrationPriceQueryOptions = (
   params: RegistrationPriceParameters,
@@ -95,4 +140,12 @@ export const getRegistrationPriceQueryOptions = (
   resultQueryOptions({
     queryKey: getRegistrationPriceQueryKey(params),
     queryFn: () => getRegistrationPrice(params),
+  })
+
+export const getRenewalPriceQueryOptions = (
+  params: RegistrationPriceParameters,
+) =>
+  resultQueryOptions({
+    queryKey: getRenewalPriceQueryKey(params),
+    queryFn: () => getRenewalPrice(params),
   })

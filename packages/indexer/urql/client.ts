@@ -13,7 +13,7 @@ import { retryExchange } from '@urql/exchange-retry'
  * `import.meta.env.VITE_INDEXER_GRAPHQL_URL` is inlined by Vite at build time,
  * so it's available in both browser and SSR contexts. The only edge case is
  * relative paths (e.g. `/indexer/graphql`) which need a browser origin to
- * resolve — during SSR we fall back to the staging URL instead.
+ * resolve — during SSR we fall back to the public URL instead.
  *
  * Absolute URLs (e.g. `http://127.0.0.1:5655/graphql`) work in both contexts.
  */
@@ -23,9 +23,9 @@ function getIndexerUrl(): string {
       const envUrl = import.meta.env?.VITE_INDEXER_GRAPHQL_URL
       if (envUrl) {
         // Relative paths only work in the browser (they need an origin).
-        // During SSR, fall back to the public staging endpoint.
+        // During SSR, fall back to the public endpoint.
         if (envUrl.startsWith('/') && typeof window === 'undefined') {
-          return 'https://staging-graphql.ens.dev/'
+          return 'https://graphql.ens.dev'
         }
         return envUrl
       }
@@ -33,7 +33,7 @@ function getIndexerUrl(): string {
   } catch {
     // Non-Vite environment — fall through to default
   }
-  return 'https://staging-graphql.ens.dev/'
+  return 'https://graphql.ens.dev'
 }
 
 export const INDEXER_GRAPHQL_URL = getIndexerUrl()
