@@ -40,7 +40,7 @@ import { ImageSelectionDialog } from './ImageSelectionDialog'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface EditProfileDialogProps {
-  name: string
+  readonly name: string
   records: ProfileRecords
   owner?: Address
   onUpdated?: () => undefined | Promise<unknown>
