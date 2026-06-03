@@ -929,15 +929,13 @@ export type _Meta_ = {
 
 export type AccountFragment = { __typename?: 'Account', id: string };
 
-export type DomainFragment = {
-  __typename?: 'Domain', id: string, name?: string | null, normalizedName?: string | null, tokenId?: string | null, createdAt: number, expiryDate?: number | null, resolver?: (
+export type DomainFragment = { __typename?: 'Domain', id: string, name?: string | null, normalizedName?: string | null, tokenId?: string | null, createdAt: number, expiryDate?: number | null, resolver?: (
     { __typename?: 'Resolver' }
     & ResolverFragment
   ) | null, owner: (
     { __typename?: 'Account' }
     & AccountFragment
-  )
-};
+  ) };
 
 export type ResolverFragment = { __typename?: 'Resolver', id: string, address: string, texts?: Array<string> | null, contentHash?: string | null, addresses?: Array<{ __typename?: 'CoinAddress', coinType: number, address: string }> | null };
 
@@ -946,12 +944,10 @@ export type DomainQueryVariables = Exact<{
 }>;
 
 
-export type DomainQuery = {
-  __typename?: 'Query', domain?: (
+export type DomainQuery = { __typename?: 'Query', domain?: (
     { __typename?: 'Domain' }
     & DomainFragment
-  ) | null
-};
+  ) | null };
 
 export type DomainsQueryVariables = Exact<{
   where: DomainFilter;
@@ -962,12 +958,10 @@ export type DomainsQueryVariables = Exact<{
 }>;
 
 
-export type DomainsQuery = {
-  __typename?: 'Query', domains: Array<(
+export type DomainsQuery = { __typename?: 'Query', domains: Array<(
     { __typename?: 'Domain' }
     & DomainFragment
-  )>
-};
+  )> };
 
 export type MigratedNamesCountQueryVariables = Exact<{
   where: DomainFilter;

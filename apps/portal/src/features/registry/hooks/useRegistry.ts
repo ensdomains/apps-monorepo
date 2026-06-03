@@ -1,6 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { registryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/registry'
 import { useQuery } from '@tanstack/react-query'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
@@ -94,7 +95,11 @@ export type ReferencingName = {
 
 type RegistryLabelsResponse = {
   registry: {
-    labels: Array<{ name: string | null; labelhash: string | null }>
+    labels: Array<{
+      name: string | null
+      labelName: string | null
+      labelhash: string | null
+    }>
   } | null
 }
 
@@ -106,27 +111,24 @@ const referencedByQueryKey = createQueryKey<
 /**
  * Names whose current subregistry points at the given registry contract.
  *
- * The indexer has no reverse-lookup field yet, but `SubregistryUpdated` emits
- * `subregistry` as an indexed topic so RPCs can filter logs on it directly.
  * Strategy:
- *   1. `getLogs` filtered on the `subregistry` topic, scoped to blocks at or
- *      after this registry's `createdBlock` — every (parent, tokenId) that
- *      ever had this address set as their subregistry. Bounding by
- *      `createdBlock` keeps the scan small and avoids provider range limits.
- *   2. For each candidate emitter, one `getLogs` for ALL `SubregistryUpdated`
- *      events on the candidate tokenIds (since `createdBlock`). Dedupe to
- *      the latest event per tokenId by (blockNumber, logIndex) and keep
- *      only those whose final `subregistry` is still this address —
- *      collapses the per-candidate verification into a single per-emitter
- *      call.
- *   3. Resolve each surviving (emitter, tokenId) to its child name by
- *      matching `tokenId >> 32` against the indexer's `Domain.labelhash >> 32`
- *      under the emitter registry (see LibLabel.withVersion).
+ *   1. `getLogs` filtered server-side on the `subregistry` topic, scoped to
+ *      blocks at or after this registry's `createdBlock` — every (emitter,
+ *      tokenId) that ever had this address set as their subregistry.
+ *   2. Resolve candidate tokenIds to (emitter, label, name) via the indexer
+ *      by matching `tokenId >> 32` against `Domain.labelhash >> 32` under
+ *      the emitter registry (see LibLabel.withVersion). The indexer has no
+ *      labelhash filter, so we walk pages until every wanted prefix is
+ *      matched or the registry is exhausted.
+ *   3. Authoritative current-state check: one `multicall` of
+ *      `getSubregistry(label)` per candidate — keep only those whose live
+ *      onchain subregistry still equals this address. This replaces a
+ *      log-replay/dedupe step with a direct contract read.
  *
  * See memory: project-registry-dashboard-data.
  */
 export const useRegistryReferencedBy = (
-  registry: Pick<Registry, 'address' | 'createdBlock'> | undefined,
+  registry: Pick<Registry, 'address'> | undefined,
 ) => {
   const publicClient = usePublicClient()
   return useQuery({
@@ -136,19 +138,22 @@ export const useRegistryReferencedBy = (
     enabled: !!publicClient && !!registry,
     queryFn: async (): Promise<ReferencingName[]> => {
       if (!publicClient || !registry) return []
-      const { address, createdBlock } = registry
-      const fromBlock = BigInt(createdBlock)
+      const { address } = registry
 
       // 1. Every (emitter, tokenId) ever set to this address.
+      // Scan from genesis — a name can be pointed at a CREATE2 address
+      // BEFORE the registry contract is deployed there, so bounding by the
+      // registry's own `createdBlock` would miss those pre-deployment
+      // events. The `subregistry` indexed-topic filter keeps the RPC cost
+      // bounded regardless of range.
       const logs = await publicClient.getLogs({
         event: subregistryUpdatedEvent,
         args: { subregistry: address },
-        fromBlock,
+        fromBlock: 0n,
         toBlock: 'latest',
       })
 
-      // Group candidate tokenIds by emitter — only emitters that ever
-      // referenced this registry need to be re-queried in step 2.
+      // Group candidate tokenIds by emitter for per-registry label lookups.
       const candidatesByEmitter = new Map<Address, Set<string>>()
       for (const log of logs) {
         if (log.args.tokenId === undefined) continue
@@ -159,117 +164,92 @@ export const useRegistryReferencedBy = (
       }
       if (candidatesByEmitter.size === 0) return []
 
-      // 2. One getLogs per emitter for our candidate tokenIds. Dedupe to
-      // latest per tokenId and keep only those whose final subregistry is
-      // still `address`.
-      const verifiedByEmitter = new Map<Address, bigint[]>()
+      // 2. Resolve candidate tokenIds to (emitter, label, full name) via the
+      // indexer.
+      type Candidate = { emitter: Address; label: string; name: string }
+      const candidates: Candidate[] = []
       await Promise.all(
         Array.from(candidatesByEmitter.entries()).map(
           async ([emitter, tokenIdStrings]) => {
-            const tokenIds = Array.from(tokenIdStrings).map((s) => BigInt(s))
-            const allLogs = await publicClient.getLogs({
-              address: emitter,
-              event: subregistryUpdatedEvent,
-              args: { tokenId: tokenIds },
-              fromBlock,
-              toBlock: 'latest',
-            })
-            type Latest = {
-              tokenId: bigint
-              subregistry: Address
-              blockNumber: bigint
-              logIndex: number
-            }
-            const latest = new Map<string, Latest>()
-            for (const log of allLogs) {
-              if (
-                log.args.tokenId === undefined ||
-                log.args.subregistry === undefined
-              )
-                continue
-              const next: Latest = {
-                tokenId: log.args.tokenId,
-                subregistry: log.args.subregistry as Address,
-                blockNumber: log.blockNumber,
-                logIndex: log.logIndex,
+            const wantedCanonical = new Set(
+              Array.from(tokenIdStrings).map((s) =>
+                canonicalLabelBits(BigInt(s)).toString(),
+              ),
+            )
+            const found = new Set<string>()
+            const PAGE = 1000
+            const MAX_PAGES = 20
+            for (let page = 0; page < MAX_PAGES; page++) {
+              const data =
+                await graphqlIndexerClient.request<RegistryLabelsResponse>(
+                  gql`
+                    query registryLabelsForReferencedBy(
+                      $address: String!
+                      $first: Int!
+                      $skip: Int!
+                    ) {
+                      registry(address: $address) {
+                        labels(first: $first, skip: $skip) {
+                          name
+                          labelName
+                          labelhash
+                        }
+                      }
+                    }
+                  `,
+                  {
+                    address: emitter.toLowerCase(),
+                    first: PAGE,
+                    skip: page * PAGE,
+                  },
+                )
+              const labels = data.registry?.labels ?? []
+              for (const label of labels) {
+                if (!label.name || !label.labelName || !label.labelhash)
+                  continue
+                const labelCanonical = canonicalLabelBits(
+                  BigInt(label.labelhash),
+                ).toString()
+                if (
+                  wantedCanonical.has(labelCanonical) &&
+                  !found.has(labelCanonical)
+                ) {
+                  candidates.push({
+                    emitter,
+                    label: label.labelName,
+                    name: label.name,
+                  })
+                  found.add(labelCanonical)
+                }
               }
-              const key = next.tokenId.toString()
-              const existing = latest.get(key)
-              if (
-                !existing ||
-                next.blockNumber > existing.blockNumber ||
-                (next.blockNumber === existing.blockNumber &&
-                  next.logIndex > existing.logIndex)
-              ) {
-                latest.set(key, next)
-              }
+              if (labels.length < PAGE) break
+              if (found.size === wantedCanonical.size) break
             }
-            const kept: bigint[] = []
-            for (const v of latest.values()) {
-              if (isAddressEqual(v.subregistry, address)) kept.push(v.tokenId)
-            }
-            if (kept.length > 0) verifiedByEmitter.set(emitter, kept)
           },
         ),
       )
 
-      if (verifiedByEmitter.size === 0) return []
+      if (candidates.length === 0) return []
 
-      const byEmitter = verifiedByEmitter
+      // 3. Authoritative current-state check via multicall — one RPC for
+      // the whole batch. Tokens whose final subregistry has moved away
+      // from `address` are dropped here.
+      const current = await publicClient.multicall({
+        contracts: candidates.map((c) => ({
+          address: c.emitter,
+          abi: registryGetSubregistrySnippet,
+          functionName: 'getSubregistry' as const,
+          args: [c.label],
+        })),
+      })
 
-      const results: ReferencingName[] = []
-      await Promise.all(
-        Array.from(byEmitter.entries()).map(async ([emitter, tokenIds]) => {
-          const wantedCanonical = new Set(
-            tokenIds.map((t) => canonicalLabelBits(t).toString()),
-          )
-          const found = new Set<string>()
-          // Paginate: the indexer has no labelhash filter, so we walk pages
-          // until every wanted canonical-bit prefix is matched or the
-          // registry is exhausted. Hard cap prevents runaway on huge
-          // registries where a candidate truly has no surviving label.
-          const PAGE = 1000
-          const MAX_PAGES = 20
-          for (let page = 0; page < MAX_PAGES; page++) {
-            const data =
-              await graphqlIndexerClient.request<RegistryLabelsResponse>(
-                gql`
-                  query registryLabelsForReferencedBy(
-                    $address: String!
-                    $first: Int!
-                    $skip: Int!
-                  ) {
-                    registry(address: $address) {
-                      labels(first: $first, skip: $skip) {
-                        name
-                        labelhash
-                      }
-                    }
-                  }
-                `,
-                {
-                  address: emitter.toLowerCase(),
-                  first: PAGE,
-                  skip: page * PAGE,
-                },
-              )
-            const labels = data.registry?.labels ?? []
-            for (const label of labels) {
-              if (!label.name || !label.labelhash) continue
-              const labelCanonical = canonicalLabelBits(
-                BigInt(label.labelhash),
-              ).toString()
-              if (wantedCanonical.has(labelCanonical)) {
-                results.push({ name: label.name, emitter })
-                found.add(labelCanonical)
-              }
-            }
-            if (labels.length < PAGE) break
-            if (found.size === wantedCanonical.size) break
-          }
-        }),
-      )
-      return results
+      return candidates
+        .filter(
+          (_, i) =>
+            current[i].status === 'success' &&
+            isAddressEqual(current[i].result as Address, address),
+        )
+        .map(({ emitter, name }) => ({ emitter, name }))
     },
   })
 }
