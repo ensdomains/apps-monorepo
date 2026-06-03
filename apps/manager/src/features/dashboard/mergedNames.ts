@@ -1,4 +1,11 @@
 import type { DomainFragment } from '@ens-apps/indexer'
+import {
+  getDaysSinceExpiry,
+  getDisplayExpiryDate,
+  getGraceEndDate,
+  isInGracePeriod,
+  shouldShowProminentRenew,
+} from '@/features/grace/utils/gracePeriod'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import {
   formatDashboardDate,
@@ -103,11 +110,18 @@ export const buildMergedNamesList = (params: {
 export type MergedRowMetadata = {
   readonly label: string
   readonly expiryDate: Date | null
+  readonly displayExpiryDate: Date | null
+  readonly graceEndDate: Date | null
   readonly daysUntilExpiry: number | null
+  readonly daysSinceExpiry: number | null
   readonly expiringSoon: boolean
   readonly formattedExpiryDate: string
   readonly isV1: boolean
   readonly isPrimary: boolean
+  readonly isInGrace: boolean
+  readonly showProminentRenew: boolean
+  readonly useDefaultAvatar: boolean
+  readonly useWireframeNameplate: boolean
   readonly avatarUrl: string | undefined
 }
 
@@ -115,25 +129,40 @@ export const mergedRowMetadata = (
   item: MergedItem,
   primaryLabel?: string | null,
   avatarOverride?: string,
+  now: Date = new Date(),
 ): MergedRowMetadata => {
   const label = item.sortName
   const expiryDate = toDateFromSeconds(item.sortExpiry)
-  const daysUntilExpiry = getDaysUntil(expiryDate)
   const isV1 = item.kind === 'v1'
+  const isV2 = !isV1
+  const isInGrace = isInGracePeriod(expiryDate, isV2, now)
+  const graceEndDate =
+    expiryDate && isInGrace ? getGraceEndDate(expiryDate, isV2) : null
+  const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2, now)
+  const daysUntilExpiry = getDaysUntil(expiryDate)
+  const daysSinceExpiry =
+    expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
   const isPrimary =
     !isV1 &&
     !!primaryLabel &&
     label.toLowerCase() === primaryLabel.toLowerCase()
-  const avatarUrl = isV1 ? undefined : avatarOverride
+  const avatarUrl = isV1 || isInGrace ? undefined : avatarOverride
 
   return {
     label,
     expiryDate,
+    displayExpiryDate,
+    graceEndDate,
     daysUntilExpiry,
+    daysSinceExpiry,
     expiringSoon: isExpiringSoon(expiryDate, 30, daysUntilExpiry),
-    formattedExpiryDate: formatDashboardDate(expiryDate),
+    formattedExpiryDate: formatDashboardDate(displayExpiryDate),
     isV1,
     isPrimary,
+    isInGrace,
+    showProminentRenew: shouldShowProminentRenew(expiryDate, isV2, now),
+    useDefaultAvatar: isInGrace,
+    useWireframeNameplate: isInGrace,
     avatarUrl,
   }
 }

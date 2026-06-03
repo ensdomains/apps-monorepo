@@ -1,19 +1,28 @@
 import {
   createFileRoute,
   type ErrorComponentProps,
+  redirect,
 } from '@tanstack/react-router'
 import { match, P } from 'ts-pattern'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
+import {
+  profileExpiryDateFromSeconds,
+  profileExpiryQuery,
+} from '@/features/profile/service/profileExpiry'
 import {
   RenewalUiProvider,
   useRenewalUiContext,
 } from '@/features/renew/state/renewalUi.context'
 import { useRenewalStep } from '@/features/renew/state/renewalUi.selectors'
-import { parseRenewableName } from '@/features/renew/utils/renewableName'
+import {
+  canRenewV2Name,
+  parseRenewableName,
+} from '@/features/renew/utils/renewableName'
 import { RenewPricingStep } from '@/features/renew/workflow/pricing/PricingStep'
 import { RenewingStep } from '@/features/renew/workflow/renewing/RenewingStep'
 import { RenewFailureStep } from '@/features/renew/workflow/result/FailureStep'
 import { RenewSuccessStep } from '@/features/renew/workflow/result/SuccessStep'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const Route = createFileRoute('/renew/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
@@ -26,6 +35,31 @@ export const Route = createFileRoute('/renew/$name')({
     const expiryData = await queryClient.ensureQueryData(
       profileExpiryQuery(name),
     )
+
+    const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
+
+    if (isPastGracePeriod(expiryDate, true)) {
+      throw redirect(
+        isFeatureEnabled('REGISTRATION_V2')
+          ? {
+              params: { name },
+              to: '/register/$name',
+              replace: true,
+            }
+          : {
+              search: {
+                name,
+                duration: 1,
+              },
+              to: '/register',
+              replace: true,
+            },
+      )
+    }
+
+    if (!canRenewV2Name(name, expiryDate)) {
+      throw new Error('This name cannot be renewed')
+    }
 
     if (!expiryData?.expiry) {
       throw new Error('Name expiry could not be loaded')

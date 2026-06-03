@@ -1,10 +1,14 @@
+import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Calendar, Check, Clock, Copy, User } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { Highlight } from '@/components/atoms/Highlight'
 import { PrimaryBadge } from '@/features/dashboard/components/PrimaryBadge'
-import { profileExpiryQuery } from '../../service/profileExpiry'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '../../service/profileExpiry'
 import { profileRegistrationQuery } from '../../service/profileRegistration'
 import { profileReverseNameQuery } from '../../service/profileReverseName'
 
@@ -37,6 +41,11 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
   const [copied, setCopied] = useState(false)
   const isPrimaryName = ownerReverseName.data === name
 
+  const { isInGrace, displayExpiryDate } = getProfileNameExpiryStatus(
+    expiry.data?.expiry,
+    true,
+  )
+
   return (
     <div className="flex w-full flex-col items-start gap-3 bg-white px-4 pt-16 pb-4 md:px-6 md:pt-16 md:pb-6">
       <Highlight className="bg-(--theme-color) text-lg md:text-2xl">
@@ -55,7 +64,7 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
           type="button"
         >
           <User className="size-4" />
-          Owned by{' '}
+          {isInGrace ? <Trans>Previous owner</Trans> : <Trans>Owned by</Trans>}{' '}
           <span className="font-medium">
             {ownerReverseName.data ??
               `${owner.slice(0, 6)}...${owner.slice(-4)}`}
@@ -76,13 +85,11 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
           </span>
         </div>
       ) : null}
-      {expiry.data?.expiry ? (
+      {displayExpiryDate ? (
         <div className="flex items-center gap-x-1 whitespace-pre-wrap text-sm">
           <Clock className="size-4" />
-          Expires{' '}
-          <span className="font-medium">
-            {formatDate(new Date(Number(expiry.data.expiry) * 1000))}
-          </span>
+          <Trans>Expires</Trans>{' '}
+          <span className="font-medium">{formatDate(displayExpiryDate)}</span>
         </div>
       ) : null}
     </div>
