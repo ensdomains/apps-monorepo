@@ -35,14 +35,8 @@ import {
   wrapParaAccount,
 } from '@rhinestone/sdk'
 import { toast } from 'sonner'
-import {
-  type Account,
-  type Address,
-  createWalletClient,
-  http,
-  type WalletClient,
-} from 'viem'
-import { customSepolia, SEPOLIA_RPC_URL } from '@/lib/wagmi'
+import type { Account, Address, WalletClient } from 'viem'
+import { customSepolia } from '@/lib/wagmi'
 import type { ParaClient } from './types'
 
 export interface RhinestoneConfig {
@@ -93,33 +87,6 @@ function resolveOwnerAccount(params: {
   throw new Error(
     'Either walletClient or paraClient must be provided for Rhinestone initialization',
   )
-}
-
-/**
- * Build a viem `WalletClient` for the Para embedded owner EOA.
- *
- * The ENS registrar pulls the registration payment token from the *name
- * owner* (the EOA), so that ERC-20 `approve` must be signed by the EOA — the
- * HCA cannot approve on its behalf. External wallets expose an EOA wallet
- * client through wagmi's `useWalletClient()`, but Para is **not** registered
- * as a wagmi connector, so embedded Para wallets never surface there. Build
- * the wallet client directly from the Para account instead, so the approve
- * can be EOA-signed (and broadcast) on embedded-wallet HCA registrations.
- *
- * Uses the *unwrapped* Para account on purpose: `createParaAccount` already
- * returns canonical `v = 27/28` signatures and viem serialises EIP-1559
- * transactions with the matching `yParity`. `wrapParaAccount` only exists for
- * ERC-1271 / smart-account module signature verification (used during HCA
- * construction) and must NOT be applied to raw transaction signing.
- */
-export function createParaOwnerWalletClient(
-  paraClient: NonNullable<ParaClient>,
-): WalletClient {
-  return createWalletClient({
-    account: createParaAccount(paraClient),
-    chain: customSepolia,
-    transport: http(SEPOLIA_RPC_URL),
-  }) as WalletClient
 }
 
 /**

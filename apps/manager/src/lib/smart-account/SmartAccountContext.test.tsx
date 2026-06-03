@@ -150,29 +150,6 @@ describe('SmartAccountContext', () => {
       expect(initializeRhinestoneAccount).toHaveBeenCalled()
       expect(result.current.walletSource).toBe('para-embedded')
     })
-
-    it('derives an owner wallet client for Para embedded wallets', async () => {
-      // Para embedded wallets are not wagmi connectors, so `useWalletClient()`
-      // stays null. The owner wallet client (used to EOA-sign the registrar's
-      // payment approve) must instead be derived from the Para client, or HCA
-      // registration silently reverts via the bundled approve+register path.
-      vi.mocked(useWallet).mockReturnValue({
-        data: { isExternal: false },
-        isPending: false,
-      } as any)
-      vi.mocked(useClient).mockReturnValue({ isConnected: true } as any)
-      vi.mocked(useWalletClient).mockReturnValue({ data: null } as any)
-
-      const { result } = renderHook(() => useSmartAccountContext(), {
-        wrapper: createWrapper(),
-      })
-
-      await waitFor(() => {
-        expect(result.current.isAccountReady).toBe(true)
-      })
-
-      expect(result.current.walletClient).not.toBeNull()
-    })
   })
 
   describe('signer creation', () => {

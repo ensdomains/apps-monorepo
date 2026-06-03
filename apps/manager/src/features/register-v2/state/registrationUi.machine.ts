@@ -202,10 +202,11 @@ const startRegistrationAction = machineSetup.createAction(
     // approve step; commit/deploy/register stay on the sponsored rhinestone
     // signer. For pure-EOA flows this is the same wallet, so it's a no-op.
     //
-    // `account.walletClient` is the owner EOA wallet client for BOTH wallet
-    // sources: wagmi external wallets and Para embedded wallets (the latter is
-    // derived from the Para account in SmartAccountContext, since Para is not a
-    // wagmi connector and never surfaces through `useWalletClient()`).
+    // `account.walletClient` is the wagmi wallet client for the owner EOA. Para
+    // bridges embedded wallets into wagmi via its connector, so this is
+    // populated for both external and embedded wallets, and the connector's
+    // EIP-1193 provider signs the approve through Para. It can be momentarily
+    // null during a wallet/connector desync — see the fail-fast guard below.
     const approvalSigner: Signer | undefined = event.account.walletClient
       ? { type: 'eoa', walletClient: event.account.walletClient }
       : undefined
