@@ -28,11 +28,13 @@ export const sections = {
 } as const satisfies Record<string, SectionData>
 
 export const staticTextRecords = [
+  'name',
   'avatar',
   'header',
   'description',
   'url',
   'theme',
+  'language',
 ] as const
 
 export const textRecords: TextRecordDef[] = [

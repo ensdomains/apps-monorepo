@@ -23,6 +23,7 @@ import {
 } from '../../service/profileRecords'
 import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
+import { EditProfileDialog } from '../dialogs/EditProfileDialog'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
@@ -89,7 +90,8 @@ const useOwnerRedirect = ({
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
-  const { data: profileRecords } = useSuspenseQuery({
+  const profileEditNewEnabled = useFeatureFlag('PROFILE_EDIT_NEW')
+  const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
@@ -188,14 +190,23 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           <ViewLinksSection records={records} />
 
           {isOwner && !expiry.isInGrace && (
-            <div>
-              <LinkButton
-                className="w-full"
-                params={{ name }}
-                to="/p/$name/edit"
-              >
-                <Trans>Edit Profile</Trans>
-              </LinkButton>
+            <div className="space-y-2">
+              {profileEditNewEnabled ? (
+                <EditProfileDialog
+                  name={name}
+                  onUpdated={refetchRecords}
+                  owner={owner}
+                  records={records}
+                />
+              ) : (
+                <LinkButton
+                  className="w-full"
+                  params={{ name }}
+                  to="/p/$name/edit"
+                >
+                  <Trans>Edit Profile</Trans>
+                </LinkButton>
+              )}
             </div>
           )}
         </div>

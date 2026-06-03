@@ -63,10 +63,6 @@ msgstr "{0}% off"
 msgid "{count} names migrated"
 msgstr "{count} names migrated"
 
-#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
-#~ msgid "{discountPercentage}% off"
-#~ msgstr "{discountPercentage}% off"
-
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr "{duration, plural, one {# year} other {# years}}"
@@ -434,6 +430,7 @@ msgstr "Can you share your order number?"
 #: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:38
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
@@ -523,7 +520,7 @@ msgstr "Click the button below to verify your email address and start receiving 
 msgid "Click to copy"
 msgstr "Click to copy"
 
-#: src/components/ui/dialog.tsx:95
+#: src/components/ui/dialog.tsx:97
 #: src/features/migration/components/MigrationModal.tsx:89
 msgid "Close"
 msgstr "Close"
@@ -782,14 +779,6 @@ msgstr "Dashboard"
 msgid "Date added"
 msgstr "Date added"
 
-#: src/features/dashboard/components/FavoritesList.tsx:173
-#~ msgid "Date added (Newest)"
-#~ msgstr "Date added (Newest)"
-
-#: src/features/dashboard/components/FavoritesList.tsx:170
-#~ msgid "Date added (Oldest)"
-#~ msgstr "Date added (Oldest)"
-
 #: src/features/payment/components/index.tsx:42
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:316
 msgid "Default"
@@ -843,9 +832,13 @@ msgstr "Done"
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
-#: src/features/profile/components/view/ProfileView.tsx:197
+#: src/features/profile/components/view/ProfileView.tsx:207
 msgid "Edit Profile"
 msgstr "Edit Profile"
+
+#: src/features/profile/components/dialogs/EditProfileDialog.tsx:155
+msgid "Edit Profile (New)"
+msgstr "Edit Profile (New)"
 
 #: src/features/dashboard/components/DashboardPills.tsx:28
 msgid "Eligible for upgrade"
@@ -983,10 +976,6 @@ msgstr "expires {expiryDateString}"
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 
-#: src/features/dashboard/components/MyNamesList.tsx:439
-#~ msgid "Expires in {daysUntilExpiry} days"
-#~ msgstr "Expires in {daysUntilExpiry} days"
-
 #: src/features/dashboard/components/NameRow.tsx:293
 msgid "Expires on"
 msgstr "Expires on"
@@ -1013,14 +1002,6 @@ msgstr "Expiry (Latest)"
 #: src/features/dashboard/components/NamesTable.tsx:73
 msgid "Expiry (Soonest)"
 msgstr "Expiry (Soonest)"
-
-#: src/features/dashboard/components/MyNamesList.tsx:274
-#~ msgid "Expiry date (Earliest)"
-#~ msgstr "Expiry date (Earliest)"
-
-#: src/features/dashboard/components/MyNamesList.tsx:277
-#~ msgid "Expiry date (Latest)"
-#~ msgstr "Expiry date (Latest)"
 
 #: src/features/renew/components/RenewNameButton.tsx:27
 msgid "Extend Name"
@@ -1060,7 +1041,7 @@ msgstr "Failed to fund wallet: {0}"
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
 
-#: src/features/profile/components/view/ProfileView.tsx:133
+#: src/features/profile/components/view/ProfileView.tsx:135
 msgid "Failed to load registration data for this name."
 msgstr "Failed to load registration data for this name."
 
@@ -1114,12 +1095,6 @@ msgstr "Failed to verify email"
 msgid "Favorites"
 msgstr "Favorites"
 
-#: src/features/notifications/settings/preferences.tsx:149
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:112
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:133
-#~ msgid "Favourited Name Expiry"
-#~ msgstr "Favourited Name Expiry"
-
 #: src/features/notifications/settings/preferences.tsx:136
 msgid "Favourites"
 msgstr "Favourites"
@@ -1158,12 +1133,6 @@ msgstr "Get instant push notifications in your browser"
 msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
-#: src/features/notifications/settings/preferences.tsx:140
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:103
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:124
-#~ msgid "Get notified when names in your favourites expire"
-#~ msgstr "Get notified when names in your favourites expire"
-
 #: src/features/notifications/settings/preferences.tsx:131
 msgid "Get notified when names you favorited expire."
 msgstr "Get notified when names you favorited expire."
@@ -1171,12 +1140,6 @@ msgstr "Get notified when names you favorited expire."
 #: src/features/dashboard/components/FaqSection.tsx:92
 msgid "Get support"
 msgstr "Get support"
-
-#: src/features/notifications/settings/preferences.tsx:122
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:85
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:106
-#~ msgid "Get updated on the latest releases and features"
-#~ msgstr "Get updated on the latest releases and features"
 
 #: src/features/notifications/settings/preferences.tsx:116
 msgid "Get updated on the latest releases and features."
@@ -1218,10 +1181,6 @@ msgstr "Go to slide {0}"
 #: src/features/grace/components/GracePeriodBadge.tsx:6
 msgid "Grace period"
 msgstr "Grace period"
-
-#: src/features/dashboard/pages/DashboardPage.tsx:85
-#~ msgid "Hello"
-#~ msgstr "Hello"
 
 #: src/features/dashboard/components/FaqSection.tsx:68
 msgid "How can I secure my ENS name?"
@@ -1378,11 +1337,6 @@ msgstr "Manage Para Wallet"
 #: src/routes/auto-renewal/index.tsx:21
 msgid "Manage Renewals"
 msgstr "Manage Renewals"
-
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:25
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
-#~ msgid "Manage your notification preferences for your name(s) and ENS-related updates."
-#~ msgstr "Manage your notification preferences for your name(s) and ENS-related updates."
 
 #: src/features/dashboard/components/DashboardPills.tsx:43
 msgid "Manager"
@@ -1584,12 +1538,6 @@ msgstr "Nothing here yet!"
 #: src/components/SepoliaNoticeBanner.tsx:11
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
-
-#: src/features/notifications/settings/preferences.tsx:97
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
-#~ msgid "Notification Preferences"
-#~ msgstr "Notification Preferences"
 
 #: src/routes/notifications/_authenticated/index.tsx:82
 msgid "Notification Settings"
@@ -2096,9 +2044,17 @@ msgstr "Save Changes"
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:48
+msgid "Save Profile"
+msgstr "Save Profile"
+
 #: src/features/wallet/components/BackendAuthModal.tsx:171
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
+
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:48
+msgid "Saving"
+msgstr "Saving"
 
 #: src/features/migration/components/GameStep.tsx:72
 msgid "Saving {count} manager(s)"
@@ -2132,10 +2088,6 @@ msgstr "Search coins"
 msgid "Search for a name or address"
 msgstr "Search for a name or address"
 
-#: src/features/dashboard/components/NamesTable.tsx:163
-#~ msgid "Search my name..."
-#~ msgstr "Search my name..."
-
 #: src/features/dashboard/components/NamesTable.tsx:119
 msgid "Search my names"
 msgstr "Search my names"
@@ -2143,10 +2095,6 @@ msgstr "Search my names"
 #: src/features/navigation/Header/search/SearchInput.tsx:53
 msgid "Search name, address..."
 msgstr "Search name, address..."
-
-#: src/features/dashboard/components/NamesTable.tsx:163
-#~ msgid "Search name..."
-#~ msgstr "Search name..."
 
 #: src/features/migration/components/SelectNamesStep.tsx:58
 #: src/features/migration/components/SelectNamesStep.tsx:62
@@ -2291,21 +2239,9 @@ msgstr "Short Description"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
-#: src/features/dashboard/components/FavoritesList.tsx:300
-#~ msgid "Showing {startIndex}-{endIndex} of {totalCount}"
-#~ msgstr "Showing {startIndex}-{endIndex} of {totalCount}"
-
-#: src/features/dashboard/components/MyNamesList.tsx:484
-#~ msgid "Showing your names"
-#~ msgstr "Showing your names"
-
 #: src/features/notifications/RequireBackendAuth.tsx:120
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
-
-#: src/features/dashboard/components/NamesTable.tsx:128
-#~ msgid "Sign in to view favorites"
-#~ msgstr "Sign in to view favorites"
 
 #: src/features/notifications/RequireBackendAuth.tsx:136
 #: src/features/wallet/components/BackendAuthModal.tsx:118
@@ -2985,12 +2921,6 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:37
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
-
-#: src/features/notifications/settings/preferences.tsx:104
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:67
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:88
-#~ msgid "You'll be notified 30, 7, and 1 day before expiry"
-#~ msgstr "You'll be notified 30, 7, and 1 day before expiry"
 
 #: src/features/notifications/settings/preferences.tsx:98
 msgid "You'll be notified 30, 7, and 1 day before expiry."
