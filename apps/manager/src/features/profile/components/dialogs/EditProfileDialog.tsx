@@ -173,13 +173,13 @@ export const EditProfileDialog = ({ name }: EditProfileDialogProps) => (
             {tabs
               .filter(({ value }) => value !== 'general')
               .map(({ value }) => (
-              <TabsContent
-                className="flex min-h-0 flex-1 items-center justify-center text-base text-muted-foreground"
-                key={value}
-                value={value}
-              >
-                WIP
-              </TabsContent>
+                <TabsContent
+                  className="flex min-h-0 flex-1 items-center justify-center text-base text-muted-foreground"
+                  key={value}
+                  value={value}
+                >
+                  WIP
+                </TabsContent>
               ))}
           </div>
         </div>
