@@ -77,7 +77,6 @@ export const PaymentTokenPicker = ({
         name,
         duration,
         token: token.address,
-        owner: address,
       }),
       enabled: Boolean(address),
     })),

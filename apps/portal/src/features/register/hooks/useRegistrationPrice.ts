@@ -3,9 +3,11 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { type GetPriceErrorType, getPrice } from '@ensdomains/ensjs/public/v2'
+import {
+  type GetRegisterPriceErrorType,
+  getRegisterPrice,
+} from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -21,14 +23,13 @@ const ethRegistrar = getChainContractAddress({
 export class GetRegistrationPriceError extends TaggedError(
   'GetRegistrationPriceError',
 )<{
-  readonly cause: GetPriceErrorType | UnsupportedNameTypeError
+  readonly cause: GetRegisterPriceErrorType | UnsupportedNameTypeError
 }> {}
 
 export type RegistrationPriceParameters = {
   readonly name: string
   readonly duration: number
   readonly token?: SupportedTokenAddresses
-  readonly owner?: Address
 }
 
 export type RegistrationPriceResult = {
@@ -43,7 +44,6 @@ export const getRegistrationPrice = ResultFn(async function* ({
   name,
   duration,
   token,
-  owner,
 }: RegistrationPriceParameters) {
   const client = yield* safeGetClient()
   const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
@@ -58,18 +58,19 @@ export const getRegistrationPrice = ResultFn(async function* ({
     )
   }
 
-  // The StandardRentPriceOracle skips the temporary premium when owner is
-  // address(0) (the ensjs default). Passing the user's address ensures the
-  // returned price includes any active premium for recently expired names.
+  // ENSv2 `ETHRegistrar.getRegisterPrice` derives the temporary premium from
+  // on-chain state (time since `expiry + GRACE_PERIOD`) and returns it
+  // unconditionally — no caller-supplied owner is needed to opt into premium
+  // pricing, unlike the v1 oracle.
   const { base, premium } = yield* fromPromise(
-    getPrice(client, {
-      nameOrNames: label,
+    getRegisterPrice(client, {
+      label,
       duration: BigInt(duration),
       paymentToken: resolvedToken,
       registrarAddress: ethRegistrar,
-      owner,
     }),
-    (e) => new GetRegistrationPriceError({ cause: e as GetPriceErrorType }),
+    (e) =>
+      new GetRegistrationPriceError({ cause: e as GetRegisterPriceErrorType }),
   )
 
   const total = base + premium

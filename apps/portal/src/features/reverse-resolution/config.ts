@@ -1,7 +1,5 @@
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
-
-// L2 reverse resolution disabled — see createReverseResolutionNetworks below.
-// import { icons, names } from '@/lib/reverseRegistrarChainId'
+import { icons, names } from '@/lib/reverseRegistrarChainId'
 
 /**
  * Configuration for reverse resolution (ENSIP-23)
@@ -37,26 +35,31 @@ const DEFAULT_REVERSE_RECORD: ReverseResolutionNetwork = {
 }
 
 /**
- * Create reverse resolution networks from reverseRegistrarChainId data
+ * Create reverse resolution networks from reverseRegistrarChainId data.
+ *
+ * L2 reads (`nameForAddr`) are routed through the local `l2WagmiConfig`
+ * (see `@/lib/wagmiL2`) instead of the global Sepolia-only wagmi config, so
+ * including L2 entries here does NOT affect the explorer's main data path.
  */
 function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
   const networks: ReverseResolutionNetwork[] = [DEFAULT_REVERSE_RECORD]
 
-  // L2 reverse resolution disabled while running against a Tenderly L1 fork —
-  // the L2 chains in wagmi config aren't part of the fork, so reads/writes
-  // against them would hit live sepolia L2s and diverge from forked state.
-  // for (const reverseRegistrarChainIdKey of Object.keys(icons)) {
-  //   const reverseRegistrarChainId = Number(
-  //     reverseRegistrarChainIdKey,
-  //   ) as ReverseRegistrarChainId
-  //   // Skip 60 - already added as "Default" (addr.reverse). 60 and "Ethereum" are the same record.
-  //   if (reverseRegistrarChainId === 60) continue
-  //   networks.push({
-  //     reverseRegistrarChainId,
-  //     label: names[reverseRegistrarChainId],
-  //     icon: icons[reverseRegistrarChainId],
-  //   })
-  // }
+  for (const reverseRegistrarChainIdKey of Object.keys(icons)) {
+    const reverseRegistrarChainId = Number(
+      reverseRegistrarChainIdKey,
+    ) as ReverseRegistrarChainId
+    // Skip 60 - already added as "Default" (addr.reverse). 60 and "Ethereum"
+    // are the same record on L1.
+    if (reverseRegistrarChainId === 60) continue
+    // Skip 1 too — L1 mainnet is represented by the "Default" row in this
+    // app since we operate against Sepolia.
+    if (reverseRegistrarChainId === 1) continue
+    networks.push({
+      reverseRegistrarChainId,
+      label: names[reverseRegistrarChainId],
+      icon: icons[reverseRegistrarChainId],
+    })
+  }
 
   return networks
 }

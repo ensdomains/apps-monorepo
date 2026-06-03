@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { match, P } from 'ts-pattern'
-import { zeroAddress } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
@@ -43,12 +42,9 @@ export const TokenPickerContent = () => {
     uiActor,
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
-  const ownerAddress = account.ownerAddress ?? zeroAddress
-
   const pricingQuery = useQuery({
     ...getPricingQueryOptions(
       label,
-      ownerAddress,
       duration,
       selectedToken ?? TOKENS.USDC.symbol,
     ),

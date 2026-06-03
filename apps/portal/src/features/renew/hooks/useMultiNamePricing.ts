@@ -1,6 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import type { Address } from 'viem'
 import {
   getBaseRateForName,
   getBaseRatesQueryOptions,
@@ -76,7 +75,6 @@ export function useMultiNamePricing(
   selectedNames: readonly SelectedName[],
   spanType: ExtensionSpanType,
   duration: number,
-  owner?: Address,
 ): MultiNamePricingResult {
   const renewalInputs = useMemo(() => {
     const today = getStartOfToday()
@@ -122,7 +120,6 @@ export function useMultiNamePricing(
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.USDC,
-        owner,
       }),
     ),
   })

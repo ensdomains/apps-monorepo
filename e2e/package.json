@@ -13,6 +13,8 @@
   },
   "postinstall": "playwright install --with-deps chromium",
   "dependencies": {
+    "@ensdomains/ensjs": "catalog:",
+    "@ensdomains/ensjs-abi": "catalog:",
     "@ensdomains/headless-web3-provider": "^1.0.8",
     "dotenv": "^17.2.3",
     "viem": "^2.47.2"
