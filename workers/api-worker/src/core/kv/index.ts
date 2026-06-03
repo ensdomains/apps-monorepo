@@ -8,6 +8,12 @@ export const KV_KEY = {
   EXPIRY_DISCOVERY: {
     CURSORS: 'expiry_discovery:cursors',
   },
+  WALLET: {
+    // Per-address lock serializing faucet funding so concurrent /wallet/fund
+    // calls don't double-mint tokens or double-drip ETH (or race the funder's
+    // nonce).
+    FUND_LOCK: (address: string) => `wallet:fund-lock:${address.toLowerCase()}`,
+  },
 } as const
 
 export const intoKVError = (err: unknown) => {

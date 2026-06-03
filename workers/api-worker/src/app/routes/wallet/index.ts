@@ -18,6 +18,7 @@ import { encodeFunctionData, parseEther, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { SEPOLIA_RPC_URL } from '#core/eth/client.js'
+import { KV_KEY } from '#core/kv/index.js'
 import { logger } from '#utils/logger.js'
 import { ethAddress } from '#utils/validation.js'
 
@@ -113,11 +114,33 @@ export default createApp()
       // Setup wallet
       const walletClient = createWalletClient(c.env.ETH_PRIVATE_KEY)
 
-      // All reads go out in a single JSON-RPC batch (see `batch: true` on the
-      // transport): both token balances, both registrar allowances (USDC and
-      // DAI — approvals are per-token), and the native ETH balance.
-      const [usdcBalance, daiBalance, usdcAllowance, daiAllowance, ethBalance] =
-        await Promise.all([
+      // Serialize funding per address. Without this, concurrent /wallet/fund
+      // calls for the same address each read the same (low) balances/allowance
+      // and each mint + drip ETH — double-spending faucet funds and racing the
+      // funder's nonce. A short-lived KV lock lets only one in-flight fund per
+      // address proceed; others no-op. KV is best-effort across colos (fine for
+      // a testnet faucet), and the TTL self-heals if a fund crashes mid-flight.
+      const lockKey = KV_KEY.WALLET.FUND_LOCK(address)
+      if (await c.env.KV.get(lockKey)) {
+        logger.debug('Fund already in progress for address, skipping', {
+          address,
+        })
+        return c.json({ txHash: null })
+      }
+      await c.env.KV.put(lockKey, 'locked', { expirationTtl: 60 })
+
+      let txHash: Hex | null = null
+      try {
+        // All reads go out in a single JSON-RPC batch (see `batch: true` on the
+        // transport): both token balances, both registrar allowances (USDC and
+        // DAI — approvals are per-token), and the native ETH balance.
+        const [
+          usdcBalance,
+          daiBalance,
+          usdcAllowance,
+          daiAllowance,
+          ethBalance,
+        ] = await Promise.all([
           walletClient.readContract({
             address: TOKENS.USDC.address,
             abi: erc20Abi,
@@ -145,118 +168,123 @@ export default createApp()
           walletClient.getBalance({ address }),
         ])
 
-      logger.debug('Checked faucet state', {
-        usdcBalance,
-        daiBalance,
-        usdcAllowance,
-        daiAllowance,
-        ethBalance,
-        address,
-      })
-
-      // 1) Mint mock USDC/DAI unless the address already has enough (anti-abuse).
-      let txHash: Hex | null = null
-      const hasEnoughTokens =
-        usdcBalance >= TOKENS.USDC.mintAmount / 10n &&
-        daiBalance >= TOKENS.DAI.mintAmount / 10n
-      if (hasEnoughTokens) {
-        logger.debug('Already have enough tokens, skipping mint', {
+        logger.debug('Checked faucet state', {
           usdcBalance,
           daiBalance,
-          address,
-        })
-      } else {
-        const multicallTxHash = await walletClient.writeContract({
-          address: sepolia.contracts.multicall3.address,
-          abi: multicall3Abi,
-          functionName: 'aggregate3',
-          args: [
-            [
-              {
-                target: TOKENS.USDC.address,
-                allowFailure: false,
-                callData: encodeFunctionData({
-                  abi: MINT_ABI,
-                  functionName: 'mint',
-                  args: [address, TOKENS.USDC.mintAmount],
-                }),
-              },
-              {
-                target: TOKENS.DAI.address,
-                allowFailure: false,
-                callData: encodeFunctionData({
-                  abi: MINT_ABI,
-                  functionName: 'mint',
-                  args: [address, TOKENS.DAI.mintAmount],
-                }),
-              },
-            ],
-          ],
-        })
-
-        logger.debug('Mint multicall sent', {
-          multicall: multicallTxHash,
-          address,
-        })
-
-        const receipt = await walletClient.waitForTransactionReceipt({
-          hash: multicallTxHash,
-        })
-
-        logger.debug('Mint multicall confirmed', { receipt, address })
-        txHash = receipt.transactionHash
-      }
-
-      // 2) Drip a little ETH for the one-time registrar approve — ONLY when the
-      // owner hasn't approved the registrar yet AND is low on ETH. The approve
-      // is a non-sponsorable EOA tx (mock tokens have no permit); the manager
-      // issues a max approve, so this is needed at most once per token.
-      //
-      // Gate on BOTH payment tokens: auto-fund runs before the user picks a
-      // token and approvals are per-token (USDC vs DAI), so we keep topping up
-      // approve-gas until the registrar is approved for every token the user
-      // could pay with — otherwise a DAI registration could still run dry while
-      // only USDC is approved. Each drip covers ~one approve; the manager
-      // re-funds on low balance, so a user paying with both tokens is covered.
-      const hasApprovedRegistrar =
-        usdcAllowance >= APPROVED_ALLOWANCE_THRESHOLD &&
-        daiAllowance >= APPROVED_ALLOWANCE_THRESHOLD
-      if (hasApprovedRegistrar) {
-        logger.debug(
-          'Registrar approved for all payment tokens, skipping drip',
-          {
-            usdcAllowance,
-            daiAllowance,
-            address,
-          },
-        )
-      } else if (ethBalance >= APPROVAL_GAS_ETH_TARGET) {
-        logger.debug('Address has enough ETH for the approve, skipping drip', {
+          usdcAllowance,
+          daiAllowance,
           ethBalance,
           address,
         })
-      } else {
-        const value = APPROVAL_GAS_ETH_TARGET - ethBalance
-        try {
-          const dripTxHash = await walletClient.sendTransaction({
-            to: address,
-            value,
-          })
-          logger.debug('Approve-gas ETH drip sent', {
-            dripTxHash,
-            value,
+
+        // 1) Mint mock USDC/DAI unless the address already has enough (anti-abuse).
+        const hasEnoughTokens =
+          usdcBalance >= TOKENS.USDC.mintAmount / 10n &&
+          daiBalance >= TOKENS.DAI.mintAmount / 10n
+        if (hasEnoughTokens) {
+          logger.debug('Already have enough tokens, skipping mint', {
+            usdcBalance,
+            daiBalance,
             address,
           })
-          await walletClient.waitForTransactionReceipt({ hash: dripTxHash })
-          logger.debug('Approve-gas ETH drip confirmed', {
-            dripTxHash,
+        } else {
+          const multicallTxHash = await walletClient.writeContract({
+            address: sepolia.contracts.multicall3.address,
+            abi: multicall3Abi,
+            functionName: 'aggregate3',
+            args: [
+              [
+                {
+                  target: TOKENS.USDC.address,
+                  allowFailure: false,
+                  callData: encodeFunctionData({
+                    abi: MINT_ABI,
+                    functionName: 'mint',
+                    args: [address, TOKENS.USDC.mintAmount],
+                  }),
+                },
+                {
+                  target: TOKENS.DAI.address,
+                  allowFailure: false,
+                  callData: encodeFunctionData({
+                    abi: MINT_ABI,
+                    functionName: 'mint',
+                    args: [address, TOKENS.DAI.mintAmount],
+                  }),
+                },
+              ],
+            ],
+          })
+
+          logger.debug('Mint multicall sent', {
+            multicall: multicallTxHash,
             address,
           })
-        } catch (error) {
-          // Best-effort: a failed drip must not fail token funding. The owner
-          // can still be topped up from a faucet; log for debugging.
-          logger.error('Approve-gas ETH drip failed', { address, error })
+
+          const receipt = await walletClient.waitForTransactionReceipt({
+            hash: multicallTxHash,
+          })
+
+          logger.debug('Mint multicall confirmed', { receipt, address })
+          txHash = receipt.transactionHash
         }
+
+        // 2) Drip a little ETH for the one-time registrar approve — ONLY when
+        // the owner hasn't approved the registrar yet AND is low on ETH. The
+        // approve is a non-sponsorable EOA tx (mock tokens have no permit); the
+        // manager issues a max approve, so this is needed at most once per token.
+        //
+        // Gate on BOTH payment tokens: auto-fund runs before the user picks a
+        // token and approvals are per-token (USDC vs DAI), so we keep topping up
+        // approve-gas until the registrar is approved for every token the user
+        // could pay with — otherwise a DAI registration could still run dry
+        // while only USDC is approved. Each drip covers ~one approve; the
+        // manager re-funds on low balance, so paying with both tokens is covered.
+        const hasApprovedRegistrar =
+          usdcAllowance >= APPROVED_ALLOWANCE_THRESHOLD &&
+          daiAllowance >= APPROVED_ALLOWANCE_THRESHOLD
+        if (hasApprovedRegistrar) {
+          logger.debug(
+            'Registrar approved for all payment tokens, skipping drip',
+            {
+              usdcAllowance,
+              daiAllowance,
+              address,
+            },
+          )
+        } else if (ethBalance >= APPROVAL_GAS_ETH_TARGET) {
+          logger.debug(
+            'Address has enough ETH for the approve, skipping drip',
+            {
+              ethBalance,
+              address,
+            },
+          )
+        } else {
+          const value = APPROVAL_GAS_ETH_TARGET - ethBalance
+          try {
+            const dripTxHash = await walletClient.sendTransaction({
+              to: address,
+              value,
+            })
+            logger.debug('Approve-gas ETH drip sent', {
+              dripTxHash,
+              value,
+              address,
+            })
+            await walletClient.waitForTransactionReceipt({ hash: dripTxHash })
+            logger.debug('Approve-gas ETH drip confirmed', {
+              dripTxHash,
+              address,
+            })
+          } catch (error) {
+            // Best-effort: a failed drip must not fail token funding. The owner
+            // can still be topped up from a faucet; log for debugging.
+            logger.error('Approve-gas ETH drip failed', { address, error })
+          }
+        }
+      } finally {
+        await c.env.KV.delete(lockKey)
       }
 
       // Preserve the two-shape response so the inferred hc type stays
