@@ -86,7 +86,10 @@ const createWalletClient = (privateKey: string | undefined) => {
 
   return createClient({
     chain: sepolia,
-    transport: http(SEPOLIA_RPC_URL),
+    // `batch: true` coalesces concurrent reads (the Promise.all below) into a
+    // single JSON-RPC batch HTTP request — one round-trip without the on-chain
+    // Multicall3 dependency, and native ETH reads as plain `eth_getBalance`.
+    transport: http(SEPOLIA_RPC_URL, { batch: true }),
     account: walletAccount,
   })
     .extend(publicActions)
@@ -110,46 +113,37 @@ export default createApp()
       // Setup wallet
       const walletClient = createWalletClient(c.env.ETH_PRIVATE_KEY)
 
-      // Batch all reads into a single multicall: both token balances, both
-      // registrar allowances (USDC and DAI — approvals are per-token), and the
-      // native ETH balance (via Multicall3.getEthBalance, which lets a
-      // native-balance read ride along in the same aggregate3).
+      // All reads go out in a single JSON-RPC batch (see `batch: true` on the
+      // transport): both token balances, both registrar allowances (USDC and
+      // DAI — approvals are per-token), and the native ETH balance.
       const [usdcBalance, daiBalance, usdcAllowance, daiAllowance, ethBalance] =
-        await walletClient.multicall({
-          allowFailure: false,
-          contracts: [
-            {
-              address: TOKENS.USDC.address,
-              abi: erc20Abi,
-              functionName: 'balanceOf',
-              args: [address],
-            },
-            {
-              address: TOKENS.DAI.address,
-              abi: erc20Abi,
-              functionName: 'balanceOf',
-              args: [address],
-            },
-            {
-              address: TOKENS.USDC.address,
-              abi: erc20Abi,
-              functionName: 'allowance',
-              args: [address, ETH_REGISTRAR],
-            },
-            {
-              address: TOKENS.DAI.address,
-              abi: erc20Abi,
-              functionName: 'allowance',
-              args: [address, ETH_REGISTRAR],
-            },
-            {
-              address: sepolia.contracts.multicall3.address,
-              abi: multicall3Abi,
-              functionName: 'getEthBalance',
-              args: [address],
-            },
-          ],
-        })
+        await Promise.all([
+          walletClient.readContract({
+            address: TOKENS.USDC.address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+          walletClient.readContract({
+            address: TOKENS.DAI.address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+          walletClient.readContract({
+            address: TOKENS.USDC.address,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [address, ETH_REGISTRAR],
+          }),
+          walletClient.readContract({
+            address: TOKENS.DAI.address,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [address, ETH_REGISTRAR],
+          }),
+          walletClient.getBalance({ address }),
+        ])
 
       logger.debug('Checked faucet state', {
         usdcBalance,
