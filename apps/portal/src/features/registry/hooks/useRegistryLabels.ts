@@ -40,11 +40,6 @@ type IndexerLabel = {
   expiryDate: number | null
 }
 
-type RolePage = {
-  pageInfo: { hasNextPage: boolean; endCursor: string | null }
-  edges: { node: IndexerRole }[]
-}
-
 // A label's on-chain `resource` is its canonical token id — the labelhash with
 // the lower 32 version bits cleared (LibLabel.withVersion). Shifting both the
 // role `resource` and the `labelhash` right by 32 normalizes away the version,
@@ -52,41 +47,8 @@ type RolePage = {
 const canonicalBits = (hex: string) => BigInt(hex) >> 32n
 const ROOT_RESOURCE_CANONICAL = 0n
 
-// Labels are returned as a single page — the table doesn't paginate them yet,
-// matching the other registry tables. Roles, in contrast, are fully paginated
-// below so roleHoldersCount is exact for a registry of any size.
-const LABELS_PAGE_SIZE = 100
-const ROLES_PAGE_SIZE = 1000
-// Safety bound so a misbehaving indexer can't loop forever (mirrors useRoleHistory).
-const MAX_ROLE_PAGES = 50
-
-// This indexer ignores GraphQL *variables* on connection args (roleConnection
-// first/after) and only honors inline literals, so we build the role query with
-// the cursor inlined. Cursors are opaque base64 tokens; refuse anything that
-// isn't one rather than splice unexpected text into the query string.
-const isCursorToken = (value: string) => /^[A-Za-z0-9+/=]+$/.test(value)
-
-const buildRolesPageQuery = (afterCursor: string | null) => gql`
-  query getRegistryRoles($address: String!) {
-    registry(address: $address) {
-      roleConnection(first: ${ROLES_PAGE_SIZE}${
-        afterCursor ? `, after: "${afterCursor}"` : ''
-      }) {
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-        edges {
-          node {
-            account
-            resource
-            roleBitmap
-          }
-        }
-      }
-    }
-  }
-`
+const LABELS_LIMIT = 100
+const ROLES_LIMIT = 1000
 
 /**
  * Count distinct accounts holding any label-scoped role, keyed by the canonical
@@ -129,87 +91,45 @@ const toLabelRows = (
   return rows
 }
 
+const labelsQuery = gql`
+  query getRegistryLabels($address: String!) {
+    registry(address: $address) {
+      roleConnection(first: ${ROLES_LIMIT}) {
+        edges {
+          node {
+            account
+            resource
+            roleBitmap
+          }
+        }
+      }
+      labels(first: ${LABELS_LIMIT}, orderBy: name, orderDirection: asc) {
+        name
+        labelName
+        labelhash
+        tokenId
+        expiryDate
+      }
+    }
+  }
+`
+
 const getRegistryLabels = ResultFn(async function* ({
   address,
 }: GetRegistryLabelsParameters) {
-  const registryAddress = address.toLowerCase()
-
-  // Labels + the first page of role assignments. roleConnection's `first` is
-  // inlined (variables are ignored on it — see isCursorToken note); the labels
-  // offset list honors variables fine.
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: {
-        roleConnection: RolePage
+        roleConnection: { edges: { node: IndexerRole }[] }
         labels: IndexerLabel[]
       } | null
-    }>(
-      gql`
-        query getRegistryLabels($address: String!, $first: Int!) {
-          registry(address: $address) {
-            roleConnection(first: ${ROLES_PAGE_SIZE}) {
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
-              edges {
-                node {
-                  account
-                  resource
-                  roleBitmap
-                }
-              }
-            }
-            labels(first: $first, orderBy: name, orderDirection: asc) {
-              name
-              labelName
-              labelhash
-              tokenId
-              expiryDate
-            }
-          }
-        }
-      `,
-      {
-        address: registryAddress,
-        first: LABELS_PAGE_SIZE,
-      },
-    ),
+    }>(labelsQuery, { address: address.toLowerCase() }),
     (e) => new GetRegistryLabelsError({ cause: e as ClientError }),
   )
 
-  // null = indexer has no record for this address (not a registry, or not yet
-  // indexed). The route already surfaces not-found via useRegistry, so an empty
-  // list is the right shape here.
   if (!registry) return ok([])
 
-  // Follow the role cursor to load every assignment — roleHoldersCount must be
-  // exact, not a sample. The roles relation caps at one page and its `skip` arg
-  // is broken on this indexer, so the inlined cursor is the only way through.
-  const roles: IndexerRole[] = registry.roleConnection.edges.map((e) => e.node)
-  let { hasNextPage, endCursor } = registry.roleConnection.pageInfo
-
-  for (
-    let page = 1;
-    hasNextPage &&
-    endCursor &&
-    isCursorToken(endCursor) &&
-    page < MAX_ROLE_PAGES;
-    page++
-  ) {
-    const { registry: rolePage } = yield* fromPromise(
-      graphqlIndexerClient.request<{
-        registry: { roleConnection: RolePage } | null
-      }>(buildRolesPageQuery(endCursor), { address: registryAddress }),
-      (e) => new GetRegistryLabelsError({ cause: e as ClientError }),
-    )
-
-    if (!rolePage) break
-    for (const edge of rolePage.roleConnection.edges) roles.push(edge.node)
-    hasNextPage = rolePage.roleConnection.pageInfo.hasNextPage
-    endCursor = rolePage.roleConnection.pageInfo.endCursor
-  }
-
+  const roles = registry.roleConnection.edges.map((edge) => edge.node)
   return ok(toLabelRows(registry.labels, roles))
 })
 

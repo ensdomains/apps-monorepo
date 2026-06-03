@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { SortButton } from '@/components/table/SortButton'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
@@ -94,8 +95,12 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   if (isLoading) return <LoadingSpinner title="Loading labels..." />
 
   if (error) {
-    const message = (error as { cause?: { message?: string } }).cause?.message
-    return <div>Error loading labels{message ? `: ${message}` : ''}</div>
+    return (
+      <ErrorMessage
+        title="Failed to load labels"
+        description={error.cause?.message}
+      />
+    )
   }
 
   return <DataTable columns={columns} data={labels ?? []} />
