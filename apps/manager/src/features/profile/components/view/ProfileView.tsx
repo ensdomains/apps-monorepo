@@ -72,7 +72,7 @@ const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
 export const ProfileView = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
   const profileEditNewEnabled = useFeatureFlag('PROFILE_EDIT_NEW')
-  const { data: profileRecords } = useSuspenseQuery({
+  const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
@@ -115,7 +115,14 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           {/* Edit Button */}
           {isOwner && (
             <div className="space-y-2">
-              {profileEditNewEnabled && <EditProfileDialog name={name} />}
+              {profileEditNewEnabled && (
+                <EditProfileDialog
+                  name={name}
+                  onUpdated={refetchRecords}
+                  owner={owner}
+                  records={records}
+                />
+              )}
               <LinkButton
                 className="w-full"
                 params={{ name }}
