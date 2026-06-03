@@ -776,7 +776,7 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:176
+#: src/lib/smart-account/rhinestone.ts:209
 msgid "Deploying on-chain…"
 msgstr ""
 
@@ -995,16 +995,16 @@ msgstr ""
 msgid "Failed to authenticate with Telegram"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:185
+#: src/lib/smart-account/rhinestone.ts:218
 msgid "Failed to deploy smart account"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:221
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:222
+#: src/lib/smart-account/SmartAccountContext.tsx:223
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -1085,11 +1085,11 @@ msgstr "Vanliga frågor"
 msgid "From:"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:192
+#: src/lib/smart-account/SmartAccountContext.tsx:193
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:193
+#: src/lib/smart-account/SmartAccountContext.tsx:194
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -2150,7 +2150,7 @@ msgstr ""
 msgid "Setting up resolver"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:161
+#: src/lib/smart-account/rhinestone.ts:194
 msgid "Setting up your smart account"
 msgstr ""
 
@@ -2222,7 +2222,7 @@ msgstr ""
 msgid "Slide {0}"
 msgstr ""
 
-#: src/lib/smart-account/rhinestone.ts:178
+#: src/lib/smart-account/rhinestone.ts:211
 msgid "Smart account ready"
 msgstr ""
 
@@ -2697,7 +2697,7 @@ msgstr ""
 msgid "Waiting period"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:210
+#: src/lib/smart-account/SmartAccountContext.tsx:211
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2713,7 +2713,7 @@ msgstr ""
 msgid "Wallet Connected"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:209
+#: src/lib/smart-account/SmartAccountContext.tsx:210
 msgid "Wallet funded successfully"
 msgstr ""
 

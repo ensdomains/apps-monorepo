@@ -771,7 +771,7 @@ msgstr "Default"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/lib/smart-account/rhinestone.ts:176
+#: src/lib/smart-account/rhinestone.ts:209
 msgid "Deploying on-chain…"
 msgstr "Deploying on-chain…"
 
@@ -990,16 +990,16 @@ msgstr "Failed to add telegram: "
 msgid "Failed to authenticate with Telegram"
 msgstr "Failed to authenticate with Telegram"
 
-#: src/lib/smart-account/rhinestone.ts:185
+#: src/lib/smart-account/rhinestone.ts:218
 msgid "Failed to deploy smart account"
 msgstr "Failed to deploy smart account"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:221
+#: src/lib/smart-account/SmartAccountContext.tsx:222
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:222
+#: src/lib/smart-account/SmartAccountContext.tsx:223
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
@@ -1080,11 +1080,11 @@ msgstr "Frequently Asked Questions"
 msgid "From:"
 msgstr "From:"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:192
+#: src/lib/smart-account/SmartAccountContext.tsx:193
 msgid "Funding wallet"
 msgstr "Funding wallet"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:193
+#: src/lib/smart-account/SmartAccountContext.tsx:194
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
@@ -2145,7 +2145,7 @@ msgstr "Setting up registration"
 msgid "Setting up resolver"
 msgstr "Setting up resolver"
 
-#: src/lib/smart-account/rhinestone.ts:161
+#: src/lib/smart-account/rhinestone.ts:194
 msgid "Setting up your smart account"
 msgstr "Setting up your smart account"
 
@@ -2217,7 +2217,7 @@ msgstr "Skipping SIWE verification means you won't get notifications about your 
 msgid "Slide {0}"
 msgstr "Slide {0}"
 
-#: src/lib/smart-account/rhinestone.ts:178
+#: src/lib/smart-account/rhinestone.ts:211
 msgid "Smart account ready"
 msgstr "Smart account ready"
 
@@ -2692,7 +2692,7 @@ msgstr "Waiting for transaction"
 msgid "Waiting period"
 msgstr "Waiting period"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:210
+#: src/lib/smart-account/SmartAccountContext.tsx:211
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
@@ -2708,7 +2708,7 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 msgid "Wallet Connected"
 msgstr "Wallet Connected"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:209
+#: src/lib/smart-account/SmartAccountContext.tsx:210
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 

@@ -198,12 +198,37 @@ const startRegistrationAction = machineSetup.createAction(
     // The ENS registrar pulls the payment token from the name owner (the EOA),
     // so the ERC-20 approve must be signed by the EOA — the HCA can't approve
     // on its behalf and the mock tokens have no permit. Hand the registration
-    // machine a dedicated EOA signer (the connected wallet client) for the
+    // machine a dedicated EOA signer (the owner's wallet client) for the
     // approve step; commit/deploy/register stay on the sponsored rhinestone
     // signer. For pure-EOA flows this is the same wallet, so it's a no-op.
+    //
+    // `account.walletClient` is the owner EOA wallet client for BOTH wallet
+    // sources: wagmi external wallets and Para embedded wallets (the latter is
+    // derived from the Para account in SmartAccountContext, since Para is not a
+    // wagmi connector and never surfaces through `useWalletClient()`).
     const approvalSigner: Signer | undefined = event.account.walletClient
       ? { type: 'eoa', walletClient: event.account.walletClient }
       : undefined
+
+    // HCA flows register the name to the EOA owner, and the registrar pulls the
+    // payment from that owner — so the approve MUST be EOA-signed. Without an
+    // `approvalSigner` the only remaining route is the legacy bundled
+    // approve+register intent, which approves from the HCA and therefore leaves
+    // `allowance[EOA][registrar] == 0`, reverting the registration. Fail fast
+    // with an actionable message instead of silently entering that broken path
+    // (e.g. when a Para embedded wallet is mid-reconnect and exposes no client).
+    const isHcaRegistration =
+      event.account.signer.type === 'rhinestone' &&
+      ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
+
+    if (isHcaRegistration && !approvalSigner) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          'Cannot register: the wallet that owns this account is unavailable to approve the payment. Please reconnect your wallet and try again.',
+        ),
+      })
+    }
 
     enqueue.assign({
       confirmedData: {
