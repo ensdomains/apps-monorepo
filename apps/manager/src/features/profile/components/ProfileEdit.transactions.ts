@@ -200,7 +200,9 @@ const validateLinksRecord = (value: string): RecordIssue[] => {
   )
 }
 
-const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
+const validateFinalTextRecords = (
+  texts: Array<{ key: string; value: string | null | undefined }>,
+): RecordIssue[] => {
   const issues: RecordIssue[] = []
 
   for (const { key, value } of texts) {
@@ -315,8 +317,8 @@ async function buildRecordsUpdateRequest(params: {
     throw new Error('No profile record changes to apply')
   }
 
-  // Validate text changes
-  const issues = validateTextChanges(changes.texts)
+  // Validate the final records, including unchanged records omitted from the diff.
+  const issues = validateFinalTextRecords(after.texts)
   if (issues.length > 0) {
     throw new RecordsValidationError(issues)
   }

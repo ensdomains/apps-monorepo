@@ -30,9 +30,10 @@ vi.mock('viem', async (importOriginal) => {
 
 const baseParams = (
   texts: SaveRecordsParams['after']['texts'],
+  beforeTexts: SaveRecordsParams['before']['texts'] = [],
 ): SaveRecordsParams => ({
   name: 'example.eth',
-  before: { texts: [], coins: [] },
+  before: { texts: beforeTexts, coins: [] },
   after: { texts, coins: [] },
   signer: { type: 'eoa' } as SaveRecordsParams['signer'],
   accountAddress: '0x0000000000000000000000000000000000000001',
@@ -67,6 +68,44 @@ describe('saveRecords URL validation', () => {
             ]),
           },
         ]),
+      ),
+    ).rejects.toBeInstanceOf(RecordsValidationError)
+  })
+
+  it('rejects unchanged unsafe website URL schemes when other records change', async () => {
+    await expect(
+      saveRecords(
+        baseParams(
+          [
+            { key: 'url', value: 'javascript:alert(document.domain)' },
+            { key: 'description', value: 'After' },
+          ],
+          [
+            { key: 'url', value: 'javascript:alert(document.domain)' },
+            { key: 'description', value: 'Before' },
+          ],
+        ),
+      ),
+    ).rejects.toBeInstanceOf(RecordsValidationError)
+  })
+
+  it('rejects unchanged unsafe profile link URL schemes when other records change', async () => {
+    const unsafeLinks = JSON.stringify([
+      { name: 'Evil', url: 'data:text/html,<script>alert(1)</script>' },
+    ])
+
+    await expect(
+      saveRecords(
+        baseParams(
+          [
+            { key: 'links', value: unsafeLinks },
+            { key: 'description', value: 'After' },
+          ],
+          [
+            { key: 'links', value: unsafeLinks },
+            { key: 'description', value: 'Before' },
+          ],
+        ),
       ),
     ).rejects.toBeInstanceOf(RecordsValidationError)
   })

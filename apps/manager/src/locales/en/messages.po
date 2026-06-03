@@ -139,7 +139,7 @@ msgstr "Account address:"
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr "Account not ready. Please wait for wallet to connect."
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:174
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:175
 msgid "Add"
 msgstr "Add"
 
@@ -180,8 +180,8 @@ msgstr "Add Crypto Address"
 msgid "Add favorite"
 msgstr "Add favorite"
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:76
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:77
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:78
 msgid "Add Link"
 msgstr "Add Link"
 
@@ -515,7 +515,7 @@ msgstr "Clear search"
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr "Click the button below to verify your email address and start receiving notifications."
 
-#: src/features/profile/components/view/ViewBioSection.tsx:55
+#: src/features/profile/components/view/ViewBioSection.tsx:56
 msgid "Click to copy"
 msgstr "Click to copy"
 
@@ -1229,7 +1229,7 @@ msgstr "Language"
 msgid "Learn more"
 msgstr "Learn more"
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:160
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:161
 msgid "Link"
 msgstr "Link"
 
@@ -1244,7 +1244,7 @@ msgid "links"
 msgstr "links"
 
 #: src/features/profile/components/sections/LinksSection.tsx:21
-#: src/features/profile/components/view/ViewLinksSection.tsx:20
+#: src/features/profile/components/view/ViewLinksSection.tsx:26
 msgid "Links"
 msgstr "Links"
 
@@ -1366,7 +1366,7 @@ msgstr "My Names"
 #: src/features/dashboard/components/NamesTable.tsx:70
 #: src/features/dashboard/components/NamesTable.tsx:84
 #: src/features/dashboard/components/NamesTable.tsx:85
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:149
 msgid "Name"
 msgstr "Name"
 
@@ -1503,7 +1503,7 @@ msgstr "No wallet connectors available"
 msgid "Not a valid name format"
 msgstr "Not a valid name format"
 
-#: src/features/profile/components/view/ViewBioSection.tsx:33
+#: src/features/profile/components/view/ViewBioSection.tsx:34
 msgid "Not set"
 msgstr "Not set"
 
@@ -1624,7 +1624,7 @@ msgstr "Pending verification"
 msgid "Permission missing. Please try again."
 msgstr "Permission missing. Please try again."
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:150
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:151
 msgid "Personal Site"
 msgstr "Personal Site"
 
