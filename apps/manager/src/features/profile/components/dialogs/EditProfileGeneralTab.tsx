@@ -58,7 +58,7 @@ const setTextRecordValue = (
 }
 
 const fieldClassName =
-  'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-[#737373] focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
+  'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
 
 interface SelectFieldProps {
   readonly ariaLabel: string
@@ -90,7 +90,7 @@ const SelectField = ({
         className={cn(
           fieldClassName,
           'appearance-none pr-12',
-          value ? 'text-ens-quartz-900' : 'text-[#737373]',
+          value ? 'text-ens-quartz-900' : 'text-ens-quartz-400',
         )}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
@@ -104,7 +104,7 @@ const SelectField = ({
           </option>
         ))}
       </select>
-      <ChevronDown className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-4 size-5 text-[#737373]" />
+      <ChevronDown className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-4 size-5 text-ens-quartz-400" />
     </div>
   )
 }
@@ -199,7 +199,7 @@ export const EditProfileGeneralTab = ({
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (
           <div className="flex flex-col items-center gap-3.5 py-3">
-            <div className="size-[100px] overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+            <div className="size-25 overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
               <ImageSelectionDialog
                 currentImage={values.base.avatar}
                 defaultImage=""
@@ -233,7 +233,7 @@ export const EditProfileGeneralTab = ({
         )}
 
         {isVisible('header') && (
-          <div className="h-[168px] w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+          <div className="h-42 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
             <ImageSelectionDialog
               currentImage={values.base.header}
               defaultImage=""
