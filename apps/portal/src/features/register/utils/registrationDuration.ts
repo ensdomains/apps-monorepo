@@ -85,35 +85,28 @@ export const getRegistrationDurationInSeconds = (
 }
 
 /**
- * Converts a year count to a duration in seconds. Returns the LARGER of:
- *   - the flat rack-rate duration: `N × CONTRACT_SECONDS_PER_YEAR` (365.25 d/y)
- *   - the calendar duration: `(today → today+N years).days × 86400`
+ * Year-picker durations: always clear the N-year discount tier, plus bill
+ * any actual leap days inside the calendar interval.
  *
- * This gives the user both:
- *   - **Rack-rate floor**: a 1-year pick always clears the
- *     `CONTRACT_SECONDS_PER_YEAR` tier boundary, so 1y always quotes the
- *     full $8/yr (not $7.99 from sending 365 days < 365.25 in a non-leap-
- *     spanning interval).
- *   - **Leap-day surcharge**: when the actual calendar interval includes
- *     a Feb 29 (e.g. 2026-06-04 → 2028-06-04 = 731 days), we send those
- *     extra days so the contract quotes ~$14.01 — matching apps that
- *     drive registration from a calendar date picker.
+ * The contract gates per-year tiers at exact multiples of
+ * `CONTRACT_SECONDS_PER_YEAR` (= 365.25 d). The calendar interval can run
+ * shorter (no leap day, e.g. 1y from a non-leap start = 365 d) or longer
+ * (leap day inside, e.g. 2y crossing Feb 29 = 731 d). Whichever is
+ * larger is the right thing to pay.
  *
- * `years` is floored to an integer and clamped to `[1, MAX_REGISTRATION_YEARS]`.
+ * `years` is floored and clamped to `[1, MAX_REGISTRATION_YEARS]`.
  */
 export const getDurationInSecondsFromYears = (
   years: number,
   startOfToday: Temporal.PlainDate = getStartOfToday(),
 ): number => {
-  const cappedYears = Math.min(
-    Math.max(1, Math.floor(years)),
-    MAX_REGISTRATION_YEARS,
-  )
-  const flatDuration = cappedYears * CONTRACT_SECONDS_PER_YEAR
-  const expiry = startOfToday.add({ years: cappedYears })
-  const calendarDays = startOfToday.until(expiry, { largestUnit: 'days' }).days
-  const calendarDuration = calendarDays * 86400
-  return Math.max(flatDuration, calendarDuration)
+  const N = Math.min(Math.max(1, Math.floor(years)), MAX_REGISTRATION_YEARS)
+  const tierDuration = N * CONTRACT_SECONDS_PER_YEAR
+  const calendarDuration =
+    startOfToday.until(startOfToday.add({ years: N }), {
+      largestUnit: 'days',
+    }).days * 86400
+  return Math.max(tierDuration, calendarDuration)
 }
 
 /**
