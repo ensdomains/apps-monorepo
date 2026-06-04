@@ -207,6 +207,7 @@ export const EditProfileDialog = ({
                   onContactChange={handleContactChange}
                   onSocialChange={handleSocialChange}
                   onToggleField={toggleField}
+                  owner={owner}
                   txHash={saveRecordsMutation.data?.hash}
                   values={values}
                   visibleFields={visibleFields}

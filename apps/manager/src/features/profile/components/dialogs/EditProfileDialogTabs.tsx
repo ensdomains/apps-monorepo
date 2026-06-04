@@ -1,5 +1,7 @@
+import type { Address } from 'viem'
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ProfileRecords } from '../../types'
+import { EditProfileAppearanceTab } from './EditProfileAppearanceTab'
 import { EditProfileContactTab } from './EditProfileContactTab'
 import {
   EditProfileGeneralTab,
@@ -23,6 +25,7 @@ interface EditProfileDialogTabsProps {
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly onToggleField: (field: GeneralField) => void
+  readonly owner?: Address
   readonly txHash?: string
   readonly values: ProfileRecords
   readonly visibleFields: ReadonlySet<GeneralField>
@@ -37,6 +40,7 @@ export const EditProfileDialogTabs = ({
   onContactChange,
   onSocialChange,
   onToggleField,
+  owner,
   txHash,
   values,
   visibleFields,
@@ -85,8 +89,26 @@ export const EditProfileDialogTabs = ({
         />
       </TabsContent>
 
+      <TabsContent className="min-h-0 flex-1" value="appearance">
+        <EditProfileAppearanceTab
+          errorMessage={errorMessage}
+          isSaving={isSaving}
+          isSuccess={isSuccess}
+          name={name}
+          onBaseChange={onBaseChange}
+          owner={owner}
+          txHash={txHash}
+          values={values}
+        />
+      </TabsContent>
+
       {tabs
-        .filter(({ value }) => value !== 'general' && value !== 'contact')
+        .filter(
+          ({ value }) =>
+            value !== 'general' &&
+            value !== 'contact' &&
+            value !== 'appearance',
+        )
         .map(({ value }) => (
           <TabsContent
             className="flex min-h-0 flex-1 items-center justify-center text-base text-muted-foreground"
