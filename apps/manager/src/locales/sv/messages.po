@@ -435,7 +435,7 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:35
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:61
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:352
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
@@ -2049,7 +2049,7 @@ msgstr ""
 msgid "Save Preferences"
 msgstr ""
 
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:45
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
 msgid "Save Profile"
 msgstr ""
 
@@ -2057,7 +2057,7 @@ msgstr ""
 msgid "Saved favorites & searches"
 msgstr ""
 
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:45
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
 msgid "Saving"
 msgstr ""
 

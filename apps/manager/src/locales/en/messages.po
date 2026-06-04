@@ -430,7 +430,7 @@ msgstr "Can you share your order number?"
 #: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:35
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:61
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:352
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
@@ -2044,7 +2044,7 @@ msgstr "Save Changes"
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:45
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
 msgid "Save Profile"
 msgstr "Save Profile"
 
@@ -2052,7 +2052,7 @@ msgstr "Save Profile"
 msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
 
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:45
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
 msgid "Saving"
 msgstr "Saving"
 
