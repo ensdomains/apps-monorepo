@@ -135,11 +135,11 @@ msgstr "A simpler way to<0/><1>get paid.</1>"
 msgid "Account address:"
 msgstr "Account address:"
 
-#: src/features/profile/components/ProfileEdit.tsx:106
+#: src/features/profile/components/ProfileEdit.tsx:104
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr "Account not ready. Please wait for wallet to connect."
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:170
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:156
 msgid "Add"
 msgstr "Add"
 
@@ -180,8 +180,9 @@ msgstr "Add Crypto Address"
 msgid "Add favorite"
 msgstr "Add favorite"
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:72
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:73
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:121
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:166
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:180
 msgid "Add Link"
 msgstr "Add Link"
 
@@ -289,11 +290,11 @@ msgstr "Approving the payment token"
 msgid "Approving the token and registering your name"
 msgstr "Approving the token and registering your name"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:287
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:286
 msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
 msgstr "Are you sure you want to remove your current avatar? This will revert to the default image."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:288
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:287
 msgid "Are you sure you want to remove your current header? This will revert to the default image."
 msgstr "Are you sure you want to remove your current header? This will revert to the default image."
 
@@ -332,9 +333,8 @@ msgstr "Available Wallets"
 
 #: src/features/migration/pages/MigrationPage.tsx:223
 #: src/features/notifications/settings/email-verify-step.tsx:125
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:436
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:477
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:571
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:394
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:488
 #: src/features/register-v2/workflow/pricing/PricingStep.tsx:22
 #: src/features/renew/workflow/pricing/PricingStep.tsx:20
 msgid "Back"
@@ -387,7 +387,7 @@ msgstr "Bio"
 msgid "Blog"
 msgstr "Blog"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:249
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:248
 msgid "Browse Files"
 msgstr "Browse Files"
 
@@ -431,17 +431,16 @@ msgstr "Can you share your order number?"
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
 #: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:61
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:352
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:351
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/features/profile/components/ProfileEdit.tsx:99
+#: src/features/profile/components/ProfileEdit.tsx:97
 msgid "Cannot save profile - ENS owner is not available."
 msgstr "Cannot save profile - ENS owner is not available."
 
-#: src/features/profile/components/ProfileEdit.tsx:117
+#: src/features/profile/components/ProfileEdit.tsx:115
 msgid "Cannot save profile - resolver address is not available."
 msgstr "Cannot save profile - resolver address is not available."
 
@@ -489,10 +488,6 @@ msgstr "Choose a color for your profile"
 #: src/routes/wallet.tsx:208
 msgid "Choose a wallet to connect to the application"
 msgstr "Choose a wallet to connect to the application"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:369
-msgid "Choose an NFT"
-msgstr "Choose an NFT"
 
 #: src/features/payment/components/add.tsx:60
 msgid "Choose how you'd like to pay for your subscription."
@@ -573,10 +568,6 @@ msgstr "Complete your profile"
 #: src/routes/auto-renewal/index.tsx:33
 msgid "Confirm"
 msgstr "Confirm"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:419
-msgid "Confirm NFT Selection"
-msgstr "Confirm NFT Selection"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:403
 msgid "Confirm Payment"
@@ -730,23 +721,23 @@ msgstr "Credit Card Payment"
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:458
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:375
 msgid "Crop Image"
 msgstr "Crop Image"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:371
 msgid "Crop your image to fit the avatar dimensions."
 msgstr "Crop your image to fit the avatar dimensions."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:455
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:372
 msgid "Crop your image to fit the header dimensions."
 msgstr "Crop your image to fit the header dimensions."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:470
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:387
 msgid "Cropping functionality coming soon"
 msgstr "Cropping functionality coming soon"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:298
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
 msgid "Current"
 msgstr "Current"
 
@@ -780,7 +771,7 @@ msgid "Date added"
 msgstr "Date added"
 
 #: src/features/payment/components/index.tsx:42
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:320
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:319
 msgid "Default"
 msgstr "Default"
 
@@ -828,17 +819,14 @@ msgstr "Domain transfer & expiry notifications"
 msgid "Done"
 msgstr "Done"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:246
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:245
 msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
+#: src/features/profile/components/dialogs/EditProfileDialog.tsx:238
 #: src/features/profile/components/view/ProfileView.tsx:207
 msgid "Edit Profile"
 msgstr "Edit Profile"
-
-#: src/features/profile/components/dialogs/EditProfileDialog.tsx:233
-msgid "Edit Profile (New)"
-msgstr "Edit Profile (New)"
 
 #: src/features/dashboard/components/DashboardPills.tsx:28
 msgid "Eligible for upgrade"
@@ -930,15 +918,15 @@ msgstr "Enter 6-digit code"
 msgid "Enter custom duration"
 msgstr "Enter custom duration"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:510
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:427
 msgid "Enter Image URL"
 msgstr "Enter Image URL"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:496
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 msgstr "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:260
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:259
 msgid "Enter URL Manually"
 msgstr "Enter URL Manually"
 
@@ -1083,10 +1071,6 @@ msgstr "Failed to switch language"
 msgid "Failed to update preferences"
 msgstr "Failed to update preferences"
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:69
-msgid "Failed to update resolver"
-msgstr "Failed to update resolver"
-
 #: src/routes/notifications/channels/email/verify.tsx:89
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
@@ -1202,7 +1186,7 @@ msgstr "Idle"
 msgid "If your primary card is declined, we will use this card to charge you."
 msgstr "If your primary card is declined, we will use this card to charge you."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:152
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:151
 msgid "Image must be under {MAX_FILE_SIZE_MB}MB"
 msgstr "Image must be under {MAX_FILE_SIZE_MB}MB"
 
@@ -1243,11 +1227,11 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 msgid "Language"
 msgstr "Language"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:505
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:422
 msgid "Learn more"
 msgstr "Learn more"
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:156
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:142
 msgid "Link"
 msgstr "Link"
 
@@ -1384,7 +1368,7 @@ msgstr "My Names"
 #: src/features/dashboard/components/NamesTable.tsx:70
 #: src/features/dashboard/components/NamesTable.tsx:84
 #: src/features/dashboard/components/NamesTable.tsx:85
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:144
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:130
 msgid "Name"
 msgstr "Name"
 
@@ -1650,7 +1634,7 @@ msgstr "Pending verification"
 msgid "Permission missing. Please try again."
 msgstr "Permission missing. Please try again."
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:146
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:132
 msgid "Personal Site"
 msgstr "Personal Site"
 
@@ -1659,7 +1643,7 @@ msgstr "Personal Site"
 msgid "Please connect your wallet first"
 msgstr "Please connect your wallet first"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:146
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:145
 msgid "Please select a valid image file"
 msgstr "Please select a valid image file"
 
@@ -1705,12 +1689,12 @@ msgstr "Preparing your registration"
 msgid "Preparing..."
 msgstr "Preparing..."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:533
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:544
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:450
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:461
 msgid "Preview Image"
 msgstr "Preview Image"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:564
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:481
 msgid "Preview of your image"
 msgstr "Preview of your image"
 
@@ -1868,12 +1852,12 @@ msgstr "Registration successful! You'll receive a confirmation shortly."
 #: src/features/notifications/settings/contact-methods/email.tsx:207
 #: src/features/notifications/settings/contact-methods/email.tsx:243
 #: src/features/notifications/settings/contact-methods/telegram.tsx:170
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:358
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:357
 msgid "Remove"
 msgstr "Remove"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:271
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:291
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:270
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:290
 msgid "Remove Avatar"
 msgstr "Remove Avatar"
 
@@ -1885,8 +1869,8 @@ msgstr "Remove Email Contact Method?"
 msgid "Remove favorite"
 msgstr "Remove favorite"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:273
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:291
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:272
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:290
 msgid "Remove Header"
 msgstr "Remove Header"
 
@@ -1983,13 +1967,9 @@ msgstr "Resending email verification"
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
 
-#: src/features/profile/components/ProfileEdit.tsx:197
+#: src/features/profile/components/ProfileEdit.tsx:190
 msgid "Reset Changes"
 msgstr "Reset Changes"
-
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:123
-msgid "Resolver address"
-msgstr "Resolver address"
 
 #. placeholder {0}: index + 1
 #: src/features/migration/components/GameStep.tsx:82
@@ -2016,10 +1996,6 @@ msgstr "Retrying will attempt the renewal again from where it left off."
 #: src/features/profile/components/dialogs/DiffDialog.tsx:297
 msgid "Review Changes"
 msgstr "Review Changes"
-
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
-msgid "Save"
-msgstr "Save"
 
 #. placeholder {0}: discountAmount ?? 0
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:116
@@ -2075,10 +2051,6 @@ msgstr "Saving managers batch {0} of {total}"
 msgid "Saving..."
 msgstr "Saving..."
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
-msgid "Saving…"
-msgstr "Saving…"
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:260
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:263
 msgid "Search coins"
@@ -2105,14 +2077,6 @@ msgstr "Search names"
 #: src/routes/notifications/_authenticated/index.tsx:117
 msgid "Search notifications"
 msgstr "Search notifications"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:378
-msgid "Search your NFTs"
-msgstr "Search your NFTs"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:383
-msgid "Search your NFTs..."
-msgstr "Search your NFTs..."
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:46
 msgid "See all"
@@ -2547,12 +2511,6 @@ msgstr "Unread only"
 msgid "Update failed"
 msgstr "Update failed"
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:108
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:149
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:165
-msgid "Update Resolver"
-msgstr "Update Resolver"
-
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
 msgid "Updating profile"
 msgstr "Updating profile"
@@ -2592,15 +2550,15 @@ msgstr "Upgrading is optional. Your existing names keep working as they do today
 msgid "Upgrading your names..."
 msgstr "Upgrading your names..."
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:483
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:400
 msgid "Upload & Use Image"
 msgstr "Upload & Use Image"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:233
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:232
 msgid "Upload or drag & drop"
 msgstr "Upload or drag & drop"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:481
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:398
 msgid "Uploading…"
 msgstr "Uploading…"
 
@@ -2612,13 +2570,9 @@ msgstr "USD"
 msgid "Use Different Email"
 msgstr "Use Different Email"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:574
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:491
 msgid "Use This Image"
 msgstr "Use This Image"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:439
-msgid "Use This NFT"
-msgstr "Use This NFT"
 
 #: src/features/landing/IntegrationsSection.tsx:92
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
