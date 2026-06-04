@@ -50,7 +50,10 @@ describe('useMultiNamePricing pure helpers', () => {
   })
 
   describe('getRenewalDurationSeconds', () => {
-    it('converts years mode using CONTRACT_SECONDS_PER_YEAR', () => {
+    it('uses the flat rack-rate duration when no leap day falls in the interval', () => {
+      // 2026-01-01 → 2028-01-01: Feb 29 2028 falls AFTER 2028-01-01 → 730
+      // calendar days < 730.5 flat. Flat wins so the 2-year tier triggers
+      // cleanly.
       const result = getRenewalDurationSeconds({
         spanType: 'years',
         duration: 2,

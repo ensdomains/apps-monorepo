@@ -201,36 +201,52 @@ describe('registrationDuration', () => {
   })
 
   describe('getDurationInSecondsFromYears', () => {
-    // The function now returns `years × CONTRACT_SECONDS_PER_YEAR` (365.25
-    // days/year) so the duration sent to the contract aligns with the
-    // oracle's annualised list rate. See the JSDoc for the tradeoff.
-    it('should return exactly CONTRACT_SECONDS_PER_YEAR for 1 year', () => {
+    // Calendar-aware: returns the exact day count between today and
+    // `today + N calendar years`, so leap days inside the interval are
+    // billed for.
+
+    it('returns the flat rack-rate duration for 1 year (no leap inside)', () => {
+      // 2025-01-15 → 2026-01-15: 365 calendar days < 365.25-day flat rate,
+      // so we use the flat rate to clear the 1-year discount tier. Quotes
+      // a clean $8 at the oracle rate (not $7.99 from undershooting).
       expect(getDurationInSecondsFromYears(1, startOfFixedToday)).toBe(
         CONTRACT_SECONDS_PER_YEAR,
       )
     })
 
-    it('should return N × CONTRACT_SECONDS_PER_YEAR for N years', () => {
+    it('returns the flat rack-rate duration for 3 years (no leap inside)', () => {
+      // 2025-01-15 → 2028-01-15: 1095 calendar days < 1095.75 flat → flat wins.
       expect(getDurationInSecondsFromYears(3, startOfFixedToday)).toBe(
         3 * CONTRACT_SECONDS_PER_YEAR,
       )
     })
 
-    it('should return at least 1 year for values less than 1', () => {
+    it('returns 731 days for 2 years when a leap day falls in the interval', () => {
+      // 2026-06-04 → 2028-06-04 = 731 calendar days > 730.5 flat → calendar
+      // wins. Contract returns ~$14.0096 → "$14.01", matching the cent
+      // shown by date-picker-driven ENS apps.
+      const startDate = Temporal.PlainDate.from('2026-06-04')
+      expect(getDurationInSecondsFromYears(2, startDate)).toBe(731 * 86400)
+    })
+
+    it('returns at least 1 year for values less than 1', () => {
+      // 0.5 floors to 1, flat wins (365 < 365.25)
       expect(getDurationInSecondsFromYears(0.5, startOfFixedToday)).toBe(
         CONTRACT_SECONDS_PER_YEAR,
       )
     })
 
-    it('expiry from 3-year duration shifts ±1 day across a leap year', () => {
-      // 3 × 31_557_600s = 94_672_800s. Floor to days = 1095. From Jan 1 2026
-      // + 1095 days lands on Dec 31 2028 (because 2028 is a leap year).
+    it('expiry from N-year duration lands on the calendar N-years-later date', () => {
+      // Since duration is now whole days × 86400, the existing floor in
+      // `getRegistrationExpiryDateFromSeconds` recovers the exact day
+      // count, and `startDate.add({ days })` lands on the right calendar
+      // day regardless of leap years in the interval.
       const jan1_2026 = Temporal.PlainDate.from('2026-01-01')
       const duration = getDurationInSecondsFromYears(3, jan1_2026)
       const expiry = getRegistrationExpiryDateFromSeconds(jan1_2026, duration)
-      expect(expiry.year).toBe(2028)
-      expect(expiry.month).toBe(12)
-      expect(expiry.day).toBe(31)
+      expect(expiry.year).toBe(2029)
+      expect(expiry.month).toBe(1)
+      expect(expiry.day).toBe(1)
     })
 
     it('should cap at MAX_REGISTRATION_YEARS when years exceed max', () => {
