@@ -27,7 +27,7 @@ import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
-import { getLinkValidationIssues } from './EditProfileLinksTab'
+import { getLinkValidationIssues } from './EditProfileLinksTab.validation'
 
 interface ProfileEditForm {
   readonly reset: (records: ProfileRecords) => void

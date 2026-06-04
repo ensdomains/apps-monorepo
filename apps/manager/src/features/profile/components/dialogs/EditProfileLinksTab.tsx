@@ -2,17 +2,13 @@ import { Pencil, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { LinkItem, ProfileRecords } from '../../types'
-import { isSafeHttpUrl } from '../../utils/safeUrl'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
+import {
+  getLinkValidationIssues,
+  type LinkValidationField,
+  type LinkValidationIssue,
+} from './EditProfileLinksTab.validation'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
-
-type LinkValidationField = 'name' | 'url'
-
-interface LinkValidationIssue {
-  readonly field: LinkValidationField
-  readonly index: number
-  readonly message: string
-}
 
 interface LinkRow {
   readonly draftIndex?: number
@@ -36,29 +32,6 @@ const isEmptyLink = (link: LinkItem) =>
 
 const normalizeLinks = (links: readonly LinkItem[]): LinkItem[] =>
   links.filter((link) => !isEmptyLink(link))
-
-export const getLinkValidationIssues = (
-  links: readonly LinkItem[],
-): LinkValidationIssue[] =>
-  links.flatMap((link, index) => {
-    const issues: LinkValidationIssue[] = []
-
-    if (isEmptyLink(link)) {
-      return issues
-    }
-
-    if (link.name.trim() === '') {
-      issues.push({ field: 'name', index, message: 'Enter a title' })
-    }
-
-    if (link.url.trim() === '') {
-      issues.push({ field: 'url', index, message: 'Enter a link' })
-    } else if (!isSafeHttpUrl(link.url)) {
-      issues.push({ field: 'url', index, message: 'Enter a valid URL' })
-    }
-
-    return issues
-  })
 
 const getIssue = (
   issues: readonly LinkValidationIssue[],

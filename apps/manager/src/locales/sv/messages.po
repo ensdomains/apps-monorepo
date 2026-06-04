@@ -144,7 +144,7 @@ msgstr ""
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:175
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:170
 msgid "Add"
 msgstr ""
 
@@ -185,8 +185,8 @@ msgstr ""
 msgid "Add favorite"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:77
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:78
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:72
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:73
 msgid "Add Link"
 msgstr ""
 
@@ -841,7 +841,7 @@ msgstr ""
 msgid "Edit Profile"
 msgstr ""
 
-#: src/features/profile/components/dialogs/EditProfileDialog.tsx:232
+#: src/features/profile/components/dialogs/EditProfileDialog.tsx:233
 msgid "Edit Profile (New)"
 msgstr ""
 
@@ -1252,7 +1252,7 @@ msgstr "Språk"
 msgid "Learn more"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:161
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:156
 msgid "Link"
 msgstr ""
 
@@ -1389,7 +1389,7 @@ msgstr "Mina namn"
 #: src/features/dashboard/components/NamesTable.tsx:70
 #: src/features/dashboard/components/NamesTable.tsx:84
 #: src/features/dashboard/components/NamesTable.tsx:85
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:149
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:144
 msgid "Name"
 msgstr "Namn"
 
@@ -1655,7 +1655,7 @@ msgstr ""
 msgid "Permission missing. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:151
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:146
 msgid "Personal Site"
 msgstr ""
 

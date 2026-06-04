@@ -21,13 +21,8 @@ import {
 } from '@/components/ui/drawer'
 import { FloatingInput } from '@/components/ui/floating-input'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { staticTextRecords, textRecords } from '../../data/records'
 import { createSafeUrlSchema } from '../../utils/safeUrl'
-
-const reservedTextRecordKeys = new Set<string>([
-  ...staticTextRecords,
-  ...textRecords.map((record) => record.key),
-])
+import { isReservedTextRecordKey } from './EditProfileLinksTab.validation'
 
 const linkUrlSchema = createSafeUrlSchema('Enter a valid URL')
 
@@ -38,7 +33,7 @@ const validateLinkName = (name: string): string | null => {
     return 'Enter a name'
   }
 
-  if (reservedTextRecordKeys.has(trimmed)) {
+  if (isReservedTextRecordKey(trimmed)) {
     return 'Choose a different name (reserved key)'
   }
 
