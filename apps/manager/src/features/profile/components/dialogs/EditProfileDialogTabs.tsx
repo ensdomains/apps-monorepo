@@ -4,6 +4,7 @@ import type { ProfileRecords } from '../../types'
 import { EditProfileAppearanceTab } from './EditProfileAppearanceTab'
 import { EditProfileContactTab } from './EditProfileContactTab'
 import { EditProfileGeneralTab } from './EditProfileGeneralTab'
+import { EditProfileLinksTab } from './EditProfileLinksTab'
 
 const tabs = [
   { label: 'General', value: 'general' },
@@ -17,6 +18,7 @@ interface EditProfileDialogTabsProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
+  readonly onLinksChange: (links: ProfileRecords['links']) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
   readonly values: ProfileRecords
@@ -26,6 +28,7 @@ export const EditProfileDialogTabs = ({
   name,
   onBaseChange,
   onContactChange,
+  onLinksChange,
   onSocialChange,
   owner,
   values,
@@ -64,6 +67,10 @@ export const EditProfileDialogTabs = ({
         />
       </TabsContent>
 
+      <TabsContent className="min-h-0 flex-1" value="links">
+        <EditProfileLinksTab onLinksChange={onLinksChange} values={values} />
+      </TabsContent>
+
       <TabsContent className="min-h-0 flex-1" value="appearance">
         <EditProfileAppearanceTab
           name={name}
@@ -78,6 +85,7 @@ export const EditProfileDialogTabs = ({
           ({ value }) =>
             value !== 'general' &&
             value !== 'contact' &&
+            value !== 'links' &&
             value !== 'appearance',
         )
         .map(({ value }) => (

@@ -27,6 +27,7 @@ import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
+import { getLinkValidationIssues } from './EditProfileLinksTab'
 
 interface ProfileEditForm {
   readonly reset: (records: ProfileRecords) => void
@@ -247,6 +248,8 @@ export const EditProfileDialog = ({
             {({ canSubmit, values }) => {
               const diff = createDiff(savedRecords, values)
               const hasChanges = Object.keys(diff).length > 0
+              const hasLinkValidationIssues =
+                getLinkValidationIssues(values.links).length > 0
               const handleBaseChange = (base: ProfileRecords['base']) => {
                 resetSaveState()
                 form.setFieldValue('base', base)
@@ -261,6 +264,10 @@ export const EditProfileDialog = ({
                 resetSaveState()
                 form.setFieldValue('social', social)
               }
+              const handleLinksChange = (links: ProfileRecords['links']) => {
+                resetSaveState()
+                form.setFieldValue('links', links)
+              }
 
               return (
                 <Tabs
@@ -270,7 +277,9 @@ export const EditProfileDialog = ({
                 >
                   <EditProfileDialogHeader
                     avatarUrl={values.base.avatar}
-                    canSave={hasChanges && canSubmit}
+                    canSave={
+                      hasChanges && canSubmit && !hasLinkValidationIssues
+                    }
                     name={name}
                     onSave={() => handleSave(values)}
                   />
@@ -278,6 +287,7 @@ export const EditProfileDialog = ({
                     name={name}
                     onBaseChange={handleBaseChange}
                     onContactChange={handleContactChange}
+                    onLinksChange={handleLinksChange}
                     onSocialChange={handleSocialChange}
                     owner={owner}
                     values={values}
