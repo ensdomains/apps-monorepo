@@ -2,6 +2,7 @@ import type { Address } from 'viem'
 import { cn, truncateAddress } from '@/lib/utils'
 import { DEFAULT_THEME_COLOR, type THEME_COLORS } from '../../constants'
 import type { ProfileRecords } from '../../types'
+import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 type ThemeValue = (typeof THEME_COLORS)[number]['value']
@@ -127,26 +128,20 @@ const ThemePreviewButton = ({
 )
 
 interface EditProfileAppearanceTabProps {
-  readonly errorMessage?: string
-  readonly isSaving: boolean
-  readonly isSuccess: boolean
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly owner?: Address
-  readonly txHash?: string
   readonly values: ProfileRecords
 }
 
 export const EditProfileAppearanceTab = ({
-  errorMessage,
-  isSaving,
-  isSuccess,
   name,
   onBaseChange,
   owner,
-  txHash,
   values,
 }: EditProfileAppearanceTabProps) => {
+  const { errorMessage, isSaving, isSuccess, txHash } =
+    useEditProfileDialogStatus()
   const selectedThemeValue = getSelectedThemeValue(values.base.theme)
   const previewAddress = getPreviewAddress(values, owner)
 

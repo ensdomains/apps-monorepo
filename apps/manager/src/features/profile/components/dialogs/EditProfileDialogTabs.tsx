@@ -3,10 +3,7 @@ import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ProfileRecords } from '../../types'
 import { EditProfileAppearanceTab } from './EditProfileAppearanceTab'
 import { EditProfileContactTab } from './EditProfileContactTab'
-import {
-  EditProfileGeneralTab,
-  type GeneralField,
-} from './EditProfileGeneralTab'
+import { EditProfileGeneralTab } from './EditProfileGeneralTab'
 
 const tabs = [
   { label: 'General', value: 'general' },
@@ -17,33 +14,21 @@ const tabs = [
 ] as const
 
 interface EditProfileDialogTabsProps {
-  readonly errorMessage?: string
-  readonly isSaving: boolean
-  readonly isSuccess: boolean
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
-  readonly onToggleField: (field: GeneralField) => void
   readonly owner?: Address
-  readonly txHash?: string
   readonly values: ProfileRecords
-  readonly visibleFields: ReadonlySet<GeneralField>
 }
 
 export const EditProfileDialogTabs = ({
-  errorMessage,
-  isSaving,
-  isSuccess,
   name,
   onBaseChange,
   onContactChange,
   onSocialChange,
-  onToggleField,
   owner,
-  txHash,
   values,
-  visibleFields,
 }: EditProfileDialogTabsProps) => (
   <div className="flex min-h-0 flex-1">
     <div className="shrink-0 pb-5 pl-4">
@@ -63,41 +48,27 @@ export const EditProfileDialogTabs = ({
     <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <TabsContent className="min-h-0 flex-1" value="general">
         <EditProfileGeneralTab
-          errorMessage={errorMessage}
-          isSaving={isSaving}
-          isSuccess={isSuccess}
           name={name}
           onBaseChange={onBaseChange}
           onContactChange={onContactChange}
-          onToggleField={onToggleField}
-          txHash={txHash}
           values={values}
-          visibleFields={visibleFields}
         />
       </TabsContent>
 
       <TabsContent className="min-h-0 flex-1" value="contact">
         <EditProfileContactTab
-          errorMessage={errorMessage}
-          isSaving={isSaving}
-          isSuccess={isSuccess}
           onBaseChange={onBaseChange}
           onContactChange={onContactChange}
           onSocialChange={onSocialChange}
-          txHash={txHash}
           values={values}
         />
       </TabsContent>
 
       <TabsContent className="min-h-0 flex-1" value="appearance">
         <EditProfileAppearanceTab
-          errorMessage={errorMessage}
-          isSaving={isSaving}
-          isSuccess={isSuccess}
           name={name}
           onBaseChange={onBaseChange}
           owner={owner}
-          txHash={txHash}
           values={values}
         />
       </TabsContent>

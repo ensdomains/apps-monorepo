@@ -102,11 +102,8 @@ export const contactMethods = [
 export type ContactMethod = (typeof contactMethods)[number]
 export type ContactMethodKey = ContactMethod['key']
 
-export const defaultEnabledContactMethodKeys = new Set<ContactMethodKey>([
-  'com.twitter',
-  'email',
-  'mail',
-])
+export const defaultEnabledContactMethodKeys: ReadonlySet<ContactMethodKey> =
+  new Set<ContactMethodKey>(['com.twitter', 'email', 'mail'])
 
 const rowMethodKeys = [
   'email',
@@ -129,7 +126,7 @@ const contactMethodByKey = new Map(
   contactMethods.map((method) => [method.key, method]),
 )
 
-export const contactMethodKeys = new Set<ContactMethodKey>(
+export const contactMethodKeys: ReadonlySet<ContactMethodKey> = new Set(
   contactMethods.map(({ key }) => key),
 )
 

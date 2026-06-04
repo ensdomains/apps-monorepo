@@ -5,11 +5,11 @@ import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
 import { parseAvatarQuery } from '../../service/profileAvatar'
+import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 
 interface EditProfileDialogHeaderProps {
   readonly avatarUrl?: string
   readonly canSave: boolean
-  readonly isSaving: boolean
   readonly name: string
   readonly onSave: () => void
 }
@@ -17,10 +17,10 @@ interface EditProfileDialogHeaderProps {
 export const EditProfileDialogHeader = ({
   avatarUrl,
   canSave,
-  isSaving,
   name,
   onSave,
 }: EditProfileDialogHeaderProps) => {
+  const { isSaving } = useEditProfileDialogStatus()
   const resolvedAvatar = useQuery({
     ...parseAvatarQuery(avatarUrl),
     enabled: !!avatarUrl,

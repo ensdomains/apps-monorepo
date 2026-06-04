@@ -40,7 +40,7 @@ interface EditProfileDialogContext {
   readonly pendingSave?: PendingSave
   readonly savedRecords: ProfileRecords
   readonly txHash?: Hex
-  readonly visibleFields: Set<GeneralField>
+  readonly visibleFields: ReadonlySet<GeneralField>
 }
 
 type EditProfileDialogEvent =

@@ -21,32 +21,27 @@ import {
   removeRecord,
   upsertRecordValue,
 } from './EditProfileContactTab.records'
+import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface EditProfileContactTabProps {
-  readonly errorMessage?: string
-  readonly isSaving: boolean
-  readonly isSuccess: boolean
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
-  readonly txHash?: string
   readonly values: ProfileRecords
 }
 
 export const EditProfileContactTab = ({
-  errorMessage,
-  isSaving,
-  isSuccess,
   onBaseChange,
   onContactChange,
   onSocialChange,
-  txHash,
   values,
 }: EditProfileContactTabProps) => {
+  const { errorMessage, isSaving, isSuccess, txHash } =
+    useEditProfileDialogStatus()
   const [disabledDefaultMethodKeys, setDisabledDefaultMethodKeys] = useState<
-    Set<ContactMethodKey>
+    ReadonlySet<ContactMethodKey>
   >(() => new Set())
   const primaryContactKeys = parsePrimaryContactKeys(values.base)
 

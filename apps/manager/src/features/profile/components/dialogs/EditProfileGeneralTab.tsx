@@ -3,6 +3,11 @@ import { type MaterialSymbol, MSymbol } from '@/components/ui/material-symbol'
 import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
 import type { ProfileRecords, TextRecordValue } from '../../types'
+import {
+  useEditProfileDialogActions,
+  useEditProfileDialogStatus,
+  useEditProfileVisibleFields,
+} from './EditProfileDialog.context'
 import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
 import { ImageSelectionDialog } from './ImageSelectionDialog'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
@@ -111,7 +116,7 @@ const SelectField = ({
 
 export const getDefaultVisibleFields = (
   records: ProfileRecords,
-): Set<GeneralField> =>
+): ReadonlySet<GeneralField> =>
   new Set(
     generalShortcuts
       .map(({ field }) => field)
@@ -133,30 +138,22 @@ export const getDefaultVisibleFields = (
   )
 
 interface EditProfileGeneralTabProps {
-  readonly errorMessage?: string
-  readonly isSaving: boolean
-  readonly isSuccess: boolean
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
-  readonly onToggleField: (field: GeneralField) => void
-  readonly txHash?: string
   readonly values: ProfileRecords
-  readonly visibleFields: ReadonlySet<GeneralField>
 }
 
 export const EditProfileGeneralTab = ({
-  errorMessage,
-  isSaving,
-  isSuccess,
   name,
   onBaseChange,
   onContactChange,
-  onToggleField,
-  txHash,
   values,
-  visibleFields,
 }: EditProfileGeneralTabProps) => {
+  const { errorMessage, isSaving, isSuccess, txHash } =
+    useEditProfileDialogStatus()
+  const visibleFields = useEditProfileVisibleFields()
+  const { toggleField } = useEditProfileDialogActions()
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
@@ -182,7 +179,7 @@ export const EditProfileGeneralTab = ({
               }
               key={field}
               label={label}
-              onClick={() => onToggleField(field)}
+              onClick={() => toggleField(field)}
             />
           )
         })}
