@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Check, PanelRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -11,7 +12,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { useIsRegistryAdmin } from '../../hooks/useIsRegistryAdmin'
+import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
 import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
@@ -73,7 +74,16 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   const [editingRow, setEditingRow] = useState<RegistryRoleRow | null>(null)
   // Admin-only actions column (per-row Edit icon) — non-admin viewers see a
   // read-only table.
-  const isAdmin = useIsRegistryAdmin(address)
+  const { data: walletClient } = useWalletClient()
+  const callerAddress = walletClient?.account?.address
+  const { data: isAdmin = false } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: address,
+      roles: ['ROLE_REGISTRAR_ADMIN'],
+      account: callerAddress ?? zeroAddress,
+    }),
+    enabled: !!callerAddress,
+  })
 
   const columns = useMemo<ColumnDef<RegistryRoleRow>[]>(
     () => [

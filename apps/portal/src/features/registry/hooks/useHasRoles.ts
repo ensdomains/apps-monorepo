@@ -21,6 +21,12 @@ type RegistryRolesParameters = {
   readonly account: Address
 }
 
+type RegistryRootRolesParameters = {
+  readonly registryAddress: Address
+  readonly roles: Role[]
+  readonly account: Address
+}
+
 type ResolverRootRolesParameters = {
   readonly resolverAddress: Address
   readonly roles: ResolverRole[]
@@ -36,6 +42,7 @@ type ResolverRolesParameters = {
 
 type GetHasRolesParameters =
   | RegistryRolesParameters
+  | RegistryRootRolesParameters
   | ResolverRootRolesParameters
   | ResolverRolesParameters
 
