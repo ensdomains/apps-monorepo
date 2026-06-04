@@ -53,7 +53,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
           className={cn(
             'size-full self-stretch',
             'font-sans font-semibold text-xl leading-[110%] tracking-[-0.4px]',
-            'py-[21px] pr-7 pl-[52px]',
+            'py-[21px] pr-7 pl-13',
             'data-[loading=true]:pr-14',
             hasValue && !isLoading && 'pr-14',
             'rounded border-[0.25px] border-ens-gray-two',
@@ -76,14 +76,14 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
         />
         <Search
           aria-hidden
-          className="-translate-y-1/2 absolute top-1/2 left-[18px] size-[26px] text-ens-lapis-dust"
+          className="-translate-y-1/2 absolute top-1/2 left-[18px] size-6.5 text-ens-lapis-dust"
           strokeWidth={2.15}
         />
 
         {isLoading && (
           <Loader2
             aria-hidden
-            className="-translate-y-1/2 absolute top-1/2 right-[18px] size-[26px] animate-spin text-ens-lapis-dust"
+            className="-translate-y-1/2 absolute top-1/2 right-[18px] size-6.5 animate-spin text-ens-lapis-dust"
             strokeWidth={2.15}
           />
         )}

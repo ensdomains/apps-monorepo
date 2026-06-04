@@ -136,7 +136,7 @@ export const AddressProfileView = ({
           >
             <div className="flex items-center gap-3 md:gap-3">
               <div className="size-8 shrink-0 animate-pulse rounded-full bg-ens-white md:size-[36.9px]" />
-              <div className="h-[28px] w-40 animate-pulse rounded-[2.8px] bg-ens-white" />
+              <div className="h-7 w-40 animate-pulse rounded-[2.8px] bg-ens-white" />
             </div>
           </div>
         ))}
@@ -166,7 +166,7 @@ export const AddressProfileView = ({
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-center gap-2 md:max-w-full-[180px] md:gap-3">
                   <NameAvatar name={label} />
-                  <div className="flex min-w-0 items-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]">
+                  <div className="flex min-w-0 items-center rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 md:px-2 md:py-[4px]">
                     <Link
                       className="mr-1 min-w-0 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
                       params={{ name: label }}
@@ -214,7 +214,7 @@ export const AddressProfileView = ({
                   Primary name
                 </span>
                 <Link
-                  className="inline-flex items-center gap-1 rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-[8px] md:py-[4px]"
+                  className="inline-flex items-center gap-1 rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-2 md:py-[4px]"
                   params={{ name: primaryName }}
                   to="/$name"
                 >

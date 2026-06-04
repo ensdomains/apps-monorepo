@@ -40,7 +40,7 @@ const NameRowSkeleton = () => (
     <div className="h-5 w-[120px] animate-pulse rounded-full bg-gray-200" />
     <div className="flex items-center gap-4">
       <div className="size-10 shrink-0 animate-pulse rounded-full bg-gray-200" />
-      <div className="h-[28px] w-37.5 animate-pulse rounded-xs bg-gray-200" />
+      <div className="h-7 w-37.5 animate-pulse rounded-xs bg-gray-200" />
     </div>
     <div className="h-4 w-[180px] animate-pulse rounded bg-gray-200" />
   </div>
