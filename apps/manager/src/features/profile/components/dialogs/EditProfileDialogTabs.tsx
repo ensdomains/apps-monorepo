@@ -77,6 +77,7 @@ export const EditProfileDialogTabs = ({
           errorMessage={errorMessage}
           isSaving={isSaving}
           isSuccess={isSuccess}
+          onBaseChange={onBaseChange}
           onContactChange={onContactChange}
           onSocialChange={onSocialChange}
           txHash={txHash}

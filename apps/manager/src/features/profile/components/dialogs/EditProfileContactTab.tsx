@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { getRecordDef } from '../../data/records'
 import type { ProfileRecords, TextRecordValue } from '../../types'
@@ -6,6 +6,8 @@ import { IconRenderer } from '../IconRenderer'
 import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
+const primaryContactRecordKey = 'primary-contact'
+const primaryContactsRecordKey = 'domains.ens.primary-contacts'
 const maxPrimaryContactMethods = 3
 
 const contactMethods = [
@@ -132,6 +134,9 @@ const rowMethodKeys = [
 const contactMethodByKey = new Map(
   contactMethods.map((method) => [method.key, method]),
 )
+const contactMethodKeys = new Set<ContactMethodKey>(
+  contactMethods.map(({ key }) => key),
+)
 
 const rowMethods = rowMethodKeys.flatMap((key) => {
   const method = contactMethodByKey.get(key)
@@ -172,16 +177,66 @@ const removeRecord = (
   key: string,
 ): TextRecordValue[] => records.filter((record) => record.key !== key)
 
-const getInitialPrimaryKeys = (
-  values: ProfileRecords,
-): readonly ContactMethodKey[] =>
-  rowMethods
-    .filter(
-      (method) =>
-        hasRecord(values, method) && getRecordValue(values, method).trim(),
-    )
-    .slice(0, 1)
-    .map(({ key }) => key)
+const isContactMethodKey = (key: string): key is ContactMethodKey =>
+  contactMethodKeys.has(key as ContactMethodKey)
+
+const normalizePrimaryContactKeys = (
+  keys: readonly string[],
+): ContactMethodKey[] => {
+  const seenKeys = new Set<ContactMethodKey>()
+  const normalizedKeys: ContactMethodKey[] = []
+
+  for (const key of keys) {
+    if (!isContactMethodKey(key) || seenKeys.has(key)) continue
+
+    normalizedKeys.push(key)
+    seenKeys.add(key)
+
+    if (normalizedKeys.length === maxPrimaryContactMethods) break
+  }
+
+  return normalizedKeys
+}
+
+const parsePrimaryContactKeys = (
+  base: ProfileRecords['base'],
+): ContactMethodKey[] => {
+  const serializedPrimaryContacts = base[primaryContactsRecordKey]?.trim()
+
+  if (serializedPrimaryContacts) {
+    try {
+      const parsed = JSON.parse(serializedPrimaryContacts)
+
+      if (Array.isArray(parsed)) {
+        return normalizePrimaryContactKeys(
+          parsed.filter((key): key is string => typeof key === 'string'),
+        )
+      }
+    } catch {
+      // Fall through to the ENSIP-18 single-record fallback.
+    }
+  }
+
+  const primaryContact = base[primaryContactRecordKey]?.trim()
+  return primaryContact ? normalizePrimaryContactKeys([primaryContact]) : []
+}
+
+const getBaseWithPrimaryContactKeys = (
+  base: ProfileRecords['base'],
+  keys: readonly ContactMethodKey[],
+): ProfileRecords['base'] => {
+  const nextBase = { ...base }
+
+  if (keys.length === 0) {
+    delete nextBase[primaryContactRecordKey]
+    delete nextBase[primaryContactsRecordKey]
+    return nextBase
+  }
+
+  nextBase[primaryContactRecordKey] = keys[0]
+  nextBase[primaryContactsRecordKey] = JSON.stringify(keys)
+  return nextBase
+}
 
 interface PrimaryContactSwitchProps {
   readonly checked: boolean
@@ -270,6 +325,7 @@ interface EditProfileContactTabProps {
   readonly errorMessage?: string
   readonly isSaving: boolean
   readonly isSuccess: boolean
+  readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly txHash?: string
@@ -280,17 +336,16 @@ export const EditProfileContactTab = ({
   errorMessage,
   isSaving,
   isSuccess,
+  onBaseChange,
   onContactChange,
   onSocialChange,
   txHash,
   values,
 }: EditProfileContactTabProps) => {
-  const [primaryKeys, setPrimaryKeys] = useState<Set<ContactMethodKey>>(
-    () => new Set(getInitialPrimaryKeys(values)),
-  )
   const [disabledDefaultMethodKeys, setDisabledDefaultMethodKeys] = useState<
     Set<ContactMethodKey>
   >(() => new Set())
+  const primaryContactKeys = parsePrimaryContactKeys(values.base)
 
   const isDefaultEnabledMethod = (method: ContactMethod) =>
     defaultEnabledContactMethodKeys.has(method.key) &&
@@ -299,18 +354,24 @@ export const EditProfileContactTab = ({
     hasRecord(values, method) || isDefaultEnabledMethod(method)
 
   const selectedMethods = rowMethods.filter((method) => isMethodEnabled(method))
-  const selectedKeySignature = selectedMethods.map(({ key }) => key).join('|')
+  const selectedPrimaryContactCount = primaryContactKeys.length
 
-  useEffect(() => {
-    const selectedKeys = new Set<ContactMethodKey>(
-      selectedKeySignature
-        ? (selectedKeySignature.split('|') as ContactMethodKey[])
-        : [],
+  const updatePrimaryContactKeys = (keys: readonly ContactMethodKey[]) => {
+    onBaseChange(
+      getBaseWithPrimaryContactKeys(
+        values.base,
+        normalizePrimaryContactKeys(keys),
+      ),
     )
-    setPrimaryKeys(
-      (current) => new Set([...current].filter((key) => selectedKeys.has(key))),
+  }
+
+  const removePrimaryContact = (method: ContactMethod) => {
+    if (!primaryContactKeys.includes(method.key)) return
+
+    updatePrimaryContactKeys(
+      primaryContactKeys.filter((key) => key !== method.key),
     )
-  }, [selectedKeySignature])
+  }
 
   const updateRecords = (method: ContactMethod, records: TextRecordValue[]) => {
     if (method.section === 'contact') {
@@ -338,11 +399,7 @@ export const EditProfileContactTab = ({
         })
       }
 
-      setPrimaryKeys((current) => {
-        const next = new Set(current)
-        next.delete(method.key)
-        return next
-      })
+      removePrimaryContact(method)
       return
     }
 
@@ -361,24 +418,27 @@ export const EditProfileContactTab = ({
   const handleValueChange = (method: ContactMethod, value: string) => {
     const records = getRecordsForMethod(values, method)
     updateRecords(method, upsertRecordValue(records, method.key, value))
+
+    if (value.trim() === '') {
+      removePrimaryContact(method)
+    }
   }
 
   const handlePrimaryChange = (method: ContactMethod, checked: boolean) => {
-    setPrimaryKeys((current) => {
-      const next = new Set(current)
+    if (!checked) {
+      removePrimaryContact(method)
+      return
+    }
 
-      if (!checked) {
-        next.delete(method.key)
-        return next
-      }
+    if (
+      !getRecordValue(values, method).trim() ||
+      primaryContactKeys.includes(method.key) ||
+      primaryContactKeys.length >= maxPrimaryContactMethods
+    ) {
+      return
+    }
 
-      if (next.size >= maxPrimaryContactMethods) {
-        return next
-      }
-
-      next.add(method.key)
-      return next
-    })
+    updatePrimaryContactKeys([...primaryContactKeys, method.key])
   }
 
   return (
@@ -426,7 +486,7 @@ export const EditProfileContactTab = ({
 
       <div className="flex flex-col gap-3 overflow-hidden">
         <p className="w-full text-right text-[12px] text-ens-signal-success-700 leading-[1.2]">
-          {primaryKeys.size}/{maxPrimaryContactMethods} selected
+          {selectedPrimaryContactCount}/{maxPrimaryContactMethods} selected
         </p>
 
         {selectedMethods.length === 0 ? (
@@ -434,27 +494,34 @@ export const EditProfileContactTab = ({
             Select a contact method to add it to your profile.
           </div>
         ) : (
-          selectedMethods.map((method) => (
-            <div className="flex flex-col gap-3" key={method.key}>
-              <ContactMethodRow
-                disabled={isSaving}
-                method={method}
-                onPrimaryChange={handlePrimaryChange}
-                onValueChange={handleValueChange}
-                primary={primaryKeys.has(method.key)}
-                primaryDisabled={
-                  !primaryKeys.has(method.key) &&
-                  primaryKeys.size >= maxPrimaryContactMethods
-                }
-                value={getRecordValue(values, method)}
-              />
-              {method.key === 'email' ? (
-                <p className="text-[16px] text-black leading-[1.2]">
-                  Your contact information is publicly viewable on your profile.
-                </p>
-              ) : null}
-            </div>
-          ))
+          selectedMethods.map((method) => {
+            const value = getRecordValue(values, method)
+            const primary = primaryContactKeys.includes(method.key)
+
+            return (
+              <div className="flex flex-col gap-3" key={method.key}>
+                <ContactMethodRow
+                  disabled={isSaving}
+                  method={method}
+                  onPrimaryChange={handlePrimaryChange}
+                  onValueChange={handleValueChange}
+                  primary={primary}
+                  primaryDisabled={
+                    !primary &&
+                    (value.trim() === '' ||
+                      primaryContactKeys.length >= maxPrimaryContactMethods)
+                  }
+                  value={value}
+                />
+                {method.key === 'email' ? (
+                  <p className="text-[16px] text-black leading-[1.2]">
+                    Your contact information is publicly viewable on your
+                    profile.
+                  </p>
+                ) : null}
+              </div>
+            )
+          })
         )}
       </div>
     </div>

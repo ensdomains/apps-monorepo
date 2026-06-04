@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   newEmptyProfileRecords,
+  transformProfileRecords,
   transformToServiceFormat,
 } from './transformRecords'
 
@@ -48,6 +49,12 @@ describe('profile transformRecords utils', () => {
         base: {
           description: 'Test description',
           avatar: 'https://example.com/avatar.png',
+          'primary-contact': 'email',
+          'domains.ens.primary-contacts': JSON.stringify([
+            'email',
+            'com.twitter',
+            'mail',
+          ]),
         },
       }
 
@@ -61,6 +68,33 @@ describe('profile transformRecords utils', () => {
         key: 'avatar',
         value: 'https://example.com/avatar.png',
       })
+      expect(result.texts).toContainEqual({
+        key: 'primary-contact',
+        value: 'email',
+      })
+      expect(result.texts).toContainEqual({
+        key: 'domains.ens.primary-contacts',
+        value: JSON.stringify(['email', 'com.twitter', 'mail']),
+      })
+    })
+
+    it('should transform primary contact text records to base records', () => {
+      const result = transformProfileRecords({
+        texts: [
+          { key: 'primary-contact', value: 'com.twitter' },
+          {
+            key: 'domains.ens.primary-contacts',
+            value: JSON.stringify(['com.twitter', 'email', 'mail']),
+          },
+        ],
+        coins: [],
+      })
+
+      expect(result.base['primary-contact']).toBe('com.twitter')
+      expect(result.base['domains.ens.primary-contacts']).toBe(
+        JSON.stringify(['com.twitter', 'email', 'mail']),
+      )
+      expect(result.unknown).toEqual([])
     })
 
     it('should transform addresses to coins', () => {

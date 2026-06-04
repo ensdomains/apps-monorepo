@@ -58,6 +58,8 @@ const getBioDisplayName = (key: string): string => {
     avatar: 'Avatar',
     header: 'Header Image',
     language: 'Language',
+    'primary-contact': 'Primary Contact',
+    'domains.ens.primary-contacts': 'Primary Contacts',
   }
   return displayNames[key] || key
 }
