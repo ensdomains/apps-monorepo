@@ -7,27 +7,28 @@ import { UpdateStatusPanel } from './UpdateStatusPanel'
 type ThemeValue = (typeof THEME_COLORS)[number]['value']
 
 interface AppearanceTheme {
+  readonly activeRingClassName: string
   readonly addressClassName: string
   readonly backgroundImage: string
   readonly badgeClassName: string
   readonly badgeTextClassName: string
-  readonly defaultBorderClassName?: string
   readonly label: string
   readonly value: ThemeValue
 }
 
 const appearanceThemes = [
   {
+    activeRingClassName: 'ring-ens-quartz-300',
     addressClassName: 'text-ens-quartz-500',
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-quartz-75) 7%, var(--color-ens-quartz-200) 146%)',
     badgeClassName: 'bg-ens-quartz-900',
     badgeTextClassName: 'text-ens-quartz-0',
-    defaultBorderClassName: 'border border-ens-quartz-50',
     label: 'Quartz',
     value: '#000000',
   },
   {
+    activeRingClassName: 'ring-ens-garnet-300',
     addressClassName: 'text-ens-garnet-900',
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-garnet-100) 7%, var(--color-ens-garnet-200) 146%)',
@@ -37,6 +38,7 @@ const appearanceThemes = [
     value: '#ED2496',
   },
   {
+    activeRingClassName: 'ring-ens-lapis-300',
     addressClassName: 'text-ens-lapis-900',
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-lapis-bg) 7%, #a3e0fd 146%)',
@@ -46,6 +48,7 @@ const appearanceThemes = [
     value: '#0080BC',
   },
   {
+    activeRingClassName: 'ring-ens-peridot-300',
     addressClassName: 'text-ens-peridot-900',
     backgroundImage: 'linear-gradient(185deg, #e4ffe3 7%, #a3fda6 146%)',
     badgeClassName: 'bg-ens-peridot-500',
@@ -95,8 +98,8 @@ const ThemePreviewButton = ({
     aria-label={`${theme.label} theme${isActive ? ' (selected)' : ''}`}
     aria-pressed={isActive}
     className={cn(
-      'flex shrink-0 cursor-pointer flex-col items-start gap-0.5 overflow-hidden rounded-md p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
-      isActive ? 'border-2 border-ens-lapis-300' : theme.defaultBorderClassName,
+      'flex shrink-0 cursor-pointer flex-col items-start gap-0.5 overflow-hidden rounded-md p-3 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+      isActive && ['ring-2', theme.activeRingClassName],
     )}
     disabled={disabled}
     onClick={onSelect}
@@ -105,7 +108,7 @@ const ThemePreviewButton = ({
   >
     <span
       className={cn(
-        'w-fit max-w-full truncate rounded-[0.717px] px-[3px] py-0.5 font-semi-mono text-[8px] leading-ens-none tracking-normal',
+        'w-fit max-w-full truncate rounded-[0.717px] px-[3px] py-0.5 font-semi-mono text-[8px] leading-ens-none tracking-[-0.16px]',
         theme.badgeClassName,
         theme.badgeTextClassName,
       )}
@@ -114,7 +117,7 @@ const ThemePreviewButton = ({
     </span>
     <span
       className={cn(
-        'font-mono text-[7px] leading-normal tracking-normal',
+        'font-mono text-[7px] leading-[1.5] tracking-normal',
         theme.addressClassName,
       )}
     >
@@ -150,7 +153,7 @@ export const EditProfileAppearanceTab = ({
   return (
     <div className="flex flex-col gap-4 pb-4">
       <div className="flex flex-col gap-1.5">
-        <p className="font-bold font-sans text-[#525252] text-base leading-ens-none tracking-normal">
+        <p className="font-bold font-sans text-[#525252] text-base leading-ens-none tracking-[-0.32px]">
           Appearance
         </p>
         <p className="text-base text-ens-quartz-400 leading-ens-normal">
