@@ -79,16 +79,16 @@ const StepFooter = ({ children }: StepFooterProps) => (
 )
 
 interface ImageSelectionDialogProps {
-  currentImage?: string
-  defaultImage?: string
-  onImageChange: (imageUrl: string) => void
-  onImageRemove: () => void
-  title: string
-  description?: string
-  type: ImageType
-  name?: string // For better alt text and debugging
-  triggerClassName?: string
-  emptyState?: React.ReactNode
+  readonly currentImage?: string
+  readonly defaultImage?: string
+  readonly onImageChange: (imageUrl: string) => void
+  readonly onImageRemove: () => void
+  readonly title: string
+  readonly description?: string
+  readonly type: ImageType
+  readonly name?: string // For better alt text and debugging
+  readonly triggerClassName?: string
+  readonly emptyState?: React.ReactNode
 }
 
 export const ImageSelectionDialog = ({

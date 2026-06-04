@@ -59,7 +59,7 @@ const appearanceThemes = [
   },
 ] as const satisfies readonly AppearanceTheme[]
 
-const themeValues = new Set(
+const themeValues: ReadonlySet<string> = new Set(
   appearanceThemes.map((theme) => theme.value.toLowerCase()),
 )
 

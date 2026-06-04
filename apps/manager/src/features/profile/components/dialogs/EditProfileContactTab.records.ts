@@ -51,19 +51,11 @@ const isContactMethodKey = (key: string): key is ContactMethodKey =>
 export const normalizePrimaryContactKeys = (
   keys: readonly string[],
 ): ContactMethodKey[] => {
-  const seenKeys = new Set<ContactMethodKey>()
-  const normalizedKeys: ContactMethodKey[] = []
+  const validKeys = keys.filter(isContactMethodKey)
 
-  for (const key of keys) {
-    if (!isContactMethodKey(key) || seenKeys.has(key)) continue
-
-    normalizedKeys.push(key)
-    seenKeys.add(key)
-
-    if (normalizedKeys.length === maxPrimaryContactMethods) break
-  }
-
-  return normalizedKeys
+  return validKeys
+    .filter((key, index) => validKeys.indexOf(key) === index)
+    .slice(0, maxPrimaryContactMethods)
 }
 
 export const parsePrimaryContactKeys = (
