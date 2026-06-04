@@ -1,14 +1,9 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { Address, Hex, PublicClient } from 'viem'
-import { assign, fromPromise, type SnapshotFrom, setup } from 'xstate'
+import { assign, type SnapshotFrom, setup } from 'xstate'
 import type { ProfileRecords } from '../../types'
 import { transformToServiceFormat } from '../../utils/transformRecords'
-import {
-  RecordsValidationError,
-  type SaveRecordsParams,
-  type SaveRecordsResult,
-  saveRecords,
-} from '../ProfileEdit.transactions'
+import type { SaveRecordsParams } from '../ProfileEdit.transactions'
 import {
   type GeneralField,
   getDefaultVisibleFields,
@@ -28,10 +23,6 @@ interface PendingSave {
   readonly currentRecords: ProfileRecords
   readonly ethAddressChanged: boolean
   readonly params: SaveRecordsParams
-}
-
-interface SaveProfileOutput extends PendingSave {
-  readonly result: SaveRecordsResult
 }
 
 interface EditProfileDialogContext {
@@ -59,14 +50,6 @@ type EditProfileDialogEvent =
 
 const getEthAddress = (records: ProfileRecords) =>
   records.addresses.find(({ coinType }) => coinType === 60)?.value
-
-const getSaveErrorMessage = (error: unknown) => {
-  if (error instanceof RecordsValidationError) {
-    return error.issues.map((issue) => issue.message).join('\n')
-  }
-
-  return error instanceof Error ? error.message : String(error)
-}
 
 const getMissingAccount = (event: EditProfileDialogEvent) =>
   event.type === 'SAVE_REQUESTED' &&
@@ -105,21 +88,6 @@ const getPendingSave = (
   }
 }
 
-const saveProfile = async (pendingSave: PendingSave) => {
-  const result = await saveRecords(pendingSave.params)
-  return {
-    ...pendingSave,
-    result,
-  } satisfies SaveProfileOutput
-}
-
-const isSaveProfileOutput = (output: unknown): output is SaveProfileOutput =>
-  typeof output === 'object' &&
-  output !== null &&
-  'currentRecords' in output &&
-  'ethAddressChanged' in output &&
-  'result' in output
-
 const saveRequestedTransitions = [
   {
     guard: 'missingOwner',
@@ -149,11 +117,6 @@ export const editProfileDialogMachine = setup({
     input: {} as {
       records: ProfileRecords
     },
-  },
-  actors: {
-    saveProfile: fromPromise(async ({ input }: { input: PendingSave }) =>
-      saveProfile(input),
-    ),
   },
   guards: {
     missingOwner: ({ event }) =>
@@ -224,22 +187,6 @@ export const editProfileDialogMachine = setup({
           : undefined,
       txHash: () => undefined,
     }),
-    completeInvokedSave: assign({
-      ethAddressChanged: ({ event, context }) =>
-        'output' in event && isSaveProfileOutput(event.output)
-          ? event.output.ethAddressChanged
-          : context.ethAddressChanged,
-      localSaveError: () => undefined,
-      pendingSave: () => undefined,
-      savedRecords: ({ event, context }) =>
-        'output' in event && isSaveProfileOutput(event.output)
-          ? event.output.currentRecords
-          : context.savedRecords,
-      txHash: ({ event, context }) =>
-        'output' in event && isSaveProfileOutput(event.output)
-          ? event.output.result.hash
-          : context.txHash,
-    }),
     completeEventSave: assign({
       ethAddressChanged: ({ event }) =>
         event.type === 'SAVE_SUCCEEDED'
@@ -253,13 +200,6 @@ export const editProfileDialogMachine = setup({
           : context.savedRecords,
       txHash: ({ event }) =>
         event.type === 'SAVE_SUCCEEDED' ? event.txHash : undefined,
-    }),
-    failInvokedSave: assign({
-      ethAddressChanged: () => false,
-      localSaveError: ({ event }) =>
-        'error' in event ? getSaveErrorMessage(event.error) : undefined,
-      pendingSave: () => undefined,
-      txHash: () => undefined,
     }),
     failEventSave: assign({
       ethAddressChanged: () => false,
@@ -307,26 +247,6 @@ export const editProfileDialogMachine = setup({
           },
         },
         saving: {
-          invoke: {
-            src: 'saveProfile',
-            input: ({ context }) => {
-              if (!context.pendingSave) {
-                throw new Error(
-                  'Save requested without pending profile records',
-                )
-              }
-
-              return context.pendingSave
-            },
-            onDone: {
-              target: 'success',
-              actions: 'completeInvokedSave',
-            },
-            onError: {
-              target: 'error',
-              actions: 'failInvokedSave',
-            },
-          },
           on: {
             SAVE_SUCCEEDED: {
               target: 'success',

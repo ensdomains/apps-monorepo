@@ -1,6 +1,10 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans } from '@lingui/react/macro'
-import { type QueryClient, useQueryClient } from '@tanstack/react-query'
+import {
+  type QueryClient,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect } from 'react'
 import type { Address, PublicClient } from 'viem'
@@ -14,6 +18,11 @@ import { publicClient } from '@/lib/wagmi'
 import type { ProfileRecords } from '../../types'
 import { createDiff } from '../../utils/createDiff'
 import { useAppForm } from '../form'
+import {
+  RecordsValidationError,
+  type SaveRecordsParams,
+  saveRecords,
+} from '../ProfileEdit.transactions'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
@@ -87,6 +96,14 @@ const useCloseProfileDialogOnSuccessfulSave = ({
   ])
 }
 
+const getMutationErrorMessage = (error: unknown) => {
+  if (error instanceof RecordsValidationError) {
+    return error.issues.map((issue) => issue.message).join('\n')
+  }
+
+  return error instanceof Error ? error.message : String(error)
+}
+
 export const EditProfileDialog = ({
   name,
   records,
@@ -119,7 +136,37 @@ export const EditProfileDialog = ({
     defaultValues: records,
   })
 
+  const saveRecordsMutation = useMutation({
+    mutationFn: ({
+      currentRecords: _currentRecords,
+      ...params
+    }: SaveRecordsParams & { currentRecords: ProfileRecords }) =>
+      saveRecords(params),
+    onSuccess: (data, variables) => {
+      const ethBefore = variables.before.coins.find(
+        ({ coinType }) => coinType === 60,
+      )
+      const ethAfter = variables.after.coins.find(
+        ({ coinType }) => coinType === 60,
+      )
+
+      dialogActor.send({
+        type: 'SAVE_SUCCEEDED',
+        currentRecords: variables.currentRecords,
+        ethAddressChanged: ethBefore?.value !== ethAfter?.value,
+        txHash: data.hash,
+      })
+    },
+    onError: (error) => {
+      dialogActor.send({
+        type: 'SAVE_FAILED',
+        errorMessage: getMutationErrorMessage(error),
+      })
+    },
+  })
+
   const resetSaveState = () => {
+    saveRecordsMutation.reset()
     dialogActor.send({ type: 'RESET_SAVE_STATE' })
   }
 
@@ -138,6 +185,8 @@ export const EditProfileDialog = ({
   }
 
   const handleSave = (currentRecords: ProfileRecords) => {
+    resetSaveState()
+
     dialogActor.send({
       type: 'SAVE_REQUESTED',
       values: currentRecords,
@@ -150,6 +199,19 @@ export const EditProfileDialog = ({
         publicClient: publicClient as PublicClient,
         signer: account.signer,
       },
+    })
+
+    const snapshot = dialogActor.getSnapshot()
+    if (
+      !snapshot.matches({ editing: 'saving' }) ||
+      !snapshot.context.pendingSave
+    ) {
+      return
+    }
+
+    saveRecordsMutation.mutate({
+      ...snapshot.context.pendingSave.params,
+      currentRecords: snapshot.context.pendingSave.currentRecords,
     })
   }
 
