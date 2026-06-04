@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   newEmptyProfileRecords,
+  normalizeProfileRecords,
   transformProfileRecords,
   transformToServiceFormat,
 } from './transformRecords'
@@ -153,10 +154,40 @@ describe('profile transformRecords utils', () => {
       expect(linksText?.value).toBe(JSON.stringify(records.links))
     })
 
+    it('should omit empty links from the JSON string', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        links: [
+          { name: 'Website', url: 'https://example.com' },
+          { name: '', url: '' },
+          { name: '   ', url: '   ' },
+        ],
+      }
+
+      const result = transformToServiceFormat(records)
+
+      const linksText = result.texts.find((t) => t.key === 'links')
+      expect(linksText?.value).toBe(
+        JSON.stringify([{ name: 'Website', url: 'https://example.com' }]),
+      )
+    })
+
     it('should not include links when array is empty', () => {
       const records = {
         ...newEmptyProfileRecords(),
         links: [],
+      }
+
+      const result = transformToServiceFormat(records)
+
+      const linksText = result.texts.find((t) => t.key === 'links')
+      expect(linksText).toBeUndefined()
+    })
+
+    it('should not include links when every link is empty', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        links: [{ name: '', url: '' }],
       }
 
       const result = transformToServiceFormat(records)
@@ -214,6 +245,26 @@ describe('profile transformRecords utils', () => {
       const result = transformToServiceFormat(records)
 
       expect(result.coins).toHaveLength(1)
+    })
+  })
+
+  describe('normalizeProfileRecords', () => {
+    it('should remove fully empty links without changing other records', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        base: { description: 'Test' },
+        links: [
+          { name: 'Website', url: 'https://example.com' },
+          { name: '', url: '' },
+        ],
+      }
+
+      const normalized = normalizeProfileRecords(records)
+
+      expect(normalized).toEqual({
+        ...records,
+        links: [{ name: 'Website', url: 'https://example.com' }],
+      })
     })
   })
 })

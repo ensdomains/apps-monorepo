@@ -6,7 +6,7 @@ import type {
   StaticRecordKey,
 } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
-import type { ProfileRecords } from '../types'
+import type { LinkItem, ProfileRecords } from '../types'
 
 const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
@@ -34,6 +34,19 @@ const LinksSchema = v.array(
     url: v.string(),
   }),
 )
+
+const isEmptyLink = (link: LinkItem) =>
+  link.name.trim() === '' && link.url.trim() === ''
+
+export const normalizeProfileLinks = (links: readonly LinkItem[]): LinkItem[] =>
+  links.filter((link) => !isEmptyLink(link))
+
+export const normalizeProfileRecords = (
+  records: ProfileRecords,
+): ProfileRecords => ({
+  ...records,
+  links: normalizeProfileLinks(records.links),
+})
 
 /**
  * Transforms mock profile records to the standard ProfileRecords format
@@ -118,10 +131,10 @@ export const transformToServiceFormat = (
     value,
   }))
 
+  const links = normalizeProfileLinks(records.links)
+
   const linksText =
-    records.links.length > 0
-      ? [{ key: 'links', value: JSON.stringify(records.links) }]
-      : []
+    links.length > 0 ? [{ key: 'links', value: JSON.stringify(links) }] : []
 
   const texts = [...sectionTexts, ...baseTexts, ...unknownTexts, ...linksText]
 

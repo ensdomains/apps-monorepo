@@ -24,7 +24,7 @@ import type { SectionData, TextRecordDef } from './types'
 export const specialSections = ['contact'] as const
 
 export const sections = {
-  social: { label: 'Connect', description: 'Social media usernames' },
+  social: { label: 'Connect' },
 } as const satisfies Record<string, SectionData>
 
 export const staticTextRecords = [
@@ -152,7 +152,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'email',
     section: 'contact',
     name: 'Email Address',
-    description: 'Your email address',
     kind: 'link',
     href: 'mailto:',
     forceFetch: 'always',
@@ -162,7 +161,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'location',
     section: 'contact',
     name: 'Location',
-    description: 'Your location',
     kind: 'copy',
     icon: MapPinIcon,
   },
@@ -170,7 +168,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'phone',
     section: 'contact',
     name: 'Phone Number',
-    description: 'Your phone number',
     kind: 'link',
     href: 'tel:',
     forceFetch: 'always',
@@ -180,7 +177,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'mail',
     section: 'contact',
     name: 'Mailing Address',
-    description: 'Your mailing address',
     kind: 'copy',
     icon: HouseIcon,
   },
@@ -188,7 +184,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'timezone',
     section: 'contact',
     name: 'Timezone',
-    description: 'Your timezone',
     kind: 'copy',
     icon: ClockIcon,
   },
