@@ -13,7 +13,10 @@ export const UpgradeBanner = () => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
-    useEligibleV1Names({ enabled: migrationEnabled })
+    useEligibleV1Names({
+      enabled: migrationEnabled,
+      fallbackToClassified: false,
+    })
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount({ enabled: migrationEnabled })
 

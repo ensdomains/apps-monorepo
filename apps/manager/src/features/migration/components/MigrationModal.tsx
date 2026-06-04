@@ -23,7 +23,7 @@ export const MigrationModal = () => {
   const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isEligibleV1NamesPending } =
-    useEligibleV1Names()
+    useEligibleV1Names({ fallbackToClassified: false })
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount()
   const eligibleNameCount = eligibleV1Names.length
