@@ -35,6 +35,8 @@ export const staticTextRecords = [
   'url',
   'theme',
   'language',
+  'primary-contact',
+  'domains.ens.primary-contacts',
 ] as const
 
 export const textRecords: TextRecordDef[] = [

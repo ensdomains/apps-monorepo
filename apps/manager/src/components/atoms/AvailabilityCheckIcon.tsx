@@ -1,7 +1,7 @@
 export const AvailabilityCheckIcon = () => (
   <svg
     aria-hidden="true"
-    className="h-[26px] w-[26px]"
+    className="h-[26px] w-6.5"
     fill="none"
     viewBox="0 0 26 26"
     xmlns="http://www.w3.org/2000/svg"

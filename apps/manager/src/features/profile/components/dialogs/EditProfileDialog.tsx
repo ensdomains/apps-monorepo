@@ -1,9 +1,15 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans } from '@lingui/react/macro'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import {
+  type QueryClient,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { useActorRef, useSelector } from '@xstate/react'
+import { useEffect } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
+import type { Actor } from 'xstate'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs } from '@/components/ui/tabs'
@@ -11,19 +17,30 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import type { ProfileRecords } from '../../types'
 import { createDiff } from '../../utils/createDiff'
-import { transformToServiceFormat } from '../../utils/transformRecords'
 import { useAppForm } from '../form'
 import {
   RecordsValidationError,
   type SaveRecordsParams,
   saveRecords,
 } from '../ProfileEdit.transactions'
+import { EditProfileDialogProvider } from './EditProfileDialog.context'
+import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
-import {
-  type GeneralField,
-  getDefaultVisibleFields,
-} from './EditProfileGeneralTab'
+
+interface ProfileEditForm {
+  readonly reset: (records: ProfileRecords) => void
+}
+
+interface UseCloseProfileDialogOnSuccessfulSaveParams {
+  readonly dialogActor: Actor<typeof editProfileDialogMachine>
+  readonly ethAddressChanged: boolean
+  readonly form: ProfileEditForm
+  readonly isSuccess: boolean
+  readonly onUpdated?: () => undefined | Promise<unknown>
+  readonly queryClient: QueryClient
+  readonly savedRecords: ProfileRecords
+}
 
 interface EditProfileDialogProps {
   readonly name: string
@@ -32,21 +49,88 @@ interface EditProfileDialogProps {
   readonly onUpdated?: () => undefined | Promise<unknown>
 }
 
+const useCloseProfileDialogOnSuccessfulSave = ({
+  dialogActor,
+  ethAddressChanged,
+  form,
+  isSuccess,
+  onUpdated,
+  queryClient,
+  savedRecords,
+}: UseCloseProfileDialogOnSuccessfulSaveParams) => {
+  useEffect(() => {
+    if (!isSuccess) {
+      return
+    }
+
+    let cancelled = false
+
+    const finalizeSave = async () => {
+      form.reset(savedRecords)
+      await onUpdated?.()
+
+      if (ethAddressChanged) {
+        queryClient.invalidateQueries({
+          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+        })
+      }
+
+      if (!cancelled) {
+        dialogActor.send({ type: 'CLOSE' })
+      }
+    }
+
+    void finalizeSave()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    dialogActor,
+    ethAddressChanged,
+    form,
+    isSuccess,
+    onUpdated,
+    queryClient,
+    savedRecords,
+  ])
+}
+
+const getMutationErrorMessage = (error: unknown) => {
+  if (error instanceof RecordsValidationError) {
+    return error.issues.map((issue) => issue.message).join('\n')
+  }
+
+  return error instanceof Error ? error.message : String(error)
+}
+
 export const EditProfileDialog = ({
   name,
   records,
   owner,
   onUpdated,
 }: EditProfileDialogProps) => {
-  const [open, setOpen] = useState(false)
-  const [savedRecords, setSavedRecords] = useState(records)
-  const [localSaveError, setLocalSaveError] = useState<string>()
-  const [visibleFields, setVisibleFields] = useState<Set<GeneralField>>(() =>
-    getDefaultVisibleFields(records),
-  )
   const account = useSmartAccountContext()
   const chainId = useChainId()
   const queryClient = useQueryClient()
+  const dialogActor = useActorRef(editProfileDialogMachine, {
+    input: { records },
+  })
+  const open = useSelector(dialogActor, (state) => !state.matches('closed'))
+  const savedRecords = useSelector(
+    dialogActor,
+    (state) => state.context.savedRecords,
+  )
+  const isSaving = useSelector(dialogActor, (state) =>
+    state.matches({ editing: 'saving' }),
+  )
+  const isSuccess = useSelector(dialogActor, (state) =>
+    state.matches({ editing: 'success' }),
+  )
+  const ethAddressChanged = useSelector(
+    dialogActor,
+    (state) => state.context.ethAddressChanged,
+  )
 
   const form = useAppForm({
     defaultValues: records,
@@ -58,95 +142,88 @@ export const EditProfileDialog = ({
       ...params
     }: SaveRecordsParams & { currentRecords: ProfileRecords }) =>
       saveRecords(params),
-    onSuccess: async (_data, variables) => {
-      setSavedRecords(variables.currentRecords)
-      form.reset(variables.currentRecords)
-      await onUpdated?.()
+    onSuccess: (data, variables) => {
+      const ethBefore = variables.before.coins.find(
+        ({ coinType }) => coinType === 60,
+      )
+      const ethAfter = variables.after.coins.find(
+        ({ coinType }) => coinType === 60,
+      )
 
-      const ethBefore = variables.before.coins.find((c) => c.coinType === 60)
-      const ethAfter = variables.after.coins.find((c) => c.coinType === 60)
-      if (ethBefore?.value !== ethAfter?.value) {
-        queryClient.invalidateQueries({
-          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
-        })
-      }
-
-      setOpen(false)
+      dialogActor.send({
+        type: 'SAVE_SUCCEEDED',
+        currentRecords: variables.currentRecords,
+        ethAddressChanged: ethBefore?.value !== ethAfter?.value,
+        txHash: data.hash,
+      })
+    },
+    onError: (error) => {
+      dialogActor.send({
+        type: 'SAVE_FAILED',
+        errorMessage: getMutationErrorMessage(error),
+      })
     },
   })
 
   const resetSaveState = () => {
-    setLocalSaveError(undefined)
     saveRecordsMutation.reset()
+    dialogActor.send({ type: 'RESET_SAVE_STATE' })
   }
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
-      setSavedRecords(records)
       form.reset(records)
-      setVisibleFields(getDefaultVisibleFields(records))
-      resetSaveState()
+      dialogActor.send({ type: 'OPEN', records })
+      return
     }
-    setOpen(isOpen)
-  }
 
-  const toggleField = (field: GeneralField) => {
-    setVisibleFields((current) => {
-      const next = new Set(current)
-      if (next.has(field)) {
-        next.delete(field)
-      } else {
-        next.add(field)
-      }
-      return next
-    })
+    if (isSaving) {
+      return
+    }
+
+    dialogActor.send({ type: 'CLOSE' })
   }
 
   const handleSave = (currentRecords: ProfileRecords) => {
     resetSaveState()
 
-    if (!owner) {
-      setLocalSaveError('Cannot save profile - ENS owner is not available.')
+    dialogActor.send({
+      type: 'SAVE_REQUESTED',
+      values: currentRecords,
+      deps: {
+        accountAddress: account.accountAddress as Address | null,
+        chainId,
+        name,
+        owner,
+        ownerAddress: account.ownerAddress as Address | null,
+        publicClient: publicClient as PublicClient,
+        signer: account.signer,
+      },
+    })
+
+    const snapshot = dialogActor.getSnapshot()
+    if (
+      !snapshot.matches({ editing: 'saving' }) ||
+      !snapshot.context.pendingSave
+    ) {
       return
     }
-
-    if (!account.signer || !account.accountAddress) {
-      setLocalSaveError('Account not ready. Please wait for wallet to connect.')
-      return
-    }
-
-    if (!savedRecords.resolverAddress) {
-      setLocalSaveError(
-        'Cannot save profile - resolver address is not available.',
-      )
-      return
-    }
-
-    const accountAddress = (account.ownerAddress ??
-      account.accountAddress) as Address
-    const before = transformToServiceFormat(savedRecords)
-    const after = transformToServiceFormat(currentRecords)
 
     saveRecordsMutation.mutate({
-      name,
-      before,
-      after,
-      signer: account.signer,
-      accountAddress,
-      publicClient: publicClient as PublicClient,
-      chainId,
-      resolverAddress: savedRecords.resolverAddress,
-      currentRecords,
+      ...snapshot.context.pendingSave.params,
+      currentRecords: snapshot.context.pendingSave.currentRecords,
     })
   }
 
-  const mutationError = saveRecordsMutation.error
-  const validationIssueMessage =
-    mutationError instanceof RecordsValidationError
-      ? mutationError.issues.map((issue) => issue.message).join('\n')
-      : undefined
-  const errorMessage =
-    localSaveError ?? validationIssueMessage ?? mutationError?.message
+  useCloseProfileDialogOnSuccessfulSave({
+    dialogActor,
+    ethAddressChanged,
+    form,
+    isSuccess,
+    onUpdated,
+    queryClient,
+    savedRecords,
+  })
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
@@ -156,59 +233,60 @@ export const EditProfileDialog = ({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="h-[min(86dvh,900px)] max-h-[calc(100dvh-4rem)] w-[min(84vw,1280px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-xl border border-border bg-white p-0 shadow-lg sm:max-w-[calc(100vw-8rem)]"
+        className="h-[min(90dvh,739px)] w-[min(92vw,800px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-[12px] border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-[800px]"
         overlayClassName="bg-black/20 backdrop-blur-[2px]"
         showCloseButton={false}
       >
-        <form.Subscribe
-          selector={(state) => ({
-            canSubmit: state.canSubmit && state.isValid,
-            values: state.values,
-          })}
-        >
-          {({ canSubmit, values }) => {
-            const diff = createDiff(savedRecords, values)
-            const hasChanges = Object.keys(diff).length > 0
-            const isSaving = saveRecordsMutation.isPending
-            const handleBaseChange = (base: ProfileRecords['base']) => {
-              resetSaveState()
-              form.setFieldValue('base', base)
-            }
-            const handleContactChange = (
-              contact: ProfileRecords['contact'],
-            ) => {
-              resetSaveState()
-              form.setFieldValue('contact', contact)
-            }
+        <EditProfileDialogProvider actor={dialogActor}>
+          <form.Subscribe
+            selector={(state) => ({
+              canSubmit: state.canSubmit && state.isValid,
+              values: state.values,
+            })}
+          >
+            {({ canSubmit, values }) => {
+              const diff = createDiff(savedRecords, values)
+              const hasChanges = Object.keys(diff).length > 0
+              const handleBaseChange = (base: ProfileRecords['base']) => {
+                resetSaveState()
+                form.setFieldValue('base', base)
+              }
+              const handleContactChange = (
+                contact: ProfileRecords['contact'],
+              ) => {
+                resetSaveState()
+                form.setFieldValue('contact', contact)
+              }
+              const handleSocialChange = (social: ProfileRecords['social']) => {
+                resetSaveState()
+                form.setFieldValue('social', social)
+              }
 
-            return (
-              <Tabs
-                className="min-h-0 flex-1 gap-0"
-                defaultValue="general"
-                orientation="vertical"
-              >
-                <EditProfileDialogHeader
-                  canSave={hasChanges && canSubmit}
-                  isSaving={isSaving}
-                  name={name}
-                  onSave={() => handleSave(values)}
-                />
-                <EditProfileDialogTabs
-                  errorMessage={errorMessage}
-                  isSaving={isSaving}
-                  isSuccess={saveRecordsMutation.isSuccess}
-                  name={name}
-                  onBaseChange={handleBaseChange}
-                  onContactChange={handleContactChange}
-                  onToggleField={toggleField}
-                  txHash={saveRecordsMutation.data?.hash}
-                  values={values}
-                  visibleFields={visibleFields}
-                />
-              </Tabs>
-            )
-          }}
-        </form.Subscribe>
+              return (
+                <Tabs
+                  className="min-h-0 flex-1 gap-0"
+                  defaultValue="general"
+                  orientation="vertical"
+                >
+                  <EditProfileDialogHeader
+                    avatarUrl={values.base.avatar}
+                    canSave={hasChanges && canSubmit}
+                    name={name}
+                    onSave={() => handleSave(values)}
+                  />
+                  <EditProfileDialogTabs
+                    name={name}
+                    onBaseChange={handleBaseChange}
+                    onContactChange={handleContactChange}
+                    onSocialChange={handleSocialChange}
+                    owner={owner}
+                    values={values}
+                  />
+                </Tabs>
+              )
+            }}
+          </form.Subscribe>
+        </EditProfileDialogProvider>
       </DialogContent>
     </Dialog>
   )
