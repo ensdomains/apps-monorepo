@@ -15,7 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { useGrantRegistryRoles } from '@/features/registry/hooks/useGrantRegistryRoles'
+import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -86,7 +86,7 @@ export const RegistryAddUserSheet = ({
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRegistryRoles, isPending, isSuccess, reset } =
-    useGrantRegistryRoles()
+    useGrantRegistryRolesMutation()
 
   // Reset form state AND the underlying mutation when the sheet closes —
   // otherwise `isSuccess` sticks across re-opens, leaving the input disabled

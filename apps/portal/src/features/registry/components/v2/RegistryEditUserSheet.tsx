@@ -16,8 +16,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { useGrantRegistryRoles } from '@/features/registry/hooks/useGrantRegistryRoles'
-import { useRevokeRegistryRoles } from '@/features/registry/hooks/useRevokeRegistryRoles'
+import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
+import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
@@ -86,9 +86,9 @@ export const RegistryEditUserSheet = ({
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRegistryRoles, isPending: isGrantPending } =
-    useGrantRegistryRoles()
+    useGrantRegistryRolesMutation()
   const { revokeRegistryRoles, isPending: isRevokePending } =
-    useRevokeRegistryRoles()
+    useRevokeRegistryRolesMutation()
 
   const isPending = isGrantPending || isRevokePending
 

@@ -1,7 +1,7 @@
 /**
  * React hook wrapper for revokeRegistryRoles.
  *
- * Symmetric to `useGrantRegistryRoles`. Invalidates `get-registry-roles` on
+ * Symmetric to `useGrantRegistryRolesMutation`. Invalidates `get-registry-roles` on
  * success with indexer-sync polling so RegistryRolesTable refreshes.
  */
 
@@ -22,7 +22,7 @@ type UseRevokeRegistryRolesParameters = {
   readonly id: string
 }
 
-export function useRevokeRegistryRoles() {
+export function useRevokeRegistryRolesMutation() {
   const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()

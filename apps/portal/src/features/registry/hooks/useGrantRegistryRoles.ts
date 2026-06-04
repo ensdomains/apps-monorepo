@@ -23,7 +23,7 @@ type UseGrantRegistryRolesParameters = {
   readonly id: string
 }
 
-export function useGrantRegistryRoles() {
+export function useGrantRegistryRolesMutation() {
   const chainId = sepoliaWithEns.id
   const queryClient = useQueryClient()
   const { data: walletClient } = useWalletClient()

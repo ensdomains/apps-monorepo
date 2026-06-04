@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { RegistryAddUserSheet } from '@/features/registry/components/v2/RegistryAddUserSheet'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { useIsRegistryAdmin } from '@/features/registry/hooks/useIsRegistryAdmin'
-import { useRegistry } from '@/features/registry/hooks/useRegistry'
+import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/roles')({
@@ -22,7 +23,11 @@ function RouteComponent() {
   const address = addressParam as Address
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
 
-  const { data: registry, isLoading, error } = useRegistry(address)
+  const {
+    data: registry,
+    isLoading,
+    error,
+  } = useQuery(getRegistryQueryOptions({ address }))
 
   const isAdmin = useIsRegistryAdmin(address)
 
