@@ -142,6 +142,10 @@ export const EditProfileLinksTab = ({
     onLinksChange(values.links.filter((_, linkIndex) => linkIndex !== index))
   }
 
+  const removeDraftRow = () => {
+    setDraftRows((current) => Math.max(current - 1, 0))
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-4">
       <div className="flex flex-col gap-1.5">
@@ -229,17 +233,17 @@ export const EditProfileLinksTab = ({
                   value={row.link.url}
                 />
 
-                {!row.isDraft && (
-                  <button
-                    aria-label={`Remove link ${row.index + 1}`}
-                    className="-translate-y-1/2 absolute top-1/2 right-3 flex size-6 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
-                    disabled={isSaving}
-                    onClick={() => removeLink(row.index)}
-                    type="button"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
+                <button
+                  aria-label={`Remove link ${row.index + 1}`}
+                  className="-translate-y-1/2 absolute top-1/2 right-3 flex size-6 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
+                  disabled={isSaving}
+                  onClick={() =>
+                    row.isDraft ? removeDraftRow() : removeLink(row.index)
+                  }
+                  type="button"
+                >
+                  <X className="size-3.5" />
+                </button>
               </div>
 
               {(nameError || urlError) && (
