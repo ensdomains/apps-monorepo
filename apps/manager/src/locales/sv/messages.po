@@ -841,7 +841,7 @@ msgstr ""
 msgid "Edit Profile"
 msgstr ""
 
-#: src/features/profile/components/dialogs/EditProfileDialog.tsx:155
+#: src/features/profile/components/dialogs/EditProfileDialog.tsx:171
 msgid "Edit Profile (New)"
 msgstr ""
 

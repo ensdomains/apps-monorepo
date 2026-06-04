@@ -836,7 +836,7 @@ msgstr "Drag and drop an image here, or"
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
-#: src/features/profile/components/dialogs/EditProfileDialog.tsx:155
+#: src/features/profile/components/dialogs/EditProfileDialog.tsx:171
 msgid "Edit Profile (New)"
 msgstr "Edit Profile (New)"
 
