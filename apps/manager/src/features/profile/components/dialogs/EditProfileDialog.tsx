@@ -235,7 +235,7 @@ export const EditProfileDialog = ({
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button className="w-full" type="button">
-          <Trans>Edit Profile (New)</Trans>
+          <Trans>Edit Profile</Trans>
         </Button>
       </DialogTrigger>
       <DialogContent

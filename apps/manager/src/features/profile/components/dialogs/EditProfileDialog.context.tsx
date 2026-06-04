@@ -5,7 +5,7 @@ import type {
   EditProfileDialogSnapshot,
   editProfileDialogMachine,
 } from './EditProfileDialog.machine'
-import type { GeneralField } from './EditProfileGeneralTab'
+import type { GeneralField } from './EditProfileGeneralTab.fields'
 
 const EditProfileDialogContext = createContext<{
   dialogActor: Actor<typeof editProfileDialogMachine>
@@ -58,7 +58,6 @@ export const useEditProfileDialogActions = () => {
 
   return useMemo(
     () => ({
-      resetSaveState: () => dialogActor.send({ type: 'RESET_SAVE_STATE' }),
       toggleField: (field: GeneralField) =>
         dialogActor.send({ type: 'TOGGLE_GENERAL_FIELD', field }),
     }),

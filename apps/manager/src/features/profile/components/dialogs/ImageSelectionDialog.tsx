@@ -9,7 +9,6 @@ import {
   Eye,
   Image,
   Keyboard,
-  Search,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -157,7 +156,7 @@ export const ImageSelectionDialog = ({
     const imageUrl = URL.createObjectURL(file)
     setUploadFile(file)
     setUploadPreviewUrl(imageUrl)
-    send({ type: 'OPEN_UPLOAD', imageUrl })
+    send({ type: 'OPEN_UPLOAD' })
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -361,88 +360,6 @@ export const ImageSelectionDialog = ({
     </>
   )
 
-  // NFT selection step
-  const renderNFTSelectionStep = () => (
-    <>
-      <StepHeader
-        onBack={() => send({ type: 'BACK' })}
-        title={t`Choose an NFT`}
-      />
-
-      <ErrorDisplay error={state.context.error} />
-
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
-          <Input
-            aria-label={t`Search your NFTs`}
-            className="pl-10"
-            onChange={(e) =>
-              send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })
-            }
-            placeholder={t`Search your NFTs...`}
-            value={state.context.searchQuery}
-          />
-        </div>
-
-        <div className="grid max-h-64 grid-cols-2 gap-4 overflow-y-auto">
-          {state.context.filteredNFTs.map((nft) => (
-            <button
-              className="rounded-md p-2 text-left transition-colors hover:bg-gray-50"
-              key={nft.id}
-              onClick={() => send({ type: 'SELECT_NFT', nft })}
-              type="button"
-            >
-              <img
-                alt={nft.name}
-                className="mb-2 h-24 w-full rounded-md object-cover"
-                src={nft.image}
-              />
-              <p className="truncate font-medium text-sm">{nft.name}</p>
-              <p className="truncate text-gray-500 text-xs">{nft.collection}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  )
-
-  // NFT confirmation step
-  const renderNFTConfirmationStep = () => {
-    const nft = state.context.selectedNFT
-    if (!nft) return null
-
-    return (
-      <>
-        <StepHeader
-          onBack={() => send({ type: 'BACK' })}
-          title={t`Confirm NFT Selection`}
-        />
-
-        <div className="space-y-4">
-          <div className="text-center">
-            <img
-              alt={nft.name}
-              className={getImageStyles('large')}
-              src={nft.image}
-            />
-            <p className="mt-2 font-medium">{nft.name}</p>
-            <p className="text-gray-500 text-sm">{nft.collection}</p>
-          </div>
-        </div>
-
-        <StepFooter>
-          <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-            <Trans>Back</Trans>
-          </Button>
-          <Button onClick={() => send({ type: 'CONFIRM_NFT' })}>
-            <Trans>Use This NFT</Trans>
-          </Button>
-        </StepFooter>
-      </>
-    )
-  }
-
   // Upload preview step
   const uploadErrorMessage =
     uploadError instanceof Error ? uploadError.message : null
@@ -582,10 +499,6 @@ export const ImageSelectionDialog = ({
     if (state.matches('main')) return renderMainStep()
     if (state.matches('removeConfirmation'))
       return renderRemoveConfirmationStep()
-    if (state.matches({ nftSelection: 'browsing' }))
-      return renderNFTSelectionStep()
-    if (state.matches({ nftSelection: 'confirming' }))
-      return renderNFTConfirmationStep()
     if (state.matches('uploadPreview')) return renderUploadPreviewStep()
     if (state.matches({ manualInput: 'entering' }))
       return renderManualInputStep()

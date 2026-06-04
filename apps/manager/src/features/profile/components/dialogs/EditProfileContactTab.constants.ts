@@ -130,7 +130,10 @@ export const contactMethodKeys: ReadonlySet<ContactMethodKey> = new Set(
   contactMethods.map(({ key }) => key),
 )
 
-export const rowMethods = rowMethodKeys.flatMap((key) => {
+export const rowMethods = rowMethodKeys.map((key) => {
   const method = contactMethodByKey.get(key)
-  return method ? [method] : []
+  if (!method) {
+    throw new Error(`Unknown contact method key: ${key}`)
+  }
+  return method
 })

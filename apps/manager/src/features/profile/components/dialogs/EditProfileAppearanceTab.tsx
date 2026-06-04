@@ -3,7 +3,6 @@ import { cn, truncateAddress } from '@/lib/utils'
 import { DEFAULT_THEME_COLOR, type THEME_COLORS } from '../../constants'
 import type { ProfileRecords } from '../../types'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
-import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 type ThemeValue = (typeof THEME_COLORS)[number]['value']
 
@@ -140,8 +139,7 @@ export const EditProfileAppearanceTab = ({
   owner,
   values,
 }: EditProfileAppearanceTabProps) => {
-  const { errorMessage, isSaving, isSuccess, txHash } =
-    useEditProfileDialogStatus()
+  const { isSaving } = useEditProfileDialogStatus()
   const selectedThemeValue = getSelectedThemeValue(values.base.theme)
   const previewAddress = getPreviewAddress(values, owner)
 
@@ -171,14 +169,6 @@ export const EditProfileAppearanceTab = ({
           />
         ))}
       </div>
-
-      <UpdateStatusPanel
-        errorMessage={errorMessage}
-        hasValidationIssues={false}
-        isSaving={isSaving}
-        isSuccess={isSuccess}
-        txHash={txHash}
-      />
     </div>
   )
 }

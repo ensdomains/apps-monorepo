@@ -9,7 +9,6 @@ import { EditProfileLinksTab } from './EditProfileLinksTab'
 const tabs = [
   { label: 'General', value: 'general' },
   { label: 'Contact', value: 'contact' },
-  { label: 'Addresses', value: 'addresses' },
   { label: 'Links', value: 'links' },
   { label: 'Appearance', value: 'appearance' },
 ] as const
@@ -87,24 +86,6 @@ export const EditProfileDialogTabs = ({
           values={values}
         />
       </TabsContent>
-
-      {tabs
-        .filter(
-          ({ value }) =>
-            value !== 'general' &&
-            value !== 'contact' &&
-            value !== 'links' &&
-            value !== 'appearance',
-        )
-        .map(({ value }) => (
-          <TabsContent
-            className="flex min-h-0 flex-1 items-center justify-center text-base text-muted-foreground"
-            key={value}
-            value={value}
-          >
-            WIP
-          </TabsContent>
-        ))}
     </div>
   </div>
 )

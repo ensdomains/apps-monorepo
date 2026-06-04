@@ -45,7 +45,7 @@ type TextChange = {
 }
 
 type CoinChange = {
-  coin: string | number
+  coin: number
   value: string | null
 }
 
@@ -351,7 +351,7 @@ async function buildRecordsUpdateRequest(params: {
 
   if (changes.coins.length > 0) {
     ensParams.coins = changes.coins.map(({ coin, value }) => ({
-      coin: typeof coin === 'number' ? coin : Number.parseInt(String(coin), 10),
+      coin,
       value: value ?? '',
     }))
   }

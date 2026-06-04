@@ -16,14 +16,12 @@ import {
   getRecordsForMethod,
   getRecordValue,
   hasRecord,
-  normalizePrimaryContactKeys,
   parsePrimaryContactKeys,
   removeRecord,
   upsertRecordValue,
 } from './EditProfileContactTab.records'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
-import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface EditProfileContactTabProps {
   readonly onBaseChange: (base: ProfileRecords['base']) => void
@@ -38,8 +36,7 @@ export const EditProfileContactTab = ({
   onSocialChange,
   values,
 }: EditProfileContactTabProps) => {
-  const { errorMessage, isSaving, isSuccess, txHash } =
-    useEditProfileDialogStatus()
+  const { isSaving } = useEditProfileDialogStatus()
   const [disabledDefaultMethodKeys, setDisabledDefaultMethodKeys] = useState<
     ReadonlySet<ContactMethodKey>
   >(() => new Set())
@@ -55,12 +52,7 @@ export const EditProfileContactTab = ({
   const selectedPrimaryContactCount = primaryContactKeys.length
 
   const updatePrimaryContactKeys = (keys: readonly ContactMethodKey[]) => {
-    onBaseChange(
-      getBaseWithPrimaryContactKeys(
-        values.base,
-        normalizePrimaryContactKeys(keys),
-      ),
-    )
+    onBaseChange(getBaseWithPrimaryContactKeys(values.base, keys))
   }
 
   const removePrimaryContact = (method: ContactMethod) => {
@@ -173,14 +165,6 @@ export const EditProfileContactTab = ({
           )
         })}
       </div>
-
-      <UpdateStatusPanel
-        errorMessage={errorMessage}
-        hasValidationIssues={false}
-        isSaving={isSaving}
-        isSuccess={isSuccess}
-        txHash={txHash}
-      />
 
       <div className="flex flex-col gap-3 overflow-hidden">
         <p className="w-full text-right text-[12px] text-ens-signal-success-700 leading-[1.2]">

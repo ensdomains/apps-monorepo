@@ -8,7 +8,6 @@ import {
   type LinkValidationField,
   type LinkValidationIssue,
 } from './EditProfileLinksTab.validation'
-import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface LinkRow {
   readonly index: number
@@ -77,8 +76,7 @@ export const EditProfileLinksTab = ({
   onLinksChange,
   values,
 }: EditProfileLinksTabProps) => {
-  const { errorMessage, isSaving, isSuccess, txHash } =
-    useEditProfileDialogStatus()
+  const { isSaving } = useEditProfileDialogStatus()
   const nextRowKeyRef = useRef(0)
   const createRowKey = useCallback(() => {
     const rowKey = `link-row-${nextRowKeyRef.current}`
@@ -188,16 +186,6 @@ export const EditProfileLinksTab = ({
           Add links to your website, portfolio, or anything you want to share.
         </p>
       </div>
-
-      <UpdateStatusPanel
-        errorMessage={errorMessage}
-        hasValidationIssues={
-          validationIssues.length > 0 || draftValidationIssues.length > 0
-        }
-        isSaving={isSaving}
-        isSuccess={isSuccess}
-        txHash={txHash}
-      />
 
       <div className="flex flex-col gap-4 overflow-hidden">
         {rows.map((row) => {
