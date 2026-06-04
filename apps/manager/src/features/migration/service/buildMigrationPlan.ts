@@ -14,14 +14,16 @@ import {
 import {
   type ClassifiedName,
   classifyNames,
+  FUSES,
   type GroupedNames,
   groupClassifiedNames,
+  hasFuse,
   type IneligibleName,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 import { predictOwnedPermResAddress } from './ensureOwnedPermRes'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
-import type { V1Domain } from './v1SubgraphClient'
+import { getV1ProfileKeys, type V1Domain } from './v1SubgraphClient'
 
 export class MigrationPlanError extends TaggedError('MigrationPlanError')<{
   cause: unknown
@@ -82,6 +84,49 @@ const buildReplayProfiles = (params: {
   return replay
 }
 
+const isResolverReplaceableWhenProfileEmpty = (
+  name: ClassifiedName,
+): boolean => {
+  if (name.resolverStrategy !== 'keep-v1') return false
+  if (!name.v1ResolverAddress) return false
+
+  const cannotSetResolverLocked =
+    (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
+    hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
+
+  return !cannotSetResolverLocked
+}
+
+const routeEmptyProfilesToOwnedPermRes = async (
+  classified: readonly ClassifiedName[],
+): Promise<readonly ClassifiedName[]> => {
+  const candidates = classified.filter(isResolverReplaceableWhenProfileEmpty)
+  if (candidates.length === 0) return classified
+
+  const result = await getV1ProfileKeys(candidates.map((n) => n.domain.id))
+  if (result.isErr()) {
+    console.warn(
+      '[migration] getV1ProfileKeys failed while checking empty custom resolvers; preserving existing resolvers:',
+      result.error,
+    )
+    return classified
+  }
+
+  const emptyProfileIds = new Set(
+    result.value
+      .filter((keys) => keys.texts.length === 0 && keys.coinTypes.length === 0)
+      .map((keys) => keys.id.toLowerCase()),
+  )
+
+  if (emptyProfileIds.size === 0) return classified
+
+  return classified.map((name) =>
+    emptyProfileIds.has(name.domain.id.toLowerCase())
+      ? { ...name, resolverStrategy: 'to-owned-permres' as const }
+      : name,
+  )
+}
+
 const assemblePlanParts = (params: {
   classified: readonly ClassifiedName[]
   migrationOwner: Address
@@ -136,8 +181,12 @@ export const buildMigrationPlan = async (params: {
     hasNameWrapperApproval,
   } = params
 
-  const { classified, ineligible } = classifyNames([...domains], migrationOwner)
-  const groups = groupClassifiedNames(classified)
+  const classifiedNamesResult = classifyNames([...domains], migrationOwner)
+  const classified = await routeEmptyProfilesToOwnedPermRes(
+    classifiedNamesResult.classified,
+  )
+  const { ineligible } = classifiedNamesResult
+  const groups = groupClassifiedNames([...classified])
   const namesToOwnedPermRes = classified.filter(
     (n) => n.resolverStrategy === 'to-owned-permres',
   )

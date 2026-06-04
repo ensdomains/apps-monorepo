@@ -3,13 +3,19 @@ import { ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ProfileRecords } from '../../types'
+import { safeHttpHref } from '../../utils/safeUrl'
 
 interface ViewLinksSectionProps {
   records: ProfileRecords
 }
 
 export const ViewLinksSection = ({ records }: ViewLinksSectionProps) => {
-  if (records.links.length === 0) {
+  const safeLinks = records.links.flatMap((link) => {
+    const href = safeHttpHref(link.url)
+    return href ? [{ ...link, href }] : []
+  })
+
+  if (safeLinks.length === 0) {
     return null
   }
 
@@ -22,7 +28,7 @@ export const ViewLinksSection = ({ records }: ViewLinksSectionProps) => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
-          {records.links.map((link, i) => (
+          {safeLinks.map((link, i) => (
             <Button
               asChild
               className="w-full min-w-1/3 flex-1 justify-between"
@@ -32,10 +38,10 @@ export const ViewLinksSection = ({ records }: ViewLinksSectionProps) => {
             >
               <a
                 className="flex w-full min-w-0 items-center justify-between gap-2"
-                href={link.url}
+                href={link.href}
                 rel="noopener noreferrer"
                 target="_blank"
-                title={link.url}
+                title={link.href}
               >
                 <span className="truncate">{link.name}</span>
                 <ExternalLink className="size-4" />

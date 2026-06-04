@@ -68,10 +68,6 @@ msgstr ""
 msgid "{count} names migrated"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:54
-#~ msgid "{discountPercentage}% off"
-#~ msgstr ""
-
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:158
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
@@ -148,7 +144,7 @@ msgstr ""
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:174
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:175
 msgid "Add"
 msgstr ""
 
@@ -189,8 +185,8 @@ msgstr ""
 msgid "Add favorite"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:76
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:77
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:78
 msgid "Add Link"
 msgstr ""
 
@@ -298,11 +294,11 @@ msgstr ""
 msgid "Approving the token and registering your name"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:283
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:287
 msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:284
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:288
 msgid "Are you sure you want to remove your current header? This will revert to the default image."
 msgstr ""
 
@@ -341,9 +337,9 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:223
 #: src/features/notifications/settings/email-verify-step.tsx:125
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:432
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:473
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:567
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:436
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:477
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:571
 #: src/features/register-v2/workflow/pricing/PricingStep.tsx:22
 #: src/features/renew/workflow/pricing/PricingStep.tsx:20
 msgid "Back"
@@ -396,7 +392,7 @@ msgstr ""
 msgid "Blog"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:245
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:249
 msgid "Browse Files"
 msgstr ""
 
@@ -439,7 +435,8 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
 #: src/features/profile/components/dialogs/DiffDialog.tsx:253
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:348
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:61
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:352
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
 #: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:134
 msgid "Cancel"
@@ -498,7 +495,7 @@ msgstr ""
 msgid "Choose a wallet to connect to the application"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:365
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:369
 msgid "Choose an NFT"
 msgstr ""
 
@@ -524,12 +521,12 @@ msgstr ""
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr ""
 
-#: src/features/profile/components/view/ViewBioSection.tsx:55
+#: src/features/profile/components/view/ViewBioSection.tsx:56
 msgid "Click to copy"
 msgstr ""
 
-#: src/components/ui/dialog.tsx:95
-#: src/features/migration/components/MigrationModal.tsx:89
+#: src/components/ui/dialog.tsx:97
+#: src/features/migration/components/MigrationModal.tsx:91
 msgid "Close"
 msgstr ""
 
@@ -541,7 +538,7 @@ msgstr ""
 msgid "Coming Soon"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:42
+#: src/features/migration/components/MigrationModal.tsx:44
 msgid "Commemorative NFT"
 msgstr ""
 
@@ -582,7 +579,7 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:415
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:419
 msgid "Confirm NFT Selection"
 msgstr ""
 
@@ -738,23 +735,23 @@ msgstr ""
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:458
 msgid "Crop Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:450
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:454
 msgid "Crop your image to fit the avatar dimensions."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:451
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:455
 msgid "Crop your image to fit the header dimensions."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:466
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:470
 msgid "Cropping functionality coming soon"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:294
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:298
 msgid "Current"
 msgstr ""
 
@@ -762,7 +759,7 @@ msgstr ""
 msgid "Custom duration in years"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:41
+#: src/features/migration/components/MigrationModal.tsx:43
 msgid "Custom Profiles"
 msgstr ""
 
@@ -787,16 +784,8 @@ msgstr ""
 msgid "Date added"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:173
-#~ msgid "Date added (Newest)"
-#~ msgstr "Datum tillagt (nyast)"
-
-#: src/features/dashboard/components/FavoritesList.tsx:170
-#~ msgid "Date added (Oldest)"
-#~ msgstr "Datum tillagt (äldst)"
-
 #: src/features/payment/components/index.tsx:42
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:316
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:320
 msgid "Default"
 msgstr ""
 
@@ -844,12 +833,16 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:242
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:246
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/profile/components/view/ProfileView.tsx:197
+#: src/features/profile/components/view/ProfileView.tsx:207
 msgid "Edit Profile"
+msgstr ""
+
+#: src/features/profile/components/dialogs/EditProfileDialog.tsx:232
+msgid "Edit Profile (New)"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx:28
@@ -926,7 +919,7 @@ msgstr ""
 msgid "ENS names can be up to 255 characters"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:43
+#: src/features/migration/components/MigrationModal.tsx:45
 msgid "ENS v2 Names"
 msgstr ""
 
@@ -942,15 +935,15 @@ msgstr ""
 msgid "Enter custom duration"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:506
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:510
 msgid "Enter Image URL"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:492
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:496
 msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:256
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:260
 msgid "Enter URL Manually"
 msgstr ""
 
@@ -988,10 +981,6 @@ msgstr ""
 msgid "Expires in {days} days"
 msgstr ""
 
-#: src/features/dashboard/components/MyNamesList.tsx:439
-#~ msgid "Expires in {daysUntilExpiry} days"
-#~ msgstr "Går ut om {daysUntilExpiry} dagar"
-
 #: src/features/dashboard/components/NameRow.tsx:293
 msgid "Expires on"
 msgstr ""
@@ -1018,14 +1007,6 @@ msgstr ""
 #: src/features/dashboard/components/NamesTable.tsx:73
 msgid "Expiry (Soonest)"
 msgstr ""
-
-#: src/features/dashboard/components/MyNamesList.tsx:274
-#~ msgid "Expiry date (Earliest)"
-#~ msgstr "Utgångsdatum (tidigast)"
-
-#: src/features/dashboard/components/MyNamesList.tsx:277
-#~ msgid "Expiry date (Latest)"
-#~ msgstr "Utgångsdatum (senast)"
 
 #: src/features/renew/components/RenewNameButton.tsx:27
 msgid "Extend Name"
@@ -1065,7 +1046,7 @@ msgstr ""
 msgid "Failed to load notifications"
 msgstr ""
 
-#: src/features/profile/components/view/ProfileView.tsx:133
+#: src/features/profile/components/view/ProfileView.tsx:135
 msgid "Failed to load registration data for this name."
 msgstr ""
 
@@ -1119,12 +1100,6 @@ msgstr ""
 msgid "Favorites"
 msgstr "Favoriter"
 
-#: src/features/notifications/settings/preferences.tsx:149
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:112
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:133
-#~ msgid "Favourited Name Expiry"
-#~ msgstr ""
-
 #: src/features/notifications/settings/preferences.tsx:136
 msgid "Favourites"
 msgstr ""
@@ -1163,12 +1138,6 @@ msgstr ""
 msgid "Get instant updates through Telegram for your domains."
 msgstr ""
 
-#: src/features/notifications/settings/preferences.tsx:140
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:103
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:124
-#~ msgid "Get notified when names in your favourites expire"
-#~ msgstr ""
-
 #: src/features/notifications/settings/preferences.tsx:131
 msgid "Get notified when names you favorited expire."
 msgstr ""
@@ -1176,12 +1145,6 @@ msgstr ""
 #: src/features/dashboard/components/FaqSection.tsx:92
 msgid "Get support"
 msgstr "Få support"
-
-#: src/features/notifications/settings/preferences.tsx:122
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:85
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:106
-#~ msgid "Get updated on the latest releases and features"
-#~ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:116
 msgid "Get updated on the latest releases and features."
@@ -1224,10 +1187,6 @@ msgstr ""
 msgid "Grace period"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:85
-#~ msgid "Hello"
-#~ msgstr "Hej"
-
 #: src/features/dashboard/components/FaqSection.tsx:68
 msgid "How can I secure my ENS name?"
 msgstr "Hur kan jag säkra mitt ENS-namn?"
@@ -1248,7 +1207,7 @@ msgstr ""
 msgid "If your primary card is declined, we will use this card to charge you."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:148
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:152
 msgid "Image must be under {MAX_FILE_SIZE_MB}MB"
 msgstr ""
 
@@ -1289,11 +1248,11 @@ msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje
 msgid "Language"
 msgstr "Språk"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:501
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:505
 msgid "Learn more"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:160
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:161
 msgid "Link"
 msgstr ""
 
@@ -1308,7 +1267,7 @@ msgid "links"
 msgstr ""
 
 #: src/features/profile/components/sections/LinksSection.tsx:21
-#: src/features/profile/components/view/ViewLinksSection.tsx:20
+#: src/features/profile/components/view/ViewLinksSection.tsx:26
 msgid "Links"
 msgstr ""
 
@@ -1384,11 +1343,6 @@ msgstr ""
 msgid "Manage Renewals"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/NotificationSettingsStep.tsx:25
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:205
-#~ msgid "Manage your notification preferences for your name(s) and ENS-related updates."
-#~ msgstr ""
-
 #: src/features/dashboard/components/DashboardPills.tsx:43
 msgid "Manager"
 msgstr ""
@@ -1435,7 +1389,7 @@ msgstr "Mina namn"
 #: src/features/dashboard/components/NamesTable.tsx:70
 #: src/features/dashboard/components/NamesTable.tsx:84
 #: src/features/dashboard/components/NamesTable.tsx:85
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:148
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:149
 msgid "Name"
 msgstr "Namn"
 
@@ -1485,7 +1439,7 @@ msgstr ""
 msgid "Never lose your name to expiry."
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:44
+#: src/features/migration/components/MigrationModal.tsx:46
 msgid "New Experience"
 msgstr ""
 
@@ -1572,7 +1526,7 @@ msgstr ""
 msgid "Not a valid name format"
 msgstr ""
 
-#: src/features/profile/components/view/ViewBioSection.tsx:33
+#: src/features/profile/components/view/ViewBioSection.tsx:34
 msgid "Not set"
 msgstr ""
 
@@ -1589,12 +1543,6 @@ msgstr ""
 #: src/components/SepoliaNoticeBanner.tsx:11
 msgid "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on {LAST_SEPOLIA_DEPLOYMENT_DATE}."
 msgstr ""
-
-#: src/features/notifications/settings/preferences.tsx:97
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:60
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:81
-#~ msgid "Notification Preferences"
-#~ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx:82
 msgid "Notification Settings"
@@ -1707,7 +1655,7 @@ msgstr ""
 msgid "Permission missing. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:150
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:151
 msgid "Personal Site"
 msgstr ""
 
@@ -1716,7 +1664,7 @@ msgstr ""
 msgid "Please connect your wallet first"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:142
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:146
 msgid "Please select a valid image file"
 msgstr ""
 
@@ -1762,12 +1710,12 @@ msgstr ""
 msgid "Preparing..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:529
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:540
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:533
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:544
 msgid "Preview Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:560
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:564
 msgid "Preview of your image"
 msgstr ""
 
@@ -1925,12 +1873,12 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/email.tsx:207
 #: src/features/notifications/settings/contact-methods/email.tsx:243
 #: src/features/notifications/settings/contact-methods/telegram.tsx:170
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:354
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:358
 msgid "Remove"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:267
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:287
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:271
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:291
 msgid "Remove Avatar"
 msgstr ""
 
@@ -1942,8 +1890,8 @@ msgstr ""
 msgid "Remove favorite"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:269
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:287
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:273
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:291
 msgid "Remove Header"
 msgstr ""
 
@@ -2101,8 +2049,16 @@ msgstr ""
 msgid "Save Preferences"
 msgstr ""
 
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
+msgid "Save Profile"
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx:171
 msgid "Saved favorites & searches"
+msgstr ""
+
+#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
+msgid "Saving"
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx:72
@@ -2137,10 +2093,6 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:163
-#~ msgid "Search my name..."
-#~ msgstr "Sök mitt namn..."
-
 #: src/features/dashboard/components/NamesTable.tsx:119
 msgid "Search my names"
 msgstr ""
@@ -2148,10 +2100,6 @@ msgstr ""
 #: src/features/navigation/Header/search/SearchInput.tsx:53
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
-
-#: src/features/dashboard/components/NamesTable.tsx:163
-#~ msgid "Search name..."
-#~ msgstr "Sök namn..."
 
 #: src/features/migration/components/SelectNamesStep.tsx:58
 #: src/features/migration/components/SelectNamesStep.tsx:62
@@ -2163,11 +2111,11 @@ msgstr ""
 msgid "Search notifications"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:374
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:378
 msgid "Search your NFTs"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:379
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:383
 msgid "Search your NFTs..."
 msgstr ""
 
@@ -2175,7 +2123,7 @@ msgstr ""
 msgid "See all"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:47
+#: src/features/migration/components/UpgradeBanner.tsx:49
 msgid "See what's new"
 msgstr ""
 
@@ -2296,21 +2244,9 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
-#: src/features/dashboard/components/FavoritesList.tsx:300
-#~ msgid "Showing {startIndex}-{endIndex} of {totalCount}"
-#~ msgstr "Visar {startIndex}-{endIndex} av {totalCount}"
-
-#: src/features/dashboard/components/MyNamesList.tsx:484
-#~ msgid "Showing your names"
-#~ msgstr "Visar dina namn"
-
 #: src/features/notifications/RequireBackendAuth.tsx:120
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
-
-#: src/features/dashboard/components/NamesTable.tsx:128
-#~ msgid "Sign in to view favorites"
-#~ msgstr "Logga in för att se favoriter"
 
 #: src/features/notifications/RequireBackendAuth.tsx:136
 #: src/features/wallet/components/BackendAuthModal.tsx:118
@@ -2355,7 +2291,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr ""
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:118
+#: src/features/migration/components/MigrationModal.tsx:120
 msgid "Slide {0}"
 msgstr ""
 
@@ -2636,11 +2572,11 @@ msgstr ""
 msgid "Upgrade Names"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:98
+#: src/features/migration/components/MigrationModal.tsx:100
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:37
+#: src/features/migration/components/UpgradeBanner.tsx:39
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr ""
 
@@ -2661,15 +2597,15 @@ msgstr ""
 msgid "Upgrading your names..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:479
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:483
 msgid "Upload & Use Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:229
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:233
 msgid "Upload or drag & drop"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:477
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:481
 msgid "Uploading…"
 msgstr ""
 
@@ -2681,11 +2617,11 @@ msgstr ""
 msgid "Use Different Email"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:570
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:574
 msgid "Use This Image"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:435
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:439
 msgid "Use This NFT"
 msgstr ""
 
@@ -2907,11 +2843,11 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/features/migration/components/UpgradeBanner.tsx:33
+#: src/features/migration/components/UpgradeBanner.tsx:35
 msgid "Welcome to the new ENS app"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx:95
+#: src/features/migration/components/MigrationModal.tsx:97
 msgid "Welcome to the new ENS app!"
 msgstr ""
 
@@ -2957,9 +2893,8 @@ msgstr ""
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr ""
 
-#. placeholder {0}: v1Names.length
-#: src/features/migration/components/MigrationModal.tsx:154
-msgid "You have <0>{0}</0> names that are eligible for upgrade"
+#: src/features/migration/components/MigrationModal.tsx:156
+msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr ""
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:109
@@ -2990,12 +2925,6 @@ msgstr ""
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:37
 msgid "You'll always see important notifications in the app."
 msgstr ""
-
-#: src/features/notifications/settings/preferences.tsx:104
-#: src/features/register-v2/workflow/registering/components/NotificationPreferencesForm.tsx:67
-#: src/features/register/components/RegistrationInProgress/NotificationSettings.tsx:88
-#~ msgid "You'll be notified 30, 7, and 1 day before expiry"
-#~ msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:98
 msgid "You'll be notified 30, 7, and 1 day before expiry."

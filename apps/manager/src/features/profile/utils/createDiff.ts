@@ -52,10 +52,14 @@ const getAddressDisplayName = (coinType: number): string =>
 
 const getBioDisplayName = (key: string): string => {
   const displayNames: Record<string, string> = {
+    name: 'Full Name',
     description: 'Bio Description',
     url: 'Bio URL',
     avatar: 'Avatar',
     header: 'Header Image',
+    language: 'Language',
+    'primary-contact': 'Primary Contact',
+    'domains.ens.primary-contacts': 'Primary Contacts',
   }
   return displayNames[key] || key
 }

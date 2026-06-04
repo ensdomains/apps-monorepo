@@ -22,13 +22,14 @@ import {
 import { FloatingInput } from '@/components/ui/floating-input'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { staticTextRecords, textRecords } from '../../data/records'
+import { createSafeUrlSchema } from '../../utils/safeUrl'
 
 const reservedTextRecordKeys = new Set<string>([
   ...staticTextRecords,
   ...textRecords.map((record) => record.key),
 ])
 
-const linkUrlSchema = v.pipe(v.string(), v.trim(), v.url('Enter a valid URL'))
+const linkUrlSchema = createSafeUrlSchema('Enter a valid URL')
 
 const validateLinkName = (name: string): string | null => {
   const trimmed = name.trim()

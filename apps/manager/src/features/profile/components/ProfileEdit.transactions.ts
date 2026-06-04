@@ -24,6 +24,10 @@ import {
   type Hex,
   type PublicClient,
 } from 'viem'
+import {
+  createSafeUrlSchema,
+  isSafeHttpUrl,
+} from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 
 // --- Types ---
@@ -155,9 +159,50 @@ const computeRecordChanges = (
   return changes
 }
 
-const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
+const bioUrlSchema = createSafeUrlSchema('Invalid Bio URL')
 
-const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
+const linksSchema = v.array(
+  v.object({
+    name: v.string(),
+    url: v.string(),
+  }),
+)
+
+const recordIssue = (
+  sectionKey: string,
+  fieldKey: string,
+  message: string,
+): RecordIssue => ({
+  sectionKey,
+  fieldKey,
+  message,
+})
+
+const validateLinksRecord = (value: string): RecordIssue[] => {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  const result = v.safeParse(linksSchema, parsed)
+
+  if (!result.success) {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  return result.output.flatMap((link, index) =>
+    isSafeHttpUrl(link.url)
+      ? []
+      : [recordIssue('links', `links[${index}].url`, 'Invalid Link URL')],
+  )
+}
+
+const validateFinalTextRecords = (
+  texts: Array<{ key: string; value: string | null | undefined }>,
+): RecordIssue[] => {
   const issues: RecordIssue[] = []
 
   for (const { key, value } of texts) {
@@ -175,6 +220,10 @@ const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
           })),
         )
       }
+    }
+
+    if (key === 'links') {
+      issues.push(...validateLinksRecord(trimmed))
     }
   }
 
@@ -268,8 +317,8 @@ async function buildRecordsUpdateRequest(params: {
     throw new Error('No profile record changes to apply')
   }
 
-  // Validate text changes
-  const issues = validateTextChanges(changes.texts)
+  // Validate the final records, including unchanged records omitted from the diff.
+  const issues = validateFinalTextRecords(after.texts)
   if (issues.length > 0) {
     throw new RecordsValidationError(issues)
   }

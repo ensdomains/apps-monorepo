@@ -28,11 +28,15 @@ export const sections = {
 } as const satisfies Record<string, SectionData>
 
 export const staticTextRecords = [
+  'name',
   'avatar',
   'header',
   'description',
   'url',
   'theme',
+  'language',
+  'primary-contact',
+  'domains.ens.primary-contacts',
 ] as const
 
 export const textRecords: TextRecordDef[] = [

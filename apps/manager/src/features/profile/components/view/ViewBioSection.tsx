@@ -7,6 +7,7 @@ import {
   getRecordHref,
 } from '../../data/records'
 import type { ProfileRecords, TextRecordValue } from '../../types'
+import { safeHttpHref } from '../../utils/safeUrl'
 import { IconRenderer } from '../IconRenderer'
 
 interface ContactItemProps {
@@ -66,10 +67,9 @@ interface ViewBioSectionProps {
 
 export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
   const contactsWithValues = records.contact.filter((r) => r.value)
+  const websiteHref = safeHttpHref(records.base.url)
   const hasContent =
-    records.base.description ||
-    records.base.url ||
-    contactsWithValues.length > 0
+    records.base.description || websiteHref || contactsWithValues.length > 0
 
   if (!hasContent) {
     return null
@@ -87,10 +87,10 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
           <p className="text-gray-800 text-sm">{records.base.description}</p>
         )}
 
-        {records.base.url ? (
+        {websiteHref ? (
           <a
             className="w-fit text-gray-500 text-sm"
-            href={records.base.url}
+            href={websiteHref}
             rel="noopener noreferrer"
             target="_blank"
           >
