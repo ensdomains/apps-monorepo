@@ -1,7 +1,8 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans } from '@lingui/react/macro'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useMachine } from '@xstate/react'
+import { useEffect } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
@@ -11,19 +12,11 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import type { ProfileRecords } from '../../types'
 import { createDiff } from '../../utils/createDiff'
-import { transformToServiceFormat } from '../../utils/transformRecords'
 import { useAppForm } from '../form'
-import {
-  RecordsValidationError,
-  type SaveRecordsParams,
-  saveRecords,
-} from '../ProfileEdit.transactions'
+import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
-import {
-  type GeneralField,
-  getDefaultVisibleFields,
-} from './EditProfileGeneralTab'
+import type { GeneralField } from './EditProfileGeneralTab'
 
 interface EditProfileDialogProps {
   readonly name: string
@@ -38,115 +31,92 @@ export const EditProfileDialog = ({
   owner,
   onUpdated,
 }: EditProfileDialogProps) => {
-  const [open, setOpen] = useState(false)
-  const [savedRecords, setSavedRecords] = useState(records)
-  const [localSaveError, setLocalSaveError] = useState<string>()
-  const [visibleFields, setVisibleFields] = useState<Set<GeneralField>>(() =>
-    getDefaultVisibleFields(records),
-  )
   const account = useSmartAccountContext()
   const chainId = useChainId()
   const queryClient = useQueryClient()
+  const [dialogState, sendDialog] = useMachine(editProfileDialogMachine, {
+    input: { records },
+  })
 
   const form = useAppForm({
     defaultValues: records,
   })
 
-  const saveRecordsMutation = useMutation({
-    mutationFn: ({
-      currentRecords: _currentRecords,
-      ...params
-    }: SaveRecordsParams & { currentRecords: ProfileRecords }) =>
-      saveRecords(params),
-    onSuccess: async (_data, variables) => {
-      setSavedRecords(variables.currentRecords)
-      form.reset(variables.currentRecords)
+  const resetSaveState = () => {
+    sendDialog({ type: 'RESET_SAVE_STATE' })
+  }
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      form.reset(records)
+      sendDialog({ type: 'OPEN', records })
+      return
+    }
+
+    if (dialogState.matches({ editing: 'saving' })) {
+      return
+    }
+
+    sendDialog({ type: 'CLOSE' })
+  }
+
+  const toggleField = (field: GeneralField) => {
+    sendDialog({ type: 'TOGGLE_GENERAL_FIELD', field })
+  }
+
+  const handleSave = (currentRecords: ProfileRecords) => {
+    sendDialog({
+      type: 'SAVE_REQUESTED',
+      values: currentRecords,
+      deps: {
+        accountAddress: account.accountAddress as Address | null,
+        chainId,
+        name,
+        owner,
+        ownerAddress: account.ownerAddress as Address | null,
+        publicClient: publicClient as PublicClient,
+        signer: account.signer,
+      },
+    })
+  }
+
+  useEffect(() => {
+    if (!dialogState.matches({ editing: 'success' })) {
+      return
+    }
+
+    let cancelled = false
+    const confirmedRecords = dialogState.context.savedRecords
+    const ethAddressChanged = dialogState.context.ethAddressChanged
+
+    const finalizeSave = async () => {
+      form.reset(confirmedRecords)
       await onUpdated?.()
 
-      const ethBefore = variables.before.coins.find((c) => c.coinType === 60)
-      const ethAfter = variables.after.coins.find((c) => c.coinType === 60)
-      if (ethBefore?.value !== ethAfter?.value) {
+      if (ethAddressChanged) {
         queryClient.invalidateQueries({
           queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
         })
       }
 
-      setOpen(false)
-    },
-  })
-
-  const resetSaveState = () => {
-    setLocalSaveError(undefined)
-    saveRecordsMutation.reset()
-  }
-
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen) {
-      setSavedRecords(records)
-      form.reset(records)
-      setVisibleFields(getDefaultVisibleFields(records))
-      resetSaveState()
-    }
-    setOpen(isOpen)
-  }
-
-  const toggleField = (field: GeneralField) => {
-    setVisibleFields((current) => {
-      const next = new Set(current)
-      if (next.has(field)) {
-        next.delete(field)
-      } else {
-        next.add(field)
+      if (!cancelled) {
+        sendDialog({ type: 'CLOSE' })
       }
-      return next
-    })
-  }
-
-  const handleSave = (currentRecords: ProfileRecords) => {
-    resetSaveState()
-
-    if (!owner) {
-      setLocalSaveError('Cannot save profile - ENS owner is not available.')
-      return
     }
 
-    if (!account.signer || !account.accountAddress) {
-      setLocalSaveError('Account not ready. Please wait for wallet to connect.')
-      return
+    void finalizeSave()
+
+    return () => {
+      cancelled = true
     }
+  }, [dialogState, form, onUpdated, queryClient, sendDialog])
 
-    if (!savedRecords.resolverAddress) {
-      setLocalSaveError(
-        'Cannot save profile - resolver address is not available.',
-      )
-      return
-    }
-
-    const accountAddress = (account.ownerAddress ??
-      account.accountAddress) as Address
-    const before = transformToServiceFormat(savedRecords)
-    const after = transformToServiceFormat(currentRecords)
-
-    saveRecordsMutation.mutate({
-      name,
-      before,
-      after,
-      signer: account.signer,
-      accountAddress,
-      publicClient: publicClient as PublicClient,
-      chainId,
-      resolverAddress: savedRecords.resolverAddress,
-      currentRecords,
-    })
-  }
-
-  const mutationError = saveRecordsMutation.error
-  const validationIssueMessage =
-    mutationError instanceof RecordsValidationError
-      ? mutationError.issues.map((issue) => issue.message).join('\n')
-      : undefined
-  const errorMessage =
-    localSaveError ?? validationIssueMessage ?? mutationError?.message
+  const open = !dialogState.matches('closed')
+  const savedRecords = dialogState.context.savedRecords
+  const visibleFields = dialogState.context.visibleFields
+  const isSaving = dialogState.matches({ editing: 'saving' })
+  const isSuccess = dialogState.matches({ editing: 'success' })
+  const errorMessage = dialogState.context.localSaveError
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
@@ -169,7 +139,6 @@ export const EditProfileDialog = ({
           {({ canSubmit, values }) => {
             const diff = createDiff(savedRecords, values)
             const hasChanges = Object.keys(diff).length > 0
-            const isSaving = saveRecordsMutation.isPending
             const handleBaseChange = (base: ProfileRecords['base']) => {
               resetSaveState()
               form.setFieldValue('base', base)
@@ -201,14 +170,14 @@ export const EditProfileDialog = ({
                 <EditProfileDialogTabs
                   errorMessage={errorMessage}
                   isSaving={isSaving}
-                  isSuccess={saveRecordsMutation.isSuccess}
+                  isSuccess={isSuccess}
                   name={name}
                   onBaseChange={handleBaseChange}
                   onContactChange={handleContactChange}
                   onSocialChange={handleSocialChange}
                   onToggleField={toggleField}
                   owner={owner}
-                  txHash={saveRecordsMutation.data?.hash}
+                  txHash={dialogState.context.txHash}
                   values={values}
                   visibleFields={visibleFields}
                 />
