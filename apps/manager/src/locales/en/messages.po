@@ -521,7 +521,7 @@ msgid "Click to copy"
 msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx:97
-#: src/features/migration/components/MigrationModal.tsx:89
+#: src/features/migration/components/MigrationModal.tsx:91
 msgid "Close"
 msgstr "Close"
 
@@ -533,7 +533,7 @@ msgstr "Close dialog"
 msgid "Coming Soon"
 msgstr "Coming Soon"
 
-#: src/features/migration/components/MigrationModal.tsx:42
+#: src/features/migration/components/MigrationModal.tsx:44
 msgid "Commemorative NFT"
 msgstr "Commemorative NFT"
 
@@ -754,7 +754,7 @@ msgstr "Current"
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
-#: src/features/migration/components/MigrationModal.tsx:41
+#: src/features/migration/components/MigrationModal.tsx:43
 msgid "Custom Profiles"
 msgstr "Custom Profiles"
 
@@ -836,7 +836,7 @@ msgstr "Drag and drop an image here, or"
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
-#: src/features/profile/components/dialogs/EditProfileDialog.tsx:171
+#: src/features/profile/components/dialogs/EditProfileDialog.tsx:232
 msgid "Edit Profile (New)"
 msgstr "Edit Profile (New)"
 
@@ -914,7 +914,7 @@ msgstr "ENS names are stored on-chain as NFTs"
 msgid "ENS names can be up to 255 characters"
 msgstr "ENS names can be up to 255 characters"
 
-#: src/features/migration/components/MigrationModal.tsx:43
+#: src/features/migration/components/MigrationModal.tsx:45
 msgid "ENS v2 Names"
 msgstr "ENS v2 Names"
 
@@ -1434,7 +1434,7 @@ msgstr "Need help?"
 msgid "Never lose your name to expiry."
 msgstr "Never lose your name to expiry."
 
-#: src/features/migration/components/MigrationModal.tsx:44
+#: src/features/migration/components/MigrationModal.tsx:46
 msgid "New Experience"
 msgstr "New Experience"
 
@@ -2118,7 +2118,7 @@ msgstr "Search your NFTs..."
 msgid "See all"
 msgstr "See all"
 
-#: src/features/migration/components/UpgradeBanner.tsx:47
+#: src/features/migration/components/UpgradeBanner.tsx:49
 msgid "See what's new"
 msgstr "See what's new"
 
@@ -2286,7 +2286,7 @@ msgid "Skipping SIWE verification means you won't get notifications about your d
 msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 
 #. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx:118
+#: src/features/migration/components/MigrationModal.tsx:120
 msgid "Slide {0}"
 msgstr "Slide {0}"
 
@@ -2567,11 +2567,11 @@ msgstr "Upgrade {0} first."
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
 
-#: src/features/migration/components/MigrationModal.tsx:98
+#: src/features/migration/components/MigrationModal.tsx:100
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 msgstr "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
 
-#: src/features/migration/components/UpgradeBanner.tsx:37
+#: src/features/migration/components/UpgradeBanner.tsx:39
 msgid "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 msgstr "Upgrade your name(s) to unlock your new ENS profile and claim your personalized NFT."
 
@@ -2838,11 +2838,11 @@ msgstr "web3 username"
 msgid "Website"
 msgstr "Website"
 
-#: src/features/migration/components/UpgradeBanner.tsx:33
+#: src/features/migration/components/UpgradeBanner.tsx:35
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
 
-#: src/features/migration/components/MigrationModal.tsx:95
+#: src/features/migration/components/MigrationModal.tsx:97
 msgid "Welcome to the new ENS app!"
 msgstr "Welcome to the new ENS app!"
 
@@ -2888,10 +2888,9 @@ msgstr "You can now receive notifications at this email address."
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr "You can verify later by clicking your profile in the navbar"
 
-#. placeholder {0}: v1Names.length
-#: src/features/migration/components/MigrationModal.tsx:154
-msgid "You have <0>{0}</0> names that are eligible for upgrade"
-msgstr "You have <0>{0}</0> names that are eligible for upgrade"
+#: src/features/migration/components/MigrationModal.tsx:156
+msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
+msgstr "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:109
 msgid "You have unsaved changes. Are you sure you want to leave?"
