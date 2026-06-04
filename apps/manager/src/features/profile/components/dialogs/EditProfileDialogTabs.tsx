@@ -18,6 +18,9 @@ interface EditProfileDialogTabsProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
+  readonly onDraftLinkValidationIssuesChange: (
+    hasValidationIssues: boolean,
+  ) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
@@ -28,6 +31,7 @@ export const EditProfileDialogTabs = ({
   name,
   onBaseChange,
   onContactChange,
+  onDraftLinkValidationIssuesChange,
   onLinksChange,
   onSocialChange,
   owner,
@@ -67,8 +71,12 @@ export const EditProfileDialogTabs = ({
         />
       </TabsContent>
 
-      <TabsContent className="min-h-0 flex-1" value="links">
-        <EditProfileLinksTab onLinksChange={onLinksChange} values={values} />
+      <TabsContent className="min-h-0 flex-1" forceMount value="links">
+        <EditProfileLinksTab
+          onDraftValidationIssuesChange={onDraftLinkValidationIssuesChange}
+          onLinksChange={onLinksChange}
+          values={values}
+        />
       </TabsContent>
 
       <TabsContent className="min-h-0 flex-1" value="appearance">

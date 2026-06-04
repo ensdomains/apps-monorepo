@@ -17,7 +17,13 @@ interface LinkRow {
   readonly link: LinkItem
 }
 
+interface DraftLinkRow {
+  readonly key: string
+  readonly link: LinkItem
+}
+
 interface EditProfileLinksTabProps {
+  readonly onDraftValidationIssuesChange: (hasValidationIssues: boolean) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
   readonly values: ProfileRecords
 }
@@ -27,11 +33,8 @@ const defaultLink = (): LinkItem => ({
   url: '',
 })
 
-const isEmptyLink = (link: LinkItem) =>
-  link.name.trim() === '' && link.url.trim() === ''
-
-const normalizeLinks = (links: readonly LinkItem[]): LinkItem[] =>
-  links.filter((link) => !isEmptyLink(link))
+const hasRequiredLinkFields = (link: LinkItem) =>
+  link.name.trim() !== '' && link.url.trim() !== ''
 
 const getIssue = (
   issues: readonly LinkValidationIssue[],
@@ -44,7 +47,7 @@ const getIssue = (
 const getLinkRows = (
   links: readonly LinkItem[],
   linkRowKeys: readonly string[],
-  draftRowKeys: readonly string[],
+  draftRows: readonly DraftLinkRow[],
 ): LinkRow[] => [
   ...links.map((link, index) => ({
     index,
@@ -52,11 +55,11 @@ const getLinkRows = (
     key: linkRowKeys[index] ?? `link-${index}`,
     link,
   })),
-  ...draftRowKeys.map((key, draftIndex) => ({
+  ...draftRows.map((draftRow, draftIndex) => ({
     index: links.length + draftIndex,
     isDraft: true,
-    key,
-    link: defaultLink(),
+    key: draftRow.key,
+    link: draftRow.link,
   })),
 ]
 
@@ -70,6 +73,7 @@ const updateLinkAtIndex = (
   )
 
 export const EditProfileLinksTab = ({
+  onDraftValidationIssuesChange,
   onLinksChange,
   values,
 }: EditProfileLinksTabProps) => {
@@ -81,23 +85,34 @@ export const EditProfileLinksTab = ({
     nextRowKeyRef.current += 1
     return rowKey
   }, [])
+  const createDraftRow = useCallback(
+    (): DraftLinkRow => ({ key: createRowKey(), link: defaultLink() }),
+    [createRowKey],
+  )
   const [linkRowKeys, setLinkRowKeys] = useState(() =>
     values.links.map(() => createRowKey()),
   )
-  const [draftRowKeys, setDraftRowKeys] = useState(() =>
-    values.links.length === 0 ? [createRowKey()] : [],
+  const [draftRows, setDraftRows] = useState<DraftLinkRow[]>(() =>
+    values.links.length === 0 ? [createDraftRow()] : [],
   )
   const validationIssues = getLinkValidationIssues(values.links)
-  const rows = getLinkRows(values.links, linkRowKeys, draftRowKeys)
+  const draftValidationIssues = getLinkValidationIssues(
+    draftRows.map(({ link }) => link),
+  )
+  const rows = getLinkRows(values.links, linkRowKeys, draftRows)
   const titleInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     if (values.links.length === 0) {
-      setDraftRowKeys((current) =>
-        current.length === 0 ? [createRowKey()] : current,
+      setDraftRows((current) =>
+        current.length === 0 ? [createDraftRow()] : current,
       )
     }
-  }, [createRowKey, values.links.length])
+  }, [createDraftRow, values.links.length])
+
+  useEffect(() => {
+    onDraftValidationIssuesChange(draftValidationIssues.length > 0)
+  }, [draftValidationIssues.length, onDraftValidationIssuesChange])
 
   useEffect(() => {
     setLinkRowKeys((current) => {
@@ -121,33 +136,32 @@ export const EditProfileLinksTab = ({
 
   const updateRow = (row: LinkRow, value: Partial<LinkItem>) => {
     if (row.isDraft) {
-      const nextLink = { ...defaultLink(), ...value }
-      if (isEmptyLink(nextLink)) {
+      const nextLink = { ...row.link, ...value }
+
+      if (!hasRequiredLinkFields(nextLink)) {
+        setDraftRows((current) =>
+          current.map((draftRow) =>
+            draftRow.key === row.key
+              ? { ...draftRow, link: nextLink }
+              : draftRow,
+          ),
+        )
         return
       }
 
       onLinksChange([...values.links, nextLink])
       setLinkRowKeys((current) => [...current, row.key])
-      setDraftRowKeys((current) =>
-        current.filter((draftRowKey) => draftRowKey !== row.key),
+      setDraftRows((current) =>
+        current.filter((draftRow) => draftRow.key !== row.key),
       )
       return
     }
 
     const nextLinks = updateLinkAtIndex(values.links, row.index, value)
-    onLinksChange(normalizeLinks(nextLinks))
-    setLinkRowKeys((current) =>
-      nextLinks.flatMap((link, index) =>
-        isEmptyLink(link) ? [] : [current[index] ?? createRowKey()],
-      ),
-    )
+    onLinksChange(nextLinks)
   }
 
   const trimRowValue = (row: LinkRow, field: keyof LinkItem) => {
-    if (row.isDraft) {
-      return
-    }
-
     updateRow(row, { [field]: row.link[field].trim() })
   }
 
@@ -159,8 +173,8 @@ export const EditProfileLinksTab = ({
   }
 
   const removeDraftRow = (key: string) => {
-    setDraftRowKeys((current) =>
-      current.filter((draftRowKey) => draftRowKey !== key),
+    setDraftRows((current) =>
+      current.filter((draftRow) => draftRow.key !== key),
     )
   }
 
@@ -177,7 +191,9 @@ export const EditProfileLinksTab = ({
 
       <UpdateStatusPanel
         errorMessage={errorMessage}
-        hasValidationIssues={validationIssues.length > 0}
+        hasValidationIssues={
+          validationIssues.length > 0 || draftValidationIssues.length > 0
+        }
         isSaving={isSaving}
         isSuccess={isSuccess}
         txHash={txHash}
@@ -185,12 +201,14 @@ export const EditProfileLinksTab = ({
 
       <div className="flex flex-col gap-4 overflow-hidden">
         {rows.map((row) => {
-          const nameError = row.isDraft
-            ? undefined
-            : getIssue(validationIssues, row.index, 'name')
-          const urlError = row.isDraft
-            ? undefined
-            : getIssue(validationIssues, row.index, 'url')
+          const rowIssueIndex = row.isDraft
+            ? row.index - values.links.length
+            : row.index
+          const rowIssues = row.isDraft
+            ? draftValidationIssues
+            : validationIssues
+          const nameError = getIssue(rowIssues, rowIssueIndex, 'name')
+          const urlError = getIssue(rowIssues, rowIssueIndex, 'url')
           const rowKey = row.key
 
           return (
@@ -280,7 +298,7 @@ export const EditProfileLinksTab = ({
           className="flex h-6 min-w-75 items-center gap-[11px] rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
           disabled={isSaving}
           onClick={() =>
-            setDraftRowKeys((current) => [...current, createRowKey()])
+            setDraftRows((current) => [...current, createDraftRow()])
           }
           type="button"
         >
