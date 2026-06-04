@@ -76,14 +76,14 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
         />
         <Search
           aria-hidden
-          className="-translate-y-1/2 absolute top-1/2 left-[18px] size-6.5 text-ens-lapis-dust"
+          className="-translate-y-1/2 absolute top-1/2 left-4.5 size-6.5 text-ens-lapis-dust"
           strokeWidth={2.15}
         />
 
         {isLoading && (
           <Loader2
             aria-hidden
-            className="-translate-y-1/2 absolute top-1/2 right-[18px] size-6.5 animate-spin text-ens-lapis-dust"
+            className="-translate-y-1/2 absolute top-1/2 right-4.5 size-6.5 animate-spin text-ens-lapis-dust"
             strokeWidth={2.15}
           />
         )}
@@ -91,7 +91,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(
         {hasValue && !isLoading && (
           <button
             aria-label={t`Clear search`}
-            className="-translate-y-1/2 absolute top-1/2 right-[18px] flex size-8 items-center justify-center rounded-full text-ens-lapis-surface transition-colors hover:bg-ens-gray-two/50 hover:text-ens-blue-midnight"
+            className="-translate-y-1/2 absolute top-1/2 right-4.5 flex size-8 items-center justify-center rounded-full text-ens-lapis-surface transition-colors hover:bg-ens-gray-two/50 hover:text-ens-blue-midnight"
             onClick={handleClear}
             type="button"
           >
