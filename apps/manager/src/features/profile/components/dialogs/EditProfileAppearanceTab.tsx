@@ -109,7 +109,7 @@ const ThemePreviewButton = ({
   >
     <span
       className={cn(
-        'w-fit max-w-full truncate rounded-[0.717px] px-[3px] py-0.5 font-semi-mono text-[8px] leading-ens-none tracking-[-0.16px]',
+        'w-fit max-w-full truncate rounded-[0.717px] px-0.75 py-0.5 font-semi-mono text-[8px] leading-ens-none tracking-[-0.16px]',
         theme.badgeClassName,
         theme.badgeTextClassName,
       )}
@@ -118,7 +118,7 @@ const ThemePreviewButton = ({
     </span>
     <span
       className={cn(
-        'font-mono text-[7px] leading-[1.5] tracking-normal',
+        'font-mono text-[7px] leading-normal tracking-normal',
         theme.addressClassName,
       )}
     >

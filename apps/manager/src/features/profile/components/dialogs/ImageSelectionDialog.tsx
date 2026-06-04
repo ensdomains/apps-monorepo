@@ -609,7 +609,7 @@ export const ImageSelectionDialog = ({
         triggerClassName ??
           (type === 'avatar'
             ? 'h-full rounded-md'
-            : 'aspect-[3/1] md:aspect-[5/1]'),
+            : 'aspect-3/1 md:aspect-5/1'),
       )}
       title={`Change ${type}`}
       type="button"

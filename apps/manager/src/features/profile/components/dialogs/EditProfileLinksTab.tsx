@@ -178,7 +178,7 @@ export const EditProfileLinksTab = ({
           return (
             <div className="flex flex-col gap-1" key={rowKey}>
               <div className="flex items-center gap-1 text-[14px]">
-                <span className="relative inline-flex max-w-[220px] items-center overflow-hidden">
+                <span className="relative inline-flex max-w-55 items-center overflow-hidden">
                   <span
                     aria-hidden
                     className="invisible h-5 whitespace-pre text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px]"
@@ -257,7 +257,7 @@ export const EditProfileLinksTab = ({
         })}
 
         <button
-          className="flex h-6 min-w-[300px] items-center gap-[11px] rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
+          className="flex h-6 min-w-75 items-center gap-[11px] rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
           disabled={isSaving}
           onClick={() => setDraftRows((current) => current + 1)}
           type="button"

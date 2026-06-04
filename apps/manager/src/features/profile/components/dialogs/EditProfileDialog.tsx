@@ -234,7 +234,7 @@ export const EditProfileDialog = ({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="h-[min(90dvh,739px)] w-[min(92vw,800px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-[12px] border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-[800px]"
+        className="h-[min(90dvh,739px)] w-[min(92vw,800px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-xl border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-[800px]"
         overlayClassName="bg-black/20 backdrop-blur-[2px]"
         showCloseButton={false}
       >
