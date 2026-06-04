@@ -87,6 +87,8 @@ interface ImageSelectionDialogProps {
   description?: string
   type: ImageType
   name?: string // For better alt text and debugging
+  triggerClassName?: string
+  emptyState?: React.ReactNode
 }
 
 export const ImageSelectionDialog = ({
@@ -98,6 +100,8 @@ export const ImageSelectionDialog = ({
   description,
   type,
   name,
+  triggerClassName,
+  emptyState,
 }: ImageSelectionDialogProps) => {
   const { t } = useLingui()
   const [open, setOpen] = useState(false)
@@ -602,8 +606,10 @@ export const ImageSelectionDialog = ({
     <button
       className={clsx(
         'group relative block w-full cursor-pointer overflow-hidden',
-        type === 'avatar' && 'h-full rounded-md',
-        type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
+        triggerClassName ??
+          (type === 'avatar'
+            ? 'h-full rounded-md'
+            : 'aspect-[3/1] md:aspect-[5/1]'),
       )}
       title={`Change ${type}`}
       type="button"
@@ -626,7 +632,9 @@ export const ImageSelectionDialog = ({
           src={uploadPreviewUrl || displayImage}
         />
         <ImageFallback.Fallback>
-          {defaultImage ? (
+          {emptyState ? (
+            emptyState
+          ) : defaultImage ? (
             <img
               alt={`Default ${type}`}
               className="h-full w-full object-cover"

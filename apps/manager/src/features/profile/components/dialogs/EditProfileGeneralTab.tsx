@@ -1,15 +1,5 @@
-import {
-  ChevronDown,
-  Clock,
-  Image as ImageIcon,
-  Languages,
-  List,
-  MapPin,
-  Smile,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { ChevronDown } from 'lucide-react'
+import { type MaterialSymbol, MSymbol } from '@/components/ui/material-symbol'
 import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
 import type { ProfileRecords, TextRecordValue } from '../../types'
@@ -17,13 +7,17 @@ import { ImageSelectionDialog } from './ImageSelectionDialog'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 const generalShortcuts = [
-  { field: 'avatar', label: 'Profile Picture', icon: Smile },
-  { field: 'header', label: 'Header', icon: ImageIcon },
-  { field: 'description', label: 'Description', icon: List },
-  { field: 'location', label: 'Location', icon: MapPin },
-  { field: 'timezone', label: 'Timezone', icon: Clock },
-  { field: 'language', label: 'Language', icon: Languages },
-] as const
+  { field: 'avatar', label: 'Profile picture', symbol: 'face' },
+  { field: 'header', label: 'Header', symbol: 'wall_art' },
+  { field: 'description', label: 'Description', symbol: 'text_ad' },
+  { field: 'location', label: 'Location', symbol: 'add_location_alt' },
+  { field: 'timezone', label: 'Timezone', symbol: 'captive_portal' },
+  { field: 'language', label: 'Language', symbol: 'language' },
+] as const satisfies readonly {
+  field: string
+  label: string
+  symbol: MaterialSymbol
+}[]
 
 export type GeneralField = (typeof generalShortcuts)[number]['field']
 
@@ -62,6 +56,9 @@ const setTextRecordValue = (
   return value.trim() === '' ? nextRecords : [...nextRecords, { key, value }]
 }
 
+const fieldClassName =
+  'w-full rounded-[4px] border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-[#737373] focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
+
 interface SelectFieldProps {
   readonly ariaLabel: string
   readonly disabled?: boolean
@@ -90,10 +87,9 @@ const SelectField = ({
       <select
         aria-label={ariaLabel}
         className={cn(
-          'h-16 w-full appearance-none rounded-md border border-input bg-transparent px-6 pr-12 text-lg shadow-xs outline-none transition-[color,box-shadow]',
-          'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-          'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
-          value ? 'text-foreground' : 'text-muted-foreground',
+          fieldClassName,
+          'appearance-none pr-12',
+          value ? 'text-ens-quartz-900' : 'text-[#737373]',
         )}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
@@ -107,7 +103,7 @@ const SelectField = ({
           </option>
         ))}
       </select>
-      <ChevronDown className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-5 size-5 text-muted-foreground" />
+      <ChevronDown className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-4 size-5 text-[#737373]" />
     </div>
   )
 }
@@ -165,30 +161,44 @@ export const EditProfileGeneralTab = ({
     onBaseChange({ ...values.base, [key]: value })
 
   return (
-    <div className="space-y-6 px-1 pb-1">
-      <div>
-        <h2 className="font-semibold text-xl">General</h2>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {generalShortcuts.map(({ field, icon: Icon, label }) => (
-            <Button
+    <div className="flex flex-col gap-4">
+      <p className="font-bold font-sans text-[#525252] text-[16px] leading-[0.96] tracking-[-0.32px]">
+        General
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        {generalShortcuts.map(({ field, symbol, label }) => {
+          const active = isVisible(field)
+          return (
+            <button
               className={cn(
-                'h-9 w-auto rounded-full px-3',
-                isVisible(field)
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground',
+                'flex h-[26px] items-center gap-1 rounded-[25px] border-[0.5px] px-2 py-1.5',
+                active
+                  ? 'border-ens-quartz-350 bg-ens-quartz-100'
+                  : 'border-ens-quartz-200 bg-white',
               )}
-              data-state={isVisible(field) ? 'active' : 'inactive'}
-              key={label}
+              key={field}
               onClick={() => onToggleField(field)}
-              size="sm"
               type="button"
-              variant="outline"
             >
-              <Icon className="size-4" />
-              {label}
-            </Button>
-          ))}
-        </div>
+              <MSymbol
+                className={
+                  active ? 'text-ens-quartz-380' : 'text-ens-quartz-900'
+                }
+                style={{ fontSize: 14 }}
+                symbol={symbol}
+              />
+              <span
+                className={cn(
+                  'text-[12px] capitalize tracking-[0.12px]',
+                  active ? 'text-ens-quartz-500' : 'text-ens-quartz-900',
+                )}
+              >
+                {label}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       <UpdateStatusPanel
@@ -199,61 +209,75 @@ export const EditProfileGeneralTab = ({
         txHash={txHash}
       />
 
-      {isVisible('avatar') && (
-        <div className="flex flex-col items-center gap-3 pt-2">
-          <div className="size-32 overflow-hidden rounded-md border border-dashed">
-            <ImageSelectionDialog
-              currentImage={values.base.avatar}
-              defaultImage=""
-              description="Choose a profile picture"
-              name={name}
-              onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
-              onImageRemove={() => setBaseValue('avatar', '')}
-              title="Change Profile Picture"
-              type="avatar"
-            />
+      <div className="flex flex-col items-center gap-3">
+        {isVisible('avatar') && (
+          <div className="flex flex-col items-center gap-3.5 py-3">
+            <div className="size-[100px] overflow-hidden rounded-[4px] border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+              <ImageSelectionDialog
+                currentImage={values.base.avatar}
+                defaultImage=""
+                description="Choose a profile picture"
+                emptyState={
+                  <div className="flex size-full items-center justify-center">
+                    <MSymbol
+                      className="text-ens-quartz-380"
+                      style={{ fontSize: 32 }}
+                      symbol="face"
+                    />
+                  </div>
+                }
+                name={name}
+                onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
+                onImageRemove={() => setBaseValue('avatar', '')}
+                title="Change Profile Picture"
+                triggerClassName="h-full w-full"
+                type="avatar"
+              />
+            </div>
+            <p className="flex items-center gap-2 text-[14px] text-ens-quartz-400">
+              Add a profile picture
+              <MSymbol
+                className="ms-fill"
+                style={{ fontSize: 14 }}
+                symbol="add"
+              />
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm">
-            Add a profile picture <span>+</span>
-          </p>
-        </div>
-      )}
+        )}
 
-      {isVisible('header') && (
-        <div className="space-y-2">
-          <div className="overflow-hidden rounded-md border border-dashed">
+        {isVisible('header') && (
+          <div className="h-[168px] w-full overflow-hidden rounded-[4px] border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
             <ImageSelectionDialog
               currentImage={values.base.header}
               defaultImage=""
               description="Choose a header image"
+              emptyState={
+                <div className="flex size-full items-center justify-center gap-2 text-[14px] text-ens-quartz-500">
+                  Add a banner image
+                  <MSymbol style={{ fontSize: 14 }} symbol="add" />
+                </div>
+              }
               name={name}
               onImageChange={(imageUrl) => setBaseValue('header', imageUrl)}
               onImageRemove={() => setBaseValue('header', '')}
               title="Change Header Image"
+              triggerClassName="h-full w-full"
               type="header"
             />
           </div>
-          <p className="text-center text-muted-foreground text-sm">
-            Add a banner image <span>+</span>
-          </p>
-        </div>
-      )}
+        )}
 
-      <Input
-        className="rounded-md"
-        disabled={isSaving}
-        label="Full name"
-        onChange={(event) => setBaseValue('name', event.target.value)}
-        placeholder="Full name"
-        size="lg"
-        value={values.base.name ?? ''}
-      />
+        <input
+          className={fieldClassName}
+          disabled={isSaving}
+          onChange={(event) => setBaseValue('name', event.target.value)}
+          placeholder="Full name"
+          value={values.base.name ?? ''}
+        />
 
-      {isVisible('description') && (
-        <div className="space-y-2">
-          <p className="font-medium text-sm">Description</p>
-          <Textarea
-            className="min-h-32 resize-none rounded-md"
+        {isVisible('description') && (
+          <textarea
+            className={cn(fieldClassName, 'min-h-[101px] resize-none')}
             disabled={isSaving}
             onChange={(event) =>
               setBaseValue('description', event.target.value)
@@ -261,39 +285,40 @@ export const EditProfileGeneralTab = ({
             placeholder="Description"
             value={values.base.description ?? ''}
           />
-        </div>
-      )}
+        )}
 
-      <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          {isVisible('timezone') && (
-            <SelectField
-              ariaLabel="Timezone"
-              disabled={isSaving}
-              onChange={(value) =>
-                onContactChange(
-                  setTextRecordValue(values.contact, 'timezone', value),
-                )
-              }
-              options={timezoneSelectOptions}
-              placeholder="Timezone"
-              value={getTextRecordValue(values.contact, 'timezone')}
-            />
-          )}
-          {isVisible('language') && (
-            <SelectField
-              ariaLabel="Language"
-              disabled={isSaving}
-              onChange={(value) => setBaseValue('language', value)}
-              options={languageOptions}
-              placeholder="Language"
-              value={values.base.language ?? ''}
-            />
-          )}
-        </div>
+        {(isVisible('timezone') || isVisible('language')) && (
+          <div className="grid w-full gap-3 md:grid-cols-2">
+            {isVisible('timezone') && (
+              <SelectField
+                ariaLabel="Timezone"
+                disabled={isSaving}
+                onChange={(value) =>
+                  onContactChange(
+                    setTextRecordValue(values.contact, 'timezone', value),
+                  )
+                }
+                options={timezoneSelectOptions}
+                placeholder="Timezone"
+                value={getTextRecordValue(values.contact, 'timezone')}
+              />
+            )}
+            {isVisible('language') && (
+              <SelectField
+                ariaLabel="Language"
+                disabled={isSaving}
+                onChange={(value) => setBaseValue('language', value)}
+                options={languageOptions}
+                placeholder="Language"
+                value={values.base.language ?? ''}
+              />
+            )}
+          </div>
+        )}
+
         {isVisible('location') && (
-          <Input
-            className="h-16 rounded-md px-6 text-lg"
+          <input
+            className={fieldClassName}
             disabled={isSaving}
             onChange={(event) =>
               onContactChange(
