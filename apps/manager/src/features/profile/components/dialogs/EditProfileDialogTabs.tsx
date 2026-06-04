@@ -53,7 +53,7 @@ export const EditProfileDialogTabs = ({
       </TabsList>
     </div>
 
-    <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <TabsContent className="min-h-0 flex-1" value="general">
         <EditProfileGeneralTab
           errorMessage={errorMessage}

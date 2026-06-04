@@ -161,7 +161,7 @@ export const EditProfileGeneralTab = ({
     onBaseChange({ ...values.base, [key]: value })
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-4">
       <p className="font-bold font-sans text-[#525252] text-[16px] leading-[0.96] tracking-[-0.32px]">
         General
       </p>
