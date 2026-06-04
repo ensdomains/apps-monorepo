@@ -116,7 +116,7 @@ export const ImageSelectionDialog = ({
   // Resolve the current image if it's an IPFS/NFT URL
   const resolvedImage = useQuery({
     ...parseAvatarQuery(currentImage),
-    enabled: !!currentImage && open, // Only resolve when dialog is open
+    enabled: !!currentImage,
   })
 
   // Use resolved image if available, otherwise fall back to original

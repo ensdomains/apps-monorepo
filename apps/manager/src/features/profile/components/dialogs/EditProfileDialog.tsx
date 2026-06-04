@@ -188,6 +188,7 @@ export const EditProfileDialog = ({
                 orientation="vertical"
               >
                 <EditProfileDialogHeader
+                  avatarUrl={values.base.avatar}
                   canSave={hasChanges && canSubmit}
                   isSaving={isSaving}
                   name={name}

@@ -57,7 +57,7 @@ const setTextRecordValue = (
 }
 
 const fieldClassName =
-  'w-full rounded-[4px] border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-[#737373] focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
+  'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-[#737373] focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
 
 interface SelectFieldProps {
   readonly ariaLabel: string
@@ -212,7 +212,7 @@ export const EditProfileGeneralTab = ({
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (
           <div className="flex flex-col items-center gap-3.5 py-3">
-            <div className="size-[100px] overflow-hidden rounded-[4px] border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+            <div className="size-[100px] overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
               <ImageSelectionDialog
                 currentImage={values.base.avatar}
                 defaultImage=""
@@ -246,7 +246,7 @@ export const EditProfileGeneralTab = ({
         )}
 
         {isVisible('header') && (
-          <div className="h-[168px] w-full overflow-hidden rounded-[4px] border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+          <div className="h-[168px] w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
             <ImageSelectionDialog
               currentImage={values.base.header}
               defaultImage=""

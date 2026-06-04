@@ -32,7 +32,7 @@ export const CheckDomainPage = () => {
           <Trans>web3 username</Trans>
         </span>
       </h1>
-      <p className="mb-10 max-w-[500px] text-center text-ens-blue text-xl">
+      <p className="mb-10 max-w-125 text-center text-ens-blue text-xl">
         <Trans>A simple, portable identity that you control</Trans>
       </p>
 
