@@ -180,6 +180,10 @@ export const EditProfileDialog = ({
               resetSaveState()
               form.setFieldValue('contact', contact)
             }
+            const handleSocialChange = (social: ProfileRecords['social']) => {
+              resetSaveState()
+              form.setFieldValue('social', social)
+            }
 
             return (
               <Tabs
@@ -201,6 +205,7 @@ export const EditProfileDialog = ({
                   name={name}
                   onBaseChange={handleBaseChange}
                   onContactChange={handleContactChange}
+                  onSocialChange={handleSocialChange}
                   onToggleField={toggleField}
                   txHash={saveRecordsMutation.data?.hash}
                   values={values}

@@ -3,6 +3,7 @@ import { type MaterialSymbol, MSymbol } from '@/components/ui/material-symbol'
 import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
 import type { ProfileRecords, TextRecordValue } from '../../types'
+import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
 import { ImageSelectionDialog } from './ImageSelectionDialog'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
@@ -170,33 +171,19 @@ export const EditProfileGeneralTab = ({
         {generalShortcuts.map(({ field, symbol, label }) => {
           const active = isVisible(field)
           return (
-            <button
-              className={cn(
-                'flex h-[26px] items-center gap-1 rounded-[25px] border-[0.5px] px-2 py-1.5',
-                active
-                  ? 'border-ens-quartz-350 bg-ens-quartz-100'
-                  : 'border-ens-quartz-200 bg-white',
-              )}
+            <EditProfileFieldPickerPill
+              active={active}
+              icon={
+                <MSymbol
+                  className="shrink-0 text-current"
+                  style={{ fontSize: 14 }}
+                  symbol={symbol}
+                />
+              }
               key={field}
+              label={label}
               onClick={() => onToggleField(field)}
-              type="button"
-            >
-              <MSymbol
-                className={
-                  active ? 'text-ens-quartz-380' : 'text-ens-quartz-900'
-                }
-                style={{ fontSize: 14 }}
-                symbol={symbol}
-              />
-              <span
-                className={cn(
-                  'text-[12px] capitalize tracking-[0.12px]',
-                  active ? 'text-ens-quartz-500' : 'text-ens-quartz-900',
-                )}
-              >
-                {label}
-              </span>
-            </button>
+            />
           )
         })}
       </div>

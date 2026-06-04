@@ -1,5 +1,6 @@
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ProfileRecords } from '../../types'
+import { EditProfileContactTab } from './EditProfileContactTab'
 import {
   EditProfileGeneralTab,
   type GeneralField,
@@ -20,6 +21,7 @@ interface EditProfileDialogTabsProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
+  readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly onToggleField: (field: GeneralField) => void
   readonly txHash?: string
   readonly values: ProfileRecords
@@ -33,6 +35,7 @@ export const EditProfileDialogTabs = ({
   name,
   onBaseChange,
   onContactChange,
+  onSocialChange,
   onToggleField,
   txHash,
   values,
@@ -69,8 +72,20 @@ export const EditProfileDialogTabs = ({
         />
       </TabsContent>
 
+      <TabsContent className="min-h-0 flex-1" value="contact">
+        <EditProfileContactTab
+          errorMessage={errorMessage}
+          isSaving={isSaving}
+          isSuccess={isSuccess}
+          onContactChange={onContactChange}
+          onSocialChange={onSocialChange}
+          txHash={txHash}
+          values={values}
+        />
+      </TabsContent>
+
       {tabs
-        .filter(({ value }) => value !== 'general')
+        .filter(({ value }) => value !== 'general' && value !== 'contact')
         .map(({ value }) => (
           <TabsContent
             className="flex min-h-0 flex-1 items-center justify-center text-base text-muted-foreground"
