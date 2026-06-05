@@ -4,7 +4,7 @@ import { useSelector } from '@xstate/react'
 import { useEffect, useMemo, useRef } from 'react'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { getOracleParamsQueryOptions } from '@/features/register-v2/data/queries/oracleParams.query'
-import { getPricingQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
+import { getRegisterPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -72,7 +72,7 @@ export const PriceCooldownBannerSection = () => {
   const duration = useSelector(uiActor, (state) => state.context.duration)
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(label, duration, TOKENS.USDC.symbol),
+    ...getRegisterPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     select: (data) => ({
       premiumUsd: decimalBigintToNumber(data.premium, TOKENS.USDC.decimals),
     }),
