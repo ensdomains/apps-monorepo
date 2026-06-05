@@ -83,6 +83,10 @@ msgstr ""
 msgid "Deselect all"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:192
+msgid "Select all"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
 msgid "Default"
 msgstr ""
@@ -336,4 +340,3 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:50
 msgid "Your ENS name"
 msgstr ""
-

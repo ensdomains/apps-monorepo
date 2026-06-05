@@ -75,6 +75,12 @@ export const useNameSelection = ({
     })
   }, [onNamesChange])
 
+  const selectAll = useCallback(() => {
+    const ready = collectAllSelectable(groups, orphans)
+    setSelected(ready)
+    onNamesChange([...ready])
+  }, [groups, orphans, onNamesChange])
+
   return {
     search,
     setSearch,
@@ -86,5 +92,6 @@ export const useNameSelection = ({
     toggleName,
     toggleGroup,
     deselectAll,
+    selectAll,
   }
 }

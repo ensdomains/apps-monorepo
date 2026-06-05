@@ -3,6 +3,8 @@ import type { NameGroup } from '../service/groupByParent'
 
 const DESELECT_ALL_THRESHOLD = 15
 
+export type BulkSelectionAction = 'select-all' | 'deselect-all'
+
 export const collectAllSelectable = (
   groups: readonly NameGroup[],
   orphans: readonly ClassifiedName[],
@@ -71,5 +73,9 @@ export const countVisibleRows = (
 ): number =>
   groups.reduce((acc, g) => acc + 1 + g.subnames.length, 0) + orphans.length
 
-export const shouldShowDeselectAll = (totalNames: number): boolean =>
+export const shouldShowBulkSelection = (totalNames: number): boolean =>
   totalNames >= DESELECT_ALL_THRESHOLD
+
+export const getBulkSelectionAction = (
+  totalSelected: number,
+): BulkSelectionAction => (totalSelected === 0 ? 'select-all' : 'deselect-all')

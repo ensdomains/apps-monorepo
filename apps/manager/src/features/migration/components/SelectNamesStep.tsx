@@ -6,7 +6,10 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
-import { shouldShowDeselectAll } from './selectNames.helpers'
+import {
+  getBulkSelectionAction,
+  shouldShowBulkSelection,
+} from './selectNames.helpers'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
@@ -32,9 +35,11 @@ export const SelectNamesStep = ({
     toggleName,
     toggleGroup,
     deselectAll,
+    selectAll,
   } = useNameSelection({ eligible, isPending, onNamesChange })
 
-  const showDeselectAll = shouldShowDeselectAll(visibleCount)
+  const showBulkSelection = shouldShowBulkSelection(visibleCount)
+  const bulkSelectionAction = getBulkSelectionAction(totalSelected)
 
   const handleUpgrade = useCallback(async () => {
     if (isStarting) return
@@ -174,14 +179,20 @@ export const SelectNamesStep = ({
           )}
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          {showDeselectAll && (
+          {showBulkSelection && (
             <button
               className="h-[46px] w-full min-w-40 rounded-sm bg-ens-garnet-900/10 px-4 py-2.5 font-semi-mono text-ens-garnet-900 text-sm uppercase tracking-[1.68px] disabled:opacity-50 sm:w-[200px]"
-              disabled={totalSelected === 0 || isPending || isStarting}
-              onClick={deselectAll}
+              disabled={isPending || isStarting}
+              onClick={
+                bulkSelectionAction === 'select-all' ? selectAll : deselectAll
+              }
               type="button"
             >
-              <Trans>Deselect all</Trans>
+              {bulkSelectionAction === 'select-all' ? (
+                <Trans>Select all</Trans>
+              ) : (
+                <Trans>Deselect all</Trans>
+              )}
             </button>
           )}
           <button

@@ -776,6 +776,10 @@ msgstr ""
 msgid "Deselect all"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:192
+msgid "Select all"
+msgstr ""
+
 #: src/lib/smart-account/rhinestone.ts:200
 msgid "Deploying on-chain…"
 msgstr ""

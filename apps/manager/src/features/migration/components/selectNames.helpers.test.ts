@@ -7,7 +7,8 @@ import {
   countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
-  shouldShowDeselectAll,
+  getBulkSelectionAction,
+  shouldShowBulkSelection,
   toggleGroup,
   toggleName,
 } from './selectNames.helpers'
@@ -124,10 +125,17 @@ describe('countVisibleRows', () => {
   })
 })
 
-describe('shouldShowDeselectAll', () => {
-  it('shows the deselect all control for wallets with at least 15 names', () => {
-    expect(shouldShowDeselectAll(14)).toBe(false)
-    expect(shouldShowDeselectAll(15)).toBe(true)
-    expect(shouldShowDeselectAll(16)).toBe(true)
+describe('shouldShowBulkSelection', () => {
+  it('shows the bulk selection control for wallets with at least 15 names', () => {
+    expect(shouldShowBulkSelection(14)).toBe(false)
+    expect(shouldShowBulkSelection(15)).toBe(true)
+    expect(shouldShowBulkSelection(16)).toBe(true)
+  })
+})
+
+describe('getBulkSelectionAction', () => {
+  it('switches to select all when every name is deselected', () => {
+    expect(getBulkSelectionAction(0)).toBe('select-all')
+    expect(getBulkSelectionAction(1)).toBe('deselect-all')
   })
 })
