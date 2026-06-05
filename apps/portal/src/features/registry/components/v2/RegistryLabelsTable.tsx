@@ -98,7 +98,7 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
     return (
       <ErrorMessage
         title="Failed to load labels"
-        description={error.cause?.message}
+        description={error.cause?.message ?? error.message}
       />
     )
   }

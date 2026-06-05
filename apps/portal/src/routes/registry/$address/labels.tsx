@@ -1,10 +1,11 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { RegistryLabelsTable } from '@/features/registry/components/v2/RegistryLabelsTable'
-import { useRegistry } from '@/features/registry/hooks/useRegistry'
+import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/labels')({
@@ -15,7 +16,11 @@ export const Route = createFileRoute('/registry/$address/labels')({
 function RouteComponent() {
   const { address: addressParam } = Route.useParams()
   const address = addressParam as Address
-  const { data: registry, isLoading, error } = useRegistry(address)
+  const {
+    data: registry,
+    isLoading,
+    error,
+  } = useQuery(getRegistryQueryOptions({ address }))
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
 
@@ -33,8 +38,8 @@ function RouteComponent() {
         title="Registry not found"
         description={
           <>
-            <strong>{truncateAddress(address, 6, 4, '...')}</strong> is not a
-            known registry contract.
+            <strong>{truncateAddress(address, 6, 4)}</strong> is not a known
+            registry contract.
           </>
         }
       />
