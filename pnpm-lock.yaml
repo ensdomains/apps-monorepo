@@ -10,10 +10,10 @@ catalogs:
       specifier: ^1.33.1
       version: 1.33.1
     '@ensdomains/ensjs':
-      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041
+      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44
       version: 5.0.0-alpha.1
     '@ensdomains/ensjs-abi':
-      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041
+      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44
       version: 5.0.0-alpha.1
     '@typescript/native-preview':
       specifier: 7.0.0-dev.20260421.2
@@ -139,10 +139,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44
       '@getpara/evm-wallet-connectors':
         specifier: 2.12.0
         version: 2.12.0(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(aws4fetch@1.0.20)(bufferutil@4.0.9)(immer@10.2.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)(utf-8-validate@5.0.10)(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))(wagmi@3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(typescript@6.0.3)(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)))(zod@4.1.13)
@@ -434,10 +434,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -663,10 +663,10 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44
       '@ensdomains/headless-web3-provider':
         specifier: ^1.0.8
         version: 1.0.8(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -691,7 +691,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@urql/core':
         specifier: ^6.0.1
         version: 6.0.1(graphql@16.12.0)
@@ -731,7 +731,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       viem:
         specifier: ^2.40.3
         version: 2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
@@ -777,7 +777,7 @@ importers:
         version: link:../transaction-manager
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44
       '@rhinestone/sdk':
         specifier: 1.7.0
         version: 1.7.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -805,10 +805,10 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44
       '@rhinestone/module-sdk':
         specifier: ^0.4.0
         version: 0.4.0(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -879,7 +879,7 @@ importers:
         version: link:../../packages/utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@hono/valibot-validator':
         specifier: ^0.5.3
         version: 0.5.3(hono@4.12.18)(valibot@1.2.0(typescript@6.0.3))
@@ -1435,18 +1435,18 @@ packages:
   '@ensdomains/content-hash@3.1.0-rc.1':
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041':
-    resolution: {integrity: sha512-ct8g8vFCWZ8vRsbZoXEcx2p9LWRHkypLaBMRArl2Mev/xHL2ib3F9Sex5bD7JC/Vo9JwJcGUoG8/XcI2VnFylA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44':
+    resolution: {integrity: sha512-W7XCD/wj82a9/mStss3QXbnvD4ukGfEtmpa/wOej/irj8doXgHspektXacVYetfBvSccCQRluv2RwZFxR9Ropw==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d30415c017d6cdd6d008950e4aa32c06a535f9':
-    resolution: {integrity: sha512-ct8g8vFCWZ8vRsbZoXEcx2p9LWRHkypLaBMRArl2Mev/xHL2ib3F9Sex5bD7JC/Vo9JwJcGUoG8/XcI2VnFylA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d30415c017d6cdd6d008950e4aa32c06a535f9}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb4455c6276f28be0642930bde505e872adaf':
+    resolution: {integrity: sha512-W7XCD/wj82a9/mStss3QXbnvD4ukGfEtmpa/wOej/irj8doXgHspektXacVYetfBvSccCQRluv2RwZFxR9Ropw==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb4455c6276f28be0642930bde505e872adaf}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041':
-    resolution: {integrity: sha512-MuPxdQJxxH6kX7qhWLE1/HNYfot2UhgtUHEA7Qh6GNkiqcIr9sctdflhJp9ZnBAgyBqS10iE/+68z9CqwKoXCA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041}
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44':
+    resolution: {integrity: sha512-SSHLLBkdaISSaWEB37UslwvtESUr98mQM+MfIFjp+tDbhxW1w7D4lo6jwRtjd/QmME4lvwiAtCjrpsHWt9BqEw==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -10247,16 +10247,16 @@ snapshots:
       '@noble/curves': 1.9.7
       '@scure/base': 1.2.6
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d3041': {}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb44': {}
 
-  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d30415c017d6cdd6d008950e4aa32c06a535f9': {}
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb4455c6276f28be0642930bde505e872adaf': {}
 
-  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@84d3041(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f6feb44(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
       '@ensdomains/content-hash': 3.1.0-rc.1
-      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@84d30415c017d6cdd6d008950e4aa32c06a535f9
+      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f6feb4455c6276f28be0642930bde505e872adaf
       dns-packet: 5.6.1
       graphql: 16.12.0
       graphql-request: 7.2.0(graphql@16.12.0)

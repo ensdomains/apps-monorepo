@@ -36,9 +36,6 @@ export interface GrantRegistryRolesResult {
   hash: Hex
 }
 
-// Registry-wide scope. Roles granted on this resource apply to the whole
-// registry rather than a single label. Matches the indexer's `0x0` resource
-// values (see useRegistryRoles.ts).
 const ROOT_RESOURCE = 0n
 
 export async function grantRegistryRoles(
