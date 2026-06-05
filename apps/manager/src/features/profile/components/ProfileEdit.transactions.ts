@@ -24,6 +24,10 @@ import {
   type Hex,
   type PublicClient,
 } from 'viem'
+import {
+  createSafeUrlSchema,
+  isSafeHttpUrl,
+} from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 
 // --- Types ---
@@ -41,7 +45,7 @@ type TextChange = {
 }
 
 type CoinChange = {
-  coin: string | number
+  coin: number
   value: string | null
 }
 
@@ -155,9 +159,50 @@ const computeRecordChanges = (
   return changes
 }
 
-const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
+const bioUrlSchema = createSafeUrlSchema('Invalid Bio URL')
 
-const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
+const linksSchema = v.array(
+  v.object({
+    name: v.string(),
+    url: v.string(),
+  }),
+)
+
+const recordIssue = (
+  sectionKey: string,
+  fieldKey: string,
+  message: string,
+): RecordIssue => ({
+  sectionKey,
+  fieldKey,
+  message,
+})
+
+const validateLinksRecord = (value: string): RecordIssue[] => {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  const result = v.safeParse(linksSchema, parsed)
+
+  if (!result.success) {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  return result.output.flatMap((link, index) =>
+    isSafeHttpUrl(link.url)
+      ? []
+      : [recordIssue('links', `links[${index}].url`, 'Invalid Link URL')],
+  )
+}
+
+const validateFinalTextRecords = (
+  texts: Array<{ key: string; value: string | null | undefined }>,
+): RecordIssue[] => {
   const issues: RecordIssue[] = []
 
   for (const { key, value } of texts) {
@@ -175,6 +220,10 @@ const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
           })),
         )
       }
+    }
+
+    if (key === 'links') {
+      issues.push(...validateLinksRecord(trimmed))
     }
   }
 
@@ -217,14 +266,6 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
-        // Resolver record writes (setText / setAddr / multicall) are NOT
-        // in the registration-scoped smart-session allowlist (see
-        // apps/manager/src/lib/smart-account/sessions/build-registration-session.ts),
-        // so signing this UserOp with the session key would fail the
-        // on-chain SmartSession validator → "Bundle simulation failed".
-        // Force the SDK to use the SCA's default validator instead, which
-        // prompts an EOA-owner signature.
-        useSession: false,
       },
     } as RhinestoneTransactionRequest
   }
@@ -268,8 +309,8 @@ async function buildRecordsUpdateRequest(params: {
     throw new Error('No profile record changes to apply')
   }
 
-  // Validate text changes
-  const issues = validateTextChanges(changes.texts)
+  // Validate the final records, including unchanged records omitted from the diff.
+  const issues = validateFinalTextRecords(after.texts)
   if (issues.length > 0) {
     throw new RecordsValidationError(issues)
   }
@@ -302,7 +343,7 @@ async function buildRecordsUpdateRequest(params: {
 
   if (changes.coins.length > 0) {
     ensParams.coins = changes.coins.map(({ coin, value }) => ({
-      coin: typeof coin === 'number' ? coin : Number.parseInt(String(coin), 10),
+      coin,
       value: value ?? '',
     }))
   }

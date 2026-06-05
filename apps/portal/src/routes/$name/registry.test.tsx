@@ -112,9 +112,9 @@ const setRegistries = (registries: readonly (string | null)[] | undefined) => {
   nameRegistriesResult.isLoading = false
 }
 
-// truncateAddress(address, 6, 4, '...')
+// truncateAddress(address, 6, 4) — default separator is the ellipsis char '…'
 const truncated = (address: string) =>
-  `${address.slice(0, 6)}...${address.slice(-4)}`
+  `${address.slice(0, 6)}…${address.slice(-4)}`
 
 describe('V2RegistryInfo', () => {
   beforeEach(() => {

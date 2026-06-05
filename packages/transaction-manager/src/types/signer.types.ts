@@ -1,5 +1,5 @@
-import type { RhinestoneAccount, SignerSet } from '@rhinestone/sdk'
-import type { Address, Hex, WalletClient } from 'viem'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { Address, WalletClient } from 'viem'
 
 import type { SmartAccountConfig } from './transaction.types'
 
@@ -34,20 +34,16 @@ export interface EOASigner {
 
 /**
  * Rhinestone Smart Account Signer
- * Uses Rhinestone SDK account for chain abstraction
+ *
+ * Uses a Rhinestone HCA (Hidden Contract Account) for chain abstraction
+ * and gas sponsorship. The HCA is session-less: every Intent is
+ * authorized by the account's ENS owner (the connected wallet) and
+ * gas-sponsored through the Warp orchestrator.
  */
 export interface RhinestoneSigner {
   type: 'rhinestone'
   account: RhinestoneAccount // RhinestoneAccount from @rhinestone/sdk
   config: SmartAccountConfig & {
-    /** Whether this is a session-based signer */
-    isSessionClient?: boolean
-    /** Session private key for session-based signing */
-    sessionPrivateKey?: Hex
-    /** Parsed session config consumed by Rhinestone experimental session mode */
-    sessionConfig?: {
-      signers: SignerSet
-    }
     /** Default infrastructure preference for this signer */
     defaultInfra?: TransactionInfra
   }
@@ -70,16 +66,4 @@ export function isEOASigner(signer: Signer): signer is EOASigner {
  */
 export function isRhinestoneSigner(signer: Signer): signer is RhinestoneSigner {
   return signer.type === 'rhinestone'
-}
-
-/**
- * Type guard to check if signer is session-enabled.
- *
- * Only Rhinestone signers support sessions.
- */
-export function isSessionSigner(signer: Signer): boolean {
-  if (isRhinestoneSigner(signer)) {
-    return signer.config.isSessionClient ?? false
-  }
-  return false
 }

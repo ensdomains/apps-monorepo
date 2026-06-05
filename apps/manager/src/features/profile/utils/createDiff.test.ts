@@ -64,6 +64,38 @@ describe('profile createDiff utils', () => {
       expect(descDiff?.current).toBe('New description')
     })
 
+    it('should detect primary contact changes as base text records', () => {
+      const original = newEmptyProfileRecords()
+      const current = {
+        ...newEmptyProfileRecords(),
+        base: {
+          'primary-contact': 'email',
+          'domains.ens.primary-contacts': JSON.stringify([
+            'email',
+            'com.twitter',
+            'mail',
+          ]),
+        },
+      }
+
+      const diff = createDiff(original, current)
+      const primaryContactDiff = Object.values(diff).find(
+        (d) => d.fieldKey === 'primary-contact',
+      )
+      const primaryContactsDiff = Object.values(diff).find(
+        (d) => d.fieldKey === 'domains.ens.primary-contacts',
+      )
+
+      expect(primaryContactDiff?.type).toBe('added')
+      expect(primaryContactDiff?.fieldLabel).toBe('Primary Contact')
+      expect(primaryContactDiff?.current).toBe('email')
+      expect(primaryContactsDiff?.type).toBe('added')
+      expect(primaryContactsDiff?.fieldLabel).toBe('Primary Contacts')
+      expect(primaryContactsDiff?.current).toBe(
+        JSON.stringify(['email', 'com.twitter', 'mail']),
+      )
+    })
+
     it('should detect added address', () => {
       const original = newEmptyProfileRecords()
       const current = {

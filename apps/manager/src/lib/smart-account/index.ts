@@ -10,10 +10,8 @@ export {
   useSmartAccountContextSafe,
 } from './SmartAccountContext'
 export {
-  selectIsCreatingSession,
   selectIsLoading,
   selectIsReady,
-  selectShowSessionModal,
   smartAccountMachine,
 } from './smart-account.machine'
 export type {

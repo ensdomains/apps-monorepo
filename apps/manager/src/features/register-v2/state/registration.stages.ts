@@ -8,6 +8,7 @@ export const REGISTRATION_STAGE_PROGRESS = {
   deployingResolver: 8,
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,
+  ensuringHcaDeployed: 27,
   committingTransaction: 31,
   waitingForCommitment: 38,
   fetchingCommitmentAge: 40,

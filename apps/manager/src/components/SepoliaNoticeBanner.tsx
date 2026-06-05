@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-const LAST_SEPOLIA_DEPLOYMENT_DATE = 'May 6, 2026'
+const LAST_SEPOLIA_DEPLOYMENT_DATE = 'May 26, 2026'
 
 export const SepoliaNoticeBanner = () => {
   return (
