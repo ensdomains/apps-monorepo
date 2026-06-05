@@ -99,28 +99,19 @@ export const getRegistrationDurationInSeconds = (
 }
 
 /**
- * Year-picker durations: always clear the N-year discount tier, plus bill
- * any actual leap days inside the calendar interval.
- *
- * The contract gates per-year tiers at exact multiples of
- * `CONTRACT_SECONDS_PER_YEAR` (= 365.25 d). The calendar interval can run
- * shorter (no leap day, e.g. 1y from a non-leap start = 365 d) or longer
- * (leap day inside, e.g. 2y crossing Feb 29 = 731 d). Whichever is
- * larger is the right thing to pay.
- *
- * `years` is floored and clamped to `[1, MAX_REGISTRATION_YEARS]`.
+ * Converts a year count to seconds as `years × CONTRACT_SECONDS_PER_YEAR`
+ * (365.25 days/year), matching the oracle's annualised rate. `years` is
+ * floored to an integer and clamped to `[1, MAX_REGISTRATION_YEARS]`.
  */
 export const getDurationInSecondsFromYears = (
   years: number,
-  startOfToday: Temporal.PlainDate = getStartOfToday(),
+  _startOfToday: Temporal.PlainDate = getStartOfToday(),
 ): number => {
-  const N = Math.min(Math.max(1, Math.floor(years)), MAX_REGISTRATION_YEARS)
-  const tierDuration = N * CONTRACT_SECONDS_PER_YEAR
-  const calendarDuration =
-    startOfToday.until(startOfToday.add({ years: N }), {
-      largestUnit: 'days',
-    }).days * 86400
-  return Math.max(tierDuration, calendarDuration)
+  const cappedYears = Math.min(
+    Math.max(1, Math.floor(years)),
+    MAX_REGISTRATION_YEARS,
+  )
+  return cappedYears * CONTRACT_SECONDS_PER_YEAR
 }
 
 /**

@@ -204,16 +204,17 @@ describe('registrationDuration', () => {
       )
     })
 
-    it('expiry from 3-year duration lands on the calendar 3-years-later date', () => {
-      // 3y from Jan 1 2026 spans Feb 29 2028 → calendar = 1096 days,
-      // flat = 1095.75 days → max picks calendar (1096d × 86400 =
-      // 94_694_400s). Expiry lands on Jan 1 2029.
+    it('expiry from 3-year duration shifts ±1 day across a leap year', () => {
+      // 3 × 31_557_600s = 94_672_800s = 1095.75 days, floors to 1095 days.
+      // From Jan 1 2026 + 1095 days = Dec 31 2028 (because 2028 is a leap
+      // year, the calendar interval contains an extra day vs the flat
+      // 1095.75 d duration).
       const jan1_2026 = Temporal.PlainDate.from('2026-01-01')
       const duration = getDurationInSecondsFromYears(3, jan1_2026)
       const expiry = getRegistrationExpiryDateFromSeconds(jan1_2026, duration)
-      expect(expiry.year).toBe(2029)
-      expect(expiry.month).toBe(1)
-      expect(expiry.day).toBe(1)
+      expect(expiry.year).toBe(2028)
+      expect(expiry.month).toBe(12)
+      expect(expiry.day).toBe(31)
     })
 
     it('should cap at MAX_REGISTRATION_YEARS when years exceed max', () => {
