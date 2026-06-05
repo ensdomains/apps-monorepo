@@ -118,8 +118,8 @@ const referencedByQueryKey = createQueryKey<
  *   2. Resolve candidate tokenIds to (emitter, label, name) via the indexer
  *      by matching `tokenId >> 32` against `Domain.labelhash >> 32` under
  *      the emitter registry (see LibLabel.withVersion). The indexer has no
- *      labelhash filter, so we walk pages until every wanted prefix is
- *      matched or the registry is exhausted.
+ *      labelhash filter, so we fetch a single capped batch of labels per
+ *      emitter (no pagination for now).
  *   3. Authoritative current-state check: one `multicall` of
  *      `getSubregistry(label)` per candidate — keep only those whose live
  *      onchain subregistry still equals this address. This replaces a
@@ -177,53 +177,45 @@ export const useRegistryReferencedBy = (
               ),
             )
             const found = new Set<string>()
-            const PAGE = 1000
-            const MAX_PAGES = 20
-            for (let page = 0; page < MAX_PAGES; page++) {
-              const data =
-                await graphqlIndexerClient.request<RegistryLabelsResponse>(
-                  gql`
-                    query registryLabelsForReferencedBy(
-                      $address: String!
-                      $first: Int!
-                      $skip: Int!
-                    ) {
-                      registry(address: $address) {
-                        labels(first: $first, skip: $skip) {
-                          name
-                          labelName
-                          labelhash
-                        }
+            const LABEL_LIMIT = 1000
+            const data =
+              await graphqlIndexerClient.request<RegistryLabelsResponse>(
+                gql`
+                  query registryLabelsForReferencedBy(
+                    $address: String!
+                    $first: Int!
+                  ) {
+                    registry(address: $address) {
+                      labels(first: $first) {
+                        name
+                        labelName
+                        labelhash
                       }
                     }
-                  `,
-                  {
-                    address: emitter.toLowerCase(),
-                    first: PAGE,
-                    skip: page * PAGE,
-                  },
-                )
-              const labels = data.registry?.labels ?? []
-              for (const label of labels) {
-                if (!label.name || !label.labelName || !label.labelhash)
-                  continue
-                const labelCanonical = canonicalLabelBits(
-                  BigInt(label.labelhash),
-                ).toString()
-                if (
-                  wantedCanonical.has(labelCanonical) &&
-                  !found.has(labelCanonical)
-                ) {
-                  candidates.push({
-                    emitter,
-                    label: label.labelName,
-                    name: label.name,
-                  })
-                  found.add(labelCanonical)
-                }
+                  }
+                `,
+                {
+                  address: emitter.toLowerCase(),
+                  first: LABEL_LIMIT,
+                },
+              )
+            const labels = data.registry?.labels ?? []
+            for (const label of labels) {
+              if (!label.name || !label.labelName || !label.labelhash) continue
+              const labelCanonical = canonicalLabelBits(
+                BigInt(label.labelhash),
+              ).toString()
+              if (
+                wantedCanonical.has(labelCanonical) &&
+                !found.has(labelCanonical)
+              ) {
+                candidates.push({
+                  emitter,
+                  label: label.labelName,
+                  name: label.name,
+                })
+                found.add(labelCanonical)
               }
-              if (labels.length < PAGE) break
-              if (found.size === wantedCanonical.size) break
             }
           },
         ),
