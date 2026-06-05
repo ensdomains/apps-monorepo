@@ -11,6 +11,10 @@ import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '../service/profileExpiry'
 import { profileOwnerQuery } from '../service/profileOwner'
 import { profileRecordsQuery } from '../service/profileRecords'
 import { createDiff } from '../utils/createDiff'
@@ -20,8 +24,6 @@ import {
   transformToServiceFormat,
 } from '../utils/transformRecords'
 import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
-// Hidden for alpha - users don't need to change the resolver
-// import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import {
   handleProfileFormSubmit,
@@ -52,7 +54,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
   const { data: ownerData, refetch: refetchOwner } = useQuery({
     ...profileOwnerQuery(name),
   })
-
+  const { data: expiryData, isPending: isExpiryPending } = useQuery({
+    ...profileExpiryQuery(name),
+  })
+  const { isInGrace } = getProfileNameExpiryStatus(expiryData?.expiry, true)
   const account = useSmartAccountContext()
   const chainId = useChainId()
   const queryClient = useQueryClient()
@@ -84,6 +89,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     handleProfileFormSubmit(event, form.handleSubmit)
 
   const handleSave = () => {
+    if (isInGrace) {
+      return
+    }
+
     if (!ownerAddress) {
       const message = t`Cannot save profile - ENS owner is not available.`
       console.warn(message)
@@ -93,7 +102,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
 
     if (!account.signer || !account.accountAddress) {
       const message = t`Account not ready. Please wait for wallet to connect.`
-      console.error('❌ Smart account not connected or not initialized', {
+      console.error('Smart account not connected or not initialized', {
         accountAddress: account.accountAddress,
         hasSigner: !!account.signer,
         type: account.type,
@@ -114,7 +123,7 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
     const accountAddress = (account.ownerAddress ??
       account.accountAddress) as Address
 
-    console.log('✅ Starting profile records update:', {
+    console.log('Starting profile records update:', {
       name,
       resolverAddress,
       accountAddress,
@@ -140,6 +149,10 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
       refetchOwner,
     })
 
+  if (isExpiryPending || isInGrace) {
+    return null
+  }
+
   return (
     <form
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
@@ -157,11 +170,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ThemeSection form={form} />
           <WalletAddressesSection form={form} />
-          {/* <UpdateResolverDialog
-            currentResolver={resolverAddress}
-            name={name}
-            onUpdated={refetchRecords}
-          /> */}
           <SetPrimaryNameDialog
             name={name}
             onUpdated={refetchRecords}

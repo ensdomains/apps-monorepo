@@ -27,14 +27,14 @@ export const NameRow = ({
         <div
           aria-hidden
           className={cn(
-            'pointer-events-none absolute bottom-1/2 left-[58px] z-0 w-[30px] rounded-bl-[6px] border-ens-garnet-900/30 border-b border-l',
-            firstSubname ? '-top-4' : '-top-[41px]',
+            'pointer-events-none absolute bottom-1/2 left-14.5 z-0 w-7.5 rounded-bl-md border-ens-garnet-900/30 border-b border-l',
+            firstSubname ? '-top-4' : '-top-10.25',
           )}
         />
       ) : (
         <div
           className={cn(
-            'flex shrink-0 items-center justify-center rounded-[4px] border p-1 transition-colors',
+            'flex shrink-0 items-center justify-center rounded-sm border p-1 transition-colors',
             isSelected
               ? 'border-ens-garnet-900 bg-ens-garnet-900'
               : 'border-ens-garnet-900/30 bg-transparent',
@@ -56,7 +56,7 @@ export const NameRow = ({
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
         </span>
       </div>
-      <div className="rounded-[2px] border border-[#595755]/40 bg-white px-2 py-1 font-medium font-semi-mono text-[#595755] text-base leading-[0.96] tracking-[-0.32px]">
+      <div className="rounded-xs border border-ens-quartz-500/40 bg-white px-2 py-1 font-medium font-semi-mono text-base text-ens-quartz-500 leading-[0.96] tracking-[-0.32px]">
         {item.domain.name}
       </div>
     </>

@@ -19,17 +19,20 @@ const makeName = (
   name: string,
   tokenType: MigrationTokenType,
   parentName: string | null = null,
-): ClassifiedName => ({
-  domain: { name, labelName: name.split('.')[0]!, parent: null } as never,
-  tokenType,
-  label: name.split('.')[0]!,
-  parentName,
-  fuses: 0,
-  tokenHolder: owner,
-  v1ResolverAddress: null,
-  resolverStrategy: 'to-owned-permres',
-  managerAddress: null,
-})
+): ClassifiedName => {
+  const label = name.split('.')[0] ?? name
+  return {
+    domain: { name, labelName: label, parent: null } as never,
+    tokenType,
+    label,
+    parentName,
+    fuses: 0,
+    tokenHolder: owner,
+    v1ResolverAddress: null,
+    resolverStrategy: 'to-owned-permres',
+    managerAddress: null,
+  }
+}
 
 const defaultOpts = {
   maxNamesHint: MAX_NAMES_HINT,
@@ -70,8 +73,8 @@ describe('partitionForMigrate', () => {
       defaultOpts,
     )
     expect(batches).toHaveLength(1)
-    expect(batches[0]!.map((n) => n.domain.name)).toContain('parent.eth')
-    expect(batches[0]!.findIndex((n) => n.domain.name === 'parent.eth')).toBe(0)
+    expect(batches[0]?.map((n) => n.domain.name)).toContain('parent.eth')
+    expect(batches[0]?.findIndex((n) => n.domain.name === 'parent.eth')).toBe(0)
   })
 
   it('splits parent + 250 children: parent in batch 1, remaining children after', () => {
@@ -80,8 +83,8 @@ describe('partitionForMigrate', () => {
       makeName(`c${i}.parent.eth`, 'locked-child', 'parent.eth'),
     )
     const batches = partitionForMigrate([parent, ...children], defaultOpts)
-    expect(batches[0]![0]!.domain.name).toBe('parent.eth')
-    expect(batches[0]!.length).toBe(100) // parent + 99 children
+    expect(batches[0]?.[0]?.domain.name).toBe('parent.eth')
+    expect(batches[0]?.length).toBe(100) // parent + 99 children
     expect(batches.flat()).toHaveLength(251)
   })
 
@@ -93,7 +96,7 @@ describe('partitionForMigrate', () => {
     const batches = partitionForMigrate(names, tightOpts)
     // locked-2ld heuristic = 240_000n; overhead = 80_000n.
     // (1_000_000 - 80_000) / 240_000 = 3.83 → 3 per batch.
-    expect(batches[0]!.length).toBeLessThanOrEqual(4)
+    expect(batches[0]?.length).toBeLessThanOrEqual(4)
     expect(batches.flat()).toHaveLength(200)
   })
 })
@@ -122,11 +125,11 @@ describe('buildBatchedMigrateCalls', () => {
     })
     expect(out.calls).toHaveLength(2)
     expect(out.batches).toHaveLength(2)
-    expect(out.batches[0]!.index).toBe(0)
-    expect(out.batches[1]!.index).toBe(1)
-    expect(out.batches[0]!.names).toHaveLength(100)
-    expect(out.batches[1]!.names).toHaveLength(50)
-    expect(out.batches[0]!.estimatedGas).toBeGreaterThan(0n)
+    expect(out.batches[0]?.index).toBe(0)
+    expect(out.batches[1]?.index).toBe(1)
+    expect(out.batches[0]?.names).toHaveLength(100)
+    expect(out.batches[1]?.names).toHaveLength(50)
+    expect(out.batches[0]?.estimatedGas).toBeGreaterThan(0n)
     for (const c of out.calls) {
       expect(c.to).toMatch(/^0x/)
       expect(c.data.startsWith('0x')).toBe(true)
@@ -172,7 +175,7 @@ describe('verifyOrSplit', () => {
 
     expect(result).toBe(mutable.calls[0])
     expect(mutable.calls).toHaveLength(1)
-    expect(mutable.batches[0]!.estimatedGas).toBe(15_000_000n)
+    expect(mutable.batches[0]?.estimatedGas).toBe(15_000_000n)
   })
 
   it('bisects when estimate exceeds target, then settles', async () => {
@@ -208,8 +211,8 @@ describe('verifyOrSplit', () => {
 
     expect(mutable.calls).toHaveLength(2)
     expect(result).toBe(mutable.calls[0])
-    expect(mutable.batches[0]!.names).toHaveLength(2)
-    expect(mutable.batches[1]!.names).toHaveLength(2)
+    expect(mutable.batches[0]?.names).toHaveLength(2)
+    expect(mutable.batches[1]?.names).toHaveLength(2)
   })
 
   it('throws when a single-name batch still exceeds target', async () => {
@@ -290,8 +293,8 @@ describe('partitionForMigrate with largeClassified fixture', () => {
           isChild &&
           n.parentName &&
           batch.some((b) => b.domain.name === n.parentName)
-        if (parentInBatch) {
-          expect(seen.has(n.parentName!)).toBe(true)
+        if (parentInBatch && n.parentName) {
+          expect(seen.has(n.parentName)).toBe(true)
         }
         seen.add(n.domain.name)
       }

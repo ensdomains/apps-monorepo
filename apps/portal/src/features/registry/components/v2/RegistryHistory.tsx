@@ -23,7 +23,7 @@ export const RegistryHistoryByAddress = ({
   enableHeader?: boolean
 }) => {
   const {
-    data: page,
+    data: events,
     isLoading: isLoadingEvents,
     error: eventsError,
   } = useQuery(getRegistryEventsQueryOptions({ address }))
@@ -39,9 +39,9 @@ export const RegistryHistoryByAddress = ({
     )
   }
 
-  if (!page || page.events.length === 0) return null
+  if (!events || events.length === 0) return null
 
-  const v2Events: SubgraphEvent[] = page.events.map((event) => ({
+  const v2Events: SubgraphEvent[] = events.map((event) => ({
     transactionID: event.transactionHash,
     blockNumber: event.blockNumber,
     id: event.id,

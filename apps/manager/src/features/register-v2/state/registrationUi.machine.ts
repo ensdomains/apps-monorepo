@@ -1,6 +1,7 @@
 import {
   type RegistrationEvent,
   registrationMachine,
+  type Signer,
 } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -194,6 +195,42 @@ const startRegistrationAction = machineSetup.createAction(
     const resolverOwnerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
+    // The ENS registrar pulls the payment token from the name owner (the EOA),
+    // so the ERC-20 approve must be signed by the EOA — the HCA can't approve
+    // on its behalf and the mock tokens have no permit. Hand the registration
+    // machine a dedicated EOA signer (the owner's wallet client) for the
+    // approve step; commit/deploy/register stay on the sponsored rhinestone
+    // signer. For pure-EOA flows this is the same wallet, so it's a no-op.
+    //
+    // `account.walletClient` is the wagmi wallet client for the owner EOA. Para
+    // bridges embedded wallets into wagmi via its connector, so this is
+    // populated for both external and embedded wallets, and the connector's
+    // EIP-1193 provider signs the approve through Para. It can be momentarily
+    // null during a wallet/connector desync — see the fail-fast guard below.
+    const approvalSigner: Signer | undefined = event.account.walletClient
+      ? { type: 'eoa', walletClient: event.account.walletClient }
+      : undefined
+
+    // HCA flows register the name to the EOA owner, and the registrar pulls the
+    // payment from that owner — so the approve MUST be EOA-signed. Without an
+    // `approvalSigner` the only remaining route is the legacy bundled
+    // approve+register intent, which approves from the HCA and therefore leaves
+    // `allowance[EOA][registrar] == 0`, reverting the registration. Fail fast
+    // with an actionable message instead of silently entering that broken path
+    // (e.g. when a Para embedded wallet is mid-reconnect and exposes no client).
+    const isHcaRegistration =
+      event.account.signer.type === 'rhinestone' &&
+      ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
+
+    if (isHcaRegistration && !approvalSigner) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          'Cannot register: the wallet that owns this account is unavailable to approve the payment. Please reconnect your wallet and try again.',
+        ),
+      })
+    }
+
     enqueue.assign({
       confirmedData: {
         label: event.label,
@@ -214,6 +251,7 @@ const startRegistrationAction = machineSetup.createAction(
         token: event.token,
         price: event.totalPrice,
         signer: event.account.signer,
+        approvalSigner,
         accountAddress: event.account.accountAddress,
         ownerAddress,
         resolverOwnerAddress,

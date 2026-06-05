@@ -43,7 +43,7 @@ function RouteComponent() {
     enabled: !!callerAddress,
   })
 
-  if (isLoading) return <LoadingSpinner title="Loading rolegistry" />
+  if (isLoading) return <LoadingSpinner title="Loading registry" />
 
   if (error)
     return (
@@ -59,8 +59,8 @@ function RouteComponent() {
         title="Registry not found"
         description={
           <>
-            <strong>{truncateAddress(address, 6, 4, '...')}</strong> is not a
-            known registry contract.
+            <strong>{truncateAddress(address, 6, 4)}</strong> is not a known
+            registry contract.
           </>
         }
       />

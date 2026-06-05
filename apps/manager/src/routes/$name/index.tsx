@@ -3,6 +3,7 @@ import {
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
+import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
@@ -22,11 +23,13 @@ export const Route = createFileRoute('/$name/')({
       queryClient.prefetchQuery(profileRegistrationQuery(name)),
     ])
 
-    const isExpired =
-      expiryData?.expiry != null &&
-      Number(expiryData.expiry) * 1000 < Date.now()
+    const expiryDate =
+      expiryData?.expiry != null
+        ? new Date(Number(expiryData.expiry) * 1000)
+        : null
+    const isPastGrace = isPastGracePeriod(expiryDate, true)
 
-    if (isExpired) {
+    if (isPastGrace) {
       throw redirect(
         isFeatureEnabled('REGISTRATION_V2')
           ? {

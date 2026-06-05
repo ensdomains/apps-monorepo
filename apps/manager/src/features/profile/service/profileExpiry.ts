@@ -7,9 +7,27 @@ import {
   type GetExpiryErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
+import {
+  getNameExpiryStatus,
+  type NameExpiryStatus,
+} from '@/features/grace/utils/gracePeriod'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName } from './profileName'
+
+export const profileExpiryDateFromSeconds = (
+  expirySeconds: number | bigint | null | undefined,
+): Date | null => {
+  if (expirySeconds == null) return null
+  const date = new Date(Number(expirySeconds) * 1000)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+export const getProfileNameExpiryStatus = (
+  expirySeconds: number | bigint | null | undefined,
+  isV2 = true,
+): NameExpiryStatus =>
+  getNameExpiryStatus(profileExpiryDateFromSeconds(expirySeconds), isV2)
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
   cause: GetExpiryErrorType

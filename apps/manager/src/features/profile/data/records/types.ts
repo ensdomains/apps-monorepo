@@ -1,4 +1,3 @@
-import type { StandardSchemaV1 } from '@tanstack/react-form'
 import type { sections, specialSections, staticTextRecords } from './text'
 
 // Section types
@@ -8,7 +7,6 @@ export type AnySection = Section | SpecialSection
 
 export type SectionData = {
   label: string
-  description?: string
   hidden?: boolean
 }
 
@@ -17,25 +15,8 @@ export type StaticRecordKey = (typeof staticTextRecords)[number]
 // Base record type that all records extend
 type BaseRecord = {
   name: string
-  description?: string
   icon?: React.FC<{ className?: string }> | string
   placeholder?: string
-  required?: boolean
-  /**
-   * Priority for display in the UI.
-   *
-   * - `suggested` - Display in the suggested section.
-   * - `others` - Display in the others section.
-   *
-   * @default 'others'
-   */
-  visibility?: 'suggested' | 'others'
-  validate?: {
-    onChange?: StandardSchemaV1
-    onBlur?: StandardSchemaV1
-    onSubmit?: StandardSchemaV1
-    onMount?: StandardSchemaV1
-  }
 }
 
 type BaseAddressRecord = BaseRecord & {

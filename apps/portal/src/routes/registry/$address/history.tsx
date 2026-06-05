@@ -36,8 +36,8 @@ function RouteComponent() {
         title="Registry not found"
         description={
           <>
-            <strong>{truncateAddress(address, 6, 4, '...')}</strong> is not a
-            known registry contract.
+            <strong>{truncateAddress(address, 6, 4)}</strong> is not a known
+            registry contract.
           </>
         }
       />

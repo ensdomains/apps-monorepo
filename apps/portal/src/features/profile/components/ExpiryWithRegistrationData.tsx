@@ -1,9 +1,9 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
-import { sepolia } from 'viem/chains'
 import { useBlock } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
@@ -13,8 +13,6 @@ import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
 import { getV2NameHistoryQueryOptions } from '../hooks/useV2NameHistory'
 import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
 import { Timestamp } from './Timestamp'
-
-const sepoliaUrl = sepolia.blockExplorers.default.url
 
 interface RegistrationDateProps {
   blockNumber: number | bigint
@@ -120,6 +118,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   const registrationTxHash = earliestEvents?.find(
     (event) => event.type === 'NameRegistered',
   )?.transactionHash
+  const registrationTxUrl = useBlockExplorerTxUrl(registrationTxHash)
 
   if (error)
     return (
@@ -162,7 +161,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
             <EntityBadge
               variant="tx"
               label={formatTimestampDate(data.registeredAt) ?? '—'}
-              etherscanHref={`${sepoliaUrl}/tx/${registrationTxHash}`}
+              etherscanHref={registrationTxUrl}
               copyValue={registrationTxHash}
             >
               {truncateAddress(registrationTxHash, 6, 4)}
