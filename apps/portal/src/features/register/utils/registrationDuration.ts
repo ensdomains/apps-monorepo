@@ -21,6 +21,8 @@ export function isDateWithinCalendarRange(
   )
 }
 
+const SECONDS_PER_MONTH = CONTRACT_SECONDS_PER_YEAR / 12
+
 /**
  * Formats a duration in seconds as "X years Y months Z days" using the
  * contract's year definition (1 year = CONTRACT_SECONDS_PER_YEAR = 365.25 d,
@@ -30,8 +32,6 @@ export function isDateWithinCalendarRange(
  * produced after the floor in expiry display dropped the 0.25 d/y leap
  * fraction).
  */
-const SECONDS_PER_MONTH = CONTRACT_SECONDS_PER_YEAR / 12
-
 export const formatRegistrationDuration = (durationSeconds: number): string => {
   let remainder = durationSeconds
   const years = Math.floor(remainder / CONTRACT_SECONDS_PER_YEAR)
