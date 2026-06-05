@@ -20,7 +20,7 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import {
   getRegistryQueryOptions,
-  useRegistryReferencedBy,
+  getRegistryReferencedByQueryOptions,
 } from '@/features/registry/hooks/useRegistry'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -59,7 +59,10 @@ function RouteComponent() {
     data: referencedBy,
     isLoading: isLoadingReferencedBy,
     error: referencedByError,
-  } = useRegistryReferencedBy(registry ?? undefined)
+  } = useQuery({
+    ...getRegistryReferencedByQueryOptions({ address }),
+    enabled: !!registry,
+  })
 
   // Owner of this registry's ENS name — used for the Deployed badge so it
   // matches the Created badge on /$name/registry exactly.
@@ -207,14 +210,14 @@ function RouteComponent() {
               .with({ referencedByError: P.not(null) }, () => <FailedToLoad />)
               .otherwise(() =>
                 referencedBy && referencedBy.length > 0 ? (
-                  referencedBy.map((ref) => (
+                  referencedBy.map((name) => (
                     <EntityBadge
-                      key={`${ref.emitter}-${ref.name}`}
+                      key={name}
                       variant="name"
-                      name={ref.name}
+                      name={name}
                       showAvatar
                     >
-                      {ref.name}
+                      {name}
                     </EntityBadge>
                   ))
                 ) : (

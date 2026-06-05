@@ -100,6 +100,7 @@ export type Domain = {
   subdomainCount: Scalars['Int']['output'];
   subdomains: Array<Domain>;
   subdomainsCount: Scalars['Int']['output'];
+  subregistry?: Maybe<RegistryInfo>;
   tokenId?: Maybe<Scalars['String']['output']>;
   tokenVersion?: Maybe<Scalars['Int']['output']>;
   ttl?: Maybe<Scalars['Int']['output']>;
@@ -713,6 +714,9 @@ export type RegistryInfo = {
   namehash: Scalars['String']['output'];
   owner?: Maybe<Account>;
   parentRegistry: Scalars['String']['output'];
+  referencedBy: Array<Domain>;
+  referencedByConnection: DomainConnection;
+  referencedByCount: Scalars['Int']['output'];
   roleConnection: EacRoleAssignmentConnection;
   roleCount: Scalars['Int']['output'];
   roles: Array<EacRoleAssignment>;
@@ -753,6 +757,26 @@ export type RegistryInfoLabelsArgs = {
   orderBy?: InputMaybe<Domain_OrderBy>;
   orderDirection?: InputMaybe<OrderDirection>;
   skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<DomainFilter>;
+};
+
+
+export type RegistryInfoReferencedByArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Domain_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<DomainFilter>;
+};
+
+
+export type RegistryInfoReferencedByConnectionArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Domain_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
   where?: InputMaybe<DomainFilter>;
 };
 
