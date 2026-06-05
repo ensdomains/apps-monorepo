@@ -14,12 +14,14 @@ interface ViewHeaderSectionProps {
   name: string
   records: ProfileRecords
   owner?: Address
+  isInGrace?: boolean
 }
 
 export const ViewHeaderSection = ({
   name,
   records,
   owner,
+  isInGrace = false,
 }: ViewHeaderSectionProps) => {
   const [avatar, header] = useQueries({
     queries: [
@@ -28,8 +30,8 @@ export const ViewHeaderSection = ({
     ],
   })
 
-  const avatarUrl = avatar.data ?? records.base.avatar
-  const headerUrl = header.data ?? records.base.header
+  const avatarUrl = isInGrace ? undefined : (avatar.data ?? records.base.avatar)
+  const headerUrl = isInGrace ? undefined : (header.data ?? records.base.header)
 
   const url = `${
     typeof window !== 'undefined'
@@ -42,11 +44,13 @@ export const ViewHeaderSection = ({
       {/* Header BG */}
       <div className="relative w-full">
         <ImageFallback.Root className="aspect-3/1 w-full md:aspect-5/1">
-          <ImageFallback.Image
-            alt={`${name} header`}
-            className="size-full object-cover"
-            src={headerUrl}
-          />
+          {isInGrace ? null : (
+            <ImageFallback.Image
+              alt={`${name} header`}
+              className="size-full object-cover"
+              src={headerUrl}
+            />
+          )}
           <ImageFallback.Fallback>
             <div
               className={clsx('size-full', header.isLoading && 'animate-pulse')}
@@ -67,11 +71,13 @@ export const ViewHeaderSection = ({
         <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 size-24 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <ImageFallback.Root className="contents">
-              <ImageFallback.Image
-                alt={`${name} avatar`}
-                className="h-full w-full object-cover"
-                src={avatarUrl}
-              />
+              {isInGrace ? null : (
+                <ImageFallback.Image
+                  alt={`${name} avatar`}
+                  className="h-full w-full object-cover"
+                  src={avatarUrl}
+                />
+              )}
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className={clsx(

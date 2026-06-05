@@ -18,6 +18,15 @@ describe('validateUrl', () => {
     expect(validateUrl('http://example.com')).toBeUndefined()
   })
 
+  it('should reject non-http URL schemes', () => {
+    expect(validateUrl('javascript:alert(1)')).toBeDefined()
+    expect(
+      validateUrl('data:text/html,<script>alert(1)</script>'),
+    ).toBeDefined()
+    expect(validateUrl('vbscript:msgbox("xss")')).toBeDefined()
+    expect(validateUrl('file:///etc/passwd')).toBeDefined()
+  })
+
   it('should reject strings without a protocol', () => {
     expect(validateUrl('example.com')).toBeDefined()
     expect(validateUrl('www.example.com')).toBeDefined()

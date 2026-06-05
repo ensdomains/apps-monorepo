@@ -10,9 +10,9 @@ import {
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { ProfileCardPreview } from '@/features/migration/components/ProfileCardPreview'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
-import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const AUTO_SCROLL_INTERVAL_MS = 5000
@@ -22,13 +22,15 @@ const SLIDE_DATA = [{ id: 'profiles' }] as const
 export const MigrationModal = () => {
   const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
-  const { data: v1Names, isPending: isV1NamesPending } = useV1Names()
+  const { eligible: eligibleV1Names, isPending: isEligibleV1NamesPending } =
+    useEligibleV1Names({ fallbackToClassified: false })
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount()
+  const eligibleNameCount = eligibleV1Names.length
   const hasUnstartedMigration =
-    !isV1NamesPending &&
+    !isEligibleV1NamesPending &&
     !isMigratedCountPending &&
-    (v1Names?.length ?? 0) > 0 &&
+    eligibleNameCount > 0 &&
     (migratedCount ?? 0) === 0
   const { open, dismiss } = useOpenModalOnFirstVisit(
     isConnected,
@@ -149,11 +151,12 @@ export const MigrationModal = () => {
             onClick={dismiss}
           >
             <UpgradeNamesButton className="w-full tracking-[1.68px]" />
-            {v1Names && v1Names.length > 0 && (
+            {eligibleNameCount > 0 && (
               <p className="w-full font-semi-mono text-[10px] text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.1px]">
                 <Trans>
-                  You have <span className="font-medium">{v1Names.length}</span>{' '}
-                  names that are eligible for upgrade
+                  You have{' '}
+                  <span className="font-medium">{eligibleNameCount}</span> names
+                  that are eligible for upgrade
                 </Trans>
               </p>
             )}

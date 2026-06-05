@@ -99,7 +99,6 @@ export const getENSNameInfo = ResultFn(async function* (
 
     const { base, premium } = yield* await fromPromise(
       getRegisterPrice(publicClient, {
-        registrarAddress: ETH_REGISTRAR,
         label: cleanName,
         duration: BigInt(durationInSeconds),
         paymentToken,
@@ -140,7 +139,6 @@ export const getTokenPrices = ResultFn(async function* (
       try {
         const { base, premium } = yield* await fromPromise(
           getRegisterPrice(publicClient, {
-            registrarAddress: ETH_REGISTRAR,
             label: cleanName,
             duration: BigInt(durationInSeconds),
             paymentToken: tokenAddress,

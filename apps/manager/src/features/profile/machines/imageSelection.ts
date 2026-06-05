@@ -1,66 +1,18 @@
 import { assign, setup } from 'xstate'
 
-// Types for better type safety
-export interface NFT {
-  readonly id: string
-  readonly name: string
-  readonly image: string
-  readonly collection: string
-}
-
 export interface ImageSelectionContext {
-  // Input callbacks
   onImageChange: (url: string) => void
   onImageRemove: () => void
 
-  // Form data
   manualUrl: string
-  searchQuery: string
-
-  // Selection state
-  selectedNFT: NFT | null
-  uploadedImage: string | null
-
-  // Data
-  nfts: NFT[]
-  filteredNFTs: NFT[]
-
-  // UI state
   error: string | null
 }
-
-// Mock NFT data - replace with actual NFT fetching logic
-const mockNFTs: NFT[] = [
-  {
-    id: '1',
-    name: 'Cool NFT #1',
-    image: 'https://via.placeholder.com/150',
-    collection: 'Cool Collection',
-  },
-  {
-    id: '2',
-    name: 'Awesome NFT #2',
-    image: 'https://via.placeholder.com/150',
-    collection: 'Awesome Collection',
-  },
-  {
-    id: '3',
-    name: 'Epic NFT #3',
-    image: 'https://via.placeholder.com/150',
-    collection: 'Epic Collection',
-  },
-]
 
 const initialContext: Omit<
   ImageSelectionContext,
   'onImageChange' | 'onImageRemove'
 > = {
   manualUrl: '',
-  searchQuery: '',
-  selectedNFT: null,
-  uploadedImage: null,
-  nfts: mockNFTs,
-  filteredNFTs: mockNFTs,
   error: null,
 }
 
@@ -69,20 +21,15 @@ export const imageSelectionMachine = setup({
     context: {} as ImageSelectionContext,
     events: {} as
       | { type: 'RESET' }
-      | { type: 'OPEN_NFT_SELECTION' }
-      | { type: 'OPEN_UPLOAD'; imageUrl: string }
+      | { type: 'OPEN_UPLOAD' }
       | { type: 'OPEN_MANUAL_INPUT' }
       | { type: 'OPEN_REMOVE_CONFIRMATION' }
       | { type: 'CANCEL' }
       | { type: 'BACK' }
       | { type: 'CONFIRM_REMOVAL' }
-      | { type: 'SELECT_NFT'; nft: NFT }
-      | { type: 'CONFIRM_NFT' }
-      | { type: 'CONFIRM_UPLOAD' }
       | { type: 'UPDATE_MANUAL_URL'; url: string }
       | { type: 'PREVIEW_MANUAL_URL' }
       | { type: 'CONFIRM_MANUAL_URL' }
-      | { type: 'UPDATE_SEARCH_QUERY'; query: string }
       | { type: 'SET_ERROR'; error: string }
       | { type: 'CLEAR_ERROR' },
     input: {} as {
@@ -100,40 +47,6 @@ export const imageSelectionMachine = setup({
         if (event.type === 'UPDATE_MANUAL_URL') return event.url
         return ''
       },
-    }),
-
-    assignSearchQuery: assign({
-      searchQuery: ({ event }) => {
-        if (event.type === 'UPDATE_SEARCH_QUERY') return event.query
-        return ''
-      },
-    }),
-
-    assignSelectedNFT: assign({
-      selectedNFT: ({ event }) => {
-        if (event.type === 'SELECT_NFT') return event.nft
-        return null
-      },
-    }),
-
-    assignUploadedImage: assign({
-      uploadedImage: ({ event }) => {
-        if (event.type === 'OPEN_UPLOAD') return event.imageUrl
-        return null
-      },
-    }),
-
-    updateFilteredNFTs: assign({
-      filteredNFTs: ({ context }) =>
-        context.nfts.filter(
-          (nft) =>
-            nft.name
-              .toLowerCase()
-              .includes(context.searchQuery.toLowerCase()) ||
-            nft.collection
-              .toLowerCase()
-              .includes(context.searchQuery.toLowerCase()),
-        ),
     }),
 
     setError: assign({
@@ -161,18 +74,6 @@ export const imageSelectionMachine = setup({
       },
     }),
 
-    handleNFTSelection: ({ context }) => {
-      if (context.selectedNFT) {
-        context.onImageChange(context.selectedNFT.image)
-      }
-    },
-
-    handleUploadConfirmation: ({ context }) => {
-      if (context.uploadedImage) {
-        context.onImageChange(context.uploadedImage)
-      }
-    },
-
     handleManualUrlConfirmation: ({ context }) => {
       if (context.manualUrl.trim()) {
         context.onImageChange(context.manualUrl.trim())
@@ -199,10 +100,6 @@ export const imageSelectionMachine = setup({
         return false
       }
     },
-
-    hasSelectedNFT: ({ context }) => context.selectedNFT !== null,
-
-    hasUploadedImage: ({ context }) => context.uploadedImage !== null,
   },
 }).createMachine({
   context: ({ input }) => ({
@@ -226,46 +123,9 @@ export const imageSelectionMachine = setup({
   states: {
     main: {
       on: {
-        OPEN_NFT_SELECTION: 'nftSelection',
         OPEN_UPLOAD: 'uploadPreview',
         OPEN_MANUAL_INPUT: 'manualInput',
         OPEN_REMOVE_CONFIRMATION: 'removeConfirmation',
-      },
-    },
-
-    nftSelection: {
-      initial: 'browsing',
-      on: {
-        CANCEL: 'main',
-        BACK: 'main',
-      },
-      states: {
-        browsing: {
-          on: {
-            UPDATE_SEARCH_QUERY: {
-              actions: ['assignSearchQuery', 'updateFilteredNFTs'],
-            },
-            SELECT_NFT: {
-              target: 'confirming',
-              actions: 'assignSelectedNFT',
-            },
-          },
-        },
-        confirming: {
-          on: {
-            CONFIRM_NFT: [
-              {
-                guard: 'hasSelectedNFT',
-                actions: 'handleNFTSelection',
-                target: '#imageSelection.main',
-              },
-              {
-                actions: 'setError',
-              },
-            ],
-            BACK: 'browsing',
-          },
-        },
       },
     },
 
@@ -273,16 +133,6 @@ export const imageSelectionMachine = setup({
       on: {
         CANCEL: 'main',
         BACK: 'main',
-        CONFIRM_UPLOAD: [
-          {
-            guard: 'hasUploadedImage',
-            actions: 'handleUploadConfirmation',
-            target: 'main',
-          },
-          {
-            actions: 'setError',
-          },
-        ],
       },
     },
 

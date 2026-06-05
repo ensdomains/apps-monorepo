@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
@@ -44,6 +45,8 @@ interface NameRowProps {
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
   readonly linkToMigration?: boolean
+  readonly useWireframeNameplate?: boolean
+  readonly isInGrace?: boolean
 }
 
 const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
@@ -55,6 +58,7 @@ const namePillVariants = cva(
       variant: {
         primary: 'bg-ens-lapis-core text-ens-lapis-bg',
         secondary: 'bg-ens-quartz-200 text-ens-quartz-450',
+        wireframe: 'border border-border bg-transparent text-foreground',
       },
     },
   },
@@ -66,7 +70,7 @@ const NamePill = ({
   linkToMigration,
 }: {
   readonly label: string
-  readonly variant: 'primary' | 'secondary'
+  readonly variant: 'primary' | 'secondary' | 'wireframe'
   readonly linkToMigration: boolean
 }) => {
   const className = namePillVariants({ variant })
@@ -134,7 +138,7 @@ const RowCta = ({
     <Link
       className={ctaVariants({ kind: 'renew' })}
       params={{ name: label }}
-      to="/$name"
+      to="/renew/$name"
     >
       <Trans>Renew name</Trans>
       <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
@@ -157,6 +161,8 @@ export const NameRow = ({
   onToggleFavorite,
   isAuthenticated = true,
   linkToMigration = false,
+  useWireframeNameplate = false,
+  isInGrace = false,
 }: NameRowProps) => {
   const { t } = useLingui()
 
@@ -184,13 +190,16 @@ export const NameRow = ({
     </motion.button>
   ) : null
 
-  const hasTopRow = Boolean(status || nameRole || expiringInDays)
+  const hasTopRow = Boolean(isInGrace || status || nameRole || expiringInDays)
+
+  const namePillVariant = useWireframeNameplate ? 'wireframe' : nameVariant
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
       {hasTopRow && (
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
+            {isInGrace && <GracePeriodBadge />}
             {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
             {status === 'ensv1Only' && <Ensv1OnlyPill />}
             {nameRole && <RolePill role={nameRole} />}
@@ -232,7 +241,7 @@ export const NameRow = ({
           <NamePill
             label={label}
             linkToMigration={linkToMigration}
-            variant={nameVariant}
+            variant={namePillVariant}
           />
           {verified && <VerifiedCheck />}
         </div>
@@ -255,7 +264,7 @@ export const NameRow = ({
             </DropdownMenuItem>
             {cta === 'renew' && (
               <DropdownMenuItem asChild>
-                <Link params={{ name: label }} to="/$name">
+                <Link params={{ name: label }} to="/renew/$name">
                   <Trans>Renew name</Trans>
                 </Link>
               </DropdownMenuItem>

@@ -10,10 +10,11 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 
 type UseEligibleV1NamesOptions = {
   readonly enabled?: boolean
+  readonly fallbackToClassified?: boolean
 }
 
 export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
-  const { enabled = true } = options
+  const { enabled = true, fallbackToClassified = true } = options
   const { ownerAddress } = useSmartAccountContext()
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
 
@@ -26,8 +27,8 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
     useMigrationEligibility(classified, enabled ? ownerAddress : undefined)
 
   const eligible = useMemo<readonly ClassifiedName[]>(
-    () => eligibility?.eligible ?? classified,
-    [eligibility, classified],
+    () => eligibility?.eligible ?? (fallbackToClassified ? classified : []),
+    [eligibility, classified, fallbackToClassified],
   )
 
   return {
