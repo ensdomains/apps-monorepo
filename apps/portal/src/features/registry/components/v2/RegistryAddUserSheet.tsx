@@ -22,6 +22,7 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { registryRootPermissions } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
 
 const GRANT_REGISTRY_ROLES_TX_ID = 'tx-grant-registry-roles'
@@ -195,7 +196,7 @@ export const RegistryAddUserSheet = ({
                   {isResolvingAddress && 'Resolving address...'}
                   {!isResolvingAddress &&
                     address &&
-                    `Resolved: ${address.slice(0, 6)}...${address.slice(-4)}`}
+                    `Resolved: ${truncateAddress(address, 6, 4)}`}
                   {!isResolvingAddress &&
                     !address &&
                     'Could not resolve address. Check the name exists.'}
