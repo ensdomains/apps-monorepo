@@ -24,7 +24,7 @@ export const DomainAttributePill = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center gap-[10px] rounded-[12px] px-2 py-1 text-xs',
+        'inline-flex items-center justify-center gap-[10px] rounded-xl px-2 py-1 text-xs',
         variantStyles[variant],
         className,
       )}

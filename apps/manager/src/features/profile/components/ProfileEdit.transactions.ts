@@ -45,7 +45,7 @@ type TextChange = {
 }
 
 type CoinChange = {
-  coin: string | number
+  coin: number
   value: string | null
 }
 
@@ -266,14 +266,6 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
-        // Resolver record writes (setText / setAddr / multicall) are NOT
-        // in the registration-scoped smart-session allowlist (see
-        // apps/manager/src/lib/smart-account/sessions/build-registration-session.ts),
-        // so signing this UserOp with the session key would fail the
-        // on-chain SmartSession validator → "Bundle simulation failed".
-        // Force the SDK to use the SCA's default validator instead, which
-        // prompts an EOA-owner signature.
-        useSession: false,
       },
     } as RhinestoneTransactionRequest
   }
@@ -351,7 +343,7 @@ async function buildRecordsUpdateRequest(params: {
 
   if (changes.coins.length > 0) {
     ensParams.coins = changes.coins.map(({ coin, value }) => ({
-      coin: typeof coin === 'number' ? coin : Number.parseInt(String(coin), 10),
+      coin,
       value: value ?? '',
     }))
   }

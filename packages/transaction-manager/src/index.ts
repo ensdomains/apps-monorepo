@@ -154,11 +154,7 @@ export type {
   Signer,
   TransactionInfra,
 } from './types/signer.types'
-export {
-  isEOASigner,
-  isRhinestoneSigner,
-  isSessionSigner,
-} from './types/signer.types'
+export { isEOASigner, isRhinestoneSigner } from './types/signer.types'
 export type {
   Call,
   CustomTransactionIntent,

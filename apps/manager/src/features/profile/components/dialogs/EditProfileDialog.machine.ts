@@ -7,7 +7,7 @@ import type { SaveRecordsParams } from '../ProfileEdit.transactions'
 import {
   type GeneralField,
   getDefaultVisibleFields,
-} from './EditProfileGeneralTab'
+} from './EditProfileGeneralTab.fields'
 
 interface SaveDeps {
   readonly accountAddress?: Address | null
@@ -21,7 +21,6 @@ interface SaveDeps {
 
 interface PendingSave {
   readonly currentRecords: ProfileRecords
-  readonly ethAddressChanged: boolean
   readonly params: SaveRecordsParams
 }
 
@@ -48,9 +47,6 @@ type EditProfileDialogEvent =
     }
   | { type: 'SAVE_FAILED'; errorMessage: string }
 
-const getEthAddress = (records: ProfileRecords) =>
-  records.addresses.find(({ coinType }) => coinType === 60)?.value
-
 const getMissingAccount = (event: EditProfileDialogEvent) =>
   event.type === 'SAVE_REQUESTED' &&
   (!event.deps.signer || !event.deps.accountAddress)
@@ -73,8 +69,6 @@ const getPendingSave = (
 
   return {
     currentRecords,
-    ethAddressChanged:
-      getEthAddress(savedRecords) !== getEthAddress(currentRecords),
     params: {
       name: deps.name,
       before,

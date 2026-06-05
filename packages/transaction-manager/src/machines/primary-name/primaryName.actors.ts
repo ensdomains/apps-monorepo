@@ -164,7 +164,6 @@ export const submitPrimaryNameWithSignatureActor = (input: {
           rhinestoneParams: {
             calls: batchedCalls,
             sponsored: true,
-            useSession: false,
           },
         }
       } else {
@@ -256,9 +255,6 @@ export const submitPrimaryNameUpdateActor = (input: {
             rhinestoneParams: {
               calls: batchedCalls,
               sponsored: true,
-              // Reverse-registrar writes aren't in the registration-
-              // scoped smart-session allowlist; force EOA-owner signing.
-              useSession: false,
             },
           }
         } else {

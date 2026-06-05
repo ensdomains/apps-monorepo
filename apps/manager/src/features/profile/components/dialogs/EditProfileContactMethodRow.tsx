@@ -1,42 +1,8 @@
+import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { getRecordDef } from '../../data/records'
 import { IconRenderer } from '../IconRenderer'
 import type { ContactMethod } from './EditProfileContactTab.constants'
-
-interface PrimaryContactSwitchProps {
-  readonly checked: boolean
-  readonly disabled: boolean
-  readonly label: string
-  readonly onCheckedChange: (checked: boolean) => void
-}
-
-const PrimaryContactSwitch = ({
-  checked,
-  disabled,
-  label,
-  onCheckedChange,
-}: PrimaryContactSwitchProps) => (
-  <button
-    aria-checked={checked}
-    aria-label={label}
-    className={cn(
-      'relative h-5 w-10 shrink-0 rounded-full border border-transparent transition-colors',
-      checked ? 'bg-ens-signal-success-600' : 'bg-ens-quartz-300',
-      disabled && 'cursor-not-allowed opacity-60',
-    )}
-    disabled={disabled}
-    onClick={() => onCheckedChange(!checked)}
-    role="switch"
-    type="button"
-  >
-    <span
-      className={cn(
-        'absolute top-[0.5px] size-[17px] rounded-full bg-white transition-all',
-        checked ? 'left-5' : 'left-px',
-      )}
-    />
-  </button>
-)
 
 interface EditProfileContactMethodRowProps {
   readonly disabled: boolean
@@ -76,10 +42,14 @@ export const EditProfileContactMethodRow = ({
           value={value}
         />
       </label>
-      <PrimaryContactSwitch
+      <Switch
+        aria-label={`Pin ${method.label} as a primary contact method`}
         checked={primary}
+        className={cn(
+          'h-5 w-10 shrink-0 border border-transparent bg-ens-quartz-300 data-[state=checked]:bg-ens-signal-success-600 [&>span]:size-[17px] [&>span]:data-[state=checked]:translate-x-5',
+          (disabled || primaryDisabled) && 'cursor-not-allowed opacity-60',
+        )}
         disabled={disabled || primaryDisabled}
-        label={`Pin ${method.label} as a primary contact method`}
         onCheckedChange={(checked) => onPrimaryChange(method, checked)}
       />
     </div>

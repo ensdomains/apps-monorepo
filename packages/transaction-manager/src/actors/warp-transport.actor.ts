@@ -46,8 +46,7 @@ export function submitWarpTransaction(
     )
   }
 
-  const { calls, sponsored, tokenRequests, useSession } =
-    request.rhinestoneParams
+  const { calls, sponsored, tokenRequests } = request.rhinestoneParams
 
   if (!calls || calls.length === 0) {
     return errAsync(
@@ -66,7 +65,7 @@ export function submitWarpTransaction(
         request,
         new Error(
           'Warp transport requires a RhinestoneAccount but received a different client type. ' +
-            'Check that the Rhinestone provider is active (VITE_FF_RHINESTONE_SESSIONS=true)',
+            'Check that the Rhinestone HCA provider is active.',
         ),
       ),
     )
@@ -98,32 +97,10 @@ export function submitWarpTransaction(
       logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
       logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
-      // When isSessionClient is false, we're not using sessions —
-      // skip session signers (applies to local mockestrator which
-      // doesn't support sessions, and to any non-session flow).
-      //
-      // A caller can also explicitly opt out per-request via
-      // `rhinestoneParams.useSession = false` — used for calls whose
-      // (target, selector) is not in the active session's action
-      // allowlist (e.g. dedicated-resolver record writes from the
-      // registration-scoped session). Omitting `signers` makes the SDK
-      // fall back to the SCA's default validator, which prompts an EOA
-      // owner signature instead of going through SmartSession.
-      const sessionAllowedByRequest = useSession !== false
-      const sessionSigners =
-        config.isSessionClient && sessionAllowedByRequest
-          ? config.sessionConfig?.signers
-          : undefined
-      if (sessionSigners) {
-        logger.debug(
-          '📤 [WARP] Using experimental_session signers from sessionConfig',
-        )
-      } else if (config.isSessionClient && !sessionAllowedByRequest) {
-        logger.debug(
-          '📤 [WARP] Session client present but request opted out of session signers — falling back to SCA default validator',
-        )
-      }
-
+      // HCA accounts are session-less: every Intent is authorized by the
+      // account's ENS owner (the connected wallet held inside `account`)
+      // and gas-sponsored by Warp relayers. We never pass session
+      // `signers` — the SDK uses the account's owner validator.
       const sdkParams = {
         sourceChains: [chain],
         targetChain: chain,
@@ -135,7 +112,6 @@ export function submitWarpTransaction(
         // not assignable from TokenRequest[], but semantically equivalent here.
         tokenRequests: (tokenRequests ?? []) as TokenRequest[] &
           Transaction['tokenRequests'],
-        ...(sessionSigners ? { signers: sessionSigners } : {}),
       } satisfies Transaction
 
       logger.debug(
