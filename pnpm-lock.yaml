@@ -10,10 +10,10 @@ catalogs:
       specifier: ^1.33.1
       version: 1.33.1
     '@ensdomains/ensjs':
-      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d
+      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd
       version: 5.0.0-alpha.1
     '@ensdomains/ensjs-abi':
-      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d
+      specifier: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd
       version: 5.0.0-alpha.1
     '@typescript/native-preview':
       specifier: 7.0.0-dev.20260421.2
@@ -139,10 +139,17 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@ensdomains/ensjs-abi':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       '@getpara/evm-wallet-connectors':
         specifier: 2.12.0
         version: 2.12.0(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(aws4fetch@1.0.20)(bufferutil@4.0.9)(immer@10.2.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)(utf-8-validate@5.0.10)(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))(wagmi@3.1.0(@metamask/sdk@0.33.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.5))(@types/react@19.2.7)(immer@10.2.0)(react@19.2.5)(typescript@6.0.3)(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)))(zod@4.1.13)
@@ -434,10 +441,17 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@ensdomains/ensjs-abi':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       '@ensdomains/locales':
         specifier: workspace:^
         version: link:../../packages/locales
@@ -663,10 +677,17 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@ensdomains/ensjs-abi':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       '@ensdomains/headless-web3-provider':
         specifier: ^1.0.8
         version: 1.0.8(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -691,7 +712,11 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       '@urql/core':
         specifier: ^6.0.1
         version: 6.0.1(graphql@16.12.0)
@@ -731,7 +756,11 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       viem:
         specifier: ^2.40.3
         version: 2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
@@ -777,7 +806,11 @@ importers:
         version: link:../transaction-manager
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       '@rhinestone/sdk':
         specifier: 1.7.0
         version: 1.7.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -805,10 +838,17 @@ importers:
         version: 1.1.4
       '@ensdomains/ensjs':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@ensdomains/ensjs-abi':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       '@rhinestone/module-sdk':
         specifier: ^0.4.0
         version: 0.4.0(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
@@ -879,7 +919,11 @@ importers:
         version: link:../../packages/utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
+<<<<<<< HEAD
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+=======
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       '@hono/valibot-validator':
         specifier: ^0.5.3
         version: 0.5.3(hono@4.12.18)(valibot@1.2.0(typescript@6.0.3))
@@ -1435,6 +1479,20 @@ packages:
   '@ensdomains/content-hash@3.1.0-rc.1':
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
+<<<<<<< HEAD
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd}
+    version: 5.0.0-alpha.1
+    engines: {node: '>=22'}
+
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fdac025b9c530c6e3320b7db9c3dc940175':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fdac025b9c530c6e3320b7db9c3dc940175}
+    version: 5.0.0-alpha.1
+    engines: {node: '>=22'}
+
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd':
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd}
+=======
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d':
     resolution: {integrity: sha512-ct8g8vFCWZ8vRsbZoXEcx2p9LWRHkypLaBMRArl2Mev/xHL2ib3F9Sex5bD7JC/Vo9JwJcGUoG8/XcI2VnFylA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d}
     version: 5.0.0-alpha.1
@@ -1447,6 +1505,7 @@ packages:
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d':
     resolution: {integrity: sha512-Ytde7pGHW82fGm/11SPHckLut3KDmgcD2vCl1aAFqLB/dVprRmCijLvpFxqfgIVx5+LZp++JOu8A4RBfMegbzQ==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d}
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:
@@ -10247,16 +10306,28 @@ snapshots:
       '@noble/curves': 1.9.7
       '@scure/base': 1.2.6
 
+<<<<<<< HEAD
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fd': {}
+
+  '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fdac025b9c530c6e3320b7db9c3dc940175': {}
+
+  '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@8da97fd(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+=======
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d': {}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d430b191fe79758c2f2d2ce88f074cc139': {}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d8a0f6d(viem@2.48.8(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 1.1.1
       '@ensdomains/content-hash': 3.1.0-rc.1
+<<<<<<< HEAD
+      '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@8da97fdac025b9c530c6e3320b7db9c3dc940175
+=======
       '@ensdomains/ensjs-abi': https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d8a0f6d430b191fe79758c2f2d2ce88f074cc139
+>>>>>>> 80777a5760597c471630de5b8b7d54b3496a6eee
       dns-packet: 5.6.1
       graphql: 16.12.0
       graphql-request: 7.2.0(graphql@16.12.0)
