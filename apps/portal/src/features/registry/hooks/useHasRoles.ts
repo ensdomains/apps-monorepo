@@ -49,7 +49,7 @@ type GetHasRolesParameters =
 const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
   const client = yield* safeGetClient()
 
-  const result = yield* await fromPromise(
+  const result = yield* fromPromise(
     ensjsHasRoles(client, params as EnsjsHasRolesParameters),
     (e) => new HasRolesError({ cause: e }),
   )

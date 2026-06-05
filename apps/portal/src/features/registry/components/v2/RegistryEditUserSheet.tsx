@@ -54,7 +54,7 @@ export const RegistryEditUserSheet = ({
     address: account ?? undefined,
   })
   const titleLabel = account
-    ? (primaryName ?? truncateAddress(account, 6, 4, '...'))
+    ? (primaryName ?? truncateAddress(account, 6, 4))
     : 'Edit user'
 
   const { data: rolesData } = useQuery({

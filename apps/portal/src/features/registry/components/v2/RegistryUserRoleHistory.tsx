@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
-import type { Address, Hash } from 'viem'
+import { type Address, type Hash, zeroAddress } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
@@ -38,7 +38,7 @@ export const RegistryUserRoleHistory = ({
   const { data, isLoading, error } = useQuery({
     ...getRegistryRoleHistoryForAccountQueryOptions({
       registryAddress,
-      account: account ?? (`0x${'0'.repeat(40)}` as Address),
+      account: account ?? zeroAddress,
     }),
     enabled: Boolean(account),
   })
@@ -108,9 +108,7 @@ export const RegistryUserRoleHistory = ({
       {error && (
         <p className="text-sm text-danger-text">
           Failed to load history
-          {(error as { cause?: { message?: string } }).cause?.message
-            ? `: ${(error as { cause?: { message?: string } }).cause?.message}`
-            : ''}
+          {error.cause?.message ? `: ${error.cause.message}` : ''}
         </p>
       )}
       {!isLoading && !error && rows.length === 0 && (
