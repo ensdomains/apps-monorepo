@@ -53,7 +53,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@rainbow-me/rainbowkit": "^2.2.8",
-    "@rhinestone/sdk": "1.6.4",
+    "@rhinestone/sdk": "1.7.0",
     "@tailwindcss/vite": "^4.2.4",
     "@tanstack/react-form": "^1.23.5",
     "@tanstack/react-hotkeys": "^0.4.1",

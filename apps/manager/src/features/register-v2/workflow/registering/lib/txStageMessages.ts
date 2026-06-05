@@ -67,7 +67,7 @@ export const getRegistrationStageMessages = (
       stageDescription: msg`Waiting for the commitment confirmation`,
     }))
     .with({ stage: 'fetchingCommitmentAge' }, () => ({
-      stageLabel: msg`Checking commitment cooldown`,
+      stageLabel: msg`Reading commitment window`,
       stageDescription: msg`Reading the commit-reveal window from the registrar`,
     }))
     .with({ stage: 'commitmentCooldown' }, () => ({

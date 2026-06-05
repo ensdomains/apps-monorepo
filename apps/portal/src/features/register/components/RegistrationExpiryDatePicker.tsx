@@ -42,10 +42,14 @@ export const RegistrationExpiryDatePicker = ({
   const maxDateForCalendar = plainDateToDate(maxDate)
 
   const handleSelect = (d: Date | undefined) => {
-    if (d) {
-      onDateChange(dateToPlainDate(d))
+    if (!d) return
+    const picked = dateToPlainDate(d)
+    if (Temporal.PlainDate.compare(picked, date) === 0) {
       setIsOpen(false)
+      return
     }
+    onDateChange(picked)
+    setIsOpen(false)
   }
 
   const handlePresetSelect = (spanValue: number) => {

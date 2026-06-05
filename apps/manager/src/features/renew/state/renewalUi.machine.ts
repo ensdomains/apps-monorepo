@@ -6,6 +6,7 @@ import {
 import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
 import {
   createTransactionRequest,
+  ensureHcaDeployedActor,
   getSignerAddress,
   pollTransactionStatusActor,
   submitApprovalActor,
@@ -152,6 +153,10 @@ export const renewalUiMachine = setup({
     tags: '' as 'renewing',
   },
   actors: {
+    ensureHcaDeployed: fromResultAsync(
+      (input: Parameters<typeof ensureHcaDeployedActor>[0]) =>
+        ensureHcaDeployedActor(input),
+    ),
     submitTokenApproval: fromResultAsync(
       (input: Parameters<typeof submitApprovalActor>[0]) =>
         submitApprovalActor(input),
@@ -266,10 +271,31 @@ export const renewalUiMachine = setup({
               target: 'duration',
             },
             'renewal.start': {
-              target: '#renewalUi.submittingTokenApproval',
+              target: '#renewalUi.ensuringHcaDeployed',
               actions: 'startRenewal',
             },
           },
+        },
+      },
+    },
+    ensuringHcaDeployed: {
+      tags: 'renewing',
+      invoke: {
+        src: 'ensureHcaDeployed',
+        input: ({ context }) => ({
+          signer: context.submissionData!.signer,
+        }),
+        onDone: {
+          target: 'submittingTokenApproval',
+        },
+        onError: {
+          target: 'failure',
+          actions: assign({
+            lastErrorMessage: ({ event }) =>
+              event.error instanceof Error
+                ? event.error.message
+                : 'Smart account deployment failed',
+          }),
         },
       },
     },
@@ -393,7 +419,7 @@ export const renewalUiMachine = setup({
     failure: {
       on: {
         retry: {
-          target: 'submittingTokenApproval',
+          target: 'ensuringHcaDeployed',
           actions: 'clearFailure',
         },
         cancel: {

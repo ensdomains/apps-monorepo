@@ -22,6 +22,10 @@ const mockStartDate = (() => {
 
 const mockNowPoint = pointAtDate(new Date(), mockStartDate)
 
+// Initial black-dot selection: ~3 days past `now`.
+const INITIAL_SELECTED_POINT =
+  mockNowPoint + Math.floor(PREMIUM_RES_PER_DAY * 3)
+
 type SimulationSettings = {
   enabled: boolean
   intervalMs: number
@@ -37,12 +41,7 @@ const DEFAULT_SIMULATION: SimulationSettings = {
 }
 
 function TemporaryPremiumDebugPlayground() {
-  const initialSelectedPoint = useMemo(
-    () => mockNowPoint + Math.floor(PREMIUM_RES_PER_DAY * 3),
-    [],
-  )
-
-  const [selectedPoint, setSelectedPoint] = useState(initialSelectedPoint)
+  const [selectedPoint, setSelectedPoint] = useState(INITIAL_SELECTED_POINT)
   const [priceInput, setPriceInput] = useState('')
   // Toggle the mobile "labels below the chart" layout. Off = desktop on-chart
   // pills (the default / production desktop behaviour); on = mobile/compact
@@ -73,7 +72,7 @@ function TemporaryPremiumDebugPlayground() {
 
   const restartSimulation = () => {
     setSimulationKey((value) => value + 1)
-    setSelectedPoint(initialSelectedPoint)
+    setSelectedPoint(INITIAL_SELECTED_POINT)
     setPriceInput('')
   }
 
@@ -238,6 +237,12 @@ type Story = StoryObj<typeof meta>
 /** Interactive demo matching ens_premium_chart_final.html */
 export const DebugPlayground: Story = {}
 
+// ~$90M "now" near the top of the $100M curve; selected/user value at ~$20M —
+// a wide "millions" label, good for testing the edge clamping below the chart.
+const HIGH_NOW_POINT = pointAtPrice(90_000_000)
+const HIGH_NOW_SELECTED_POINT = pointAtPrice(20_000_000)
+const HIGH_NOW_START_DATE = new Date()
+
 /**
  * High premium range in the labels-below layout: ~$90M "now" near the top of
  * the $100M curve, with the user-selected value at ~$20M. Use this to verify
@@ -245,23 +250,17 @@ export const DebugPlayground: Story = {}
  * stay clamped within the chart edges (don't spill off left/right).
  */
 function HighNowLabelsBelowDemo() {
-  // ~$90M "now" near the top; selected/user value at ~$20M (a wide millions
-  // label, good for testing the edge clamping below the chart).
-  const nowPoint = useMemo(() => pointAtPrice(90_000_000), [])
-  const [selectedPoint, setSelectedPoint] = useState(() =>
-    pointAtPrice(20_000_000),
-  )
-  const startDate = useMemo(() => new Date(), [])
+  const [selectedPoint, setSelectedPoint] = useState(HIGH_NOW_SELECTED_POINT)
 
   return (
     <div className="mx-auto w-full max-w-md p-6">
       <TemporaryPremiumChart
         height={240}
-        nowPoint={nowPoint}
+        nowPoint={HIGH_NOW_POINT}
         onSelect={setSelectedPoint}
         selectedLabelBelow
         selectedPoint={selectedPoint}
-        startDate={startDate}
+        startDate={HIGH_NOW_START_DATE}
         tweenNowPrice={false}
       />
     </div>

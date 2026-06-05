@@ -27,14 +27,8 @@
     "editor.formatOnSave": true
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.defaultFormatter": "biomejs.biome",
     "editor.formatOnSave": true
   },
-  "tailwindCSS.classFunctions": [
-    "cva",
-    "clsx",
-    "cn",
-    "tw",
-    "twm"
-  ],
+  "tailwindCSS.classFunctions": ["cva", "clsx", "cn", "tw", "twm"],
 }

@@ -25,31 +25,19 @@ export const DurationPresetRow = ({
   data,
   isSelected,
   price,
-  basePrice,
   onSelect,
 }: {
   data: DurationPresetData
   isLoading: boolean
-  /** Fallback when `basePrice` isn't provided (renew + non-cooldown). */
   price: number | undefined
-  /**
-   * Base registration cost (no cooldown premium). Drives both the displayed
-   * total and the `/year` badge. The one-time cooldown is shown once in the
-   * cart, not folded into every preset.
-   */
-  basePrice?: number | undefined
   isSelected: boolean
   onSelect: () => void
 }) => {
   const { _ } = useLingui()
 
-  const yearlyPriceSource = basePrice ?? price
-  const yearlyPrice =
-    yearlyPriceSource === undefined
-      ? undefined
-      : yearlyPriceSource / (data.duration / SECONDS_IN_YEAR)
-
-  const displayedAmount = basePrice ?? price
+  const yearlyPrice = price
+    ? price / (data.duration / SECONDS_IN_YEAR)
+    : undefined
 
   return (
     <button
@@ -86,10 +74,10 @@ export const DurationPresetRow = ({
 
         <div className="ml-auto flex items-baseline gap-1 md:gap-1.5">
           <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
-            {displayedAmount === undefined ? (
-              <span className="animate-pulse">$...</span>
+            {price ? (
+              formatUsd(price)
             ) : (
-              formatUsd(displayedAmount)
+              <span className="animate-pulse">$...</span>
             )}
           </span>
           <span className="font-normal text-[#A0A4A6] text-xs leading-none tracking-tight md:text-base">

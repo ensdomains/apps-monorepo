@@ -15,6 +15,11 @@ import {
 const TARGET_MATCH_TOLERANCE_USD = 1
 
 function parseTargetPriceInput(raw: string): number | null {
+  // The input is populated by `formatPriceForInput`, which formats as en-US
+  // ("7,680,717.20"): comma = thousands separator, period = decimal. We strip
+  // the grouping commas before parsing. This is paired with that en-US
+  // formatter — if the input is ever localized to a comma-decimal locale, this
+  // parser must localize too.
   const parsed = Number.parseFloat(raw.replace(/,/g, ''))
   if (!Number.isFinite(parsed) || parsed < 0) return null
   return parsed

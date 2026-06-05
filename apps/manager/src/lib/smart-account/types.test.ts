@@ -29,8 +29,6 @@ const createRhinestoneState = (
   type: 'rhinestone',
   client: null,
   config: null,
-  session: null,
-  isSessionClient: false,
   isAccountReady: false,
   ...overrides,
 })
@@ -56,32 +54,6 @@ describe('isRhinestoneAccount', () => {
       expect(rhinestoneState.type).toBe('rhinestone')
       expect(rhinestoneState.client).toBeDefined()
       expect(rhinestoneState.config?.rhinestoneApiKey).toBe('test-key')
-    }
-  })
-
-  it('correctly identifies Rhinestone account with session', () => {
-    const session = {
-      id: 'session-123',
-      provider: 'rhinestone' as const,
-      sessionKeyAddress: '0xSessionKey' as const,
-      smartAccountAddress: '0xSmartAccount' as const,
-      ownerAddress: '0xOwner' as const,
-      createdAt: Date.now(),
-      chainId: 11155111,
-      sessionPrivateKey: '0xprivatekey' as const,
-      sessionConfig: '{}',
-      enableSignature: '0xenable' as const,
-      hashesAndChainIds: '[]',
-    }
-
-    const rhinestoneState = createRhinestoneState({
-      session,
-      isSessionClient: true,
-    })
-
-    expect(isRhinestoneAccount(rhinestoneState)).toBe(true)
-    if (isRhinestoneAccount(rhinestoneState)) {
-      expect(rhinestoneState.session).toEqual(session)
     }
   })
 })
