@@ -20,11 +20,18 @@ import {
   keccak256,
   maxUint256,
   parseAbi,
+  parseSignature,
   stringToBytes,
   toHex,
   zeroAddress,
 } from 'viem'
-import { getBlock, multicall, readContract } from 'viem/actions'
+import {
+  getBlock,
+  getEip712Domain,
+  multicall,
+  readContract,
+  signTypedData,
+} from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
@@ -168,6 +175,55 @@ function encodeTokenApprovalData(registrarAddress: Address): Hash {
     abi: erc20Abi,
     functionName: 'approve',
     args: [registrarAddress, maxUint256],
+  })
+}
+
+/**
+ * EIP-2612 permit interface. This is a standard ERC-20 extension, so the ABI is
+ * identical regardless of the token implementation: `nonces`/`name` are read to
+ * build the EIP-712 domain + message, and `permit` is the call that consumes
+ * the owner's off-chain signature to set an allowance with no owner-sent tx.
+ */
+const erc2612Snippet = parseAbi([
+  'function nonces(address owner) view returns (uint256)',
+  'function name() view returns (string)',
+  'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
+])
+
+/**
+ * A signed EIP-2612 permit, ready to be encoded into a `permit(...)` call.
+ */
+export type PermitSignature = {
+  owner: Address
+  spender: Address
+  value: bigint
+  deadline: bigint
+  v: number
+  r: Hex
+  s: Hex
+}
+
+// Validity window for a permit signature. Comfortably covers the commitment
+// cooldown (~60s) plus relayer latency. Permits are single-use (nonce-bound),
+// so a generous deadline is not a replay risk.
+const PERMIT_DEADLINE_SECONDS = 60 * 60
+
+/**
+ * Encode an EIP-2612 `permit` call from a signed permit.
+ */
+function encodePermitData(permit: PermitSignature): Hex {
+  return encodeFunctionData({
+    abi: erc2612Snippet,
+    functionName: 'permit',
+    args: [
+      permit.owner,
+      permit.spender,
+      permit.value,
+      permit.deadline,
+      permit.v,
+      permit.r,
+      permit.s,
+    ],
   })
 }
 
@@ -833,12 +889,147 @@ export function submitRegistrationActor(input: {
 }
 
 /**
- * Submit approve + register as a single batched Rhinestone intent.
- * Only valid for rhinestone signers — the two calls execute atomically in order,
- * so the allowance set by approve is visible to register in the same tx.
+ * Produce an EIP-2612 permit signature authorizing the registrar to pull the
+ * payment token from the name owner (the EOA).
+ *
+ * This is an OFF-CHAIN signature (gasless): the EOA never sends a transaction.
+ * The on-chain `permit` call is executed later inside the sponsored Warp bundle
+ * (see {@link submitPermitAndRegistrationActor}), so the owner needs no native
+ * ETH. `permit` validates the signature against `owner` rather than
+ * `msg.sender`, so the HCA can carry the EOA's permit in a sponsored intent and
+ * it still sets `allowance[EOA][registrar]`.
  */
-export function submitApprovalAndRegistrationActor(input: {
-  tokenPrice: bigint
+export function signPermitActor(input: {
+  owner: Address
+  selectedToken: 'USDC' | 'DAI'
+  value: bigint
+  approvalSigner: import('../..').Signer
+  publicClient: PublicClient
+}): ResultAsync<PermitSignature, Error> {
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+
+  // Permit signatures are an EOA capability — the rhinestone HCA can't produce
+  // one. The name owner is always the EOA, so an EOA `approvalSigner` is
+  // required here.
+  if (input.approvalSigner.type !== 'eoa') {
+    return errAsync(
+      new Error('Permit signing requires an EOA signer (the name owner).'),
+    )
+  }
+
+  const walletClient = input.approvalSigner.walletClient
+  const account = walletClient.account
+  if (!account) {
+    return errAsync(new Error('EOA wallet client has no account connected'))
+  }
+  if (!isAddressEqual(account.address, input.owner)) {
+    return errAsync(
+      new Error(
+        `Permit signer ${account.address} does not match the token owner ${input.owner}`,
+      ),
+    )
+  }
+
+  return fromPromise(
+    (async () => {
+      const chainId = input.publicClient.chain?.id ?? sepolia.id
+
+      const nonce = (await readContract(input.publicClient, {
+        address: tokenAddress,
+        abi: erc2612Snippet,
+        functionName: 'nonces',
+        args: [input.owner],
+      })) as bigint
+
+      // Resolve the EIP-712 domain. Prefer ERC-5267 `eip712Domain()` (exact
+      // name + version straight from the token); fall back to `name()` with
+      // version "1" (the OpenZeppelin ERC20Permit default) for tokens that
+      // don't implement ERC-5267.
+      let domain: {
+        name: string
+        version: string
+        chainId: number
+        verifyingContract: Address
+      }
+      try {
+        const resolved = await getEip712Domain(input.publicClient, {
+          address: tokenAddress,
+        })
+        domain = {
+          name: resolved.domain.name ?? '',
+          version: resolved.domain.version ?? '1',
+          chainId: Number(resolved.domain.chainId ?? chainId),
+          verifyingContract:
+            (resolved.domain.verifyingContract as Address) ?? tokenAddress,
+        }
+      } catch {
+        const name = (await readContract(input.publicClient, {
+          address: tokenAddress,
+          abi: erc2612Snippet,
+          functionName: 'name',
+        })) as string
+        domain = {
+          name,
+          version: '1',
+          chainId,
+          verifyingContract: tokenAddress,
+        }
+      }
+
+      const deadline = BigInt(
+        Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS,
+      )
+
+      const signature = await signTypedData(walletClient, {
+        account,
+        domain,
+        types: {
+          Permit: [
+            { name: 'owner', type: 'address' },
+            { name: 'spender', type: 'address' },
+            { name: 'value', type: 'uint256' },
+            { name: 'nonce', type: 'uint256' },
+            { name: 'deadline', type: 'uint256' },
+          ],
+        },
+        primaryType: 'Permit',
+        message: {
+          owner: input.owner,
+          spender: registrarAddress,
+          value: input.value,
+          nonce,
+          deadline,
+        },
+      })
+
+      const { r, s, v, yParity } = parseSignature(signature)
+
+      return {
+        owner: input.owner,
+        spender: registrarAddress,
+        value: input.value,
+        deadline,
+        v: Number(v ?? BigInt(yParity + 27)),
+        r,
+        s,
+      } satisfies PermitSignature
+    })(),
+    (error) => {
+      console.error('❌ [REGISTRATION ACTOR] Permit signing failed:', error)
+      return error instanceof Error ? error : new Error(String(error))
+    },
+  )
+}
+
+/**
+ * Submit permit + register as a single batched, Warp-sponsored Rhinestone
+ * intent. Only valid for rhinestone signers — the two calls execute atomically
+ * in order, so the allowance set by `permit` is visible to `register` in the
+ * same tx. The EOA paid no gas and sent no tx; it only signed the permit.
+ */
+export function submitPermitAndRegistrationActor(input: {
+  permit: PermitSignature
   selectedToken: 'USDC' | 'DAI'
   name: string
   commitment: CommitmentData
@@ -848,6 +1039,7 @@ export function submitApprovalAndRegistrationActor(input: {
   publicClient: PublicClient
   sponsored?: boolean
   resolverAddress: Address
+  id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
@@ -864,7 +1056,7 @@ export function submitApprovalAndRegistrationActor(input: {
         normalizedPaymentToken,
       )
 
-      const approvalData = encodeTokenApprovalData(registrarAddress)
+      const permitData = encodePermitData(input.permit)
 
       const registrationData = encodeRegistrationData(
         input.name,
@@ -883,7 +1075,7 @@ export function submitApprovalAndRegistrationActor(input: {
         value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
-          { to: normalizedPaymentToken, data: approvalData, value: 0n },
+          { to: normalizedPaymentToken, data: permitData, value: 0n },
           { to: registrarAddress, data: registrationData, value: 0n },
         ],
         sponsored: input.sponsored ?? true,
@@ -893,7 +1085,8 @@ export function submitApprovalAndRegistrationActor(input: {
         { type: 'custom', request },
         input.signer,
         {
-          description: `Approve ${input.selectedToken} and register ${input.name}.eth`,
+          id: input.id,
+          description: `Register ${input.name}.eth`,
           publicClient: input.publicClient,
           timeout: 120_000,
         },

@@ -271,20 +271,20 @@ msgstr ""
 msgid "Approve in your wallet"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+msgid "Approve payment"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
 msgid "Approving payment token"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
 msgid "Approving the payment token"
-msgstr ""
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
-msgid "Approving the token and registering your name"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:286
@@ -309,6 +309,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:85
 msgid "Authorizing payment"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:91
+msgid "Authorizing payment and registering your name"
 msgstr ""
 
 #: src/features/auto-renewal/components/index.tsx:81
@@ -471,7 +475,7 @@ msgid "Checking wallet connection..."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:83
-msgid "Checking whether an approval transaction is needed"
+msgid "Checking whether a payment approval is needed"
 msgstr ""
 
 #: src/features/profile/components/sections/ThemeSection.tsx:25
@@ -580,7 +584,7 @@ msgstr ""
 msgid "Confirming commitment"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
 msgid "Confirming the name is now owned by your account"
 msgstr ""
 
@@ -1772,8 +1776,8 @@ msgstr ""
 msgid "Registering for"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
 msgid "Registration complete"
 msgstr ""
 
@@ -1788,8 +1792,8 @@ msgstr ""
 msgid "Registration Details"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:128
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:129
 msgid "Registration failed"
 msgstr ""
 
@@ -1803,8 +1807,8 @@ msgstr ""
 msgid "Registration Fee"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:128
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:129
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:132
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:133
 msgid "Registration in progress"
 msgstr ""
 
@@ -2192,6 +2196,10 @@ msgstr ""
 msgid "Sign Message"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
+msgid "Sign the gasless payment approval in your wallet"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx:144
 #: src/features/wallet/components/BackendAuthModal.tsx:95
 msgid "Signing in..."
@@ -2253,7 +2261,7 @@ msgstr ""
 msgid "Starter"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:90
 msgid "Submitting approval and registration"
 msgstr ""
 
@@ -2261,11 +2269,11 @@ msgstr ""
 msgid "Submitting commitment transaction"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:92
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
 msgid "Submitting registration bundle"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
 msgid "Submitting registration transaction"
 msgstr ""
 
@@ -2277,7 +2285,7 @@ msgstr ""
 msgid "Submitting the commitment transaction"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
 msgid "Submitting the registration transaction"
 msgstr ""
 
@@ -2587,7 +2595,7 @@ msgstr ""
 msgid "Verifying Email..."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
 msgid "Verifying registration on-chain"
 msgstr ""
 
@@ -2604,7 +2612,7 @@ msgstr "Visa profil"
 msgid "Waiting for approval"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
 msgid "Waiting for approval confirmation"
 msgstr ""
 
@@ -2632,8 +2640,8 @@ msgstr ""
 msgid "Waiting for registration"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
 msgid "Waiting for registration confirmation"
 msgstr ""
 
@@ -2657,7 +2665,7 @@ msgstr ""
 msgid "Waiting for signature..."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
 msgid "Waiting for the approval confirmation"
 msgstr ""
 
@@ -2665,11 +2673,11 @@ msgstr ""
 msgid "Waiting for the commitment confirmation"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
 msgid "Waiting for the registration confirmation"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:97
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Waiting for the registration transaction"
 msgstr ""
 

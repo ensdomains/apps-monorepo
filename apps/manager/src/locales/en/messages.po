@@ -266,21 +266,21 @@ msgstr "Approval allows registrar to charge"
 msgid "Approve in your wallet"
 msgstr "Approve in your wallet"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+msgid "Approve payment"
+msgstr "Approve payment"
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
 msgstr "Approving"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
 msgid "Approving payment token"
 msgstr "Approving payment token"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
-msgid "Approving the token and registering your name"
-msgstr "Approving the token and registering your name"
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:286
 msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
@@ -305,6 +305,10 @@ msgstr "Auth address:"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:85
 msgid "Authorizing payment"
 msgstr "Authorizing payment"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:91
+msgid "Authorizing payment and registering your name"
+msgstr "Authorizing payment and registering your name"
 
 #: src/features/auto-renewal/components/index.tsx:81
 msgid "Autorenews on"
@@ -466,8 +470,8 @@ msgid "Checking wallet connection..."
 msgstr "Checking wallet connection..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:83
-msgid "Checking whether an approval transaction is needed"
-msgstr "Checking whether an approval transaction is needed"
+msgid "Checking whether a payment approval is needed"
+msgstr "Checking whether a payment approval is needed"
 
 #: src/features/profile/components/sections/ThemeSection.tsx:25
 msgid "Choose a color for your profile"
@@ -575,7 +579,7 @@ msgstr "Confirming approval"
 msgid "Confirming commitment"
 msgstr "Confirming commitment"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
 msgid "Confirming the name is now owned by your account"
 msgstr "Confirming the name is now owned by your account"
 
@@ -1767,8 +1771,8 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
 msgid "Registration complete"
 msgstr "Registration complete"
 
@@ -1783,8 +1787,8 @@ msgstr "Registration Complete!"
 msgid "Registration Details"
 msgstr "Registration Details"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:128
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:129
 msgid "Registration failed"
 msgstr "Registration failed"
 
@@ -1798,8 +1802,8 @@ msgstr "Registration Failed"
 msgid "Registration Fee"
 msgstr "Registration Fee"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:128
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:129
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:132
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:133
 msgid "Registration in progress"
 msgstr "Registration in progress"
 
@@ -2187,6 +2191,10 @@ msgstr "Sign in with your wallet to enable backend features, including notificat
 msgid "Sign Message"
 msgstr "Sign Message"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
+msgid "Sign the gasless payment approval in your wallet"
+msgstr "Sign the gasless payment approval in your wallet"
+
 #: src/features/notifications/RequireBackendAuth.tsx:144
 #: src/features/wallet/components/BackendAuthModal.tsx:95
 msgid "Signing in..."
@@ -2248,7 +2256,7 @@ msgstr "Start typing to check if your perfect name is available"
 msgid "Starter"
 msgstr "Starter"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:90
 msgid "Submitting approval and registration"
 msgstr "Submitting approval and registration"
 
@@ -2256,11 +2264,11 @@ msgstr "Submitting approval and registration"
 msgid "Submitting commitment transaction"
 msgstr "Submitting commitment transaction"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:92
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
 msgid "Submitting registration bundle"
 msgstr "Submitting registration bundle"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
 msgid "Submitting registration transaction"
 msgstr "Submitting registration transaction"
 
@@ -2272,7 +2280,7 @@ msgstr "Submitting renewal"
 msgid "Submitting the commitment transaction"
 msgstr "Submitting the commitment transaction"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
 msgid "Submitting the registration transaction"
 msgstr "Submitting the registration transaction"
 
@@ -2582,7 +2590,7 @@ msgstr "Verify your wallet"
 msgid "Verifying Email..."
 msgstr "Verifying Email..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
 
@@ -2599,7 +2607,7 @@ msgstr "View profile"
 msgid "Waiting for approval"
 msgstr "Waiting for approval"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
 msgid "Waiting for approval confirmation"
 msgstr "Waiting for approval confirmation"
 
@@ -2627,8 +2635,8 @@ msgstr "Waiting for commitment submission"
 msgid "Waiting for registration"
 msgstr "Waiting for registration"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
 msgid "Waiting for registration confirmation"
 msgstr "Waiting for registration confirmation"
 
@@ -2652,7 +2660,7 @@ msgstr "Waiting for signature"
 msgid "Waiting for signature..."
 msgstr "Waiting for signature..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
 msgid "Waiting for the approval confirmation"
 msgstr "Waiting for the approval confirmation"
 
@@ -2660,11 +2668,11 @@ msgstr "Waiting for the approval confirmation"
 msgid "Waiting for the commitment confirmation"
 msgstr "Waiting for the commitment confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
 msgid "Waiting for the registration confirmation"
 msgstr "Waiting for the registration confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:97
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Waiting for the registration transaction"
 msgstr "Waiting for the registration transaction"
 

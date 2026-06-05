@@ -192,7 +192,6 @@ export const SmartAccountContextProvider = ({
       !addressToFund ||
       isLoading ||
       balances.isLoadingBalances ||
-      balances.isLoadingApprovalGasState ||
       !isFundingIdle
     ) {
       return
@@ -204,21 +203,19 @@ export const SmartAccountContextProvider = ({
       0n,
     )
 
-    // Fund when the owner is low on stablecoins OR can't afford the one-time
-    // registrar approve (low ETH + not yet approved — see
-    // useSmartAccountBalances). The api-worker faucet mints tokens and/or drips
-    // approve-gas ETH as needed; both sides are gated so this stays idempotent.
+    // Fund when the owner is low on stablecoins. The api-worker faucet mints
+    // mock USDC/DAI as needed; gated on a low balance so this stays idempotent.
+    // (HCA gas is Warp-sponsored and the payment approval is a gasless permit,
+    // so the EOA owner never needs native ETH.)
     const needsStablecoins = totalBalance < 500n
-    if (!needsStablecoins && !balances.needsApprovalGasTopUp) return
+    if (!needsStablecoins) return
 
     fundWallet(addressToFund)
   }, [
     addressToFund,
     isLoading,
     balances.isLoadingBalances,
-    balances.isLoadingApprovalGasState,
     balances.stablecoinBalances,
-    balances.needsApprovalGasTopUp,
     isFundingIdle,
     fundWallet,
   ])

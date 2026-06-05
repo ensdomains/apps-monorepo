@@ -15,6 +15,7 @@ export const REGISTRATION_STAGE_PROGRESS = {
   commitmentCooldown: 44,
   validatingCommitment: 46,
   checkingAllowance: 50,
+  signingPermit: 52,
   approvingToken: 54,
   waitingForApproval: 62,
   registeringDomain: 77,

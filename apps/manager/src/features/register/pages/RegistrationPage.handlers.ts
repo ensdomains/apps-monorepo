@@ -4,7 +4,7 @@
  * Business logic extracted outside React components for testability.
  */
 
-import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type { registrationMachine, Signer } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountContextValue } from '@/lib/smart-account'
@@ -74,6 +74,14 @@ export function handleStartRegistration(
   // meaningful SCA/EOA split lives in registrationUi.machine.ts (v2 flow).
   const resolverOwnerAddress = ownerAddress
 
+  // EOA signer used to produce the gasless EIP-2612 permit signature for HCA
+  // flows (the registrar pulls payment from the EOA owner, so the EOA must
+  // authorize the allowance). Carried into the sponsored bundle; the EOA sends
+  // no tx. Pure-EOA flows don't need it (they use a plain on-chain `approve`).
+  const approvalSigner: Signer | undefined = account.walletClient
+    ? { type: 'eoa', walletClient: account.walletClient }
+    : undefined
+
   console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
     duration: durationInSeconds,
@@ -94,6 +102,7 @@ export function handleStartRegistration(
     token,
     price: tokenPrice,
     signer: account.signer,
+    approvalSigner, // EOA signer for the gasless permit (HCA flows)
     accountAddress: account.accountAddress,
     ownerAddress, // HCA-only: register the ENS name to the EOA
     resolverOwnerAddress, // Always the EOA — resolver EACL grantee
