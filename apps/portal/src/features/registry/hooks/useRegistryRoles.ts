@@ -31,20 +31,10 @@ type IndexerRole = {
 
 const ROLES_LIMIT = 1000
 
-const safeBigInt = (value: string): bigint | null => {
-  try {
-    return BigInt(value)
-  } catch {
-    return null
-  }
-}
-
 // ROOT_RESOURCE (0x0) = registry-wide scope. A role here applies to the whole
 // registry rather than a single name — i.e. the registry's admins/users.
-const isRootResource = (resource: string) => safeBigInt(resource) === 0n
+const isRootResource = (resource: string) => BigInt(resource) === 0n
 
-// Single page is enough for now — registries don't have more than ROLES_LIMIT
-// role assignments in practice.
 const rolesQuery = gql`
   query getRegistryRoles($address: String!) {
     registry(address: $address) {
@@ -76,14 +66,14 @@ const getRegistryRoles = ResultFn(async function* ({
   if (!registry) return ok([])
 
   // One bitmap per (resource, account); OR defensively against duplicates.
-  // Skip any row whose bitmap can't be parsed rather than failing the query.
   const bitmapByAccount = new Map<string, bigint>()
   for (const { node } of registry.roleConnection.edges) {
     if (!isRootResource(node.resource)) continue
-    const bitmap = safeBigInt(node.roleBitmap)
-    if (bitmap === null) continue
     const key = node.account.toLowerCase()
-    bitmapByAccount.set(key, (bitmapByAccount.get(key) ?? 0n) | bitmap)
+    bitmapByAccount.set(
+      key,
+      (bitmapByAccount.get(key) ?? 0n) | BigInt(node.roleBitmap),
+    )
   }
 
   const rows: RegistryRoleRow[] = Array.from(

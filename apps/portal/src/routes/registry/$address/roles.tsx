@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import type { Address } from 'viem'
@@ -6,7 +7,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
-import { useRegistry } from '@/features/registry/hooks/useRegistry'
+import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/roles')({
@@ -18,9 +19,13 @@ function RouteComponent() {
   const { address: addressParam } = Route.useParams()
   const address = addressParam as Address
 
-  const { data: registry, isLoading, error } = useRegistry(address)
+  const {
+    data: registry,
+    isLoading,
+    error,
+  } = useQuery(getRegistryQueryOptions({ address }))
 
-  if (isLoading) return <LoadingSpinner title="Loading rolegistry" />
+  if (isLoading) return <LoadingSpinner title="Loading registry" />
 
   if (error)
     return (
@@ -36,8 +41,8 @@ function RouteComponent() {
         title="Registry not found"
         description={
           <>
-            <strong>{truncateAddress(address, 6, 4, '...')}</strong> is not a
-            known registry contract.
+            <strong>{truncateAddress(address, 6, 4)}</strong> is not a known
+            registry contract.
           </>
         }
       />
