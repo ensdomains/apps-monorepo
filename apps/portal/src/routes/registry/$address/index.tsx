@@ -14,6 +14,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { SoonBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
@@ -230,6 +231,7 @@ function RouteComponent() {
             count={registry.labelCount}
             to="/registry/$address/labels"
             address={address}
+            upcoming
           />
           <RegistryNavCard
             icon={<ShieldIcon className="size-4" />}
@@ -237,6 +239,7 @@ function RouteComponent() {
             count={registry.roleCount}
             to="/registry/$address/roles"
             address={address}
+            upcoming
           />
         </div>
       </div>
@@ -252,19 +255,17 @@ const RegistryNavCard = ({
   count,
   to,
   address,
+  upcoming = false,
 }: {
   icon: React.ReactNode
   label: string
   count: number
   to: '/registry/$address/labels' | '/registry/$address/roles'
   address: Address
-}) => (
-  <Link
-    to={to}
-    params={{ address }}
-    className="no-underline flex border border-muted rounded-sm w-full"
-  >
-    <div className="flex flex-row w-full items-center justify-between gap-4 p-4 transition-colors hover:bg-accent rounded-sm">
+  upcoming?: boolean
+}) => {
+  const body = (
+    <div className="flex flex-row w-full items-center justify-between gap-4 p-4 transition-colors rounded-sm group-hover/nav:bg-accent">
       <div className="flex items-center gap-2 text-muted-foreground">
         {icon}
         <span className="text-sm font-normal text-muted-foreground">
@@ -273,11 +274,36 @@ const RegistryNavCard = ({
       </div>
       <div className="flex items-center gap-2">
         <span className="text-lg font-normal font-semi-mono">{count}</span>
-        <ChevronRight className="size-4 text-muted-foreground" />
+        {upcoming ? (
+          <SoonBadge />
+        ) : (
+          <ChevronRight className="size-4 text-muted-foreground" />
+        )}
       </div>
     </div>
-  </Link>
-)
+  )
+
+  if (upcoming) {
+    return (
+      <div
+        aria-disabled
+        className="flex border border-muted rounded-sm w-full opacity-50 cursor-not-allowed"
+      >
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <Link
+      to={to}
+      params={{ address }}
+      className="group/nav no-underline flex border border-muted rounded-sm w-full"
+    >
+      {body}
+    </Link>
+  )
+}
 
 const FailedToLoad = () => (
   <span className="inline-flex items-center gap-1 text-destructive">
