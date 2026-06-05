@@ -22,34 +22,20 @@ export function isDateWithinCalendarRange(
 }
 
 /**
- * Breaks a duration in seconds into {years, months, days} using the same
- * convention as the manager app (and the contract): 1 year = 365.25 d,
- * 1 month = year / 12. Pure seconds math, no Temporal calendar arithmetic.
- *
- * Matches manager's `secondsToDuration` so both apps format the same way.
- */
-const SECONDS_PER_MONTH = CONTRACT_SECONDS_PER_YEAR / 12
-
-const secondsToDuration = (seconds: number) => {
-  let remainder = seconds
-  const years = Math.floor(remainder / CONTRACT_SECONDS_PER_YEAR)
-  remainder -= years * CONTRACT_SECONDS_PER_YEAR
-  const months = Math.floor(remainder / SECONDS_PER_MONTH)
-  remainder -= months * SECONDS_PER_MONTH
-  const days = Math.floor(remainder / 86400)
-  return { years, months, days }
-}
-
-/**
- * Formats a duration in seconds as a human-readable string.
+ * Formats the duration from today to an expiry date as a human-readable string.
  * e.g. "1 year", "2 years 3 months", "6 months 15 days"
- *
- * Uses contract-aligned 365.25 d/y math (via `secondsToDuration`), so
- * `N × CONTRACT_SECONDS_PER_YEAR` always renders as exactly "N years" —
- * no leap-year calendar drift surfacing as "6 years 11 months 30 days".
  */
-export const formatRegistrationDuration = (durationSeconds: number): string => {
-  const { years, months, days } = secondsToDuration(durationSeconds)
+export const formatRegistrationDuration = (
+  startDate: Temporal.PlainDate,
+  expiryDate: Temporal.PlainDate,
+): string => {
+  if (Temporal.PlainDate.compare(expiryDate, startDate) <= 0) {
+    throw new Error('Expiry date must be after start date')
+  }
+
+  const { years, months, days } = startDate.until(expiryDate, {
+    largestUnit: 'years',
+  })
 
   const parts: string[] = []
   if (years > 0) parts.push(years === 1 ? '1 year' : `${years} years`)
@@ -162,7 +148,7 @@ export function getRegistrationDisplayDates(
     largestUnit: 'days',
   }).days
   return {
-    registrationPeriod: formatRegistrationDuration(durationSeconds),
+    registrationPeriod: formatRegistrationDuration(baseDate, expiryDate),
     registrationDays: Math.floor(durationSeconds / 86400),
     daysUntilExpiry,
     expiresFormatted: formatExpiryDate(expiryDate),
