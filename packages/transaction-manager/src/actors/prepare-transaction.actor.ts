@@ -185,11 +185,6 @@ function prepareETHTransfer(
                 },
               ],
               sponsored: true,
-              // Arbitrary ETH transfers are not in the registration-
-              // scoped smart-session allowlist (see
-              // build-registration-session.ts). Force EOA-owner signing
-              // via the SCA's default validator.
-              useSession: false,
             },
           }
         : {
