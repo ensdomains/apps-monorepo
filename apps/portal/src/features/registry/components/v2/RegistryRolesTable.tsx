@@ -36,7 +36,7 @@ const GreenCheck = () => (
 const UserCell = ({ account }: { account: Address }) => (
   <div className="w-32">
     <EntityBadge variant="address" address={account}>
-      {truncateAddress(account, 6, 4, '...')}
+      {truncateAddress(account, 6, 4)}
     </EntityBadge>
   </div>
 )
@@ -88,7 +88,7 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
     return (
       <ErrorMessage
         title="Failed to load roles"
-        description={error.cause?.message}
+        description={error.cause?.message ?? error.message}
       />
     )
   }
