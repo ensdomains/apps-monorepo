@@ -86,8 +86,8 @@ function RouteComponent() {
         title="Registry not found"
         description={
           <>
-            <strong>{truncateAddress(address, 6, 4, '...')}</strong> is not a
-            known registry contract.
+            <strong>{truncateAddress(address, 6, 4)}</strong> is not a known
+            registry contract.
           </>
         }
       />
@@ -124,7 +124,7 @@ function RouteComponent() {
           <dt className="text-muted-foreground">Address</dt>
           <dd>
             <EntityBadge variant="contract" address={address}>
-              {truncateAddress(address, 6, 4, '...')}
+              {truncateAddress(address, 6, 4)}
             </EntityBadge>
           </dd>
 
@@ -142,7 +142,7 @@ function RouteComponent() {
               .with({ isOwnerLoading: true }, () => (
                 <Skeleton className="h-5 w-32" />
               ))
-              .with({ ownerError: P.not(null) }, () => <DeployedLoadError />)
+              .with({ ownerError: P.not(null) }, () => <FailedToLoad />)
               .otherwise(() =>
                 deployedDate && ownerData?.owner ? (
                   <EntityBadge
@@ -152,8 +152,7 @@ function RouteComponent() {
                     name={ownerEnsName ?? undefined}
                     address={ownerData.owner}
                   >
-                    {ownerEnsName ??
-                      truncateAddress(ownerData.owner, 6, 4, '...')}
+                    {ownerEnsName ?? truncateAddress(ownerData.owner, 6, 4)}
                   </EntityBadge>
                 ) : (
                   <span>—</span>
@@ -169,7 +168,7 @@ function RouteComponent() {
               address={factoryAddress}
               className="font-normal"
             >
-              {truncateAddress(factoryAddress, 6, 4, '...')}
+              {truncateAddress(factoryAddress, 6, 4)}
             </EntityBadge>
           </dd>
 
@@ -187,12 +186,7 @@ function RouteComponent() {
               .with({ isLoadingParent: true }, () => (
                 <Skeleton className="h-5 w-32" />
               ))
-              .with({ parentError: P.not(null) }, () => (
-                <span className="inline-flex items-center gap-1 text-destructive">
-                  <TriangleAlert className="size-3.5" />
-                  Failed to load
-                </span>
-              ))
+              .with({ parentError: P.not(null) }, () => <FailedToLoad />)
               .with({ parent: { name: P.string.minLength(1) } }, (m) => (
                 <EntityBadge variant="name" name={m.parent.name} showAvatar>
                   {m.parent.name}
@@ -209,9 +203,7 @@ function RouteComponent() {
               .with({ isLoadingReferencedBy: true }, () => (
                 <Skeleton className="h-5 w-32" />
               ))
-              .with({ referencedByError: P.not(null) }, () => (
-                <ReferencedByLoadError />
-              ))
+              .with({ referencedByError: P.not(null) }, () => <FailedToLoad />)
               .otherwise(() =>
                 referencedBy && referencedBy.length > 0 ? (
                   referencedBy.map((ref) => (
@@ -287,14 +279,7 @@ const RegistryNavCard = ({
   </Link>
 )
 
-const DeployedLoadError = () => (
-  <span className="inline-flex items-center gap-1 text-destructive">
-    <TriangleAlert className="size-3.5" />
-    Failed to load
-  </span>
-)
-
-const ReferencedByLoadError = () => (
+const FailedToLoad = () => (
   <span className="inline-flex items-center gap-1 text-destructive">
     <TriangleAlert className="size-3.5" />
     Failed to load
