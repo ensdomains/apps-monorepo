@@ -6,6 +6,7 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
+import { shouldShowDeselectAll } from './selectNames.helpers'
 
 type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
@@ -30,7 +31,10 @@ export const SelectNamesStep = ({
     filteredOrphans,
     toggleName,
     toggleGroup,
+    deselectAll,
   } = useNameSelection({ eligible, isPending, onNamesChange })
+
+  const showDeselectAll = shouldShowDeselectAll(visibleCount)
 
   const handleUpgrade = useCallback(async () => {
     if (isStarting) return
@@ -169,18 +173,30 @@ export const SelectNamesStep = ({
             </p>
           )}
         </div>
-        <button
-          className="h-[46px] w-full min-w-40 overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
-          disabled={totalSelected === 0 || isPending || isStarting}
-          onClick={handleUpgrade}
-          type="button"
-        >
-          {isStarting ? (
-            <Trans>Preparing...</Trans>
-          ) : (
-            <Trans>Upgrade Names</Trans>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          {showDeselectAll && (
+            <button
+              className="h-[46px] w-full min-w-40 rounded-sm bg-ens-garnet-900/10 px-4 py-2.5 font-semi-mono text-ens-garnet-900 text-sm uppercase tracking-[1.68px] disabled:opacity-50 sm:w-[200px]"
+              disabled={totalSelected === 0 || isPending || isStarting}
+              onClick={deselectAll}
+              type="button"
+            >
+              <Trans>Deselect all</Trans>
+            </button>
           )}
-        </button>
+          <button
+            className="h-[46px] w-full min-w-40 overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
+            disabled={totalSelected === 0 || isPending || isStarting}
+            onClick={handleUpgrade}
+            type="button"
+          >
+            {isStarting ? (
+              <Trans>Preparing...</Trans>
+            ) : (
+              <Trans>Upgrade Names</Trans>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )

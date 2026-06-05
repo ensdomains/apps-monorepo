@@ -67,6 +67,14 @@ export const useNameSelection = ({
     [onNamesChange],
   )
 
+  const deselectAll = useCallback(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev
+      onNamesChange([])
+      return new Set()
+    })
+  }, [onNamesChange])
+
   return {
     search,
     setSearch,
@@ -77,5 +85,6 @@ export const useNameSelection = ({
     filteredOrphans,
     toggleName,
     toggleGroup,
+    deselectAll,
   }
 }

@@ -79,6 +79,10 @@ msgstr ""
 msgid "Date added (Oldest)"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:184
+msgid "Deselect all"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:297
 msgid "Default"
 msgstr ""

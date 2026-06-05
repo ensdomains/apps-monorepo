@@ -7,6 +7,7 @@ import {
   countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
+  shouldShowDeselectAll,
   toggleGroup,
   toggleName,
 } from './selectNames.helpers'
@@ -120,5 +121,13 @@ describe('countVisibleRows', () => {
 
   it('is zero for no input', () => {
     expect(countVisibleRows([], [])).toBe(0)
+  })
+})
+
+describe('shouldShowDeselectAll', () => {
+  it('shows the deselect all control for wallets with at least 15 names', () => {
+    expect(shouldShowDeselectAll(14)).toBe(false)
+    expect(shouldShowDeselectAll(15)).toBe(true)
+    expect(shouldShowDeselectAll(16)).toBe(true)
   })
 })
