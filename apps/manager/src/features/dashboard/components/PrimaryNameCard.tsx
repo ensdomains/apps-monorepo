@@ -8,7 +8,10 @@ import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { formatDashboardDate } from '@/features/dashboard/utils'
-import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
@@ -18,6 +21,38 @@ type PrimaryNameCardProps = {
   readonly primaryName?: string | null
   readonly avatarUrl?: string | null
   readonly themeColor?: string | null
+}
+
+const PrimaryNameNameplate = ({
+  isInGrace,
+  displayName,
+}: {
+  readonly isInGrace: boolean
+  readonly displayName: string
+}) => {
+  const isLongName = displayName.length > 10
+
+  return (
+    <div
+      className={
+        isInGrace
+          ? 'inline-flex items-center rounded-sm border border-border bg-transparent px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+          : 'inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]'
+      }
+    >
+      <span
+        className={
+          isInGrace
+            ? 'font-medium font-mono text-foreground text-xl leading-ens-none tracking-tight md:text-3xl'
+            : isLongName
+              ? 'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-tight'
+              : 'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-tight md:text-[28px]'
+        }
+      >
+        {displayName}
+      </span>
+    </div>
+  )
 }
 
 export const PrimaryNameCard = ({
@@ -37,31 +72,35 @@ export const PrimaryNameCard = ({
     ...profileExpiryQuery(primaryName ?? ''),
     enabled: !!primaryName,
   })
+  const { isInGrace, displayExpiryDate } = getProfileNameExpiryStatus(
+    reverseExpiry?.expiry,
+    true,
+  )
 
   const registeredDate =
     registration?.registrationDate != null
       ? new Date(registration.registrationDate * 1000)
       : null
-  const expiryDate =
-    reverseExpiry?.expiry != null
-      ? new Date(Number(reverseExpiry.expiry) * 1000)
-      : null
-  const hasAvatar = Boolean(avatarUrl)
+  const hasAvatar = Boolean(avatarUrl) && !isInGrace
   const displayName = primaryName ?? t`Your ENS name`
   const registeredLabel = isRegistrationLoading
     ? t`Loading...`
     : formatDashboardDate(registeredDate)
   const expiryLabel = isReverseExpiryLoading
     ? t`Loading...`
-    : formatDashboardDate(expiryDate)
+    : formatDashboardDate(displayExpiryDate)
   const canViewProfile = Boolean(primaryName)
 
   const themeVars = getThemeVars(themeColor) as React.CSSProperties
 
   return (
     <Card
-      className="flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6"
-      style={themeVars}
+      className={
+        isInGrace
+          ? 'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 opacity-70 shadow-none md:rounded-lg md:p-6'
+          : 'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6'
+      }
+      style={isInGrace ? undefined : themeVars}
     >
       <PrimaryBadge className="self-start bg-ens-lapis-tint" />
 
@@ -101,17 +140,10 @@ export const PrimaryNameCard = ({
                 className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
                 type="button"
               >
-                <span className="inline-flex items-center rounded-sm bg-(--theme-color) px-2 py-1 md:px-[8.5px] md:py-[4.25px]">
-                  <span
-                    className={
-                      displayName.length > 10
-                        ? 'font-medium font-semi-mono text-2xl text-ens-white leading-[0.96] tracking-[-0.48px]'
-                        : 'font-medium font-semi-mono text-ens-white text-xl leading-[0.96] tracking-[-0.4px] md:text-[28px] md:tracking-[-0.56px]'
-                    }
-                  >
-                    {displayName}
-                  </span>
-                </span>
+                <PrimaryNameNameplate
+                  displayName={displayName}
+                  isInGrace={isInGrace}
+                />
                 <ChevronDown
                   className="size-6 shrink-0 text-ens-quartz-400"
                   strokeWidth={2}

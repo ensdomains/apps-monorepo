@@ -67,24 +67,14 @@ export function submitRhinestoneTransaction(input: {
 
   return fromPromise(
     (async () => {
-      // Per-request opt-out: callers can set `useSession: false` to skip
-      // the active smart-session and fall back to the SCA's default
-      // validator (EOA-owner signature). Used for calls whose
-      // (target, selector) is outside the session's action allowlist.
-      const sessionAllowedByRequest =
-        rhinestoneRequest.rhinestoneParams.useSession !== false
-      const sessionSigners =
-        config.isSessionClient && sessionAllowedByRequest
-          ? config.sessionConfig?.signers
-          : undefined
-
+      // HCA accounts are session-less: every Intent is authorized by the
+      // account's ENS owner (the connected wallet held inside `account`).
+      // We never pass session `signers` — the SDK uses the account's
+      // owner validator and gas is sponsored via Warp.
       console.log('📤 Calling rhinestoneAccount transaction...', {
         chain: chain.name,
         chainId: chain.id,
         callCount: rhinestoneRequest.rhinestoneParams.calls.length,
-        isSessionClient: !!config.isSessionClient,
-        hasSessionSigners: !!sessionSigners,
-        sessionAllowedByRequest,
       })
 
       const transaction = await account.sendTransaction({
@@ -92,7 +82,6 @@ export function submitRhinestoneTransaction(input: {
         targetChain: chain,
         calls: rhinestoneRequest.rhinestoneParams.calls,
         sponsored: rhinestoneRequest.rhinestoneParams.sponsored ?? true,
-        ...(sessionSigners ? { signers: sessionSigners } : {}),
       })
       const receipt = await account.waitForExecution(transaction, false)
 

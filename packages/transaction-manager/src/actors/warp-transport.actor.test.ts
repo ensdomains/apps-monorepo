@@ -4,7 +4,7 @@
  * Tests for submitWarpTransaction — the Warp intent-based transport.
  */
 
-import type { RhinestoneAccount, SignerSet } from '@rhinestone/sdk'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, Hash, Hex } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -29,12 +29,7 @@ const MOCK_CALLS = [
   },
 ]
 
-function createMockSigner(
-  overrides: {
-    isSessionClient?: boolean
-    sessionConfig?: { signers: SignerSet }
-  } = {},
-): RhinestoneSigner {
+function createMockSigner(): RhinestoneSigner {
   return {
     type: 'rhinestone',
     account: {
@@ -51,8 +46,7 @@ function createMockSigner(
     config: {
       rhinestoneApiKey: 'test-key',
       chain: sepolia,
-      isSessionClient: overrides.isSessionClient ?? false,
-      sessionConfig: overrides.sessionConfig,
+      defaultInfra: 'warp',
     },
   }
 }
@@ -113,7 +107,7 @@ describe('submitWarpTransaction', () => {
     )
   })
 
-  it('calls sendTransaction with sourceChains, targetChain, calls, and sponsored=true', async () => {
+  it('calls sendTransaction with sourceChains, targetChain, calls, sponsored=true, and no session signers', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest()
 
@@ -124,7 +118,12 @@ describe('submitWarpTransaction', () => {
       targetChain: sepolia,
       calls: MOCK_CALLS,
       sponsored: true,
+      tokenRequests: [],
     })
+    // HCA is session-less — `signers` must never be passed.
+    expect(signer.account.sendTransaction).not.toHaveBeenCalledWith(
+      expect.objectContaining({ signers: expect.anything() }),
+    )
   })
 
   it('calls waitForExecution and returns receipt.fill.hash', async () => {
@@ -137,36 +136,6 @@ describe('submitWarpTransaction', () => {
       'mock-intent-id',
       false,
     )
-    expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
-  })
-
-  it('passes experimental_session signers to sendTransaction when sessionConfig is set', async () => {
-    const mockSigners = {
-      type: 'experimental_session',
-      session: {},
-      enableData: {
-        userSignature: '0x123',
-        hashesAndChainIds: [],
-        sessionToEnableIndex: 0,
-      },
-    } as unknown as SignerSet
-    const signer = createMockSigner({
-      isSessionClient: true,
-      sessionConfig: { signers: mockSigners },
-    })
-    const request = createRhinestoneRequest()
-
-    const result = await submitWarpTransaction({ request, signer })
-
-    expect(signer.account.sendTransaction).toHaveBeenCalledWith({
-      sourceChains: [sepolia],
-      targetChain: sepolia,
-      calls: MOCK_CALLS,
-      sponsored: true,
-      signers: mockSigners,
-    })
-    expect(signer.account.sendUserOperation).not.toHaveBeenCalled()
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
   })

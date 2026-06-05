@@ -18,6 +18,7 @@ import {
   erc20Abi,
   isAddressEqual,
   keccak256,
+  maxUint256,
   parseAbi,
   stringToBytes,
   toHex,
@@ -151,16 +152,22 @@ function encodeCommitmentData(commitment: Hash): Hash {
 }
 
 /**
- * Encode token approval transaction data
+ * Encode token approval transaction data.
+ *
+ * Infinite approve to the registrar. The ENS registrar pulls the payment
+ * token from the name owner (the EOA) on every registration, and on HCA flows
+ * that approve is a direct EOA tx (the HCA can't approve on the EOA's behalf
+ * and the mock tokens have no EIP-2612 permit, so it can't be gasless). A
+ * one-time max approve means the EOA pays approve-gas only once instead of on
+ * every registration; subsequent registrations skip the approve entirely
+ * (`checkingAllowance` sees `maxUint256 >= price`). The registrar is a trusted
+ * ENS contract.
  */
-function encodeTokenApprovalData(
-  amount: bigint,
-  registrarAddress: Address,
-): Hash {
+function encodeTokenApprovalData(registrarAddress: Address): Hash {
   return encodeFunctionData({
     abi: erc20Abi,
     functionName: 'approve',
-    args: [registrarAddress, amount * 2n],
+    args: [registrarAddress, maxUint256],
   })
 }
 
@@ -703,10 +710,7 @@ export function submitApprovalActor(input: {
         `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
       )
 
-      const approvalData = encodeTokenApprovalData(
-        input.tokenPrice,
-        registrarAddress,
-      )
+      const approvalData = encodeTokenApprovalData(registrarAddress)
 
       const request = createTransactionRequest({
         signer: input.signer,
@@ -860,10 +864,7 @@ export function submitApprovalAndRegistrationActor(input: {
         normalizedPaymentToken,
       )
 
-      const approvalData = encodeTokenApprovalData(
-        input.tokenPrice,
-        registrarAddress,
-      )
+      const approvalData = encodeTokenApprovalData(registrarAddress)
 
       const registrationData = encodeRegistrationData(
         input.name,
@@ -944,5 +945,66 @@ export function pollTransactionStatusActor(input: {
       })
     }),
     (error) => error as Error,
+  )
+}
+
+/**
+ * Ensure the HCA is deployed on-chain before routing transactions through it.
+ *
+ * For Rhinestone signers: checks `account.isDeployed(chain)` and, if the
+ * HCA is not yet on-chain, submits a sponsored Intent that runs the factory
+ * `createAccount(initData)` deploy. For EOA signers or already-deployed
+ * HCAs this is a no-op.
+ *
+ * The HCA holds no funds — gas is paid by the Warp relayer; only the owner
+ * signs the Intent mandate once. Safe to call multiple times.
+ */
+export function ensureHcaDeployedActor(input: {
+  signer: Signer
+}): ResultAsync<void, Error> {
+  if (input.signer.type !== 'rhinestone') {
+    return ResultAsync.fromSafePromise(Promise.resolve())
+  }
+
+  const { account, config } = input.signer
+  const chain = config.chain
+
+  if (!chain) {
+    return errAsync(new Error('Rhinestone signer missing chain config'))
+  }
+
+  return fromPromise(
+    (async () => {
+      if (await account.isDeployed(chain)) {
+        return
+      }
+
+      console.log(
+        '🔧 [ENSURE HCA] HCA not deployed, deploying via sponsored Intent...',
+      )
+
+      const { factory, factoryData } = account.getInitData()
+
+      const prepared = await account.prepareTransaction({
+        chain,
+        sponsored: true,
+        calls: [
+          {
+            to: factory,
+            value: 0n,
+            data: factoryData,
+          },
+        ],
+      })
+      const signed = await account.signTransaction(prepared)
+      const result = await account.submitTransaction(signed)
+      await account.waitForExecution(result)
+
+      console.log('✅ [ENSURE HCA] HCA deployed successfully')
+    })(),
+    (error) => {
+      console.error('❌ [ENSURE HCA] HCA deployment failed:', error)
+      return error instanceof Error ? error : new Error(String(error))
+    },
   )
 }

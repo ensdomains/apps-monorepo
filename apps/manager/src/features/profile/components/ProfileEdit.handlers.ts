@@ -4,17 +4,11 @@
  * Business logic extracted outside React components for testability.
  */
 
-import type {
-  primaryNameMachine,
-  resolverMachine,
-} from '@ens-apps/transaction-manager'
+import type { primaryNameMachine } from '@ens-apps/transaction-manager'
 import type { FormEvent } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { isAddress } from 'viem'
 import type { ActorRefFrom } from 'xstate'
-import type { SmartAccountContextValue } from '@/lib/smart-account'
 import type { ProfileRecordsResult } from '../service/profileRecords'
-import type { ProfileRecords } from '../types'
 
 const ETH_COIN_TYPE = 60
 
@@ -32,30 +26,6 @@ export function hasMatchingEthAddress(
   const ethAddress = getEthAddressFromRecords(records)
   if (!ethAddress) return false
   return ethAddress.toLowerCase() === walletAddress.toLowerCase()
-}
-
-export interface ProfileUpdateParams {
-  name: string
-  ownerAddress?: Address
-  resolverAddress?: Address
-  defaultValues: ProfileRecords
-  currentValues: ProfileRecords
-}
-
-export interface ProfileUpdateOptions {
-  account: SmartAccountContextValue
-  publicClient: PublicClient
-}
-
-export interface ResolverUpdateParams {
-  name: string
-  resolverInput: string
-}
-
-export interface ResolverUpdateOptions {
-  account: SmartAccountContextValue
-  resolverActor: ActorRefFrom<typeof resolverMachine>
-  publicClient: PublicClient
 }
 
 export interface PrimaryNameParams {
@@ -87,66 +57,6 @@ export function handleProfileFormSubmit(
   event.preventDefault()
   event.stopPropagation()
   onSubmit()
-}
-
-/**
- * Validates resolver input and dispatches resolver update to the machine.
- *
- * Returns an error message when validation fails so the component can display it.
- */
-export function handleResolverUpdate(
-  params: ResolverUpdateParams,
-  options: ResolverUpdateOptions,
-): string | undefined {
-  const { name, resolverInput } = params
-  const { account, resolverActor, publicClient } = options
-
-  if (!resolverInput) {
-    return 'Resolver address is required.'
-  }
-
-  if (!isAddress(resolverInput, { strict: false })) {
-    return 'Please enter a valid resolver contract address.'
-  }
-
-  if (!account.signer || !account.accountAddress) {
-    const message = 'Account not ready. Please wait for wallet to connect.'
-    console.error('❌ Smart account not connected or not initialized', {
-      accountAddress: account.accountAddress,
-      hasSigner: !!account.signer,
-      type: account.type,
-    })
-    alert(message)
-    return message
-  }
-
-  const accountAddress = (account.ownerAddress ??
-    account.accountAddress) as Address
-
-  console.log('✅ Creating START_UPDATE event for resolver:', {
-    name,
-    resolver: resolverInput,
-    accountAddress,
-    hasSigner: !!account.signer,
-    hasPublicClient: !!publicClient,
-  })
-
-  resolverActor.send({
-    type: 'START_UPDATE',
-    name,
-    resolver: resolverInput as Address,
-    signer: account.signer,
-    accountAddress,
-    publicClient,
-  })
-
-  return undefined
-}
-
-export function handleResolverCancel(
-  resolverActor: ActorRefFrom<typeof resolverMachine>,
-): void {
-  resolverActor.send({ type: 'CANCEL' })
 }
 
 /**

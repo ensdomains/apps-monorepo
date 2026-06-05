@@ -30,6 +30,15 @@ vi.mock('wagmi', async (importOriginal) => {
   }
 })
 
+// RegistryTreeItem links the contract badge to a block explorer; the hook reads
+// useChainId/useConfig (needs a WagmiProvider) and the explorer href is
+// irrelevant to these layout assertions. Stub it. Its own logic is covered by
+// the getBlockExplorer*Url tests.
+vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
+  useBlockExplorerAddressUrl: () => undefined,
+  useBlockExplorerTxUrl: () => undefined,
+}))
+
 // Stub heavy leaf components so we can render the tree in isolation and assert
 // only the concerns of the redesigned registry section (tree rows + the inline
 // configure form for the deepest, unconfigured registry).
@@ -112,9 +121,9 @@ const setRegistries = (registries: readonly (string | null)[] | undefined) => {
   nameRegistriesResult.isLoading = false
 }
 
-// truncateAddress(address, 6, 4, '...')
+// truncateAddress(address, 6, 4) — default separator is the ellipsis char '…'
 const truncated = (address: string) =>
-  `${address.slice(0, 6)}...${address.slice(-4)}`
+  `${address.slice(0, 6)}…${address.slice(-4)}`
 
 describe('V2RegistryInfo', () => {
   beforeEach(() => {

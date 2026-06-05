@@ -45,10 +45,6 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: true,
-        // ETHRegistry.setResolver is not in the registration-scoped smart-
-        // session allowlist (see build-registration-session.ts). Force the
-        // SDK to use the SCA's default validator (EOA-owner signature).
-        useSession: false,
       },
     }
   }
