@@ -1,13 +1,29 @@
 'use client'
 
+import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
-import { type Address, erc20Abi, formatUnits } from 'viem'
+import {
+  type Address,
+  erc20Abi,
+  formatUnits,
+  maxUint256,
+  parseEther,
+} from 'viem'
 import { getBalance, readContract } from 'viem/actions'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { publicClient } from '@/lib/wagmi'
 import type { EthBalance, StablecoinBalance } from './types'
+
+// Minimum owner ETH to (reliably) afford the one-time registrar `approve` at
+// elevated Sepolia gas. Mirrors the api-worker faucet drip target
+// (`APPROVAL_GAS_ETH_TARGET`) so the frontend requests a top-up exactly when
+// the worker would drip.
+const MIN_OWNER_ETH_FOR_APPROVE = parseEther('0.005')
+// A manager max-approve sets the allowance to ~uint256 max; treat anything past
+// half of that as "already approved" (matches the worker's gate).
+const REGISTRAR_APPROVED_THRESHOLD = maxUint256 / 2n
 
 interface UseSmartAccountBalancesParams {
   readonly accountAddress: Address | null
@@ -19,6 +35,16 @@ interface UseSmartAccountBalancesResult {
   readonly isLoadingSmartAccountEth: boolean
   readonly stablecoinBalances: StablecoinBalance[]
   readonly isLoadingBalances: boolean
+  /**
+   * True when the EOA owner can't afford the one-time registrar `approve` AND
+   * hasn't approved yet. Drives the auto-fund ETH top-up: the HCA flow is
+   * Warp-sponsored except that approve (a non-sponsorable EOA tx — the mock
+   * tokens have no permit), so the owner needs a little ETH for it exactly
+   * once. Gated on "not yet approved" so an already-approved (max) owner that's
+   * low on ETH doesn't trigger endless top-up requests.
+   */
+  readonly needsApprovalGasTopUp: boolean
+  readonly isLoadingApprovalGasState: boolean
 }
 
 export function useSmartAccountBalances(
@@ -104,10 +130,51 @@ export function useSmartAccountBalances(
       refetchInterval: 30000,
     })
 
+  // EOA approve-gas readiness. Reads the owner's native ETH plus its registrar
+  // allowance for every payment token; needs a top-up only when it can't afford
+  // an approve and hasn't approved yet. Mirrors the api-worker faucet gate.
+  const {
+    data: needsApprovalGasTopUp = false,
+    isLoading: isLoadingApprovalGasState,
+  } = useQuery({
+    queryKey: $qk({
+      $scope: 'wallet',
+      $action: 'approvalGasState',
+      address: ownerAddress,
+    }),
+    queryFn: async () => {
+      if (!ownerAddress) return false
+
+      const [ethBalance, ...allowances] = await Promise.all([
+        getBalance(publicClient, { address: ownerAddress }),
+        ...Object.values(SUPPORTED_TOKENS).map((tokenAddress) =>
+          readContract(publicClient, {
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [ownerAddress, ENS_SEPOLIA_CONTRACTS.ETHRegistrar],
+          }),
+        ),
+      ])
+
+      // Approvals are per-token, so the registrar is only "approved" once every
+      // payment token has a (max) allowance.
+      const hasApprovedRegistrar = allowances.every(
+        (allowance) => allowance >= REGISTRAR_APPROVED_THRESHOLD,
+      )
+
+      return ethBalance < MIN_OWNER_ETH_FOR_APPROVE && !hasApprovedRegistrar
+    },
+    enabled: !!ownerAddress,
+    refetchInterval: 30000,
+  })
+
   return {
     smartAccountEthBalance: smartAccountEthBalance ?? null,
     isLoadingSmartAccountEth,
     stablecoinBalances,
     isLoadingBalances,
+    needsApprovalGasTopUp,
+    isLoadingApprovalGasState,
   }
 }

@@ -37,7 +37,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="X"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'org.telegram':
@@ -47,7 +47,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="Telegram"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'com.discord':
@@ -57,7 +57,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="Discord"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'com.github':
@@ -67,7 +67,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="GitHub"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'com.instagram':
@@ -77,7 +77,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="Instagram"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'com.linkedin':
@@ -87,7 +87,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="LinkedIn"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'xyz.farcaster':
@@ -97,7 +97,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="Farcaster"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'com.reddit':
@@ -107,7 +107,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="Reddit"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     case 'com.youtube':
@@ -117,7 +117,7 @@ const Icon = ({ record }: { record: SocialRecordType }) => {
           alt="YouTube"
           height={16}
           width={16}
-          className="rounded-[2px] h-[16px] w-[16px]"
+          className="rounded-xs h-[16px] w-[16px]"
         />
       )
     default:

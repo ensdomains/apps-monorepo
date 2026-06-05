@@ -8,7 +8,6 @@ import type {
 } from '@rhinestone/sdk/errors'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
-import type { TransactionInfra } from '@/utils/feature-flags'
 import {
   initializeRhinestoneAccount,
   type RhinestoneInitResult,
@@ -38,7 +37,6 @@ interface InitializeAccountInput {
   readonly walletSource: WalletSource
   readonly walletClient?: WalletClient
   readonly paraClient?: ParaClient
-  readonly infrastructure?: TransactionInfra
 }
 
 class AccountInitializationError extends TaggedError(
@@ -76,7 +74,7 @@ function mapRhinestoneConfig(
 export function initializeAccountActor(
   input: InitializeAccountInput,
 ): ResultAsync<AccountInitResult, AccountInitializationError> {
-  const { walletClient, paraClient, infrastructure } = input
+  const { walletClient, paraClient } = input
 
   if (!walletClient && !paraClient) {
     return errAsync(
@@ -93,7 +91,6 @@ export function initializeAccountActor(
     initializeRhinestoneAccount({
       walletClient,
       paraClient,
-      infrastructure,
     }),
     (error) =>
       new AccountInitializationError({
