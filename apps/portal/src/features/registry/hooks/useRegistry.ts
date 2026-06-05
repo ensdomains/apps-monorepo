@@ -26,6 +26,7 @@ export type Registry = {
   labelCount: number
   roleCount: number
   eventCount: number
+  referencedBy: { name: string | null }[]
 }
 
 const getRegistry = ResultFn(async function* ({
@@ -45,6 +46,9 @@ const getRegistry = ResultFn(async function* ({
             labelCount
             roleCount
             eventCount
+            referencedBy {
+              name
+            }
           }
         }
       `,
@@ -67,58 +71,4 @@ export const getRegistryQueryOptions = (params: GetRegistryParameters) =>
   resultQueryOptions({
     queryKey: getRegistryQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getRegistry(params),
-  })
-
-class GetRegistryReferencedByError extends TaggedError(
-  'GetRegistryReferencedByError',
-)<{
-  cause: ClientError
-}> {}
-
-/**
- * Full ENS names whose current subregistry pointer is this registry — the
- * indexer's `RegistryInfo.referencedBy` relation (reverse of
- * `Domain.subregistry`), resolved server-side. Replaces the previous log-scan +
- * labelhash-matching + `multicall` lookup. Unnamed (unnormalized) domains are
- * dropped — there's nothing to render or link.
- */
-const getRegistryReferencedBy = ResultFn(async function* ({
-  address,
-}: GetRegistryParameters) {
-  const { registry } = yield* fromPromise(
-    graphqlIndexerClient.request<{
-      registry: { referencedBy: { name: string | null }[] } | null
-    }>(
-      gql`
-        query getRegistryReferencedBy($address: String!) {
-          registry(address: $address) {
-            referencedBy {
-              name
-            }
-          }
-        }
-      `,
-      { address: address.toLowerCase() },
-    ),
-    (e) => new GetRegistryReferencedByError({ cause: e as ClientError }),
-  )
-
-  const names = (registry?.referencedBy ?? [])
-    .map((domain) => domain.name)
-    .filter((name): name is string => !!name)
-
-  return ok(names)
-})
-
-const referencedByQueryKey = createQueryKey<
-  'registry-referenced-by',
-  GetRegistryParameters
->('registry-referenced-by')
-
-export const getRegistryReferencedByQueryOptions = (
-  params: GetRegistryParameters,
-) =>
-  resultQueryOptions({
-    queryKey: referencedByQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistryReferencedBy(params),
   })

@@ -18,10 +18,7 @@ import { SoonBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
-import {
-  getRegistryQueryOptions,
-  getRegistryReferencedByQueryOptions,
-} from '@/features/registry/hooks/useRegistry'
+import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -55,15 +52,6 @@ function RouteComponent() {
       !!registry?.parentRegistry &&
       !isAddressEqual(registry.parentRegistry, zeroAddress),
   })
-  const {
-    data: referencedBy,
-    isLoading: isLoadingReferencedBy,
-    error: referencedByError,
-  } = useQuery({
-    ...getRegistryReferencedByQueryOptions({ address }),
-    enabled: !!registry,
-  })
-
   // Owner of this registry's ENS name — used for the Deployed badge so it
   // matches the Created badge on /$name/registry exactly.
   const {
@@ -105,6 +93,10 @@ function RouteComponent() {
   const deployedDate = registry.createdAt
     ? formatTimestampDate(registry.createdAt)
     : null
+
+  const referencedByNames = registry.referencedBy
+    .map((domain) => domain.name)
+    .filter((name): name is string => !!name)
 
   return (
     <div className="flex flex-col gap-8 p-4 sm:p-10 w-full max-w-360 mx-auto">
@@ -203,27 +195,15 @@ function RouteComponent() {
 
           <dt className="text-muted-foreground">Referenced by</dt>
           <dd className="flex flex-wrap items-center gap-2">
-            {match({ isLoadingReferencedBy, referencedByError })
-              .with({ isLoadingReferencedBy: true }, () => (
-                <Skeleton className="h-5 w-32" />
+            {referencedByNames.length > 0 ? (
+              referencedByNames.map((name) => (
+                <EntityBadge key={name} variant="name" name={name} showAvatar>
+                  {name}
+                </EntityBadge>
               ))
-              .with({ referencedByError: P.not(null) }, () => <FailedToLoad />)
-              .otherwise(() =>
-                referencedBy && referencedBy.length > 0 ? (
-                  referencedBy.map((name) => (
-                    <EntityBadge
-                      key={name}
-                      variant="name"
-                      name={name}
-                      showAvatar
-                    >
-                      {name}
-                    </EntityBadge>
-                  ))
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                ),
-              )}
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
           </dd>
         </dl>
 
