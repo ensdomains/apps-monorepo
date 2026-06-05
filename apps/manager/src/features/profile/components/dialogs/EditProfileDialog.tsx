@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor } from 'xstate'
@@ -17,6 +17,7 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import type { ProfileRecords } from '../../types'
 import { createDiff } from '../../utils/createDiff'
+import { normalizeProfileRecords } from '../../utils/transformRecords'
 import { useAppForm } from '../form'
 import {
   RecordsValidationError,
@@ -27,6 +28,7 @@ import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
+import { getLinkValidationIssues } from './EditProfileLinksTab.validation'
 
 interface ProfileEditForm {
   readonly reset: (records: ProfileRecords) => void
@@ -131,6 +133,8 @@ export const EditProfileDialog = ({
     dialogActor,
     (state) => state.context.ethAddressChanged,
   )
+  const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
+    useState(false)
 
   const form = useAppForm({
     defaultValues: records,
@@ -172,6 +176,7 @@ export const EditProfileDialog = ({
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
+      setHasDraftLinkValidationIssues(false)
       form.reset(records)
       dialogActor.send({ type: 'OPEN', records })
       return
@@ -181,6 +186,7 @@ export const EditProfileDialog = ({
       return
     }
 
+    setHasDraftLinkValidationIssues(false)
     dialogActor.send({ type: 'CLOSE' })
   }
 
@@ -229,11 +235,11 @@ export const EditProfileDialog = ({
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button className="w-full" type="button">
-          <Trans>Edit Profile (New)</Trans>
+          <Trans>Edit Profile</Trans>
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="h-[min(90dvh,739px)] w-[min(92vw,800px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-[12px] border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-[800px]"
+        className="h-[min(90dvh,739px)] w-[min(92vw,800px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-xl border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-200"
         overlayClassName="bg-black/20 backdrop-blur-[2px]"
         showCloseButton={false}
       >
@@ -245,8 +251,12 @@ export const EditProfileDialog = ({
             })}
           >
             {({ canSubmit, values }) => {
-              const diff = createDiff(savedRecords, values)
+              const submittedValues = normalizeProfileRecords(values)
+              const diff = createDiff(savedRecords, submittedValues)
               const hasChanges = Object.keys(diff).length > 0
+              const hasLinkValidationIssues =
+                getLinkValidationIssues(values.links).length > 0 ||
+                hasDraftLinkValidationIssues
               const handleBaseChange = (base: ProfileRecords['base']) => {
                 resetSaveState()
                 form.setFieldValue('base', base)
@@ -261,6 +271,10 @@ export const EditProfileDialog = ({
                 resetSaveState()
                 form.setFieldValue('social', social)
               }
+              const handleLinksChange = (links: ProfileRecords['links']) => {
+                resetSaveState()
+                form.setFieldValue('links', links)
+              }
 
               return (
                 <Tabs
@@ -270,14 +284,20 @@ export const EditProfileDialog = ({
                 >
                   <EditProfileDialogHeader
                     avatarUrl={values.base.avatar}
-                    canSave={hasChanges && canSubmit}
+                    canSave={
+                      hasChanges && canSubmit && !hasLinkValidationIssues
+                    }
                     name={name}
-                    onSave={() => handleSave(values)}
+                    onSave={() => handleSave(submittedValues)}
                   />
                   <EditProfileDialogTabs
                     name={name}
                     onBaseChange={handleBaseChange}
                     onContactChange={handleContactChange}
+                    onDraftLinkValidationIssuesChange={
+                      setHasDraftLinkValidationIssues
+                    }
+                    onLinksChange={handleLinksChange}
                     onSocialChange={handleSocialChange}
                     owner={owner}
                     values={values}

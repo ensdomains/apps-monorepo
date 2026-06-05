@@ -107,6 +107,7 @@ function PageContent() {
     .with('pricing', () => <RenewPricingStep />)
     .with(
       P.union(
+        'ensuringHcaDeployed',
         'submittingTokenApproval',
         'waitingForTokenApproval',
         'submittingRenewal',

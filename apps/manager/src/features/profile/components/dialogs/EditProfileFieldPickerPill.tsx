@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 interface EditProfileFieldPickerPillProps {
   readonly active: boolean
   readonly disabled?: boolean
-  readonly icon?: ReactNode
+  readonly icon: ReactNode
   readonly label: string
   readonly onClick: () => void
 }
