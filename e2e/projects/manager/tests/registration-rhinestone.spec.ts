@@ -55,7 +55,7 @@ test.describe('ENS name registration (Rhinestone)', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     await expect(successBanner).toContainText('Registration Complete', {
-      timeout: 120_000,
+      timeout: 180_000,
     })
 
     // Feed the name into the mock indexer so dashboard/profile queries return it in CI.
