@@ -14,7 +14,7 @@
     "pretypecheck": "pnpm --filter api-worker run build:types",
     "typecheck": "tsgo --noEmit",
     "storybook:dev": "storybook dev -p 6006",
-    "storybook:build": "pnpm i18n:compile && storybook build",
+    "storybook:build": "storybook build",
     "i18n:extract": "lingui extract",
     "i18n:compile": "lingui compile",
     "i18n:push": "crowdin upload sources --config crowdin.yml",
