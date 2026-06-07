@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import type { PremiumLabel } from '@/features/register/utils'
 import { getByteLength } from '@/utils/domain'
 import { PricingDomainHeader } from './PricingDomainHeader'
