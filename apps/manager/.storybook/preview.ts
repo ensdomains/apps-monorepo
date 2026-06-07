@@ -3,16 +3,10 @@ import { I18nProvider } from '@lingui/react'
 import type { Preview } from '@storybook/tanstack-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import '../src/styles/index.css'
+import { loadCatalog } from '@/lib/locale.js'
+import '@/styles/index.css'
 
-const messages = await import('../src/locales/en/messages.js')
-  .then((m) => m.default.messages)
-  .catch(() => {
-    console.error('Failed to load messages for en locale')
-    return {}
-  })
-
-i18n.loadAndActivate({ locale: 'en', messages })
+await loadCatalog('en')
 
 const createStoryQueryClient = () =>
   new QueryClient({
