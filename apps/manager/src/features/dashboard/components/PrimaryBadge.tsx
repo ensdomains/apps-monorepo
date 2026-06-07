@@ -12,7 +12,7 @@ type PrimaryBadgeProps = {
 export const PrimaryBadge = ({ label, className }: PrimaryBadgeProps) => (
   <div
     className={cn(
-      'inline-flex items-center gap-[8px] rounded-[73px] bg-ens-white px-[6.5px] py-[3.3px]',
+      'inline-flex items-center gap-2 rounded-[73px] bg-ens-white px-[6.5px] py-[3.3px]',
       className,
     )}
   >
@@ -20,7 +20,7 @@ export const PrimaryBadge = ({ label, className }: PrimaryBadgeProps) => (
       {label ?? <Trans>Primary Name</Trans>}
     </span>
     <div className="flex size-[13px] items-center justify-center rounded-full bg-ens-blue">
-      <Check className="size-[8px] text-ens-white" strokeWidth={4} />
+      <Check className="size-2 text-ens-white" strokeWidth={4} />
     </div>
   </div>
 )

@@ -1,6 +1,5 @@
 import { vi } from 'vitest'
 
-vi.stubEnv('VITE_PIMLICO_API_KEY', 'test-pimlico-key')
 vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
 // Tests target the smart-account flow; pin the EOA-only flag to false so it
 // doesn't bypass the Rhinestone path under test.

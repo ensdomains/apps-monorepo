@@ -8,33 +8,17 @@
  * discussion on https://github.com/ensdomains/apps-monorepo/pull/751
  * for the rationale.
  *
- * Re-exports stay explicit (`initializeRhinestoneAccount`,
- * `RhinestoneStoredSession`, …) rather than going through a generic
- * `SmartAccountProvider` interface; we'll introduce that contract
- * once we actually have a second provider and know what the seam
- * needs to look like.
+ * The HCA account model is session-less: the ENS ownership validator
+ * authorizes every Intent, so there is no smart-session lifecycle to
+ * export here (see `initialize-account.ts`).
  */
 
 export {
+  deployRhinestoneAccountCore,
   type InitializeRhinestoneAccountParams,
   type InitProgressStage,
   initializeRhinestoneAccount,
+  initializeRhinestoneAccountCore,
   type RhinestoneInitConfig,
   type RhinestoneInitResult,
-  type SmartAccountInfrastructure,
 } from './initialize-account'
-export {
-  type BuildRegistrationSessionActionsParams,
-  buildRegistrationSessionActions,
-  REGISTRATION_SESSION_VALIDITY_SECONDS,
-} from './registration-policy'
-export {
-  type CreateRhinestoneSessionParams,
-  createRhinestoneSession,
-  type RestoreRhinestoneSessionParams,
-  restoreRhinestoneSession,
-} from './session'
-export {
-  isRhinestoneSession,
-  type RhinestoneStoredSession,
-} from './types'

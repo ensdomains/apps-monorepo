@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react'
-import { type MaterialSymbol, MSymbol } from '@/components/ui/material-symbol'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
 import type { ProfileRecords, TextRecordValue } from '../../types'
@@ -9,23 +9,12 @@ import {
   useEditProfileVisibleFields,
 } from './EditProfileDialog.context'
 import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
+import {
+  type GeneralField,
+  generalShortcuts,
+  getTextRecordValue,
+} from './EditProfileGeneralTab.fields'
 import { ImageSelectionDialog } from './ImageSelectionDialog'
-import { UpdateStatusPanel } from './UpdateStatusPanel'
-
-const generalShortcuts = [
-  { field: 'avatar', label: 'Profile picture', symbol: 'face' },
-  { field: 'header', label: 'Header', symbol: 'wall_art' },
-  { field: 'description', label: 'Description', symbol: 'text_ad' },
-  { field: 'location', label: 'Location', symbol: 'add_location_alt' },
-  { field: 'timezone', label: 'Timezone', symbol: 'captive_portal' },
-  { field: 'language', label: 'Language', symbol: 'language' },
-] as const satisfies readonly {
-  field: string
-  label: string
-  symbol: MaterialSymbol
-}[]
-
-export type GeneralField = (typeof generalShortcuts)[number]['field']
 
 type BaseGeneralField =
   | 'avatar'
@@ -34,24 +23,17 @@ type BaseGeneralField =
   | 'description'
   | 'language'
 
-const timezoneOptions = Array.from({ length: 27 }, (_, index) => {
+const timezoneSelectOptions = Array.from({ length: 27 }, (_, index) => {
   const offset = index - 12
-  return `UTC${offset >= 0 ? `+${offset}` : offset}`
+  const value = `UTC${offset >= 0 ? `+${offset}` : offset}`
+  return { label: value, value }
 })
-
-const timezoneSelectOptions = timezoneOptions.map((value) => ({
-  label: value,
-  value,
-}))
 
 const languageOptions = Object.entries(LOCALES)
   .map(([value, label]) => ({ label, value }))
   .sort((languageA, languageB) =>
     languageA.label.localeCompare(languageB.label),
   )
-
-const getTextRecordValue = (records: readonly TextRecordValue[], key: string) =>
-  records.find((record) => record.key === key)?.value ?? ''
 
 const setTextRecordValue = (
   records: readonly TextRecordValue[],
@@ -114,29 +96,6 @@ const SelectField = ({
   )
 }
 
-export const getDefaultVisibleFields = (
-  records: ProfileRecords,
-): ReadonlySet<GeneralField> =>
-  new Set(
-    generalShortcuts
-      .map(({ field }) => field)
-      .filter((field) => {
-        if (
-          field === 'avatar' ||
-          field === 'header' ||
-          field === 'description'
-        ) {
-          return true
-        }
-
-        if (field === 'location' || field === 'timezone') {
-          return getTextRecordValue(records.contact, field).trim() !== ''
-        }
-
-        return (records.base[field] ?? '').trim() !== ''
-      }),
-  )
-
 interface EditProfileGeneralTabProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
@@ -150,8 +109,7 @@ export const EditProfileGeneralTab = ({
   onContactChange,
   values,
 }: EditProfileGeneralTabProps) => {
-  const { errorMessage, isSaving, isSuccess, txHash } =
-    useEditProfileDialogStatus()
+  const { isSaving } = useEditProfileDialogStatus()
   const visibleFields = useEditProfileVisibleFields()
   const { toggleField } = useEditProfileDialogActions()
   const isVisible = (field: GeneralField) => visibleFields.has(field)
@@ -184,14 +142,6 @@ export const EditProfileGeneralTab = ({
           )
         })}
       </div>
-
-      <UpdateStatusPanel
-        errorMessage={errorMessage}
-        hasValidationIssues={false}
-        isSaving={isSaving}
-        isSuccess={isSuccess}
-        txHash={txHash}
-      />
 
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (

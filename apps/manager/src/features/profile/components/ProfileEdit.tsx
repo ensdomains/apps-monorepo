@@ -24,8 +24,6 @@ import {
   transformToServiceFormat,
 } from '../utils/transformRecords'
 import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
-// Hidden for alpha - users don't need to change the resolver
-// import { UpdateResolverDialog } from './dialogs/UpdateResolverDialog'
 import { useAppForm } from './form'
 import {
   handleProfileFormSubmit,
@@ -172,11 +170,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
         <div className="space-y-4 md:col-span-5 lg:col-span-4">
           <ThemeSection form={form} />
           <WalletAddressesSection form={form} />
-          {/* <UpdateResolverDialog
-            currentResolver={resolverAddress}
-            name={name}
-            onUpdated={refetchRecords}
-          /> */}
           <SetPrimaryNameDialog
             name={name}
             onUpdated={refetchRecords}
