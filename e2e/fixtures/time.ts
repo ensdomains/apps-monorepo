@@ -72,6 +72,17 @@ export const createTime = ({ page }: Dependencies) => {
       console.log(`[time] syncFixed — browser clock fixed at ${time.toISOString()}`)
     },
 
+    /**
+     * Resume the fake clock so timers tick at real speed.
+     * Call this after makeV2Name to unfreeze setTimeout/setInterval
+     * before the test body interacts with the app.
+     */
+    resume: async () => {
+      if (clockInstalled) {
+        await page.clock.resume()
+      }
+    },
+
     /** Log the current anvil block timestamp (debug helper). */
     logBlockTime: async () => {
       const block = await publicClient.getBlock()

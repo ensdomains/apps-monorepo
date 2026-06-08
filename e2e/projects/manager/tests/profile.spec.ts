@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { test } from '../../../fixtures/playwright.manager.fixture.js'
+import { test, authorizeTransaction, authorizeTransactions } from '../../../fixtures/playwright.manager.fixture.js'
 import {
     ensureProfilePillField,
     goToEditProfile,
@@ -15,8 +15,9 @@ test.describe('ENS profile', () => {
     test.describe.configure({ timeout: 300_000 })
 
     test('add lots of records to profile', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
+        wallet,
     }) => {
         const name = await makeV2Name({ label: 'profileadd' })
         console.log(`[profile] name for add-records test: ${name}`)
@@ -68,14 +69,16 @@ test.describe('ENS profile', () => {
         await addLinkPanel.getByRole('button', { name: 'Add', exact: true }).click()
 
         await saveProfileChanges(page)
+        await authorizeTransaction(wallet)
         await waitForProfileUpdated(page)
 
         console.log(`[profile] ✅ Add lots of records succeeded for ${name}`)
     })
 
     test('remove records from profile', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
+        wallet,
     }) => {
         const name = await makeV2Name({ label: 'profilerem' })
         console.log(`[profile] name for remove-records test: ${name}`)
@@ -95,6 +98,7 @@ test.describe('ENS profile', () => {
         await page.getByLabel('Email Address').fill('remove@example.com')
 
         await saveProfileChanges(page)
+        await authorizeTransaction(wallet)
         await waitForProfileUpdated(page)
 
         // Navigate to view profile, wait for it to settle, then go into edit
@@ -109,6 +113,7 @@ test.describe('ENS profile', () => {
         await page.getByRole('button', { name: /^Email Address\b/ }).click()
 
         await saveProfileChanges(page)
+        await authorizeTransaction(wallet)
         await waitForProfileUpdated(page)
 
         // Verify they are gone on the view profile page
@@ -120,7 +125,7 @@ test.describe('ENS profile', () => {
     })
 
     test('shows validation errors for invalid records', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
     }) => {
         const name = await makeV2Name({ label: 'profileval' })
@@ -287,8 +292,9 @@ test.describe('ENS profile', () => {
     })
 
     test('extend owned name by 28 days', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
+        wallet,
     }) => {
         const name = await makeV2Name({ label: 'extendowned' })
         console.log(`[profile] name for extend-owned test: ${name}`)
@@ -298,13 +304,18 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        const expiry = await renewFor28Days(page)
+        // renewFor28Days triggers approve USDC + renew = 2 transactions
+        const [expiry] = await Promise.all([
+            renewFor28Days(page),
+            authorizeTransactions(wallet, 2),
+        ])
         console.log(`[profile] ✅ Extend owned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
 
     test('extend unowned name by 28 days', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
+        wallet,
     }) => {
         const name = await makeV2Name({ label: 'extendunowned', owner: 'other' })
         console.log(`[profile] name for extend-unowned test: ${name}`)
@@ -317,7 +328,11 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        const expiry = await renewFor28Days(page)
+        // renewFor28Days triggers approve USDC + renew = 2 transactions
+        const [expiry] = await Promise.all([
+            renewFor28Days(page),
+            authorizeTransactions(wallet, 2),
+        ])
         console.log(`[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
 })

@@ -4,13 +4,20 @@ import type { Page } from '@playwright/test'
 import { test as base } from '@playwright/test'
 import { config as loadEnv } from 'dotenv'
 import type { Address, Hash } from 'viem'
-import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
 import { bytesToHex } from 'viem'
+import { mnemonicToAccount, nonceManager, privateKeyToAccount } from 'viem/accounts'
+import { sepolia } from 'viem/chains'
+import {
+  injectHeadlessWeb3Provider,
+  type Web3ProviderBackend,
+} from '@ensdomains/headless-web3-provider'
 import {
   authenticateWithPara,
   dismissBackendAuthModal,
   signInBackendAuthModal,
 } from '../helpers/para-auth.js'
+import { connectWithHeadlessWalletManager } from '../helpers/manager-auth.js'
+import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import { createMakeName } from './makeName.js'
 import { createMakeV2Name, type V2NameConfig } from './makeV2Name.js'
@@ -22,17 +29,23 @@ loadEnv({ path: path.resolve(__dirname, '..', '.env') })
 
 const PARA_EMAIL = process.env.PARA_E2E_EMAIL ?? 'test1@test.getpara.com'
 const PARA_PIN = process.env.PARA_E2E_PIN ?? '123456'
+const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
+
+const localSepolia = {
+  ...sepolia,
+  rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
+} as const
 
 // ---------------------------------------------------------------------------
-// Anvil accounts (for makeName fixture — registers names directly on-chain)
+// Accounts — derived from the default Anvil mnemonic
 // ---------------------------------------------------------------------------
 const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
+const ACCOUNT_USERS = ['user', 'user2', 'user3', 'user4'] as const
 
-function createAnvilAccounts() {
-  const users = ['user', 'user2', 'user3', 'user4'] as const
-  const { addresses, privateKeys } = users.reduce<{
-    addresses: Address[]
+export function createAccounts(): PortalAccounts {
+  const { accountList, privateKeys } = ACCOUNT_USERS.reduce<{
+    accountList: { address: Address }[]
     privateKeys: Hash[]
   }>(
     (acc, _, index) => {
@@ -40,23 +53,24 @@ function createAnvilAccounts() {
         addressIndex: index,
       })
       const pk = bytesToHex(getHdKey().privateKey!) as Hash
-      const account = privateKeyToAccount(pk)
+      const account = privateKeyToAccount(pk, { nonceManager })
       return {
-        addresses: [...acc.addresses, account.address],
+        accountList: [...acc.accountList, account],
         privateKeys: [...acc.privateKeys, pk],
       }
     },
-    { addresses: [], privateKeys: [] },
+    { accountList: [], privateKeys: [] },
   )
 
   return {
     getAddress: (user: string = 'user'): Address => {
-      const index = users.indexOf(user as (typeof users)[number])
+      const index = ACCOUNT_USERS.indexOf(user as (typeof ACCOUNT_USERS)[number])
       if (index < 0) throw new Error(`User not found: ${user}`)
-      return addresses[index]
+      return accountList[index].address
     },
+    getAllPrivateKeys: () => privateKeys,
     getPrivateKey: (user: string = 'user'): Hash => {
-      const index = users.indexOf(user as (typeof users)[number])
+      const index = ACCOUNT_USERS.indexOf(user as (typeof ACCOUNT_USERS)[number])
       if (index < 0) throw new Error(`User not found: ${user}`)
       return privateKeys[index]
     },
@@ -64,9 +78,8 @@ function createAnvilAccounts() {
 }
 
 // ---------------------------------------------------------------------------
-// Fixtures
+// Para EOA address (used by the Para-flavoured makeV2Name variant)
 // ---------------------------------------------------------------------------
-/** Para test account EOA address (matches makeV2Name.ts). */
 const PARA_EOA_ADDRESS = (() => {
   const key =
     (process.env.ANVIL_PARA_PRIVATE_KEY ??
@@ -77,43 +90,55 @@ const PARA_EOA_ADDRESS = (() => {
 // Shared indexer mock — active only when E2E_MOCK_INDEXER=true.
 const indexerMock = createIndexerMock()
 
+// ---------------------------------------------------------------------------
+// Fixture types
+// ---------------------------------------------------------------------------
 type ManagerFixtures = {
+  // ── Headless wallet (default) ─────────────────────────────────────────────
+  /** Test accounts derived from the Anvil mnemonic. */
+  accounts: PortalAccounts
+  /** Headless web3 wallet backend — use to authorize transactions. */
+  wallet: Web3ProviderBackend
+  /**
+   * Page with the headless wallet injected and connected to the manager app.
+   * This is the default authenticated page for new tests.
+   */
+  connectedPage: Page
+
+  // ── Para wallet (legacy, kept until headless tests are complete) ──────────
   /**
    * Page authenticated via Para email+OTP, with the EnableSessions
    * modal clicked through and the BackendAuthModal **dismissed**
    * (skip-for-now). Suitable for tests that only need Para auth + SCA
-   * setup. Notification/favorites/anything gated by
-   * `RequireBackendAuth` should use `authenticatedPageWithBackend`
-   * instead.
+   * setup.
    */
   authenticatedPage: Page
   /**
    * Same as `authenticatedPage` but completes the BackendAuthModal
-   * SIWE prompt (signs in with the connected wallet) instead of
-   * dismissing it. Required for tests that touch backend-gated
-   * features: notification settings, favorites, anything under
-   * `/notifications/_authenticated`.
-   *
-   * Note: this hits the deployed Cloudflare worker (no local SIWE
-   * stack), so flakes from the worker propagate here. Tests that
-   * don't need backend state should stay on `authenticatedPage`.
+   * SIWE prompt instead of dismissing it. Required for backend-gated
+   * features: notification settings, favorites, etc.
    */
   authenticatedPageWithBackend: Page
+
+  // ── Shared fixtures ───────────────────────────────────────────────────────
   /** Time fixture for syncing anvil block time with the browser clock. */
   time: Time
   /** Register names on the anvil fork (supports expired / premium states). */
   makeName: ReturnType<typeof createMakeName>
   /**
-   * Register a V2 .eth name on-chain to the authenticated user's smart account.
-   * Much faster than `registerName` (contract calls vs UI flow).
-   * Each name gets a dedicated resolver proxy so profile editing works.
-   * When E2E_MOCK_INDEXER=true, registered names are automatically fed
-   * into the mock so dashboard/profile queries return them.
+   * Register a V2 .eth name on-chain to the connected **headless** user
+   * (Anvil account 0). This is the default variant.
+   * When E2E_MOCK_INDEXER=true, registered names are fed into the mock.
    */
   makeV2Name: (config: V2NameConfig) => Promise<string>
   /**
-   * Register a fresh .eth name via the UI registration flow. The authenticated
-   * Para user becomes the owner. Returns the full name.
+   * Register a V2 .eth name on-chain to the **Para EOA**.
+   * Legacy variant kept for Para-authenticated tests.
+   */
+  makeV2NamePara: (config: V2NameConfig) => Promise<string>
+  /**
+   * Register a fresh .eth name via the UI registration flow.
+   * The authenticated Para user becomes the owner.
    */
   registerName: (labelPrefix: string) => Promise<string>
   /**
@@ -126,38 +151,19 @@ type ManagerFixtures = {
   }
 }
 
-/**
- * Shared Para+EnableSessions setup. Runs the email+OTP flow, then
- * clicks through the EnableSessions modal if it appears. Stops short
- * of the BackendAuthModal so individual fixtures can choose whether
- * to dismiss it (default) or complete the SIWE sign-in.
- */
+// ---------------------------------------------------------------------------
+// Para auth helpers
+// ---------------------------------------------------------------------------
 async function setupAuthenticatedPage(page: Page): Promise<void> {
   const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
   await page.goto(baseURL)
-  // Brief wait for app initialisation; cap at 5 s so HMR websocket doesn't block
   await Promise.race([
     page.waitForLoadState('networkidle'),
     page.waitForTimeout(5_000),
   ]).catch(() => {})
 
-  await authenticateWithPara(page, {
-    email: PARA_EMAIL,
-    pin: PARA_PIN,
-  })
+  await authenticateWithPara(page, { email: PARA_EMAIL, pin: PARA_PIN })
 
-  // The smart account initialises asynchronously after Para auth.
-  // When Rhinestone sessions are enabled, an "Enable Smart Sessions"
-  // modal appears that CANNOT be dismissed — the user must click
-  // "Enable Sessions".  We wait for it to appear, click through it,
-  // and then wait for the overlay to fully close.
-  //
-  // Note: EnableSessionModal uses Radix `Dialog`, so its overlay is
-  // `dialog-overlay`. The matching wait below targets that exact
-  // slot — `alert-dialog-overlay` would belong to the BackendAuth
-  // dialog instead and would never appear at this stage of the flow
-  // (the BackendAuthModal is gated on the session prompt being
-  // settled — see apps/manager/.../BackendAuthModal.tsx).
   const enableBtn = page.getByRole('button', { name: /enable sessions/i })
   try {
     await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
@@ -171,68 +177,125 @@ async function setupAuthenticatedPage(page: Page): Promise<void> {
   }
 }
 
-/**
- * Playwright-native fixture with an `authenticatedPage` that handles
- * Para wallet login using frameLocator() + native shadow DOM piercing,
- * plus `time` and `makeName` for chain-level test setup.
- */
+// ---------------------------------------------------------------------------
+// Fixture definitions
+// ---------------------------------------------------------------------------
 export const test = base.extend<ManagerFixtures>({
   // Install mock indexer on every page when E2E_MOCK_INDEXER=true.
-  // This prevents connection-refused errors in CI where Panoptes isn't running.
   page: async ({ page }, use) => {
     await indexerMock.installIfEnabled(page)
     await use(page)
   },
 
-  authenticatedPage: async ({ page }, use) => {
-    await setupAuthenticatedPage(page)
+  // ── Headless wallet fixtures ──────────────────────────────────────────────
 
-    // After the smart account becomes ready, the app shows a
-    // BackendAuthModal ("Verify your wallet" / SIWE) that blocks
-    // pointer events on the rest of the page. On a fresh Anvil fork
-    // the SCA-ready state can arrive 30-60 s after Para auth, so we
-    // give the modal a generous window to appear. We skip rather
-    // than complete the SIWE flow because the backend API worker is
-    // not part of the e2e infra stack — see `dismissBackendAuthModal`
-    // for the rationale. Tests that need backend auth (notifications,
-    // favorites, anything under `/notifications/_authenticated`)
-    // should use `authenticatedPageWithBackend` instead.
+  accounts: async ({}, use) => {
+    await use(createAccounts())
+  },
+
+  wallet: async ({ page, accounts }, use) => {
+    const privateKeys = accounts.getAllPrivateKeys()
+    const wallet = await injectHeadlessWeb3Provider({
+      page,
+      privateKeys,
+      chains: [localSepolia],
+    })
+    await use(wallet)
+  },
+
+  connectedPage: async ({ page, wallet, accounts: _accounts }, use) => {
+    // Para's external wallet config uses `wallets: ['METAMASK']` with
+    // `connectionOnly: true`. It detects MetaMask by checking
+    // `window.ethereum.isMetaMask`. Patching that flag after the headless
+    // provider's init script runs makes Para treat the headless wallet as
+    // a MetaMask-compatible provider and show it in the connect modal.
+    await page.addInitScript(() => {
+      const patch = () => {
+        if ((globalThis as any).ethereum) {
+          ;(globalThis as any).ethereum.isMetaMask = true
+        }
+      }
+      if (document.readyState === 'loading') {
+        globalThis.addEventListener('DOMContentLoaded', patch)
+      } else {
+        patch()
+      }
+    })
+
+    const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
+    await page.goto(baseURL)
+    await Promise.race([
+      page.waitForLoadState('networkidle'),
+      page.waitForTimeout(5_000),
+    ]).catch(() => {})
+
+    await connectWithHeadlessWalletManager(page, wallet)
+
+    // Dismiss the BackendAuthModal ("Verify your wallet") that appears after
+    // connection. Same as authenticatedPage — tests that need backend features
+    // should use a variant that completes SIWE instead.
     await dismissBackendAuthModal(page)
 
     await use(page)
   },
 
-  authenticatedPageWithBackend: async ({ page }, use) => {
+  // ── Para wallet fixtures (legacy) ─────────────────────────────────────────
+
+  authenticatedPage: async ({ page }, use) => {
     await setupAuthenticatedPage(page)
-
-    // Complete the SIWE flow against the deployed backend worker.
-    // Adds external-flake exposure to the deployed Cloudflare worker
-    // — only use this for tests that genuinely need backend-gated
-    // state (RequireBackendAuth, FavoriteButton, etc).
-    await signInBackendAuthModal(page)
-
+    await dismissBackendAuthModal(page)
     await use(page)
   },
+
+  authenticatedPageWithBackend: async ({ page }, use) => {
+    await setupAuthenticatedPage(page)
+    await signInBackendAuthModal(page)
+    await use(page)
+  },
+
+  // ── Shared fixtures ───────────────────────────────────────────────────────
 
   time: async ({ page }, use) => {
     await use(createTime({ page }))
   },
 
-  makeName: async ({ time }, use) => {
-    const accounts = createAnvilAccounts()
+  makeName: async ({ accounts, time }, use) => {
     await use(createMakeName({ accounts, time }))
   },
 
-  makeV2Name: async ({ time }, use) => {
-    const inner = createMakeV2Name({ time })
+  makeV2Name: async ({ time, accounts }, use) => {
+    const userAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const otherAccount = privateKeyToAccount(accounts.getPrivateKey('user2'))
+    const inner = createMakeV2Name({ time, userAccount, otherAccount })
+
     await use(async (config: V2NameConfig) => {
       const name = await inner(config)
-      // Feed the registered name into the indexer mock so subsequent
-      // page navigations (dashboard, profile) return it in queries.
+      // Unfreeze the browser clock after registration so app timers
+      // (receipt polling, dialog transitions) tick at real speed.
+      await time.resume()
       if (indexerMock.enabled) {
         const ownerAddress =
           config.owner === 'other'
-            ? '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' // Anvil funder
+            ? accounts.getAddress('user2')
+            : accounts.getAddress('user')
+        indexerMock.addName({
+          name,
+          owner: ownerAddress,
+          records: config.records,
+        })
+      }
+      return name
+    })
+  },
+
+  makeV2NamePara: async ({ time }, use) => {
+    const inner = createMakeV2Name({ time })
+    await use(async (config: V2NameConfig) => {
+      const name = await inner(config)
+      if (indexerMock.enabled) {
+        const ownerAddress =
+          config.owner === 'other'
+            ? '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
             : PARA_EOA_ADDRESS
         indexerMock.addName({
           name,
@@ -272,7 +335,6 @@ export const test = base.extend<ManagerFixtures>({
       const successBanner = authenticatedPage.getByText('Registration Complete!')
       await successBanner.waitFor({ state: 'visible', timeout: 90_000 })
 
-      // Navigate back to the dashboard so the test starts from a clean state
       await authenticatedPage.goto(baseURL)
       await authenticatedPage.waitForLoadState('networkidle')
 
@@ -282,3 +344,4 @@ export const test = base.extend<ManagerFixtures>({
 })
 
 export { expect } from '@playwright/test'
+export { authorizeTransaction, authorizeTransactions } from '../helpers/manager-auth.js'

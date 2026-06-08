@@ -133,8 +133,6 @@ export type V1NameConfig = {
   }
 }
 
-// No external dependencies needed — the Para EOA key is built in.
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -156,7 +154,17 @@ type RegistrationStruct = readonly [
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
-export function createMakeV1Name() {
+type MakeV1NameDependencies = {
+  /**
+   * Signing account for the name owner. Defaults to PARA_EOA.
+   * Pass in the headless wallet's account for non-Para fixtures.
+   */
+  userAccount?: ReturnType<typeof privateKeyToAccount>
+}
+
+export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
+  const resolvedUser = deps.userAccount ?? PARA_EOA
+
   /**
    * Register a V1 (legacy, unwrapped) .eth name on the Anvil fork.
    *
@@ -166,10 +174,8 @@ export function createMakeV1Name() {
   return async function makeV1Name(
     config: V1NameConfig,
   ): Promise<string> {
-    // Default: register to the Para EOA so migration UI detects the name.
-    // The Anvil funder sends the ETH for registration on behalf of the EOA.
-    const ownerAddress = PARA_EOA.address
-    const ownerAccount = PARA_EOA
+    const ownerAddress = resolvedUser.address
+    const ownerAccount = resolvedUser
     const timestamp = Math.floor(Date.now() / 1000)
     const uniqueLabel = `${config.label}-${timestamp}`
     const duration = BigInt(config.duration ?? DEFAULT_DURATION)
