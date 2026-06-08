@@ -2103,7 +2103,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:105
+#: src/features/dashboard/pages/DashboardPage.tsx:110
 msgid "Set primary name"
 msgstr ""
 
@@ -2793,7 +2793,7 @@ msgstr ""
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:93
+#: src/features/dashboard/pages/DashboardPage.tsx:98
 msgid "You haven't set a primary name yet."
 msgstr ""
 

@@ -131,13 +131,29 @@ export function resultQueryOptions({
 > {
   const queryFn =
     typeof rawQueryFn === 'function'
-      ? (context: QueryFunctionContext<QueryKey>) =>
-          rawQueryFn(context).match(
+      ? async (context: QueryFunctionContext<QueryKey>) => {
+          // Resolve the Result, catching any *raw* rejection (e.g. a nullish
+          // value thrown inside `safeTry` that never became a neverthrow Err).
+          let result: Result<unknown, ResultError>
+          try {
+            result = await rawQueryFn(context)
+          } catch (thrown) {
+            throw thrown instanceof Error
+              ? thrown
+              : new Error(`Result query rejected: ${String(thrown)}`)
+          }
+          // Never throw a nullish/non-Error value: under `useSuspenseQuery` it
+          // would surface as an opaque `Uncaught undefined` at the error
+          // boundary. Always throw a diagnosable Error.
+          return result.match(
             (value) => value,
             (error) => {
-              throw error
+              throw error instanceof Error
+                ? error
+                : new Error(`Result query failed: ${String(error)}`)
             },
           )
+        }
       : rawQueryFn
 
   return {

@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
@@ -35,8 +35,13 @@ export const DashboardPage = () => {
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlag('MIGRATION')
 
-  const { data: reverseName } = useSuspenseQuery({
+  // Non-suspense + non-throwing: the primary-name lookup is display-only, so
+  // an error (or a transient resolver failure for accounts with reverse data)
+  // must not throw into the route's Suspense and crash the dashboard. It
+  // degrades to `undefined` and the UI falls back to `reverseName ?? null`.
+  const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(ownerAddress ?? undefined),
+    enabled: !!ownerAddress,
   })
 
   const { data: reverseRecords } = useQuery({
